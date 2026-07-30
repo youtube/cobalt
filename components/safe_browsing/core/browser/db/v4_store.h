@@ -194,7 +194,6 @@ class V4Store : public SBStore {
                    const scoped_refptr<base::SequencedTaskRunner>& runner,
                    UpdatedStoreReadyCallback callback) override;
 
-  int64_t RecordAndReturnFileSize(const std::string& base_metric) override;
 
   std::string DebugString() const;
 
@@ -249,6 +248,8 @@ class V4Store : public SBStore {
                            TestMergeUpdatesFailsForRepeatedHashPrefix);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest,
                            TestMergeUpdatesFailsWhenRemovalsIndexTooLarge);
+  FRIEND_TEST_ALL_PREFIXES(V4StoreTest,
+                           TestMergeUpdatesFailsWhenRemovalsIndexNegative);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMergeUpdateFastPathWithRemovals);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest, TestMergeUpdateFastPathEmptyLists);
   FRIEND_TEST_ALL_PREFIXES(V4StoreTest,
@@ -521,9 +522,6 @@ class V4Store : public SBStore {
 
   // Records the status of the update being applied to the database.
   ApplyUpdateResult last_apply_update_result_ = APPLY_UPDATE_RESULT_MAX;
-
-  // Records the time when the store was last updated.
-  base::Time last_apply_update_time_millis_;
 
   // The checksum value as read from the disk, until it is verified. Once
   // verified, it is cleared.

@@ -106,6 +106,10 @@ class URLRequestContext;
 class URLRequestContextBuilder;
 }  // namespace net
 
+namespace net::device_bound_sessions {
+struct CookieAccessCheckParams;
+}  // namespace net::device_bound_sessions
+
 namespace certificate_transparency {
 class ChromeRequireCTDelegate;
 }  // namespace certificate_transparency
@@ -130,6 +134,10 @@ class MojoBackendFileOperationsFactory;
 class NetworkService;
 class NetworkServiceNetworkDelegate;
 class P2PSocketManager;
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+class DeviceBoundSessionServiceDelegate;
+#endif
 class PendingTrustTokenStore;
 class PrefetchCache;
 class PrefetchMatchingURLLoaderFactory;
@@ -153,14 +161,13 @@ struct ResourceRequest;
 // NetworkService's mojo interface and are owned jointly by the NetworkService
 // and the mojo::Remote<NetworkContext> used to talk to them, and the
 // NetworkContext is destroyed when either one is torn down.
+class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
+    : public mojom::NetworkContext
 #if BUILDFLAG(ENABLE_REPORTING)
-class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
-    : public mojom::NetworkContext,
-      public net::ReportingCacheObserver {
-#else
-class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
-    : public mojom::NetworkContext {
-#endif  // BUILDFLAG(ENABLE_REPORTING)
+    ,
+      public net::ReportingCacheObserver
+#endif
+{
 
  public:
   using OnConnectionCloseCallback =
@@ -611,6 +618,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       mojo::PendingReceiver<network::mojom::DeviceBoundSessionManager>
           device_bound_session_manager) override;
 
+  bool HasCookieAccessForDeviceBoundSession(
+      const net::device_bound_sessions::CookieAccessCheckParams& params);
+
   void SetTLS13EarlyDataEnabled(bool enabled);
 
   // Destroys |request| when a proxy lookup completes.
@@ -911,6 +921,13 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
 
   std::unique_ptr<domain_reliability::DomainReliabilityMonitor>
       domain_reliability_monitor_;
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  // This must be declared before `url_request_context_owner_` because the
+  // context builder takes a repeating callback referencing it via Unretained.
+  std::unique_ptr<DeviceBoundSessionServiceDelegate>
+      device_bound_session_service_delegate_;
+#endif
 
   // Holds owning pointer to |url_request_context_|. Will contain a nullptr for
   // |url_request_context| when the NetworkContextImpl doesn't own its own

@@ -20,7 +20,6 @@
 #include "ui/compositor/layer.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/views/controls/webview/webview.h"
-#include "ui/views/layout/layout_provider.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 #include "url/gurl.h"
@@ -88,8 +87,9 @@ class DrivePickerHostViewTest : public ChromeViewsTestBase {
 };
 
 TEST_F(DrivePickerHostViewTest, Initialization) {
-  auto view = std::make_unique<DrivePickerHostView>(profile(),
-                                                    browser_window_interface());
+  auto view = std::make_unique<DrivePickerHostView>(
+      profile(), browser_window_interface(),
+      drive_picker_host::DrivePickerHostRequest::RequestType::kPickerUi);
 
   EXPECT_EQ(view->children().size(), 1u);
   EXPECT_FALSE(view->GetBackground());
@@ -102,8 +102,9 @@ TEST_F(DrivePickerHostViewTest, TriggerDrivePickerHostUi) {
   content::ScopedWebUIConfigRegistration registration(
       std::make_unique<MockDrivePickerHostUIConfig>());
 
-  auto view = std::make_unique<DrivePickerHostView>(profile(),
-                                                    browser_window_interface());
+  auto view = std::make_unique<DrivePickerHostView>(
+      profile(), browser_window_interface(),
+      drive_picker_host::DrivePickerHostRequest::RequestType::kPickerUi);
 
   content::WebContents* contents =
       views::AsViewClass<views::WebView>(view->view_tracker_.view())
@@ -128,8 +129,9 @@ TEST_F(DrivePickerHostViewTest, TriggerDrivePickerHostUi) {
 }
 
 TEST_F(DrivePickerHostViewTest, SetsCornerRadiusOnAddedToWidget) {
-  auto view = std::make_unique<DrivePickerHostView>(profile(),
-                                                    browser_window_interface());
+  auto view = std::make_unique<DrivePickerHostView>(
+      profile(), browser_window_interface(),
+      drive_picker_host::DrivePickerHostRequest::RequestType::kPickerUi);
 
   auto widget = std::make_unique<views::Widget>();
   views::Widget::InitParams params(
@@ -147,9 +149,7 @@ TEST_F(DrivePickerHostViewTest, SetsCornerRadiusOnAddedToWidget) {
 
   // Verify that the corner radii were set to 0 (rectangular) on the WebView
   // holder.
-  gfx::RoundedCornersF holder_radii =
-      web_view->holder()->GetUILayer()->rounded_corner_radii();
-  EXPECT_TRUE(holder_radii.IsEmpty());
+  EXPECT_TRUE(web_view->holder()->GetNativeViewCornerRadii().IsEmpty());
 
   // Verify that the corner radii were set to 0 on the view's layer.
   gfx::RoundedCornersF view_radii = view_ptr->layer()->rounded_corner_radii();
@@ -157,8 +157,9 @@ TEST_F(DrivePickerHostViewTest, SetsCornerRadiusOnAddedToWidget) {
 }
 
 TEST_F(DrivePickerHostViewTest, EscapeAcceleratorClosesWidget) {
-  auto view = std::make_unique<DrivePickerHostView>(profile(),
-                                                    browser_window_interface());
+  auto view = std::make_unique<DrivePickerHostView>(
+      profile(), browser_window_interface(),
+      drive_picker_host::DrivePickerHostRequest::RequestType::kPickerUi);
 
   auto widget = std::make_unique<views::Widget>();
   views::Widget::InitParams params(
@@ -175,4 +176,22 @@ TEST_F(DrivePickerHostViewTest, EscapeAcceleratorClosesWidget) {
   view_ptr->AcceleratorPressed(escape_accelerator);
 
   EXPECT_TRUE(widget->IsClosed());
+}
+
+TEST_F(DrivePickerHostViewTest, OpenURLFromTab_ForwardsToBrowserWindow) {
+  auto view = std::make_unique<DrivePickerHostView>(
+      profile(), browser_window_interface(),
+      drive_picker_host::DrivePickerHostRequest::RequestType::kConsentDialog);
+
+  const GURL test_url("https://policies.google.com/terms");
+  content::OpenURLParams params(test_url, content::Referrer(),
+                                WindowOpenDisposition::CURRENT_TAB,
+                                ui::PAGE_TRANSITION_LINK, false);
+
+  EXPECT_CALL(*browser_window_interface(),
+              OpenURL(testing::Field(&content::OpenURLParams::disposition,
+                                     WindowOpenDisposition::NEW_WINDOW),
+                      testing::_));
+
+  view->OpenURLFromTab(view->GetWebContents(), params, base::NullCallback());
 }

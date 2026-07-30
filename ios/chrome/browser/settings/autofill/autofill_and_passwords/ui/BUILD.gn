@@ -18,6 +18,9 @@ source_set("autofill_and_passwords") {
     "identity_docs_mutator.h",
     "identity_docs_table_view_controller.h",
     "identity_docs_table_view_controller.mm",
+    "shopping_consumer.h",
+    "shopping_table_view_controller.h",
+    "shopping_table_view_controller.mm",
     "travel_info_consumer.h",
     "travel_info_mutator.h",
     "travel_info_table_view_controller.h",
@@ -30,6 +33,8 @@ source_set("autofill_and_passwords") {
     "//components/strings",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/authentication/ui_bundled/cells",
+    "//ios/chrome/browser/autofill/model",
+    "//ios/chrome/browser/net/model:crurl",
     "//ios/chrome/browser/settings/autofill/autofill_ai/ui",
     "//ios/chrome/browser/settings/autofill/autofill_and_passwords/utils:autofill_and_passwords_item_utils",
     "//ios/chrome/browser/settings/autofill/utils:autofill_settings_ui_util",
@@ -37,7 +42,6 @@ source_set("autofill_and_passwords") {
     "//ios/chrome/browser/settings/ui_bundled:settings_root",
     "//ios/chrome/browser/settings/ui_bundled:settings_root_categories",
     "//ios/chrome/browser/settings/ui_bundled/autofill:constants",
-    "//ios/chrome/browser/net/model:crurl",
     "//ios/chrome/browser/settings/ui_bundled/elements:enterprise_info_popover_view_controller",
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/list_model",
@@ -54,7 +58,10 @@ source_set("autofill_and_passwords") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "autofill_and_passwords_table_view_controller_unittest.mm" ]
+  sources = [
+    "autofill_and_passwords_table_view_controller_unittest.mm",
+    "autofill_settings_table_view_controller_unittest.mm",
+  ]
   deps = [
     ":autofill_and_passwords",
     "//base",
@@ -67,7 +74,26 @@ source_set("unit_tests") {
     "//ios/chrome/browser/shared/public/features",
     "//ios/chrome/browser/shared/ui/table_view:test_support",
     "//ios/chrome/browser/shared/ui/table_view/cells",
+    "//ios/chrome/browser/shared/ui/table_view/content_configuration",
     "//testing/gtest",
+    "//ui/base",
+  ]
+}
+
+source_set("eg2_tests") {
+  configs += [ "//build/config/ios:xctest_config" ]
+  testonly = true
+  sources = [ "autofill_and_passwords_egtest.mm" ]
+  deps = [
+    "//base",
+    "//ios/chrome/app/strings",
+    "//ios/chrome/browser/authentication/test:eg_test_support+eg2",
+    "//ios/chrome/browser/authentication/ui_bundled/cells:constants",
+    "//ios/chrome/browser/settings/ui_bundled:constants",
+    "//ios/chrome/browser/shared/public/features",
+    "//ios/chrome/browser/signin/model:fake_system_identity",
+    "//ios/chrome/test/earl_grey:eg_test_support+eg2",
+    "//ios/testing/earl_grey:eg_test_support+eg2",
     "//ui/base",
   ]
 }

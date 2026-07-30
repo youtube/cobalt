@@ -749,10 +749,30 @@ TEST_F(HTMLInputElementTest, EmailVerificationIndicator) {
               EmailVerificationState::kVerified);
     EXPECT_EQ(indicator->getAttribute(AtomicString("data-state")), "verified");
 
+    // Setting state to loading.
+    input.SetEmailVerificationState(EmailVerificationState::kLoading);
+    EXPECT_EQ(input.GetEmailVerificationState(),
+              EmailVerificationState::kLoading);
+    EXPECT_EQ(indicator->getAttribute(AtomicString("data-state")), "loading");
+
     // Setting state to none.
     input.SetEmailVerificationState(EmailVerificationState::kNone);
     EXPECT_EQ(input.GetEmailVerificationState(), EmailVerificationState::kNone);
     EXPECT_EQ(indicator->getAttribute(AtomicString("data-state")), "none");
+
+    // Setting state to logged-out-or-unsupported.
+    input.SetEmailVerificationState(
+        EmailVerificationState::kLoggedOutOrUnsupported);
+    EXPECT_EQ(input.GetEmailVerificationState(),
+              EmailVerificationState::kLoggedOutOrUnsupported);
+    EXPECT_EQ(indicator->getAttribute(AtomicString("data-state")),
+              "logged-out-or-unsupported");
+
+    // Setting state to failed.
+    input.SetEmailVerificationState(EmailVerificationState::kFailed);
+    EXPECT_EQ(input.GetEmailVerificationState(),
+              EmailVerificationState::kFailed);
+    EXPECT_EQ(indicator->getAttribute(AtomicString("data-state")), "failed");
   }
 }
 

@@ -35,6 +35,7 @@
 #include "remoting/host/desktop_display_info.h"
 #include "remoting/host/fake_desktop_environment.h"
 #include "remoting/host/fake_host_extension.h"
+#include "remoting/host/fake_terminal_session.h"
 #include "remoting/host/host_extension.h"
 #include "remoting/host/host_extension_session.h"
 #include "remoting/host/host_mock_objects.h"
@@ -117,13 +118,6 @@ MATCHER_P(ScreenIdMatches, expected_id, "") {
   return arg.screen_id() == expected_id;
 }
 
-protocol::MouseEvent MakeMouseMoveEvent(int x, int y) {
-  protocol::MouseEvent result;
-  result.set_x(x);
-  result.set_y(y);
-  return result;
-}
-
 protocol::KeyEvent MakeKeyEvent(bool pressed, std::uint32_t keycode) {
   protocol::KeyEvent result;
   result.set_pressed(pressed);
@@ -190,21 +184,15 @@ class ClientSessionTest : public testing::Test {
   // Fakes display select request from user.
   void NotifySelectDesktopDisplay(std::string id);
 
-  // Convenience methods to setup a single- or double-monitor setup.
+  // Convenience methods to setup the display configuration.
   void ResetDisplayInfo();
   void SetupSingleDisplay();
-  void SetupMultiDisplay();
-  void SetupMultiDisplay_SameSize();
-
-  // When using a multi-mon setup, this fakes the user selecting which display
-  // to show.
-  void MultiMon_SelectFirstDisplay();
-  void MultiMon_SelectSecondDisplay();
-  void MultiMon_SelectAllDisplays();
-  void MultiMon_SelectDisplay(std::string display_id);
-
-  // Return the identifier of the display that's currently selected.
-  webrtc::ScreenId GetSelectedSourceDisplayId();
+  protocol::MouseEvent MakeFractionalMouseMoveEvent(
+      int x,
+      int y,
+      int64_t screen_id = kDisplay1Id,
+      int width = kDisplay1Width,
+      int height = kDisplay1Height);
 
   // Geometry info for displays being tested.
   DesktopDisplayInfo displays_;
@@ -371,59 +359,18 @@ void ClientSessionTest::SetupSingleDisplay() {
   NotifyDesktopDisplaySize(std::move(displays));
 }
 
-// Set up multiple displays:
-// +-----------+
-// |  800x600  |---------------+
-// |     0     |   1024x768    |
-// +-----------+       1       |
-//             |               |
-//             +---------------+
-void ClientSessionTest::SetupMultiDisplay() {
-  ResetDisplayInfo();
-  auto displays = std::make_unique<protocol::VideoLayout>();
-  AddDisplayToLayout(displays.get(), 0, 0, kDisplay1Width, kDisplay1Height,
-                     kDefaultDpi, kDefaultDpi, kDisplay1Id);
-  AddDisplayToLayout(displays.get(), kDisplay1Width, kDisplay2YOffset,
-                     kDisplay2Width, kDisplay2Height, kDefaultDpi, kDefaultDpi,
-                     kDisplay2Id);
-  NotifyDesktopDisplaySize(std::move(displays));
-}
-
-// Set up multiple displays that are the same size:
-// +-----------+
-// |  800x600  |-----------+
-// |     0     |  800x600  |
-// +-----------+     1     |
-//             +-----------+
-void ClientSessionTest::SetupMultiDisplay_SameSize() {
-  ResetDisplayInfo();
-  auto displays = std::make_unique<protocol::VideoLayout>();
-  AddDisplayToLayout(displays.get(), 0, 0, kDisplay1Width, kDisplay1Height,
-                     kDefaultDpi, kDefaultDpi, kDisplay1Id);
-  AddDisplayToLayout(displays.get(), kDisplay1Width, kDisplay2YOffset,
-                     kDisplay1Width, kDisplay1Height, kDefaultDpi, kDefaultDpi,
-                     kDisplay2Id);
-  NotifyDesktopDisplaySize(std::move(displays));
-}
-
-void ClientSessionTest::MultiMon_SelectFirstDisplay() {
-  NotifySelectDesktopDisplay("0");
-}
-
-void ClientSessionTest::MultiMon_SelectSecondDisplay() {
-  NotifySelectDesktopDisplay("1");
-}
-
-void ClientSessionTest::MultiMon_SelectAllDisplays() {
-  NotifySelectDesktopDisplay("all");
-}
-
-void ClientSessionTest::MultiMon_SelectDisplay(std::string display_id) {
-  NotifySelectDesktopDisplay(display_id);
-}
-
-webrtc::ScreenId ClientSessionTest::GetSelectedSourceDisplayId() {
-  return connection_->last_video_stream()->selected_source();
+protocol::MouseEvent ClientSessionTest::MakeFractionalMouseMoveEvent(
+    int x,
+    int y,
+    int64_t screen_id,
+    int width,
+    int height) {
+  protocol::MouseEvent result;
+  auto* fractional = result.mutable_fractional_coordinate();
+  fractional->set_screen_id(screen_id);
+  fractional->set_x(static_cast<float>(x) / width);
+  fractional->set_y(static_cast<float>(y) / height);
+  return result;
 }
 
 TEST_F(
@@ -562,7 +509,8 @@ TEST_F(ClientSessionTest, DisableInputs) {
   // Inject test events that are expected to be injected.
   connection_->clipboard_stub()->InjectClipboardEvent(MakeClipboardEvent("a"));
   connection_->input_stub()->InjectKeyEvent(MakeKeyEvent(true, 1));
-  connection_->input_stub()->InjectMouseEvent(MakeMouseMoveEvent(100, 101));
+  connection_->input_stub()->InjectMouseEvent(
+      MakeFractionalMouseMoveEvent(100, 101));
 
   // Disable input.
   client_session_->SetDisableInputs(true);
@@ -571,13 +519,15 @@ TEST_F(ClientSessionTest, DisableInputs) {
   connection_->clipboard_stub()->InjectClipboardEvent(MakeClipboardEvent("b"));
   connection_->input_stub()->InjectKeyEvent(MakeKeyEvent(true, 2));
   connection_->input_stub()->InjectKeyEvent(MakeKeyEvent(false, 2));
-  connection_->input_stub()->InjectMouseEvent(MakeMouseMoveEvent(200, 201));
+  connection_->input_stub()->InjectMouseEvent(
+      MakeFractionalMouseMoveEvent(200, 201));
 
   // Enable input again.
   client_session_->SetDisableInputs(false);
   connection_->clipboard_stub()->InjectClipboardEvent(MakeClipboardEvent("c"));
   connection_->input_stub()->InjectKeyEvent(MakeKeyEvent(true, 3));
-  connection_->input_stub()->InjectMouseEvent(MakeMouseMoveEvent(300, 301));
+  connection_->input_stub()->InjectMouseEvent(
+      MakeFractionalMouseMoveEvent(300, 301));
 
   client_session_->DisconnectSession(ErrorCode::OK, {}, FROM_HERE);
   client_session_.reset();
@@ -616,7 +566,8 @@ TEST_F(ClientSessionTest, InputAllowedFromRemotePolicy) {
 
   connection_->clipboard_stub()->InjectClipboardEvent(MakeClipboardEvent("a"));
   connection_->input_stub()->InjectKeyEvent(MakeKeyEvent(true, 1));
-  connection_->input_stub()->InjectMouseEvent(MakeMouseMoveEvent(100, 101));
+  connection_->input_stub()->InjectMouseEvent(
+      MakeFractionalMouseMoveEvent(100, 101));
 
   client_session_->DisconnectSession(ErrorCode::OK, {}, FROM_HERE);
   client_session_.reset();
@@ -650,7 +601,8 @@ TEST_F(ClientSessionTest, InputDisabledFromRemotePolicy) {
 
   connection_->clipboard_stub()->InjectClipboardEvent(MakeClipboardEvent("a"));
   connection_->input_stub()->InjectKeyEvent(MakeKeyEvent(true, 1));
-  connection_->input_stub()->InjectMouseEvent(MakeMouseMoveEvent(100, 101));
+  connection_->input_stub()->InjectMouseEvent(
+      MakeFractionalMouseMoveEvent(100, 101));
 
   client_session_->DisconnectSession(ErrorCode::OK, {}, FROM_HERE);
   client_session_.reset();
@@ -669,7 +621,8 @@ TEST_F(ClientSessionTest, LocalInputTest) {
       ->last_input_injector()
       ->set_mouse_events(&mouse_events_);
 
-  connection_->input_stub()->InjectMouseEvent(MakeMouseMoveEvent(100, 101));
+  connection_->input_stub()->InjectMouseEvent(
+      MakeFractionalMouseMoveEvent(100, 101));
 
 #if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS)
   // The OS echoes the injected event back.
@@ -678,14 +631,16 @@ TEST_F(ClientSessionTest, LocalInputTest) {
 #endif  // !BUILDFLAG(IS_WIN)
 
   // This one should get throught as well.
-  connection_->input_stub()->InjectMouseEvent(MakeMouseMoveEvent(200, 201));
+  connection_->input_stub()->InjectMouseEvent(
+      MakeFractionalMouseMoveEvent(200, 201));
 
   // Now this is a genuine local event.
   client_session_->OnLocalPointerMoved(webrtc::DesktopVector(100, 101),
                                        ui::EventType::kMouseMoved);
 
   // This one should be blocked because of the previous local input event.
-  connection_->input_stub()->InjectMouseEvent(MakeMouseMoveEvent(300, 301));
+  connection_->input_stub()->InjectMouseEvent(
+      MakeFractionalMouseMoveEvent(300, 301));
 
   // Verify that we've received correct set of mouse events.
   ASSERT_EQ(mouse_events_.size(), 2U);
@@ -773,7 +728,7 @@ TEST_F(ClientSessionTest, ClampMouseEvents) {
     for (int i = 0; i < 3; i++) {
       mouse_events_.clear();
       connection_->input_stub()->InjectMouseEvent(
-          MakeMouseMoveEvent(input_x[i], input_y[j]));
+          MakeFractionalMouseMoveEvent(input_x[i], input_y[j]));
 
       EXPECT_EQ(mouse_events_.size(), 1U);
       EXPECT_THAT(mouse_events_[0],
@@ -1009,6 +964,245 @@ TEST_F(ClientSessionSecurityKeyTest, DataChannelTakeoverDestroysLegacySession) {
   // Close the pipe to clean up the handler and avoid dangling pointers.
   pipe->ClosePipe();
   ASSERT_TRUE(base::test::RunUntil([&]() { return !pipe->HasWrappers(); }));
+}
+
+TEST_F(ClientSessionTest, NotifyClientResolution_Bad) {
+  CreateClientSession();
+  ConnectClientSession();
+  SetupSingleDisplay();
+
+  FakeScreenControls* screen_controls =
+      desktop_environment_factory_->last_desktop_environment()
+          ->last_screen_controls()
+          .get();
+  ASSERT_TRUE(screen_controls);
+
+  // Send invalid resolution with negative width.
+  protocol::ClientResolution invalid_resolution;
+  invalid_resolution.set_width_pixels(-800);
+  invalid_resolution.set_height_pixels(600);
+  invalid_resolution.set_x_dpi(96);
+  invalid_resolution.set_y_dpi(96);
+  client_session_->NotifyClientResolution(invalid_resolution);
+  EXPECT_FALSE(screen_controls->set_resolution_called());
+
+  // Reset state on mock controls.
+  screen_controls->reset();
+
+  // Send invalid resolution with negative height.
+  invalid_resolution.set_width_pixels(800);
+  invalid_resolution.set_height_pixels(-600);
+  client_session_->NotifyClientResolution(invalid_resolution);
+  EXPECT_FALSE(screen_controls->set_resolution_called());
+}
+
+TEST_F(ClientSessionTest, SetVideoLayout_Bad) {
+  CreateClientSession();
+  ConnectClientSession();
+  SetupSingleDisplay();
+
+  FakeScreenControls* screen_controls =
+      desktop_environment_factory_->last_desktop_environment()
+          ->last_screen_controls()
+          .get();
+  ASSERT_TRUE(screen_controls);
+
+  // Send layout with negative track width.
+  protocol::VideoLayout invalid_layout_width;
+  protocol::VideoTrackLayout* invalid_track_width =
+      invalid_layout_width.add_video_track();
+  invalid_track_width->set_width(-800);
+  invalid_track_width->set_height(600);
+  invalid_track_width->set_x_dpi(96);
+  invalid_track_width->set_y_dpi(96);
+  invalid_track_width->set_screen_id(kDisplay1Id);
+  client_session_->SetVideoLayout(invalid_layout_width);
+  EXPECT_FALSE(screen_controls->set_video_layout_called());
+
+  // Reset state.
+  screen_controls->reset();
+
+  // Send layout with negative track height.
+  protocol::VideoLayout invalid_layout_height;
+  protocol::VideoTrackLayout* invalid_track_height =
+      invalid_layout_height.add_video_track();
+  invalid_track_height->set_width(800);
+  invalid_track_height->set_height(-600);
+  invalid_track_height->set_x_dpi(96);
+  invalid_track_height->set_y_dpi(96);
+  invalid_track_height->set_screen_id(kDisplay1Id);
+  client_session_->SetVideoLayout(invalid_layout_height);
+  EXPECT_FALSE(screen_controls->set_video_layout_called());
+}
+
+TEST_F(ClientSessionTest, ControlTerminal_CreateTerminal) {
+  CreateClientSession();
+  ConnectClientSession();
+
+  protocol::Capabilities capabilities;
+  capabilities.set_capabilities(protocol::kTerminalModeCapability);
+  client_session_->SetCapabilities(capabilities);
+
+  // Expect client_stub to receive the create response.
+  protocol::TerminalControl create_response;
+  EXPECT_CALL(client_stub_, DeliverTerminalControl(_))
+      .WillOnce([&create_response](const protocol::TerminalControl& control) {
+        create_response = control;
+      });
+
+  protocol::TerminalControl create_req;
+  create_req.mutable_create_request();
+  client_session_->ControlTerminal(create_req);
+
+  // We should have a valid terminal ID returned.
+  ASSERT_TRUE(create_response.has_create_response());
+  EXPECT_EQ(create_response.create_response().terminal_id(), 1);
+
+  client_session_->DisconnectSession(ErrorCode::OK, {}, FROM_HERE);
+  client_session_.reset();
+}
+
+TEST_F(ClientSessionTest, ControlTerminal_InputAndResize) {
+  CreateClientSession();
+  ConnectClientSession();
+
+  protocol::Capabilities capabilities;
+  capabilities.set_capabilities(protocol::kTerminalModeCapability);
+  client_session_->SetCapabilities(capabilities);
+
+  // Create a terminal
+  EXPECT_CALL(client_stub_, DeliverTerminalControl(_)).Times(1);
+  protocol::TerminalControl create_req;
+  create_req.mutable_create_request();
+  client_session_->ControlTerminal(create_req);
+
+  auto sessions = FakeTerminalSession::GetActiveSessions();
+  ASSERT_EQ(sessions.size(), 1u);
+  ASSERT_NE(sessions[0], nullptr);
+  EXPECT_EQ(sessions[0]->id(), 1);
+
+  // Send input
+  protocol::TerminalControl input_req;
+  auto* input = input_req.mutable_terminal_input();
+  input->set_terminal_id(1);
+  input->set_input("hello");
+  client_session_->ControlTerminal(input_req);
+
+  EXPECT_EQ(sessions[0]->inputs().size(), 1u);
+  EXPECT_EQ(sessions[0]->inputs()[0], "hello");
+
+  // Send resize
+  protocol::TerminalControl resize_req;
+  auto* resize = resize_req.mutable_resize_terminal();
+  resize->set_terminal_id(1);
+  resize->set_width(80);
+  resize->set_height(24);
+  client_session_->ControlTerminal(resize_req);
+
+  EXPECT_EQ(sessions[0]->resizes().size(), 1u);
+  EXPECT_EQ(sessions[0]->resizes()[0].first, 80u);
+  EXPECT_EQ(sessions[0]->resizes()[0].second, 24u);
+
+  client_session_->DisconnectSession(ErrorCode::OK, {}, FROM_HERE);
+  client_session_.reset();
+}
+
+TEST_F(ClientSessionTest, ControlTerminal_OutputAndExit) {
+  CreateClientSession();
+  ConnectClientSession();
+
+  protocol::Capabilities capabilities;
+  capabilities.set_capabilities(protocol::kTerminalModeCapability);
+  client_session_->SetCapabilities(capabilities);
+
+  // Create a terminal
+  EXPECT_CALL(client_stub_, DeliverTerminalControl(_)).Times(1);
+  protocol::TerminalControl create_req;
+  create_req.mutable_create_request();
+  client_session_->ControlTerminal(create_req);
+
+  auto sessions = FakeTerminalSession::GetActiveSessions();
+  ASSERT_EQ(sessions.size(), 1u);
+  ASSERT_NE(sessions[0], nullptr);
+
+  // Trigger output from the terminal
+  protocol::TerminalControl output_received;
+  base::test::TestFuture<void> output_future;
+  EXPECT_CALL(client_stub_, DeliverTerminalControl(_))
+      .WillOnce([&output_received,
+                 &output_future](const protocol::TerminalControl& control) {
+        output_received = control;
+        output_future.SetValue();
+      });
+
+  sessions[0]->TriggerOutput("world");
+  output_future.Get();
+
+  ASSERT_TRUE(output_received.has_terminal_output());
+  EXPECT_EQ(output_received.terminal_output().terminal_id(), 1);
+  EXPECT_EQ(output_received.terminal_output().output(), "world");
+
+  // Trigger terminal exit
+  protocol::TerminalControl close_received;
+  base::test::TestFuture<void> exit_future;
+  EXPECT_CALL(client_stub_, DeliverTerminalControl(_))
+      .WillOnce([&close_received,
+                 &exit_future](const protocol::TerminalControl& control) {
+        close_received = control;
+        exit_future.SetValue();
+      });
+
+  sessions[0]->TriggerExit();
+  exit_future.Get();
+
+  // Task to delete the terminal in TerminalSessionManager runs asynchronously.
+  task_environment_.RunUntilIdle();
+
+  ASSERT_TRUE(close_received.has_close_terminal());
+  EXPECT_EQ(close_received.close_terminal().terminal_id(), 1);
+  EXPECT_EQ(sessions[0], nullptr);
+
+  client_session_->DisconnectSession(ErrorCode::OK, {}, FROM_HERE);
+  client_session_.reset();
+}
+
+TEST_F(ClientSessionTest, ControlTerminal_RemoveRequest) {
+  CreateClientSession();
+  ConnectClientSession();
+
+  protocol::Capabilities capabilities;
+  capabilities.set_capabilities(protocol::kTerminalModeCapability);
+  client_session_->SetCapabilities(capabilities);
+
+  // Create two terminals
+  EXPECT_CALL(client_stub_, DeliverTerminalControl(_)).Times(2);
+  protocol::TerminalControl create_req;
+  create_req.mutable_create_request();
+  client_session_->ControlTerminal(create_req);
+  client_session_->ControlTerminal(create_req);
+
+  auto sessions = FakeTerminalSession::GetActiveSessions();
+  ASSERT_EQ(sessions.size(), 2u);
+  ASSERT_NE(sessions[0], nullptr);
+  ASSERT_NE(sessions[1], nullptr);
+
+  // Send remove_request for terminal 1
+  protocol::TerminalControl remove_req1;
+  remove_req1.mutable_remove_request()->set_terminal_id(1);
+  client_session_->ControlTerminal(remove_req1);
+
+  EXPECT_TRUE(FakeTerminalSession::WasTerminated(1));
+
+  // Send remove_request for terminal 2
+  protocol::TerminalControl remove_req2;
+  remove_req2.mutable_remove_request()->set_terminal_id(2);
+  client_session_->ControlTerminal(remove_req2);
+
+  EXPECT_TRUE(FakeTerminalSession::WasTerminated(2));
+  EXPECT_TRUE(FakeTerminalSession::GetActiveSessions().empty());
+
+  client_session_->DisconnectSession(ErrorCode::OK, {}, FROM_HERE);
+  client_session_.reset();
 }
 
 }  // namespace remoting

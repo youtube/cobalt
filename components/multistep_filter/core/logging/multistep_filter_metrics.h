@@ -9,8 +9,21 @@
 
 namespace multistep_filter {
 
+// LINT.IfChange(MultistepFilterApplicationOutcome)
+// Records the overall technical filter application outcome after a user accepts
+// a Multistep Filter suggestion.
+enum class MultistepFilterApplicationOutcome {
+  kAllFiltersApplied = 0,
+  kNotAllFiltersApplied = 1,
+  kMaxValue = kNotAllFiltersApplied,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/multistep_filter/enums.xml:MultistepFilterApplicationOutcome)
+
 // Suffix for histograms that are broken down by task type.
 inline constexpr char kMultistepFilterByTaskHistogramPrefix[] = ".ByTask.";
+
+// Suffix for histograms that are broken down by facet type.
+inline constexpr char kMultistepFilterByFacetHistogramPrefix[] = ".ByFacet.";
 
 // Histogram names and prefixes for Multistep Filter metrics.
 inline constexpr char kMultistepFilterAcceptanceHistogram[] =
@@ -19,7 +32,13 @@ inline constexpr char kMultistepFilterAcceptanceInitialCueHistogram[] =
     "MultistepFilter.Acceptance.InitialCue";
 inline constexpr char kMultistepFilterAcceptanceReopenedCueHistogram[] =
     "MultistepFilter.Acceptance.ReopenedCue";
-
+inline constexpr char kMultistepFilterApplicationOutcomeHistogram[] =
+    "MultistepFilter.ApplicationOutcome";
+inline constexpr char kMultistepFilterNumberOfFacetsShownHistogram[] =
+    "MultistepFilter.NumberOfFacetsShown";
+inline constexpr char
+    kMultistepFilterNumberOfFacetsSuccessfullyAppliedHistogram[] =
+        "MultistepFilter.NumberOfFacetsSuccessfullyApplied";
 }  // namespace multistep_filter
 
 #endif  // COMPONENTS_MULTISTEP_FILTER_CORE_LOGGING_MULTISTEP_FILTER_METRICS_H_

@@ -229,8 +229,6 @@ class CORE_EXPORT HTMLCanvasElement final
   CanvasResourceDispatcher* GetOrCreateResourceDispatcher() override;
   void DiscardResourceDispatcher() override { frame_dispatcher_ = nullptr; }
 
-  bool PushFrame(scoped_refptr<CanvasResource>&& image) override;
-
   // ExecutionContextLifecycleObserver and PageVisibilityObserver implementation
   void ContextDestroyed() override;
 
@@ -286,6 +284,8 @@ class CORE_EXPORT HTMLCanvasElement final
   void UpdateCaptureRenderedText(bool capture);
   bool ShouldCaptureRenderedText() override;
   String CanvasAnnotation() const;
+  bool HasRequestedOCR() const;
+  void ClearHasRequestedOCR();
 
   void Trace(Visitor*) const override;
 

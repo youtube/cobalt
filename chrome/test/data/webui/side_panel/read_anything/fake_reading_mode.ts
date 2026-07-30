@@ -102,8 +102,14 @@ export class FakeReadingMode {
   // Whether the Immersive Read Anything feature flag is enabled.
   isImmersiveEnabled: boolean = false;
 
+  // Whether the Read Anything Translate Entry Point feature flag is enabled.
+  isReadAnythingTranslateEntryPointEnabled: boolean = false;
+
   // Whether the line focus feature flag is enabled.
   isLineFocusEnabled: boolean = false;
+
+  // Whether the Improved Read Aloud feature flag is enabled.
+  isImprovedReadAloudEnabled: boolean = false;
 
   // Whether the readability feature flag is enabled.
   isReadabilityEnabled: boolean = false;
@@ -229,6 +235,15 @@ export class FakeReadingMode {
     return nodeId === this.maxNodeId;
   }
 
+  // Returns true if the original page has a section with key points.
+  maybeHasKeyPointsSection(): boolean {
+    return false;
+  }
+
+  getKeyPointsRegex(): string {
+    return 'key points|summary|the bottom line|why it matters';
+  }
+
   // Connects to the browser process. Called by ts when the read anything
   // element is added to the document.
   onConnected() {}
@@ -275,8 +290,8 @@ export class FakeReadingMode {
   }
 
   // Called when the line focus mode is changed via the webui toolbar.
-  onLineFocusChanged(value: number) {
-    this.lastNonDisabledLineFocus = value;
+  onLineFocusChanged(_value: number, lastNonDisabledLineFocus: number) {
+    this.lastNonDisabledLineFocus = lastNonDisabledLineFocus;
   }
 
   // Called when a user toggles a switch in the language menu
@@ -296,6 +311,9 @@ export class FakeReadingMode {
   onLinksEnabledToggled() {
     this.linksEnabled = !this.linksEnabled;
   }
+
+  // Called when a user requests translation via the webui toolbar.
+  onTranslationRequested() {}
 
   // Called when a user toggles images via the webui toolbar.
   onImagesEnabledToggled() {

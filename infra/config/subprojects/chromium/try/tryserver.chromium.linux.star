@@ -413,7 +413,7 @@ try_.builder(
         # crbug/940930
         "chromium.enable_cleandead": 100,
         # go/rts-project-proposal
-        "chromium_rts.filter_file_analysis": 10,
+        "chromium_rts.filter_file_analysis": 100,
     },
     main_list_view = "try",
 )
@@ -691,14 +691,7 @@ try_.orchestrator_builder(
         "ci/Linux ASan LSan Builder",
         "ci/Linux ASan LSan Tests (1)",
     ],
-    gn_args = gn_args.config(
-        configs = [
-            "ci/Linux ASan LSan Builder",
-            # TODO(crbug.com/507993636): Restore symbol_level=1 if/when CAS
-            # uploads and downloads are no longer slow.
-            "no_symbols",
-        ],
-    ),
+    gn_args = "ci/Linux ASan LSan Builder",
     compilator = "linux_chromium_asan_rel_ng-compilator",
     # TODO (crbug.com/1372179): Use orchestrator pool once overloaded test pools
     # are addressed
@@ -712,7 +705,7 @@ try_.orchestrator_builder(
         # crbug/940930
         "chromium.enable_cleandead": 100,
         # go/rts-project-proposal
-        "chromium_rts.filter_file_analysis": 10,
+        "chromium_rts.filter_file_analysis": 100,
     },
     main_list_view = "try",
 )
@@ -859,7 +852,7 @@ try_.builder(
         # crbug/940930
         "chromium.enable_cleandead": 100,
         # go/rts-project-proposal
-        "chromium_rts.filter_file_analysis": 10,
+        "chromium_rts.filter_file_analysis": 100,
     },
     main_list_view = "try",
     siso_remote_jobs = siso.remote_jobs.HIGH_JOBS_FOR_CQ,
@@ -964,7 +957,7 @@ try_.orchestrator_builder(
         # crbug/940930
         "chromium.enable_cleandead": 100,
         # go/rts-project-proposal
-        "chromium_rts.filter_file_analysis": 10,
+        "chromium_rts.filter_file_analysis": 100,
     },
     main_list_view = "try",
 )

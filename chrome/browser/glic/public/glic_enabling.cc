@@ -17,6 +17,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/user_metrics.h"
+#include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
@@ -49,7 +50,7 @@
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
-#include "chrome/common/pref_names.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/pdf/common/constants.h"
 #include "components/prefs/pref_registry_simple.h"
@@ -99,7 +100,15 @@ constexpr char kDefaultEnabledCountries[] =
     // Phase 2
     "as,au,bd,bn,bt,cc,ck,cx,fj,fm,gu,hk,hm,id,jp,kh,ki,kr,la,lk,mh,mm,mn,mo,"
     "mp,mv,my,nc,nf,np,nr,nu,pf,pg,ph,pk,pn,pw,sb,sg,th,tk,tl,to,tv,tw,vn,vu,"
-    "wf,ws";
+    "wf,ws,"
+    // Phase 3a
+    "ag,ar,bb,bo,br,bs,bz,cl,co,cr,dm,do,ec,gd,gt,gy,hn,ht,jm,kn,lc,mx,ni,pa,"
+    "pe,py,sr,sv,tt,uy,vc,ve,"
+    // Phase 3b
+    "ae,am,ao,aq,az,ba,bf,bh,bi,bj,bw,cd,cf,cg,ci,cm,cv,dj,dz,eg,eh,er,et,ga,"
+    "ge,gh,gm,gn,gq,gw,il,iq,jo,ke,kg,km,kw,kz,lb,lr,ls,ly,ma,md,me,mg,mk,ml,"
+    "mr,mu,mw,mz,na,ne,ng,om,pr,ps,qa,rs,rw,sa,sc,sd,sl,sn,so,ss,st,sz,td,tg,"
+    "tj,tm,tn,tz,ua,ug,um,uz,vi,xk,ye,za,zm,zw";
 #endif
 
 // Feature flag kGlicLocaleFiltering controls whether locale filtering is
@@ -355,6 +364,14 @@ void RecordAnchoredDespiteEligibilityReasonsWith(
     base::UmaHistogramEnumeration(
         name, AnchoredDespiteEligibilityReason::kNotRolledOut);
   }
+}
+
+mojom::ProfileReadyState GetSanitizedProfileReadyState(int state_val) {
+  if (state_val >= 0 &&
+      state_val <= static_cast<int>(mojom::ProfileReadyState::kMaxValue)) {
+    return static_cast<mojom::ProfileReadyState>(state_val);
+  }
+  return mojom::ProfileReadyState::kUnknownError;
 }
 
 }  // namespace
@@ -633,7 +650,8 @@ GlicEnabling::ProfileEnablement GlicEnabling::EnablementForProfile(
 
   result.gemini_enterprise_settings = GetGeminiEnterpriseSettings(profile);
 
-  if (profile->GetPrefs()->GetInteger(::prefs::kGeminiSettings) !=
+  if (profile->GetPrefs()->GetInteger(
+          optimization_guide::prefs::kGeminiSettings) !=
       std::to_underlying(glic::prefs::SettingsPolicyState::kEnabled)) {
     result.allowed_by_chrome_policy = false;
   }
@@ -670,16 +688,16 @@ GlicGlobalEnabling::~GlicGlobalEnabling() = default;
 
 bool GlicGlobalEnabling::IsSystemRequirementMet() const {
   static const bool supported_system_requirements = [] {
-    if (base::SysInfo::AmountOfTotalPhysicalMemory().AsDeprecatedByteCount() <
-        base::MiB(features::kGlicMinRequiredRamMb.Get())) {
+    if (base::SysInfo::AmountOfTotalPhysicalMemory() <
+        base::MiBU(base::saturated_cast<uint64_t>(
+            features::kGlicMinRequiredRamMb.Get()))) {
       return false;
     }
 #if BUILDFLAG(IS_CHROMEOS)
-    constexpr base::ByteCount kMinimumMemoryThreshold = base::GiB(7);
+    constexpr base::ByteSize kMinimumMemoryThreshold = base::GiBU(7);
     const bool bypass_cbx_requirement =
         GlicEnabling::IsLikelyDogfoodClient() &&
-        base::SysInfo::AmountOfTotalPhysicalMemory().AsDeprecatedByteCount() >=
-            kMinimumMemoryThreshold;
+        base::SysInfo::AmountOfTotalPhysicalMemory() >= kMinimumMemoryThreshold;
 
     return (bypass_cbx_requirement ||
             base::FeatureList::IsEnabled(
@@ -1162,7 +1180,7 @@ GlicEnabling::GlicEnabling(
       profile_attributes_storage_(profile_attributes_storage) {
   pref_registrar_.Init(profile_->GetPrefs());
   pref_registrar_.Add(
-      ::prefs::kGeminiSettings,
+      optimization_guide::prefs::kGeminiSettings,
       base::BindRepeating(&GlicEnabling::OnGlicSettingsPolicyChanged,
                           base::Unretained(this)));
   pref_registrar_.Add(prefs::kGlicCompletedFre,
@@ -1207,6 +1225,10 @@ GlicEnabling::GlicEnabling(
                 "function call does not violate the 'no virtual functions in "
                 "constructors' style guide rule. Consider a 2-phase setup");
   last_experimental_triggering_state_ = GetExperimentalTriggeringState();
+  int pref_state =
+      profile_->GetPrefs()->GetInteger(prefs::kGlicLastProfileReadyState);
+  last_profile_ready_state_ = GetSanitizedProfileReadyState(pref_state);
+  MaybeNotifyProfileReadyStateChanged();
 }
 GlicEnabling::~GlicEnabling() = default;
 
@@ -1558,14 +1580,14 @@ void GlicEnabling::UpdateEnabledStatus() {
   }
   enable_changed_callback_list_.Notify();
   show_settings_page_changed_callback_list_.Notify();
-  profile_ready_state_changed_callback_list_.Notify();
+  MaybeNotifyProfileReadyStateChanged();
   MaybeNotifyExperimentalTriggeringStateChanged();
 }
 
 void GlicEnabling::UpdateConsentStatus() {
   consent_changed_callback_list_.Notify();
   show_settings_page_changed_callback_list_.Notify();
-  profile_ready_state_changed_callback_list_.Notify();
+  MaybeNotifyProfileReadyStateChanged();
   MaybeNotifyExperimentalTriggeringStateChanged();
 }
 
@@ -1574,6 +1596,45 @@ void GlicEnabling::MaybeNotifyExperimentalTriggeringStateChanged() {
   if (new_state != last_experimental_triggering_state_) {
     last_experimental_triggering_state_ = new_state;
     experimental_triggering_state_changed_callback_list_.Notify();
+  }
+}
+
+void GlicEnabling::MaybeNotifyProfileReadyStateChanged() {
+  mojom::ProfileReadyState new_state = GetProfileReadyState(profile_);
+  if (new_state != last_profile_ready_state_) {
+    last_profile_ready_state_ = new_state;
+    // Only update the persisted pref if Glic is NOT in a ready state.
+    // This allows the pref to hold onto the last observed unhealthy state
+    // until it's cleared on user interaction.
+    if (new_state != mojom::ProfileReadyState::kReady) {
+      profile_->GetPrefs()->SetInteger(prefs::kGlicLastProfileReadyState,
+                                       static_cast<int>(new_state));
+    }
+  }
+
+  profile_ready_state_changed_callback_list_.Notify();
+}
+
+void GlicEnabling::MaybeRecordRecoveryOnInteraction() {
+  mojom::ProfileReadyState current_state = GetProfileReadyState(profile_);
+  if (current_state != mojom::ProfileReadyState::kReady) {
+    return;
+  }
+
+  int last_state_val =
+      profile_->GetPrefs()->GetInteger(prefs::kGlicLastProfileReadyState);
+  mojom::ProfileReadyState last_state =
+      GetSanitizedProfileReadyState(last_state_val);
+
+  if (last_state != mojom::ProfileReadyState::kReady) {
+    base::UmaHistogramEnumeration("Glic.ProfileEnablement.RecoveredFromState",
+                                  last_state);
+
+    // Clear/reset the persisted preference so we don't log it again on next
+    // clicks.
+    profile_->GetPrefs()->SetInteger(
+        prefs::kGlicLastProfileReadyState,
+        static_cast<int>(mojom::ProfileReadyState::kReady));
   }
 }
 

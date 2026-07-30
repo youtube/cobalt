@@ -20,7 +20,7 @@
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_tab_helper.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
-#import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
+#import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/location_bar_consumer.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/omnibox/model/placeholder_service/placeholder_service.h"
@@ -54,9 +54,9 @@ const CGFloat kIconPointSize = 16.0;
 
 }  // namespace
 
-@interface LocationBarMediator () <SearchEngineObserving,
-                                   WebStateListObserving,
-                                   PlaceholderServiceObserving>
+@interface LocationBarMediator () <PlaceholderServiceObserving,
+                                   SearchEngineObserving,
+                                   WebStateListObserving>
 
 // Whether the current default search engine supports search by image.
 @property(nonatomic, assign) BOOL searchEngineSupportsSearchByImage;

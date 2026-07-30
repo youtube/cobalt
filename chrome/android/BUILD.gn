@@ -77,7 +77,6 @@ if (_is_default_toolchain) {
                                "assert_no_deps",
                                "expected_android_manifest",
                                "is_64_bit_browser",
-                               "is_monochrome",
                                "is_trichrome",
                                "include_32_bit_webview",
                                "include_64_bit_webview",
@@ -109,7 +108,6 @@ if (_is_default_toolchain) {
                                "include_32_bit_webview",
                                "include_64_bit_webview",
                                "is_64_bit_browser",
-                               "is_monochrome",
                                "is_trichrome",
                                "static_library_provider",
                                "expected_android_manifest_template",
@@ -408,6 +406,7 @@ if (_is_default_toolchain) {
 
       # TODO(ssid): Decouple dependency on internal library.
       "//base:holder_java",
+      "//base:supplier_java",
       "//chrome/browser/actor/android:java",
       "//chrome/browser/android/customtabs/branding:branding_common_java",
       "//chrome/browser/autofill/android:third_party_provider_java",
@@ -546,6 +545,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/ui/android/digital_credentials:java",
       "//chrome/browser/ui/android/edge_to_edge:factory_java",
       "//chrome/browser/ui/android/edge_to_edge:java",
+      "//chrome/browser/ui/android/enterprise_signals_disclaimer:java",
       "//chrome/browser/ui/android/ephemeraltab:java",
       "//chrome/browser/ui/android/extensions:java",
       "//chrome/browser/ui/android/extensions/windowing:factory_java",
@@ -1843,17 +1843,15 @@ if (_is_default_toolchain) {
   # resources. The generated target names are derived from input variables.
   #
   # Variables:
-  #    is_monochrome: If true, generate Monochrome targets rather than Chrome.
   #    is_trichrome: (Optional) Generate Trichrome targets that use monochrome
   #      library targets but don't include webview resources.
   #    is_bundle_module: (Optional) If true, generate targets for base bundle
   #      module.
   template("resource_packaging") {
-    _is_monochrome = invoker.is_monochrome
+    not_needed([ "invoker" ])
     _is_trichrome = defined(invoker.is_trichrome) && invoker.is_trichrome
     _is_bundle_module =
         defined(invoker.is_bundle_module) && invoker.is_bundle_module
-    assert(!_is_monochrome, "Monochrome is an unsupported configuration")
 
     if (_is_trichrome) {
       _variant = "trichrome_chrome"
@@ -1946,14 +1944,11 @@ if (_is_default_toolchain) {
   # Resource packaging varies with bundles because the pak resource allowlist is
   # derived from the native library.
   resource_packaging("chrome_apk_pak_assets") {
-    is_monochrome = false
   }
   resource_packaging("chrome_bundle_module_pak_assets") {
-    is_monochrome = false
     is_bundle_module = true
   }
   resource_packaging("trichrome_chrome_bundle_module_pak_assets") {
-    is_monochrome = false
     is_trichrome = true
     is_bundle_module = true
   }
@@ -2056,6 +2051,7 @@ if (_is_default_toolchain) {
       "//chrome/browser/renderer_host/android:test_support",
       "//chrome/browser/sync",
       "//chrome/browser/thumbnail:test_support",
+      "//chrome/browser/ui/side_panel_container/test:test_support",
       "//components/offline_pages/core/background:test_support",
       "//components/saved_tab_groups/internal:tab_group_sync_bridge",
       "//components/saved_tab_groups/public",
@@ -2109,6 +2105,7 @@ if (_is_default_toolchain) {
     sources = [
       "java/src/org/chromium/chrome/app/TrichromeZygotePreload.java",
       "java/src/org/chromium/chrome/browser/DeferredStartupHandler.java",
+      "java/src/org/chromium/chrome/browser/GracefulShutdownService.java",
       "java/src/org/chromium/chrome/browser/actor/ActorForegroundService.java",
       "java/src/org/chromium/chrome/browser/app/bluetooth/BluetoothNotificationService.java",
       "java/src/org/chromium/chrome/browser/app/serial/SerialNotificationService.java",
@@ -2148,6 +2145,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/notifications/NotificationJobService.java",
       "java/src/org/chromium/chrome/browser/notifications/NotificationService.java",
       "java/src/org/chromium/chrome/browser/photo_picker/DecoderService.java",
+      "java/src/org/chromium/chrome/browser/picker/MaterialDatePickerProviderImpl.java",
       "java/src/org/chromium/chrome/browser/provider/ChromeBrowserProvider.java",
       "java/src/org/chromium/chrome/browser/provider/PageContentProvider.java",
       "java/src/org/chromium/chrome/browser/screenshotprovider/ScreenshotContentProvider.java",
@@ -2177,9 +2175,12 @@ if (_is_default_toolchain) {
       "//components/module_installer/android:module_installer_java",
       "//components/policy/android:policy_java",
       "//components/variations/android:variations_java",
+      "//third_party/android_deps:material_design_java",
       "//third_party/android_deps:playcore_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
+      "//third_party/androidx:androidx_appcompat_appcompat_java",
       "//third_party/androidx:androidx_collection_collection_java",
+      "//third_party/androidx:androidx_fragment_fragment_java",
       "//third_party/jni_zero:jni_zero_java",
       "//ui/android:ui_no_recycler_view_java",
 
@@ -2443,6 +2444,18 @@ if (_is_default_toolchain) {
         "//chrome/browser/ui/browser_window/internal:javatests",
       ]
     }
+
+    device_data_filters = [
+      "+//chrome/browser/thumbnail/generator/test/data/*",
+      "+//chrome/browser/ui/side_panel_container/test/data/*",
+      "+//chrome/test/data/*",
+      "+//components/test/data/payments/*",
+      "+//content/test/data/*",
+      "+//media/test/data/*",
+      "+//net/data/ssl/certificates/*",
+      "+//pdf/test/data/hello_world2.pdf",
+      "-*",
+    ]
 
     data_deps = [ "//testing/buildbot/filters:chrome_public_test_apk_filters" ]
 
@@ -3102,6 +3115,7 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/policy/PolicyAuditor.java",
       "java/src/org/chromium/chrome/browser/policy/PolicyAuditorBridge.java",
       "java/src/org/chromium/chrome/browser/printing/TabPrinter.java",
+      "java/src/org/chromium/chrome/browser/printing/WebContentsPrinter.java",
       "java/src/org/chromium/chrome/browser/privacy/settings/PrivacyPreferencesManagerImpl.java",
       "java/src/org/chromium/chrome/browser/push_messaging/PushMessagingServiceObserver.java",
       "java/src/org/chromium/chrome/browser/renderer_host/ChromeNavigationUiData.java",
@@ -3112,8 +3126,6 @@ if (_is_default_toolchain) {
       "java/src/org/chromium/chrome/browser/safe_browsing/SafeBrowsingReferringAppBridge.java",
       "java/src/org/chromium/chrome/browser/safe_browsing/SafeBrowsingSettingsNavigation.java",
       "java/src/org/chromium/chrome/browser/segmentation_platform/ContextualPageActionController.java",
-      "java/src/org/chromium/chrome/browser/sharing/SharingJNIBridge.java",
-      "java/src/org/chromium/chrome/browser/sharing/click_to_call/ClickToCallMessageHandler.java",
       "java/src/org/chromium/chrome/browser/sharing/sms_fetcher/SmsFetcherMessageHandler.java",
       "java/src/org/chromium/chrome/browser/signin/SigninBridge.java",
       "java/src/org/chromium/chrome/browser/site_settings/ChromeSiteSettingsDelegate.java",

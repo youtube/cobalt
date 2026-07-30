@@ -4,6 +4,9 @@
 
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_browser_agent.h"
 
+#import <AVFoundation/AVFoundation.h>
+
+#import "base/apple/foundation_util.h"
 #import "base/run_loop.h"
 #import "base/strings/utf_string_conversions.h"
 #import "base/test/ios/wait_util.h"
@@ -44,6 +47,7 @@
 #import "ios/chrome/browser/shared/public/commands/gemini_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
 #import "ios/chrome/browser/snapshots/model/fake_snapshot_generator_delegate.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_source_tab_helper.h"
@@ -249,8 +253,18 @@ class GeminiBrowserAgentTest : public PlatformTest {
   }
 
   // Getter for raw `attached_tabs_` member.
-  std::set<web::WebStateID> GetRawAttachedTabs() {
+  std::map<web::WebStateID, GeminiPageContext*> GetRawAttachedTabs() {
     return gemini_browser_agent_->attached_tabs_;
+  }
+
+  // Setter for raw `attached_tabs_` member.
+  void SetRawAttachedTab(web::WebStateID id, GeminiPageContext* context) {
+    gemini_browser_agent_->attached_tabs_[id] = context;
+  }
+
+  // Wrapper for `DetachTabWithID`.
+  void DetachTabWithID(NSString* tab_id) {
+    gemini_browser_agent_->DetachTabWithID(tab_id);
   }
 
   base::test::ScopedFeatureList feature_list_;
@@ -1047,32 +1061,42 @@ TEST_F(GeminiBrowserAgentTest, TestOnGeminiLiveUserDidBargeIn) {
             ios::provider::GeminiClientMode::kTranscribing);
 }
 
-// Tests that preparing the floaty to be shown temporarily disables fullscreen
-// mode, and verify that it is re-enabled once the Gemini UI did appear or when
-// the state collapses.
-TEST_F(GeminiBrowserAgentTest, TestPrepareFloatyToBeShownDisablesFullscreen) {
+// Tests that fullscreen remains disabled while floaty is invoked, until
+// floaty is dismissed.
+TEST_F(GeminiBrowserAgentTest,
+       TestFloatyKeepsFullscreenDisabledUntilDismissed) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitWithFeatures(
+      {kChromeNextIa, kAppBarHideInFullscreen, kComposeboxIpad}, {});
+
   FullscreenController* controller =
       FullscreenController::FromBrowser(browser_.get());
   ASSERT_NE(controller, nullptr);
   EXPECT_TRUE(controller->IsEnabled());
 
-  // Fullscreen should be disabled once the floaty is invoked.
   InvokeFloaty([[GeminiConfiguration alloc] init]);
   EXPECT_FALSE(controller->IsEnabled());
 
-  // Fullscreen should be re-enabled once the UI appears.
+  // Fullscreen should remain disabled even when UI appears or state collapses.
   gemini_browser_agent_->OnGeminiUIDidAppear();
+  EXPECT_FALSE(controller->IsEnabled());
+
+  gemini_browser_agent_->OnViewStateChanged(
+      ios::provider::GeminiViewState::kCollapsed);
+  EXPECT_FALSE(controller->IsEnabled());
+
+  // Fullscreen should be re-enabled once floaty is dismissed.
+  gemini_browser_agent_->DismissFloaty();
   EXPECT_TRUE(controller->IsEnabled());
 
-  // Fullscreen should be disabled once the state transitions to expanded.
+  // Fullscreen should be disabled once the state transitions to expanded again.
   gemini_browser_agent_->OnViewStateChanged(
       ios::provider::GeminiViewState::kExpanded);
   EXPECT_FALSE(controller->IsEnabled());
 
-  // Fullscreen should be re-enabled once the state transitions back to
-  // collapsed.
+  // Fullscreen should be re-enabled once the state transitions to hidden.
   gemini_browser_agent_->OnViewStateChanged(
-      ios::provider::GeminiViewState::kCollapsed);
+      ios::provider::GeminiViewState::kHidden);
   EXPECT_TRUE(controller->IsEnabled());
 }
 
@@ -1080,6 +1104,8 @@ TEST_F(GeminiBrowserAgentTest, TestPrepareFloatyToBeShownDisablesFullscreen) {
 // selected tabs should be persisted based on whether the active tab is in the
 // selection.
 TEST_F(GeminiBrowserAgentTest, TestPersistSelectedTabsOnUnMinimize) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kGeminiMultiTabContext);
   ios::provider::ResetGemini();
   SetIsFloatyInvoked(true);
 
@@ -1109,6 +1135,11 @@ TEST_F(GeminiBrowserAgentTest, TestPersistSelectedTabsOnUnMinimize) {
   EXPECT_TRUE(other_id.valid());
   EXPECT_NE(active_id, other_id);
 
+  GeminiPageContext* active_context = [[GeminiPageContext alloc] init];
+  active_context.geminiPageContextAttachmentState =
+      ios::provider::GeminiPageContextAttachmentState::kAttached;
+  SetRawAttachedTab(active_id, active_context);
+
   gemini_browser_agent_->OnTabPickerSelectionChanged({active_id, other_id});
   EXPECT_EQ(GetRawAttachedTabs().size(), 2u);
   // GetSelectedWebStateIDs() may return size 1 in downstream unit tests if
@@ -1130,9 +1161,13 @@ TEST_F(GeminiBrowserAgentTest, TestPersistSelectedTabsOnUnMinimize) {
 
   // Switch the active tab to the non-selected tab (index 2).
   browser_->GetWebStateList()->ActivateWebStateAt(2);
+  web::WebStateID new_active_id =
+      raw_non_selected_web_state->GetUniqueIdentifier();
 
-  // Verify that the selection is cleared immediately upon active tab change.
-  EXPECT_TRUE(GetRawAttachedTabs().empty());
+  // Verify that attached tabs now contains only the new active tab.
+  auto raw_tabs = GetRawAttachedTabs();
+  EXPECT_EQ(raw_tabs.size(), 1u);
+  EXPECT_TRUE(raw_tabs.count(new_active_id));
 
   // Simulate un-minimizing the floaty.
   gemini_browser_agent_->OnViewStateChanged(
@@ -1140,8 +1175,9 @@ TEST_F(GeminiBrowserAgentTest, TestPersistSelectedTabsOnUnMinimize) {
   gemini_browser_agent_->SetLastShownViewState(
       ios::provider::GeminiViewState::kExpanded);
 
-  // Verify that the selection remains cleared.
-  EXPECT_TRUE(GetRawAttachedTabs().empty());
+  // Verify that attached tabs now remains only the new active tab.
+  EXPECT_EQ(raw_tabs.size(), 1u);
+  EXPECT_TRUE(raw_tabs.count(new_active_id));
 }
 
 // Tests that switching from live to floaty mode on an eligible page keeps the
@@ -1227,4 +1263,250 @@ TEST_F(GeminiBrowserAgentTest, TestSwitchFromLiveToChatIneligible) {
   // The floaty should be dismissed, meaning it is no longer invoked.
   EXPECT_FALSE(IsFloatyInvoked());
   EXPECT_OCMOCK_VERIFY(mock_snackbar_handler);
+}
+
+// Tests that DetachTabWithID gracefully handles an invalid tab ID string.
+TEST_F(GeminiBrowserAgentTest, TestDetachInvalidTabId) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({kGeminiMultiTabContext, kPageActionMenu}, {});
+
+  web::WebStateID active_id = web_state_->GetUniqueIdentifier();
+
+  GeminiPageContext* active_context = [[GeminiPageContext alloc] init];
+  active_context.geminiPageContextAttachmentState =
+      ios::provider::GeminiPageContextAttachmentState::kAttached;
+  SetRawAttachedTab(active_id, active_context);
+
+  gemini_browser_agent_->OnTabPickerSelectionChanged({active_id});
+  size_t initial_size = GetRawAttachedTabs().size();
+
+  DetachTabWithID(@"invalid_id");
+
+  // The map size should be unchanged.
+  EXPECT_EQ(initial_size, GetRawAttachedTabs().size());
+}
+
+// Tests that DetachTabWithID gracefully early-exits when there is no active
+// web state.
+TEST_F(GeminiBrowserAgentTest, TestDetachTabWithoutActiveWebState) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({kGeminiMultiTabContext, kPageActionMenu}, {});
+
+  // Clear raw_ptrs to prevent DanglingPtr crashes during TearDown when the
+  // WebState (and its associated frames/helpers) is destroyed.
+  web_state_ = nullptr;
+  fake_main_frame_ = nullptr;
+  gemini_tab_helper_ = nullptr;
+
+  // Close the active web state so that GetActiveWebState() returns nullptr.
+  browser_->GetWebStateList()->CloseWebStateAt(
+      0, WebStateList::ClosingReason::kDefault);
+  ASSERT_EQ(nullptr, browser_->GetWebStateList()->GetActiveWebState());
+
+  DetachTabWithID(@"123");
+
+  // Should not crash.
+  EXPECT_EQ(0u, GetRawAttachedTabs().size());
+}
+
+// Tests that DetachTabWithID updates the attachment state of the active tab
+// without removing it.
+TEST_F(GeminiBrowserAgentTest, TestDetachActiveTab) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({kGeminiMultiTabContext, kPageActionMenu}, {});
+
+  web::WebStateID active_id = web_state_->GetUniqueIdentifier();
+
+  GeminiPageContext* mock_context = [[GeminiPageContext alloc] init];
+  mock_context.geminiPageContextAttachmentState =
+      ios::provider::GeminiPageContextAttachmentState::kAttached;
+  SetRawAttachedTab(active_id, mock_context);
+
+  gemini_browser_agent_->OnTabPickerSelectionChanged({active_id});
+
+  // Verify it starts as attached.
+  auto tabs = GetRawAttachedTabs();
+  ASSERT_EQ(1u, tabs.size());
+  ASSERT_EQ(ios::provider::GeminiPageContextAttachmentState::kAttached,
+            tabs[active_id].geminiPageContextAttachmentState);
+
+  NSString* tab_id_str =
+      [NSString stringWithFormat:@"%d", active_id.identifier()];
+  DetachTabWithID(tab_id_str);
+
+  // Verify it is still in the map but detached.
+  tabs = GetRawAttachedTabs();
+  EXPECT_EQ(1u, tabs.size());
+  EXPECT_EQ(ios::provider::GeminiPageContextAttachmentState::kDetached,
+            tabs[active_id].geminiPageContextAttachmentState);
+}
+
+// Tests that DetachTabWithID completely removes a shared tab from the cache.
+TEST_F(GeminiBrowserAgentTest, TestDetachSharedTab) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({kGeminiMultiTabContext, kPageActionMenu}, {});
+
+  web::WebStateID active_id = web_state_->GetUniqueIdentifier();
+
+  std::unique_ptr<web::FakeWebState> other_web_state =
+      std::make_unique<web::FakeWebState>();
+  other_web_state->SetBrowserState(profile_);
+  GeminiTabHelper::CreateForWebState(other_web_state.get());
+  WebViewProxyTabHelper::CreateForWebState(other_web_state.get());
+  web::WebStateID other_id = other_web_state->GetUniqueIdentifier();
+  browser_->GetWebStateList()->InsertWebState(
+      std::move(other_web_state),
+      WebStateList::InsertionParams::Automatic().Activate(false));
+
+  GeminiPageContext* active_context = [[GeminiPageContext alloc] init];
+  active_context.geminiPageContextAttachmentState =
+      ios::provider::GeminiPageContextAttachmentState::kAttached;
+  SetRawAttachedTab(active_id, active_context);
+
+  gemini_browser_agent_->OnTabPickerSelectionChanged({active_id, other_id});
+
+  auto tabs = GetRawAttachedTabs();
+  ASSERT_EQ(2u, tabs.size());
+
+  NSString* other_tab_id_str =
+      [NSString stringWithFormat:@"%d", other_id.identifier()];
+  DetachTabWithID(other_tab_id_str);
+
+  // Verify the shared tab is completely removed.
+  tabs = GetRawAttachedTabs();
+  EXPECT_EQ(1u, tabs.size());
+  EXPECT_EQ(0u, tabs.count(other_id));
+}
+
+// Tests that disabling the page content sharing pref clears attached tabs.
+TEST_F(GeminiBrowserAgentTest, TestClearAttachedTabsOnPageContentPrefDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({kGeminiMultiTabContext, kPageActionMenu}, {});
+
+  // Add the active tab.
+  web::WebStateID active_id = web_state_->GetUniqueIdentifier();
+  GeminiPageContext* active_context = [[GeminiPageContext alloc] init];
+  active_context.geminiPageContextAttachmentState =
+      ios::provider::GeminiPageContextAttachmentState::kAttached;
+  SetRawAttachedTab(active_id, active_context);
+
+  // Add a shared tab.
+  web::WebStateID other_id = web::WebStateID::NewUnique();
+  GeminiPageContext* other_context = [[GeminiPageContext alloc] init];
+  other_context.geminiPageContextAttachmentState =
+      ios::provider::GeminiPageContextAttachmentState::kAttached;
+  SetRawAttachedTab(other_id, other_context);
+
+  EXPECT_EQ(2u, GetRawAttachedTabs().size());
+
+  // Toggle the preference to disabled.
+  profile_->GetPrefs()->SetBoolean(prefs::kIOSBWGPageContentSetting, false);
+
+  // Verify that `attached_tabs_` was cleared.
+  EXPECT_EQ(0u, GetRawAttachedTabs().size());
+}
+
+// Tests that ShowGeminiLiveMicrophoneAlert presents the OS settings alert when
+// OS-level microphone permission is denied.
+TEST_F(GeminiBrowserAgentTest, TestShowGeminiLiveMicrophoneAlertWhenOSDenied) {
+  id mock_device = OCMClassMock([AVCaptureDevice class]);
+  // Disable OS level microphone permission.
+  OCMStub([mock_device authorizationStatusForMediaType:AVMediaTypeAudio])
+      .andReturn(AVAuthorizationStatusDenied);
+
+  // Mock view controller to capture modal presentation calls.
+  id mock_view_controller = OCMClassMock([UIViewController class]);
+  NSString* expected_title =
+      l10n_util::GetNSString(IDS_IOS_GEMINI_LIVE_MICROPHONE_ALERT_TITLE);
+
+  // Expect that an alert controller with the OS settings alert title is
+  // presented.
+  OCMExpect([mock_view_controller
+      presentViewController:[OCMArg checkWithBlock:^BOOL(id obj) {
+        UIAlertController* alert =
+            base::apple::ObjCCast<UIAlertController>(obj);
+        return [alert.title isEqualToString:expected_title];
+      }]
+                   animated:YES
+                 completion:nil]);
+
+  // Trigger the microphone permission check.
+  gemini_browser_agent_->ShowGeminiLiveMicrophoneAlert(mock_view_controller,
+                                                       nil);
+
+  // Verify that `presentViewController:` was actually invoked with the expected
+  // alert title.
+  EXPECT_OCMOCK_VERIFY(mock_view_controller);
+  [mock_device stopMocking];
+}
+
+// Tests that ShowGeminiLiveMicrophoneAlert presents the in-app Gemini
+// microphone permission prompt when system authorization is granted but the
+// Chrome-level setting is disabled.
+TEST_F(GeminiBrowserAgentTest,
+       TestShowGeminiLiveMicrophoneAlertWhenChromePrefDisabled) {
+  // Disable Chrome-level Gemini Live microphone setting.
+  profile_->GetPrefs()->SetBoolean(prefs::kIOSGeminiLiveMicrophoneSetting,
+                                   false);
+
+  // Enable OS level microphone permission.
+  id mock_device = OCMClassMock([AVCaptureDevice class]);
+  OCMStub([mock_device authorizationStatusForMediaType:AVMediaTypeAudio])
+      .andReturn(AVAuthorizationStatusAuthorized);
+
+  // Mock view controller to capture modal presentation calls.
+  id mock_view_controller = OCMClassMock([UIViewController class]);
+  NSString* expected_title =
+      l10n_util::GetNSString(IDS_IOS_GEMINI_PERMISSION_MICROPHONE_PROMPT_TITLE);
+
+  // Expect that the in-app permission alert is presented.
+  OCMExpect([mock_view_controller
+      presentViewController:[OCMArg checkWithBlock:^BOOL(id obj) {
+        UIAlertController* alert =
+            base::apple::ObjCCast<UIAlertController>(obj);
+        return [alert.title isEqualToString:expected_title];
+      }]
+                   animated:YES
+                 completion:nil]);
+
+  // Trigger the microphone permission check.
+  gemini_browser_agent_->ShowGeminiLiveMicrophoneAlert(mock_view_controller,
+                                                       nil);
+
+  // Verify that `presentViewController:` was actually invoked with the expected
+  // alert title.
+  EXPECT_OCMOCK_VERIFY(mock_view_controller);
+  [mock_device stopMocking];
+}
+
+// Tests that ShowGeminiLiveMicrophoneAlert immediately completes with YES and
+// presents no alert when both OS and Chrome-level permissions are granted.
+TEST_F(GeminiBrowserAgentTest,
+       TestShowGeminiLiveMicrophoneAlertWhenAuthorizedAndEnabled) {
+  // Enable Chrome-level Gemini Live microphone setting.
+  profile_->GetPrefs()->SetBoolean(prefs::kIOSGeminiLiveMicrophoneSetting,
+                                   true);
+
+  // Enable OS level microphone permission.
+  id mock_device = OCMClassMock([AVCaptureDevice class]);
+  OCMStub([mock_device authorizationStatusForMediaType:AVMediaTypeAudio])
+      .andReturn(AVAuthorizationStatusAuthorized);
+
+  // Use a strict mock so any unexpected call (like presenting an alert) causes
+  // the test to fail immediately.
+  id mock_view_controller = OCMStrictClassMock([UIViewController class]);
+  __block BOOL completion_called = NO;
+  __block BOOL completion_granted = NO;
+
+  // Trigger the permission check and verify the completion block runs
+  // immediately.
+  gemini_browser_agent_->ShowGeminiLiveMicrophoneAlert(
+      mock_view_controller, ^(BOOL granted) {
+        completion_called = YES;
+        completion_granted = granted;
+      });
+
+  EXPECT_TRUE(completion_called);
+  EXPECT_TRUE(completion_granted);
+  [mock_device stopMocking];
 }

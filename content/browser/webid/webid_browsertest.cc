@@ -66,25 +66,25 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/webid/login_status_account.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
-using net::EmbeddedTestServer;
-using net::HttpStatusCode;
-using net::test_server::BasicHttpResponse;
-using net::test_server::HttpMethod;
-using net::test_server::HttpRequest;
-using net::test_server::HttpResponse;
-using DigitalCredential = content::DigitalIdentityProvider::DigitalCredential;
+namespace content {
+
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::WithArg;
 using ::testing::WithArgs;
-
-namespace content {
+using DigitalCredential = DigitalIdentityProvider::DigitalCredential;
+using net::EmbeddedTestServer;
+using net::HttpStatusCode;
+using net::test_server::BasicHttpResponse;
+using net::test_server::HttpMethod;
+using net::test_server::HttpRequest;
+using net::test_server::HttpResponse;
 
 namespace {
 
@@ -2307,7 +2307,6 @@ IN_PROC_BROWSER_TEST_F(WebIdMetricsBrowserTest, IdpLoginClosed) {
             return modal->web_contents();
           }));
   EXPECT_CALL(*controller, ShowLoadingDialog).WillOnce(Return(true));
-  EXPECT_CALL(*controller, DidShowUi).WillRepeatedly(Return(true));
 
   // Now run the actual test.
   base::RunLoop run_loop;

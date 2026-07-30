@@ -30,6 +30,7 @@ import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.tab.SadTab;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabCreationState;
+import org.chromium.chrome.browser.tab.TabDestroyStatus;
 import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabSelectionType;
@@ -308,10 +309,11 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
     }
 
     @Override
-    public void destroy() {
-        super.destroy();
+    public @TabDestroyStatus int destroy() {
+        @TabDestroyStatus int status = super.destroy();
         if (mRecentlyClosedBridge != null) mRecentlyClosedBridge.destroy();
         if (mTabModelSelectorTabObserver != null) mTabModelSelectorTabObserver.destroy();
+        return status;
     }
 
     /**
@@ -341,7 +343,6 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
                             new Runnable() {
                                 @Override
                                 public void run() {
-                                    notifyChanged();
                                     // The tab model has changed to regular and all the visual
                                     // elements wrt regular mode is in-place. We can now signal
                                     // the re-auth to hide the dialog.
@@ -436,7 +437,6 @@ public class TabModelSelectorImpl extends TabModelSelectorBase implements TabMod
         }
 
         if (tab == null) {
-            notifyChanged();
             return;
         }
 

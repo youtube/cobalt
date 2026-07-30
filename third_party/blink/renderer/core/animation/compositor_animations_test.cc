@@ -687,6 +687,63 @@ class LayoutObjectProxy : public LayoutObject {
 
 INSTANTIATE_PAINT_TEST_SUITE_P(AnimationCompositorAnimationsTest);
 
+// This test guards against one case of crbug.com/40061259. This test passes so
+// long as it doesn't crash.
+TEST_P(AnimationCompositorAnimationsTest,
+       NestedBackdropFilterInWillChangeContentsSubtree) {
+  SetBodyInnerHTML(R"HTML(
+    <!DOCTYPE html>
+    <style>
+      #grandparent {
+        will-change: contents;
+      }
+      #parent {
+        width: 400px;
+        height: 400px;
+        background-color: green;
+      }
+      #parent.animation {
+        animation: myanim linear 2s;
+      }
+      #child {
+        backdrop-filter: invert(1);
+        width: 200px;
+        height: 200px;
+      }
+      @keyframes myanim {
+        0% {
+          translate: 10px 10px;
+          opacity: 1;
+        }
+        100% {
+          translate: 0px 0px;
+          opacity: 0;
+        }
+      }
+    </style>
+    <div id="grandparent">
+      <div id="parent">
+        <div id="child">
+        </div>
+      </div>
+    </div>
+  )HTML");
+  Element* target = GetDocument().getElementById(AtomicString("parent"));
+  target->setAttribute(html_names::kClassAttr, AtomicString("animation"));
+
+  UpdateAllLifecyclePhasesForTest();
+
+  ElementAnimations* ea = target->GetElementAnimations();
+  EXPECT_TRUE(ea);
+  EXPECT_EQ(ea->Animations().size(), 1u);
+  Animation* anim = ea->Animations().begin()->key;
+
+  EXPECT_NE(anim->CheckCanStartAnimationOnCompositor(
+                GetDocument().View()->GetPaintArtifactCompositor(),
+                StartOnCompositorReason::kGeneric),
+            CompositorAnimations::kNoFailure);
+}
+
 TEST_P(AnimationCompositorAnimationsTest,
        CanStartEffectOnCompositorKeyframeMultipleCSSProperties) {
   StringKeyframeVector supported_mixed_keyframe_vector;
@@ -769,7 +826,6 @@ TEST_P(AnimationCompositorAnimationsTest,
 
 TEST_P(AnimationCompositorAnimationsTest,
        CanStartEffectOnCompositorCustomCssProperty) {
-  ScopedOffMainThreadCSSPaintForTest off_main_thread_css_paint(true);
   RegisterProperty(GetDocument(), "--foo", "<number>", "0", false);
   RegisterProperty(GetDocument(), "--bar", "<length>", "10px", false);
   RegisterProperty(GetDocument(), "--loo", "<color>", "rgb(0, 0, 0)", false);
@@ -2005,8 +2061,6 @@ TEST_P(AnimationCompositorAnimationsTest,
 
 TEST_P(AnimationCompositorAnimationsTest,
        CreateCustomFloatPropertyAnimationWithNonAsciiName) {
-  ScopedOffMainThreadCSSPaintForTest off_main_thread_css_paint(true);
-
   String property_name = "--東京都";
   RegisterProperty(GetDocument(), property_name, "<number>", "0", false);
   SetCustomProperty(property_name, "10");
@@ -2026,8 +2080,6 @@ TEST_P(AnimationCompositorAnimationsTest,
 
 TEST_P(AnimationCompositorAnimationsTest,
        CreateSimpleCustomFloatPropertyAnimation) {
-  ScopedOffMainThreadCSSPaintForTest off_main_thread_css_paint(true);
-
   RegisterProperty(GetDocument(), "--foo", "<number>", "0", false);
   SetCustomProperty("--foo", "10");
 
@@ -2062,8 +2114,6 @@ TEST_P(AnimationCompositorAnimationsTest,
 
 TEST_P(AnimationCompositorAnimationsTest,
        CreateSimpleCustomColorPropertyAnimation) {
-  ScopedOffMainThreadCSSPaintForTest off_main_thread_css_paint(true);
-
   RegisterProperty(GetDocument(), "--foo", "<color>", "rgb(0, 0, 0)", false);
   SetCustomProperty("--foo", "rgb(0, 0, 0)");
 
@@ -2097,8 +2147,6 @@ TEST_P(AnimationCompositorAnimationsTest,
 }
 
 TEST_P(AnimationCompositorAnimationsTest, MixedCustomPropertyAnimation) {
-  ScopedOffMainThreadCSSPaintForTest off_main_thread_css_paint(true);
-
   RegisterProperty(GetDocument(), "--foo", "<number> | <color>", "0", false);
   SetCustomProperty("--foo", "0");
 

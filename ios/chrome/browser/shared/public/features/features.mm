@@ -34,29 +34,6 @@ BASE_FEATURE(kSafetyCheckAutorunByManagerKillswitch,
 BASE_FEATURE(kSafetyCheckModuleHiddenIfNoIssuesKillswitch,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTabGridSetupMode, base::FEATURE_DISABLED_BY_DEFAULT);
-
-const char kTabGridSetupModeParamName[] = "tab_grid_setup_mode";
-
-const base::FeatureParam<std::string> kTabGridSetupModeParam(
-    &kTabGridSetupMode,
-    kTabGridSetupModeParamName,
-    "immediate");
-
-TabGridSetupMode GetTabGridSetupMode() {
-  if (!base::FeatureList::IsEnabled(kTabGridSetupMode)) {
-    return TabGridSetupMode::kImmediate;
-  }
-  std::string value = kTabGridSetupModeParam.Get();
-  if (value == "deferred") {
-    return TabGridSetupMode::kDeferred;
-  }
-  if (value == "lazy_for_testing") {
-    return TabGridSetupMode::kLazy_ForTesting;
-  }
-  return TabGridSetupMode::kImmediate;
-}
-
 BASE_FEATURE(kOmahaServiceRefactor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kHideToolbarsInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -775,7 +752,7 @@ GetTipsNotificationsAlternativeStringVersion() {
       kTipsNotificationsAlternativeStringVersionFeatureParam.Get());
 }
 
-BASE_FEATURE(kIOSSyncedSetUp, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kIOSSyncedSetUp, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsSyncedSetUpEnabled() {
   return base::FeatureList::IsEnabled(
@@ -1197,12 +1174,6 @@ bool IsPlusButtonInFakeboxEnabled() {
   return base::FeatureList::IsEnabled(kPlusButtonInFakebox);
 }
 
-BASE_FEATURE(kCobrowseAimHistory, base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsCobrowseAimHistoryEnabled() {
-  return base::FeatureList::IsEnabled(kCobrowseAimHistory);
-}
-
 BASE_FEATURE(kAssistantAimMinimizedState, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAssistantAimMinimizedStateEnabled() {
@@ -1288,4 +1259,10 @@ BASE_FEATURE(kAppBarHideInFullscreen, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsAppBarHiddenInFullscreen() {
   return base::FeatureList::IsEnabled(kAppBarHideInFullscreen);
+}
+
+BASE_FEATURE(kToolbarGlassPrototype, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsToolbarGlassPrototypeEnabled() {
+  return base::FeatureList::IsEnabled(kToolbarGlassPrototype);
 }

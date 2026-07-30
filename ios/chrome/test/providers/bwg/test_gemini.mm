@@ -2,6 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#import <UIKit/UIKit.h>
+
 #import "ios/public/provider/chrome/browser/bwg/gemini_api.h"
 
 namespace ios::provider {
@@ -9,8 +11,7 @@ namespace ios::provider {
 void ConfigureWithStartupConfiguration(
     GeminiStartupConfiguration* gemini_startup_configuration) {}
 
-// TODO(crbug.com/478259873): Replace with StartGeminiOverlay
-void StartBwgOverlay(GeminiConfiguration* gemini_configuration) {}
+void StartGeminiOverlay(GeminiConfiguration* gemini_configuration) {}
 
 const std::u16string GetPageContextShouldDetachScript() {
   return uR"JS(
@@ -26,8 +27,7 @@ const std::u16string GetPageContextShouldDetachScript() {
   )JS";
 }
 
-// TODO(crbug.com/478259873): Replace with CreateGeminiGateway
-id<BWGGatewayProtocol> CreateBWGGateway() {
+id<BWGGatewayProtocol> CreateGeminiGateway() {
   return nil;
 }
 
@@ -116,7 +116,11 @@ int GetLiveCaptionsNumberOfLines() {
 
 UIViewController* GetFloatyViewControllerWithConfiguration(
     GeminiConfiguration* gemini_configuration) {
-  return nil;
+  UIViewController* viewController = [[UIViewController alloc] init];
+  UITextField* textField = [[UITextField alloc] init];
+  textField.accessibilityIdentifier = @"GeminiTestTextField";
+  [viewController.view addSubview:textField];
+  return viewController;
 }
 
 }  // namespace ios::provider

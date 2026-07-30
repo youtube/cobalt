@@ -50,7 +50,7 @@ namespace autofill {
 class AutofillAiSaveEntityInfoBarDelegateIOS;
 class AutofillSuggestionDelegate;
 class LogRouter;
-class PersonalContextAccessManager;
+class AutofillAiPersonalContextAccessManager;
 
 enum class SuggestionType;
 
@@ -104,7 +104,8 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() override;
   void GetAiPageContent(GetAiPageContentCallback callback) override;
   AutofillAiManager* GetAutofillAiManager() override;
-  PersonalContextAccessManager* GetPersonalContextAccessManager() override;
+  AutofillAiPersonalContextAccessManager*
+  GetAutofillAiPersonalContextAccessManager() override;
   AutofillAiModelCache* GetAutofillAiModelCache() override;
   AutofillAiModelExecutor* GetAutofillAiModelExecutor() override;
   optimization_guide::RemoteModelExecutor* GetRemoteModelExecutor() override;
@@ -143,6 +144,9 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
                        std::optional<FillingProduct> product) override;
   bool IsAutofillEnabled() const override;
   bool IsAutofillProfileEnabled() const override;
+  bool IsAutofillTypeBlockedByPolicy(
+      const GURL& url,
+      AutofillPolicyDataCategory category) const override;
   bool IsWalletPublicPassStorageEnabled() const override;
   bool IsAutocompleteEnabled() const override;
   bool IsPasswordManagerEnabled() const override;

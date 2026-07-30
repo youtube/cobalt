@@ -113,12 +113,49 @@ class V5BitReader {
   bool ReadMultipleBits(int num_bits, T* out);
 
  private:
+  // Fills the buffer with bytes from the stream. Returns true if it loaded any
+  // bits.
+  bool FillBuffer();
+
+  // Returns true if the stream has bytes available.
+  bool StreamHasMore() const;
+
   // The underlying data stream.
   base::raw_span<const uint8_t> data_;
+
   // The index of the next byte to read from `data_`.
   size_t byte_index_ = 0;
-  // The index of the next bit to read within the current byte (0 to 7).
-  int bit_index_ = 0;
+
+  // A temporary buffer holding up to 32 bits read from the stream. Bit-reading
+  // operations consume directly from this buffer. Using this instead of reading
+  // from the stream directly significantly improves decoding speed.
+  class BitBuffer {
+   public:
+    // Returns true if there are bits available to read.
+    bool HasBits() const;
+
+    // Returns the number of valid bits currently in the buffer.
+    int NumBits() const;
+
+    // Returns true if we can load another 8-bit byte without overflowing the
+    // 32-bit limit.
+    bool HasRoomForOneByte() const;
+
+    // Appends a byte to the buffer at the next available higher-order bit
+    // position.
+    void AppendByte(uint8_t byte);
+
+    // Consumes up to 32 bits from the buffer (LSB-first) and returns them.
+    // Handles masking, shifting, and guards against UB.
+    uint32_t ConsumeBits(int count);
+
+   private:
+    // The accumulated bits loaded from the stream.
+    uint32_t stored_bits_ = 0;
+    // The number of valid bits currently in the buffer.
+    int num_bits_ = 0;
+  };
+  BitBuffer buffer_;
 };
 
 // Converts a vector of decoded values (in host-endianness) back to a raw
@@ -134,7 +171,41 @@ std::string SerializeToBigEndianBytes(std::vector<T> decoded);
 
 }  // namespace v5_rice_utils
 
+// Enumerate different results while validating the Rice-encoded inputs.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(V5InputValidationResult)
+enum class V5InputValidationResult {
+  // The input is valid.
+  kSuccess = 0,
+  // The number of entries is negative.
+  kNegativeNumEntries = 1,
+  // The Rice parameter is too small for the type.
+  kRiceParameterTooSmall = 2,
+  // The Rice parameter is too large for the type.
+  kRiceParameterTooLarge = 3,
+
+  kMaxValue = kRiceParameterTooLarge
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:SafeBrowsingV5InputValidationResult)
+
+// Validator for Safe Browsing V5 Rice-encoded inputs.
+class V5RiceInputValidator {
+ public:
+  V5RiceInputValidator() = delete;
+
+  // Validates the Rice-encoded inputs.
+  // Returns `V5InputValidationResult::kSuccess` if the inputs are valid and
+  // safe to decode, or an error code indicating why they are invalid.
+  template <typename T>
+  [[nodiscard]] static V5InputValidationResult Validate(int rice_parameter,
+                                                        int num_entries);
+};
+
 // Enumerate different results while decoding the Rice-encoded data.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(V5DecodeResult)
 enum class V5DecodeResult {
   // Decoding was successful.
   kSuccess = 0,
@@ -148,9 +219,12 @@ enum class V5DecodeResult {
 
   kMaxValue = kQuotientTooLarge
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:SafeBrowsingV5DecodeResult)
 
 // Decoder for Golomb-Rice encoded Safe Browsing V5 database updates.
 // See https://en.wikipedia.org/wiki/Golomb_coding.
+// Callers are expected to validate their inputs using `V5RiceInputValidator`
+// before calling into this decoder.
 class V5RiceDecoder {
  public:
   // Decodes the Rice-encoded data in `encoded_data` as a sequence of hash

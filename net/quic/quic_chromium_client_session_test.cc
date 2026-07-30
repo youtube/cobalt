@@ -9,17 +9,22 @@
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
+#include "base/rand_util.h"
 #include "base/run_loop.h"
 #include "base/strings/strcat.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/simple_test_tick_clock.h"
 #include "base/time/default_tick_clock.h"
 #include "build/build_config.h"
 #include "net/base/connection_endpoint_metadata.h"
 #include "net/base/connection_migration_information.h"
+#include "net/base/ech_mode.h"
 #include "net/base/features.h"
+#include "net/base/net_errors.h"
 #include "net/base/network_anonymization_key.h"
 #include "net/base/privacy_mode.h"
 #include "net/base/proxy_chain.h"
@@ -59,6 +64,7 @@
 #include "net/spdy/multiplexed_session_creation_initiator.h"
 #include "net/spdy/spdy_test_util_common.h"
 #include "net/ssl/ssl_config_service_defaults.h"
+#include "net/ssl/test_static_ech_mode_getter.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/gtest_util.h"
 #include "net/test/test_data_directory.h"
@@ -138,6 +144,23 @@ class TestingQuicConnection : public quic::QuicConnection {
   base::RepeatingCallback<void()> keep_alive_timeout_callback_;
 };
 
+class TestSSLConfigServiceDefaults : public SSLConfigServiceDefaults {
+ public:
+  EchMode GetEchMode(std::string_view hostname) const override {
+    if (ech_mode_getter_) {
+      return ech_mode_getter_->GetEchMode(hostname);
+    }
+    return EchMode::kOpportunistic;
+  }
+
+  void SetEchModeGetter(std::unique_ptr<EchModeGetter> ech_mode_getter) {
+    ech_mode_getter_ = std::move(ech_mode_getter);
+  }
+
+ private:
+  std::unique_ptr<EchModeGetter> ech_mode_getter_;
+};
+
 // A subclass of QuicChromiumClientSession that allows OnPathDegrading to be
 // mocked.
 class TestingQuicChromiumClientSession : public QuicChromiumClientSession {
@@ -149,6 +172,24 @@ class TestingQuicChromiumClientSession : public QuicChromiumClientSession {
   MOCK_METHOD(void, UnregisterQuicConnectionClosePayload, (), (override));
 
   void ReallyOnPathDegrading() { QuicChromiumClientSession::OnPathDegrading(); }
+
+  bool OnPacket(const quic::QuicReceivedPacket& packet,
+                const quic::QuicSocketAddress& local_address,
+                const quic::QuicSocketAddress& peer_address) override {
+    bool result = QuicChromiumClientSession::OnPacket(packet, local_address,
+                                                      peer_address);
+    if (on_packet_callback_) {
+      on_packet_callback_.Run();
+    }
+    return result;
+  }
+
+  void set_on_packet_callback(base::RepeatingClosure callback) {
+    on_packet_callback_ = std::move(callback);
+  }
+
+ private:
+  base::RepeatingClosure on_packet_callback_;
 };
 
 class QuicChromiumClientSessionTest
@@ -205,7 +246,11 @@ class QuicChromiumClientSessionTest
   }
 
  protected:
-  void Initialize(bool migrate_session_on_network_change_v2 = false) {
+  void Initialize(bool migrate_session_on_network_change_v2 = false,
+                  int yield_after_packets = kQuicYieldAfterPacketsRead,
+                  quic::QuicTime::Delta yield_after_duration =
+                      quic::QuicTime::Delta::FromMilliseconds(
+                          kQuicYieldAfterDurationMilliseconds)) {
     if (socket_data_) {
       socket_factory_.AddSocketDataProvider(socket_data_.get());
     }
@@ -244,10 +289,8 @@ class QuicChromiumClientSessionTest
         kDefaultIdleSessionMigrationPeriod, /*multi_port_probing_interval=*/0,
         kMaxTimeOnNonDefaultNetwork,
         kMaxMigrationsToNonDefaultNetworkOnWriteError,
-        kMaxMigrationsToNonDefaultNetworkOnPathDegrading,
-        kQuicYieldAfterPacketsRead,
-        quic::QuicTime::Delta::FromMilliseconds(
-            kQuicYieldAfterDurationMilliseconds),
+        kMaxMigrationsToNonDefaultNetworkOnPathDegrading, yield_after_packets,
+        yield_after_duration,
         /*cert_verify_flags=*/0, config_,
         std::make_unique<TestQuicCryptoClientConfigHandle>(&crypto_config_),
         "CONNECTION_UNKNOWN", base::TimeTicks::Now(), base::TimeTicks::Now(),
@@ -333,7 +376,7 @@ class QuicChromiumClientSessionTest
   quic::test::MockAlarmFactory alarm_factory_;
   std::unique_ptr<TransportSecurityState> transport_security_state_;
   MockCryptoClientStreamFactory crypto_client_stream_factory_;
-  SSLConfigServiceDefaults ssl_config_service_;
+  TestSSLConfigServiceDefaults ssl_config_service_;
   QuicSessionKey session_key_;
   url::SchemeHostPort destination_;
   std::unique_ptr<TestingQuicChromiumClientSession> session_;
@@ -3144,6 +3187,257 @@ TEST_P(QuicChromiumClientSessionTest, ResumedTicketAgeNotAttempted) {
       "Net.QuicSession.ResumeAttemptTicketAge.Accepted", 0);
   histogram_tester.ExpectTotalCount(
       "Net.QuicSession.ResumeAttemptTicketAge.Rejected", 0);
+}
+TEST_P(QuicChromiumClientSessionTest, ReadMultiplePackets) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kQuicUseReadMultiple);
+
+  base::MetricsSubSampler::ScopedAlwaysSampleForTesting always_sample;
+  base::HistogramTester histogram_tester;
+
+  socket_data_.reset();
+
+  MockQuicData quic_data(version_);
+  int packet_num = 1;
+  int peer_packet_num = 1;
+
+  quic_data.AddWrite(SYNCHRONOUS,
+                     client_maker_.MakeInitialSettingsPacket(packet_num++));
+
+  quic_data.AddRead(
+      ASYNC, server_maker_.Packet(peer_packet_num++).AddPingFrame().Build());
+  quic_data.AddRead(
+      SYNCHRONOUS,
+      server_maker_.Packet(peer_packet_num++).AddPingFrame().Build());
+
+  quic_data.AddWrite(
+      SYNCHRONOUS,
+      client_maker_.Packet(packet_num++).AddAckFrame(1, 2, 1).Build());
+
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+  CompleteCryptoHandshake();
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return session_->connection()->GetStats().packets_received == 2u;
+  }));
+
+  // Verify that the histogram logged 2 packets read.
+  histogram_tester.ExpectUniqueSample("Net.QuicSession.ReadMultipleNumPackets",
+                                      2, 1);
+
+  // Verify that both packets were processed.
+  EXPECT_EQ(session_->connection()->GetStats().packets_received, 2u);
+}
+
+TEST_P(QuicChromiumClientSessionTest, ReadMultiplePacketsWithError) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kQuicUseReadMultiple);
+
+  base::MetricsSubSampler::ScopedAlwaysSampleForTesting always_sample;
+  base::HistogramTester histogram_tester;
+
+  socket_data_.reset();
+
+  MockQuicData quic_data(version_);
+  int packet_num = 1;
+  int peer_packet_num = 1;
+
+  quic_data.AddWrite(SYNCHRONOUS,
+                     client_maker_.MakeInitialSettingsPacket(packet_num++));
+
+  // First packet read asynchronously.
+  quic_data.AddRead(
+      ASYNC, server_maker_.Packet(peer_packet_num++).AddPingFrame().Build());
+  // Next packet read synchronously.
+  quic_data.AddRead(
+      SYNCHRONOUS,
+      server_maker_.Packet(peer_packet_num++).AddPingFrame().Build());
+
+  // ACK for packets 1 and 2.
+  quic_data.AddWrite(
+      ASYNC, client_maker_.Packet(packet_num++).AddAckFrame(1, 2, 1).Build());
+
+  // Third read returns an error asynchronously (waits for ACK 1-2).
+  quic_data.AddRead(ASYNC, ERR_MSG_TOO_BIG);
+
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+  CompleteCryptoHandshake();
+
+  // Run the loop.
+  EXPECT_TRUE(base::test::RunUntil(
+      [&]() { return !session_->connection()->connected(); }));
+
+  // Verify that the connection is closed due to the error.
+  EXPECT_FALSE(session_->connection()->connected());
+
+  // Verify that the histogram logged the 2 packets read before the error.
+  histogram_tester.ExpectUniqueSample("Net.QuicSession.ReadMultipleNumPackets",
+                                      2, 1);
+
+  // Verify that only 2 packets were processed (packet 3 was an error).
+  EXPECT_EQ(session_->connection()->GetStats().packets_received, 2u);
+  EXPECT_EQ(session_->error(), quic::QUIC_PACKET_READ_ERROR);
+  EXPECT_EQ(session_->error_details(), ErrorToString(ERR_MSG_TOO_BIG));
+}
+
+// This test verifies that QuicChromiumPacketReader is resilient to re-entrant
+// calls to StartReading() during packet processing.
+//
+// Re-entrancy is an existing pattern in the QUIC session. During packet
+// processing (inside `Visitor::OnPacket()`), the session may trigger events
+// that result in a call back into `StartReading()`. Real-world cases include:
+// 1) Connection Migration: Processing a packet might trigger a write (e.g.
+// ACK)
+//    which fails, or path degradation is detected, causing the session to
+//    migrate to a new socket and call `StartReading()` on the readers.
+// 2) Write Blocked Recovery: A write triggered by a read packet might succeed
+//    or fail in a way that causes the session to reset or resume its read
+//    loop.
+// 3) Connectivity Probing: Receiving a probing packet might cause the session
+//    to activate a probing reader and call `StartReading()`.
+//
+// The old single-read (recvmsg) implementation was naturally resilient to
+// this because `read_pending_` remained `true` throughout the entire
+// read-and-process cycle (including while yielded). Any re-entrant call to
+// `StartReading()` would hit the `if (read_pending_) return;` guard and
+// safely no-op.
+//
+// This test ensures that the new batched ReadMultiple (recvmmsg) path
+// maintains this resilience by safely no-oping on re-entrant calls instead of
+// attempting a corrupting concurrent read or crashing due to a non-empty
+// packet queue.
+TEST_P(QuicChromiumClientSessionTest,
+       ReadMultiplePacketsReentrantStartReading) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(features::kQuicUseReadMultiple);
+
+  base::MetricsSubSampler::ScopedAlwaysSampleForTesting always_sample;
+
+  socket_data_.reset();
+
+  MockQuicData quic_data(version_);
+  int packet_num = 1;
+  int peer_packet_num = 1;
+
+  quic_data.AddWrite(SYNCHRONOUS,
+                     client_maker_.MakeInitialSettingsPacket(packet_num++));
+
+  // We need at least 2 packets in the batch to trigger the scenario.
+  quic_data.AddRead(
+      ASYNC, server_maker_.Packet(peer_packet_num++).AddPingFrame().Build());
+  quic_data.AddRead(
+      SYNCHRONOUS,
+      server_maker_.Packet(peer_packet_num++).AddPingFrame().Build());
+
+  quic_data.AddWrite(
+      SYNCHRONOUS,
+      client_maker_.Packet(packet_num++).AddAckFrame(1, 2, 1).Build());
+
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+
+  Initialize();
+  CompleteCryptoHandshake();
+
+  // Set up the re-entrant call. When the first packet is processed,
+  // we call StartReading() which should be a no-op (return early)
+  // because the reader is busy processing the batch.
+  // If the fix is NOT in place, this will crash on
+  // CHECK(pending_datagrams_.empty()).
+  session_->set_on_packet_callback(
+      base::BindLambdaForTesting([&]() { session_->StartReading(); }));
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return session_->connection()->GetStats().packets_received == 2u;
+  }));
+
+  EXPECT_EQ(session_->connection()->GetStats().packets_received, 2u);
+}
+
+// Test that, if EchMode is kDisabled, ECH GREASE is disabled in QuicSSLConfig.
+TEST_P(QuicChromiumClientSessionTest, ECHModeDisabled) {
+  ssl_config_service_.SetEchModeGetter(
+      std::make_unique<TestStaticEchModeGetter>(EchMode::kDisabled,
+                                                kServerHostname));
+  MockQuicData quic_data(version_);
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.MakeInitialSettingsPacket(1));
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+  Initialize();
+
+  quic::QuicSSLConfig config = session_->GetSSLConfig();
+  EXPECT_FALSE(config.ech_grease_enabled);
+  EXPECT_TRUE(config.ech_config_list.empty());
+
+  CompleteCryptoHandshake();
+}
+
+// Test that, if EchMode is kStrict and ECH configs are missing, CryptoConnect
+// returns ERR_STRICT_ECH_REQUIRED.
+TEST_P(QuicChromiumClientSessionTest, ECHModeStrictMissingConfig) {
+  ssl_config_service_.SetEchModeGetter(
+      std::make_unique<TestStaticEchModeGetter>(EchMode::kStrict,
+                                                kServerHostname));
+  Initialize();
+
+  // ech_config_list_ is empty by default in tests.
+  EXPECT_THAT(session_->CryptoConnect(callback_.callback()),
+              IsError(ERR_STRICT_ECH_REQUIRED));
+}
+
+// Test that, if EchMode is kStrict and ECH configs are available,
+// QuicSSLConfig is correctly populated.
+TEST_P(QuicChromiumClientSessionTest, ECHModeStrictWithConfigs) {
+  ssl_config_service_.SetEchModeGetter(
+      std::make_unique<TestStaticEchModeGetter>(EchMode::kStrict,
+                                                kServerHostname));
+  std::vector<uint8_t> ech_config_list = {1, 2, 3, 4};
+  MockQuicData quic_data(version_);
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.MakeInitialSettingsPacket(1));
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+  Initialize();
+
+  test::QuicChromiumClientSessionPeer::SetEchConfigList(session_.get(),
+                                                        ech_config_list);
+
+  quic::QuicSSLConfig config = session_->GetSSLConfig();
+  EXPECT_TRUE(config.ech_grease_enabled);
+  EXPECT_EQ(config.ech_config_list,
+            std::string(ech_config_list.begin(), ech_config_list.end()));
+
+  CompleteCryptoHandshake();
+}
+
+// Test that, if EchMode is kOpportunistic, ECH GREASE is enabled in
+// QuicSSLConfig.
+TEST_P(QuicChromiumClientSessionTest, ECHModeOpportunistic) {
+  ssl_config_service_.SetEchModeGetter(
+      std::make_unique<TestStaticEchModeGetter>(EchMode::kOpportunistic,
+                                                kServerHostname));
+  MockQuicData quic_data(version_);
+  quic_data.AddWrite(SYNCHRONOUS, client_maker_.MakeInitialSettingsPacket(1));
+  quic_data.AddRead(ASYNC, ERR_IO_PENDING);
+  quic_data.AddRead(ASYNC, ERR_CONNECTION_CLOSED);
+  quic_data.AddSocketDataToFactory(&socket_factory_);
+  Initialize();
+
+  quic::QuicSSLConfig config = session_->GetSSLConfig();
+  EXPECT_TRUE(config.ech_grease_enabled);
+  EXPECT_TRUE(config.ech_config_list.empty());
+
+  CompleteCryptoHandshake();
 }
 
 }  // namespace

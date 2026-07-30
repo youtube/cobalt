@@ -9,6 +9,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "build/build_config.h"
+#include "chrome/browser/contextual_cueing/features.h"
 #include "chrome/browser/indigo/fake_api.h"
 #include "chrome/browser/indigo/indigo_image_replacement_manager.h"
 #include "chrome/browser/indigo/indigo_page_action_controller.h"
@@ -22,6 +23,7 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
@@ -38,6 +40,7 @@
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "mojo/public/cpp/bindings/receiver.h"
+#include "net/base/url_util.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
 #include "net/test/embedded_test_server/http_request.h"
@@ -180,8 +183,9 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
         {{features::kIndigo,
           {{features::kIndigoGenerateUrl.name,
             fake_api_.GetGenerateUrl().spec()},
-           {features::kIndigoAllowForEnterprise.name, "true"}}},
-         {blink::features::kImageReplacement, {}}},
+           {features::kIndigoSkipEnterpriseCheck.name, "true"}}},
+         {blink::features::kImageReplacement, {}},
+         {contextual_cueing::kContextualCueingV2, {}}},
         {});
     InteractiveBrowserTest::SetUp();
   }
@@ -201,7 +205,7 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
     InteractiveBrowserTest::SetUpOnMainThread();
 
     IndigoService* service =
-        IndigoServiceFactory::GetForProfile(browser()->profile());
+        IndigoServiceFactory::GetForProfile(browser()->GetProfile());
     service->SetRemoteEligibilityFetcherForTesting(base::BindRepeating(
         [](IndigoService::RemoteEligibilityCallback callback) {
           std::move(callback).Run(
@@ -211,7 +215,7 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
 
     identity_test_env_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
-            browser()->profile());
+            browser()->GetProfile());
     identity_test_env_adaptor_->identity_test_env()
         ->SetAutomaticIssueOfAccessTokens(true);
     AccountInfo account_info =
@@ -306,7 +310,7 @@ class IndigoBrowserTest : public InteractiveBrowserTest {
     // will show.
     auto* optimization_guide_keyed_service =
         OptimizationGuideKeyedServiceFactory::GetForProfile(
-            browser()->profile());
+            browser()->GetProfile());
     ASSERT_TRUE(optimization_guide_keyed_service);
     optimization_guide_keyed_service->AddHintForTesting(
         embedded_test_server()->GetURL("/image.html"),
@@ -477,7 +481,8 @@ class IndigoOnboardingBrowserTest : public IndigoBrowserTest {
 
 IN_PROC_BROWSER_TEST_F(IndigoOnboardingBrowserTest, OnboardingFlow) {
   const GURL main_tab_url = embedded_test_server()->GetURL("/image.html");
-  const GURL popup_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL popup_url = net::AppendQueryParameter(
+      embedded_test_server()->GetURL("/empty.html"), "toyut", "chrome-mi");
 
   RunTestSequence(
       InstrumentTab(kWebContentsId),
@@ -509,7 +514,8 @@ IN_PROC_BROWSER_TEST_F(IndigoOnboardingBrowserTest, OnboardingFlow) {
 IN_PROC_BROWSER_TEST_F(IndigoOnboardingBrowserTest, ClosedOnNavigation) {
   const GURL main_tab_url = embedded_test_server()->GetURL("/image.html");
   const GURL other_url = embedded_test_server()->GetURL("/title1.html");
-  const GURL popup_url = embedded_test_server()->GetURL("/empty.html");
+  const GURL popup_url = net::AppendQueryParameter(
+      embedded_test_server()->GetURL("/empty.html"), "toyut", "chrome-mi");
 
   RunTestSequence(
       InstrumentTab(kWebContentsId),
@@ -806,14 +812,11 @@ IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, HideToolbarOnReload) {
       PressButton(
           page_actions::AnchoredMessageBubbleView::kAnchoredMessageChipId),
       WaitForShow(IndigoToolbar::kToolbarElementId),
-      // The OOPIF can still be navigating. If so, the reload button is in the
-      // "Stop" state. Wait for the entire WebContents to stop loading before
-      // reloading.
+      // Reload the current tab. Using chrome::Reload avoids race conditions
+      // with ReloadButton's internal mode-switch timer.
       Do(base::BindLambdaForTesting([&]() {
-        content::WaitForLoadStop(
-            browser()->tab_strip_model()->GetActiveWebContents());
+        chrome::Reload(browser(), WindowOpenDisposition::CURRENT_TAB);
       })),
-      PressButton(kReloadButtonElementId),
       // Verify the toolbar is hidden.
       WaitForHide(IndigoToolbar::kToolbarElementId));
 }
@@ -914,10 +917,10 @@ IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, ToastRetryClickRecordsMetrics) {
 
 IN_PROC_BROWSER_TEST_F(IndigoBrowserTest, SuggestionChipClickFlow) {
   IndigoService* service =
-      IndigoServiceFactory::GetForProfile(browser()->profile());
+      IndigoServiceFactory::GetForProfile(browser()->GetProfile());
   // Set anchored message as already shown so the suggestion chip shows
   // automatically instead of the anchored message.
-  service->AnchoredMessageShown();
+  service->ContextualCueShown();
   const GURL main_tab_url = embedded_test_server()->GetURL("/image.html");
   RunTestSequence(
       InstrumentTab(kWebContentsId),

@@ -7,6 +7,7 @@
 #include <memory>
 
 #include "base/check_is_test.h"
+#include "base/containers/to_vector.h"
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
@@ -34,7 +35,6 @@
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_controller_desktop.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
@@ -555,9 +555,7 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
     if (glic::GlicEnabling::IsProfileEligible(profile)) {
       glic_iph_controller_ = std::make_unique<glic::GlicIphController>(
           browser, *glic::GlicKeyedService::Get(profile));
-      glic_nudge_controller_ =
-          std::make_unique<glic::GlicNudgeControllerDesktop>(
-              browser, tab_list_bridge_.get());
+      glic_nudge_controller_ = glic::GlicNudgeController::CreateFor(browser);
     }
 
     initial_web_ui_manager_ = std::make_unique<InitialWebUIManager>(browser);
@@ -690,7 +688,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
   browser_select_file_dialog_controller_ =
       std::make_unique<BrowserSelectFileDialogController>(
-          browser->profile(), browser->tab_strip_model(),
+          browser->GetProfile(), browser->tab_strip_model(),
           BrowserWindow::FromBrowser(browser), browser);
 
   if (browser_view) {
@@ -736,7 +734,10 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
   if (browser_view) {
     devtools_ui_controller_ = std::make_unique<DevtoolsUIController>(
-        browser_, browser_view->GetContentsContainerViews());
+        browser_, base::ToVector(browser_view->GetContentsContainerViews(),
+                                 [](ContentsContainerView* view) {
+                                   return raw_ptr<ContentsContainerView>(view);
+                                 }));
   }
 
   // Must be before exclusive_access_manager_ (whose construction calls
@@ -745,7 +746,7 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
   if (webui_browser_window) {
     webui_browser_exclusive_access_context_ =
         std::make_unique<WebUIBrowserExclusiveAccessContext>(
-            browser->profile(), browser_, browser->GetTabStripModel(),
+            browser->GetProfile(), browser_, browser->GetTabStripModel(),
             webui_browser_window->widget(), webui_browser_window);
   }
 
@@ -904,19 +905,18 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
     if (browser_view && IsPageActionMigrated(PageActionIconType::kAiMode) &&
         AiModeButtonServiceFactory::GetForProfile(profile)) {
-      LocationBarView* location_bar_view = browser_view->GetLocationBarView();
-      // TODO(crbug.com/491707187): Make it work with any LocationBar
-      if (location_bar_view) {
+      LocationBar* location_bar = browser_view->GetLocationBar();
+      if (location_bar) {
         ai_mode_page_action_controller_ =
             GetUserDataFactory()
                 .CreateInstance<omnibox::AiModePageActionController>(
-                    *browser, *browser, *profile, *location_bar_view);
+                    *browser, *browser, *profile, *location_bar);
       }
     }
 
     if (browser_view) {
       if (media_router::MediaRouterEnabled(
-              browser_view->browser()->profile())) {
+              browser_view->browser()->GetProfile())) {
         cast_browser_controller_ =
             std::make_unique<media_router::CastBrowserController>(
                 browser_view->browser());

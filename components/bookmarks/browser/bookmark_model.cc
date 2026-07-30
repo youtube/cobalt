@@ -250,6 +250,7 @@ BookmarkModel::~BookmarkModel() {
 }
 
 void BookmarkModel::Load(const base::FilePath& profile_path) {
+  model_loader_ = ModelLoader::Create();
   if (base::FeatureList::IsEnabled(kEncryptBookmarks)) {
     client_->GetEncryptor(base::BindOnce(
         [](base::WeakPtr<BookmarkModel> model,
@@ -267,6 +268,9 @@ void BookmarkModel::Load(const base::FilePath& profile_path) {
     ContinueLoadWithEncryptor(profile_path, /*encryptor=*/nullptr);
   }
 }
+
+// This is a killswitch if we encounter issues.
+BASE_FEATURE(kDoBookmarkFileCleanup, base::FEATURE_ENABLED_BY_DEFAULT);
 
 void BookmarkModel::ContinueLoadWithEncryptor(
     const base::FilePath& profile_path,
@@ -301,8 +305,25 @@ void BookmarkModel::ContinueLoadWithEncryptor(
         account_file_path, encrypted_account_file_path);
   }
 
-  // Creating ModelLoader schedules the load on a backend task runner.
-  model_loader_ = ModelLoader::Create(
+  std::vector<base::FilePath> files_to_delete;
+  if (base::FeatureList::IsEnabled(kDoBookmarkFileCleanup)) {
+    // There was a rollback at one point and these files were abandoned.
+    files_to_delete.emplace_back(profile_path.Append(
+        kOBSOLETE_EncryptedLocalOrSyncableBookmarksFileName));
+    files_to_delete.emplace_back(
+        profile_path.Append(kOBSOLETE_EncryptedAccountBookmarksFileName));
+
+    if (!base::FeatureList::IsEnabled(kEncryptBookmarks)) {
+      // All encrypted files must be deleted if the experiment is disabled.
+      files_to_delete.emplace_back(
+          profile_path.Append(kEncryptedLocalOrSyncableBookmarksFileName));
+      files_to_delete.emplace_back(
+          profile_path.Append(kEncryptedAccountBookmarksFileName));
+    }
+  }
+
+  // Loading the ModelLoader schedules the load on a backend task runner.
+  model_loader_->Load(
       std::move(encryptor), local_or_syncable_file_path,
       encrypted_local_or_syncable_file_path, account_file_path,
       encrypted_account_file_path, client_->GetLoadManagedNodeCallback(),
@@ -312,6 +333,7 @@ void BookmarkModel::ContinueLoadWithEncryptor(
           ? base::BindOnce(&BookmarkStorage::SaveSingleFileIfNoPreviousSave,
                            account_store_->AsWeakPtr())
           : base::DoNothing(),
+      files_to_delete,
       base::BindOnce(&BookmarkModel::DoneLoading, AsWeakPtr()));
 }
 

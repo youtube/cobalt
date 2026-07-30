@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -220,6 +221,60 @@ public class TabBottomSheetManagerTest {
                 });
 
         verify(mockBottomSheetController).hideContent(any(), anyBoolean(), anyInt());
+    }
+
+    @Test
+    @SmallTest
+    @SuppressWarnings("unchecked")
+    public void testOmniboxFocusChangeDoesNotCloseShowingSheet() {
+        BottomSheetController mockBottomSheetController = mock(BottomSheetController.class);
+        OneshotSupplier<LayoutStateProvider> mockLayoutStateProviderSupplier =
+                mock(OneshotSupplier.class);
+        TouchEventProvider mockTouchEventProvider = mock(TouchEventProvider.class);
+        // requestShowContent returns true to simulate successful display
+        when(mockBottomSheetController.requestShowContent(any(), anyBoolean())).thenReturn(true);
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    SettableNonNullObservableSupplier<Boolean> omniboxFocusSupplier =
+                            ObservableSuppliers.createNonNull(false);
+                    TabBottomSheetManager oldManager =
+                            TabBottomSheetUtils.getManagerFromWindow(mWindowAndroid);
+                    TabBottomSheetManagerImpl manager =
+                            new TabBottomSheetManagerImpl(
+                                    mActivity,
+                                    mWindowAndroid,
+                                    mockBottomSheetController,
+                                    mockLayoutStateProviderSupplier,
+                                    mockTouchEventProvider,
+                                    omniboxFocusSupplier);
+
+                    // Show the bottom sheet. State becomes SHOWING.
+                    manager.tryToShowBottomSheet(
+                            mDelegate,
+                            mCoBrowseViews,
+                            /* animate= */ false,
+                            /* startsExpanded= */ true);
+
+                    // Verify it requested show.
+                    verify(mockBottomSheetController, times(1))
+                            .requestShowContent(any(), anyBoolean());
+                    verify(mockBottomSheetController, never())
+                            .hideContent(any(), anyBoolean(), anyInt());
+
+                    // Simulate Omnibox losing focus (hasFocus = false).
+                    // This triggers maybeShowBottomSheet().
+                    // If the bug is present, it will try to show, fail (since it is showing),
+                    // and call notifyOnClose() which calls hideContent().
+                    omniboxFocusSupplier.set(false);
+
+                    // Verify that hideContent was NEVER called during the focus change.
+                    verify(mockBottomSheetController, never())
+                            .hideContent(any(), anyBoolean(), anyInt());
+
+                    manager.destroy();
+                    TabBottomSheetUtils.attachManagerToWindow(mWindowAndroid, oldManager);
+                });
     }
 
     @Test
@@ -534,6 +589,14 @@ public class TabBottomSheetManagerTest {
         when(otherContent.getBackPressStateChangedSupplier()).thenReturn(alwaysFalse);
         View otherView = ThreadUtils.runOnUiThreadBlocking(() -> new View(mActivity));
         when(otherContent.getContentView()).thenReturn(otherView);
+        when(otherContent.getSheetClosedAccessibilityStringId())
+                .thenReturn(R.string.tab_bottom_sheet_closed);
+        when(otherContent.getSheetHiddenAccessibilityStringId())
+                .thenReturn(R.string.tab_bottom_sheet_closed);
+        when(otherContent.getSheetHalfHeightAccessibilityStringId())
+                .thenReturn(R.string.tab_bottom_sheet_half_height);
+        when(otherContent.getSheetFullHeightAccessibilityStringId())
+                .thenReturn(R.string.tab_bottom_sheet_full_height);
 
         // Request showing the other content. This will suppress the Tab Bottom Sheet.
         ThreadUtils.runOnUiThreadBlocking(

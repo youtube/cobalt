@@ -14,6 +14,7 @@
 #include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "base/nix/xdg_util.h"
 #include "net/base/network_interfaces.h"
 #include "third_party/skia/include/core/SkPath.h"
 #include "third_party/skia/include/core/SkRegion.h"
@@ -270,6 +271,17 @@ base::WeakPtr<X11Window> X11Window::GetWeakPtr() {
 
 void X11Window::Initialize(PlatformWindowInitProperties properties) {
   CreateXWindow(properties);
+
+  std::string startup_id = properties.startup_id;
+  if (startup_id.empty()) {
+    if (auto token = base::nix::TakeXdgActivationToken()) {
+      startup_id = token.value();
+    }
+  }
+  if (!startup_id.empty()) {
+    connection_->SetStringProperty(xwindow_, x11::GetAtom("_NET_STARTUP_ID"),
+                                   x11::Atom::STRING, startup_id);
+  }
 
   // It can be a status icon window.  If it fails to initialize, don't provide
   // it with a native window handle, close ourselves and let the client destroy
@@ -846,6 +858,11 @@ PlatformWindowState X11Window::GetPlatformWindowState() const {
 void X11Window::Activate() {
   if (!IsVisible() || !activatable_) {
     return;
+  }
+
+  if (auto token = base::nix::TakeXdgActivationToken()) {
+    connection_->SetStringProperty(xwindow_, x11::GetAtom("_NET_STARTUP_ID"),
+                                   x11::Atom::STRING, token.value());
   }
 
   BeforeActivationStateChanged();
@@ -1753,17 +1770,28 @@ int X11Window::UpdateDrag(const gfx::Point& connection_point) {
       XDragDropClient::GetForWindow(target_current_context->source_window());
   gfx::PointF local_point_in_dip =
       platform_window_delegate_->ConvertScreenPointToLocalDIP(connection_point);
+  base::WeakPtr<X11Window> alive = weak_ptr_factory_.GetWeakPtr();
   if (!notified_enter_) {
     drop_handler->OnDragEnter(local_point_in_dip, suggested_operations,
                               GetKeyModifiers(source_client));
+    if (!alive) {
+      return DragDropTypes::DRAG_NONE;
+    }
 
     // TODO(crbug.com/40073696): Factor DataFetched out of Enter callback.
     drop_handler->OnDragDataAvailable(std::move(data));
+    if (!alive) {
+      return DragDropTypes::DRAG_NONE;
+    }
 
     notified_enter_ = true;
   }
-  allowed_drag_operations_ = drop_handler->OnDragMotion(
+  int allowed_operations = drop_handler->OnDragMotion(
       local_point_in_dip, suggested_operations, GetKeyModifiers(source_client));
+  if (!alive) {
+    return DragDropTypes::DRAG_NONE;
+  }
+  allowed_drag_operations_ = allowed_operations;
   return allowed_drag_operations_;
 }
 
@@ -1787,7 +1815,11 @@ void X11Window::OnBeforeDragLeave() {
   if (!drop_handler) {
     return;
   }
+  base::WeakPtr<X11Window> alive = weak_ptr_factory_.GetWeakPtr();
   drop_handler->OnDragLeave();
+  if (!alive) {
+    return;
+  }
   notified_enter_ = false;
 }
 
@@ -1802,8 +1834,12 @@ DragOperation X11Window::PerformDrop() {
     return DragOperation::kNone;
   }
 
+  base::WeakPtr<X11Window> alive = weak_ptr_factory_.GetWeakPtr();
   drop_handler->OnDragDrop(GetKeyModifiers(
       XDragDropClient::GetForWindow(target_current_context->source_window())));
+  if (!alive) {
+    return DragOperation::kNone;
+  }
   notified_enter_ = false;
   return PreferredDragOperation(allowed_drag_operations_);
 }

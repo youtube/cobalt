@@ -8,6 +8,7 @@
 #include <memory>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/containers/flat_set.h"
 #include "base/containers/small_map.h"
 #include "base/memory/raw_ptr.h"
@@ -77,13 +78,13 @@ class PageTimingMetricsSender {
                         network::mojom::RequestDestination request_destination,
                         bool is_ad_resource);
   void DidReceiveTransferSizeUpdate(int resource_id,
-                                    base::ByteCount received_data_length);
+                                    base::ByteSize received_data_length);
   void DidCompleteResponse(int resource_id,
                            const network::URLLoaderCompletionStatus& status);
   void DidCancelResponse(int resource_id);
   void DidLoadResourceFromMemoryCache(const GURL& response_url,
                                       int request_id,
-                                      base::ByteCount encoded_body_length,
+                                      base::ByteSize encoded_body_length,
                                       const std::string& mime_type);
   void OnMainFrameRectangleChanged(const gfx::Rect& main_frame_rect);
   void OnMainFrameViewportRectangleChanged(

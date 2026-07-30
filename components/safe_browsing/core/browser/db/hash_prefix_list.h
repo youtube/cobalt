@@ -36,7 +36,22 @@ enum class V5ApplyUpdateResult {
   // The expected checksum did not match the actual hash file's checksum.
   kChecksumMismatchFailure = 4,
 
-  kMaxValue = kChecksumMismatchFailure,
+  // Failed to decode the Rice-encoded additions.
+  kRiceDecodingAdditionsFailure = 5,
+
+  // Failed to decode the Rice-encoded removals.
+  kRiceDecodingRemovalsFailure = 6,
+
+  // Merging additions failed because a prefix already existed.
+  kAdditionsHasExistingPrefixFailure = 7,
+
+  // Merging removals failed because an index was out of bounds.
+  kRemovalsIndexTooLargeFailure = 8,
+
+  // Failed to write the store file or hash file to disk.
+  kWriteFailure = 9,
+
+  kMaxValue = kWriteFailure,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:SafeBrowsingV5ApplyUpdateResult)
 
@@ -68,6 +83,10 @@ class HashPrefixList : public HashPrefixContainer {
   void GetPrefixInfo(google::protobuf::RepeatedPtrField<
                      DatabaseManagerInfo::DatabaseInfo::StoreInfo::PrefixSet>*
                          prefix_sets) override;
+
+  // Returns a flat string view of all the hash prefixes in this list.
+  // The prefixes are concatenated in sorted order.
+  HashPrefixesView GetRawView() const;
 
   // Returns whether all underlying mmap-backed files are readable.
   V5ApplyUpdateResult IsValid() const;

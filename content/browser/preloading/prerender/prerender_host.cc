@@ -136,15 +136,13 @@ void CheckPrerenderAttributes(const PrerenderAttributes& attributes) {
   if (attributes.IsBrowserInitiated()) {
     CHECK(!attributes.initiator_origin.has_value());
     CHECK(!attributes.initiator_frame_token.has_value());
-    CHECK_EQ(attributes.initiator_process_id,
-             ChildProcessHost::kInvalidUniqueID);
+    CHECK(attributes.initiator_process_id.is_null());
     CHECK_EQ(attributes.initiator_ukm_id, ukm::kInvalidSourceId);
     CHECK(attributes.initiator_frame_tree_node_id.is_null());
   } else {
     CHECK(attributes.initiator_origin.has_value());
     CHECK(attributes.initiator_frame_token.has_value());
-    CHECK_NE(attributes.initiator_process_id,
-             ChildProcessHost::kInvalidUniqueID);
+    CHECK(attributes.initiator_process_id);
     CHECK_NE(attributes.initiator_ukm_id, ukm::kInvalidSourceId);
     CHECK(attributes.initiator_frame_tree_node_id);
   }

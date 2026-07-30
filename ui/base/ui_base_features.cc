@@ -73,6 +73,8 @@ const char kApplyNativeOcclusionToCompositorTypeThrottle[] = "throttle";
 // Release when hidden, throttle when occluded.
 const char kApplyNativeOcclusionToCompositorTypeThrottleAndRelease[] =
     "throttle_and_release";
+
+BASE_FEATURE(kHideCursorWhileTyping, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)
@@ -266,7 +268,8 @@ bool IsTouchTextEditingRedesignEnabled() {
 
 // This feature enables drag and drop using touch input devices.
 BASE_FEATURE(kTouchDragAndDrop,
-#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN) || \
+    BUILDFLAG(IS_LINUX)
              base::FEATURE_ENABLED_BY_DEFAULT
 #else
              base::FEATURE_DISABLED_BY_DEFAULT
@@ -308,7 +311,7 @@ bool IsEyeDropperEnabled() {
 // (i.e., inside Blink). See
 // ::views::features::kKeyboardAccessibleTooltipInViews for
 // keyboard-accessible tooltips in Views UI.
-BASE_FEATURE(kKeyboardAccessibleTooltip, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kKeyboardAccessibleTooltip, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsKeyboardAccessibleTooltipEnabled() {
   static const bool keyboard_accessible_tooltip_enabled =
@@ -505,11 +508,19 @@ BASE_FEATURE(kSplitViewLinkOpen, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDesktopGlowUp, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlassFrame, base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE_PARAM(double, kExpandOnHoverOpacity, &kGlassFrame, 1.0);
-BASE_FEATURE_PARAM(double, kExpandOnHoverBlurRadius, &kGlassFrame, 5.0);
+BASE_FEATURE_PARAM(bool, kUseLiquidGlassEffect, &kGlassFrame, true);
+BASE_FEATURE_PARAM(double, kTintOpacityForLightMode, &kGlassFrame, -1.0);
+BASE_FEATURE_PARAM(double, kTintOpacityForDarkMode, &kGlassFrame, -1.0);
+BASE_FEATURE_PARAM(int, kVisualEffectMaterialForTitlebar, &kGlassFrame, -1);
+BASE_FEATURE_PARAM(int, kVisualEffectMaterialForSidebar, &kGlassFrame, -1);
+BASE_FEATURE_PARAM(double, kBackgroundBlurOpacity, &kGlassFrame, 1.0);
+BASE_FEATURE_PARAM(double, kBackgroundBlurBlurRadius, &kGlassFrame, 5.0);
 
 BASE_FEATURE(kRoundedIcons, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kWebUIRoundedIcons, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Updates the default dark neutrals for the theme palette.
+BASE_FEATURE(kChromeDarkNeutrals26, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGlassFrameEnabled() {
 #if BUILDFLAG(IS_MAC)

@@ -191,12 +191,6 @@ AutofillWebDataBackendImpl::AutofillWebDataBackendImpl(
 
 AutofillWebDataBackendImpl::~AutofillWebDataBackendImpl() {
   DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
-  if (!base::FeatureList::IsEnabled(
-          features::kAutofillWebDataBackendImplRaceConditionFix)) {
-    // Explicitly destroy user-data ownees (i.e., the sync bridges) first as
-    // their destructors may call into this AutofillWebDataBackendImpl.
-    user_data_.ClearAllUserData();
-  }
 }
 
 void AutofillWebDataBackendImpl::ShutdownOnUISequence() {
@@ -229,15 +223,12 @@ void AutofillWebDataBackendImpl::ShutdownOnUISequence() {
   // If this hack is removed, the ~AutofillWebDataService() must explicitly call
   // `user_data_.ClearAllUserData()` because the sync bridges may call into
   // `this` during their destruction.
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillWebDataBackendImplRaceConditionFix)) {
-    owning_task_runner()->PostTask(
-        FROM_HERE, BindOnce(
-                       [](scoped_refptr<AutofillWebDataBackendImpl> self) {
-                         self->user_data_.ClearAllUserData();
-                       },
-                       scoped_refptr(this)));
-  }
+  owning_task_runner()->PostTask(
+      FROM_HERE, BindOnce(
+                     [](scoped_refptr<AutofillWebDataBackendImpl> self) {
+                       self->user_data_.ClearAllUserData();
+                     },
+                     scoped_refptr(this)));
 }
 
 void AutofillWebDataBackendImpl::AddObserver(
@@ -285,19 +276,19 @@ std::unique_ptr<WDTypedResult>
 AutofillWebDataBackendImpl::RemoveExpiredAutocompleteEntries(WebDatabase* db) {
   DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
   AutocompleteChangeList changes;
-  if (AutocompleteTable::FromWebDatabase(db)->RemoveExpiredFormElements(
-          changes)) {
-    if (!changes.empty()) {
-      // Post the notifications including the list of affected keys.
-      // This is sent here so that work resulting from this notification
-      // will be done on the DB sequence, and not the UI sequence.
-      for (auto& db_observer : db_observer_list_)
-        db_observer.AutocompleteEntriesChanged(changes);
+  bool status =
+      AutocompleteTable::FromWebDatabase(db)->RemoveExpiredFormElements(
+          changes);
+  if (status && !changes.empty()) {
+    // Post the notifications including the list of affected keys.
+    // This is sent here so that work resulting from this notification
+    // will be done on the DB sequence, and not the UI sequence.
+    for (auto& db_observer : db_observer_list_) {
+      db_observer.AutocompleteEntriesChanged(changes);
     }
   }
 
-  return std::make_unique<WDResult<size_t>>(AUTOFILL_CLEANUP_RESULT,
-                                            changes.size());
+  return std::make_unique<WDResult<bool>>(AUTOFILL_CLEANUP_RESULT, status);
 }
 void AutofillWebDataBackendImpl::NotifyOfAutofillProfileChanged(
     const AutofillProfileChange& change) {
@@ -729,10 +720,10 @@ AutofillWebDataBackendImpl::GetCountOfValuesContainedBetween(base::Time begin,
                                                              base::Time end,
                                                              WebDatabase* db) {
   DCHECK(owning_task_runner()->RunsTasksInCurrentSequence());
-  int value =
+  int64_t value =
       AutocompleteTable::FromWebDatabase(db)->GetCountOfValuesContainedBetween(
           begin, end);
-  return std::make_unique<WDResult<int>>(AUTOFILL_VALUE_RESULT, value);
+  return std::make_unique<WDResult<int64_t>>(INT64_RESULT, value);
 }
 
 WebDatabase::State AutofillWebDataBackendImpl::UpdateAutocompleteEntries(

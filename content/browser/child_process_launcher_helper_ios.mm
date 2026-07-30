@@ -2,17 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/342213636): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #include "content/browser/child_process_launcher_helper.h"
 
 #import <BrowserEngineKit/BrowserEngineKit.h>
 
 #include <atomic>
 #include <list>
+#include <string_view>
 
 #include "base/apple/mach_port_rendezvous_ios.h"
 #include "base/files/file.h"
@@ -314,7 +310,7 @@ void ChildProcessLauncherHelper::OnChildProcessStarted(
         }
 
         const char* message_type = xpc_dictionary_get_string(event, "message");
-        if (message_type && strcmp(message_type, "layerHandle") == 0) {
+        if (message_type && std::string_view(message_type) == "layerHandle") {
           // We only expect this message from the GPU process.
           if (!is_gpu_process) {
             xpc_connection_cancel(xpc_connection);

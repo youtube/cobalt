@@ -23,6 +23,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.DefaultBrowserMenuUtils;
+import org.chromium.chrome.browser.app.appmenu.AppMenuItemUtils;
 import org.chromium.chrome.browser.app.appmenu.AppMenuPropertiesDelegateImpl;
 import org.chromium.chrome.browser.bookmarks.BookmarkModel;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
@@ -175,14 +176,6 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             requestDesktopSiteVisible = false;
             addToHomeScreenVisible = false;
             tryAddingReadAloud = false;
-        } else if (mUiType == CustomTabsUiType.READER_MODE) {
-            // Only 'find in page' and the reader mode preference are shown for Reader Mode UI.
-            iconRowVisible = false;
-            bookmarkItemVisible = false; // Set to skip initialization.
-            downloadItemVisible = false; // Set to skip initialization.
-            requestDesktopSiteVisible = false;
-            addToHomeScreenVisible = false;
-            tryAddingReadAloud = false;
         } else if (mUiType == CustomTabsUiType.MINIMAL_UI_WEBAPP) {
             requestDesktopSiteVisible = false;
             // For Webapps & WebAPKs Verifier#wasPreviouslyVerified() performs verification
@@ -283,7 +276,8 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             modelList.add(
                     new MVCListAdapter.ListItem(
                             AppMenuHandler.AppMenuItemType.BUTTON_ROW,
-                            buildModelForIconRow(R.id.icon_row_menu_id, iconModels)));
+                            AppMenuItemUtils.buildModelForIconRow(
+                                    R.id.icon_row_menu_id, iconModels, isMenuIconAtStart())));
         }
 
         // --- App Specific Items / Divider ---
@@ -306,7 +300,8 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             modelList.add(
                     new MVCListAdapter.ListItem(
                             AppMenuHandler.AppMenuItemType.STANDARD,
-                            buildBaseModelForTextItem(id)
+                            AppMenuItemUtils.buildBaseModelForTextItem(
+                                            getAppMenuItemTheme(), id, isMenuIconAtStart())
                                     .with(AppMenuItemProperties.TITLE, mMenuEntries.get(i))
                                     .build()));
             mItemIdToIndexMap.put(id, i);
@@ -316,7 +311,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             modelList.add(
                     new MVCListAdapter.ListItem(
                             AppMenuHandler.AppMenuItemType.DIVIDER,
-                            buildModelForDivider(R.id.divider_line_id)));
+                            AppMenuItemUtils.buildModelForDivider(R.id.divider_line_id)));
         }
 
         // --- App info row ---
@@ -324,8 +319,13 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             modelList.add(
                     new MVCListAdapter.ListItem(
                             AppMenuHandler.AppMenuItemType.STANDARD,
-                            buildModelForStandardMenuItem(
-                                    R.id.info_menu_id, R.string.menu_app_info, 0)));
+                            AppMenuItemUtils.buildModelForStandardMenuItem(
+                                    mContext,
+                                    getAppMenuItemTheme(),
+                                    R.id.info_menu_id,
+                                    R.string.menu_app_info,
+                                    0,
+                                    isMenuIconAtStart())));
         }
 
         // --- Open in browser ---
@@ -361,8 +361,13 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             modelList.add(
                     new MVCListAdapter.ListItem(
                             AppMenuHandler.AppMenuItemType.STANDARD,
-                            buildModelForStandardMenuItem(
-                                    R.id.open_history_menu_id, R.string.chrome_history, 0)));
+                            AppMenuItemUtils.buildModelForStandardMenuItem(
+                                    mContext,
+                                    getAppMenuItemTheme(),
+                                    R.id.open_history_menu_id,
+                                    R.string.chrome_history,
+                                    0,
+                                    isMenuIconAtStart())));
         }
 
         // --- Find in Page ---
@@ -370,8 +375,13 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             modelList.add(
                     new MVCListAdapter.ListItem(
                             AppMenuHandler.AppMenuItemType.STANDARD,
-                            buildModelForStandardMenuItem(
-                                    R.id.find_in_page_id, R.string.menu_find_in_page, 0)));
+                            AppMenuItemUtils.buildModelForStandardMenuItem(
+                                    mContext,
+                                    getAppMenuItemTheme(),
+                                    R.id.find_in_page_id,
+                                    R.string.menu_find_in_page,
+                                    0,
+                                    isMenuIconAtStart())));
         }
 
         // --- Price Tracking / Price Insights ---
@@ -387,10 +397,13 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
                 modelList.add(
                         new MVCListAdapter.ListItem(
                                 AppMenuHandler.AppMenuItemType.STANDARD,
-                                buildModelForStandardMenuItem(
+                                AppMenuItemUtils.buildModelForStandardMenuItem(
+                                        mContext,
+                                        getAppMenuItemTheme(),
                                         R.id.price_insights_menu_id,
                                         R.string.price_insights_title,
-                                        R.drawable.ic_trending_down_24dp)));
+                                        R.drawable.ic_trending_down_24dp,
+                                        isMenuIconAtStart())));
             }
         }
 
@@ -451,7 +464,8 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
             title = DefaultBrowserMenuUtils.getTitleOpenInDefaultBrowser(false);
         }
         PropertyModel model =
-                buildBaseModelForTextItem(R.id.open_in_browser_id)
+                AppMenuItemUtils.buildBaseModelForTextItem(
+                                getAppMenuItemTheme(), R.id.open_in_browser_id, isMenuIconAtStart())
                         .with(AppMenuItemProperties.TITLE, title)
                         .build();
         if (showIcon) {

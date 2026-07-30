@@ -26,6 +26,8 @@
 
 namespace content::webid {
 
+using ParseJsonCallback = EmailVerifierNetworkRequestManager::ParseJsonCallback;
+
 namespace {
 
 using ::testing::_;
@@ -40,7 +42,7 @@ class MockNetworkRequestManager : public EmailVerifierNetworkRequestManager {
       : EmailVerifierNetworkRequestManager(url::Origin(),
                                            nullptr,
                                            nullptr,
-                                           content::FrameTreeNodeId()) {}
+                                           FrameTreeNodeId()) {}
   MOCK_METHOD(void,
               DownloadAndParseUncredentialedUrl,
               (const GURL& url, ParseJsonCallback callback),

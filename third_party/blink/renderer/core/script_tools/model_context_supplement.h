@@ -7,13 +7,10 @@
 
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/script_tools/model_context.h"
-#include "third_party/blink/renderer/core/script_tools/model_context_testing.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/supplementable.h"
 
 namespace blink {
-
-class Navigator;
 
 class CORE_EXPORT ModelContextSupplement final
     : public GarbageCollected<ModelContextSupplement>,
@@ -23,9 +20,7 @@ class CORE_EXPORT ModelContextSupplement final
 
   static ModelContextSupplement& From(Document&);
   static ModelContext* GetIfExists(Document&);
-  static ModelContext* modelContext(Navigator&);
   static ModelContext* modelContext(Document&);
-  static ModelContextTesting* modelContextTesting(Navigator&);
 
   explicit ModelContextSupplement(Document&);
   ModelContextSupplement(const ModelContextSupplement&) = delete;
@@ -35,10 +30,8 @@ class CORE_EXPORT ModelContextSupplement final
 
  private:
   ModelContext* modelContext();
-  ModelContextTesting* modelContextTesting();
 
   Member<ModelContext> model_context_;
-  Member<ModelContextTesting> model_context_testing_;
 };
 
 }  // namespace blink

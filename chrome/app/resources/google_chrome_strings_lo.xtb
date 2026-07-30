@@ -74,7 +74,6 @@
 <translation id="1640672724030957280">ກຳລັງດາວໂຫຼດ...</translation>
 <translation id="1651617469580841801">ເມື່ອທ່ານໃຊ້ Google Lens, ລະບົບຈະສົ່ງຊື່ໜ້າ, URL ແລະ ເນື້ອຫາ, ຮວມທັງ PDF ໄປຫາ Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">ກ່ຽວກັບ ChromeOS Flex</translation>
-<translation id="1665867022636014702">ໃຊ້ການຕັ້ງຄ່າໂປຣແກຣມທ່ອງເວັບທີ່ Google ແນະນຳ</translation>
 <translation id="1674870198290878346">ເປີດລິ້ງໃນໜ້າຈໍທີ່ບໍ່ເຜີຍຕົວຕົນຂອງ Chrome</translation>
 <translation id="1682634494516646069">Google Chrome ບໍ່ສາມາດອ່ານ ແລະຂຽນໄປໃສ່ໄດເຣັກຕໍຣີຂໍ້ມູນຂອງມັນ:
 
@@ -237,6 +236,7 @@
 <translation id="3242123554343253302">ເພີ່ມໂປຣໄຟລ໌ Chrome</translation>
 <translation id="3242486428260808857">ໃຊ້ປະໂຫຍດເພີ່ມເຕີມຈາກການຊື້ເຄື່ອງອອນລາຍເມື່ອທ່ານໃຊ້ແອັບ Chrome ຢູ່ <ph name="DEVICE_TYPE" /> ຂອງທ່ານ</translation>
 <translation id="3245429137663807393">ຫາກທ່ານແບ່ງປັນລາຍງານການນຳໃຊ້ Chrome ນຳ, ລາຍງານເຫຼົ່ານັ້ນຈະຮວມເອົາ URL ທີ່ທ່ານເຂົ້າໄວ້ພ້ອມ</translation>
+<translation id="3249558306861350254">ຄລິກ <ph name="BEGIN_BOLD" />ຕັ້ງຄ່າເລີ່ມຕົ້ນ<ph name="END_BOLD" /> ໃນການຕັ້ງຄ່າ Windows ຂອງທ່ານ.</translation>
 <translation id="3259748324892322072">ດາວໂຫຼດແອັບ Chrome</translation>
 <translation id="3282568296779691940">ລົງຊື່ເຂົ້າ​ໃຊ້ Chrome</translation>
 <translation id="3286538390144397061">ປິດເປີດໃໝ່ດຽວນີ້</translation>
@@ -256,7 +256,6 @@
 <translation id="345171907106878721">ເພີ່ມທ່ານເອງໃສ່ Chrome</translation>
 <translation id="3453763134178591239">ຂໍ້ກຳນົດ ChromeOS</translation>
 <translation id="3475778264501649775">ເຂົ້າເຖິງລະຫັດຜ່ານ, ແຖບ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໄດ້ທຸກບ່ອນທຸກເວລາດ້ວຍແອັບ Chrome ຢູ່ໂທລະສັບຂອງທ່ານ</translation>
-<translation id="3512495006767217696">ຕິດຕັ້ງມາໃນ Chrome ເພື່ອຊ່ວຍທ່ານສ້າງ, ບັນທຶກ ແລະ ຕື່ມຂໍ້ມູນລະຫັດຜ່ານຍາກໂດຍອັດຕະໂນມັດ. ເພີ່ມທາງລັດເພື່ອໃຫ້ເຂົ້າເຖິງໄດ້ງ່າຍ</translation>
 <translation id="3539955434060988644">ເປີດລິ້ງໃນໜ້າຈໍທີ່ບໍ່ເຜີຍຕົວຕົນຂອງ Chrome</translation>
 <translation id="354621070532799440">ການແຈ້ງເຕືອນ: ຄຸນສົມບັດດ້ານຄວາມປອດໄພທີ່ດີທີ່ສຸດຂອງ Google ໃນກະເປົາຂອງທ່ານ</translation>
 <translation id="3547866758548131919">ຄລິກປຸ່ມສະຫຼຸບເພື່ອແບ່ງປັນເອກະສານນີ້ກັບ Gemini ໃນ Chrome ເພື່ອເບິ່ງພາບຮວມໂດຍຫຍໍ້ ແລະ ຖາມຄຳຖາມຕິດຕາມຜົນ</translation>
@@ -309,6 +308,7 @@
 <translation id="4012899077942246412">ໃນລະຫວ່າງທີ່ທ່ານເຂົ້າສູ່ລະບົບ, ທ່ານສາມາດໃຊ້ລະຫັດຜ່ານ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານຈາກບັນຊີ Google ຂອງທ່ານໃນ Chrome ໄດ້. ເພື່ອປ່ຽນສິ່ງນີ້, ໃຫ້ເຂົ້າໄປ “ບັນຊີຂອງທ່ານໃນ Chrome”.</translation>
 <translation id="4022972681110646219">ແປໜ້າຈໍ</translation>
 <translation id="4023601594785368013">ພາສາຕົ້ນສະບັບ: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">ຕິດຕັ້ງມາໃນ Chrome ເພື່ອຊ່ວຍທ່ານສ້າງ, ບັນທຶກ ແລະ ຕື່ມຂໍ້ມູນລະຫັດຜ່ານຍາກໂດຍອັດຕະໂນມັດ. ເພີ່ມທາງລັດເພື່ອໃຫ້ເຂົ້າເຖິງໄດ້ງ່າຍ.</translation>
 <translation id="4035053306113201399">ຈຳເປັນຕ້ອງຣີສະຕາດ ChromeOS ເພື່ອນຳໃຊ້ອັບເດດ.</translation>
 <translation id="4050175100176540509">ການ​ປັບ​ປຸງ​ຄວາມ​ປອດ​ໄພ​ທີ່​ສຳ​ຄັນ ແລະ​ຄຸນ​ສົມ​ບັດ​ໃໝ່​ມີ​ໃຫ້​ຢູ່​ໃນ​ເວີ​ຊັນ​ຫຼ້າ​ສຸດ.</translation>
 <translation id="4053720452172726777">ກໍານົດເອງ ແລະຄວບຄຸມ Google Chrome</translation>
@@ -549,7 +549,6 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="6438015621983209660">ຂະຫຍາຍ Safe Browsing ທີ່ປັບປຸງດີຂຶ້ນດ້ວຍ Chrome ຢູ່ໂທລະສັບຂອງທ່ານ</translation>
 <translation id="6442774133615368941">ເລືອກຊື້, ແປພາສາ ແລະ ລະບຸສິ່ງທີ່ທ່ານເຫັນດ້ວຍກ້ອງຂອງທ່ານຢູ່ແອັບ Chrome iOS</translation>
 <translation id="6448835208126432197">ເພື່ອເລືອກພາກສ່ວນໜຶ່ງຂອງໜ້າຈໍໃນ Gemini ໃນ Chrome, ໃຫ້ໃຊ້ຄີລັດ.</translation>
-<translation id="6473659734176498825">ຮູບພາບແບບຮຽບງ່າຍທີ່ສະແດງຈຸດເຂົ້າເຖິງຕົວຈັດການລະຫັດຜ່ານ Google ໃນ Chrome</translation>
 <translation id="6473905796280459355">ເຂົ້າໄປໜ້າກ່ຽວກັບ Chrome</translation>
 <translation id="6481963882741794338">ລິ້ງ Chrome ແລະ ບໍລິການອື່ນໆຂອງ Google ເພື່ອການປັບແຕ່ງເປັນແບບສ່ວນຕົວ ແລະ ຈຸດປະສົງອື່ນໆ</translation>
 <translation id="648319183876919572">Safe Browsing ທີ່ປັບປຸງດີຂຶ້ນຊ່ວຍປົກປ້ອງທ່ານຈາກເວັບໄຊ ແລະ ການດາວໂຫຼດທີ່ອັນຕະລາຍ</translation>
@@ -566,6 +565,7 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="6539493053177300926">ເຂົ້າເຖິງເພື່ອໃຊ້ Gemini ໃນ Chrome ໃນອຸປະກອນຕ່າງໆຂອງທ່ານໄດ້ຢ່າງງ່າຍດາຍ, ເຖິງແມ່ນວ່າຈະຫຍໍ້ Chrome ຢູ່.</translation>
 <translation id="6585124893636629274">ປິດ Gemini ໃນ Chrome</translation>
 <translation id="659498884637196217">ໃນຕົວຈັດການລະຫັດຜ່ານ Google ຢູ່ອຸປະກອນນີ້</translation>
+<translation id="6613949864921837107">ຊິ້ງລະຫັດຜ່ານ, ບຸກມາກ ແລະ ປະຫວັດຂອງທ່ານໃນອຸປະກອນຕ່າງໆໄດ້ຢ່າງສົມບູນແບບໂດຍຕັ້ງ Chrome ເປັນໂປຣແກຣມທ່ອງເວັບເລີ່ມຕົ້ນຂອງທ່ານ.</translation>
 <translation id="6631524303639368205">ສືບຕໍ່ຈາກບ່ອນທີ່ທ່ານຄ້າງໄວ້: Chrome ໄດ້ກູ້ຄືນແທັບຂອງທ່ານຈາກເຊດຊັນຫຼ້າສຸດຂອງທ່ານ. ທ່ານສາມາດປິດໃຊ້ສິ່ງນີ້ໄດ້ໃນ</translation>
 <translation id="6632473616050862500">ChromeOS Flex ເກີດຂຶ້ນໄດ້ດ້ວຍການສະໜັບສະໜຸນຈາກ <ph name="BEGIN_LINK_CROS_OSS" />ຊອບແວໂອເພນຊອດ<ph name="END_LINK_CROS_OSS" /> ເພີ່ມເຕີມ.</translation>
 <translation id="6634299872736643004">ການປ່ຽນແປງການຕັ້ງຄ່ານີ້ຈະມີຜົນນຳໃຊ້ເມື່ອ Chrome ຣີສະຕາດ.</translation>
@@ -691,7 +691,6 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="7804364787702057554">ບັນຊີຂອງທ່ານໃນ Chrome</translation>
 <translation id="7804947029129221742">ມີການປ່ຽນໂປຣແກຣມຊອກຫາຂອງທ່ານຈາກພາຍນອກ Chrome. ເພື່ອປົກປ້ອງທ່ານ, Chrome ໄດ້ຣີເຊັດໂປຣແກຣມດັ່ງກ່າວເປັນຄ່າເລີ່ມຕົ້ນເກົ່າ. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">ເອົາ​ອອກ​ໄປຈາກ Chrome...</translation>
-<translation id="7812800388699096556">ຮູບປະກອບສະແດງວິທີທີ່ທ່ານສາມາດໃຊ້ Google Lens ເພື່ອຊອກຫາຜະລິດຕະພັນໄດ້</translation>
 <translation id="7827099906024714326">Chrome ຕ້ອງການຢັ້ງຢືນວ່າແມ່ນທ່ານກ່ອນຈະບັນທຶກຂໍ້ມູນບາງຢ່າງໃນບັນຊີ Google ຂອງທ່ານ ແລະ ໃຊ້ຢູ່ອຸປະກອນຂອງທ່ານທັງໝົດ. ຫາກທ່ານອອກຈາກລະບົບຕອນນີ້, ຂໍ້ມູນນີ້ຈະຖືກລຶບ.</translation>
 <translation id="7832314606810669113">ເພື່ອເຂົ້າເຖິງບຸກມາກ ແລະ ຂໍ້ມູນອື່ນໆຂອງທ່ານໃນອຸປະກອນທຸກເຄື່ອງຂອງທ່ານ, ໃຫ້ເຂົ້າສູ່ລະບົບ Chrome. ລະບົບຈະບັນທຶກບຸກມາກນີ້ໄວ້ໃນບັນຊີ Google ຂອງທ່ານຫຼັງຈາກທີ່ທ່ານເຂົ້າສູ່ລະບົບ.</translation>
 <translation id="7845233973568007926">ຂໍຂອບໃຈສຳລັບການຕິດຕັ້ງ. ທ່ານຈະຕ້ອງຣີສະຕາດຄອມພິວເຕີຂອງທ່ານກ່ອນການໃຊ້ <ph name="BUNDLE_NAME" />.</translation>
@@ -830,7 +829,6 @@ Google Chrome ບໍ່ສາມາດກູ້ຄືນການຕັ້ງຄ
 <translation id="8999208279178790196">{0,plural, =0{ມີການອັບເດດ Chrome}=1{ມີການອັບເດດ Chrome}other{ມີການອັບເດດ Chrome ເປັນເວລາ # ມື້ແລ້ວ}}</translation>
 <translation id="9014771989710951291">ຫຼາຍອົງການຈັດການ Chrome</translation>
 <translation id="9018218886431812662">ສຳເລັດການຕິດຕັ້ງແລ້ວ</translation>
-<translation id="9024318700713112071">ຕັ້ງ Chrome ເປັນຄ່າເລີ່ມຕົ້ນຂອງທ່ານ</translation>
 <translation id="9066987883552592250">ປິດ Gemini ໃນ Chrome Canary</translation>
 <translation id="9074041031320636790">ສຳເລັດ! ຕອນນີ້ທ່ານສາມາດຖາມຄຳຖາມໄດ້ຢ່າງງ່າຍດາຍໃນລະຫວ່າງທີ່ທ່ານທ່ອງເວັບດ້ວຍໂໝດ AI ຂອງ Google ຊອກຫາ</translation>
 <translation id="9090566250983691233">ສຶກສາວ່າເປັນຫຍັງ Chrome ຈຶ່ງບລັອກໄຟລ໌ບາງລາຍການ</translation>

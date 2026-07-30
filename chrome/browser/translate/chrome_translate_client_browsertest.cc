@@ -55,6 +55,9 @@ class FakePdfListener : public pdf::mojom::PdfListener {
   void HasJavaScript(HasJavaScriptCallback callback) override {
     std::move(callback).Run(has_javascript_);
   }
+  void IsPasswordProtected(IsPasswordProtectedCallback callback) override {
+    std::move(callback).Run(is_password_protected_);
+  }
 #if BUILDFLAG(ENABLE_PDF_SAVE_TO_DRIVE)
   void GetSaveDataBufferHandlerForDrive(
       pdf::mojom::SaveRequestType request_type,
@@ -69,10 +72,14 @@ class FakePdfListener : public pdf::mojom::PdfListener {
   void set_has_javascript(bool has_javascript) {
     has_javascript_ = has_javascript;
   }
+  void set_is_password_protected(bool is_password_protected) {
+    is_password_protected_ = is_password_protected;
+  }
 
  private:
   bool has_meaningful_text_ = false;
   bool has_javascript_ = false;
+  bool is_password_protected_ = false;
 };
 
 class DummyPDFDocumentHelperClient : public pdf::PDFDocumentHelperClient {
@@ -230,6 +237,34 @@ IN_PROC_BROWSER_TEST_F(ChromeTranslateClientPdfEnabledBrowsertest,
   FakePdfListener listener;
   listener.set_has_meaningful_text(true);
   listener.set_has_javascript(true);
+  mojo::Receiver<pdf::mojom::PdfListener> receiver(&listener);
+  pdf_helper->SetListener(receiver.BindNewPipeAndPassRemote());
+
+  base::test::TestFuture<bool> future;
+  chrome_translate_client()->CheckIfPdfIsTranslatable(future.GetCallback());
+  EXPECT_FALSE(future.IsReady());
+
+  pdf_helper->OnDocumentLoadComplete();
+  EXPECT_FALSE(future.Get());
+}
+
+// If `IsPasswordProtected()` returns `true`, `CheckIfPdfIsTranslatable()`
+// returns `false`.
+IN_PROC_BROWSER_TEST_F(ChromeTranslateClientPdfEnabledBrowsertest,
+                       FalseWhenIsPasswordProtected) {
+  auto client = std::make_unique<DummyPDFDocumentHelperClient>();
+  pdf::PDFDocumentHelper::CreateForCurrentDocument(
+      web_contents()->GetPrimaryMainFrame(), std::move(client));
+
+  pdf::PDFDocumentHelper* pdf_helper =
+      pdf::PDFDocumentHelper::GetForCurrentDocument(
+          web_contents()->GetPrimaryMainFrame());
+  ASSERT_NE(pdf_helper, nullptr);
+
+  FakePdfListener listener;
+  listener.set_has_meaningful_text(true);
+  listener.set_has_javascript(false);
+  listener.set_is_password_protected(true);
   mojo::Receiver<pdf::mojom::PdfListener> receiver(&listener);
   pdf_helper->SetListener(receiver.BindNewPipeAndPassRemote());
 

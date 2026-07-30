@@ -22,6 +22,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/timer/timer.h"
@@ -75,6 +76,7 @@
 
 namespace net {
 class FileNetLogObserver;
+enum class NetLogFileFormat;
 class HostResolverManager;
 class HttpAuthHandlerFactory;
 class IPEndPoint;
@@ -162,6 +164,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   void StartNetLog(base::File file,
                    uint64_t max_total_size,
                    net::NetLogCaptureMode capture_mode,
+                   net::NetLogFileFormat file_format,
                    base::DictValue constants,
                    std::optional<base::TimeDelta> duration) override;
   void AttachNetLogProxy(
@@ -289,6 +292,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
   void StartNetLogBounded(base::File file,
                           uint64_t max_total_size,
                           net::NetLogCaptureMode capture_mode,
+                          net::NetLogFileFormat file_format,
                           base::DictValue client_constants);
 
   // Called after StartNetLogBounded() finishes creating a scratch dir.
@@ -296,11 +300,13 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
       base::File file,
       uint64_t max_total_size,
       net::NetLogCaptureMode capture_mode,
+      net::NetLogFileFormat file_format,
       base::DictValue constants,
       const base::FilePath& in_progress_dir_path);
 
   void StartNetLogUnbounded(base::File file,
                             net::NetLogCaptureMode capture_mode,
+                            net::NetLogFileFormat file_format,
                             base::DictValue client_constants);
 
   // Returns an HttpAuthHandlerFactory for the given NetworkContext.
@@ -495,6 +501,13 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
 
   std::unique_ptr<NetworkQualityEstimatorManager>
       network_quality_estimator_manager_;
+
+  // Raises the type of the thread the network service runs on (the IO thread
+  // of the network utility process) while there is at least one active
+  // peer-to-peer connection. Only engaged when
+  // webrtc::features::kWebRTCBoostMediaIOThreads is enabled.
+  std::optional<base::PlatformThread::RaiseThreadTypeLease>
+      io_thread_type_lease_;
 
   std::unique_ptr<DnsConfigChangeManager> dns_config_change_manager_;
 

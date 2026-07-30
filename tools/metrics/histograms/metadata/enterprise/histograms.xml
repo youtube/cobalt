@@ -1288,7 +1288,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.DeviceRemoteCommand.Executed{Enterprise_RemoteCommandType}"
-    enum="RemoteCommandExecutionStatus" expires_after="2026-11-01">
+    enum="RemoteCommandExecutionStatus" expires_after="2027-01-03">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -1318,7 +1318,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DeviceRemoteCommand.Received"
-    enum="RemoteCommandReceivedStatus" expires_after="2026-11-01">
+    enum="RemoteCommandReceivedStatus" expires_after="2027-01-03">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -1330,7 +1330,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.DeviceRemoteCommandInvalidations"
-    enum="EnterprisePolicyInvalidations" expires_after="2026-11-01">
+    enum="EnterprisePolicyInvalidations" expires_after="2027-01-03">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -2016,7 +2016,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.Errors.FilesPolicySetup" enum="Boolean"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>accorsi@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -2132,7 +2132,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.FilesDaemonStarted" enum="Boolean"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>poromov@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -2912,7 +2912,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.FileOpeningJob.CancelDuration" units="ms"
-    expires_after="2026-10-31">
+    expires_after="2027-01-03">
   <owner>valadkevich@google.com</owner>
   <owner>cbe-cep-eng@google.com</owner>
   <summary>
@@ -3469,7 +3469,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Policies" enum="EnterprisePolicies"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>vsavu@google.com</owner>
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
@@ -3652,7 +3652,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ProfileAffiliation.IsAffiliated" enum="Boolean"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>igorruvinov@chromium.org</owner>
   <owner>cbe-magic@google.com</owner>
   <summary>
@@ -3662,7 +3662,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.ProfileAffiliation.UnaffiliatedReason"
-    enum="EnterpriseProfileUnaffiliatedReason" expires_after="2026-11-01">
+    enum="EnterpriseProfileUnaffiliatedReason" expires_after="2027-01-03">
   <owner>igorruvinov@chromium.org</owner>
   <owner>cbe-magic@google.com</owner>
   <summary>
@@ -4489,7 +4489,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.UserPolicyChromeOS.ChildUser.OAuthTokenError"
-    enum="GoogleServiceAuthError" expires_after="2026-11-01">
+    enum="GoogleServiceAuthError" expires_after="2027-01-03">
   <owner>longbowei@google.com</owner>
   <owner>zhangwenyu@google.com</owner>
   <owner>michaelpg@chromium.org</owner>
@@ -4521,7 +4521,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.UserRemoteCommand.Executed{Enterprise_RemoteCommandType}"
-    enum="RemoteCommandExecutionStatus" expires_after="2026-11-01">
+    enum="RemoteCommandExecutionStatus" expires_after="2027-01-03">
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -4653,16 +4653,21 @@ chromium-metrics-reviews@google.com.
     <variant name="" summary="Cloud"/>
     <variant name="Local" summary="Local"/>
   </token>
+<!-- LINT.IfChange(FinalContentAnalysisResult) -->
+
   <token key="FinalResult">
     <variant name="Cancelled"/>
     <variant name="EncryptedFiles"/>
     <variant name="FailClosed"/>
     <variant name="Failure"/>
     <variant name="ForceSaveToCloud"/>
+    <variant name="KeptInManagedChrome"/>
     <variant name="LargeFiles"/>
     <variant name="Success"/>
     <variant name="Warning"/>
   </token>
+<!-- LINT.ThenChange(//components/enterprise/connectors/core/common.h:FinalContentAnalysisResult) -->
+
   <token key="DeepScanAccessPoint" variants="DeepScanAccessPoint"/>
 </histogram>
 
@@ -4679,7 +4684,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.{Page}PromotionBannerDisplayed" enum="Boolean"
-    expires_after="2026-08-23">
+    expires_after="2027-01-03">
   <owner>austinzzr@chromium.org</owner>
   <owner>esalma@google.com</owner>
   <summary>
@@ -4794,6 +4799,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="EnterpriseCheck.IsEnterpriseUser2" enum="BooleanEnabled"
+    expires_after="2026-12-01">
+  <owner>yeroshkin@chromium.org</owner>
+  <owner>zmin@chromium.org</owner>
+  <summary>
+    Whether the machine is considered an enterprise user. An enterprise user is
+    either in a domain, either local or cloud via AAD (strict join type check).
+    This check is performed once at start-up on Windows.
+  </summary>
+</histogram>
+
 <histogram name="EnterpriseCheck.IsFullyManaged2" enum="IsFullyManagedBoolean"
     expires_after="2026-12-01">
   <owner>twellington@google.com</owner>
@@ -4815,6 +4831,17 @@ chromium-metrics-reviews@google.com.
     Whether the machine is joined to an Azure AD domain or the user has added
     one or more work/school accounts to their login session. This check is
     performed once at start-up on Windows.
+  </summary>
+</histogram>
+
+<histogram name="EnterpriseCheck.IsJoinedToAzureAD2" enum="BooleanEnabled"
+    expires_after="2026-12-01">
+  <owner>yeroshkin@chromium.org</owner>
+  <owner>zmin@chromium.org</owner>
+  <summary>
+    Whether the machine is joined to an Azure AD domain (strict join type
+    check). This does not return true if there are only Azure AD work/school
+    accounts added. This check is performed once at start-up on Windows.
   </summary>
 </histogram>
 
@@ -4860,6 +4887,17 @@ chromium-metrics-reviews@google.com.
     Whether the machine is managed or part of an enterprise. This includes
     devices that are either in a domain or managed via MDM. This check is
     performed once at start-up on Windows.
+  </summary>
+</histogram>
+
+<histogram name="EnterpriseCheck.IsManagedOrEnterpriseDevice2"
+    enum="BooleanEnabled" expires_after="2026-12-01">
+  <owner>yeroshkin@chromium.org</owner>
+  <owner>zmin@chromium.org</owner>
+  <summary>
+    Whether the machine is managed or part of an enterprise. This includes
+    devices that are either in a domain or managed via MDM (strict Azure AD join
+    check). This check is performed once at start-up on Windows.
   </summary>
 </histogram>
 
@@ -4925,7 +4963,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="NetworkedProfile.Check" enum="NetworkedProfileCheck"
-    expires_after="2026-10-11">
+    expires_after="2027-01-03">
   <owner>pastarmovj@chromium.org</owner>
   <owner>grt@chromium.org</owner>
   <summary>

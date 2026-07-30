@@ -483,15 +483,18 @@ GetWebFeatureToWebDXFeatureMap() {
           {WebFeature::kWriter_Write, WebDXFeature::kWriter},
           {WebFeature::kWriter_WriteStreaming, WebDXFeature::kWriter},
           {WebFeature::kModelContextRegisterTool,
-           WebDXFeature::kNavigatorModelcontext},
+           WebDXFeature::kDocumentModelcontext},
           {WebFeature::kModelContextGetTools,
-           WebDXFeature::kNavigatorModelcontext},
+           WebDXFeature::kDocumentModelcontext},
+          {WebFeature::kModelContextExecuteTool,
+           WebDXFeature::kDocumentModelcontext},
           {WebFeature::kModelContextRegisterDeclarativeTool,
            WebDXFeature::kDeclarativeWebmcp},
           {WebFeature::kIdentityDigitalCredentials,
            WebDXFeature::kDigitalCredentials},
           {WebFeature::kIdentityDigitalCredentialsCreation,
            WebDXFeature::kDigitalCredentials},
+          {WebFeature::kHTMLInCanvas, WebDXFeature::kCanvasHtml},
           // Add new features above this line.
       }};
 

@@ -266,8 +266,6 @@ inline constexpr char16_t kChromeUIPrivacySandboxManageTopicsLearnMoreURL[] =
     u"https://support.google.com/chrome?p=ad_privacy";
 inline constexpr char16_t kChromeUIPrivacySandboxTopicsURL[] =
     u"chrome://settings/adPrivacy/interests";
-inline constexpr char kChromeUIPrivateAiInternalsHost[] =
-    "private-ai-internals";
 inline constexpr char kChromeUIProfileInternalsHost[] = "profile-internals";
 inline constexpr char kChromeUIQuitHost[] = "quit";
 inline constexpr char kChromeUIQuitURL[] = "chrome://quit/";
@@ -289,9 +287,6 @@ inline constexpr char kChromeUISigninEmailConfirmationURL[] =
     "chrome://signin-email-confirmation";
 inline constexpr char kChromeUISigninErrorHost[] = "signin-error";
 inline constexpr char kChromeUISigninErrorURL[] = "chrome://signin-error/";
-inline constexpr char kChromeUISigninQRCodeBarHost[] = "signin-qrcode-bar";
-inline constexpr char kChromeUISigninQRCodeBarURL[] =
-    "chrome://signin-qrcode-bar/";
 inline constexpr char kChromeUISignInInternalsHost[] = "signin-internals";
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
 inline constexpr char kChromeUISignoutConfirmationHost[] =

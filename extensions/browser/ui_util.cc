@@ -4,59 +4,18 @@
 
 #include "extensions/browser/ui_util.h"
 
-#if !BUILDFLAG(IS_ANDROID)
-#include <optional>
-#endif
-
 #include "base/command_line.h"
+#include "base/files/file_path.h"
 #include "base/strings/utf_string_conversions.h"
-#include "build/build_config.h"
+#include "base/values.h"
 #include "extensions/common/extension.h"
+#include "extensions/common/manifest_constants.h"
+#include "extensions/common/mojom/manifest.mojom.h"
 #include "extensions/common/switches.h"
 #include "ui/gfx/text_constants.h"
 #include "ui/gfx/text_elider.h"
 
-#if !BUILDFLAG(IS_ANDROID)
-#include "content/public/browser/web_contents.h"
-#include "extensions/browser/extension_registry.h"
-#include "extensions/browser/mime_handler/mime_handler_stream_manager.h"
-#include "extensions/common/extension_id.h"
-#include "extensions/common/manifest_handlers/mime_types_handler.h"
-#endif
-
 namespace extensions::ui_util {
-
-#if !BUILDFLAG(IS_ANDROID)
-const Extension* GetTopLevelMimeHandlerExtension(
-    content::WebContents& web_contents) {
-  auto* manager =
-      mime_handler::MimeHandlerStreamManager::FromWebContents(&web_contents);
-  if (!manager) {
-    return nullptr;
-  }
-  std::optional<ExtensionId> id = manager->GetTopLevelHandlerExtensionId();
-  if (!id) {
-    return nullptr;
-  }
-  auto* registry = ExtensionRegistry::Get(web_contents.GetBrowserContext());
-  CHECK(registry);
-  // A claimed `StreamInfo` exists only while the MIME-handler extension is
-  // actively rendering the stream, and extension disable tears the extension
-  // frame down (`MaybeDeleteStreamOnExtensionHostChanged()`), which clears
-  // the `StreamInfo`. So an ID returned by `GetTopLevelHandlerExtensionId()`
-  // must resolve to an enabled extension.
-  const Extension* extension = registry->enabled_extensions().GetByID(*id);
-  CHECK(extension);
-  // Allowlisted plugin extensions never relabel the chip. The allowlist
-  // contains built-in PDF and QuickOffice variants, so this single filter
-  // covers both categories (see `kMIMETypeHandlersAllowlist`).
-  const MimeTypesHandler* handler = MimeTypesHandler::Get(*extension);
-  if (handler && handler->IsPluginExtension()) {
-    return nullptr;
-  }
-  return extension;
-}
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 bool ShouldDisplayInExtensionSettings(Manifest::Type type,
                                       mojom::ManifestLocation location) {
@@ -104,6 +63,30 @@ std::u16string GetFixupExtensionNameForUIDisplay(
 std::u16string GetFixupExtensionNameForUIDisplay(
     const std::string& extension_name) {
   return GetFixupExtensionNameForUIDisplay(base::UTF8ToUTF16(extension_name));
+}
+
+scoped_refptr<Extension> GetLocalizedExtensionForDisplay(
+    const base::DictValue& manifest,
+    int flags,
+    const ExtensionId& id,
+    const std::string& localized_name,
+    const std::string& localized_description,
+    std::u16string* error) {
+  std::optional<base::DictValue> localized_manifest;
+  if (!localized_name.empty() || !localized_description.empty()) {
+    localized_manifest = manifest.Clone();
+    if (!localized_name.empty()) {
+      localized_manifest->Set(manifest_keys::kName, localized_name);
+    }
+    if (!localized_description.empty()) {
+      localized_manifest->Set(manifest_keys::kDescription,
+                              localized_description);
+    }
+  }
+
+  return Extension::Create(base::FilePath(), mojom::ManifestLocation::kInternal,
+                           localized_manifest ? *localized_manifest : manifest,
+                           flags, id, error);
 }
 
 }  // namespace extensions::ui_util

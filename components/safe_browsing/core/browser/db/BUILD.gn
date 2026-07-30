@@ -111,6 +111,7 @@ static_library("sb_database") {
     ":v4_protocol_manager_util",
     "//base",
     "//components/safe_browsing/core/common",
+    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
     "//components/safe_browsing/core/common/proto:webui_proto",
   ]
 }
@@ -238,6 +239,8 @@ source_set("v4_rice") {
 source_set("v5_rice") {
   if (safe_browsing_mode != 0 || is_ios) {
     sources = [
+      "v5_hash_list_rice_decoder.cc",
+      "v5_hash_list_rice_decoder.h",
       "v5_rice.cc",
       "v5_rice.h",
     ]
@@ -276,6 +279,7 @@ source_set("sb_store") {
   public_deps = [
     ":safebrowsing_proto",
     ":v4_store_proto",
+    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
     "//components/safe_browsing/core/common/proto:v5_store_proto",
   ]
   deps = [
@@ -327,22 +331,44 @@ static_library("sb_update_protocol_manager") {
 
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
 
-  public_deps = [ ":v4_protocol_config" ]
+  public_deps = [
+    ":v4_protocol_config",
+    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
+  ]
 
   deps = [
     ":safebrowsing_proto",
     ":util",
     ":v4_protocol_manager_util",
+    ":v5_rice",
     "//base",
     "//components/safe_browsing:buildflags",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common:safe_browsing_prefs",
-    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
     "//components/safe_browsing/core/common/proto:webui_proto",
     "//google_apis",
     "//net",
     "//services/network/public/cpp",
     "//url",
+  ]
+}
+
+static_library("v5_search_hashes_cache") {
+  sources = [
+    "v5_search_hashes_cache.cc",
+    "v5_search_hashes_cache.h",
+  ]
+
+  configs += [ "//build/config/compiler:wexit_time_destructors" ]
+
+  deps = [
+    ":v4_protocol_manager_util",
+    "//base",
+    "//components/history/core/browser",
+    "//components/keyed_service/core",
+    "//components/safe_browsing/core/common",
+    "//components/safe_browsing/core/common/hashprefix_realtime:hash_realtime_utils",
+    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
   ]
 }
 
@@ -354,6 +380,7 @@ source_set("unit_tests_shared") {
     "sb_protocol_manager_util_unittest.cc",
     "util_unittest.cc",
     "v4_get_hash_protocol_manager_unittest.cc",
+    "v5_search_hashes_cache_unittest.cc",
   ]
   deps = [
     ":allowlist_checker_client",
@@ -364,7 +391,14 @@ source_set("unit_tests_shared") {
     ":v4_get_hash_protocol_manager",
     ":v4_protocol_manager_util",
     ":v4_test_util",
+    ":v5_search_hashes_cache",
     "//base",
+    "//base/test:test_support",
+    "//components/history/core/browser",
+    "//components/history/core/test",
+    "//components/safe_browsing/core/common",
+    "//components/safe_browsing/core/common/hashprefix_realtime:hash_realtime_utils",
+    "//components/safe_browsing/core/common/proto:safebrowsingv5_proto",
     "//net",
     "//net:test_support",
     "//services/network:test_support",
@@ -379,11 +413,7 @@ source_set("unit_tests_local_db") {
     "hash_prefix_map_unittest.cc",
     "sb_database_unittest.cc",
     "sb_local_database_manager_unittest.cc",
-    "v4_rice_unittest.cc",
-    "v4_store_unittest.cc",
     "v4_update_protocol_manager_unittest.cc",
-    "v5_rice_unittest.cc",
-    "v5_store_unittest.cc",
     "v5_update_protocol_manager_unittest.cc",
   ]
   deps = [
@@ -395,10 +425,8 @@ source_set("unit_tests_local_db") {
     ":unit_tests_shared",
     ":util",
     ":v4_protocol_manager_util",
-    ":v4_rice",
     ":v4_store_proto",
     ":v4_test_util",
-    ":v5_rice",
     "//base",
     "//build:branding_buildflags",
     "//components/crx_file",
@@ -414,6 +442,20 @@ source_set("unit_tests_local_db") {
     "//testing/gtest",
     "//url",
   ]
+
+  if (safe_browsing_mode != 0 || is_ios) {
+    sources += [
+      "v4_rice_unittest.cc",
+      "v4_store_unittest.cc",
+      "v5_hash_list_rice_decoder_unittest.cc",
+      "v5_rice_unittest.cc",
+      "v5_store_unittest.cc",
+    ]
+    deps += [
+      ":v4_rice",
+      ":v5_rice",
+    ]
+  }
 }
 
 static_library("allowlist_checker_client") {

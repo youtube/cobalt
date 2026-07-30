@@ -777,6 +777,41 @@ bool AppServiceProxyBase::QueryConflict(const std::string& first_app_id,
   return true;
 }
 
+bool AppServiceProxyBase::IsWebAppInExtendedScope(
+    const GURL& url,
+    const std::string& app_id) const {
+  // Do not "enable" comparison of scope extensions if navigation capturing is
+  // not on-by-default.
+  if (!apps::features::IsNavigationCapturingOnByDefault()) {
+    return false;
+  }
+  // If needed, this code could instead be a method on the apps::AppPublisher
+  // interface, which is a better delegation of responsibilities, but it seems
+  // fine to have it here so this complexity doesn't have to be exposed to the
+  // subclasses.
+  std::optional<AppUpdate> update = app_registry_cache_.GetAppUpdate(app_id);
+  // Return early if the app is not a PWA, to account for non-web apps to not go
+  // through the scope extensions comparison flow.
+  if (!update.has_value() || update->AppType() != AppType::kWeb) {
+    return false;
+  }
+
+  auto* provider = web_app::WebAppProvider::GetForWebApps(profile_);
+  if (!provider) {
+    return false;
+  }
+  std::optional<web_app::WebAppScope> scope =
+      provider->registrar_unsafe().GetEffectiveScope(app_id);
+  if (!scope) {
+    return false;
+  }
+
+  // Ensure that the app is ONLY in the PWA's scope extensions and not in the
+  // primary scope of the PWA.
+  return scope->GetScopeScore(url, {.only_consider_scope_extensions = true}) >
+         0;
+}
+
 IntentLaunchInfo::IntentLaunchInfo() = default;
 IntentLaunchInfo::~IntentLaunchInfo() = default;
 IntentLaunchInfo::IntentLaunchInfo(const IntentLaunchInfo& other) = default;

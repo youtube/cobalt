@@ -209,6 +209,13 @@ should be able to be added at any place in this file.
                Glic Instance's Tab Contents."/>
 </variants>
 
+<variants name="GlicSettingsField">
+  <variant name="Default" summary="Default (no field highlighted)"/>
+  <variant name="LocationPermission" summary="Location Permission field"/>
+  <variant name="OsEntrypointToggle" summary="OS Entrypoint Toggle field"/>
+  <variant name="OsHotkey" summary="OS Hotkey field"/>
+</variants>
+
 <variants name="InProductHelp_Type">
   <variant name="" summary="aggregated"/>
   <variant name="_AccountSettingsHistorySync"
@@ -356,7 +363,8 @@ should be able to be added at any place in this file.
       summary="For ContextualSearchWebSearch feature."/>
   <variant name="_ContextualSuggestions"
       summary="For ContextualSuggestions feature."/>
-  <variant name="_CookieControls" summary="For CookieControls feature."/>
+  <variant name="_CookieControls"
+      summary="For CookieControls feature. (obsolete)"/>
   <variant name="_Crow" summary="For Crow feature."/>
   <variant name="_DataSaverDetail" summary="For DataSaverDetail feature."/>
   <variant name="_DataSaverMilestonePromo"
@@ -983,6 +991,8 @@ should be able to be added at any place in this file.
   <variant name=".DiceUserMigrated" summary="DICe user migrated"/>
   <variant name=".EnhancedBundledSecuritySettings"
       summary="Enhanced protection user migrated"/>
+  <variant name=".GlicSelectionHiddenForSite"
+      summary="Glic selection hidden for site"/>
   <variant name=".MultistepFilterSuggestion" summary="Filter suggested"/>
   <variant name=".SkillDeleted" summary="Skill deleted"/>
   <variant name=".SkillSaved" summary="Skill saved"/>
@@ -5061,6 +5071,14 @@ should be able to be added at any place in this file.
   <description>The survey infobar was displayed.</description>
 </action>
 
+<action name="Android.TabStrip.GlicButton.Unpin">
+  <owner>mklw@google.com</owner>
+  <description>
+    User tapped 'Unpin' on the Glic button context menu to unpin the Glic button
+    from the tab strip.
+  </description>
+</action>
+
 <action name="Android.TabStripMenu.BookmarkAllTabs">
   <obsolete>Generalized/renamed to Android.BookmarkAllTabs in 3/26.</obsolete>
   <owner>mklw@google.com</owner>
@@ -6529,6 +6547,8 @@ should be able to be added at any place in this file.
   <owner>rainhard@chromium.org</owner>
   <owner>chrome-browser-privacy-team@google.com</owner>
   <description>
+    (Obsolete) This link row did not launch.
+
     Recorded when the user clicks the Personal Context settings link row.
   </description>
 </action>
@@ -11440,6 +11460,14 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="ContextualTasks.AimFullTab.Shown">
+  <owner>niharm@google.com</owner>
+  <owner>chrome-contextual-tasks-eng@google.com</owner>
+  <description>
+    Recorded when a navigation leads to a full tab AIM page.
+  </description>
+</action>
+
 <action name="ContextualTasks.AiResponse.UserAction.LinkClicked{SurfaceType}">
   <owner>sophiechang@chromium.org</owner>
   <owner>chrome-contextual-tasks-eng@google.com</owner>
@@ -11554,6 +11582,7 @@ should be able to be added at any place in this file.
     <variant name=".ChangedThreads"
         summary="The user changed the active thread."/>
     <variant name=".CloseSidePanel" summary="The user closed the side panel."/>
+    <variant name=".OpenFullTab" summary="The user opened the full tab."/>
     <variant name=".OpenSidePanel" summary="The user opened the side panel."/>
     <variant name=".StayedOnThread"
         summary="The user stayed on the same thread."/>
@@ -11590,6 +11619,7 @@ should be able to be added at any place in this file.
   </description>
   <token key="ActionType">
     <variant name=".CloseSidePanel" summary="The user closed the side panel."/>
+    <variant name=".OpenFeedback" summary="The user opened the feedback page."/>
     <variant name=".OpenHelp" summary="The user opened the help page."/>
     <variant name=".OpenInNewTab"
         summary="The user opened the task in a new tab."/>
@@ -16535,31 +16565,15 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
-<action name="GlicSessionSettingsOpened.Default">
+<action name="GlicSessionSettingsOpened.{GlicSettingsField}">
+  <owner>lindaywang@google.com</owner>
   <owner>pauladedeji@google.com</owner>
   <owner>erikchen@chromium.org</owner>
   <description>
-    Logged when the Glic web client requests the main settings page (no section
-    specified).
+    Recorded when the Glic settings page is opened with the {GlicSettingsField}
+    field highlighted.
   </description>
-</action>
-
-<action name="GlicSessionSettingsOpened.OsEntrypointToggle">
-  <owner>pauladedeji@google.com</owner>
-  <owner>erikchen@chromium.org</owner>
-  <description>
-    Logged when the Glic web client requests the OS entrypoint toggle section of
-    the settings page.
-  </description>
-</action>
-
-<action name="GlicSessionSettingsOpened.OsHotkey">
-  <owner>pauladedeji@google.com</owner>
-  <owner>erikchen@chromium.org</owner>
-  <description>
-    Logged when the Glic web client requests the OS hotkey section of the
-    settings page.
-  </description>
+  <token key="GlicSettingsField" variants="GlicSettingsField"/>
 </action>
 
 <action name="GlicSessionWebClientCrash">
@@ -18811,6 +18825,34 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="IOS.CreditCardScanner.DismissedByUser">
+  <owner>yiwenqian@google.com</owner>
+  <owner>qihuizhao@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <description>
+    User closed the Credit Card Scanner without scanning a credit card. iOS
+    only.
+  </description>
+</action>
+
+<action name="IOS.CreditCardScanner.Error">
+  <owner>yiwenqian@google.com</owner>
+  <owner>qihuizhao@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <description>
+    User closed the Credit Card Scanner from an error dialog. iOS only.
+  </description>
+</action>
+
+<action name="IOS.CreditCardScanner.ScannedCard">
+  <owner>yiwenqian@google.com</owner>
+  <owner>qihuizhao@google.com</owner>
+  <owner>payments-autofill-team@google.com</owner>
+  <description>
+    User scanned a credit card using the Credit Card Scanner. iOS only.
+  </description>
+</action>
+
 <action name="IOS.DefaultBrowserFullscreenPromo.Cancel">
   <owner>gayane@chromium.org</owner>
   <owner>bling-pandamonium@google.com</owner>
@@ -20215,6 +20257,16 @@ should be able to be added at any place in this file.
   <owner>justincohen@chromium.org</owner>
   <description>
     User opened Chrome with a `Search in Chrome` Siri Shortcut.
+  </description>
+</action>
+
+<action name="IOSMagicStackLevelUpFreshSignal" not_user_triggered="true">
+  <owner>thegreenfrog@google.com</owner>
+  <owner>pabouchard@google.com</owner>
+  <owner>bling-team@google.com</owner>
+  <description>
+    Recorded when a Level Up milestone task has been completed and a new task is
+    shown.
   </description>
 </action>
 
@@ -28366,6 +28418,14 @@ should be able to be added at any place in this file.
   <description>
     Reported when the user receives any response from BWG (Gemini) on iOS.
     Tracks overall conversation engagement and response volume per session.
+  </description>
+</action>
+
+<action name="MobileGeminiSessionOpened">
+  <owner>bling-alchemy@google.com</owner>
+  <description>
+    Reported when the Gemini Floaty/session UI successfully appears on screen.
+    iOS only.
   </description>
 </action>
 
@@ -42142,6 +42202,16 @@ should be able to be added at any place in this file.
   </description>
 </action>
 
+<action name="Settings.AiPage.GoogleSearchAiModeWorkspaceEntryPointClick">
+  <owner>adamyao@google.com</owner>
+  <owner>rainhard@chromium.org</owner>
+  <owner>chrome-browser-privacy-team@google.com</owner>
+  <description>
+    Reported when user clicks on the Google Search AI Mode Workspace row in the
+    chrome://settings/ai page.
+  </description>
+</action>
+
 <action name="Settings.AiPage.HistorySearch.Disabled">
   <owner>zalmashni@google.com</owner>
   <owner>rainhard@chromium.org</owner>
@@ -54826,6 +54896,24 @@ should be able to be added at any place in this file.
   <description>
     Recorded when the user uncollapses the vertical tab strip using the toggle
     button.
+  </description>
+</action>
+
+<action name="VerticalTabs_TabStrip_KeyboardShortcutToggleCollapsed">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user collapses the vertical tab strip using the keyboard
+    shortcut.
+  </description>
+</action>
+
+<action name="VerticalTabs_TabStrip_KeyboardShortcutToggleUncollapsed">
+  <owner>kunaldaftari@google.com</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <description>
+    Recorded when the user uncollapses the vertical tab strip using the keyboard
+    shortcut.
   </description>
 </action>
 

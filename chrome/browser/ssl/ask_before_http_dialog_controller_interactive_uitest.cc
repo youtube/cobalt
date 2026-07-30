@@ -258,7 +258,7 @@ class AskBeforeHttpDialogControllerUiTest
     auto* tab_strip = GetBrowser()->tab_strip_model();
     std::unique_ptr<content::WebContents> new_contents =
         content::WebContents::Create(
-            content::WebContents::CreateParams(GetBrowser()->profile()));
+            content::WebContents::CreateParams(GetBrowser()->GetProfile()));
     return tab_strip->DiscardWebContentsAt(index, std::move(new_contents));
   }
 
@@ -394,6 +394,43 @@ IN_PROC_BROWSER_TEST_P(AskBeforeHttpDialogControllerUiTest,
           CheckViewProperty(AskBeforeHttpDialogController::kGoBackButtonId,
                             &views::View::HasFocus, true),
           PressButton(AskBeforeHttpDialogController::kGoBackButtonId),
+          WaitForWebContentsNavigation(kTestTab, GURL("about:blank"))));
+
+  EXPECT_EQ(GURL("about:blank"), contents->GetLastCommittedURL());
+
+  // Verify that the interstitial metrics were correctly recorded.
+  histograms()->ExpectBucketCount("interstitial.https_first_mode.decision",
+                                  MetricsHelper::Decision::SHOW, 1);
+  histograms()->ExpectBucketCount("interstitial.https_first_mode.decision",
+                                  MetricsHelper::Decision::DONT_PROCEED, 1);
+
+  ExpectUKMEntry(http_url, BlockingResult::kInterstitialDontProceed);
+}
+
+// If the user triggers an Ask-before-HTTP warning for a host and then
+// presses ESC, the dialog should be dismissed and the tab should navigate back
+// to the previous page (about:blank in this case).
+IN_PROC_BROWSER_TEST_P(AskBeforeHttpDialogControllerUiTest,
+                       FailedUpgrade_WarningShown_PressEsc_GoBack) {
+  DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kTestTab);
+
+  GURL http_url = http_server()->GetURL("bad-https.com", "/simple.html");
+  GURL https_url = https_server()->GetURL("bad-https.com", "/simple.html");
+
+  auto* contents = GetBrowser()->tab_strip_model()->GetActiveWebContents();
+  content::NavigationController::LoadURLParams params(http_url);
+  params.transition_type = ui::PAGE_TRANSITION_LINK;
+  content::NavigateToURLBlockUntilNavigationsComplete(contents, params, 1);
+  EXPECT_EQ(http_url, contents->GetLastCommittedURL());
+
+  const ui::Accelerator kEscapeKey(ui::VKEY_ESCAPE, ui::EF_NONE);
+  RunTestSequence(
+      InAnyContext(WaitForShow(AskBeforeHttpDialogController::kGoBackButtonId)),
+      InSameContext(
+          InstrumentTab(kTestTab),
+          SendAccelerator(AskBeforeHttpDialogController::kGoBackButtonId,
+                          kEscapeKey)
+              .SetMustRemainVisible(false),
           WaitForWebContentsNavigation(kTestTab, GURL("about:blank"))));
 
   EXPECT_EQ(GURL("about:blank"), contents->GetLastCommittedURL());

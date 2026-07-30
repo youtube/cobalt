@@ -221,9 +221,19 @@ enum class SuggestionType {
   // Fallback suggestion to open a subpopup displaying other orders.
   kAutofillAiOtherOrders = 90,
 
-  // Next ID: 92
+  // A suggestion shown to users as a notice about the usage of private
+  // inference.
+  kAutofillAiPrivateInferenceNotice = 92,
 
-  kMaxValue = kManageAutofillAiShopping
+  // Suggestion to open the enhanced autofill settings page.
+  kManageEnhancedAutofill = 93,
+
+  // Suggestion to display the AI disclosure for AtMemory.
+  kAtMemoryAiDisclosure = 94,
+
+  // Next ID: 95
+
+  kMaxValue = kAtMemoryAiDisclosure
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/autofill/enums.xml:SuggestionType)
 

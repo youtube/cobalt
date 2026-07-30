@@ -6,6 +6,7 @@
 
 #include <tuple>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/ptr_util.h"
 #include "base/metrics/histogram_functions.h"
@@ -168,8 +169,6 @@ SetTosArguments GetSetTosEnumForLogging(net::DiffServCodePoint dscp,
 }  // namespace
 
 namespace network {
-
-BASE_FEATURE(kP2PSocketSendRetry, base::FEATURE_ENABLED_BY_DEFAULT);
 
 P2PPendingPacket::P2PPendingPacket(
     const net::IPEndPoint& to,
@@ -417,9 +416,14 @@ bool P2PSocketUdp::DoSend(P2PPendingPacket packet) {
   int64_t send_time_us = webrtc::TimeMicros();
   int64_t send_time_ms = send_time_us / 1000;
 
-  if (!net::IsPortAllowedForIpEndpoint(packet.to)) {
-    OnError();
-    return false;
+  if (base::FeatureList::IsEnabled(kEnforceP2PSocketPortRestrictions)) {
+    bool is_restricted_port =
+        !net::IsPortAllowedForIpEndpoint(packet.to) ||
+        !net::IsPortAllowedForScheme(packet.to.port(), "stun");
+    if (is_restricted_port) {
+      OnError();
+      return false;
+    }
   }
 
   // The peer is considered not connected until the first incoming STUN
@@ -534,10 +538,6 @@ void P2PSocketUdp::SendQueuedPackets() {
 }
 
 bool P2PSocketUdp::IsRetryableSendError(int socket_result_code) const {
-  if (!base::FeatureList::IsEnabled(kP2PSocketSendRetry)) {
-    return false;
-  }
-
   if (socket_result_code != net::ERR_NO_BUFFER_SPACE) {
     return false;
   }
@@ -547,12 +547,6 @@ bool P2PSocketUdp::IsRetryableSendError(int socket_result_code) const {
 void P2PSocketUdp::StartSendRetryTimer(P2PPendingPacket packet,
                                        int64_t send_time_ms) {
   CHECK_LT(send_retry_count_, kMaxSendRetries);
-
-  if (send_retry_count_ == 0) {
-    // Record the timestamp of the first retry attempt to measure the total
-    // delay for this packet's retries.
-    send_retry_start_time_ = base::Time::Now();
-  }
 
   // Double the `delay` interval for each retry.
   base::TimeDelta delay = base::Milliseconds(UINT64_C(1) << send_retry_count_);
@@ -588,21 +582,10 @@ bool P2PSocketUdp::HandleSendResult(uint64_t packet_id,
                                     int64_t send_time_ms,
                                     int result) {
   CHECK(!send_pending_);
+  send_retry_count_ = 0;
 
   int result_to_record = std::min(result, static_cast<int>(net::OK));
   UMA_HISTOGRAM_SPARSE("WebRTC.P2P.UDP.SendResult", result_to_record);
-
-  if (send_retry_count_ > 0) {
-    send_retry_count_ = 0;
-
-    // Record the final outcome of the retry to determine effectiveness.
-    base::UmaHistogramSparse("WebRTC.P2P.UDP.SendRetryResult",
-                             result_to_record);
-
-    // Also record how long the retry stalled.
-    base::TimeDelta delay_time_ms = base::Time::Now() - send_retry_start_time_;
-    base::UmaHistogramTimes("WebRTC.P2P.UDP.SendRetryDelay", delay_time_ms);
-  }
 
   // End the in-process "UdpAsyncSendTo" event.
   TRACE_EVENT_END("p2p", perfetto::Track(packet_id), "result", result);

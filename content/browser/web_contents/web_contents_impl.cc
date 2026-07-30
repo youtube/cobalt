@@ -161,6 +161,7 @@
 #include "content/public/browser/file_select_listener.h"
 #include "content/public/browser/focused_node_details.h"
 #include "content/public/browser/frame_type.h"
+#include "content/public/browser/global_dom_node_id.h"
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/invalidate_type.h"
 #include "content/public/browser/javascript_dialog_manager.h"
@@ -344,9 +345,8 @@ bool HasMatchingWidgetHost(FrameTree* tree, RenderWidgetHostImpl* host) {
 
 RenderFrameHostImpl* FindOpenerRFH(const WebContents::CreateParams& params) {
   RenderFrameHostImpl* opener_rfh = nullptr;
-  if (params.opener_render_frame_id != IPC::mojom::kRoutingIdNone) {
-    opener_rfh = RenderFrameHostImpl::FromID(params.opener_render_process_id,
-                                             params.opener_render_frame_id);
+  if (params.opener_id) {
+    opener_rfh = RenderFrameHostImpl::FromID(params.opener_id);
   }
   return opener_rfh;
 }
@@ -1379,7 +1379,7 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
       SlowWebPreferenceCache::GetInstance());
   renderer_preferences_.caret_blink_interval =
       native_theme->caret_blink_interval();
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
   renderer_preferences_.use_overlay_scrollbar =
       native_theme->use_overlay_scrollbar();
 #endif
@@ -5507,7 +5507,7 @@ FrameTree* WebContentsImpl::CreateNewWindow(
     return nullptr;
   }
 
-  int render_process_id = opener->GetProcess()->GetDeprecatedID();
+  content::ChildProcessId render_process_id = opener->GetProcess()->GetID();
   SiteInstanceImpl* source_site_instance = opener->GetSiteInstance();
   const auto& partition_config =
       source_site_instance->GetSecurityPrincipal().GetStoragePartitionConfig();
@@ -5586,8 +5586,8 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   // WebContentsView. In the future, we may want to create the view separately.
   CreateParams create_params(GetBrowserContext(), site_instance.get());
   create_params.main_frame_name = params.frame_name;
-  create_params.opener_render_process_id = render_process_id;
-  create_params.opener_render_frame_id = opener->GetRoutingID();
+  create_params.opener_id =
+      GlobalRenderFrameHostId(render_process_id, opener->GetRoutingID());
   create_params.opener_suppressed = params.opener_suppressed;
   create_params.initially_hidden = renderer_started_hidden;
   create_params.initial_popup_url = params.target_url;
@@ -5688,9 +5688,10 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   }
 
   if (delegate_) {
-    delegate_->WebContentsCreated(this, render_process_id,
-                                  opener->GetRoutingID(), params.frame_name,
-                                  params.target_url, new_contents_impl);
+    delegate_->WebContentsCreated(
+        this,
+        GlobalRenderFrameHostId(render_process_id, opener->GetRoutingID()),
+        params.frame_name, params.target_url, new_contents_impl);
   }
 
   observers_.NotifyObservers(&WebContentsObserver::DidOpenRequestedURL,
@@ -5709,17 +5710,21 @@ FrameTree* WebContentsImpl::CreateNewWindow(
   bool was_blocked = false;
   base::WeakPtr<WebContentsImpl> weak_new_contents =
       new_contents_impl->weak_factory_.GetWeakPtr();
-  base::WeakPtr<WebContentsImpl> weak_this = weak_factory_.GetWeakPtr();
   WebContentsImpl* contents_to_load = new_contents_impl;
   if (delegate_) {
+    // Capture WeakPtrs before AddNewContents(), whose nested message loop on
+    // Windows can destroy `this` and/or `opener` re-entrantly.
+    base::WeakPtr<WebContentsImpl> weak_this = weak_factory_.GetWeakPtr();
+    base::WeakPtr<RenderFrameHostImpl> weak_opener = opener->GetWeakPtr();
     WebContents* web_contents_navigated = delegate_->AddNewContents(
         this, std::move(new_contents), params.target_url, params.disposition,
         *params.features, has_user_gesture, &was_blocked);
 
-    if (!weak_this) {
-      // `this` may be deleted after AddNewContents() due to a nested message
-      // loop (e.g. the window hosting the opener is closed). See
-      // crbug.com/527676561.
+    if (!weak_this || !weak_opener) {
+      // `this` or `opener` may be deleted after AddNewContents() due to a
+      // nested message loop (e.g. the window hosting the opener is closed, or
+      // a subframe opener is detached during the nested loop). See
+      // crbug.com/527676561 and crbug.com/531415953.
       return nullptr;
     }
 
@@ -5827,8 +5832,7 @@ RenderWidgetHostImpl* WebContentsImpl::CreateNewPopupWidget(
 
   // Save the created widget associated with the route so we can show it later.
   pending_widgets_.insert(
-      {GlobalRoutingID(site_instance_group->process()->GetDeprecatedID(),
-                       route_id),
+      {GlobalRoutingID(site_instance_group->process()->GetID(), route_id),
        widget_host});
   AddRenderWidgetHostDestructionObserver(widget_host);
 
@@ -5885,7 +5889,7 @@ WebContents* WebContentsImpl::ShowCreatedWindow(
   // when it will always do so. What needs to happen in the renderer before we
   // reach here?
   std::optional<CreatedWindow> owned_created = GetCreatedWindow(
-      opener->GetProcess()->GetDeprecatedID(), main_frame_widget_route_id);
+      opener->GetProcess()->GetID(), main_frame_widget_route_id);
 
   // The browser may have rejected the request to make a new window, or the
   // renderer could be requesting to show a previously shown window (occurs when
@@ -5944,12 +5948,12 @@ WebContents* WebContentsImpl::ShowCreatedWindow(
                                   nullptr);
 }
 
-void WebContentsImpl::ShowCreatedWidget(int process_id,
+void WebContentsImpl::ShowCreatedWidget(ChildProcessId process_id,
                                         int widget_route_id,
                                         const gfx::Rect& initial_rect,
                                         const gfx::Rect& initial_anchor_rect) {
   OPTIONAL_TRACE_EVENT2("content", "WebContentsImpl::ShowCreatedWidget",
-                        "process_id", process_id, "widget_route_id",
+                        "process_id", process_id.value(), "widget_route_id",
                         widget_route_id);
   RenderWidgetHostViewBase* widget_host_view =
       static_cast<RenderWidgetHostViewBase*>(
@@ -6034,10 +6038,11 @@ void WebContentsImpl::ShowCreatedWidget(int process_id,
 }
 
 std::optional<CreatedWindow> WebContentsImpl::GetCreatedWindow(
-    int process_id,
+    ChildProcessId process_id,
     int main_frame_widget_route_id) {
   OPTIONAL_TRACE_EVENT2("content", "WebContentsImpl::GetCreatedWindow",
-                        "process_id", process_id, "main_frame_widget_route_id",
+                        "process_id", process_id.value(),
+                        "main_frame_widget_route_id",
                         main_frame_widget_route_id);
 
   auto key = GlobalRoutingID(process_id, main_frame_widget_route_id);
@@ -6069,10 +6074,11 @@ std::optional<CreatedWindow> WebContentsImpl::GetCreatedWindow(
   return result;
 }
 
-RenderWidgetHostView* WebContentsImpl::GetCreatedWidget(int process_id,
-                                                        int route_id) {
+RenderWidgetHostView* WebContentsImpl::GetCreatedWidget(
+    ChildProcessId process_id,
+    int route_id) {
   OPTIONAL_TRACE_EVENT2("content", "WebContentsImpl::GetCreatedWidget",
-                        "process_id", process_id, "route_id", route_id);
+                        "process_id", process_id.value(), "route_id", route_id);
 
   auto iter = pending_widgets_.find(GlobalRoutingID(process_id, route_id));
   if (iter == pending_widgets_.end()) {
@@ -9991,7 +9997,7 @@ void WebContentsImpl::MoveWindowTo(const gfx::Point& origin) {
   if (!view) {
     return;
   }
-  gfx::Rect bounds(origin, view->GetBoundsInRootWindow().size());
+  gfx::Rect bounds(origin, view->GetBoundsInScreen().size());
   int64_t display_id = AdjustWindowRect(&bounds, GetPrimaryMainFrame());
   if (!ForSecurityDropFullscreen(display_id)) {
     return;
@@ -10008,7 +10014,7 @@ void WebContentsImpl::ResizeWindowTo(const gfx::Size& size) {
   if (!view) {
     return;
   }
-  gfx::Rect bounds(view->GetBoundsInRootWindow().origin(), size);
+  gfx::Rect bounds(view->GetBoundsInScreen().origin(), size);
   int64_t display_id = AdjustWindowRect(&bounds, GetPrimaryMainFrame());
   if (!ForSecurityDropFullscreen(display_id)) {
     return;
@@ -10759,7 +10765,8 @@ void WebContentsImpl::OnAdvanceFocus(RenderFrameHostImpl* source_rfh) {
 void WebContentsImpl::OnFocusedElementChangedInFrame(
     RenderFrameHostImpl* frame,
     const gfx::Rect& bounds_in_root_view,
-    blink::mojom::FocusType focus_type) {
+    blink::mojom::FocusType focus_type,
+    blink::DOMNodeIdType editable_dom_node_id) {
   OPTIONAL_TRACE_EVENT1("content",
                         "WebContentsImpl::OnFocusedElementChangedInFrame",
                         "render_frame_host", frame);
@@ -10785,8 +10792,11 @@ void WebContentsImpl::OnFocusedElementChangedInFrame(
   root_view->FocusedNodeChanged(frame->has_focused_editable_element(),
                                 bounds_in_screen);
 
+  GlobalDOMNodeId global_dom_node_id{frame->GetWeakDocumentPtr(),
+                                     editable_dom_node_id};
   FocusedNodeDetails details = {frame->has_focused_editable_element(),
-                                bounds_in_screen, focus_type};
+                                bounds_in_screen, focus_type,
+                                global_dom_node_id};
   BrowserAccessibilityStateImpl::GetInstance()->OnFocusChangedInPage(details);
   observers_.NotifyObservers(&WebContentsObserver::OnFocusChangedInPage,
                              details);
@@ -12366,7 +12376,7 @@ void WebContentsImpl::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
   HandleColorRelatedStateChanges();
 
   const auto caret_blink_interval = observed_theme->caret_blink_interval();
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
   const auto use_overlay_scrollbar = observed_theme->use_overlay_scrollbar();
 #endif
   bool renderer_preference_changed = false;
@@ -12374,7 +12384,7 @@ void WebContentsImpl::OnNativeThemeUpdated(ui::NativeTheme* observed_theme) {
     renderer_preferences_.caret_blink_interval = caret_blink_interval;
     renderer_preference_changed = true;
   }
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
   if (renderer_preferences_.use_overlay_scrollbar != use_overlay_scrollbar) {
     renderer_preferences_.use_overlay_scrollbar = use_overlay_scrollbar;
     renderer_preference_changed = true;

@@ -81,10 +81,13 @@ export function getHtml(this: DownloadsItemElement) {
         Text populated dynamically.
       --></div>
     </div>
-    <div class="more-options">
+    <div role="gridcell" class="more-options">
       <!-- Menu and/or quick action(s). -->
-      <div role="gridcell" id="action-icon-buttons">
-        <cr-icon-button id="copy-download-link" iron-icon="downloads:link"
+      <div id="action-icon-buttons">
+        <cr-icon-button id="copy-download-link"
+            iron-icon="${this.webuiRoundedIconsEnabled_
+                ? 'downloads:link'
+                : 'downloads:link-old'}"
             ?hidden="${!this.computeShowCopyDownloadLink_()}"
             title="$i18n{controlCopyDownloadLink}"
             aria-label="$i18n{controlCopyDownloadLink}"
@@ -166,7 +169,7 @@ export function getHtml(this: DownloadsItemElement) {
           ${this.computeSaveDangerousLabel_()}
         </button>
       </cr-action-menu>
-      <div id="incognito" title="$i18n{inIncognito}"
+      <div id="incognito" role="img" title="$i18n{inIncognito}"
           ?hidden="${!this.data?.otr}">
       </div>
     </div>

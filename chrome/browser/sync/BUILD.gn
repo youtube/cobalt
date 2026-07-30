@@ -17,6 +17,8 @@ source_set("sync") {
     "chrome_sync_client.h",
     "chrome_sync_controller_builder.cc",
     "chrome_sync_controller_builder.h",
+    "cross_device_theme_tracker_factory.cc",
+    "cross_device_theme_tracker_factory.h",
     "data_type_store_service_factory.cc",
     "data_type_store_service_factory.h",
     "device_info_sync_client_impl.cc",
@@ -53,6 +55,8 @@ source_set("sync") {
     "sync_startup_tracker.h",
     "sync_ui_util.cc",
     "sync_ui_util.h",
+    "tab_context_sync_service_factory.cc",
+    "tab_context_sync_service_factory.h",
     "user_event_service_factory.cc",
     "user_event_service_factory.h",
   ]
@@ -76,6 +80,7 @@ source_set("sync") {
     "//components/sync_preferences",
     "//components/sync_preferences:common_syncable_prefs_database",
     "//components/sync_sessions",
+    "//components/sync_tab_context",
     "//components/translate/core/browser",
     "//content/public/browser",
 
@@ -164,6 +169,7 @@ source_set("sync") {
     "//components/sync_preferences:features",
     "//components/sync_preferences/cross_device_pref_tracker",
     "//components/sync_user_events",
+    "//components/themes/cross_device",
     "//components/user_manager",
     "//components/variations/service",
     "//components/webauthn/core/browser:passkey_model",
@@ -212,8 +218,6 @@ source_set("sync") {
     ]
   } else {
     sources += [
-      "cross_device_theme_tracker_factory.cc",
-      "cross_device_theme_tracker_factory.h",
       "sessions/browser_list_router_helper.cc",
       "sessions/browser_list_router_helper.h",
     ]
@@ -227,7 +231,6 @@ source_set("sync") {
       "//chrome/browser/ui/read_anything:prefs",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs/saved_tab_groups",
-      "//components/themes/cross_device",
     ]
   }
   if (enable_extensions_core) {

@@ -29,6 +29,7 @@
 #include "components/safe_browsing/core/browser/db/v4_protocol_manager_util.h"
 #include "components/safe_browsing/core/browser/db/v4_test_util.h"
 #include "components/safe_browsing/core/common/features.h"
+#include "components/safe_browsing/core/common/proto/safebrowsingv5.pb.h"
 #include "crypto/sha2.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -270,11 +271,22 @@ class TestClient : public SafeBrowsingDatabaseManager::Client {
         expected_urls_(url_chain) {}
 
   void OnCheckBrowseUrlResult(const GURL& url,
-                              SBThreatType threat_type,
-                              const ThreatMetadata& metadata) override {
+                              SBThreatType threat_type) override {
     ASSERT_EQ(expected_urls_[0], url);
     ASSERT_EQ(expected_sb_threat_type_, threat_type);
     on_check_browse_url_result_called_ = true;
+    if (manager_to_cancel_) {
+      manager_to_cancel_->CancelCheck(this);
+    }
+  }
+
+  void OnCheckSubresourceFilterUrlResult(
+      const GURL& url,
+      SBThreatType threat_type,
+      const SubresourceFilterMatch& subresource_filter_match) override {
+    ASSERT_EQ(expected_urls_[0], url);
+    ASSERT_EQ(expected_sb_threat_type_, threat_type);
+    on_check_subresource_filter_url_result_called_ = true;
     if (manager_to_cancel_) {
       manager_to_cancel_->CancelCheck(this);
     }
@@ -292,6 +304,9 @@ class TestClient : public SafeBrowsingDatabaseManager::Client {
   bool on_check_browse_url_result_called() {
     return on_check_browse_url_result_called_;
   }
+  bool on_check_subresource_filter_url_result_called() {
+    return on_check_subresource_filter_url_result_called_;
+  }
   bool on_check_download_urls_result_called() {
     return on_check_download_urls_result_called_;
   }
@@ -300,6 +315,7 @@ class TestClient : public SafeBrowsingDatabaseManager::Client {
   const SBThreatType expected_sb_threat_type_;
   std::vector<GURL> expected_urls_;
   bool on_check_browse_url_result_called_ = false;
+  bool on_check_subresource_filter_url_result_called_ = false;
   bool on_check_download_urls_result_called_ = false;
   raw_ptr<SBLocalDatabaseManager> manager_to_cancel_;
 };
@@ -453,6 +469,19 @@ class SBLocalDatabaseManagerTest : public PlatformTest {
     sb_local_database_manager_->PopulateArtificialDatabase();
   }
 
+  void V5UpdateRequestCompleted(
+      std::optional<std::map<ListIdentifier, V5::HashList>>
+          parsed_server_response) {
+    sb_local_database_manager_->V5UpdateRequestCompleted(
+        std::move(parsed_server_response));
+  }
+
+  void DatabaseUpdated() { sb_local_database_manager_->DatabaseUpdated(); }
+
+  const ListInfos& GetListInfos() const {
+    return sb_local_database_manager_->list_infos_;
+  }
+
   void ReplaceSBDatabase(const StoreAndHashPrefixes& store_and_hash_prefixes,
                          bool stores_available = false,
                          int64_t store_file_size = kDefaultStoreFileSizeInBytes,
@@ -558,6 +587,22 @@ class SBLocalDatabaseManagerTest : public PlatformTest {
   base::test::TaskEnvironment task_environment_;
   base::HistogramTester histogram_tester_;
   scoped_refptr<SBLocalDatabaseManager> sb_local_database_manager_;
+};
+
+class SBLocalDatabaseManagerTest_V4V5
+    : public SBLocalDatabaseManagerTest,
+      public ::testing::WithParamInterface<bool> {
+ public:
+  SBLocalDatabaseManagerTest_V4V5() {
+    if (GetParam()) {
+      feature_list_.InitAndEnableFeature(kLocalListsUseSBv5);
+    } else {
+      feature_list_.InitAndDisableFeature(kLocalListsUseSBv5);
+    }
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 TEST_F(SBLocalDatabaseManagerTest, TestGetThreatSource) {
@@ -1372,9 +1417,9 @@ TEST_F(SBLocalDatabaseManagerTest, TestSubresourceFilterCallback) {
     TestClient client(SB_THREAT_TYPE_SAFE, url_bad);
     EXPECT_FALSE(sb_local_database_manager_->CheckUrlForSubresourceFilter(
         url_bad, &client));
-    EXPECT_FALSE(client.on_check_browse_url_result_called());
+    EXPECT_FALSE(client.on_check_subresource_filter_url_result_called());
     WaitForTasksOnTaskRunner();
-    EXPECT_TRUE(client.on_check_browse_url_result_called());
+    EXPECT_TRUE(client.on_check_subresource_filter_url_result_called());
   }
 }
 
@@ -1657,18 +1702,13 @@ TEST_F(SBLocalDatabaseManagerTest, TestCheckDownloadUrlWithOneBlocklisted) {
   EXPECT_TRUE(client.on_check_download_urls_result_called());
 }
 
-TEST_F(SBLocalDatabaseManagerTest, NotificationOnUpdate) {
+TEST_P(SBLocalDatabaseManagerTest_V4V5, NotificationOnUpdate) {
+  WaitForTasksOnTaskRunner();
   base::RunLoop run_loop;
   auto callback_subscription =
       sb_local_database_manager_->RegisterDatabaseUpdatedCallback(
           run_loop.QuitClosure());
-
-  // Creates and associates a SBDatabase instance.
-  StoreAndHashPrefixes store_and_hash_prefixes;
-  ReplaceSBDatabase(store_and_hash_prefixes);
-
-  sb_local_database_manager_->DatabaseUpdated();
-
+  DatabaseUpdated();
   run_loop.Run();
 }
 
@@ -1812,7 +1852,7 @@ TEST_F(SBLocalDatabaseManagerTest, FlagMultipleUrls) {
 
 // Verify that the correct set of lists is synced on each platform: iOS,
 // Chrome-branded desktop, and non-Chrome-branded desktop.
-TEST_F(SBLocalDatabaseManagerTest, SyncedLists) {
+TEST_P(SBLocalDatabaseManagerTest_V4V5, SyncedLists) {
   WaitForTasksOnTaskRunner();
 
 #if BUILDFLAG(IS_IOS)
@@ -1843,7 +1883,7 @@ TEST_F(SBLocalDatabaseManagerTest, SyncedLists) {
 #endif
 
   std::vector<ListIdentifier> synced_lists;
-  for (const auto& info : sb_local_database_manager_->list_infos_) {
+  for (const auto& info : GetListInfos()) {
     if (info.fetch_updates()) {
       synced_lists.push_back(info.list_id());
     }
@@ -1870,5 +1910,57 @@ TEST_F(SBLocalDatabaseManagerTest, TestQueuedChecksMatchArtificialPrefixes) {
   EXPECT_TRUE(client.on_check_browse_url_result_called());
   EXPECT_TRUE(GetQueuedChecks().empty());
 }
+
+TEST_P(SBLocalDatabaseManagerTest_V4V5, DatabaseInitializationHistograms) {
+  WaitForTasksOnTaskRunner();
+  base::HistogramTester histograms;
+  ResetLocalDatabaseManager();
+  WaitForTasksOnTaskRunner();
+
+  if (GetParam()) {
+    histograms.ExpectTotalCount("SafeBrowsing.V4DatabaseInitializationTime", 0);
+    histograms.ExpectTotalCount("SafeBrowsing.V5DatabaseInitializationTime", 1);
+  } else {
+    histograms.ExpectTotalCount("SafeBrowsing.V4DatabaseInitializationTime", 1);
+    histograms.ExpectTotalCount("SafeBrowsing.V5DatabaseInitializationTime", 0);
+  }
+  histograms.ExpectTotalCount("SafeBrowsing.SBDatabaseInitializationTime", 1);
+}
+
+TEST_F(SBLocalDatabaseManagerTest, V5UpdateRequestCompleted) {
+  WaitForTasksOnTaskRunner();
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kLocalListsUseSBv5);
+
+  ResetLocalDatabaseManager();
+  WaitForTasksOnTaskRunner();
+
+  ASSERT_TRUE(sb_local_database_manager_->IsDatabaseReady());
+
+  std::unique_ptr<StoreStateMap> state_map =
+      sb_local_database_manager_->GetStoreStateMap();
+  ListIdentifier malware_list_id = GetUrlMalwareId();
+  ASSERT_EQ(1u, state_map->count(malware_list_id));
+
+  std::map<ListIdentifier, V5::HashList> parsed_server_response;
+  V5::HashList hash_list;
+  hash_list.set_name(GetV5ListName(malware_list_id));
+  hash_list.set_version("new_version_state");
+  hash_list.set_sha256_checksum(crypto::SHA256HashString(""));
+
+  parsed_server_response[malware_list_id] = hash_list;
+
+  V5UpdateRequestCompleted(std::move(parsed_server_response));
+
+  WaitForTasksOnTaskRunner();
+
+  std::unique_ptr<StoreStateMap> new_state_map =
+      sb_local_database_manager_->GetStoreStateMap();
+  EXPECT_EQ("new_version_state", new_state_map->at(malware_list_id));
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         SBLocalDatabaseManagerTest_V4V5,
+                         ::testing::Bool());
 
 }  // namespace safe_browsing

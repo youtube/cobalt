@@ -37,6 +37,7 @@ import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgrou
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataBase.PlatformType;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataColor;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataCustomizedColor;
+import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataImageBase;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataManager;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataThemeCollection;
 import org.chromium.chrome.browser.ntp_customization.theme_sync.data.NtpBackgroundDataUploadImage;
@@ -138,11 +139,22 @@ public class NtpCustomizationConfigManager {
 
         mBackgroundType = NtpCustomizationUtils.getNtpBackgroundType();
         mIsNtpCustomizationSyncEnabled = NtpCustomizationUtils.isNTPCustomizationSyncEnabled();
+        String filePath = NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference();
+        String fileIdHash = NtpCustomizationUtils.getFileIdHashFromFilePath(filePath);
+
         if (mBackgroundType == NtpBackgroundType.IMAGE_FROM_DISK) {
             mIsInitialized = true;
             BackgroundImageInfo imageInfo = NtpCustomizationUtils.readNtpBackgroundImageInfo();
-            String filePath =
-                    NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference();
+            @ColorInt
+            int primaryColor =
+                    NtpCustomizationUtils.getCustomizedPrimaryColorFromSharedPreference();
+            mNtpBackgroundData =
+                    new NtpBackgroundDataUploadImage(
+                            PlatformType.ANDROID_LOCAL,
+                            imageInfo,
+                            /* bitmap= */ null,
+                            primaryColor,
+                            fileIdHash);
             NtpCustomizationUtils.readNtpBackgroundImage(
                     (bitmap) -> {
                         onBackgroundImageAvailable(bitmap, imageInfo);
@@ -155,8 +167,8 @@ public class NtpCustomizationConfigManager {
                     NtpThemeDailyRefreshManager.getInstance();
             BackgroundImageInfo imageInfo =
                     ntpThemeDailyRefreshManager.getNtpBackgroundImageInfoForThemeCollection();
-            String filePath =
-                    NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference();
+            @ColorInt
+            int primaryColor = ntpThemeDailyRefreshManager.getNtpThemeColorForThemeCollection();
             ntpThemeDailyRefreshManager.readNtpBackgroundImageForThemeCollection(
                     (bitmap) -> {
                         onBackgroundImageAvailable(bitmap, imageInfo);
@@ -165,6 +177,14 @@ public class NtpCustomizationConfigManager {
                     filePath);
             mCustomBackgroundInfo =
                     ntpThemeDailyRefreshManager.getNtpCustomBackgroundInfoForThemeCollection();
+            mNtpBackgroundData =
+                    new NtpBackgroundDataThemeCollection(
+                            PlatformType.ANDROID_LOCAL,
+                            assumeNonNull(mCustomBackgroundInfo),
+                            imageInfo,
+                            /* bitmap= */ null,
+                            primaryColor,
+                            fileIdHash);
         }
 
         mIsMvtToggleOn =
@@ -182,6 +202,12 @@ public class NtpCustomizationConfigManager {
                 onBackgroundReset();
             }
             return;
+        }
+
+        if (mNtpBackgroundData != null
+                && mNtpBackgroundData
+                        instanceof NtpBackgroundDataImageBase ntpBackgroundDataImageBase) {
+            ntpBackgroundDataImageBase.setBitmap(bitmap);
         }
         onBackgroundImageChangedImpl(
                 bitmap, imageInfo, NtpBackgroundType.DEFAULT, /* fromInitialization= */ true);
@@ -307,9 +333,13 @@ public class NtpCustomizationConfigManager {
      * @param context The application context.
      * @param backgroundData The selected NTP background theme data.
      */
-    public void onBackgroundDataChanged(Context context, NtpBackgroundDataBase backgroundData) {
+    public void onBackgroundDataChanged(
+            Context context, @Nullable NtpBackgroundDataBase backgroundData) {
         boolean saveUserSelectedBackgroundType = true;
-        if (backgroundData instanceof NtpBackgroundDataColor ntpBackgroundDataColor) {
+        if (backgroundData == null) {
+            onBackgroundReset();
+            saveUserSelectedBackgroundType = false;
+        } else if (backgroundData instanceof NtpBackgroundDataColor ntpBackgroundDataColor) {
             if (ntpBackgroundDataColor.getThemeColorId() == NtpThemeColorId.DEFAULT) {
                 onBackgroundReset();
                 saveUserSelectedBackgroundType = false;
@@ -429,7 +459,8 @@ public class NtpCustomizationConfigManager {
      *     landscape matrices.
      * @param oldBackgroundType The previous type of the NTP's background.
      */
-    public void onBackgroundImageChanged(
+    @VisibleForTesting
+    void onBackgroundImageChanged(
             Bitmap bitmap,
             @Nullable BackgroundImageInfo backgroundImageInfo,
             @NtpBackgroundType int oldBackgroundType) {
@@ -526,7 +557,7 @@ public class NtpCustomizationConfigManager {
     }
 
     /** Notifies listeners about the NTP's customized background is reset. */
-    public void onBackgroundReset() {
+    private void onBackgroundReset() {
         @NtpBackgroundType int oldType = mBackgroundType;
         mBackgroundType = NtpBackgroundType.DEFAULT;
         mNtpBackgroundData = null;
@@ -598,7 +629,7 @@ public class NtpCustomizationConfigManager {
      * @param oldType The previously set background type for NTP.
      */
     @VisibleForTesting
-    public void notifyBackgroundReset(@NtpBackgroundType int oldType) {
+    void notifyBackgroundReset(@NtpBackgroundType int oldType) {
         for (HomepageStateListener listener : mHomepageStateListeners) {
             listener.onBackgroundReset(oldType);
         }

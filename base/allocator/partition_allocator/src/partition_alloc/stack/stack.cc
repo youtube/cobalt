@@ -154,7 +154,8 @@ StackTopRegistry& StackTopRegistry::Get() {
   return *instance;
 }
 
-void StackTopRegistry::NotifyThreadCreated(void* stack_top) {
+void StackTopRegistry::NotifyThreadCreated() {
+  void* stack_top = GetStackPointer();
   const auto tid = base::PlatformThread::CurrentId();
   ScopedGuard guard(lock_);
   stack_tops_.insert({tid, stack_top});

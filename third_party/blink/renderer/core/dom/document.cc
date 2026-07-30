@@ -69,6 +69,7 @@
 #include "third_party/blink/public/mojom/css/preferred_color_scheme.mojom-blink.h"
 #include "third_party/blink/public/mojom/css/preferred_contrast.mojom-blink.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-blink.h"
+#include "third_party/blink/public/mojom/dom/dom_node_id.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
 #include "third_party/blink/public/mojom/input/focus_type.mojom-blink.h"
 #include "third_party/blink/public/mojom/manifest/display_mode.mojom-blink-forward.h"
@@ -207,6 +208,7 @@
 #include "third_party/blink/renderer/core/events/visual_viewport_scroll_event.h"
 #include "third_party/blink/renderer/core/events/visual_viewport_scrollend_event.h"
 #include "third_party/blink/renderer/core/execution_context/window_agent.h"
+#include "third_party/blink/renderer/core/exported/web_view_impl.h"
 #include "third_party/blink/renderer/core/fetch/fetch_later_util.h"
 #include "third_party/blink/renderer/core/fragment_directive/fragment_directive.h"
 #include "third_party/blink/renderer/core/fragment_directive/text_fragment_handler.h"
@@ -381,6 +383,7 @@
 #include "third_party/blink/renderer/platform/bindings/v8_per_isolate_data.h"
 #include "third_party/blink/renderer/platform/fonts/font_performance.h"
 #include "third_party/blink/renderer/platform/geometry/length_functions.h"
+#include "third_party/blink/renderer/platform/graphics/dom_node_id.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/thread_state.h"
 #include "third_party/blink/renderer/platform/instrumentation/histogram.h"
@@ -6108,8 +6111,16 @@ void Document::SendFocusNotification(Element* new_focused_element,
     }
   }
 
+  auto dom_node_id = mojom::blink::DOMNodeId::New(kInvalidDOMNodeId);
+  if (base::FeatureList::IsEnabled(
+          features::kPopulateDOMNodeIdInFocusedNodeDetails) &&
+      new_focused_element && (is_editable || is_richly_editable)) {
+    dom_node_id->value = new_focused_element->GetDomNodeId();
+  }
+
   GetFrame()->GetLocalFrameHostRemote().FocusedElementChanged(
-      is_editable, is_richly_editable, element_bounds_in_dips, focus_type);
+      is_editable, is_richly_editable, element_bounds_in_dips, focus_type,
+      std::move(dom_node_id));
 }
 
 void Document::NotifyFocusedElementChanged(Element* old_focused_element,
@@ -6351,14 +6362,28 @@ void Document::NodeWillBeRemoved(Node& n) {
   for (NodeIterator* ni : node_iterators_)
     ni->NodeWillBeRemoved(n);
 
+  if (sequential_focus_navigation_starting_point_) {
+    // If the removed node is the starting point and is assigned to a slot,
+    // move the starting point to the slot itself so that sequential focus
+    // navigation can continue from there.
+    if (sequential_focus_navigation_starting_point_->startContainer() &&
+        n.IsShadowIncludingInclusiveAncestorOf(
+            *sequential_focus_navigation_starting_point_->startContainer())) {
+      if (auto* element = DynamicTo<Element>(&n)) {
+        if (auto* slot = element->AssignedSlot()) {
+          SetSequentialFocusNavigationStartingPoint(slot);
+        }
+      }
+    }
+    sequential_focus_navigation_starting_point_
+        ->FixupRemovedNodeAcrossShadowBoundary(n);
+  }
+
   // We want to run the normal Range reset code when we're not in the middle of
   // `moveBefore()`, or when we *are* but when range preservation is disabled
   // (it is by default).
   for (Range* range : ranges_) {
     range->NodeWillBeRemoved(n);
-    if (range == sequential_focus_navigation_starting_point_) {
-      range->FixupRemovedNodeAcrossShadowBoundary(n);
-    }
   }
 
   if (LocalFrame* frame = GetFrame()) {
@@ -8302,15 +8327,18 @@ void Document::SetTextScaleMetaTagPresent(bool present) {
       .UpdatePreferredTextScaleFromDocument();
 
   if (LocalFrame* frame = GetFrame()) {
-    if (Settings* settings = GetSettings()) {
-      // If we are in a WebView and the meta tag is being flipped, we need to
-      // change the system font scale.
-      // No matter if the page just added or just removed meta,
-      // SetTextZoomFactor will do the right thing if we give it the original
-      // font scale factor here.
-      if (settings->GetScaleAllFontsIfNoMetaTextScaleTag()) {
-        frame->SetTextZoomFactor(settings->GetAccessibilityFontScaleFactor());
-      }
+    // If we are in a WebView and the meta tag is being flipped, we need to
+    // change the system font scale.
+    // No matter if the page just added or just removed meta,
+    // SetTextZoomFactor will do the right thing if we give it the original
+    // font scale factor here.
+    if (GetSettings()->GetScaleAllFontsIfNoMetaTextScaleTag()) {
+      frame->SetTextZoomFactor(
+          GetSettings()->GetAccessibilityFontScaleFactor());
+    }
+
+    if (auto* view = GetPage()->GetChromeClient().GetWebView()) {
+      view->OnTextScaleMetaTagPresentChanged();
     }
   }
 }

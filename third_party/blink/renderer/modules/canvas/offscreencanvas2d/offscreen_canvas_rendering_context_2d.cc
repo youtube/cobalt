@@ -102,8 +102,9 @@ CanvasRenderingContext* OffscreenCanvasRenderingContext2D::Factory::Create(
   return rendering_context;
 }
 
-OffscreenCanvasRenderingContext2D::~OffscreenCanvasRenderingContext2D() =
-    default;
+OffscreenCanvasRenderingContext2D::~OffscreenCanvasRenderingContext2D() {
+  FlushForImageListener::Get()->RemoveObserver(this);
+}
 
 OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(
     OffscreenCanvas* canvas,
@@ -112,6 +113,7 @@ OffscreenCanvasRenderingContext2D::OffscreenCanvasRenderingContext2D(
                              attrs,
                              canvas->GetTopExecutionContext()->GetTaskRunner(
                                  TaskType::kInternalDefault)) {
+  FlushForImageListener::Get()->AddObserver(this);
   ExecutionContext* execution_context = canvas->GetTopExecutionContext();
   if (auto* window = DynamicTo<LocalDOMWindow>(execution_context)) {
     if (window->GetFrame() && window->GetFrame()->GetSettings() &&
@@ -571,13 +573,19 @@ bool OffscreenCanvasRenderingContext2D::ResolveFont(const String& new_font) {
 
 std::optional<cc::PaintRecord> OffscreenCanvasRenderingContext2D::FlushCanvas(
     FlushReason reason) {
-  if (shared_image_provider_) {
-    return shared_image_provider_->Flush(reason);
+  return FlushCanvasInternal(shared_image_provider_.get(),
+                             bitmap_provider_.get(), reason);
+}
+
+void OffscreenCanvasRenderingContext2D::OnFlushForImage(
+    cc::PaintImage::ContentId content_id) {
+  if (shared_image_provider_ && !shared_image_provider_->IsSoftware()) {
+    if (shared_image_provider_->Recorder().getRecordingCanvas().IsCachingImage(
+            content_id)) {
+      FlushCanvas(FlushReason::kOther);
+    }
+    shared_image_provider_->OnFlushForImage(content_id);
   }
-  if (bitmap_provider_) {
-    return bitmap_provider_->Flush(reason);
-  }
-  return std::nullopt;
 }
 
 bool OffscreenCanvasRenderingContext2D::IsResourceProviderValid() const {

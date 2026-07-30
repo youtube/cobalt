@@ -165,24 +165,25 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
     display_link_mac_.reset();
   }
 
+  base::TimeDelta last_min_interval = min_refresh_interval_;
+  preferred_interval_ = min_refresh_interval_ = max_refresh_interval_ =
+      GetMinimumFrameInterval();
+
   if (display_link_mac_) {
-    // if DisplayLink fails, the same time will continue to run. Now remove the
-    // existing time after switching to DisplayLink successfully.
+    // If DisplayLink creation succeeded, deactivate and remove any existing
+    // delay-based time source.
     if (time_source_) {
       time_source_->SetActive(/*active=*/false);
       time_source_->SetClient(nullptr);
       time_source_.reset();
     }
 
-    preferred_interval_ = min_refresh_interval_ = GetMinimumFrameInterval();
-    VLOG(kOutputLevel) << "ExternalBeginFrameSourceMac(" << this << ")"
-                       << "::SetVSyncDisplayID: " << display_id_
-                       << ", min_refresh_interval: " << min_refresh_interval_;
+    if (update_vsync_params_callback_ &&
+        last_min_interval != min_refresh_interval_) {
+      VLOG(kOutputLevel) << "ExternalBeginFrameSourceMac(" << this << ")"
+                         << "::SetVSyncDisplayID: " << display_id_
+                         << ", min_refresh_interval: " << min_refresh_interval_;
 
-    display_link_mac_->GetRefreshIntervalRange(
-        min_refresh_interval_, max_refresh_interval_, granularity_);
-
-    if (update_vsync_params_callback_) {
       update_vsync_params_callback_.Run(display_link_mac_->GetCurrentTime(),
                                         min_refresh_interval_);
     }
@@ -200,8 +201,6 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
                    : DisplayLinkResult::kFailedCreateDisplayLink);
     RecordDisplayLinkCreateStatus(display_link_result);
 
-    preferred_interval_ = min_refresh_interval_ = max_refresh_interval_ =
-        GetMinimumFrameInterval();
     if (time_source_) {
       time_source_->SetTimebaseAndInterval(last_frame_time_,
                                            preferred_interval_);
@@ -209,7 +208,8 @@ void ExternalBeginFrameSourceMac::SetVSyncDisplayID(int64_t display_id,
       CreateDelayBasedTimeSourceIfNeeded();
     }
 
-    if (update_vsync_params_callback_) {
+    if (update_vsync_params_callback_ &&
+        last_min_interval != min_refresh_interval_) {
       update_vsync_params_callback_.Run(base::TimeTicks::Now(),
                                         min_refresh_interval_);
     }
@@ -477,8 +477,12 @@ void ExternalBeginFrameSourceMac::OnTimerTick() {
 void ExternalBeginFrameSourceMac::SetPreferredInterval(
     base::TimeDelta interval) {
   if (interval.is_zero()) {
-    interval = display_link_mac_ ? min_refresh_interval_
-                                 : BeginFrameArgs::DefaultInterval();
+    if (ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
+      interval = min_refresh_interval_;
+    } else {
+      interval = display_link_mac_ ? min_refresh_interval_
+                                   : BeginFrameArgs::DefaultInterval();
+    }
   }
   preferred_interval_ = interval;
 
@@ -502,8 +506,8 @@ void ExternalBeginFrameSourceMac::SetPreferredInterval(
     adjusted_interval = kMaxSupportedFrameInterval;
   }
 
-  // Keep |vsyncs_to_skip_| unchanged so it will complete the whole frame
-  // interal.
+  // Keep `vsyncs_to_skip_` unchanged so it will complete the whole frame
+  // interval.
 
   vsync_subsampling_factor_ =
       adjusted_interval.IntDiv((min_refresh_interval_ - kDeltaAlmostEqual));
@@ -521,15 +525,22 @@ scoped_refptr<ui::DisplayLinkMac> ExternalBeginFrameSourceMac::GetForDisplay(
 }
 
 base::TimeDelta ExternalBeginFrameSourceMac::GetMinimumFrameInterval() {
-  if (display_link_mac_) {
-    return display_link_mac_->GetRefreshInterval();
+  if (ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
+    // Calling CoreGraphics to get the refresh rate is expensive, so we return
+    // the last known or default refresh interval instead. If the refresh rate
+    // has changed, OnDisplayLinkCallback() will receive the updated interval
+    // and invoke update_vsync_params_callback_ to update FrameIntervalDecider.
+    return min_refresh_interval_;
   }
 
-  if (ui::DisplayLinkMac::SupportsDisplayLinkMacInBrowser()) {
-    return ui::DisplayLinkMac::GetScreenDefaultRefreshInterval(display_id_);
+  if (display_link_mac_) {
+    min_refresh_interval_ = display_link_mac_->GetRefreshInterval();
   } else {
-    return BeginFrameArgs::DefaultInterval();
+    // If no display link is active, fall back to a timer-based interval.
+    min_refresh_interval_ = BeginFrameArgs::DefaultInterval();
   }
+
+  return min_refresh_interval_;
 }
 
 void ExternalBeginFrameSourceMac::SetUpdateVSyncParametersCallback(
@@ -548,8 +559,8 @@ ExternalBeginFrameSourceMac::GetSupportedFrameIntervals(
   VLOG(kOutputLevel) << "ExternalBeginFrameSourceMac(" << this << ")"
                      << "::GetSupportedFrameIntervals: ID: " << display_id_;
 
-  // When CAdisplayLink will take any preferred refresh rate, return an empty
-  // supported_intervals list.
+  // When CADisplayLink can support any preferred refresh rate, return an empty
+  // list of supported intervals.
   if (display_link_mac_ && hw_takes_any_refresh_rate_) {
     return {};
   }
@@ -562,9 +573,8 @@ ExternalBeginFrameSourceMac::GetSupportedFrameIntervals(
 
   base::flat_set<base::TimeDelta> supported_intervals;
 
-  // Can only do fixed refresh rates. Now try to implement 2^n refresh
-  // rates by skipping VSyncs.
-  min_refresh_interval_ = GetMinimumFrameInterval();
+  // For displays with fixed refresh rates, try to emulate lower rate
+  // options (2^n sub-multiples) by skipping VSyncs.
   base::TimeDelta interval = min_refresh_interval_;
   while (interval <= kMaxSupportedFrameInterval) {
     VLOG(kOutputLevel) << interval;
@@ -623,6 +633,10 @@ void ExternalBeginFrameSourceMac::RecordFirstFrameHistograms(bool is_timer) {
 void ExternalBeginFrameSourceMac::OnSuspend() {
   if (first_callback_time_.is_null()) {
     first_callback_time_ = base::TimeTicks::Max();
+  }
+
+  if (display_link_mac_) {
+    display_link_mac_->OnSuspend();
   }
 }
 

@@ -21,10 +21,7 @@
 #include "chrome/browser/ui/views/autofill/payments/mandatory_reauth_icon_view.h"
 #include "chrome/browser/ui/views/autofill/payments/save_payment_icon_view.h"
 #include "chrome/browser/ui/views/autofill/payments/virtual_card_enroll_icon_view.h"
-#include "chrome/browser/ui/views/location_bar/ai_mode_page_action_icon_view.h"
-#include "chrome/browser/ui/views/location_bar/cookie_controls/cookie_controls_icon_view.h"
 #include "chrome/browser/ui/views/location_bar/intent_picker_view.h"
-#include "chrome/browser/ui/views/location_bar/lens_overlay_homework_page_action_icon_view.h"
 #include "chrome/browser/ui/views/location_bar/star_view.h"
 #include "chrome/browser/ui/views/location_bar/zoom_bubble_view.h"
 #include "chrome/browser/ui/views/optimization_guide/optimization_guide_icon_view.h"
@@ -100,12 +97,6 @@ void PageActionIconController::Init(const PageActionIconParams& params,
                                        params.icon_label_bubble_delegate,
                                        params.page_action_icon_delegate));
         break;
-      case PageActionIconType::kCookieControls:
-        add_page_action_icon(
-            type, std::make_unique<CookieControlsIconView>(
-                      params.browser, params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate));
-        break;
       case PageActionIconType::kIntentPicker:
         add_page_action_icon(
             type, std::make_unique<IntentPickerView>(
@@ -149,18 +140,6 @@ void PageActionIconController::Init(const PageActionIconParams& params,
             type, std::make_unique<ZoomView>(params.icon_label_bubble_delegate,
                                              params.page_action_icon_delegate));
         break;
-      case PageActionIconType::kAiMode:
-        add_page_action_icon(
-            type, std::make_unique<AiModePageActionIconView>(
-                      params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate, params.browser));
-        break;
-      case PageActionIconType::kLensOverlayHomework:
-        add_page_action_icon(
-            type, std::make_unique<LensOverlayHomeworkPageActionIconView>(
-                      params.icon_label_bubble_delegate,
-                      params.page_action_icon_delegate, params.browser));
-        break;
       case PageActionIconType::kOptimizationGuide:
         add_page_action_icon(
             type, std::make_unique<OptimizationGuideIconView>(
@@ -179,9 +158,9 @@ void PageActionIconController::Init(const PageActionIconParams& params,
 
   if (params.browser) {
     zoom_observation_.Observe(zoom::ZoomEventManager::GetForBrowserContext(
-        params.browser->profile()));
+        params.browser->GetProfile()));
 
-    pref_change_registrar_.Init(params.browser->profile()->GetPrefs());
+    pref_change_registrar_.Init(params.browser->GetProfile()->GetPrefs());
     pref_change_registrar_.Add(
         omnibox::kShowGoogleLensShortcut,
         base::BindRepeating(&PageActionIconController::UpdateAll,

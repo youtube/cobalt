@@ -14,19 +14,19 @@
 #include "content/browser/webid/flags.h"
 #include "content/browser/webid/mappers.h"
 #include "content/public/browser/render_frame_host.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
-
-using RpMode = blink::mojom::RpMode;
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 
 namespace content {
 namespace webid {
 
+using RpMode = blink::mojom::RpMode;
+
 namespace {
 
 bool IsRequestingDefaultPermissions(const std::vector<std::string>& fields) {
-  return std::ranges::contains(fields, webid::kDefaultFieldName) &&
-         std::ranges::contains(fields, webid::kDefaultFieldEmail) &&
-         std::ranges::contains(fields, webid::kDefaultFieldPicture);
+  return std::ranges::contains(fields, kDefaultFieldName) &&
+         std::ranges::contains(fields, kDefaultFieldEmail) &&
+         std::ranges::contains(fields, kDefaultFieldPicture);
 }
 
 }  // namespace
@@ -48,7 +48,7 @@ std::string ComputeUrlEncodedTokenPostData(
         "client_id=" + base::EscapeUrlEncodedData(client_id, /*use_plus=*/true);
   }
 
-  if (!webid::IsNonceInParamsEnabled() && !nonce.empty()) {
+  if (!IsNonceInParamsEnabled() && !nonce.empty()) {
     render_frame_host.AddMessageToConsole(
         blink::mojom::ConsoleMessageLevel::kWarning,
         "The 'nonce' parameter should be passed within the 'params' "
@@ -98,8 +98,8 @@ std::string ComputeUrlEncodedTokenPostData(
   if (fields) {
     fields_to_use = *fields;
   } else {
-    fields_to_use = {webid::kDefaultFieldName, webid::kDefaultFieldEmail,
-                     webid::kDefaultFieldPicture};
+    fields_to_use = {kDefaultFieldName, kDefaultFieldEmail,
+                     kDefaultFieldPicture};
   }
   if (!fields_to_use.empty()) {
     query += "&fields=" +

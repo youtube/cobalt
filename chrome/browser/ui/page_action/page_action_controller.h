@@ -29,6 +29,7 @@
 #include "components/tabs/public/tab_interface.h"
 #include "ui/actions/action_id.h"
 #include "ui/base/models/image_model.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 #include "ui/gfx/animation/tween.h"
 
 namespace actions {
@@ -116,6 +117,13 @@ struct AnchoredMessageExpandableItem {
   bool operator==(const AnchoredMessageExpandableItem&) const = default;
 };
 
+enum class ExpandButtonStyle {
+  // Uses the icons of the items within the expandable content.
+  kItemIcons,
+  // Uses a generic chevron icon.
+  kChevron,
+};
+
 // The content specific to the expanded section of an anchored message.
 struct AnchoredMessageExpandableContent {
   std::optional<std::u16string> heading;
@@ -127,6 +135,8 @@ struct AnchoredMessageExpandableContent {
   std::optional<std::u16string> collapse_button_tooltip;
   // If set, overrides the default accessible name on the expand button.
   std::optional<std::u16string> expand_button_accessible_name;
+  // The style of the expand button.
+  ExpandButtonStyle expand_button_style = ExpandButtonStyle::kItemIcons;
 
   bool operator==(const AnchoredMessageExpandableContent&) const = default;
 };
@@ -190,6 +200,10 @@ std::ostream& operator<<(std::ostream& os, const SuggestionChipConfig& config);
 // receive updates from this controller.
 class PageActionController {
  public:
+  DECLARE_USER_DATA(PageActionController);
+
+  static PageActionController* From(tabs::TabInterface* tab);
+
   // Interface implemented by the View to allow the Controller to push
   // internal callbacks without a direct dependency on the View class.
   class Delegate {
@@ -373,18 +387,17 @@ class PageActionController {
 class PageActionControllerImpl : public PageActionController,
                                  public PinnedToolbarActionsModel::Observer {
  public:
-  explicit PageActionControllerImpl(
+  PageActionControllerImpl(
+      tabs::TabInterface& tab_interface,
+      const std::vector<actions::ActionId>& action_ids,
+      const PageActionPropertiesProviderInterface& properties_provider,
       PinnedToolbarActionsModel* pinned_actions_model,
       PageActionModelFactory* page_action_model_factory = nullptr,
-      PageActionMetricsRecorderFactory* page_action_metrics_factory = nullptr);
+      PageActionMetricsRecorderFactory* page_action_metrics_recorder_factory =
+          nullptr);
   PageActionControllerImpl(const PageActionControllerImpl&) = delete;
   PageActionControllerImpl& operator=(const PageActionControllerImpl&) = delete;
   ~PageActionControllerImpl() override;
-
-  void Initialize(
-      tabs::TabInterface& tab_interface,
-      const std::vector<actions::ActionId>& action_ids,
-      const PageActionPropertiesProviderInterface& properties_provider);
 
   // PageActionController:
   void Show(actions::ActionId action_id) override;
@@ -544,6 +557,8 @@ class PageActionControllerImpl : public PageActionController,
   bool anchored_message_has_timeout_ = false;
   std::optional<actions::ActionId> active_anchored_message_;
   std::map<actions::ActionId, PageActionPriorityCategory> default_priorities_;
+
+  ui::ScopedUnownedUserData<PageActionController> scoped_unowned_user_data_;
 
   base::WeakPtrFactory<PageActionControllerImpl> weak_factory_{this};
 };

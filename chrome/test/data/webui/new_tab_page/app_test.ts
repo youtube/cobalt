@@ -34,6 +34,20 @@ import {assertNotStyle, assertStyle, createBackgroundImage, createTheme, install
 const VOICE_ACTIONS_METRIC = 'NewTabPage.VoiceActions';
 
 suite('NewTabPageAppTest', () => {
+  class MockSpeechRecognition {
+    onend: (() => void)|null = null;
+    start() {}
+    stop() {}
+    abort() {
+      if (this.onend) {
+        this.onend();
+      }
+    }
+  }
+
+  suiteSetup(() => {
+    Object.assign(window, {webkitSpeechRecognition: MockSpeechRecognition});
+  });
   let app: AppElement;
   let customizeButtons: CustomizeButtonsElement;
   let windowProxy: TestMock<WindowProxy>;
@@ -2926,7 +2940,9 @@ suite('NewTabPageAppTest', () => {
           assertFalse(scrim.hidden);
 
           // Click scrim to close voice search.
+          const whenClosed = eventToPromise('close', dialog);
           scrim.click();
+          await whenClosed;
           await microtasksFinished();
 
           assertFalse(!!app.shadowRoot.querySelector('#voiceSearchDialog'));
@@ -3040,6 +3056,59 @@ suite('NewTabPageAppTest', () => {
         });
 
     test(
+        'handles voice-permission-changed event when NTP searchbox (realbox) ' +
+            'voice search coherence is enabled',
+        async () => {
+          loadTimeData.overrideValues({
+            voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
+            voiceSearchCoherenceSearchboxWithLiveTranscriptionEnabled: false,
+          });
+          await recreateApp();
+
+          // Act: Open voice search overlay.
+          $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
+          await microtasksFinished();
+
+          const voiceSearch =
+              app.shadowRoot.querySelector('cr-composebox-voice-search');
+          assertTrue(!!voiceSearch);
+          const glow = app.shadowRoot.querySelector('search-animated-glow');
+          assertTrue(!!glow);
+
+          // Simulate permission prompt opened.
+          voiceSearch.dispatchEvent(
+              new CustomEvent('voice-permission-changed', {
+                detail: {
+                  isOpened: true,
+                  height: 100,
+                  width: 100,
+                },
+              }));
+          await microtasksFinished();
+
+          assertFalse(glow.isListening);
+          assertTrue(
+              voiceSearch.classList.contains('permission-prompt-showing'));
+          assertTrue(glow.classList.contains('permission-prompt-showing'));
+
+          // Simulate permission prompt closed.
+          voiceSearch.dispatchEvent(
+              new CustomEvent('voice-permission-changed', {
+                detail: {
+                  isOpened: false,
+                  height: 0,
+                  width: 0,
+                },
+              }));
+          await microtasksFinished();
+
+          assertTrue(glow.isListening);
+          assertFalse(
+              voiceSearch.classList.contains('permission-prompt-showing'));
+          assertFalse(glow.classList.contains('permission-prompt-showing'));
+        });
+
+    test(
         'renders live transcript textarea and action buttons when NTP searchbox ' +
             '(realbox) voice search coherence with live transcription is enabled',
         async () => {
@@ -3091,6 +3160,7 @@ suite('NewTabPageAppTest', () => {
         });
 
     test('voice search dialog styling matches composebox specs', async () => {
+      const FAINT_SHADOW = 'rgba(0, 0, 0, 0.1) 2px 10px 18px -5px';
       loadTimeData.overrideValues({
         voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
       });
@@ -3108,8 +3178,7 @@ suite('NewTabPageAppTest', () => {
       // Verify dialog height and box-shadow match Composebox specs.
       const dialogStyle = window.getComputedStyle(dialog);
       assertEquals('128px', dialogStyle.height);
-      assertEquals(
-          'rgba(0, 0, 0, 0.1) 2px 10px 18px -5px', dialogStyle.boxShadow);
+      assertNotEquals(FAINT_SHADOW, dialogStyle.boxShadow);
 
       // Verify voice search element and bottom actions CSS variables.
       const voiceSearch = app.shadowRoot.querySelector<HTMLElement>(
@@ -3137,6 +3206,49 @@ suite('NewTabPageAppTest', () => {
       assertEquals('relative', stopButtonStyle.position);
       assertEquals('36px', stopButtonStyle.height);
     });
+
+    test(
+        'voice search pop-up shadow matches in both realbox and composebox',
+        async () => {
+          const FAINT_SHADOW = 'rgba(0, 0, 0, 0.1) 2px 10px 18px -5px';
+          loadTimeData.overrideValues({
+            composeboxEnabled: true,
+            voiceSearchCoherenceAnySearchboxExperimentEnabled: true,
+            voiceSearchCoherenceComposeboxesEnabled: true,
+          });
+          await recreateApp();
+
+          // Open new voice search in realbox and verify its shadow.
+          $$(app, '#searchbox')!.dispatchEvent(new Event('open-voice-search'));
+          await microtasksFinished();
+
+          const dialog = app.shadowRoot.querySelector<HTMLDialogElement>(
+              '#voiceSearchDialog');
+          assertTrue(!!dialog);
+          assertTrue(dialog.open);
+
+          const dialogStyle = window.getComputedStyle(dialog);
+          const realboxShadow = dialogStyle.boxShadow;
+          assertNotEquals(FAINT_SHADOW, realboxShadow);
+
+          // Open NTP Composebox in voice search mode and verify its shadow.
+          $$(app, '#searchbox')!.dispatchEvent(new CustomEvent(
+              'open-composebox', {detail: {text: '', files: []}}));
+          await microtasksFinished();
+
+          const composebox = app.shadowRoot.querySelector<HTMLElement>(
+              'ntp-composebox, cr-composebox');
+          assertTrue(!!composebox);
+          composebox.toggleAttribute('in-voice-search-mode', true);
+          await microtasksFinished();
+
+          const composeboxStyle = window.getComputedStyle(composebox);
+          const composeboxShadow = composeboxStyle.boxShadow;
+          assertNotEquals(FAINT_SHADOW, composeboxShadow);
+
+          // Ensure both voice search pop-up shadows match standard specs.
+          assertEquals(realboxShadow, composeboxShadow);
+        });
 
     test(
         'With Transcript: updates live transcript textarea and handles stop',

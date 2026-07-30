@@ -7,11 +7,13 @@
 
 #include "base/time/time.h"
 #include "components/viz/common/frame_sinks/begin_frame_args.h"
+#include "third_party/blink/renderer/core/timing/performance_entry.h"
 #include "third_party/blink/renderer/platform/bindings/source_location.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/weborigin/security_origin.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
+#include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
 
@@ -92,7 +94,14 @@ class ScriptTimingInfo : public GarbageCollected<ScriptTimingInfo> {
   scoped_refptr<const SecurityOrigin> security_origin_;
 };
 
-class AnimationFrameTimingInfo
+struct ConditionalMarkInfo {
+  ConditionalMarkInfo(const AtomicString& name, base::TimeTicks start_time)
+      : name(name), start_time(start_time) {}
+  AtomicString name;
+  base::TimeTicks start_time;
+};
+
+class AnimationFrameTimingInfo final
     : public GarbageCollected<AnimationFrameTimingInfo> {
  public:
   explicit AnimationFrameTimingInfo(base::TimeTicks start_time)
@@ -125,6 +134,15 @@ class AnimationFrameTimingInfo
     scripts_ = scripts;
   }
 
+  const Vector<ConditionalMarkInfo>& ConditionalMarks() const {
+    return conditional_marks_;
+  }
+
+  void SetConditionalMarks(
+      const Vector<ConditionalMarkInfo>& conditional_marks) {
+    conditional_marks_ = conditional_marks;
+  }
+
   const base::TimeDelta& TotalBlockingDuration() const {
     return total_blocking_duration_;
   }
@@ -155,7 +173,7 @@ class AnimationFrameTimingInfo
 
   uint64_t GetTraceId() const;
 
-  virtual void Trace(Visitor*) const;
+  void Trace(Visitor*) const;
 
  private:
   // Measured at the beginning of the first task that caused a frame update,
@@ -185,6 +203,7 @@ class AnimationFrameTimingInfo
   base::TimeDelta layout_duration_;
 
   HeapVector<Member<ScriptTimingInfo>> scripts_;
+  Vector<ConditionalMarkInfo> conditional_marks_;
 
   // Id for the BeginFrame, which triggered this animation frame.
   viz::BeginFrameId begin_frame_id_;

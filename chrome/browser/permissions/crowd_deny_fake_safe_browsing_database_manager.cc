@@ -13,14 +13,14 @@ CrowdDenyFakeSafeBrowsingDatabaseManager::
     : safe_browsing::TestSafeBrowsingDatabaseManager(
           content::GetUIThreadTaskRunner({})) {}
 
-void CrowdDenyFakeSafeBrowsingDatabaseManager::SetSimulatedMetadataForUrl(
+void CrowdDenyFakeSafeBrowsingDatabaseManager::SetSimulatedVerdictForUrl(
     const GURL& url,
-    const safe_browsing::ThreatMetadata& metadata) {
-  url_to_simulated_threat_metadata_[url] = metadata;
+    bool is_abusive) {
+  url_to_simulated_verdict_[url] = is_abusive;
 }
 
 void CrowdDenyFakeSafeBrowsingDatabaseManager::RemoveAllBlocklistedUrls() {
-  url_to_simulated_threat_metadata_.clear();
+  url_to_simulated_verdict_.clear();
 }
 
 CrowdDenyFakeSafeBrowsingDatabaseManager::
@@ -28,33 +28,32 @@ CrowdDenyFakeSafeBrowsingDatabaseManager::
   EXPECT_THAT(pending_clients_, testing::IsEmpty());
 }
 
-bool CrowdDenyFakeSafeBrowsingDatabaseManager::CheckApiBlocklistUrl(
+bool CrowdDenyFakeSafeBrowsingDatabaseManager::CheckNotificationAbuseUrl(
     const GURL& url,
     Client* client) {
-  if (simulate_synchronous_result_)
+  if (simulate_synchronous_result_) {
     return true;
+  }
 
   if (simulate_timeout_) {
     EXPECT_THAT(pending_clients_, testing::Not(testing::Contains(client)));
     pending_clients_.insert(client);
   } else {
-    auto result = GetSimulatedMetadataOrSafe(url);
-    client->OnCheckApiBlocklistUrlResult(url, std::move(result));
+    bool is_abusive = GetSimulatedVerdictOrSafe(url);
+    client->OnCheckNotificationAbuseUrlResult(is_abusive);
   }
   return false;
 }
 
-bool CrowdDenyFakeSafeBrowsingDatabaseManager::CancelApiCheck(Client* client) {
+bool CrowdDenyFakeSafeBrowsingDatabaseManager::CancelNotificationAbuseCheck(
+    Client* client) {
   EXPECT_THAT(pending_clients_, testing::Contains(client));
   pending_clients_.erase(client);
   return true;
 }
 
-safe_browsing::ThreatMetadata
-CrowdDenyFakeSafeBrowsingDatabaseManager::GetSimulatedMetadataOrSafe(
+bool CrowdDenyFakeSafeBrowsingDatabaseManager::GetSimulatedVerdictOrSafe(
     const GURL& url) {
-  auto it = url_to_simulated_threat_metadata_.find(url);
-  return it != url_to_simulated_threat_metadata_.end()
-             ? it->second
-             : safe_browsing::ThreatMetadata();
+  auto it = url_to_simulated_verdict_.find(url);
+  return it != url_to_simulated_verdict_.end() ? it->second : false;
 }

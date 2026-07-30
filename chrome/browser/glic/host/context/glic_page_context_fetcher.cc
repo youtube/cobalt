@@ -138,7 +138,7 @@ void HandleFetchPageResult(
 
   page_content_annotations::FetchPageContextResult& page_context =
       **fetch_result;
-  auto tab_context = mojom::TabContext::New();
+  auto tab_context = mojom::TabContextResult::New();
   tab_context->tab_data = std::move(tab_data);
 
   if (page_context.inner_text_result) {
@@ -183,7 +183,8 @@ void HandleFetchPageResult(
         std::move(page_context.screenshot_result->screenshot_data),
         page_context.screenshot_result->mime_type,
         // Implement image annotations (see b/380495633).
-        glic::mojom::ImageOriginAnnotations::New());
+        glic::mojom::ImageOriginAnnotations::New(),
+        /*encryption_scheme=*/glic::mojom::ScreenshotEncryptionScheme::kNone);
   }
 
   if (page_context.pdf_result) {
@@ -193,7 +194,7 @@ void HandleFetchPageResult(
             std::get_if<std::vector<uint8_t>>(&page_context.pdf_result->data)) {
       auto pdf_document_data = mojom::PdfDocumentData::New();
       pdf_document_data->origin = page_context.pdf_result->origin;
-      pdf_document_data->size_limit_exceeded =
+      pdf_document_data->pdf_size_limit_exceeded =
           page_context.pdf_result->size_exceeded;
       pdf_document_data->pdf_data = std::move(*pdf_data);
       tab_context->pdf_document_data = std::move(pdf_document_data);
@@ -259,7 +260,7 @@ void HandleFetchPageResult(
 
 void FetchPageContext(
     tabs::TabInterface* tab,
-    const mojom::GetTabContextOptions& tab_context_options,
+    const mojom::TabContextOptions& tab_context_options,
     base::OnceCallback<void(
         base::expected<glic::mojom::GetContextResultPtr,
                        page_content_annotations::FetchPageContextErrorDetails>)>
@@ -296,16 +297,16 @@ void FetchPageContext(
 #endif
 
   page_content_annotations::FetchPageContextOptions options;
-  if (tab_context_options.include_inner_text) {
+  if (tab_context_options.inner_text) {
     options.inner_text_bytes_limit = tab_context_options.inner_text_bytes_limit;
   }
-  if (tab_context_options.include_pdf) {
+  if (tab_context_options.pdf_data) {
     options.pdf_options.emplace(
         page_content_annotations::PdfOptions::Format::kBytes,
         tab_context_options.pdf_size_limit);
   }
 
-  if (tab_context_options.include_viewport_screenshot) {
+  if (tab_context_options.viewport_screenshot) {
     // Disable paint preview backend for glic, and capture the viewport only.
     options.screenshot_options =
         page_content_annotations::ScreenshotOptions::ViewportOnly(
@@ -314,7 +315,7 @@ void FetchPageContext(
   }
 
   const bool on_critical_path = true;
-  if (tab_context_options.include_annotated_page_content) {
+  if (tab_context_options.annotated_page_content) {
     if (tab_context_options.annotated_page_content_mode ==
         optimization_guide::proto::
             ANNOTATED_PAGE_CONTENT_MODE_ACTIONABLE_ELEMENTS) {

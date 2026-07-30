@@ -1255,17 +1255,6 @@ clang::SourceLocation GetBinaryOperationOperatorLoc(
   assert(false && "Unexpected binaryOperation Node");
 }
 
-struct RangedReplacement {
-  clang::SourceRange range;
-  std::string text;
-};
-
-// Specifies an edit: `base::checked_cast<size_t>(...)`
-struct CheckedCastReplacement {
-  RangedReplacement opener;
-  RangedReplacement closer;
-};
-
 // There are three possible subspan expr replacements, respectively:
 // 1. No replacement (leave as is)
 // 2. Append a `u` to an integer literal.
@@ -1314,11 +1303,7 @@ SubspanExprReplacement GetSubspanExprReplacement(
       key, GetIncludeDirective(range, source_manager,
                                GetProject()->GetSafeConversionsIncludePath()));
   EmitReplacement(key, GetIncludeDirective(range, source_manager, "<cstdint>"));
-  return CheckedCastReplacement{
-      .opener = {.range = range.getBegin(),
-                 .text =
-                     std::string(GetProject()->GetCheckedCastSizeTOpener())},
-      .closer = {.range = range.getEnd(), .text = ")"}};
+  return GetProject()->GetCheckedCastReplacement(range);
 }
 
 // When a binary operation and rhs expr appear inside a macro expansion,
@@ -3083,12 +3068,15 @@ void RewriteFunctionParamAndReturnType(const MatchFinder::MatchResult& result) {
   EmitEdge(current_key, replacement_key);
   EmitEdge(replacement_key, current_key);
 
-  // Connect to the previous function decl, which is already connected to the
-  // previous previous function decl.
-  if (const clang::Decl* previous_decl = fct_decl->getPreviousDecl()) {
-    const std::string& previous_key =
-        NodeKey(previous_decl, source_manager, parm_or_return_id);
-    if (GetProject()->IsExcludedFromProject(*previous_decl)) {
+  // Connect to all redeclarations of the function (e.g. header declaration and
+  // out-of-line definition).
+  for (const clang::FunctionDecl* redecl : fct_decl->redecls()) {
+    if (redecl == fct_decl) {
+      continue;
+    }
+    const std::string& redecl_key =
+        NodeKey(redecl, source_manager, parm_or_return_id);
+    if (GetProject()->IsExcludedFromProject(*redecl)) {
       // A declaration in third party codebase is found, so we do not want to
       // rewrite the parameter/return type in a third party function. This one-
       // way edge prevents making a flow from a source to a sink, hence the
@@ -3104,10 +3092,10 @@ void RewriteFunctionParamAndReturnType(const MatchFinder::MatchResult& result) {
       //
       // where node_arg1_1st is not a sink node, so the source node reaches a
       // non-sink end node. Hence, the rewriting will be cancelled.
-      EmitEdge(current_key, previous_key);
+      EmitEdge(current_key, redecl_key);
     } else {
-      EmitEdge(current_key, previous_key);
-      EmitEdge(previous_key, current_key);
+      EmitEdge(current_key, redecl_key);
+      EmitEdge(redecl_key, current_key);
     }
   }
 

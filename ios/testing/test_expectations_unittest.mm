@@ -4,16 +4,30 @@
 
 #import "ios/testing/test_expectations.h"
 
+#import <vector>
+
+#import "build/build_config.h"
 #import "testing/gtest/include/gtest/gtest.h"
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
+#import "ui/base/device_form_factor.h"
 
-using TestExpectationsTest = PlatformTest;
+class TestExpectationsTest : public PlatformTest {
+ protected:
+  void SetUp() override {
+    PlatformTest::SetUp();
+    [TestExpectations resetForTesting];
+  }
+  void TearDown() override {
+    [TestExpectations resetForTesting];
+    PlatformTest::TearDown();
+  }
+};
 
 TEST_F(TestExpectationsTest, ParseSimpleExpectation) {
   NSString* content = @"MyTestCase/testMethod [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
   TestExpectationEntry* entry =
@@ -31,7 +45,7 @@ TEST_F(TestExpectationsTest, ParseWithBugIdentifier) {
   NSString* content = @"crbug.com/12345 MyTestCase/testMethod [ Failure ]\n"
                       @"b/98765 MyTestCase/testOtherMethod [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
   TestExpectationEntry* entry =
@@ -52,7 +66,7 @@ TEST_F(TestExpectationsTest, ParseWithMatchingTags) {
   NSString* content = @"[ iOS26 Simulator ] MyTestCase/testMethod [ Failure ]\n"
                       @"[ iOS18 ] MyTestCase/testOtherMethod [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations
       setOverrideActiveTagsForTesting:[NSSet setWithObjects:@"iOS", @"iOS26",
                                                             @"Simulator", nil]];
@@ -69,7 +83,7 @@ TEST_F(TestExpectationsTest, ParseWithMatchingTags) {
 TEST_F(TestExpectationsTest, ClassLevelExpectation) {
   NSString* content = @"MyTestCase [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
   EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
@@ -82,7 +96,7 @@ TEST_F(TestExpectationsTest, ClassLevelExpectation) {
 TEST_F(TestExpectationsTest, Normalization) {
   NSString* content = @"MyTestCase.testMethod [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
   EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
@@ -95,7 +109,7 @@ TEST_F(TestExpectationsTest, CommentsAndBlankLines) {
       @"\n"
       @"crbug.com/123 MyTestCase/testMethod [ Failure ] # inline comment\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"iOS"]];
 
   TestExpectationEntry* entry =
@@ -108,13 +122,14 @@ TEST_F(TestExpectationsTest, CommentsAndBlankLines) {
 TEST_F(TestExpectationsTest, CaseInsensitiveMatching) {
   NSString* content =
       @"[ ios26 simulator ] MyTestCase/testMethod1 [ failure ]\n"
-      @"[ 23f5067a ] MyTestCase/testMethod2 [ FAILURE ]\n";
+      @"[ build-23f5067a ] MyTestCase/testMethod2 [ FAILURE ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations
       setOverrideActiveTagsForTesting:[NSSet setWithObjects:@"iOS26",
                                                             @"Simulator",
-                                                            @"23F5067a", nil]];
+                                                            @"build-23F5067a",
+                                                            nil]];
 
   EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
                                              methodName:@"testMethod1"] != nil);
@@ -127,7 +142,7 @@ TEST_F(TestExpectationsTest, MinorAndPatchOSVersionMatching) {
                       @"[ iOS18.2.1 ] MyTestCase/testMethod2 [ Failure ]\n"
                       @"[ iOS18.3 ] MyTestCase/testMethod3 [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations
       setOverrideActiveTagsForTesting:[NSSet setWithObjects:@"iOS", @"iOS18",
                                                             @"iOS18.2",
@@ -142,12 +157,13 @@ TEST_F(TestExpectationsTest, MinorAndPatchOSVersionMatching) {
 }
 
 TEST_F(TestExpectationsTest, BuildNumberMatching) {
-  NSString* content = @"[ 17F42 ] MyTestCase/testMethod1 [ Failure ]\n"
-                      @"[ 18A5301 ] MyTestCase/testMethod2 [ Failure ]\n";
+  NSString* content = @"[ build-17F42 ] MyTestCase/testMethod1 [ Failure ]\n"
+                      @"[ build-18A5301 ] MyTestCase/testMethod2 [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations
-      setOverrideActiveTagsForTesting:[NSSet setWithObjects:@"iOS26", @"17F42",
+      setOverrideActiveTagsForTesting:[NSSet setWithObjects:@"iOS26",
+                                                            @"build-17F42",
                                                             nil]];
 
   EXPECT_TRUE([expectations expectationEntryForTestCase:@"MyTestCase"
@@ -160,7 +176,7 @@ TEST_F(TestExpectationsTest, IPadIPhoneTagsMatching) {
   NSString* content = @"[ ipad ] MyTestCase/testMethod1 [ Failure ]\n"
                       @"[ iphone ] MyTestCase/testMethod2 [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
 
   // Test with 'ipad' tag.
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"ipad"]];
@@ -178,12 +194,47 @@ TEST_F(TestExpectationsTest, IPadIPhoneTagsMatching) {
                                              methodName:@"testMethod2"] != nil);
 }
 
+TEST_F(TestExpectationsTest, ActiveTagsIncludesAsanIfDefined) {
+  TestExpectations* expectations =
+      [TestExpectations sharedInstanceForTesting:@""];
+  NSSet<NSString*>* tags = [expectations activeTags];
+#if defined(ADDRESS_SANITIZER)
+  EXPECT_TRUE([tags containsObject:@"asan"]);
+#else
+  EXPECT_FALSE([tags containsObject:@"asan"]);
+#endif
+}
+
+TEST_F(TestExpectationsTest, ActiveTagsIncludesCatalystIfDefined) {
+  TestExpectations* expectations =
+      [TestExpectations sharedInstanceForTesting:@""];
+  NSSet<NSString*>* tags = [expectations activeTags];
+#if BUILDFLAG(IS_IOS_MACCATALYST)
+  EXPECT_TRUE([tags containsObject:@"catalyst"]);
+#else
+  EXPECT_FALSE([tags containsObject:@"catalyst"]);
+#endif
+}
+
+TEST_F(TestExpectationsTest, ActiveTagsIncludesDebugOrRelease) {
+  TestExpectations* expectations =
+      [TestExpectations sharedInstanceForTesting:@""];
+  NSSet<NSString*>* tags = [expectations activeTags];
+#if defined(NDEBUG)
+  EXPECT_TRUE([tags containsObject:@"release"]);
+  EXPECT_FALSE([tags containsObject:@"debug"]);
+#else
+  EXPECT_TRUE([tags containsObject:@"debug"]);
+  EXPECT_FALSE([tags containsObject:@"release"]);
+#endif
+}
+
 TEST_F(TestExpectationsTest, SkipExpectation) {
   NSString* content = @"NotABug MyTestCase/testMethod1 [ Skip ]\n"
                       @"crbug.com/98765 MyTestCase/testMethod2 [ Skip ]\n"
                       @"MyTestCase/testMethod3 [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"ios"]];
 
   // testMethod1: Skip -> outReason is "NotABug"
@@ -207,7 +258,7 @@ TEST_F(TestExpectationsTest, CrashExpectation) {
                       @"crbug.com/54321 MyTestCase/testMethod2 [ Crash ]\n"
                       @"MyTestCase/testMethod3 [ Failure ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"ios"]];
 
   // testMethod1: Crash -> outReason is "NotABug"
@@ -232,7 +283,7 @@ TEST_F(TestExpectationsTest, MultipleExpectationsCombinations) {
       @"crbug.com/222 MyTestCase/testMethod2 [ Pass Failure Crash ]\n"
       @"crbug.com/333 MyTestCase/testMethod3 [ Pass Crash ]\n";
   TestExpectations* expectations =
-      [[TestExpectations alloc] initWithContent:content];
+      [TestExpectations sharedInstanceForTesting:content];
   [expectations setOverrideActiveTagsForTesting:[NSSet setWithObject:@"ios"]];
 
   // testMethod1: Failure Crash
@@ -259,3 +310,158 @@ TEST_F(TestExpectationsTest, MultipleExpectationsCombinations) {
   EXPECT_EQ(TestExpectationTypePass | TestExpectationTypeCrash, entry.type);
   EXPECT_NSEQ(@"crbug.com/333", entry.bug);
 }
+
+struct TagMatchingTestCase {
+  const char* test_name;
+  const char* content;
+  std::vector<const char*> active_tags;
+  bool expect_match;
+};
+
+class TestExpectationsMatchingTest
+    : public PlatformTest,
+      public testing::WithParamInterface<TagMatchingTestCase> {};
+
+TEST_P(TestExpectationsMatchingTest, MatchResult) {
+  const TagMatchingTestCase& param = GetParam();
+  NSString* content = [NSString stringWithUTF8String:param.content];
+  TestExpectations* expectations =
+      [[TestExpectations alloc] initWithContent:content];
+
+  NSMutableSet<NSString*>* active_tags = [NSMutableSet set];
+  for (const char* tag : param.active_tags) {
+    [active_tags addObject:[NSString stringWithUTF8String:tag]];
+  }
+  [expectations setOverrideActiveTagsForTesting:active_tags];
+
+  TestExpectationEntry* entry =
+      [expectations expectationEntryForTestCase:@"MyTestCase"
+                                     methodName:@"testMethod"];
+  if (param.expect_match) {
+    EXPECT_TRUE(entry != nil);
+  } else {
+    EXPECT_TRUE(entry == nil);
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    TestExpectationsMatchingTest,
+    testing::Values(
+        TagMatchingTestCase{
+            "CategoryMatchingOS",
+            "[ iOS18 iOS26 Simulator ] MyTestCase/testMethod [ Failure ]\n",
+            {"iOS26", "Simulator"},
+            true},
+        TagMatchingTestCase{
+            "CategoryMatchingDevice",
+            "[ iPad iPhone Device ] MyTestCase/testMethod [ Failure ]\n",
+            {"iPhone", "Device"},
+            true},
+        TagMatchingTestCase{
+            "OtherCategoryMissingOne",
+            "[ iOS18 Simulator Device ] MyTestCase/testMethod [ Failure ]\n",
+            {"iOS18", "Simulator"},
+            false},
+        TagMatchingTestCase{
+            "OtherCategoryAllMatch",
+            "[ iOS18 Simulator Device ] MyTestCase/testMethod [ Failure ]\n",
+            {"iOS18", "Simulator", "Device"},
+            true},
+        TagMatchingTestCase{"OtherCategoryCustomTag",
+                            "[ custom_tag iOS26 Simulator ] "
+                            "MyTestCase/testMethod [ Failure ]\n",
+                            {"custom_tag", "iOS26", "Simulator"},
+                            true},
+        TagMatchingTestCase{"DeviceModelPrefix",
+                            "[ iphone17 ] MyTestCase/testMethod [ Failure ]\n",
+                            {"iphone", "iphone17", "iphone17,1"},
+                            true},
+        TagMatchingTestCase{
+            "DeviceModelExact",
+            "[ iphone17,1 ] MyTestCase/testMethod [ Failure ]\n",
+            {"iphone", "iphone17", "iphone17,1"},
+            true},
+        TagMatchingTestCase{"AsanMatch",
+                            "[ asan ] MyTestCase/testMethod [ Failure ]\n",
+                            {"asan"},
+                            true},
+        TagMatchingTestCase{"AsanMismatch",
+                            "[ asan ] MyTestCase/testMethod [ Failure ]\n",
+                            {"ios"},
+                            false},
+        TagMatchingTestCase{"CatalystMatch",
+                            "[ catalyst ] MyTestCase/testMethod [ Failure ]\n",
+                            {"catalyst"},
+                            true},
+        TagMatchingTestCase{"CatalystMismatch",
+                            "[ catalyst ] MyTestCase/testMethod [ Failure ]\n",
+                            {"ios"},
+                            false},
+        TagMatchingTestCase{"DebugMatch",
+                            "[ debug ] MyTestCase/testMethod [ Failure ]\n",
+                            {"debug"},
+                            true},
+        TagMatchingTestCase{"DebugMismatch",
+                            "[ debug ] MyTestCase/testMethod [ Failure ]\n",
+                            {"release"},
+                            false},
+        TagMatchingTestCase{"ReleaseMatch",
+                            "[ release ] MyTestCase/testMethod [ Failure ]\n",
+                            {"release"},
+                            true},
+        TagMatchingTestCase{"ReleaseMismatch",
+                            "[ release ] MyTestCase/testMethod [ Failure ]\n",
+                            {"debug"},
+                            false}),
+    [](const testing::TestParamInfo<TagMatchingTestCase>& info) {
+      return info.param.test_name;
+    });
+
+struct DeviceTagsTestCase {
+  const char* test_name;
+  const char* hardware_model;
+  ui::DeviceFormFactor form_factor;
+  std::vector<const char*> expected_tags;
+  std::vector<const char*> unexpected_tags;
+};
+
+class TestExpectationsDeviceTagsTest
+    : public PlatformTest,
+      public testing::WithParamInterface<DeviceTagsTestCase> {};
+
+TEST_P(TestExpectationsDeviceTagsTest, VerifyGeneratedTags) {
+  const DeviceTagsTestCase& param = GetParam();
+  NSString* hardware_model =
+      [NSString stringWithUTF8String:param.hardware_model];
+  NSSet<NSString*>* tags =
+      [TestExpectations deviceTagsForHardwareModel:hardware_model
+                                        formFactor:param.form_factor];
+
+  for (const char* expected : param.expected_tags) {
+    EXPECT_TRUE([tags containsObject:[NSString stringWithUTF8String:expected]])
+        << "Expected tag missing: " << expected;
+  }
+  for (const char* unexpected : param.unexpected_tags) {
+    EXPECT_FALSE(
+        [tags containsObject:[NSString stringWithUTF8String:unexpected]])
+        << "Unexpected tag present: " << unexpected;
+  }
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    TestExpectationsDeviceTagsTest,
+    testing::Values(DeviceTagsTestCase{"SimulatorIPhone",
+                                       "iOS Simulator (iPhone16,1)",
+                                       ui::DEVICE_FORM_FACTOR_PHONE,
+                                       {"iphone16,1", "iphone16", "iphone"},
+                                       {"ipad"}},
+                    DeviceTagsTestCase{"FallbackIPad",
+                                       "UnknownModel",
+                                       ui::DEVICE_FORM_FACTOR_TABLET,
+                                       {"unknownmodel", "ipad"},
+                                       {"iphone"}}),
+    [](const testing::TestParamInfo<DeviceTagsTestCase>& info) {
+      return info.param.test_name;
+    });

@@ -463,9 +463,10 @@ DrawingBuffer::CreateOrRecycleSoftwareResource() {
           {format, size_, color_space, kBottomLeft_GrSurfaceOrigin,
            kPremul_SkAlphaType, gpu::SHARED_IMAGE_USAGE_CPU_WRITE_ONLY,
            "DrawingBufferBitmap"});
+  auto sync_token = shared_image->creation_sync_token();
+  shared_image_interface->VerifySyncToken(sync_token);
 
-  SoftwareResource resource = {std::move(shared_image),
-                               shared_image_interface->GenVerifiedSyncToken(),
+  SoftwareResource resource = {std::move(shared_image), sync_token,
                                sii_provider->GetWeakPtr()};
 
   return resource;
@@ -1079,6 +1080,7 @@ std::optional<gpu::SyncToken> DrawingBuffer::CopyToPlatformInternal(
     src_alpha_type = src_color_buffer->shared_image->alpha_type();
     produce_sync_token = src_color_buffer->produce_sync_token;
   } else {
+    CHECK(!back_buffer_discarded_);
     src_color_buffer = back_color_buffer_;
     src_alpha_type = src_color_buffer->shared_image->alpha_type();
     need_restore_access = true;

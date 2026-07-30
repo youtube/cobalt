@@ -13,6 +13,7 @@
 #include "base/run_loop.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/synchronization/waitable_event.h"
+#include "base/task/single_thread_task_runner.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/mock_callback.h"
@@ -28,10 +29,14 @@
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/browser/webdata/mock_autofill_webdata_service.h"
+#include "components/autofill/core/common/autofill_debug_features.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/autofill/core/common/form_data.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/personal_context/core/mock_personal_context_eligibility_service.h"
+#include "components/personal_context/core/personal_context_prefs.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/version_info/version_info.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -47,10 +52,12 @@ using OnSuggestionsReturnedCallback =
 using ::autofill::test::CreateTestFormField;
 using ::testing::_;
 using ::testing::AllOf;
+using ::testing::Contains;
 using ::testing::Eq;
 using ::testing::Field;
 using ::testing::IsEmpty;
 using ::testing::IsTrue;
+using ::testing::Not;
 using ::testing::Return;
 using ::testing::UnorderedElementsAre;
 
@@ -781,6 +788,26 @@ TEST_F(AutocompleteHistoryManagerTest,
 }
 
 TEST_F(AutocompleteHistoryManagerTest,
+       OnSingleFieldSuggestionSelected_UpdatesMetadata) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kAutofillPreventAutofillFromSavingToAutocomplete);
+
+  Suggestion suggestion(u"TestValue", SuggestionType::kAutocompleteEntry);
+  suggestion.payload = GetAutocompleteEntry(
+      test_field_.name(), u"TestValue",
+      /*date_created=*/base::Time::Now() - base::Days(20),
+      /*date_last_used=*/base::Time::Now() - base::Days(10));
+
+  EXPECT_CALL(*(web_data_service_.get()),
+              AddFormFields(testing::ElementsAre(testing::AllOf(
+                  testing::Property(&FormFieldData::name, test_field_.name()),
+                  testing::Property(&FormFieldData::value, u"TestValue")))));
+
+  autocomplete_manager_->OnSingleFieldSuggestionSelected(suggestion);
+}
+
+TEST_F(AutocompleteHistoryManagerTest,
        SuggestionsReturned_InvokeHandler_TwoRequests_OneHandler_Cancels) {
   int kTestDbQuryId_first = 100;
   int kTestDbQuryId_second = 101;
@@ -946,13 +973,13 @@ TEST_F(AutocompleteHistoryManagerTest, EntriesCleanup_Success) {
   EXPECT_EQ(-1,
             prefs_->GetInteger(prefs::kAutocompleteLastVersionRetentionPolicy));
 
-  size_t cleanup_result = 10;
+  bool cleanup_result = true;
   base::HistogramTester histogram_tester;
   MockSuggestionsReturnedCallback mock_callback;
 
   autocomplete_manager_->OnAutofillCleanupReturned(
-      1, std::make_unique<WDResult<size_t>>(AUTOFILL_CLEANUP_RESULT,
-                                            cleanup_result));
+      1, std::make_unique<WDResult<bool>>(AUTOFILL_CLEANUP_RESULT,
+                                          cleanup_result));
 
   EXPECT_EQ(version_info::GetMajorVersionNumberAsInt(),
             prefs_->GetInteger(prefs::kAutocompleteLastVersionRetentionPolicy));
@@ -1095,5 +1122,236 @@ TEST_F(AutocompleteHistoryManagerTest, LoyaltyCardManualEntryIsSaved) {
       form.fields(), &form_structure,
       /*is_autocomplete_enabled=*/true);
 }
+
+// Tests that fields autofilled by standard Autofill or Autocomplete are not
+// saved to the Autocomplete database during form submission when the
+// kAutofillPreventAutofillFromSavingToAutocomplete feature is enabled.
+TEST_F(AutocompleteHistoryManagerTest, PreventSavingAutofilledFields) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kAutofillPreventAutofillFromSavingToAutocomplete);
+
+  FormData form = test::GetFormData(
+      {.fields = {
+           {.role = NAME_FIRST, .value = u"John"},
+           {.role = NAME_LAST, .value = u"Doe"},
+           {.role = EMAIL_ADDRESS, .value = u"john.doe@example.com"},
+       }});
+
+  FormStructure form_structure{form};
+  ASSERT_EQ(3u, form_structure.field_count());
+
+  test_api(form_structure)
+      .SetFieldTypes({NAME_FIRST, NAME_LAST, EMAIL_ADDRESS});
+
+  // field(0) (NAME_FIRST) is autofilled by address Autofill.
+  form_structure.field(0)->AddFieldModifier(FieldModifier::kAutofill);
+  form_structure.field(0)->set_filling_product(FillingProduct::kAddress);
+
+  // field(1) (NAME_LAST) is autocompleted (filled by single field
+  // autocomplete).
+  form_structure.field(1)->AddFieldModifier(FieldModifier::kAutofill);
+  form_structure.field(1)->set_filling_product(FillingProduct::kAutocomplete);
+
+  // field(2) (EMAIL_ADDRESS) is not autofilled.
+
+  // Only field(2) (EMAIL_ADDRESS) is saveable in Autocomplete.
+  // Field(0) is skipped because it was autofilled by address Autofill.
+  // Field(1) is skipped because it was autocompleted (and not edited).
+  EXPECT_CALL(*(web_data_service_.get()),
+              AddFormFields(testing::ElementsAre(testing::Property(
+                  &FormFieldData::value, u"john.doe@example.com"))));
+
+  autocomplete_manager_->OnWillSubmitFormWithFields(
+      form.fields(), &form_structure,
+      /*is_autocomplete_enabled=*/true);
+}
+
+// Tests that if a field was autocompleted (filled by Autocomplete) and then
+// edited by the user, the user-edited value is allowed to be saved to the
+// Autocomplete database. However, if a field was filled by a structured
+// Autofill product and then edited, it is still prevented from being saved.
+TEST_F(AutocompleteHistoryManagerTest,
+       PreventSavingAutofilledFields_AllowEditedAutocomplete) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kAutofillPreventAutofillFromSavingToAutocomplete);
+
+  FormData form =
+      test::GetFormData({.fields = {
+                             {.role = NAME_FIRST, .value = u"JohnEdited"},
+                             {.role = NAME_LAST, .value = u"DoeEdited"},
+                         }});
+
+  FormStructure form_structure{form};
+  ASSERT_EQ(2u, form_structure.field_count());
+
+  test_api(form_structure).SetFieldTypes({NAME_FIRST, NAME_LAST});
+
+  // field(0) (NAME_FIRST) is autofilled by address Autofill and then edited.
+  form_structure.field(0)->AddFieldModifier(FieldModifier::kAutofill);
+  form_structure.field(0)->set_filling_product(FillingProduct::kAddress);
+  form_structure.field(0)->AddFieldModifier(FieldModifier::kUser);
+
+  // field(1) (NAME_LAST) is autocompleted and then edited.
+  form_structure.field(1)->AddFieldModifier(FieldModifier::kAutofill);
+  form_structure.field(1)->set_filling_product(FillingProduct::kAutocomplete);
+  form_structure.field(1)->AddFieldModifier(FieldModifier::kUser);
+
+  // Only field(1) is saveable because it was autocompleted and then edited.
+  // Field(0) is skipped because it was autofilled by address Autofill and
+  // edited.
+  EXPECT_CALL(*(web_data_service_.get()),
+              AddFormFields(testing::ElementsAre(
+                  testing::Property(&FormFieldData::value, u"DoeEdited"))));
+
+  autocomplete_manager_->OnWillSubmitFormWithFields(
+      form.fields(), &form_structure,
+      /*is_autocomplete_enabled=*/true);
+}
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+class AutocompleteHistoryManagerAtMemoryTest
+    : public AutocompleteHistoryManagerTest {
+ public:
+  void SetUp() override {
+    AutocompleteHistoryManagerTest::SetUp();
+
+    feature_list_.InitWithFeatures(
+        /*enabled_features=*/{features::kAutofillAtMemory,
+                              features::kShowAutocompleteAtMemoryButton},
+        /*disabled_features=*/{});
+
+    // Enable personal context toggle.
+    autofill_client_.GetPrefs()->registry()->RegisterIntegerPref(
+        optimization_guide::prefs::kGeminiSettings, 0);
+    autofill_client_.GetPrefs()->SetBoolean(
+        personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
+        true);
+
+    // Set mock enablement service state to enabled.
+    ON_CALL(personal_context_service_, GetEligibilityState)
+        .WillByDefault(Return(
+            personal_context::PersonalContextEligibilityState::kEligible));
+    autofill_client_.set_personal_context_eligibility_service(
+        &personal_context_service_);
+
+    // Mock database query response.
+    ON_CALL(*web_data_service_,
+            GetFormValuesForElementName(test_field_.name(), test_field_.value(),
+                                        _, _))
+        .WillByDefault([&](auto, auto, int, DbCallback callback) {
+          base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+              FROM_HERE,
+              base::BindOnce(std::move(callback), kTestDbQuryId,
+                             GetMockedDbResults({GetAutocompleteEntry(
+                                 test_field_.name(), u"Some Value")})));
+          return kTestDbQuryId;
+        });
+  }
+
+ protected:
+  base::test::ScopedFeatureList feature_list_;
+  personal_context::MockPersonalContextEligibilityService
+      personal_context_service_;
+};
+
+// Tests that if both URLs allowed, AtMemory suggestion is returned.
+TEST_F(AutocompleteHistoryManagerAtMemoryTest,
+       AtMemorySuggestions_BothUrlsAllowed) {
+  GURL allowed_main("https://allowed-main.com");
+  GURL allowed_field("https://allowed-field.com");
+
+  autofill_client_.set_last_committed_primary_main_frame_url(allowed_main);
+  test_field_.set_origin(url::Origin::Create(allowed_field));
+
+  MockAutofillOptimizationGuideDecider* decider =
+      autofill_client_.GetAutofillOptimizationGuideDecider();
+  ON_CALL(*decider, ShouldBlockAtMemory(allowed_main))
+      .WillByDefault(Return(false));
+  ON_CALL(*decider, ShouldBlockAtMemory(allowed_field))
+      .WillByDefault(Return(false));
+
+  base::RunLoop run_loop;
+  MockSuggestionsReturnedCallback mock_callback;
+  EXPECT_CALL(mock_callback,
+              Run(test_field_.global_id(),
+                  Contains(Field(&Suggestion::type,
+                                 SuggestionType::kAutocompleteAtMemoryButton))))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+
+  autocomplete_manager_->OnGetSingleFieldSuggestions(
+      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      /*trigger_autofill_field=*/nullptr, autofill_client_,
+      mock_callback.Get());
+  run_loop.Run();
+}
+
+// Tests that if the main frame URL is blocked, the AtMemory suggestion is not
+// returned.
+TEST_F(AutocompleteHistoryManagerAtMemoryTest,
+       AtMemorySuggestions_MainFrameUrlBlocked) {
+  GURL allowed_field("https://allowed-field.com");
+  GURL blocked_main("https://blocked-main.com");
+
+  autofill_client_.set_last_committed_primary_main_frame_url(blocked_main);
+  test_field_.set_origin(url::Origin::Create(allowed_field));
+
+  MockAutofillOptimizationGuideDecider* decider =
+      autofill_client_.GetAutofillOptimizationGuideDecider();
+  ON_CALL(*decider, ShouldBlockAtMemory(blocked_main))
+      .WillByDefault(Return(true));
+  ON_CALL(*decider, ShouldBlockAtMemory(allowed_field))
+      .WillByDefault(Return(false));
+
+  base::RunLoop run_loop;
+  MockSuggestionsReturnedCallback mock_callback;
+  EXPECT_CALL(
+      mock_callback,
+      Run(test_field_.global_id(),
+          Not(Contains(Field(&Suggestion::type,
+                             SuggestionType::kAutocompleteAtMemoryButton)))))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+
+  autocomplete_manager_->OnGetSingleFieldSuggestions(
+      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      /*trigger_autofill_field=*/nullptr, autofill_client_,
+      mock_callback.Get());
+  run_loop.Run();
+}
+
+// Tests that if the field frame URL is blocked, the AtMemory suggestion is not
+// returned.
+TEST_F(AutocompleteHistoryManagerAtMemoryTest,
+       AtMemorySuggestions_FieldOriginUrlBlocked) {
+  GURL allowed_main("https://allowed-main.com");
+  GURL blocked_field("https://blocked-field.com");
+
+  autofill_client_.set_last_committed_primary_main_frame_url(allowed_main);
+  test_field_.set_origin(url::Origin::Create(blocked_field));
+
+  MockAutofillOptimizationGuideDecider* decider =
+      autofill_client_.GetAutofillOptimizationGuideDecider();
+  ON_CALL(*decider, ShouldBlockAtMemory(allowed_main))
+      .WillByDefault(Return(false));
+  ON_CALL(*decider, ShouldBlockAtMemory(blocked_field))
+      .WillByDefault(Return(true));
+
+  base::RunLoop run_loop;
+  MockSuggestionsReturnedCallback mock_callback;
+  EXPECT_CALL(
+      mock_callback,
+      Run(test_field_.global_id(),
+          Not(Contains(Field(&Suggestion::type,
+                             SuggestionType::kAutocompleteAtMemoryButton)))))
+      .WillOnce(base::test::RunClosure(run_loop.QuitClosure()));
+
+  autocomplete_manager_->OnGetSingleFieldSuggestions(
+      test_form_data_, /*form_structure=*/nullptr, test_field_,
+      /*trigger_autofill_field=*/nullptr, autofill_client_,
+      mock_callback.Get());
+  run_loop.Run();
+}
+#endif
 
 }  // namespace autofill

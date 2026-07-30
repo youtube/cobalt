@@ -7,13 +7,17 @@
 #include <algorithm>
 
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/functional/bind.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/thread_pool.h"
 #include "build/build_config.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/component_updater/indigo_component_installer.h"
+#include "chrome/browser/contextual_cueing/features.h"
+#include "chrome/browser/contextual_cueing/prefs.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -24,12 +28,15 @@
 #include "chrome/browser/indigo/proto/indigo_prompts.pb.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/chrome_features.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/policy/core/common/management/management_service.h"
 #include "components/prefs/pref_change_registrar.h"
 #include "components/prefs/pref_service.h"
 #include "components/signin/public/base/signin_metrics.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/variations/service/variations_service.h"
 #include "content/public/browser/storage_partition.h"
 #include "google_apis/gaia/gaia_auth_util.h"
 #include "google_apis/gaia/google_service_auth_error.h"
@@ -46,9 +53,26 @@ namespace indigo {
 
 namespace {
 
+BASE_FEATURE(kIndigoIgnoreDogfoodClient, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsLikelyDogfoodClient() {
+  variations::VariationsService* variations_service =
+      g_browser_process->variations_service();
+  return variations_service && variations_service->IsLikelyDogfoodClient();
+}
+
 // Returns true if there is any enterprise management at the profile, browser,
 // or physical device level.
 bool IsBrowserUnderAnyEnterpriseManagement(Profile* profile) {
+  if (features::kIndigoSkipEnterpriseCheck.Get()) {
+    return false;
+  }
+
+  if (!base::FeatureList::IsEnabled(kIndigoIgnoreDogfoodClient) &&
+      IsLikelyDogfoodClient()) {
+    return false;
+  }
+
   // 1. Browser / Profile Level: Check if administrative policies (cloud policy,
   // local machine Group Policy Object, macOS plist, Linux
   // /etc/opt/chrome/policies, or local device management) are actively managing
@@ -267,12 +291,44 @@ IndigoService::RegisterLocalEligibilityChangedCallback(
   return local_eligibility_callback_list_.Add(std::move(callback));
 }
 
-bool IndigoService::CanShowAnchoredMessage() const {
-  return base::TimeTicks::Now() >= anchored_message_not_before_;
+bool IndigoService::IsModelImprovementAllowed() const {
+  if (!pref_service_) {
+    return true;
+  }
+  return pref_service_->GetInteger(prefs::kIndigoPolicy) ==
+         prefs::Policy::kAllowed;
 }
 
-void IndigoService::AnchoredMessageShown() {
-  anchored_message_not_before_ =
+bool IndigoService::CanShowContextualCue() const {
+  if (!base::FeatureList::IsEnabled(contextual_cueing::kContextualCueingV2)) {
+    return false;
+  }
+
+  if (pref_service_) {
+    // Check if the user has opted out of contextual cues.
+    auto opt_in_state = static_cast<
+        optimization_guide::prefs::FeatureOptInState>(pref_service_->GetInteger(
+        optimization_guide::prefs::GetSettingEnabledPrefName(
+            optimization_guide::UserVisibleFeatureKey::kContextualCueing)));
+    if (opt_in_state ==
+        optimization_guide::prefs::FeatureOptInState::kDisabled) {
+      return false;
+    }
+
+    // Check enterprise policy.
+    if (pref_service_->GetInteger(
+            optimization_guide::prefs::kChromeSuggestionsSettings) ==
+        static_cast<int>(
+            contextual_cueing::ChromeSuggestionsSettingsValue::kDisabled)) {
+      return false;
+    }
+  }
+
+  return base::TimeTicks::Now() >= contextual_cue_not_before_;
+}
+
+void IndigoService::ContextualCueShown() {
+  contextual_cue_not_before_ =
       base::TimeTicks::Now() +
       features::kIndigoAnchoredMessageResetDuration.Get();
 }
@@ -302,13 +358,11 @@ LocalEligibility IndigoService::ComputeLocalEligibility() const {
   if (IsBrowserUnderAnyEnterpriseManagement(profile_) &&
       !is_google_internal_account) {
     if (!features::kIndigoAllowForEnterprise.Get()) {
-      // TODO(b:512247450): Use a new enum such as `kEnterpriseDisallowed`.
-      return LocalEligibility::kManagedDomain;
+      return LocalEligibility::kEnterpriseDisallowed;
     } else if (pref_service_) {
       int policy_val = pref_service_->GetInteger(prefs::kIndigoPolicy);
-      // TODO(b:512247450): Also allow kAllowedWithoutModelImprovement when the
-      // alternative disclaimer string is ready.
-      if (policy_val != prefs::Policy::kAllowed) {
+      if (policy_val != prefs::Policy::kAllowed &&
+          policy_val != prefs::Policy::kAllowedWithoutModelImprovement) {
         return LocalEligibility::kDisabledByPolicy;
       }
     }

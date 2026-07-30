@@ -36,6 +36,7 @@
 #include "net/base/network_delegate.h"
 #include "net/base/network_handle.h"
 #include "net/base/proxy_delegate.h"
+#include "net/device_bound_sessions/session_service.h"
 #include "net/disk_cache/buildflags.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/dns/dns_platform_attempt_factory.h"
@@ -51,6 +52,7 @@
 #include "net/ssl/ssl_config_service.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_packets.h"
 #include "net/url_request/url_request_job_factory.h"
+#include "url/origin.h"
 
 #if BUILDFLAG(IS_ANDROID)
 #include "net/dns/dns_platform_attempt_factory_android.h"
@@ -82,6 +84,7 @@ class PersistentReportingAndNelStore;
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 namespace device_bound_sessions {
 class SessionService;
+struct CookieAccessCheckParams;
 }
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
@@ -429,6 +432,14 @@ class NET_EXPORT URLRequestContextBuilder {
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
   }
 
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  void set_device_bound_sessions_cookie_access_callback(
+      base::RepeatingCallback<bool(
+          const device_bound_sessions::CookieAccessCheckParams&)> callback) {
+    device_bound_sessions_cookie_access_callback_ = std::move(callback);
+  }
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+
   // Must be called in conjunction with
   // `set_has_device_bound_session_service(true)`.
   void set_unexportable_key_service(
@@ -448,6 +459,13 @@ class NET_EXPORT URLRequestContextBuilder {
     NOTREACHED();
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
   }
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+  void set_device_bound_sessions_client_cert_handler(
+      device_bound_sessions::SelectClientCertificateHandler handler) {
+    device_bound_sessions_client_cert_handler_ = std::move(handler);
+  }
+#endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
   void set_cache_encryption_delegate(
       std::unique_ptr<net::CacheEncryptionDelegate> cache_encryption_delegate);
@@ -574,6 +592,11 @@ class NET_EXPORT URLRequestContextBuilder {
       unexportable_key_service_;
   std::unique_ptr<device_bound_sessions::SessionService>
       device_bound_session_service_;
+  base::RepeatingCallback<bool(
+      const device_bound_sessions::CookieAccessCheckParams&)>
+      device_bound_sessions_cookie_access_callback_;
+  device_bound_sessions::SelectClientCertificateHandler
+      device_bound_sessions_client_cert_handler_;
   base::FilePath device_bound_sessions_file_path_;
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
   // When DnsTransaction receives AttemptMode == kPlatform, it uses

@@ -329,6 +329,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="1486096554574027028">Szukaj haseł</translation>
 <translation id="1492194039220927094">Przekazywanie zasad w trybie push:</translation>
 <translation id="1495677929897281669">Wróć do karty</translation>
+<translation id="1496318738909526466">Zarządzaj ulepszonym autouzupełnianiem</translation>
 <translation id="1500286806237135498">Kamery (<ph name="CAMERAS_COUNT" />)</translation>
 <translation id="1504042622576912555">Tektura falista</translation>
 <translation id="1507202001669085618">&lt;p&gt;Ten komunikat pojawia się, jeśli do połączenia z internetem wymagane jest zalogowanie się w portalu Wi-Fi.&lt;/p&gt;
@@ -350,6 +351,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="1542105669288201090">Edukacja biznesowa</translation>
 <translation id="1542830386724426410">W momencie płatności pokaż dostępne korzyści i nagrody z karty. Obowiązują warunki wystawcy. <ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />Więcej informacji<ph name="CARD_BENEFIT_HELP_LINK_END" /></translation>
 <translation id="1545757265410828525">Historia cen</translation>
+<translation id="1546286808622193216">Porównaj korzyści związane z kartami za pomocą Gemini</translation>
 <translation id="1549470594296187301">Aby można było korzystać z tej funkcji, musi być włączony JavaScript.</translation>
 <translation id="1553152622374372421">Sporty zimowe</translation>
 <translation id="1553358976309200471">Zaktualizuj Chrome</translation>
@@ -504,6 +506,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="175656076281618225">Iluzja</translation>
 <translation id="1757773103848038814">Czcionka o stałej szerokości</translation>
 <translation id="1757935267918149452">Przycisk Zmień hasło do Google; aktywuj, aby zmienić hasło do konta Google</translation>
+<translation id="1759776526873274358">Autouzupełnianie kodów weryfikacyjnych używanych przez witryny w celu poprawienia bezpieczeństwa. Chrome może pobierać te kody z Gmaila. <ph name="BEGIN_LINK" />Dowiedz się więcej o tej funkcji<ph name="LINK_END" /></translation>
 <translation id="1763864636252898013">Ten serwer nie mógł udowodnić, że należy do <ph name="DOMAIN" />. Jego certyfikat bezpieczeństwa nie jest zaufany w systemie operacyjnym tego urządzenia. Może to być spowodowane błędną konfiguracją lub przechwyceniem połączenia przez atakującego.</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Uruchom Diagnostykę sieci systemu Windows<ph name="END_LINK" />.</translation>
 <translation id="1777422078676229054">Zdjęcie (archiwalne)</translation>
@@ -863,6 +866,7 @@ Jeśli się nie zgodzisz, zostaną one zablokowane ze względu na Twoje ustawien
 <translation id="2322254345061973671">{COUNT,plural, =1{1 okna}few{# okien}many{# okien}other{# okna}}</translation>
 <translation id="232390861414237658">Gdy zapiszesz kartę do użycia w Google Pay, jej dane będą uzupełniane automatycznie podczas zakupów w Chrome</translation>
 <translation id="2326283484705860548">Teraz możesz automatycznie wypełniać więcej informacji z Portfela Google</translation>
+<translation id="2326747055382936979">Zarządzaj ulepszonym autouzupełnianiem</translation>
 <translation id="2328651992442742497">Dozwolone (domyślnie)</translation>
 <translation id="2328955282645810595">Narzędzia budowlane i elektronarzędzia</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" />, ważna do <ph name="EXPIRATION_DATE_ABBR" /></translation>
@@ -1424,6 +1428,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="3202497928925179914"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />; aby zarządzać w ustawieniach Chrome informacjami, które mają być synchronizowane, naciśnij Tab, a potem Enter</translation>
 <translation id="3203025201812691413">URL nie może być pusty</translation>
 <translation id="320323717674993345">Anuluj płatność</translation>
+<translation id="3204534477198689393">Aby ulepszać sugestie i szybciej wypełniać formularze, zawartość i adresy URL odwiedzanych stron mogą być przetwarzane w przestrzeni prywatnej w chmurze.</translation>
 <translation id="3207830513221832868">Strona <ph name="BLOCKED_URL" /> może zawierać treści dla dorosłych</translation>
 <translation id="3207960819495026254">Dodano do zakładek</translation>
 <translation id="3208701679386778924">Prześlij raport, abyśmy mogli ulepszać kolejne aktualizacje ChromeOS.</translation>
@@ -1479,6 +1484,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="3272643614306383237">Mniej niż 1 MB. Podczas następnej wizyty niektóre strony mogą ładować się wolniej.</translation>
 <translation id="3273738040255912340">Administrator może zdalnie wprowadzać zmiany w Twoim profilu i przeglądarce, analizować informacje o przeglądarce za pomocą raportów i wykonywać inne niezbędne zadania. Aktywność na tym urządzeniu może być zarządzana również poza Chromium. <ph name="BEGIN_LINK" />Więcej informacji<ph name="END_LINK" /></translation>
 <translation id="3273757719652748628">Zapisywanie numeru IBAN jest otwarte na całą wysokość.</translation>
+<translation id="327455571215090823">Inteligentniejsze autouzupełnianie z zachowaniem prywatności</translation>
 <translation id="3281350579597955952">{0,plural, =1{Zgodnie z zasadą administratora nie zaleca się otwierania tego pliku, jeśli miejscem docelowym jest <ph name="DESTINATION_NAME" />}few{Zgodnie z zasadą administratora nie zaleca się otwierania tych plików, jeśli miejscem docelowym jest <ph name="DESTINATION_NAME" />}many{Zgodnie z zasadą administratora nie zaleca się otwierania tych plików, jeśli miejscem docelowym jest <ph name="DESTINATION_NAME" />}other{Zgodnie z zasadą administratora nie zaleca się otwierania tych plików, jeśli miejscem docelowym jest <ph name="DESTINATION_NAME" />}}</translation>
 <translation id="3282085321714087552">Twoja organizacja, <ph name="ENROLLMENT_DOMAIN" />, wysłała do tych witryn pewne informacje, takie jak ustawienia lub zasady.</translation>
 <translation id="3286372614333682499">orientacja pionowa</translation>
@@ -2155,6 +2161,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="4304049446746819918">{0,plural, =1{Zgodnie z zasadą administratora nie zaleca się przenoszenia tego pliku, jeśli miejscem docelowym jest <ph name="DESTINATION_NAME" />}few{Zgodnie z zasadą administratora nie zaleca się przenoszenia tych plików, jeśli miejscem docelowym jest <ph name="DESTINATION_NAME" />}many{Zgodnie z zasadą administratora nie zaleca się przenoszenia tych plików, jeśli miejscem docelowym jest <ph name="DESTINATION_NAME" />}other{Zgodnie z zasadą administratora nie zaleca się przenoszenia tych plików, jeśli miejscem docelowym jest <ph name="DESTINATION_NAME" />}}</translation>
 <translation id="4304485328308299773">Zapoznaj się z ocenami i recenzjami produktów i usług, aby podejmować lepsze decyzje na podstawie opinii klientów.</translation>
 <translation id="4305666528087210886">Nie udało się uzyskać dostępu do pliku</translation>
+<translation id="4306349443295056740">Podpisywanie OCSP</translation>
 <translation id="4306529830550717874">Zapisać adres?</translation>
 <translation id="4306812610847412719">schowek</translation>
 <translation id="4308567447483056043">Ta zasada jest ignorowana, ponieważ użytkownik jest niepowiązany. Aby można było zastosować tę zasadę, przeglądarka i profil Chrome muszą być zarządzane w konsoli administracyjnej przez tę samą organizację.</translation>
@@ -2324,6 +2331,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="4607608436550361748">Zobacz wskazówki na temat Chrome</translation>
 <translation id="460848736049414407">Zablokowany przez administratora</translation>
 <translation id="4610279718074907952">Ta witryna należy do zdefiniowanej przez firmę <ph name="SET_OWNER" /> grupy, która ma dostęp do danych o Twojej aktywności</translation>
+<translation id="4612631413844865947">Podczas przetwarzania Twojego zamówienia w usłudze <ph name="MERCHANT_ORIGIN" /> za pomocą <ph name="PAYMENT_APP_ORIGIN" /> wystąpił błąd.</translation>
 <translation id="46128681529823442">Sprzęt piłkarski</translation>
 <translation id="4612904677925722054">Ta strona może zawierać treści dla dorosłych. Jeśli chcesz na nią wejść, musisz mieć zgodę rodzica lub opiekuna.</translation>
 <translation id="4619564267100705184">Potwierdź, że to Ty</translation>
@@ -2413,6 +2421,8 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="4744603770635761495">Ścieżka pliku wykonywalnego</translation>
 <translation id="4744816391336495134">Za każdym razem, gdy używasz zapisanego hasła, możesz potwierdzać swoją tożsamość za pomocą odcisku palca</translation>
 <translation id="4749011317274908093">Jesteś w trybie incognito</translation>
+<translation id="4749620353539006322">Maksymalne nagrody</translation>
+<translation id="4749924365937394956">Uwierzytelnianie serwera</translation>
 <translation id="4750671009706599284">tego telefonu</translation>
 <translation id="4750917950439032686">Informacje, które wysyłasz tej witrynie (na przykład hasła lub numery kart kredytowych), pozostają prywatne.</translation>
 <translation id="4751249061288707459">Ostatnia aktualizacja zgody:</translation>
@@ -2987,6 +2997,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="5611398002774823980">Zapisz na koncie</translation>
 <translation id="561165882404867731">Przetłumacz tę stronę w Tłumaczu Google</translation>
 <translation id="5612720917913232150"><ph name="URL" /> chce używać lokalizacji Twojego komputera</translation>
+<translation id="5613958591683399697">Zapytaj <ph name="ENGINE_NAME" /></translation>
 <translation id="5614190747811328134">Informacje dla użytkownika</translation>
 <translation id="5614520971155863709">Gry karciane</translation>
 <translation id="5617949217645503996">Strona <ph name="HOST_NAME" /> spowodowała zbyt wiele przekierowań.</translation>
@@ -3129,6 +3140,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="5860491529813859533">Włącz</translation>
 <translation id="5862579898803147654">Układarka 8</translation>
 <translation id="5863515189965725638">Edytuj numer IBAN</translation>
+<translation id="5863517400058880216">Autouzupełnianie kodów weryfikacyjnych z Gmaila</translation>
 <translation id="5863847714970149516">Otwierana strona może próbować obciążyć Cię płatnością</translation>
 <translation id="5866257070973731571">Dodaj numer telefonu</translation>
 <translation id="5866327164731551901">Źródła: <ph name="TYPE_1" /> <ph name="TYPE_2" /></translation>
@@ -3242,6 +3254,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="6034000775414344507">Jasnoszary</translation>
 <translation id="6034514109191629503">Składanie harmonijkowe</translation>
 <translation id="6035491133925068289">Lekkoatletyka</translation>
+<translation id="6037458223703682108">Podpis cyfrowy</translation>
 <translation id="6039846035001940113">Jeśli problem nie ustąpi, skontaktuj się z właścicielem strony.</translation>
 <translation id="6040143037577758943">Zamknij</translation>
 <translation id="6040539895181423374">Statystyki dotyczące cen</translation>
@@ -3553,6 +3566,7 @@ Uruchamianie aplikacji może potrwać dłużej niż zwykle.</translation>
 <translation id="6474220430271405609">Testy zasad</translation>
 <translation id="6476284679642588870">Zarządzaj formami płatności</translation>
 <translation id="647881094269678013">Aktorstwo i teatr</translation>
+<translation id="6480363549849064919">Uwierzytelnianie klienta</translation>
 <translation id="6480864723214312258">Baterie, akumulatory i ładowarki</translation>
 <translation id="6487678699866233349">Muzyka świata</translation>
 <translation id="6489534406876378309">Rozpocznij przesyłanie informacji o awariach</translation>
@@ -4519,6 +4533,7 @@ Dodatkowe informacje:
 <translation id="7967973398323409409">Twoje informacje autouzupełniania nie są dla nikogo widoczne</translation>
 <translation id="79682505114836835">Wartość „<ph name="VALUE" />” jest nieprawidłowym kodem szesnastkowym koloru.</translation>
 <translation id="7968982339740310781">Wyświetl szczegóły</translation>
+<translation id="7971403153351954587">Twoja organizacja monitoruje kopiowanie treści</translation>
 <translation id="7972714317346275248">PKCS #1, SHA-384 z szyfrowaniem RSA</translation>
 <translation id="7976053965094442846">Wydawcy korzystający z opcji „Kup teraz, zapłać później” dostępni w przypadku płatności ratalnych. Klawiatura jest ukryta.</translation>
 <translation id="7976214039405368314">Zbyt wiele żądań</translation>

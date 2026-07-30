@@ -12,14 +12,20 @@
 
 #include "base/containers/fixed_flat_set.h"
 #include "base/i18n/base_i18n_export.h"
+#include "base/i18n/internal/bcp47_parser.h"
 #include "base/i18n/internal/icu_bridge.rs.h"
+#include "base/i18n/internal/immutable_string.h"
 #include "base/i18n/language_tag.h"
 
-namespace base::i18n {
+namespace base {
+class Value;
+}
 
-namespace internal {
+namespace base::i18n_internal {
 struct Icu4xLocale;
 }
+
+namespace base::i18n {
 
 // Helper class for parsing and validating language tags.
 //
@@ -55,32 +61,24 @@ class BASE_I18N_EXPORT LanguageTagConverter {
   //  - Normalize separator (e.g. "en_US" -> "en-US").
   std::optional<LanguageTag> FromString(std::string_view tag) const;
   // Internal usage.
-  LanguageTag FromIcu4xLocale(const internal::Icu4xLocale& icu_locale) const;
-
-  class KnownLanguageTagPassKey;
-  static consteval LanguageTag GetKnownLanguageTagConstEval(
-      base::PassKey<KnownLanguageTagPassKey>,
-      std::string_view tag) {
-    // TODO(crbug.com/529445512): create a consteval parser for known language
-    // tags for (lang-script-region-variants).
-    return LanguageTag(base::span<const std::string_view>({tag}));
-  }
+  LanguageTag FromIcu4xLocale(
+      const i18n_internal::Icu4xLocale& icu_locale) const;
 
  private:
   class Impl;
   std::unique_ptr<Impl> impl_;
 };
 
-// This class serves only to give access through friendship to the consteval
-// GetKnownLanguageTag class.
-class LanguageTagConverter::KnownLanguageTagPassKey {
- private:
-  friend consteval LanguageTag GetKnownLanguageTag(std::string_view tag);
+// Converts a LanguageTag to a string base::Value.
+BASE_I18N_EXPORT base::Value LanguageTagToValue(const LanguageTag& tag);
 
-  constexpr static base::PassKey<KnownLanguageTagPassKey> GetPassKey() {
-    return base::PassKey<KnownLanguageTagPassKey>();
-  }
-};
+// Parses a LanguageTag from a base::Value.
+// Returns std::nullopt if `value` is nullptr, not a string Value, or not a
+// valid BCP 47 language tag.
+BASE_I18N_EXPORT std::optional<LanguageTag> ValueToLanguageTag(
+    const base::Value* value);
+BASE_I18N_EXPORT std::optional<LanguageTag> ValueToLanguageTag(
+    const base::Value& value);
 
 }  // namespace base::i18n
 

@@ -14,15 +14,17 @@ import type {ComposeboxDropdownElement} from 'chrome://resources/cr_components/c
 import type {ComposeboxInputElement} from 'chrome://resources/cr_components/composebox/composebox_input.js';
 import {ComposeboxEmbedderMixin} from 'chrome://resources/cr_components/composebox/composebox_mixin.js';
 import {ComposeboxProxyImpl} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
+import type {ContextualEntrypointAndMenuElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import type {ComposeboxFileCarouselElement} from 'chrome://resources/cr_components/composebox/file_carousel.js';
 import {I18nMixinLit} from 'chrome://resources/cr_elements/i18n_mixin_lit.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement, html} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import {DriveDisclaimerStatus, DriveUploadError, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SuggestInventory} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {AutocompleteMatch, AutocompleteResult, PageRemote as SearchboxPageRemote, SelectedFileInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
-import {InputType, ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
+import {ContextUploadStatus, InputType, ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {InputState} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {UnguessableToken} from 'chrome://resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
+import type {Url} from 'chrome://resources/mojo/url/mojom/url.mojom-webui.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {fakeMetricsPrivate} from 'chrome://webui-test/metrics_test_support.js';
 import type {MetricsTracker} from 'chrome://webui-test/metrics_test_support.js';
@@ -117,7 +119,8 @@ class TestComposeboxMixinElement extends TestElementBase {
     return ComposeboxProxyImpl.getInstance().searchboxHandler;
   }
 
-  override getContextEntrypointElement() {
+  override getContextEntrypointElement(): ContextualEntrypointAndMenuElement
+      |null {
     return null;
   }
 }
@@ -134,7 +137,6 @@ function simulateUserTextInput(
 
 suite('ComposeboxMixinTest', () => {
   let element: TestComposeboxMixinElement;
-  let handler: PageHandlerRemote&TestMock<PageHandlerRemote>;
   let searchboxHandler: SearchboxPageHandlerRemote&
       TestMock<SearchboxPageHandlerRemote>;
   let searchboxCallbackRouterRemote: SearchboxPageRemote;
@@ -147,29 +149,38 @@ suite('ComposeboxMixinTest', () => {
     const callbackRouter = new SearchboxPageCallbackRouter();
     searchboxCallbackRouterRemote = callbackRouter.$.bindNewPipeAndPassRemote();
 
-    handler = installMock(
+    installMock(
         PageHandlerRemote,
         mock => ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
             mock, new PageCallbackRouter(), new SearchboxPageHandlerRemote(),
             callbackRouter)));
-    handler.setResultMapperFor(
-        'getSmartTabSharingActive', () => Promise.resolve({active: false}));
-
     searchboxHandler = installMock(
         SearchboxPageHandlerRemote,
         mock => ComposeboxProxyImpl.getInstance().searchboxHandler = mock);
+    // <if expr="not is_android">
+    searchboxHandler.setResultMapperFor(
+        'getSmartTabSharingActive', () => Promise.resolve({active: false}));
+    // </if>
     searchboxHandler.setPromiseResolveFor('getInputState', {
       state: new MockInputState(),
     });
 
     element = document.createElement('test-composebox-mixin') as
         TestComposeboxMixinElement;
+    // The mixin queries ZPS on mount by default, which advances the
+    // autocomplete query id; opt out so per-test assertions start clean.
+    element.queryZpsOnLoad = false;
     document.body.appendChild(element);
     await microtasksFinished();
   });
 
   test(
-      'refreshTabSuggestions() dedupes restored and current tabs', async () => {
+      'refreshTabSuggestions() dedupes restored tabs with same tabId',
+      async () => {
+        loadTimeData.overrideValues({
+          contextManagementInComposeboxEnabled: true,
+          contextManagementInOmniboxEnabled: true,
+        });
         const tab1 = {
           tabId: 0,
           title: 'Tab 1',
@@ -179,7 +190,69 @@ suite('ComposeboxMixinTest', () => {
           lastActive: {internalValue: 0n},
         };
         const tab2Restored = {
+          tabId: 2,  // Same ID as recent tab
+          title: 'Tab 2',
+          url: 'about:blank?2',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab2Recent = {
+          tabId: 2,
+          title: 'Tab 2',
+          url: 'about:blank?2',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab3 = {
+          tabId: 3,
+          title: 'Tab 3',
+          url: 'about:blank?3',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+
+        // Mock searchboxHandler.getRecentTabs to return tab2Recent and tab3.
+        searchboxHandler.setResultFor(
+            'getRecentTabs', Promise.resolve({tabs: [tab2Recent, tab3]}));
+
+        element.contextManagementInComposeboxEnabled = true;
+        // Set aimThreadRestoredTabs to contain tab1 and tab2Restored.
+        element.aimThreadRestoredTabs = [tab1, tab2Restored];
+
+        await element.refreshTabSuggestions();
+
+        // Expected tabSuggestions: [tab1, tab2Restored, tab3]
+        // (tab2Recent from recent tabs should be filtered out because its tabId
+        // matches tab2Restored)
+        assertEquals(3, element.tabSuggestions.length);
+        assertEquals(0, element.tabSuggestions[0]!.tabId);
+        assertEquals('about:blank?1', element.tabSuggestions[0]!.url);
+        assertEquals(2, element.tabSuggestions[1]!.tabId);
+        assertEquals('about:blank?2', element.tabSuggestions[1]!.url);
+        assertEquals(3, element.tabSuggestions[2]!.tabId);
+        assertEquals('about:blank?3', element.tabSuggestions[2]!.url);
+      });
+
+  test(
+      'refreshTabSuggestions() keeps tabs with diff tabId and same URL',
+      async () => {
+        loadTimeData.overrideValues({
+          contextManagementInComposeboxEnabled: true,
+          contextManagementInOmniboxEnabled: true,
+        });
+        const tab1 = {
           tabId: 0,
+          title: 'Tab 1',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+        const tab2Restored = {
+          tabId: 1,  // Different ID than recent tab, e.g. it was closed (or 0)
           title: 'Tab 2',
           url: 'about:blank?2',
           showInCurrentTabChip: false,
@@ -212,16 +285,18 @@ suite('ComposeboxMixinTest', () => {
 
         await element.refreshTabSuggestions();
 
-        // Expected tabSuggestions: [tab1, tab2Restored, tab3]
-        // (tab2Recent from recent tabs should be filtered out because its URL
-        // matches tab2Restored)
-        assertEquals(3, element.tabSuggestions.length);
+        // Expected tabSuggestions: [tab1, tab2Restored, tab2Recent, tab3]
+        // (tab2Recent from recent tabs should NOT be filtered out because its
+        // tabId differs from tab2Restored, even though they share the same URL)
+        assertEquals(4, element.tabSuggestions.length);
         assertEquals(0, element.tabSuggestions[0]!.tabId);
         assertEquals('about:blank?1', element.tabSuggestions[0]!.url);
-        assertEquals(0, element.tabSuggestions[1]!.tabId);
+        assertEquals(1, element.tabSuggestions[1]!.tabId);
         assertEquals('about:blank?2', element.tabSuggestions[1]!.url);
-        assertEquals(3, element.tabSuggestions[2]!.tabId);
-        assertEquals('about:blank?3', element.tabSuggestions[2]!.url);
+        assertEquals(2, element.tabSuggestions[2]!.tabId);
+        assertEquals('about:blank?2', element.tabSuggestions[2]!.url);
+        assertEquals(3, element.tabSuggestions[3]!.tabId);
+        assertEquals('about:blank?3', element.tabSuggestions[3]!.url);
       });
 
   test('submitCleanup() clears active tab selections', async () => {
@@ -279,6 +354,7 @@ suite('ComposeboxMixinTest', () => {
           },
         ];
 
+        element.contextManagementInComposeboxEnabled = true;
         element.cacheSubmittedTabs();
 
         assertEquals(3, element.aimThreadRestoredTabs.length);
@@ -287,6 +363,39 @@ suite('ComposeboxMixinTest', () => {
         assertEquals(3, element.aimThreadRestoredTabs[0]!.tabId);
         assertEquals(1, element.aimThreadRestoredTabs[1]!.tabId);
         assertEquals(2, element.aimThreadRestoredTabs[2]!.tabId);
+      });
+
+  test(
+      'setAimThreadRestoredTabs force-refreshes suggestions when tabs restored',
+      async () => {
+        searchboxHandler.resetResolver('getRecentTabs');
+        searchboxHandler.setPromiseResolveFor('getRecentTabs', {tabs: []});
+
+        const tab1 = {
+          tabId: 1,
+          title: 'Tab 1',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        };
+
+        // Emit setAimThreadRestoredTabs callback with non-empty list.
+        searchboxCallbackRouterRemote.setAimThreadRestoredTabs([tab1]);
+        await microtasksFinished();
+
+        // Verify: refreshTabSuggestions(true) was triggered, so getRecentTabs
+        // is called.
+        assertEquals(1, searchboxHandler.getCallCount('getRecentTabs'));
+
+        // Reset call count and test with empty list.
+        searchboxHandler.resetResolver('getRecentTabs');
+        searchboxHandler.setPromiseResolveFor('getRecentTabs', {tabs: []});
+        searchboxCallbackRouterRemote.setAimThreadRestoredTabs([]);
+        await microtasksFinished();
+
+        // Verify: refreshTabSuggestions is NOT called when list is empty.
+        assertEquals(0, searchboxHandler.getCallCount('getRecentTabs'));
       });
 
   test('queryAutocomplete passes cursor position', async () => {
@@ -304,7 +413,8 @@ suite('ComposeboxMixinTest', () => {
 
     const args = await searchboxHandler.whenCalled(
         'queryAutocompleteWithSuggestInventory');
-    assertDeepEquals(args, ['hello', false, 3, SuggestInventory.kDefault]);
+    assertDeepEquals(
+        args, [0, 'hello', false, 3, SuggestInventory.kDefault, false]);
   });
 
   test(
@@ -331,8 +441,39 @@ suite('ComposeboxMixinTest', () => {
         const args = await searchboxHandler.whenCalled(
             'queryAutocompleteWithSuggestInventory');
         assertDeepEquals(
-            args, ['hello world', false, 11, SuggestInventory.kDefault]);
+            args,
+            [0, 'hello world', false, 11, SuggestInventory.kDefault, false]);
       });
+
+  test('queries autocomplete on load by default', async () => {
+    searchboxHandler.resetResolver('queryAutocompleteWithSuggestInventory');
+    const freshComposebox = document.createElement('test-composebox-mixin') as
+        TestComposeboxMixinElement;
+    document.body.appendChild(freshComposebox);
+    await microtasksFinished();
+
+    assertEquals(
+        1,
+        searchboxHandler.getCallCount('queryAutocompleteWithSuggestInventory'));
+  });
+
+  test('does not query autocomplete on load when queryZpsOnLoad is false',
+       async () => {
+    searchboxHandler.resetResolver('queryAutocompleteWithSuggestInventory');
+    const freshComposebox =
+        document.createElement('test-composebox-mixin') as
+        TestComposeboxMixinElement;
+    // queryZpsOnLoad is read in connectedCallback, so it must be set before
+    // the element connects. Contextual Tasks sets it false and drives
+    // autocomplete from its own zero-state logic instead.
+    freshComposebox.queryZpsOnLoad = false;
+    document.body.appendChild(freshComposebox);
+    await microtasksFinished();
+
+    assertEquals(
+        0,
+        searchboxHandler.getCallCount('queryAutocompleteWithSuggestInventory'));
+  });
 
   test(
       'Shift+Enter allows inserting a newline when input is focused and not empty',
@@ -413,6 +554,42 @@ suite('ComposeboxMixinTest', () => {
     assertFalse(element.showDropdown);
     assertEquals(null, element.result);
     assertEquals('', element.lastQueriedInput);
+  });
+
+  test('activeQueryId is not reset to -1 when selection cleared and input is empty', async () => {
+    element.input = '';
+    element.activeQueryId = 0;
+    element.lastQueriedInput = '';
+
+    const matches = [
+      {fillIntoEdit: 'match1', supportsDeletion: false} as AutocompleteMatch,
+    ];
+    element.result = {input: '', matches} as AutocompleteResult;
+    element.selectedMatchIndex = 0;
+    await element.updateComplete;
+
+    element.selectedMatchIndex = -1;
+    await element.updateComplete;
+
+    assertEquals(0, element.activeQueryId);
+  });
+
+  test('activeQueryId is reset to -1 when selection cleared and input is not empty', async () => {
+    element.input = 'Some text';
+    element.activeQueryId = 0;
+    element.lastQueriedInput = '';
+
+    const matches = [
+      {fillIntoEdit: 'match1', supportsDeletion: false} as AutocompleteMatch,
+    ];
+    element.result = {input: '', matches} as AutocompleteResult;
+    element.selectedMatchIndex = 0;
+    await element.updateComplete;
+
+    element.selectedMatchIndex = -1;
+    await element.updateComplete;
+
+    assertEquals(-1, element.activeQueryId);
   });
 
   test('smartComposeInlineHint is sliced on sequential typing', async () => {
@@ -509,17 +686,34 @@ suite('ComposeboxMixinTest', () => {
   });
 
   test(
-      'onOpenDriveUpload suppresses upload if disclaimer not accepted',
+      'onOpenDriveUpload suppresses upload if disclaimer restricted',
       async () => {
         searchboxHandler.setResultFor(
             'getDriveDisclaimerStatus',
-            Promise.resolve({status: DriveDisclaimerStatus.kNotAccepted}));
+            Promise.resolve({status: DriveDisclaimerStatus.kRestricted}));
 
         await element.onOpenDriveUpload();
 
         assertEquals(
             1, searchboxHandler.getCallCount('getDriveDisclaimerStatus'));
         assertEquals(0, searchboxHandler.getCallCount('onDriveUploadClicked'));
+      });
+
+  test(
+      'onOpenDriveUpload triggers upload if disclaimer not accepted',
+      async () => {
+        searchboxHandler.setResultFor(
+            'getDriveDisclaimerStatus',
+            Promise.resolve({status: DriveDisclaimerStatus.kNotAccepted}));
+        searchboxHandler.setResultFor(
+            'onDriveUploadClicked',
+            Promise.resolve({response: {files: [], error: null}}));
+
+        await element.onOpenDriveUpload();
+
+        assertEquals(
+            1, searchboxHandler.getCallCount('getDriveDisclaimerStatus'));
+        assertEquals(1, searchboxHandler.getCallCount('onDriveUploadClicked'));
       });
 
   test('onOpenDriveUpload triggers upload if disclaimer accepted', async () => {
@@ -583,6 +777,9 @@ suite('ComposeboxMixinTest', () => {
       }],
       mode: 0,
       model: 0,
+      // <if expr="not is_android">
+      smartTabSharingActive: false,
+      // </if>
     };
     await microtasksFinished();
     assertTrue(element.files.has(token));
@@ -644,6 +841,9 @@ suite('ComposeboxMixinTest', () => {
           files: [{file: mockFile}],
           mode: ToolMode.kDeepSearch,
           model: ModelMode.kGeminiRegular,
+          // <if expr="not is_android">
+          smartTabSharingActive: false,
+          // </if>
         };
         await searchboxHandler.whenCalled('addFileContext');
         await element.updateComplete;
@@ -1311,6 +1511,7 @@ suite('ComposeboxMixinTest', () => {
   test(
       'clearAllInputs clears restored tabs if querySubmitted is false',
       async () => {
+        element.contextManagementInComposeboxEnabled = false;
         element.aimThreadRestoredTabs = [{
           tabId: 1,
           title: 'Stale Tab',
@@ -1341,4 +1542,285 @@ suite('ComposeboxMixinTest', () => {
         assertEquals(0, element.aimThreadRestoredTabs.length);
         assertFalse(element.hasCachedSubmittedTabsThisTurn);
       });
+
+  test(
+      'keepMenuOpenForMultiSelection is gated by keepMenuOpenOnTabSelect',
+      async () => {
+        element.contextManagementInComposeboxEnabled = true;
+        let openMenuCalled = false;
+        element.getContextEntrypointElement = () => {
+          return {
+            openMenuForMultiSelection: () => {
+              openMenuCalled = true;
+            },
+          } as ContextualEntrypointAndMenuElement;
+        };
+
+        // Gating flag off: returns early
+        Object.defineProperty(element, 'keepMenuOpenOnTabSelect', {
+          get: () => false,
+          configurable: true,
+        });
+        await element.keepMenuOpenForMultiSelection();
+        assertFalse(openMenuCalled);
+
+        // Gating flag on: calls openMenuForMultiSelection
+        Object.defineProperty(element, 'keepMenuOpenOnTabSelect', {
+          get: () => true,
+          configurable: true,
+        });
+        await element.keepMenuOpenForMultiSelection();
+        assertTrue(openMenuCalled);
+      });
+
+  test(
+      'keepMenuOpenForMultiSelection called on add/delete tab context',
+      async () => {
+        element.contextManagementInComposeboxEnabled = true;
+        let keepMenuOpenCalled = false;
+        element.keepMenuOpenForMultiSelection = () => {
+          keepMenuOpenCalled = true;
+          return Promise.resolve();
+        };
+
+        await element.onAddTabContext(new CustomEvent('add-tab-context', {
+          detail: {
+            id: 1,
+            title: 'Test',
+            url: 'about:blank',  // Mojo converts obj to str.
+            delayUpload: false,
+            origin: TabUploadOrigin.CONTEXT_MENU,
+          },
+        }));
+        assertTrue(keepMenuOpenCalled);
+
+        keepMenuOpenCalled = false;
+        await element.onDeleteTabContext(new CustomEvent('delete-tab-context', {
+          detail: {
+            tabId: 1,
+          },
+        }));
+        assertTrue(keepMenuOpenCalled);
+      });
+
+  test('onContextMenuClosed sets shareTabsFlyoutOpen to false', async () => {
+    element.shareTabsFlyoutOpen = true;
+    await element.onContextMenuClosed();
+    assertFalse(element.shareTabsFlyoutOpen);
+  });
+
+  // Restored tabs are tabs that the server has said it has received. These are
+  // used as tabs that persist across queries.
+  test(
+      'clearAllInputs respects contextManagementInComposeboxEnabled' +
+          ' flag for resetRestoredTabs',
+      async () => {
+        element.aimThreadRestoredTabs = [{
+          tabId: 1,
+          title: 'Restored Tab',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        }];
+
+        // Query submitted (querySubmitted = true): restored tabs are NOT
+        // reset regardless of flag.
+        element.clearAllInputs(
+            /* querySubmitted= */ true,
+            /* shouldBlockAutoSuggestedTabs= */ false);
+        await microtasksFinished();
+        assertEquals(1, element.aimThreadRestoredTabs.length);
+
+        // Flag OFF: "clearAllInputs(querySubmitted = false)" resets restored
+        // tabs (clear all button pressed).
+        element.contextManagementInComposeboxEnabled = false;
+        element.clearAllInputs(
+            /* querySubmitted= */ false,
+            /* shouldBlockAutoSuggestedTabs= */ false);
+        await microtasksFinished();
+        assertEquals(0, element.aimThreadRestoredTabs.length);
+
+        // Reset restored tabs.
+        element.aimThreadRestoredTabs = [{
+          tabId: 1,
+          title: 'Restored Tab',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        }];
+
+        // Explicit new thread / resetRestoredTabs clears restored tabs
+        // regardless of flag.
+        element.resetRestoredTabs();
+        await microtasksFinished();
+        assertEquals(0, element.aimThreadRestoredTabs.length);
+
+        // Reset restored tabs.
+        element.aimThreadRestoredTabs = [{
+          tabId: 1,
+          title: 'Restored Tab',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        }];
+
+        // Flag ON: "clearAllInputs(querySubmitted = false)" (clear all button
+        // pressed) preserves restored tabs.
+        element.contextManagementInComposeboxEnabled = true;
+        element.clearAllInputs(
+            /* querySubmitted= */ false,
+            /* shouldBlockAutoSuggestedTabs= */ false);
+        await microtasksFinished();
+        assertEquals(1, element.aimThreadRestoredTabs.length);
+
+        // Query submitted "(querySubmitted = true)": restored tabs are NOT
+        // reset regardless of flag.
+        element.clearAllInputs(
+            /* querySubmitted= */ true,
+            /* shouldBlockAutoSuggestedTabs= */ false);
+        await microtasksFinished();
+        assertEquals(1, element.aimThreadRestoredTabs.length);
+
+        // Explicit new thread / resetRestoredTabs clears restored tabs
+        // regardless of flag.
+        element.resetRestoredTabs();
+        await microtasksFinished();
+        assertEquals(0, element.aimThreadRestoredTabs.length);
+
+        // Reset restored tabs.
+        element.aimThreadRestoredTabs = [{
+          tabId: 1,
+          title: 'Restored Tab',
+          url: 'about:blank?1',
+          showInCurrentTabChip: false,
+          showInPreviousTabChip: false,
+          lastActive: {internalValue: 0n},
+        }];
+
+        // Flag ON, but source is Omnibox: "clearAllInputs(querySubmitted =
+        // false)" (clear all button pressed) resets restored tabs.
+        element.contextManagementInComposeboxEnabled = true;
+        element.composeboxSource = 'Omnibox';
+        element.clearAllInputs(
+            /* querySubmitted= */ false,
+            /* shouldBlockAutoSuggestedTabs= */ false);
+        await microtasksFinished();
+        assertEquals(0, element.aimThreadRestoredTabs.length);
+      });
+
+  test(
+      'undeletableFiles preserves non-deletable files but' +
+          ' after, submitCleanup clears tabs',
+      async () => {
+        const dummyToken1 = {
+          high: 1n,
+          low: 1n,
+        } as unknown as UnguessableToken;
+        const dummyToken2 = {
+          high: 2n,
+          low: 2n,
+        } as unknown as UnguessableToken;
+
+        const undeletableFile = ComposeboxFile.createFromFile(
+            dummyToken1, {name: 'file.pdf', type: 'application/pdf'},
+            ContextUploadStatus.kUploadSuccessful, {isDeletable: false});
+
+        const tabFile = ComposeboxFile.createFromTab(
+            dummyToken2, 123, 'Tab Title',
+            {url: 'about:blank'} as unknown as Url, {isDeletable: false});
+
+        element.files = new Map([
+          [dummyToken1, undeletableFile],
+          [dummyToken2, tabFile],
+        ]);
+        element.addedTabsIds = new Map([[123, dummyToken2]]);
+
+        // Submit cleanup deletes active turn tabs regardless of `isDeletable`.
+        element.submitCleanup();
+        await microtasksFinished();
+
+        // Verify: tab is deleted, but non-deletable file remains.
+        assertFalse(element.files.has(dummyToken2));
+        assertTrue(element.files.has(dummyToken1));
+      });
+
+  test(
+      'onVoicePermissionChanged updates isListening and dispatches event',
+      async () => {
+        element.inVoiceSearchMode = true;
+        element.hasVoiceSearchError = false;
+        element.isListening = true;
+        await element.updateComplete;
+
+        let eventFired = false;
+        let eventDetail: any = null;
+        element.addEventListener(
+            'voice-permission-prompt-changed', (e: Event) => {
+              eventFired = true;
+              eventDetail = (e as CustomEvent).detail;
+            });
+
+        element.onVoicePermissionChanged(
+            new CustomEvent('voice-permission-changed', {
+              detail: {
+                isOpened: true,
+                height: 100,
+                width: 100,
+              },
+            }));
+        await element.updateComplete;
+
+        assertTrue(eventFired);
+        assertEquals(100, eventDetail.height);
+        assertEquals(100, eventDetail.width);
+        assertTrue(eventDetail.isOpened);
+        assertFalse(element.isListening);
+
+        // Reset tracker and test closing event:
+        eventFired = false;
+        eventDetail = null;
+
+        element.onVoicePermissionChanged(
+            new CustomEvent('voice-permission-changed', {
+              detail: {
+                isOpened: false,
+                height: 0,
+                width: 0,
+              },
+            }));
+        await element.updateComplete;
+
+        assertTrue(eventFired);
+        assertFalse(eventDetail.isOpened);
+        assertTrue(element.isListening);
+      });
+
+  test('voice permission opened event not fired if size is 0', async () => {
+    element.inVoiceSearchMode = true;
+    element.hasVoiceSearchError = false;
+    element.isListening = true;
+    await element.updateComplete;
+
+    let eventFired = false;
+    element.addEventListener('voice-permission-prompt-changed', () => {
+      eventFired = true;
+    });
+
+    // Directly call mixin event handler with height 0 width 0.
+    element.onVoicePermissionChanged(
+        new CustomEvent('voice-permission-changed', {
+          detail: {
+            isOpened: true,
+            height: 0,
+            width: 0,
+          },
+        }));
+    await element.updateComplete;
+
+    assertFalse(eventFired);
+    assertFalse(element.isListening);
+  });
 });

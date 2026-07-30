@@ -14,7 +14,10 @@
 #include "base/time/time.h"
 #include "base/timer/elapsed_timer.h"
 #include "base/token.h"
+#include "base/types/optional_ref.h"
+#include "components/accessibility_annotator/core/annotation_reducer/memory_data_type.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
+#include "components/autofill/core/browser/ui/autofill_suggestion_delegate.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/signatures.h"
 #include "url/gurl.h"
@@ -71,7 +74,10 @@ class AtMemoryMetricsRecorder {
   // with potentially different trigger sources are ignored. This is consistent
   // with the popup lifecycle, where a change in trigger mechanism would
   // typically result in the popup being hidden and a new session starting.
-  void OnPopupShown(AutofillSuggestionTriggerSource trigger_source);
+  void OnPopupShown(
+      AutofillSuggestionTriggerSource trigger_source,
+      base::optional_ref<const AutofillSuggestionDelegate::SuggestionMetadata>
+          parent_suggestion_metadata);
 
   // Records that a search query was submitted during this session.
   void OnQuerySubmitted(std::u16string_view query);
@@ -81,7 +87,10 @@ class AtMemoryMetricsRecorder {
       const accessibility_annotator::MemorySearchResults& result);
 
   // Records that a suggestion was accepted during this session.
-  void OnSuggestionAccepted();
+  void OnSuggestionAccepted(
+      accessibility_annotator::MemoryDataType memory_data_type,
+      base::optional_ref<const AutofillSuggestionDelegate::SuggestionMetadata>
+          metadata = std::nullopt);
 
   // Records that the suggestion was successfully filled.
   void MarkFilled();
@@ -93,6 +102,8 @@ class AtMemoryMetricsRecorder {
   void OnFetchPiiCompleted();
 
  private:
+  friend class AtMemoryMetricsRecorderTestApi;
+
   // Emits the `SuggestionAccepted` metric if `suggestion_accepted_` is not
   // `std::nullopt`.
   void MaybeLogSuggestionAccepted();
@@ -113,10 +124,17 @@ class AtMemoryMetricsRecorder {
   // received.
   std::optional<base::ElapsedTimer> query_to_suggestions_shown_timer_;
 
-  // Whether any suggestions were accepted since the user last submitted a
-  // query. `std::nullopt` if no suggestions have been received since the last
-  // query submission.
-  std::optional<bool> suggestion_accepted_;
+  // Information about whether a suggestion was accepted in response to the last
+  // user query.
+  struct {
+    // Whether a non-empty query response has been received.
+    bool suggestions_received = false;
+    std::optional<accessibility_annotator::MemoryDataType> accepted_data_type;
+  } suggestion_acceptance_;
+
+  // Whether any suggestion has been accepted during the lifetime of `this`
+  // recorder.
+  bool suggestion_accepted_in_session_ = false;
 
   // Counts the number of queries submitted during this session.
   size_t query_count_ = 0;

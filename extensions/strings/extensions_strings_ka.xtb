@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">ინფორმაციის გვერდი ვერ ჩაიტვირთა: '<ph name="ABOUT_PAGE" />'.</translation>
 <translation id="424963718355121712">აპები მოწოდებული უნდა იყოს იმ საიტის მიერ, რომელზეც ისინი გავლენას ახდენს</translation>
 <translation id="4306119971288449206">მოწოდებული აპების კონტენტის ტიპი უნდა იყოს „<ph name="CONTENT_TYPE" />“</translation>
+<translation id="4349181963619779233">გაფართოებებისა და აპების დამატება ამ ვებსაიტიდან შეუძლებელია</translation>
 <translation id="4625078469366263107">აპის ჩართვა</translation>
 <translation id="4633003931260532286">გაფართოებას სჭირდება „<ph name="IMPORT_NAME" />“ მინიმალური ვერსიით „<ph name="IMPORT_VERSION" />“, თუმცა დაინსტალირებულია მხოლოდ ვერსია „<ph name="INSTALLED_VERSION" />“</translation>
 <translation id="4660476621274971848">მოსალოდნელი ვერსია: „<ph name="EXPECTED_VERSION" />“, მიღებული ვერსია: „<ph name="NEW_ID" />“</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">პირადი გასაღების ფორმატი შეყვანილი უნდა იყოს სწორად (PEM-ით დაშიფრული RSA გასაღები PKCS#8 ფორმატში).</translation>
-<translation id="765293928828334535">ამ ვებსაიტიდან აპების, გაფართოებებისა და მომხმარებლების სკრიპტების დამატება ვერ მოხერხდება</translation>
 <translation id="7658239707568436148">გაუქმება</translation>
 <translation id="7766838926148951335">ნებართვების მიღება</translation>
 <translation id="7876803335449432072">ვერ ჩაიტვირთა ფაილი „<ph name="RELATIVE_PATH" />“ კონტენტის სცენარისთვის; კონტენტის სცენარის სტილების ცხრილების ჩატვირთვა შესაძლებელია სტილების ცხრილის ფაილებიდან, როგორიცაა .css ფაილები.</translation>

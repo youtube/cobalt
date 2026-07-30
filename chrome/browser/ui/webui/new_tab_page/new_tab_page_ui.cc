@@ -146,6 +146,8 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo_handler.h"
+#else
+#include "chrome/browser/flags/android/chrome_feature_list.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(OPTIMIZE_WEBUI)
@@ -744,6 +746,15 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
   source->AddBoolean("enableThreadsRailLogo", false);
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 
+#if BUILDFLAG(IS_ANDROID)
+  source->AddBoolean(
+      "enableAndroidTheming",
+      base::FeatureList::IsEnabled(chrome::android::kUseWebUiNtpAndroid) &&
+      base::FeatureList::IsEnabled(chrome::android::kWebUiNtpAndroidTheming));
+#else
+  source->AddBoolean("enableAndroidTheming", false);
+#endif
+
   source->AddBoolean("useNtpComposeboxFork",
                      ntp_composebox::kUseNtpComposeboxFork.Get());
 
@@ -757,6 +768,9 @@ content::WebUIDataSource* CreateAndAddNewTabPageUiHtmlSource(
     }
     if (aim_eligibility_service->IsCreateImagesEligible()) {
       num_tools_eligible++;
+      if (base::FeatureList::IsEnabled(ntp_features::kNtpStarterChip)) {
+        num_tools_eligible++;
+      }
     }
     if (base::FeatureList::IsEnabled(ntp_features::kNtpNextCanvasChip) &&
         aim_eligibility_service->IsCanvasEligible()) {
@@ -868,10 +882,10 @@ NewTabPageUI::NewTabPageUI(content::WebUI* web_ui)
       // for the unlikely case where the NewTabPageHandler is created before we
       // received the DidStartNavigation event.
       navigation_start_time_(base::Time::Now()),
+      navigation_start_time_ticks_(base::TimeTicks::Now()),
       module_id_details_(
           ntp::MakeModuleIdDetails(NewTabPageUI::IsManagedProfile(profile_),
-                                   profile_))
-{
+                                   profile_)) {
 
   instance_count_++;
   base::UmaHistogramCounts100("NewTabPage.Count", instance_count_);
@@ -1299,7 +1313,8 @@ void NewTabPageUI::CreatePageHandler(
       SyncServiceFactory::GetForProfile(profile_),
       segmentation_platform::SegmentationPlatformServiceFactory::GetForProfile(
           profile_),
-      web_contents(), navigation_start_time_, &module_id_details_);
+      web_contents(), navigation_start_time_, navigation_start_time_ticks_,
+      &module_id_details_);
 }
 
 void NewTabPageUI::ConnectToParentDocument(
@@ -1347,7 +1362,7 @@ void NewTabPageUI::CreatePageHandler(
   most_visited_page_handler_ = std::make_unique<MostVisitedHandler>(
       std::move(pending_page_handler), std::move(pending_page), profile_,
       web_contents(), chrome::ChromeUINewTabPageURLAsGURL(),
-      navigation_start_time_);
+      navigation_start_time_, navigation_start_time_ticks_);
   UpdateMostVisitedTileTypes();
   most_visited_page_handler_->SetShortcutsVisible(IsShortcutsVisible());
 }
@@ -1473,6 +1488,7 @@ void NewTabPageUI::DidStartNavigation(
   if (navigation_handle->IsInPrimaryMainFrame() &&
       navigation_handle->GetURL() == chrome::ChromeUINewTabPageURLAsGURL()) {
     navigation_start_time_ = base::Time::Now();
+    navigation_start_time_ticks_ = base::TimeTicks::Now();
 
     OnLoad();
 

@@ -176,29 +176,6 @@
       },
     },
   },
-  'gpu_amd_9900x_linux_experimental': {
-    'fail_if_unused': False,
-    'swarming': {
-      'dimensions': {
-        'display_attached': '1',
-        'display_server': 'x11',
-        'gpu': '1002:13c0',
-        'os': 'Ubuntu',
-        'pool': 'chromium.tests.gpu.experimental',
-      },
-    },
-  },
-  'gpu_amd_9900x_win_experimental': {
-    'fail_if_unused': False,
-    'swarming': {
-      'dimensions': {
-        'display_attached': '1',
-        'gpu': '1002:13c0',
-        'os': 'Windows-11',
-        'pool': 'chromium.tests.gpu.experimental',
-      },
-    },
-  },
   'gpu_amd_rx_5500_xt_linux_experimental': {
     'fail_if_unused': False,
     'swarming': {
@@ -264,11 +241,6 @@
   'gpu_force_high_performance_gpu_for_webgl_metal': {
     'args': [
       '--extra-browser-args=--enable-features=EGLDualGPURendering,ForceHighPerformanceGPUForWebGL',
-    ],
-  },
-  'gpu_force_skia_ganesh': {
-    'args': [
-      '--extra-browser-args=--disable-skia-graphite',
     ],
   },
   'gpu_force_skia_graphite': {
@@ -339,18 +311,6 @@
       '--webgl-conformance-version=2.0.1',
       '$$MAGIC_SUBSTITUTION_GPUWebGLRuntimeFile',
     ],
-  },
-  'gpu_intel_arc_140v_linux_experimental': {
-    'fail_if_unused': False,
-    'swarming': {
-      'dimensions': {
-        'display_attached': '1',
-        'display_server': 'x11',
-        'gpu': '8086:64a0',
-        'os': 'Ubuntu',
-        'pool': 'chromium.tests.gpu.experimental',
-      },
-    },
   },
   'gpu_linux_gce_stable': {
     'fail_if_unused': False,
@@ -468,17 +428,6 @@
         'device_os_type': 'user',
         'os': 'Android',
         'pool': 'chromium.tests.gpu',
-      },
-    },
-  },
-  'gpu_win11_intel_arc_140v_experimental': {
-    'fail_if_unused': False,
-    'swarming': {
-      'dimensions': {
-        'display_attached': '1',
-        'gpu': '8086:64a0',
-        'os': 'Windows-11',
-        'pool': 'chromium.tests.gpu.experimental',
       },
     },
   },
@@ -706,7 +655,7 @@
         'cpu': 'arm64',
         'gpu': 'apple:m2',
         'mac_model': 'Mac14,7',
-        'os': 'Mac-14.4.1',
+        'os': 'Mac-14.4.1|Mac-26.5.1',
         'pool': 'chromium.tests.gpu',
         'display_attached': '1',
         'hidpi': '1',

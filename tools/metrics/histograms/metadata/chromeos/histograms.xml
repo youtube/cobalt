@@ -1240,7 +1240,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.CWP.ParsePSICPU" enum="ChromeOSParsePSICPUStatus"
-    expires_after="2026-08-10">
+    expires_after="2027-08-10">
   <owner>shantuo@google.com</owner>
   <owner>cwp-team@google.com</owner>
   <summary>
@@ -2364,7 +2364,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Inputs.Peripherals.MicrophoneMuteToggleDevices"
-    enum="MicrophoneMuteToggleDevices" expires_after="2025-12-15">
+    enum="MicrophoneMuteToggleDevices" expires_after="2027-06-18">
   <owner>jingyliang@google.com</owner>
   <owner>chromeos-tango@google.com</owner>
   <summary>
@@ -2372,6 +2372,9 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
     state. It classifies whether the peripheral has a keyboard (likely
     indicating not a telephony device) and what scan code it uses to trigger the
     event. It also groups devices based on popular vendors.
+
+    Warning: this histogram was expired from 2025-12-15 to 2026-06-18; data may
+    be missing.
   </summary>
 </histogram>
 
@@ -2821,7 +2824,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Mahi.ContextMenuView.Activated"
-    enum="MahiContextMenuButtonType" expires_after="2026-11-01">
+    enum="MahiContextMenuButtonType" expires_after="2027-01-03">
   <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
@@ -2841,7 +2844,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Mahi.ContextMenuView.ButtonClicked"
-    enum="MahiMenuButton" expires_after="2026-11-01">
+    enum="MahiMenuButton" expires_after="2027-01-03">
   <owner>newcomer@chromium.org</owner>
   <owner>cros-status-area-eng@google.com</owner>
   <summary>
@@ -2919,7 +2922,7 @@ and mapped to the variant by `StatisticNameToMachineStatisticVariant()` -->
 </histogram>
 
 <histogram name="ChromeOS.Ownership.OwnerKeyUmaEvent" enum="OwnerKeyUmaEvent"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>miersh@google.com</owner>
   <owner>chromeos-commercial-networking@google.com</owner>
   <summary>

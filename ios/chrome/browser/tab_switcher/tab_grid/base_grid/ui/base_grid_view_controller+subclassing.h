@@ -20,18 +20,14 @@ typedef UICollectionViewDiffableDataSource<NSString*, GridItemIdentifier*>
     GridDiffableDataSource;
 
 @interface BaseGridViewController (Subclassing) <GridCellDelegate,
-                                                 UICollectionViewDragDelegate,
-                                                 UICollectionViewDelegate>
+                                                 UICollectionViewDelegate,
+                                                 UICollectionViewDragDelegate>
 
 // A collection view of items in a grid format.
 @property(nonatomic, weak, readonly) UICollectionView* collectionView;
 
 // The collection view's data source.
 @property(nonatomic, strong) GridDiffableDataSource* diffableDataSource;
-
-// Tracks if the items are in a batch action, which are the "Close All" or
-// "Undo" the close all.
-@property(nonatomic, readonly) BOOL isClosingAllOrUndoRunning;
 
 // The current mode for the grid.
 @property(nonatomic, assign, readonly) TabGridMode mode;

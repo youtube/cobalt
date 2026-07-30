@@ -19,7 +19,7 @@ import type {SettingsPrefs} from '../content/read_anything_types.js';
 import {DEFAULT_SETTINGS, SettingsOption, ToolbarEvent} from '../content/read_anything_types.js';
 import {openMenu} from '../shared/common.js';
 import {isActivationKey, isBackwardArrow, isForwardArrow, isVerticalArrow} from '../shared/keyboard_util.js';
-import {ReadAnythingSettingsChange} from '../shared/metrics_browser_proxy.js';
+import {ReadAnythingSettingsAction, ReadAnythingSettingsChange} from '../shared/metrics_browser_proxy.js';
 import {ReadAnythingLogger} from '../shared/read_anything_logger.js';
 
 import {getCss} from './settings_menu.css.js';
@@ -36,6 +36,7 @@ export const SUBMENU_SHOW_DELAY_MS = 800;
 export enum SettingsItemType {
   MENU = 1,
   TOGGLE = 2,
+  ACTION = 3,
 }
 
 interface SettingsItem {
@@ -53,6 +54,12 @@ interface SettingsItem {
 }
 
 const MENU_ITEM_DATA: Record<SettingsOption, SettingsItem> = {
+  [SettingsOption.APPEARANCE]: {
+    id: SettingsOption.APPEARANCE,
+    icon: 'read-anything:appearance',
+    title: 'appearanceTitle',
+    itemType: SettingsItemType.MENU,
+  },
   [SettingsOption.COLOR]: {
     id: SettingsOption.COLOR,
     icon: 'read-anything:color',
@@ -113,6 +120,12 @@ const MENU_ITEM_DATA: Record<SettingsOption, SettingsItem> = {
     icon: 'read-anything:view',
     title: 'viewLabel',
     itemType: SettingsItemType.MENU,
+  },
+  [SettingsOption.TRANSLATION_REQUESTED]: {
+    id: SettingsOption.TRANSLATION_REQUESTED,
+    icon: 'read-anything:translate',
+    title: 'translateLabel',
+    itemType: SettingsItemType.ACTION,
   },
   [SettingsOption.VOICE_SELECTION]: {
     id: SettingsOption.VOICE_SELECTION,
@@ -212,8 +225,10 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     return this.currentOpenId_ === item.id ? 'true' : 'false';
   }
 
-  private initializeMenuOptions_() {
-    const optionIDs = [
+  // TODO(crbug.com/532659261): Remove initializeMenuOptionsLegacy_() once
+  // the Improved Read Aloud feature flag is defaulted to true and cleaned up.
+  private initializeMenuOptionsLegacy_(): SettingsOption[] {
+    const optionIDs: SettingsOption[] = [
       SettingsOption.COLOR,
       SettingsOption.FONT,
       SettingsOption.LINE_SPACING,
@@ -227,6 +242,9 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     }
 
     optionIDs.push(SettingsOption.PRESENTATION);
+    if (chrome.readingMode.isReadAnythingTranslateEntryPointEnabled) {
+      optionIDs.push(SettingsOption.TRANSLATION_REQUESTED);
+    }
     optionIDs.push(SettingsOption.LINKS);
 
     if (chrome.readingMode.imagesFeatureEnabled) {
@@ -235,6 +253,48 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
 
     if (this.isImmersiveMode) {
       optionIDs.push(SettingsOption.PINNED_TO_TOOLBAR);
+    }
+
+    return optionIDs;
+  }
+
+  private initializeMenuOptionsForImprovedReadAloud_(): SettingsOption[] {
+    const optionIDs: SettingsOption[] = [
+      SettingsOption.APPEARANCE,
+      SettingsOption.FONT,
+      SettingsOption.LINE_SPACING,
+      SettingsOption.LETTER_SPACING,
+      SettingsOption.VOICE_SELECTION,
+      SettingsOption.VOICE_HIGHLIGHT,
+    ];
+
+    if (chrome.readingMode.isLineFocusEnabled) {
+      optionIDs.push(SettingsOption.LINE_FOCUS);
+    }
+
+    if (chrome.readingMode.isReadAnythingTranslateEntryPointEnabled) {
+      optionIDs.push(SettingsOption.TRANSLATION_REQUESTED);
+    }
+    optionIDs.push(SettingsOption.LINKS);
+
+    if (chrome.readingMode.imagesFeatureEnabled) {
+      optionIDs.push(SettingsOption.IMAGES);
+    }
+
+    if (this.isImmersiveMode) {
+      optionIDs.push(SettingsOption.PINNED_TO_TOOLBAR);
+    }
+
+    return optionIDs;
+  }
+
+  private initializeMenuOptions_() {
+    let optionIDs: SettingsOption[];
+    if (chrome.readingMode.isImprovedReadAloudEnabled &&
+        chrome.readingMode.isImmersiveEnabled) {
+      optionIDs = this.initializeMenuOptionsForImprovedReadAloud_();
+    } else {
+      optionIDs = this.initializeMenuOptionsLegacy_();
     }
 
     this.options_ = optionIDs.map(id => {
@@ -273,20 +333,21 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
       };
     });
 
-    // There should be a separator between the menu items and the toggle items.
-    // The base combination is on the Links toggle, but that's not
-    // always the first toggle.
+    // There should be a separator between the menu items and the action/toggle
+    // items. The base combination is on the Translate action or Links toggle.
     this.options_.forEach(option => {
-      if (option.itemType === SettingsItemType.TOGGLE) {
+      if (option.itemType === SettingsItemType.TOGGLE ||
+          option.itemType === SettingsItemType.ACTION) {
         option.showSeparator = false;
       }
     });
 
-    // Add the separator to the first toggle.
-    const firstToggle =
-        this.options_.find(item => item.itemType === SettingsItemType.TOGGLE);
-    if (firstToggle) {
-      firstToggle.showSeparator = true;
+    // Add the separator to the first action or toggle item.
+    const firstActionOrToggle = this.options_.find(
+        item => item.itemType === SettingsItemType.TOGGLE ||
+            item.itemType === SettingsItemType.ACTION);
+    if (firstActionOrToggle) {
+      firstActionOrToggle.showSeparator = true;
     }
   }
 
@@ -320,6 +381,23 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
     const index = Number.parseInt(currentTarget.dataset['index']!);
     const item = this.options_[index];
     if (!item || item.disabled) {
+      return;
+    }
+
+    if (item.itemType === SettingsItemType.ACTION) {
+      if (item.id === SettingsOption.TRANSLATION_REQUESTED) {
+        // Close any open submenus before firing the translate event.
+        if (this.currentOpenId_) {
+          this.fire(ToolbarEvent.CLOSE_SUBMENU_REQUESTED, {
+            previousId: this.currentOpenId_,
+          });
+          this.currentOpenId_ = null;
+        }
+        this.logger_.logSettingsAction(
+            ReadAnythingSettingsAction.TRANSLATE_ACTION);
+        this.fire(ToolbarEvent.TRANSLATION_REQUESTED);
+        this.close();
+      }
       return;
     }
 
@@ -387,7 +465,15 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
 
     const index = Number.parseInt(currentTarget.dataset['index']!);
     const item = this.options_[index];
-    if (!item || item.itemType === SettingsItemType.TOGGLE) {
+    if (!item || item.itemType === SettingsItemType.TOGGLE ||
+        item.itemType === SettingsItemType.ACTION) {
+      // If there is an open submenu, close it.
+      if (this.currentOpenId_) {
+        this.fire(ToolbarEvent.CLOSE_SUBMENU_REQUESTED, {
+          previousId: this.currentOpenId_,
+        });
+        this.currentOpenId_ = null;
+      }
       return;
     }
 
@@ -623,7 +709,8 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
 
       const index = Number.parseInt(focused.dataset['index']!);
       const item = this.options_[index];
-      if (!item || item.itemType === SettingsItemType.TOGGLE) {
+      if (!item || item.itemType === SettingsItemType.TOGGLE ||
+          item.itemType === SettingsItemType.ACTION) {
         return;
       }
 

@@ -9,7 +9,7 @@
 #import "ios/chrome/app/application_delegate/app_state.h"
 #import "ios/chrome/app/profile/profile_state.h"
 #import "ios/chrome/browser/device_orientation/ui_bundled/scoped_force_portrait_orientation.h"
-#import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
+#import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/ui/lens_overlay_container_view_controller.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
@@ -123,14 +123,20 @@ const CGFloat kSelectionViewOpacityAnimationDuration = 0.4f;
 
 - (void)dismissContainerAnimated:(BOOL)animated
                       completion:(void (^)())completion {
+  __weak __typeof(self) weakSelf = self;
+  auto updatedCompletion = ^{
+    [weakSelf.delegate
+        lensOverlayContainerPresenterDidDismissPresentation:weakSelf];
+    if (completion) {
+      completion();
+    }
+  };
   _scopedForceOrientation.reset();
   _containerViewController.delegate = nil;
   [self.delegate lensOverlayContainerPresenterWillDismissPresentation:self];
   // If the container is not attached, directly call completion.
   if (!_containerViewController.view.superview) {
-    if (completion) {
-      completion();
-    }
+    updatedCompletion();
     return;
   }
 
@@ -138,9 +144,7 @@ const CGFloat kSelectionViewOpacityAnimationDuration = 0.4f;
   auto executeCleanup = ^{
     [weakContainer.view removeFromSuperview];
     [weakContainer removeFromParentViewController];
-    if (completion) {
-      completion();
-    }
+    updatedCompletion();
   };
 
   if (!animated) {

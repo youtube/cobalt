@@ -346,14 +346,14 @@ TrustedTypePolicyFactory* LocalDOMWindow::GetTrustedTypesForWorld(
     const DOMWrapperWorld& world) const {
   DCHECK(world.IsMainWorld() || world.IsIsolatedWorld());
   DCHECK(IsMainThread());
-  auto iter = trusted_types_map_.find(&world);
-  if (iter != trusted_types_map_.end()) {
-    return iter->value.Get();
+  // Look up (or create) the factory for this world in a single hash lookup,
+  // constructing it only when the entry is new.
+  auto add_result = trusted_types_map_.insert(&world, nullptr);
+  if (add_result.is_new_entry) {
+    add_result.stored_value->value =
+        MakeGarbageCollected<TrustedTypePolicyFactory>(GetExecutionContext());
   }
-  return trusted_types_map_
-      .insert(&world, MakeGarbageCollected<TrustedTypePolicyFactory>(
-                          GetExecutionContext()))
-      .stored_value->value;
+  return add_result.stored_value->value.Get();
 }
 
 bool LocalDOMWindow::IsCrossSiteSubframe() const {
@@ -1690,7 +1690,12 @@ int LocalDOMWindow::outerHeight() const {
         lroundf(chrome_client.RootWindowRect(*frame).height() *
                 chrome_client.GetScreenInfo(*frame).device_scale_factor));
   }
-  return chrome_client.RootWindowRect(*frame).height();
+  int height = chrome_client.RootWindowRect(*frame).height();
+  if (document() && document()->TextScaleMetaTagPresent()) {
+    height = static_cast<int>(lroundf(
+        height * chrome_client.GetScreenInfo(*frame).text_scale_multiplier));
+  }
+  return height;
 }
 
 int LocalDOMWindow::outerWidth() const {
@@ -1717,7 +1722,12 @@ int LocalDOMWindow::outerWidth() const {
         lroundf(chrome_client.RootWindowRect(*frame).width() *
                 chrome_client.GetScreenInfo(*frame).device_scale_factor));
   }
-  return chrome_client.RootWindowRect(*frame).width();
+  int width = chrome_client.RootWindowRect(*frame).width();
+  if (document() && document()->TextScaleMetaTagPresent()) {
+    width = static_cast<int>(lroundf(
+        width * chrome_client.GetScreenInfo(*frame).text_scale_multiplier));
+  }
+  return width;
 }
 
 gfx::Size LocalDOMWindow::GetViewportSize() const {
@@ -1788,7 +1798,12 @@ int LocalDOMWindow::screenX() const {
         lroundf(chrome_client.RootWindowRect(*frame).x() *
                 chrome_client.GetScreenInfo(*frame).device_scale_factor));
   }
-  return chrome_client.RootWindowRect(*frame).x();
+  int screenX = chrome_client.RootWindowRect(*frame).x();
+  if (document() && document()->TextScaleMetaTagPresent()) {
+    screenX = static_cast<int>(lroundf(
+        screenX * chrome_client.GetScreenInfo(*frame).text_scale_multiplier));
+  }
+  return screenX;
 }
 
 int LocalDOMWindow::screenY() const {
@@ -1808,7 +1823,12 @@ int LocalDOMWindow::screenY() const {
         lroundf(chrome_client.RootWindowRect(*frame).y() *
                 chrome_client.GetScreenInfo(*frame).device_scale_factor));
   }
-  return chrome_client.RootWindowRect(*frame).y();
+  int screenY = chrome_client.RootWindowRect(*frame).y();
+  if (document() && document()->TextScaleMetaTagPresent()) {
+    screenY = static_cast<int>(lroundf(
+        screenY * chrome_client.GetScreenInfo(*frame).text_scale_multiplier));
+  }
+  return screenY;
 }
 
 double LocalDOMWindow::scrollX() const {

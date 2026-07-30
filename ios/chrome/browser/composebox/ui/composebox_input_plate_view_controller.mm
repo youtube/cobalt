@@ -126,6 +126,7 @@ const CGFloat kGenericButtonWidth = 24.0f;
 const CGFloat kGenericButtonHeight = 32.0f;
 /// The dimension of the send button.
 const CGFloat kSendButtonDimension = 36.0f;
+const CGFloat kCobrowseSendButtonDimension = 52.0f;
 /// The dimension of the button stack view.
 const CGFloat kButtonStackViewDimension = 36.0f;
 /// Duration of a change in compact mode.
@@ -152,14 +153,16 @@ const CGFloat kAccordionDefaultSymbolPointSize = 24.0f;
 /// The duration for tab attachment animation.
 const NSTimeInterval kTabAttachmentAnimationDuration = 0.6;
 /// The delay for tab attachment animation.
-const NSTimeInterval kTabAttachmentAnimationDelay = 0.5;
+const NSTimeInterval kTabAttachmentAnimationDelay = 1.0;
 /// The relative duration for tab attachment fade-out keyframe.
 const double kTabAttachmentFadeOutRelativeDuration = 0.333;
 /// The relative duration for tab attachment slide keyframe.
 const double kTabAttachmentSlideRelativeDuration = 1.0;
 
 /// The image for the send button.
-UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
+UIImage* SendButtonImage(BOOL highlighted,
+                         ComposeboxTheme* theme,
+                         ComposeboxEntrypoint entrypoint) {
   NSArray<UIColor*>* palette = @[
     [theme sendButtonForegroundColorHighlighted:highlighted],
     [theme sendButtonBackgroundColorHighlighted:highlighted]
@@ -170,9 +173,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                           weight:UIImageSymbolWeightLight
                            scale:UIImageSymbolScaleMedium];
 
-  return SymbolWithPalette(
-      DefaultSymbolWithConfiguration(kRightArrowCircleFillSymbol, config),
-      palette);
+  if (entrypoint == ComposeboxEntrypoint::kCobrowse) {
+    return SymbolWithPalette(
+        DefaultSymbolWithConfiguration(kArrowUpCircleFillSymbol, config),
+        palette);
+  } else {
+    return SymbolWithPalette(
+        DefaultSymbolWithConfiguration(kRightArrowCircleFillSymbol, config),
+        palette);
+  }
 }
 
 }  // namespace
@@ -520,18 +529,13 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     NSMutableArray<ComposeboxInputItem*>* nonTabs = [NSMutableArray array];
     // Tab attachments (`kComposeboxInputItemTypeTab`) rendered separately
     // in the favicons accordion view next to the plus button.
-    NSMutableArray<ComposeboxInputItem*>* tabs = [NSMutableArray array];
     for (ComposeboxInputItem* item in items) {
-      if (item.type == ComposeboxInputItemType::kComposeboxInputItemTypeTab) {
-        if (!item.performedAnimation) {
-          [tabs addObject:item];
-        }
-      } else {
+      if (item.type != ComposeboxInputItemType::kComposeboxInputItemTypeTab) {
         [nonTabs addObject:item];
       }
     }
     carouselItems = nonTabs;
-    [self rebuildTabsAccordionWithTabs:tabs];
+    [self rebuildTabsAccordion];
   }
   _carouselContainer.hidden = !carouselItems.count;
   [self updateInputPlateStackViewTopConstraint];
@@ -572,6 +576,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   if (itemToUpdate.type ==
           ComposeboxInputItemType::kComposeboxInputItemTypeTab &&
       _entrypoint == ComposeboxEntrypoint::kCobrowse) {
+    [self rebuildTabsAccordion];
+    [self updateSendButtonStateIfNeeded];
     return;
   }
 
@@ -589,11 +595,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 }
 
 - (void)updateSendButtonStateIfNeeded {
-  NSDiffableDataSourceSnapshot<NSString*, ComposeboxInputItem*>*
-      currentSnapshot = _dataSource.snapshot;
-
   BOOL allLoaded = YES;
-  for (ComposeboxInputItem* item in currentSnapshot.itemIdentifiers) {
+  for (ComposeboxInputItem* item in _currentItems) {
     if (item.state != ComposeboxInputItemState::kLoaded) {
       allLoaded = NO;
       break;
@@ -1298,16 +1301,36 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 }
 
 /// Rebuilds the tab accordion stack view based on the current tabs.
-- (void)rebuildTabsAccordionWithTabs:(NSArray<ComposeboxInputItem*>*)tabs {
-  NSMutableArray* images = [NSMutableArray array];
-  for (ComposeboxInputItem* tab in tabs) {
-    UIImage* faviconIcon =
-        tab.leadingIconImage
-            ?: DefaultSymbolWithPointSize(kGlobeAmericasSymbol,
-                                          kAccordionDefaultSymbolPointSize);
-    [images addObject:faviconIcon];
+- (void)rebuildTabsAccordion {
+  NSMutableArray<ComposeboxInputItem*>* tabs = [NSMutableArray array];
+  for (ComposeboxInputItem* item in _currentItems) {
+    if (item.type == ComposeboxInputItemType::kComposeboxInputItemTypeTab &&
+        !item.performedAnimation) {
+      [tabs addObject:item];
+    }
   }
-  [_tabsAccordionStackView updateWithImages:images];
+
+  BOOL isLoading = NO;
+  for (ComposeboxInputItem* tab in tabs) {
+    if (tab.state == ComposeboxInputItemState::kLoading) {
+      isLoading = YES;
+      break;
+    }
+  }
+
+  _tabsAccordionStackView.isLoading = isLoading;
+
+  NSMutableArray* images = [NSMutableArray array];
+  if (!isLoading) {
+    for (ComposeboxInputItem* tab in tabs) {
+      UIImage* faviconIcon =
+          tab.leadingIconImage
+              ?: DefaultSymbolWithPointSize(kGlobeAmericasSymbol,
+                                            kAccordionDefaultSymbolPointSize);
+      [images addObject:faviconIcon];
+    }
+    [_tabsAccordionStackView updateWithImages:images];
+  }
 
   BOOL hasTabs = tabs.count > 0;
   _tabsAccordionStackView.hidden = !hasTabs;
@@ -1327,12 +1350,13 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 - (UIButton*)createSendButton {
   UIButtonConfiguration* buttonConfig =
       [UIButtonConfiguration plainButtonConfiguration];
-  buttonConfig.image = SendButtonImage(/*highlighted=*/NO, _theme);
+  buttonConfig.image = SendButtonImage(/*highlighted=*/NO, _theme, _entrypoint);
   buttonConfig.contentInsets = NSDirectionalEdgeInsetsZero;
 
   UIButton* sendButton =
       [ExtendedTouchTargetButton buttonWithType:UIButtonTypeSystem];
   sendButton.configuration = buttonConfig;
+  sendButton.backgroundColor = [_theme sendButtonBackgroundColorHighlighted:NO];
 
   __weak __typeof(self) weakSelf = self;
   sendButton.configurationUpdateHandler = ^(UIButton* button) {
@@ -1346,8 +1370,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [sendButton addTarget:self
                  action:@selector(sendButtonTapped)
        forControlEvents:UIControlEventTouchUpInside];
-  AddSizeConstraints(sendButton,
-                     CGSizeMake(kSendButtonDimension, kSendButtonDimension));
+
+  if (_entrypoint == ComposeboxEntrypoint::kCobrowse) {
+    AddSizeConstraints(sendButton, CGSizeMake(kCobrowseSendButtonDimension,
+                                              kSendButtonDimension));
+  } else {
+    AddSizeConstraints(sendButton,
+                       CGSizeMake(kSendButtonDimension, kSendButtonDimension));
+  }
+
   return sendButton;
 }
 
@@ -1355,7 +1386,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 - (void)sendButtonDidUpdateConfiguration {
   UIButtonConfiguration* updatedConfig = _sendButton.configuration;
   BOOL isHighlighted = _sendButton.state == UIControlStateHighlighted;
-  updatedConfig.image = SendButtonImage(isHighlighted, _theme);
+  updatedConfig.image = SendButtonImage(isHighlighted, _theme, _entrypoint);
   _sendButton.configuration = updatedConfig;
   CGFloat scale = isHighlighted ? 0.95 : 1.0;
   __weak UIButton* weakSendButton = _sendButton;
@@ -1462,6 +1493,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   ]];
   buttonsStackView.layoutMarginsRelativeArrangement = YES;
   buttonsStackView.layoutMargins = kToolbarPadding;
+
   return buttonsStackView;
 }
 
@@ -1905,6 +1937,11 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
             : kInputPlateCornerRadius;
     _inputPlateContainerView.layer.cornerRadius = cornerRadius;
     _inputPlateInternalContainerView.layer.cornerRadius = cornerRadius;
+
+    // Preset the toolbar frame so that during appearance animation elements
+    // have correct horizontal positions.
+    _toolbarView.frame = _inputPlateStackView.frame;
+    [_toolbarView layoutIfNeeded];
   }
 
   [self updateInputPlateStackViewPadding];
@@ -1947,7 +1984,6 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 /// Updates and re-layouts the input plate stack view content within an
 /// animation block.
 - (void)updateInputPlateStackViewLayout {
-  [self updateInputPlateStackViewContent];
   [self.inputPlateStackView layoutIfNeeded];
   [self.view layoutIfNeeded];
 }
@@ -1961,6 +1997,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 // Animates the transition of the input plate stack view between compact and
 // expanded states.
 - (void)updateInputPlateStackViewAnimated:(BOOL)animated {
+  [self updateInputPlateStackViewContent];
   if (!animated) {
     [self updateInputPlateStackViewContent];
     [self updatePreferredContentSize];
@@ -2470,7 +2507,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     }
   }
 
-  [self rebuildTabsAccordionWithTabs:@[]];
+  [self rebuildTabsAccordion];
   _tabsAccordionStackView.alpha = 1;
 }
 

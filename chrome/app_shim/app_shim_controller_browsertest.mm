@@ -116,11 +116,11 @@ class AppShimControllerBrowserTest : public InProcessBrowserTest {
         WebAppInstallInfo::CreateWithStartUrlForTesting(app_url);
     web_app_info->user_display_mode =
         web_app::mojom::UserDisplayMode::kStandalone;
-    app_id_ = web_app::test::InstallWebApp(browser()->profile(),
+    app_id_ = web_app::test::InstallWebApp(browser()->GetProfile(),
                                            std::move(web_app_info));
     auto os_integration = OsIntegrationTestOverrideImpl::Get();
     app_shim_path_ = os_integration->GetShortcutPath(
-        browser()->profile(), os_integration->chrome_apps_folder(), app_id_,
+        browser()->GetProfile(), os_integration->chrome_apps_folder(), app_id_,
         "");
     ASSERT_TRUE(!app_shim_path_.empty());
   }
@@ -266,6 +266,13 @@ MULTIPROCESS_TEST_MAIN(AppShimControllerBrowserTestAppShimMain) {
 
   AppShimControllerDelegate controller_delegate(log);
   AppShimController::SetDelegateForTesting(&controller_delegate);
+  // This test runs as a raw child binary rather than launched from an
+  // `.app` bundle via LaunchServices. Even though in-memory bundle
+  // lookups are overridden, Apple's UserNotifications framework queries
+  // the OS for the running binary, finds no LaunchServices registration,
+  // and throws an exception when accessing currentNotificationCenter.
+  // Disable creating the notification service specifically for this test.
+  AppShimController::SetDisableNotificationServiceForTesting(true);
 
   log("Shim Started");
 

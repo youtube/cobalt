@@ -27,6 +27,7 @@
 #include "components/accessibility_annotator/core/annotation_reducer/memory_data_type_util.h"
 #include "components/autofill/core/browser/at_memory/autofill_data_provider.h"
 #include "components/autofill/core/browser/integrators/at_memory/at_memory_query_service_delegate.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/personal_context/core/personal_context_debug_features.h"
 #include "components/personal_context/core/personal_context_service.h"
 #include "components/personal_context/proto/context_memory_service.pb.h"
@@ -45,6 +46,7 @@ using ::accessibility_annotator::MemoryEntrySourceType;
 using ::accessibility_annotator::MemorySearchResult;
 using ::accessibility_annotator::MemorySearchResults;
 using ::accessibility_annotator::MemorySearchStatus;
+using ::personal_context::proto::AtMemoryQueryResponse;
 
 MemoryDataType ToMemoryDataType(
     personal_context::proto::MemoryDataType data_type) {
@@ -660,8 +662,7 @@ void AtMemoryQueryService::Query(
       BuildAtMemoryQueryRequest(query, locale_);
 
   personal_context::ContextMemoryRequestOptions options;
-  // TODO(crbug.com/525668259): Control this timeout via a Finch parameter.
-  options.request_timeout = base::Seconds(30);
+  options.request_timeout = features::kAutofillAtMemoryRequestTimeout.Get();
   personal_context_service_->FetchContext(
       personal_context::proto::CONTEXT_MEMORY_FEATURE_AT_MEMORY,
       request_metadata, options,
@@ -672,6 +673,13 @@ void AtMemoryQueryService::Query(
 void AtMemoryQueryService::OnPersonalContextRetrieved(
     base::RepeatingCallback<void(MemorySearchResults)> callback,
     personal_context::FetchContextResult result) {
+  auto run_callback = [&](MemorySearchStatus status,
+                          std::vector<MemorySearchResult> entries = {}) {
+    MemorySearchResults search_results(status, std::move(entries));
+    search_results.server_request_id = result.server_request_id;
+    callback.Run(std::move(search_results));
+  };
+
   if (!result.response.has_value()) {
     personal_context::ContextMemoryError::ExecutionError error =
         result.response.error().error();
@@ -679,14 +687,29 @@ void AtMemoryQueryService::OnPersonalContextRetrieved(
         personal_context::ContextMemoryError::ExecutionError::kCancelled) {
       return;
     }
-    callback.Run(MemorySearchResults(MapContextMemoryError(error)));
+    run_callback(MapContextMemoryError(error));
     return;
   }
 
-  personal_context::proto::AtMemoryQueryResponse response;
+  AtMemoryQueryResponse response;
   if (!response.ParseFromString(result.response->value())) {
-    callback.Run(MemorySearchResults(MemorySearchStatus::kInternalFailure));
+    run_callback(MemorySearchStatus::kInternalFailure);
     return;
+  }
+
+  switch (response.query_classification()) {
+    case AtMemoryQueryResponse::QUERY_CLASSIFICATION_AT_MEMORY:
+      break;
+    case AtMemoryQueryResponse::QUERY_CLASSIFICATION_UNSUPPORTED:
+    case AtMemoryQueryResponse::QUERY_CLASSIFICATION_SENSITIVE:
+      // TODO(crbug.com/532082682): Clarify what
+      // `QUERY_CLASSIFICATION_SENSITIVE` should result in.
+      run_callback(MemorySearchStatus::kUnsupportedQuery);
+      return;
+    case AtMemoryQueryResponse::QUERY_CLASSIFICATION_UNSPECIFIED:
+    default:
+      run_callback(MemorySearchStatus::kInternalFailure);
+      return;
   }
 
   std::vector<MemorySearchResult> remote_results =
@@ -712,8 +735,8 @@ void AtMemoryQueryService::OnPersonalContextRetrieved(
     std::vector<MemorySearchResult> ranked_results =
         RankResults(/*local_results=*/{}, std::move(remote_results));
     DeduplicateResults(ranked_results);
-    callback.Run(MemorySearchResults(MemorySearchStatus::kFinalResponseSuccess,
-                                     std::move(ranked_results)));
+    run_callback(MemorySearchStatus::kFinalResponseSuccess,
+                 std::move(ranked_results));
     return;
   }
 
@@ -721,13 +744,15 @@ void AtMemoryQueryService::OnPersonalContextRetrieved(
       local_data_types,
       base::BindOnce(&AtMemoryQueryService::OnLocalDataRetrieved,
                      weak_ptr_factory_.GetWeakPtr(), callback,
-                     std::move(remote_results), std::move(filter_words)));
+                     std::move(remote_results), std::move(filter_words),
+                     std::move(result.server_request_id)));
 }
 
 void AtMemoryQueryService::OnLocalDataRetrieved(
     base::RepeatingCallback<void(MemorySearchResults)> callback,
     std::vector<MemorySearchResult> remote_results,
     base::flat_set<std::u16string> filter_words,
+    std::string server_request_id,
     std::vector<MemorySearchResult> local_results) {
   base::UmaHistogramCounts1000(
       "AccessibilityAnnotator.AtMemoryQueryService.ProviderResultCount."
@@ -740,8 +765,10 @@ void AtMemoryQueryService::OnLocalDataRetrieved(
       RankResults(std::move(filtered_local_results), std::move(remote_results));
   DeduplicateResults(ranked_results);
 
-  callback.Run(MemorySearchResults(MemorySearchStatus::kFinalResponseSuccess,
-                                   std::move(ranked_results)));
+  MemorySearchResults search_results(MemorySearchStatus::kFinalResponseSuccess,
+                                     std::move(ranked_results));
+  search_results.server_request_id = std::move(server_request_id);
+  callback.Run(std::move(search_results));
 }
 
 }  // namespace autofill

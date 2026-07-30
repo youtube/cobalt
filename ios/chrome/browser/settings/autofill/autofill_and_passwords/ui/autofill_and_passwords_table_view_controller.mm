@@ -12,6 +12,7 @@
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_configurator.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_delegate.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/table_view_signin_promo_item.h"
+#import "ios/chrome/browser/autofill/model/autofill_ai_util.h"
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/utils/autofill_and_passwords_item_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_table_view_controller_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -29,6 +30,7 @@
   BOOL _autofillProfileEnabled;
   BOOL _identityDocsEnabled;
   BOOL _travelInfoEnabled;
+  BOOL _shoppingEnabled;
   BOOL _shouldShowAutofillAIFeatures;
 
   // Updatable Items.
@@ -37,7 +39,7 @@
   TableViewDetailIconItem* _autofillProfileDetailItem;
   TableViewDetailIconItem* _identityDocsDetailItem;
   TableViewDetailIconItem* _travelInfoDetailItem;
-
+  TableViewDetailIconItem* _shoppingDetailItem;
   BOOL _settingsAreDismissed;
 }
 
@@ -89,6 +91,12 @@
     _travelInfoDetailItem = TravelInfoItem(_travelInfoEnabled);
     [model addItem:_travelInfoDetailItem
         toSectionWithIdentifier:SettingsSectionIdentifierBasics];
+
+    if (autofill::IsAmbientAutofillEnabled()) {
+      _shoppingDetailItem = ShoppingInfoItem(_shoppingEnabled);
+      [model addItem:_shoppingDetailItem
+          toSectionWithIdentifier:SettingsSectionIdentifierBasics];
+    }
   }
 
   if (base::FeatureList::IsEnabled(
@@ -129,6 +137,10 @@
     case SettingsItemTypeTravelInfo:
       [self.delegate
           autofillAndPasswordsTableViewControllerDidSelectTravelInfo:self];
+      break;
+    case SettingsItemTypeShoppingInfo:
+      [self.delegate
+          autofillAndPasswordsTableViewControllerDidSelectShopping:self];
       break;
     case SettingsItemTypeAutofillSettings:
       [self.delegate
@@ -226,6 +238,23 @@
       _travelInfoDetailItem.detailText = TravelInfoItemDetailText(enabled);
     }
     [self reconfigureCellsForItems:@[ _travelInfoDetailItem ]];
+  }
+}
+
+- (void)setShoppingEnabled:(BOOL)enabled {
+  if (_shoppingEnabled == enabled) {
+    return;
+  }
+  _shoppingEnabled = enabled;
+
+  if (_shoppingDetailItem) {
+    if (IsYourSavedInfoSettingsPageIosEnabled()) {
+      _shoppingDetailItem.trailingDetailText =
+          ShoppingInfoItemDetailText(enabled);
+    } else {
+      _shoppingDetailItem.detailText = ShoppingInfoItemDetailText(enabled);
+    }
+    [self reconfigureCellsForItems:@[ _shoppingDetailItem ]];
   }
 }
 

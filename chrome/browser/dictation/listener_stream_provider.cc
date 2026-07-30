@@ -55,6 +55,8 @@ void ListenerStreamProvider::BindToTargetAndConnect(
   CHECK(target);
   target_ = std::move(target);
 
+  // TODO(b/531048253): Ensure `target` still points to a valid Document.
+
   DictationMultiplexer& multiplexer = GetMultiplexer();
   stream_id_ = multiplexer.GenerateStreamId();
   multiplexer.RegisterStreamProvider(stream_id_, this);
@@ -82,6 +84,10 @@ void ListenerStreamProvider::StartStream(
   if (result.has_value()) {
     details.context = ConvertToApiContext(std::move(*result));
   }
+
+  extensions::api::dictation_private::StartStreamFlags flags;
+  flags.eval_mode = kDictationEvalMode.Get();
+  details.flags = std::move(flags);
 
   base::ListValue event_args =
       extensions::api::dictation_private::OnStartStream::Create(details);
@@ -150,6 +156,9 @@ void ListenerStreamProvider::OnTranscriptionUpdated(const std::string& data,
                                                     bool is_final) {
   latest_transcription_ = data;
   is_final_for_testing_ = is_final;
+
+  // TODO(b/531048253): Observe changes to the target and end the stream if the
+  // element is no longer valid.
 
   target_->SetComposition(base::UTF8ToUTF16(data), is_final);
 

@@ -35,7 +35,7 @@
 #include "chrome/browser/password_manager/password_change_service_factory.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_performance_tuning_manager.h"
 #include "chrome/browser/performance_manager/public/user_tuning/user_tuning_utils.h"
-#include "chrome/browser/personal_context/personal_context_enablement_service_factory.h"
+#include "chrome/browser/personal_context/personal_context_eligibility_service_factory.h"
 #include "chrome/browser/preloading/preloading_features.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service.h"
 #include "chrome/browser/privacy_sandbox/privacy_sandbox_service_factory.h"
@@ -54,7 +54,6 @@
 #include "chrome/browser/ui/passwords/ui_utils.h"
 #include "chrome/browser/ui/toasts/toast_features.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/side_panel/customize_chrome/customize_chrome_utils.h"
 #include "chrome/browser/ui/webui/cr_components/customize_color_scheme_mode/customize_color_scheme_mode_handler.h"
 #include "chrome/browser/ui/webui/extension_control_handler.h"
 #include "chrome/browser/ui/webui/favicon_source.h"
@@ -125,7 +124,7 @@
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/performance_manager/public/features.h"
 #include "components/permissions/features.h"
-#include "components/personal_context/core/personal_context_enablement_service.h"
+#include "components/personal_context/core/personal_context_eligibility_service.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
@@ -431,11 +430,6 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
                               autofill::features::kYourSavedInfoSettingsPage));
 
   html_source->AddBoolean(
-      "enableYourSavedInfoBranding",
-      base::FeatureList::IsEnabled(
-          autofill::features::kYourSavedInfoBrandingInSettings));
-
-  html_source->AddBoolean(
       "enableYourSavedInfoShoppingPage",
       base::FeatureList::IsEnabled(
           autofill::features::kYourSavedInfoSettingsPageShoppingIntegration));
@@ -636,6 +630,8 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       {"showSkillsSettingPage",
        base::FeatureList::IsEnabled(features::kSkillsEnabled)},
       {"showIndigoControl", base::FeatureList::IsEnabled(features::kIndigo)},
+      {"showGoogleSearchAiModeWorkspaceControl",
+       base::FeatureList::IsEnabled(features::kGoogleSearchAiModeWorkspace)},
   };
 
   html_source->AddString("aiSuggestionsHelpCenterArticleLink",
@@ -690,28 +686,21 @@ SettingsUI::SettingsUI(content::WebUI* web_ui)
       "searchSettingsUpdate",
       base::FeatureList::IsEnabled(switches::kSearchSettingsUpdate));
 
-  personal_context::PersonalContextEnablementService* enablement_service =
-      PersonalContextEnablementServiceFactory::GetForProfile(profile);
+  personal_context::PersonalContextEligibilityService* eligibility_service =
+      PersonalContextEligibilityServiceFactory::GetForProfile(profile);
   html_source->AddBoolean("showSuggestionsFromGeminiSettings",
                           autofill::ShouldShowPersonalContextAutofillSetting(
-                              autofill_client, enablement_service));
+                              autofill_client, eligibility_service));
   html_source->AddBoolean(
       "isAtMemoryEnabled",
       autofill::MayPerformAtMemoryAction(
-          autofill::AtMemoryAction::kShowAtMemoryInSettings, enablement_service,
-          subscription_eligibility::SubscriptionEligibilityServiceFactory::
-              GetForProfile(profile),
-          profile->GetPrefs(),
-          GoogleGroupsManagerFactory::GetForBrowserContext(profile)));
-  // TODO(b:529788949): The old Personal Context settings linkout got superseded
-  // by another Personal Context presence in settings, see
-  // 'showSuggestionsFromGeminiSettings' above. Remove this old linkout here.
-  html_source->AddBoolean("showPersonalContextSettingsLink", false);
-  html_source->AddLocalizedString("personalContextSettingsTitle",
-                                  IDS_PERSONAL_CONTEXT_SETTINGS_TITLE);
-  html_source->AddLocalizedString(
-      "personalContextSettingsDescription",
-      IDS_PERSONAL_CONTEXT_SETTINGS_DESCRIPTION_DESKTOP);
+          autofill::AtMemoryAction::kShowAtMemoryInSettings, autofill_client));
+
+  html_source->AddBoolean(
+      "isAtMemoryTriggerCustomizationAllowed",
+      autofill::MayPerformAtMemoryAction(
+          autofill::AtMemoryAction::kAllowCustomizeAtMemoryShortcut,
+          autofill_client));
 
   html_source->AddString(
       "webuiRefresh2026",

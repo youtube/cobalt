@@ -10,6 +10,7 @@
 #include "ui/views/views_export.h"
 
 namespace gfx {
+class Rect;
 class RoundedCornersF;
 }  // namespace gfx
 
@@ -51,6 +52,9 @@ class NativeViewHostWrapper {
   // Returns true on success or false if the platform doesn't support the
   // operation.
   virtual bool SetCornerRadii(const gfx::RoundedCornersF& corner_radii) = 0;
+  virtual gfx::RoundedCornersF GetNativeViewCornerRadii() const = 0;
+  virtual gfx::Rect GetNativeViewClipRect() const = 0;
+
 
   // Sets the height of the top region where gfx::NativeView shouldn't be
   // targeted.
@@ -70,6 +74,10 @@ class NativeViewHostWrapper {
   // position the gfx::NativeView correctly, since the clipping process may have
   // adjusted its position.
   virtual void UninstallClip() = 0;
+
+  // Sets the external clip rect of the native view. Returns true if the clip
+  // rect changed.
+  virtual bool SetNativeViewClipRect(const gfx::Rect& clip_rect) = 0;
 
   // Shows the gfx::NativeView within the specified region (relative to the
   // parent native view) and with the given native size. The content will

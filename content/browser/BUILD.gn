@@ -46,8 +46,8 @@ if (is_android) {
     deps = [
       "//components/vrp_flags:buildflags",
       "//third_party/rust/font_types/v0_12:lib",
-      "//third_party/rust/read_fonts/v0_40:lib",
-      "//third_party/rust/skrifa/v0_43:lib",
+      "//third_party/rust/read_fonts/v0_41:lib",
+      "//third_party/rust/skrifa/v0_44:lib",
     ]
   }
 }
@@ -1299,8 +1299,6 @@ source_set("browser") {
     "interest_group/interest_group_k_anonymity_manager.h",
     "interest_group/interest_group_manager_impl.cc",
     "interest_group/interest_group_manager_impl.h",
-    "interest_group/interest_group_pa_report_util.cc",
-    "interest_group/interest_group_pa_report_util.h",
     "interest_group/interest_group_permissions_cache.cc",
     "interest_group/interest_group_permissions_cache.h",
     "interest_group/interest_group_permissions_checker.cc",
@@ -1363,6 +1361,8 @@ source_set("browser") {
     "loader/merkle_integrity_source_stream.h",
     "loader/navigation_early_hints_manager.cc",
     "loader/navigation_early_hints_manager.h",
+    "loader/navigation_fast_fetch_manager.cc",
+    "loader/navigation_fast_fetch_manager.h",
     "loader/navigation_loader_interceptor.cc",
     "loader/navigation_loader_interceptor.h",
     "loader/navigation_url_loader.cc",
@@ -1507,7 +1507,6 @@ source_set("browser") {
     "media/session/media_session_controllers_manager.h",
     "media/session/media_session_impl.cc",
     "media/session/media_session_impl.h",
-    "media/session/media_session_player_observer.h",
     "media/session/media_session_service_impl.cc",
     "media/session/media_session_service_impl.h",
     "media/session/media_session_uma_helper.cc",
@@ -3362,8 +3361,8 @@ source_set("browser") {
       "accessibility/text_formatting_metrics_android.h",
       "accessibility/web_contents_accessibility_android.cc",
       "accessibility/web_contents_accessibility_android.h",
-      "android/additional_navigation_params_utils.cc",
-      "android/additional_navigation_params_utils.h",
+      "android/additional_navigation_params.cc",
+      "android/additional_navigation_params.h",
       "android/android_overlay_provider_impl.cc",
       "android/android_overlay_provider_impl.h",
       "android/app_web_message_port.cc",

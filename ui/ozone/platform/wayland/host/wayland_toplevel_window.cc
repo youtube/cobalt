@@ -350,7 +350,14 @@ void WaylandToplevelWindow::ActivateWithToken(std::string token) {
 
 void WaylandToplevelWindow::Activate() {
   if (connection()->xdg_activation()) {
-    if (auto token = base::nix::TakeXdgActivationToken()) {
+    if (pending_configure_activation_token_.has_value()) {
+      if (IsSurfaceConfigured()) {
+        connection()->xdg_activation()->Activate(
+            root_surface()->surface(),
+            pending_configure_activation_token_.value());
+        pending_configure_activation_token_.reset();
+      }
+    } else if (auto token = base::nix::TakeXdgActivationToken()) {
       ActivateWithToken(token.value());
     } else {
       connection()->xdg_activation()->RequestNewToken(
@@ -547,7 +554,11 @@ void WaylandToplevelWindow::HandleToplevelConfigureWithOrigin(
   // xdg_toplevel::activated is a paint-only hint, separate from input
   // activation which is driven by keyboard focus in UpdateActivationState.
   if (prev_xdg_active != is_xdg_active_) {
+    auto weak_this = AsWeakPtr();
     delegate()->OnPaintAsActiveChanged(is_xdg_active_);
+    if (!weak_this) {
+      return;
+    }
   }
   bool prev_suspended = is_suspended_;
   is_suspended_ = window_states.is_suspended;
@@ -562,7 +573,11 @@ void WaylandToplevelWindow::HandleToplevelConfigureWithOrigin(
   if (window_states.tiled_edges != applied_state().tiled_edges) {
     // This configure changes the decoration insets.  We should adjust the
     // bounds appropriately.
+    auto weak_this = AsWeakPtr();
     delegate()->OnWindowTiledStateChanged(window_states.tiled_edges);
+    if (!weak_this) {
+      return;
+    }
   }
 
   pending_configure_state_.tiled_edges = window_states.tiled_edges;
@@ -651,6 +666,9 @@ bool WaylandToplevelWindow::OnInitialize(
   state->window_state = PlatformWindowState::kNormal;
 
   app_id_ = properties.wayland_app_id;
+  if (!properties.startup_id.empty()) {
+    pending_configure_activation_token_ = properties.startup_id;
+  }
   SetWaylandToplevelExtension(this, this);
   SetWmMoveLoopHandler(this, static_cast<WmMoveLoopHandler*>(this));
   SetWorkspaceExtension(this, static_cast<WorkspaceExtension*>(this));
@@ -748,9 +766,10 @@ void WaylandToplevelWindow::AckConfigure(uint32_t serial) {
   }
 
   if (pending_configure_activation_token_.has_value()) {
-    DCHECK(connection()->xdg_activation());
-    connection()->xdg_activation()->Activate(
-        root_surface()->surface(), pending_configure_activation_token_.value());
+    if (connection()->xdg_activation()) {
+      connection()->xdg_activation()->Activate(
+          root_surface()->surface(), pending_configure_activation_token_.value());
+    }
     pending_configure_activation_token_.reset();
   }
 }
@@ -905,7 +924,11 @@ void WaylandToplevelWindow::TriggerStateChanges(
 
   auto previous_state = applied_state().window_state;
   ForceApplyWindowStateDoNotUse(window_state);
+  auto weak_this = AsWeakPtr();
   delegate()->OnWindowStateChanged(previous_state, window_state);
+  if (!weak_this) {
+    return;
+  }
   connection()->Flush();
 }
 

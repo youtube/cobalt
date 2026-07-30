@@ -1099,6 +1099,14 @@ TEST_F(PdfViewWebPluginTest, HasJavaScript) {
   EXPECT_TRUE(future.Get());
 }
 
+TEST_F(PdfViewWebPluginTest, IsPasswordProtected) {
+  EXPECT_CALL(*engine_ptr_, IsPasswordProtected).WillOnce(Return(true));
+
+  base::test::TestFuture<bool> future;
+  plugin_->IsPasswordProtected(future.GetCallback());
+  EXPECT_TRUE(future.Get());
+}
+
 TEST_F(PdfViewWebPluginTest, GetAccessibilityDocInfoWithCopyAccessibleAllowed) {
   EXPECT_CALL(*engine_ptr_, HasPermission).WillRepeatedly(Return(false));
   EXPECT_CALL(*engine_ptr_, HasPermission(DocumentPermission::kCopyAccessible))
@@ -3596,10 +3604,11 @@ TEST_P(PdfViewWebPluginInkTest, AddFont) {
   static constexpr auto kSerializedTypeface =
       std::to_array<const uint8_t>({1, 2, 3});
 
-  EXPECT_CALL(*engine_ptr_, AddFont(kFontId, Matcher<base::span<const uint8_t>>(
-                                                 kSerializedTypeface)));
+  EXPECT_CALL(*engine_ptr_,
+              AddFont(kFontId, "test",
+                      Matcher<base::span<const uint8_t>>(kSerializedTypeface)));
 
-  plugin_->ink_module_client_for_testing()->AddFont(kFontId,
+  plugin_->ink_module_client_for_testing()->AddFont(kFontId, "test",
                                                     kSerializedTypeface);
 }
 

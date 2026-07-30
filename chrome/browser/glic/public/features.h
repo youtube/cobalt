@@ -36,12 +36,14 @@ BASE_DECLARE_FEATURE(kGlicOnboardingMetricsMigration);
 
 BASE_DECLARE_FEATURE(kGlicSelectionPrompt);
 extern const base::FeatureParam<bool> kGlicSelectionPromptUpdatesOnly;
-extern const base::FeatureParam<bool> kGlicSelectionPromptUseWidget;
 extern const base::FeatureParam<bool> kGlicSelectionPromptEnablePinning;
 extern const base::FeatureParam<std::string> kGlicSelectionTopCueOnlyList;
 extern const base::FeatureParam<bool> kGlicSelectionEnableSiteSettings;
 extern const base::FeatureParam<bool> kGlicSelectionShowCopyButtons;
-
+extern const base::FeatureParam<bool> kGlicSelectionAutoSendPrompt;
+extern const base::FeatureParam<std::string> kGlicSelectionPromptCta;
+inline constexpr char kGlicSelectionPromptCtaTellMe[] = "tell_me_about_this";
+inline constexpr char kGlicSelectionPromptCtaExplain[] = "explain";
 
 BASE_DECLARE_FEATURE(kGlicCreateTabAdjacent);
 
@@ -89,6 +91,8 @@ BASE_DECLARE_FEATURE(kGlicGetTabFaviconById);
 
 BASE_DECLARE_FEATURE(kGlicSkipCookieSyncOnOpen);
 BASE_DECLARE_FEATURE(kGlicCookieSyncOnTokenChange);
+extern const base::FeatureParam<base::TimeDelta>
+    kGlicCookieSyncOnTokenChangeDelay;
 BASE_DECLARE_FEATURE(kGlicCookieSyncOnError);
 extern const base::FeatureParam<base::TimeDelta>
     kGlicCookieSyncOnErrorMinInterval;

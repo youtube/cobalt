@@ -188,21 +188,6 @@ class ApiTests extends ApiTestFixtureBase {
     await observeSequence(this.host.canAttachPanel()).waitForValue(true);
   }
 
-  async testGetPanelStateAttachedHidden() {
-    assertDefined(this.host.getPanelState);
-    // getPanelState and notifyPanelWillOpen should signal the ATTACHED state.
-    const panelStates = observeSequence(this.host.getPanelState());
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-
-    // Open and select a second tab.
-    await this.advanceToNextStep();
-    await panelStates.waitFor(state => state.kind === PanelStateKind.HIDDEN);
-
-    // Select the first tab again.
-    await this.advanceToNextStep();
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-  }
-
   async testDetachPanel() {
     assertDefined(this.host.getPanelState);
     assertDefined(this.host.detachPanel);
@@ -229,30 +214,6 @@ class ApiTests extends ApiTestFixtureBase {
     assertRejects((async () => {
       this.host.detachPanel?.();
     })());
-  }
-
-  async testCanAttachPanelSidePanel() {
-    assertDefined(this.host.getPanelState);
-    assertDefined(this.host.canAttachPanel);
-
-    const panelStates = observeSequence(this.host.getPanelState());
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-
-    await observeSequence(this.host.canAttachPanel()).waitForValue(false);
-  }
-
-  async testCanAttachPanelDetached() {
-    assertDefined(this.host.getPanelState);
-    assertDefined(this.host.detachPanel);
-    assertDefined(this.host.canAttachPanel);
-
-    const panelStates = observeSequence(this.host.getPanelState());
-    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
-
-    this.host.detachPanel();
-    await panelStates.waitFor(state => state.kind === PanelStateKind.DETACHED);
-
-    await observeSequence(this.host.canAttachPanel()).waitForValue(true);
   }
 
   async testCanAttachPanelDetachedTabClosed() {

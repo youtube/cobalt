@@ -7,11 +7,14 @@ found in the LICENSE file.
 <org.chromium.chrome.browser.ntp.search.SearchBoxContainerView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/search_box"
     android:layout_width="match_parent"
     android:layout_height="@dimen/ntp_search_box_height"
     android:layout_marginBottom="@dimen/ntp_section_bottom_margin"
     android:background="@drawable/home_surface_search_box_background"
+    android:elevation="@dimen/fake_search_box_elevation"
+    android:clipToOutline="true"
     android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="@dimen/fake_search_box_start_padding"
@@ -41,6 +44,7 @@ found in the LICENSE file.
         android:clickable="true"
         android:visibility="gone"
         android:contentDescription="@string/accessibility_omnibox_open_context_popup"
+        android:tooltipText="@string/accessibility_omnibox_open_context_popup"
         android:src="@drawable/ic_add_24dp"/>
 
     <!-- TODO(crbug.com/40600572): Fix and remove lint ignore -->
@@ -70,13 +74,28 @@ found in the LICENSE file.
         style="@style/LocationBarActionButtonForFakeSearchBox"
         android:id="@+id/voice_search_button"
         android:contentDescription="@string/accessibility_toolbar_btn_mic"
-        android:src="@drawable/ic_mic_white_24dp"/>
+        android:tooltipText="@string/accessibility_toolbar_btn_mic"
+        android:layout_marginStart="?attr/searchBoxActionButtonMargin"
+        android:src="@drawable/ic_mic_white_24dp"
+        android:pointerIcon="hand"/>
 
     <org.chromium.ui.widget.ChromeImageView
         style="@style/LocationBarActionButtonForFakeSearchBox"
         android:id="@+id/lens_camera_button"
         android:contentDescription="@string/accessibility_btn_lens_camera"
+        android:tooltipText="@string/accessibility_btn_lens_camera"
+        android:layout_marginEnd="?attr/searchBoxActionButtonMargin"
         android:src="@drawable/lens_camera_icon"
-        android:visibility="gone"/>
+        android:visibility="gone"
+        android:pointerIcon="hand"/>
+
+    <org.chromium.ui.widget.ButtonCompat
+        style="@style/AiModeChip"
+        android:id="@+id/search_box_ai_chip"
+        android:foreground="@drawable/search_box_ai_chip_focus_ring"
+        android:visibility="gone"
+        android:pointerIcon="hand"
+        app:verticalInset="@dimen/ai_chip_vertical_inset"
+        app:horizontalInset="@dimen/ai_chip_horizontal_inset"/>
 
 </org.chromium.chrome.browser.ntp.search.SearchBoxContainerView>

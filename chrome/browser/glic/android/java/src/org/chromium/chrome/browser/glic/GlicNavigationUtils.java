@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.glic;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.os.Bundle;
 
 import androidx.fragment.app.Fragment;
 
@@ -18,6 +19,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
+import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.WithAccountSigninMode;
@@ -25,6 +27,9 @@ import org.chromium.chrome.browser.ui.signin.SigninAndHistorySyncActivityLaunche
 import org.chromium.chrome.browser.ui.signin.account_picker.AccountPickerBottomSheetStrings;
 import org.chromium.chrome.browser.ui.signin.history_sync.HistorySyncConfig;
 import org.chromium.components.browser_ui.settings.SettingsNavigation;
+import org.chromium.components.signin.AccountManagerFacadeProvider;
+import org.chromium.components.signin.base.AccountInfo;
+import org.chromium.components.signin.identitymanager.IdentityManager;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.content_public.browser.WebContents;
 
@@ -33,6 +38,9 @@ import java.util.function.Supplier;
 /** Bridge between Java and native GLIC code to launch GLIC settings. */
 @NullMarked
 public class GlicNavigationUtils {
+    public static final String EXTRA_HIGHLIGHT_FIELD =
+            "org.chromium.chrome.browser.glic.highlight_field";
+    public static final String FIELD_LOCATION_PERMISSION = "location_permission";
     private static @Nullable Supplier<SigninAndHistorySyncActivityLauncher> sLauncherSupplier;
 
     /**
@@ -51,7 +59,7 @@ public class GlicNavigationUtils {
 
     /** Opens the GLIC settings page. */
     @CalledByNative
-    static void showGlicSettings(@GlicSettingsPage int settingsPage) {
+    static void showGlicSettings(@GlicSettingsPage int settingsPage, String highlightField) {
         Context context = ContextUtils.getApplicationContext();
 
         SettingsNavigation settingsNavigation =
@@ -66,7 +74,9 @@ public class GlicNavigationUtils {
                 fragmentClass = GlicSettings.class;
                 break;
         }
-        settingsNavigation.startSettings(context, fragmentClass);
+        Bundle args = new Bundle();
+        args.putString(EXTRA_HIGHLIGHT_FIELD, highlightField);
+        settingsNavigation.startSettings(context, fragmentClass, args);
     }
 
     /**
@@ -78,13 +88,24 @@ public class GlicNavigationUtils {
     @CalledByNative
     public static void showSignIn(Profile profile, WebContents webContents) {
         Activity activity = null;
-        if (webContents.getTopLevelNativeWindow() != null) {
+        if (webContents != null && webContents.getTopLevelNativeWindow() != null) {
             activity = webContents.getTopLevelNativeWindow().getActivity().get();
         }
         if (activity == null) {
             activity = ApplicationStatus.getLastTrackedFocusedActivity();
         }
         if (activity == null) {
+            return;
+        }
+
+        IdentityManager identityManager =
+                IdentityServicesProvider.get().getIdentityManager(profile);
+        AccountInfo primaryAccount =
+                identityManager != null ? identityManager.getPrimaryAccountInfo() : null;
+
+        if (primaryAccount != null) {
+            AccountManagerFacadeProvider.getInstance()
+                    .updateCredentials(primaryAccount.getId(), activity, null);
             return;
         }
 

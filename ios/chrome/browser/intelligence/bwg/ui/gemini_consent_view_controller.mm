@@ -8,11 +8,16 @@
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_accordion_view.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_configuration.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_first_run_mutator.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/common/ui/button_stack/button_stack_configuration.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
+#import "ios/chrome/grit/ios_strings.h"
+#import "ui/base/l10n/l10n_util_mac.h"
 #import "url/gurl.h"
 
 namespace {
@@ -27,8 +32,8 @@ const CGFloat kHeaderIconSizeMultiplier = 0.55;
 
 }  // namespace
 
-@interface GeminiConsentViewController () <UITextViewDelegate,
-                                           GeminiConsentAccordionViewDelegate>
+@interface GeminiConsentViewController () <GeminiConsentAccordionViewDelegate,
+                                           UITextViewDelegate>
 @end
 
 @implementation GeminiConsentViewController {
@@ -58,10 +63,53 @@ const CGFloat kHeaderIconSizeMultiplier = 0.55;
 
 #pragma mark - GeminiFirstRunViewControllerProtocol
 
+// Returns the expected content height of this view.
 - (CGFloat)contentHeight {
-  return
-      [_mainStackView systemLayoutSizeFittingSize:UILayoutFittingCompressedSize]
-          .height;
+  return [GeminiUIUtils contentHeightForView:_mainStackView
+                          withContainerWidth:self.view.bounds.size.width];
+}
+
+#pragma mark - GeminiFirstRunStep
+
+- (GeminiFirstRunStepIdentifier)stepIdentifier {
+  return GeminiFirstRunStepIdentifier::kConsent;
+}
+
+- (ButtonStackConfiguration*)buttonStackConfiguration {
+  ButtonStackConfiguration* configuration =
+      [[ButtonStackConfiguration alloc] init];
+  configuration.primaryActionString =
+      l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_PRIMARY_BUTTON);
+  configuration.secondaryActionString =
+      l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_SECONDARY_BUTTON);
+  return configuration;
+}
+
+- (void)stepDidBecomeActive {
+  // If the related `WebState` was hidden asynchronously while the sheet was
+  // appearing, the mutator becomes nil. Automatically dismiss to avoid leaving
+  // a broken view.
+  if (!self.mutator) {
+    [self dismissViewControllerAnimated:YES completion:nil];
+  }
+}
+
+- (void)stepWillResignActive {
+  // No-op
+}
+
+- (void)didTapPrimaryButton {
+  RecordFirstRunConsentAction(IOSGeminiFirstRunAction::kAccept);
+  if (self.firstRunType == GeminiFirstRunType::kLive) {
+    [self.mutator didConsentToLiveGemini];
+  } else {
+    [self.mutator didConsentGemini];
+  }
+}
+
+- (void)didTapSecondaryButton {
+  RecordFirstRunConsentAction(IOSGeminiFirstRunAction::kDismiss);
+  [self.mutator didRefuseGeminiConsent];
 }
 
 #pragma mark - Private
@@ -198,6 +246,9 @@ const CGFloat kHeaderIconSizeMultiplier = 0.55;
   } else if ([actionString
                  isEqualToString:kGeminiLivePrivacyPolicyLinkAction]) {
     [self.mutator openNewTabWithURL:GURL(kLivePrivacyPolicyLinkURL)];
+  } else if ([actionString
+                 isEqualToString:kGeminiLivePrivacyHubManagedLinkAction]) {
+    [self.mutator openNewTabWithURL:GURL(kLivePrivacyHubManagedLinkURL)];
   } else if ([actionString isEqualToString:kGeminiKoreanTermsLinkAction]) {
     [self.mutator openNewTabWithURL:GURL(kKoreanTermsFootnoteLinkURL)];
   } else if ([actionString isEqualToString:kGeminiWatchLinkAction]) {
@@ -254,7 +305,13 @@ const CGFloat kHeaderIconSizeMultiplier = 0.55;
 
 - (void)accordionView:(GeminiConsentAccordionView*)view
          didToggleRow:(GeminiConsentRow*)row {
-  [self.delegate consentViewControllerDidExpandAccordionItem:self];
+  if (IsGeminiFRERefactorEnabled()) {
+    // Notify the container to recalculate bottom sheet detents for the new
+    // content height.
+    [self.stepDelegate stepContentHeightDidChange:self];
+  } else {
+    [self.delegate consentViewControllerDidExpandAccordionItem:self];
+  }
 }
 
 @end

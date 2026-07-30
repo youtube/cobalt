@@ -37,6 +37,11 @@ class AccountStatusCheckFetcherUnitTest : public testing::TestWithParam<bool> {
   AccountStatusCheckFetcherUnitTest() = default;
   ~AccountStatusCheckFetcherUnitTest() override = default;
 
+  void TearDown() override {
+    fetcher_.reset();
+    service_.reset();
+  }
+
   void SetUpAccountStatusCheckFetcher(const std::string& email) {
     service_ =
         std::make_unique<FakeDeviceManagementService>(&job_creation_handler_);
@@ -46,7 +51,7 @@ class AccountStatusCheckFetcherUnitTest : public testing::TestWithParam<bool> {
         base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
             &url_loader_factory_);
     fetcher_ = std::make_unique<AccountStatusCheckFetcher>(
-        email, service_.get(), shared_url_loader_factory_);
+        shared_url_loader_factory_, service_.get(), email);
   }
 
   void SetReply(const em::DeviceManagementResponse& response) {
@@ -119,7 +124,6 @@ class AccountStatusCheckFetcherUnitTest : public testing::TestWithParam<bool> {
   }
 
   em::DeviceManagementResponse dummy_response_;
-  std::unique_ptr<AccountStatusCheckFetcher> fetcher_;
   base::HistogramTester histogram_tester_;
 
  protected:
@@ -133,6 +137,7 @@ class AccountStatusCheckFetcherUnitTest : public testing::TestWithParam<bool> {
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
   testing::StrictMock<MockJobCreationHandler> job_creation_handler_;
   std::unique_ptr<FakeDeviceManagementService> service_;
+  std::unique_ptr<AccountStatusCheckFetcher> fetcher_;
 };
 
 TEST_P(AccountStatusCheckFetcherUnitTest, NetworkFailure) {

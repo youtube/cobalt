@@ -6,11 +6,8 @@
 
 #include <algorithm>
 
-#include "base/feature_list.h"
-#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
-#include "base/path_service.h"
 #include "base/run_loop.h"
 #include "base/scoped_observation.h"
 #include "base/strings/string_util.h"
@@ -18,6 +15,7 @@
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "build/build_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
@@ -44,44 +42,39 @@
 #include "chrome/browser/ui/views/page_action/page_action_icon_view.h"
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/page_action/test_support/page_action_test_support.h"
-#include "chrome/common/chrome_paths.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/lens/lens_features.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
-#include "components/omnibox/browser/location_bar_model_impl.h"
-#include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/omnibox_prefs.h"
-#include "components/omnibox/common/omnibox_features.h"
 #include "components/permissions/permission_request_manager.h"
 #include "components/security_state/content/security_state_tab_helper.h"
 #include "components/security_state/core/security_state.h"
 #include "components/zoom/zoom_controller.h"
-#include "content/public/browser/browser_thread.h"
 #include "content/public/common/content_features.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "content/public/test/test_navigation_observer.h"
-#include "net/cert/ct_policy_status.h"
 #include "net/dns/mock_host_resolver.h"
-#include "net/ssl/ssl_info.h"
-#include "net/test/cert_test_util.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
-#include "net/test/test_data_directory.h"
 #include "services/device/public/cpp/test/scoped_geolocation_overrider.h"
-#include "services/network/public/cpp/features.h"
-#include "services/network/public/mojom/url_response_head.mojom.h"
-#include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
+#include "ui/actions/actions.h"
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/events/event.h"
 #include "ui/events/event_constants.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/test/views_test_utils.h"
+
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
 
 namespace {
 void FocusNextView(views::FocusManager* focus_manager) {
@@ -545,10 +538,12 @@ class LocationBarViewPageActionsMigrationTest
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-// Wayland doesn't support changing window activation programmatically.
+// This test fails on both X11 and Wayland on Linux. The root cause for X11
+// might be different from Wayland (where programmatically changing window
+// activation is not supported).
 // TODO(crbug.com/376285664): Remove this test altogether once the migration
 // is complete.
-#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
+#if BUILDFLAG(IS_LINUX)
 #define MAYBE_LocationBarFocusOrder DISABLED_LocationBarFocusOrder
 #else
 #define MAYBE_LocationBarFocusOrder LocationBarFocusOrder
@@ -558,6 +553,12 @@ class LocationBarViewPageActionsMigrationTest
 // actions first, followed by the legacy page actions.
 IN_PROC_BROWSER_TEST_F(LocationBarViewPageActionsMigrationTest,
                        MAYBE_LocationBarFocusOrder) {
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Wayland doesn't support changing window activation "
+                    "programmatically";
+  }
+#endif
   actions::ActionItem* const lens_action =
       actions::ActionManager::Get().FindAction(
           kActionSidePanelShowLensOverlayResults);
@@ -799,4 +800,41 @@ IN_PROC_BROWSER_TEST_F(LocationBarViewAddContextButtonBrowserTest,
   prefs->SetBoolean(omnibox::kShowAiModeOmniboxButton, true);
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return location_bar_view->ShouldShowAddContextButton(); }));
+}
+
+IN_PROC_BROWSER_TEST_F(LocationBarViewBrowserTest, OmniboxActionsRegistered) {
+  LocationBarView* location_bar_view = GetLocationBarView();
+  ASSERT_TRUE(location_bar_view);
+
+  auto* action_manager = &actions::ActionManager::Get();
+  ASSERT_TRUE(action_manager);
+
+  struct ExpectedAction {
+    actions::ActionId action_id;
+    int string_id;
+  };
+
+  std::vector<ExpectedAction> expected_actions = {
+      {kActionOmniboxContextAddImage, IDS_NTP_COMPOSE_ADD_IMAGE},
+      {kActionOmniboxContextAddFile, IDS_NTP_COMPOSE_ADD_FILE},
+      {kActionOmniboxContextCreateImages, IDS_NTP_COMPOSE_CREATE_IMAGES},
+      {kActionOmniboxContextDeepResearch, IDS_NTP_COMPOSE_DEEP_SEARCH},
+      {kActionOmniboxContextCanvas, IDS_NTP_COMPOSE_CANVAS},
+      {kActionOmniboxContextSetModelAuto, IDS_NTP_COMPOSE_AUTO_MODEL},
+      {kActionOmniboxContextSetModelThinking, IDS_NTP_COMPOSE_THINKING_3_PRO},
+  };
+
+  for (const auto& expected : expected_actions) {
+    auto* action = action_manager->FindAction(expected.action_id);
+    ASSERT_TRUE(action) << "Action not found: " << expected.action_id;
+    EXPECT_EQ(action->GetText(), l10n_util::GetStringUTF16(expected.string_id));
+    EXPECT_FALSE(action->GetImage().IsEmpty());
+  }
+
+  // kActionOmniboxContextSetModelRegular has no text (only icon).
+  auto* regular_model_action =
+      action_manager->FindAction(kActionOmniboxContextSetModelRegular);
+  ASSERT_TRUE(regular_model_action);
+  EXPECT_TRUE(regular_model_action->GetText().empty());
+  EXPECT_FALSE(regular_model_action->GetImage().IsEmpty());
 }

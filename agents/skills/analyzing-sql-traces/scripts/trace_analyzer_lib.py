@@ -3,10 +3,73 @@
 # found in the LICENSE file.
 """Unified library for analyzing Perfetto trace files."""
 
+import json
+import os
 import sys
 import urllib.parse
 import pandas as pd
 from collections import defaultdict
+
+DEFAULT_EXPAND_CONFIG = {
+    "RunTask": [
+        "task.posted_from.file_name", "task.posted_from.function_name",
+        "task.posted_from.line_number"
+    ],
+    "IsSuitableForUrlInfo": [
+        "url_info.url", "site_instance_id", "site_instance.site_instance_id",
+        "site_instance_group.site_instance.site_instance_id"
+    ],
+    "DetermineSiteInstanceForURL": ["url_info.url"],
+    "SetSite": ["url_info.url", "site_instance_id", "site id"]
+}
+
+
+def decode_bytes(val) -> str | None:
+    if val is None or pd.isna(val):
+        return None
+    if isinstance(val, bytes):
+        return val.decode('utf-8', errors='replace')
+    return str(val)
+
+
+
+def format_slice_args(name: str, args: dict[str, str],
+                      config: dict[str, list[str]]) -> str | None:
+    for pattern, keys in config.items():
+        if pattern in name:
+            parts = []
+            seen_labels = set()
+            for k in keys:
+                val = args.get(k) or args.get(f"debug.{k}")
+                if val is not None:
+                    label = k.split(".")[-1]
+                    if label not in seen_labels:
+                        seen_labels.add(label)
+                        parts.append(f"{label}: {val}")
+            if parts:
+                return f"{name} ({', '.join(parts)})"
+    return None
+
+
+def parse_expand_config(
+        config_str_or_path: str | None) -> dict[str, list[str]]:
+    """Parses expand config from a JSON string or file path."""
+    if not config_str_or_path:
+        return {}
+
+    if os.path.exists(config_str_or_path):
+        try:
+            with open(config_str_or_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception as e:
+            raise ValueError(f"Failed to parse expand config file: {e}") from e
+
+    try:
+        return json.loads(config_str_or_path)
+    except Exception as e:
+        raise ValueError(
+            f"Failed to parse expand config JSON string. "
+            f"Ensure it is valid JSON or a valid file path: {e}") from e
 
 try:
     from perfetto.trace_processor import TraceProcessor
@@ -32,13 +95,16 @@ class TraceSession:
 
     def get_process_labels(self) -> dict[int, str]:
         """Maps upid to descriptive process names containing hosted URLs."""
-        df_proc = self.query("SELECT upid, name FROM process;")
+        df_proc = self.query(
+            "SELECT upid, CAST(name AS BLOB) AS name FROM process;")
         labels = {}
         for _, row in df_proc.iterrows():
-            labels[int(row['upid'])] = str(row['name'])
+            labels[int(row['upid'])] = decode_bytes(row['name'])
 
         query_urls = """
-            SELECT DISTINCT p.upid, a.display_value
+            SELECT DISTINCT
+              p.upid,
+              CAST(a.display_value AS BLOB) AS display_value
             FROM args a
             JOIN slice s ON s.arg_set_id = a.arg_set_id
             JOIN thread_track tt ON s.track_id = tt.id
@@ -57,7 +123,7 @@ class TraceSession:
         upid_urls = defaultdict(set)
         for _, row in df_urls.iterrows():
             upid = int(row['upid'])
-            upid_urls[upid].add(str(row['display_value']))
+            upid_urls[upid].add(decode_bytes(row['display_value']))
 
         for upid, name in labels.items():
             if name in ('Renderer',
@@ -264,7 +330,12 @@ def extract_slice_hierarchies(
 
         # Query target details and arguments
         query_target = f"""
-            SELECT s.name, s.dur, s.ts, a.key, a.display_value
+            SELECT
+              CAST(s.name AS BLOB) AS name,
+              s.dur,
+              s.ts,
+              CAST(a.key AS BLOB) AS key,
+              CAST(a.display_value AS BLOB) AS display_value
             FROM slice s
             LEFT JOIN args a ON s.arg_set_id = a.arg_set_id
             WHERE s.id = {target_id};
@@ -277,23 +348,26 @@ def extract_slice_hierarchies(
         for _, t_row in df_target.iterrows():
             if root_node is None:
                 root_node = SliceNode(target_id,
-                                      str(t_row['name']),
+                                      decode_bytes(t_row['name']),
                                       float(t_row['dur']),
                                       int(t_row['ts']),
                                       depth=0)
-            arg_key = str(t_row['key']) if 'key' in t_row and pd.notna(
-                t_row['key']) else None
-            arg_val = str(t_row['display_value']
-                          ) if 'display_value' in t_row and pd.notna(
-                              t_row['display_value']) else None
+            arg_key = decode_bytes(t_row['key']) if 'key' in t_row else None
+            arg_val = decode_bytes(
+                t_row['display_value']) if 'display_value' in t_row else None
             if arg_key is not None:
                 root_node.args[arg_key] = arg_val
 
-        # Query descendants with their arguments
         query_desc = f"""
             SELECT
-                d.id, d.name, d.dur, d.ts, d.depth, d.parent_id,
-                a.key, a.display_value
+                d.id,
+                CAST(d.name AS BLOB) AS name,
+                d.dur,
+                d.ts,
+                d.depth,
+                d.parent_id,
+                CAST(a.key AS BLOB) AS key,
+                CAST(a.display_value AS BLOB) AS display_value
             FROM descendant_slice({target_id}) d
             LEFT JOIN args a ON d.arg_set_id = a.arg_set_id
             ORDER BY d.ts ASC;
@@ -308,15 +382,14 @@ def extract_slice_hierarchies(
             s_id = int(desc_row['id'])
             p_id = int(desc_row['parent_id']
                        ) if desc_row['parent_id'] is not None else None
-            name = str(desc_row['name'])
+            name = decode_bytes(desc_row['name'])
             dur = float(desc_row['dur'])
             ts = int(desc_row['ts'])
             depth = int(desc_row['depth'])
-            arg_key = str(desc_row['key']) if 'key' in desc_row and pd.notna(
-                desc_row['key']) else None
-            arg_val = str(desc_row['display_value']
-                          ) if 'display_value' in desc_row and pd.notna(
-                              desc_row['display_value']) else None
+            arg_key = decode_bytes(
+                desc_row['key']) if 'key' in desc_row else None
+            arg_val = decode_bytes(desc_row['display_value']
+                                   ) if 'display_value' in desc_row else None
 
             if s_id not in slice_map:
                 node = SliceNode(s_id, name, dur, ts, depth, p_id)
@@ -342,13 +415,17 @@ def extract_slice_hierarchies(
     return root_nodes
 
 
-def aggregate_trees(root_nodes: list[SliceNode]) -> AggregatedSliceNode | None:
+def aggregate_trees(
+    root_nodes: list[SliceNode],
+    expand_config: dict[str, list[str]] | None = None
+) -> AggregatedSliceNode | None:
     """Merges SliceNode trees into a single AggregatedSliceNode tree."""
     if not root_nodes:
         return None
 
     # Use first root's signature as the aggregated root name
-    agg_root = AggregatedSliceNode(get_slice_signature(root_nodes[0]))
+    agg_root = AggregatedSliceNode(
+        get_slice_signature(root_nodes[0], expand_config))
 
     def merge_to_agg(node: SliceNode, agg_node: AggregatedSliceNode):
         agg_node.dur += node.dur
@@ -356,7 +433,7 @@ def aggregate_trees(root_nodes: list[SliceNode]) -> AggregatedSliceNode | None:
         agg_node.count += 1
 
         for child in node.children:
-            sig = get_slice_signature(child)
+            sig = get_slice_signature(child, expand_config)
             if sig not in agg_node.children:
                 agg_node.children[sig] = AggregatedSliceNode(sig)
             merge_to_agg(child, agg_node.children[sig])
@@ -367,36 +444,39 @@ def aggregate_trees(root_nodes: list[SliceNode]) -> AggregatedSliceNode | None:
     return agg_root
 
 
-def get_slice_signature(node: SliceNode) -> str:
-    if not node.args:
-        return node.name
-
-    if "IsSuitableForUrlInfo" in node.name:
-        url = node.args.get("debug.url_info.url") or node.args.get(
-            "url_info.url") or ""
-        si_id = (
-            node.args.get("site_instance.site_instance_id")
-            or node.args.get("site_instance_id") or
-            node.args.get("site_instance_group.site_instance.site_instance_id")
-            or "")
-        return f"{node.name} (url: {url}, site_instance: {si_id})"
-
-    if "DetermineSiteInstanceForURL" in node.name:
-        url = node.args.get("debug.url_info.url") or node.args.get(
-            "url_info.url") or ""
-        return f"{node.name} (url: {url})"
-
-    if "SetSite" in node.name:
-        url = node.args.get("debug.url_info.url") or node.args.get(
-            "url_info.url") or ""
-        si_id = node.args.get("debug.site id") or node.args.get(
-            "site_instance_id") or ""
-        return f"{node.name} (url: {url}, site_instance: {si_id})"
-
-    return node.name
+def get_slice_signature(
+        node: SliceNode,
+        expand_config: dict[str, list[str]] | None = None) -> str:
+    return get_slice_signature_raw(node.name, node.args, expand_config)
 
 
-def get_flat_metrics(root_nodes: list[SliceNode]) -> dict[str, dict]:
+def get_slice_signature_raw(
+        name: str,
+        args: dict[str, str],
+        expand_config: dict[str, list[str]] | None = None) -> str:
+    if not args:
+        return name
+
+    # Merge user expand config with default expand config
+    config = dict(DEFAULT_EXPAND_CONFIG)
+    if expand_config:
+        for pattern, keys in expand_config.items():
+            if pattern in config:
+                # Merge and deduplicate lists while preserving order
+                config[pattern] = list(dict.fromkeys(config[pattern] + keys))
+            else:
+                config[pattern] = keys
+
+    sig = format_slice_args(name, args, config)
+    if sig:
+        return sig
+
+    return name
+
+
+def get_flat_metrics(
+        root_nodes: list[SliceNode],
+        expand_config: dict[str, list[str]] | None = None) -> dict[str, dict]:
     """Accumulates dur, self-time, and counts for all slice names in trees."""
     flat_metrics = defaultdict(lambda: {
         'dur_ms': 0.0,
@@ -405,7 +485,7 @@ def get_flat_metrics(root_nodes: list[SliceNode]) -> dict[str, dict]:
     })
 
     def traverse(node: SliceNode):
-        sig = get_slice_signature(node)
+        sig = get_slice_signature(node, expand_config)
         flat_metrics[sig]['count'] += 1
         flat_metrics[sig]['dur_ms'] += node.dur_ms
         flat_metrics[sig]['self_ms'] += node.self_ms
@@ -479,17 +559,20 @@ def fetch_windowed_slices(
     query_slices = f"""
         SELECT
           s.id,
-          s.name,
+          CAST(s.name AS BLOB) AS name,
           s.ts,
           s.dur,
           s.parent_id,
-          t.name AS thread_name,
-          p.name AS process_name,
-          p.upid AS upid
+          CAST(t.name AS BLOB) AS thread_name,
+          CAST(p.name AS BLOB) AS process_name,
+          p.upid AS upid,
+          CAST(a.key AS BLOB) AS key,
+          CAST(a.display_value AS BLOB) AS display_value
         FROM slice s
         JOIN thread_track tt ON s.track_id = tt.id
         JOIN thread t USING(utid)
         JOIN process p USING(upid)
+        LEFT JOIN args a ON s.arg_set_id = a.arg_set_id
         WHERE {where_clause};
     """
     df_slices = session.query(query_slices)
@@ -502,30 +585,39 @@ def fetch_windowed_slices(
     slices = {}
     for row in df_slices.to_dict('records'):
         s_id = int(row['id'])
-        parent_id = int(row['parent_id']) if pd.notna(
-            row['parent_id']) else None
-        ts = int(row['ts'])
-        dur = int(row['dur'])
-        upid = int(row['upid'])
+        if s_id not in slices:
+            parent_id = int(row['parent_id']) if pd.notna(
+                row['parent_id']) else None
+            ts = int(row['ts'])
+            dur = int(row['dur'])
+            upid = int(row['upid'])
 
-        # Calculate overlap with window
-        o_start = max(t_start, ts)
-        o_end = min(t_end, ts + dur)
-        o_dur = max(0, o_end - o_start)
+            # Calculate overlap with window
+            o_start = max(t_start, ts)
+            o_end = min(t_end, ts + dur)
+            o_dur = max(0, o_end - o_start)
 
-        proc_name = process_labels.get(upid, str(row['process_name']))
+            proc_name = process_labels.get(upid,
+                                           decode_bytes(row['process_name']))
 
-        slices[s_id] = {
-            'id': s_id,
-            'name': str(row['name']),
-            'parent_id': parent_id,
-            'thread_name': str(row['thread_name']),
-            'process_name': proc_name,
-            'o_dur': o_dur,
-            'ts': ts,
-            'dur': dur,
-            'children': []
-        }
+            slices[s_id] = {
+                'id': s_id,
+                'name': decode_bytes(row['name']),
+                'parent_id': parent_id,
+                'thread_name': decode_bytes(row['thread_name']),
+                'process_name': proc_name,
+                'o_dur': o_dur,
+                'ts': ts,
+                'dur': dur,
+                'children': [],
+                'args': {}
+            }
+
+        arg_key = decode_bytes(row['key']) if 'key' in row else None
+        arg_val = decode_bytes(
+            row['display_value']) if 'display_value' in row else None
+        if arg_key is not None:
+            slices[s_id]['args'][arg_key] = arg_val
 
     # Build children relations
     for s_id, s in slices.items():
@@ -541,9 +633,15 @@ def fetch_windowed_slices(
 
 
 def build_paths_from_slices(
-        slices: dict[int, dict]) -> dict[tuple, dict[str, float]]:
+    slices: dict[int, dict],
+    expand_config: dict[str, list[str]] | None = None
+) -> dict[tuple, dict[str, float]]:
     """Reconstructs paths and accumulates total and self duration in ms."""
-    run_path_data = defaultdict(lambda: {'total': 0.0, 'self': 0.0})
+    run_path_data = defaultdict(lambda: {
+        'total': 0.0,
+        'self': 0.0,
+        'count': 0
+    })
     for s in slices.values():
         if s['o_dur'] <= 0:
             continue
@@ -552,7 +650,9 @@ def build_paths_from_slices(
         path_nodes = []
         curr = s
         while curr:
-            path_nodes.append(curr['name'])
+            path_nodes.append(
+                get_slice_signature_raw(curr['name'], curr.get('args', {}),
+                                        expand_config))
             curr = slices.get(curr['parent_id']) if curr['parent_id'] else None
         path_nodes.reverse()
 
@@ -562,6 +662,7 @@ def build_paths_from_slices(
 
         run_path_data[path]['total'] += s['o_dur'] / 1e6
         run_path_data[path]['self'] += s['self_o_dur'] / 1e6
+        run_path_data[path]['count'] += 1
     return run_path_data
 
 

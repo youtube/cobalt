@@ -117,6 +117,12 @@ class MockAutofillDriver : public mojom::AutofillDriver {
               FormWithEmailVerificationTokenSubmitted,
               (const FormData& form, FieldRendererId field_id),
               (override));
+  MOCK_METHOD(void,
+              DidDetectJavaScriptAutofill,
+              (const FormData& form,
+               FieldRendererId trigger_field_id,
+               const std::vector<FieldRendererId>& field_ids),
+              (override));
 
  private:
   mojo::AssociatedReceiverSet<mojom::AutofillDriver> receivers_;
@@ -174,6 +180,10 @@ class AutofillRendererTest : public content::RenderViewTest {
   // `TaskEnvironment` is idle to ensure that the `AutofillDriver` is notified
   // via mojo.
   void SimulateElementFocusAndWait(std::string_view element_id);
+
+  // Simulates focusing an element and waiting for 500ms to ensure any focus
+  // handlers/timers have fired.
+  void Focus(std::string_view element_id);
 
   // Simulates scrolling. Waits until the `TaskEnvironment` is idle to ensure
   // that the `AutofillDriver` is notified via mojo.

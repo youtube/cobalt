@@ -22,6 +22,7 @@
 #include "cc/trees/layer_tree_frame_sink.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/aura/client/capture_client.h"
+#include "ui/aura/client/cursor_client.h"
 #include "ui/aura/client/focus_change_observer.h"
 #include "ui/aura/client/visibility_client.h"
 #include "ui/aura/client/window_parenting_client.h"
@@ -30,6 +31,7 @@
 #include "ui/aura/scoped_window_event_targeting_blocker.h"
 #include "ui/aura/test/aura_test_base.h"
 #include "ui/aura/test/aura_test_utils.h"
+#include "ui/aura/test/test_cursor_client.h"
 #include "ui/aura/test/test_window_delegate.h"
 #include "ui/aura/test/test_windows.h"
 #include "ui/aura/test/window_test_api.h"
@@ -545,7 +547,7 @@ TEST_F(WindowTest, LayerReleasingAndSettingOfCapturableWindow) {
   EXPECT_TRUE(w1->subtree_capture_id().is_valid());
 
   // Setting a new layer on the window will set the layer's capture ID.
-  auto new_layer = std::make_unique<ui::Layer>();
+  auto new_layer = std::make_unique<ui::LayerTextured>();
   taken_layer->parent()->Add(new_layer.get());
   w1->Reset(std::move(new_layer));
   EXPECT_TRUE(w1->layer()->GetSubtreeCaptureId().is_valid());
@@ -1205,7 +1207,7 @@ TEST_F(WindowLayerManagedByParentTest, SetBounds) {
 
     // Create an intermediate layer and parent it to parent's layer.
     // L_X is at (10, 10) relative to L_P.
-    ui::Layer layer_x(ui::LAYER_NOT_DRAWN);
+    ui::LayerNotDrawn layer_x;
     layer_x.SetBounds(gfx::Rect(10, 10, 100, 100));
     parent.layer()->Add(&layer_x);
 
@@ -1233,11 +1235,11 @@ TEST_F(WindowLayerManagedByParentTest, SetBounds) {
     parent.AddChild(&child);
 
     // L_P -> L_X1 (10, 10) -> L_X2 (20, 20) -> L_C
-    ui::Layer layer_x1(ui::LAYER_NOT_DRAWN);
+    ui::LayerNotDrawn layer_x1;
     layer_x1.SetBounds(gfx::Rect(10, 10, 100, 100));
     parent.layer()->Add(&layer_x1);
 
-    ui::Layer layer_x2(ui::LAYER_NOT_DRAWN);
+    ui::LayerNotDrawn layer_x2;
     layer_x2.SetBounds(gfx::Rect(20, 20, 100, 100));
     layer_x1.Add(&layer_x2);
 
@@ -1267,7 +1269,7 @@ TEST_F(WindowLayerManagedByParentTest, SetBounds) {
     parent.AddChild(&child);
 
     // L_P -> L_X (10, 10) -> L_C
-    ui::Layer layer_x(ui::LAYER_NOT_DRAWN);
+    ui::LayerNotDrawn layer_x;
     layer_x.SetBounds(gfx::Rect(10, 10, 100, 100));
     parent.layer()->Add(&layer_x);
     layer_x.Add(child.layer());
@@ -1314,7 +1316,7 @@ TEST_F(WindowLayerManagedByParentTest, SetBounds) {
     parent.AddChild(&child);
 
     // L_P -> L_X (10, 10) -> L_C
-    ui::Layer layer_x(ui::LAYER_NOT_DRAWN);
+    ui::LayerNotDrawn layer_x;
     layer_x.SetBounds(gfx::Rect(10, 10, 100, 100));
 
     // Apply transform to L_X (translate by 100, 100).
@@ -1346,7 +1348,7 @@ TEST_F(WindowLayerManagedByParentTest, SetBounds) {
     parent.AddChild(&child);
 
     // L_P -> L_X (10, 10) -> L_C
-    ui::Layer layer_x(ui::LAYER_NOT_DRAWN);
+    ui::LayerNotDrawn layer_x;
     layer_x.SetBounds(gfx::Rect(10, 10, 100, 100));
 
     parent.layer()->Add(&layer_x);
@@ -3073,7 +3075,7 @@ TEST_F(WindowTest, RecreateLayer) {
   layer->SetVisible(false);
   layer->SetMasksToBounds(true);
 
-  ui::Layer child_layer;
+  ui::LayerTextured child_layer;
   layer->Add(&child_layer);
 
   std::unique_ptr<ui::Layer> old_layer(w.RecreateLayer());
@@ -4135,7 +4137,7 @@ TEST_F(WindowTest, WindowDestroyCompletesAnimations) {
 
   animator = ui::LayerAnimator::CreateImplicitAnimator();
   animator->AddObserver(&observer);
-  ui::Layer layer;
+  ui::LayerTextured layer;
   layer.SetAnimator(animator.get());
   {
     std::unique_ptr<Window> window(CreateTestWindow(
@@ -4503,6 +4505,163 @@ TEST_P(WindowActualScreenBoundsTest, VerifyWindowActualBoundsDuringAnimation) {
           &WindowActualScreenBoundsTest::OnTranslationAnimationProgressed,
           base::Unretained(this), child_initial_bounds));
   bounds_checker.WaitForAnimationCompletion();
+}
+
+#if DCHECK_IS_ON()
+TEST_F(WindowTest, GetWindowHierarchy) {
+  std::unique_ptr<Window> w1(CreateTestWindow({.window_id = 1}));
+  std::unique_ptr<Window> w2(CreateTestWindow({.window_id = 2}));
+
+  w1->SetTitle(u"Window 1");
+
+  Window* w11 =
+      CreateTestWindow({.parent = w1.get(), .window_id = 11}).release();
+
+  // Parent them to root
+  root_window()->AddChild(w1.get());
+  root_window()->AddChild(w2.get());
+
+  // Set focus to w11
+  w11->Focus();
+
+  // Set capture to w2
+  w2->SetCapture();
+
+  // Active window mark test (we pass w1 as active window)
+  std::string hierarchy = root_window()->GetWindowHierarchy(0, w1.get());
+
+  // Verify hierarchy contains:
+  // - w1 with title and [active]
+  // - w11 with [focused]
+  // - w2 with [capture]
+
+  size_t pos_w1 = hierarchy.find("<1>");
+  ASSERT_NE(pos_w1, std::string::npos);
+  size_t nl_w1 = hierarchy.find("\n", pos_w1);
+  std::string line_w1 = hierarchy.substr(pos_w1, nl_w1 - pos_w1);
+  EXPECT_TRUE(line_w1.find("title=\"Window 1\"") != std::string::npos);
+  EXPECT_TRUE(line_w1.find("[active]") != std::string::npos);
+  EXPECT_FALSE(line_w1.find("[focused]") != std::string::npos);
+  EXPECT_FALSE(line_w1.find("[capture]") != std::string::npos);
+
+  size_t pos_w11 = hierarchy.find("<11>");
+  ASSERT_NE(pos_w11, std::string::npos);
+  size_t nl_w11 = hierarchy.find("\n", pos_w11);
+  std::string line_w11 = hierarchy.substr(pos_w11, nl_w11 - pos_w11);
+  EXPECT_TRUE(line_w11.find("[focused]") != std::string::npos);
+  EXPECT_FALSE(line_w11.find("[active]") != std::string::npos);
+  EXPECT_FALSE(line_w11.find("[capture]") != std::string::npos);
+
+  size_t pos_w2 = hierarchy.find("<2>");
+  ASSERT_NE(pos_w2, std::string::npos);
+  size_t nl_w2 = hierarchy.find("\n", pos_w2);
+  std::string line_w2 = hierarchy.substr(pos_w2, nl_w2 - pos_w2);
+  EXPECT_TRUE(line_w2.find("[capture]") != std::string::npos);
+  EXPECT_FALSE(line_w2.find("[active]") != std::string::npos);
+  EXPECT_FALSE(line_w2.find("[focused]") != std::string::npos);
+
+  w2->ReleaseCapture();
+}
+#endif
+
+class ReentrantDisplayScreen : public display::Screen {
+ public:
+  explicit ReentrantDisplayScreen(display::Screen* original_screen,
+                                  base::RepeatingClosure on_get_display)
+      : original_screen_(original_screen),
+        on_get_display_(std::move(on_get_display)) {
+    set_shutdown(true);
+  }
+
+  ReentrantDisplayScreen(const ReentrantDisplayScreen&) = delete;
+  ReentrantDisplayScreen& operator=(const ReentrantDisplayScreen&) = delete;
+
+  ~ReentrantDisplayScreen() override = default;
+
+  // Overridden from display::Screen:
+  gfx::Point GetCursorScreenPoint() override {
+    return original_screen_->GetCursorScreenPoint();
+  }
+  bool IsWindowUnderCursor(gfx::NativeWindow window) override {
+    return original_screen_->IsWindowUnderCursor(window);
+  }
+  gfx::NativeWindow GetWindowAtScreenPoint(const gfx::Point& point) override {
+    return original_screen_->GetWindowAtScreenPoint(point);
+  }
+  gfx::NativeWindow GetLocalProcessWindowAtPoint(
+      const gfx::Point& point,
+      const std::set<gfx::NativeWindow>& ignore) override {
+    return original_screen_->GetLocalProcessWindowAtPoint(point, ignore);
+  }
+  int GetNumDisplays() const override {
+    return original_screen_->GetNumDisplays();
+  }
+  const std::vector<display::Display>& GetAllDisplays() const override {
+    return original_screen_->GetAllDisplays();
+  }
+  display::Display GetDisplayNearestWindow(
+      gfx::NativeWindow window) const override {
+    on_get_display_.Run();
+    return original_screen_->GetDisplayNearestWindow(window);
+  }
+  display::Display GetDisplayNearestPoint(
+      const gfx::Point& point) const override {
+    return original_screen_->GetDisplayNearestPoint(point);
+  }
+  display::Display GetDisplayMatching(
+      const gfx::Rect& match_rect) const override {
+    return original_screen_->GetDisplayMatching(match_rect);
+  }
+  display::Display GetPrimaryDisplay() const override {
+    return original_screen_->GetPrimaryDisplay();
+  }
+  void AddObserver(display::DisplayObserver* observer) override {
+    original_screen_->AddObserver(observer);
+  }
+  void RemoveObserver(display::DisplayObserver* observer) override {
+    original_screen_->RemoveObserver(observer);
+  }
+
+ private:
+  raw_ptr<display::Screen> original_screen_;
+  base::RepeatingClosure on_get_display_;
+};
+
+TEST_F(WindowTest, ScopedCursorHiderCursorClientFreedDuringGetDisplay) {
+  display::Screen* original_screen = display::Screen::Get();
+
+  std::unique_ptr<Window> test_root = std::make_unique<Window>(nullptr);
+  test_root->Init(ui::LAYER_NOT_DRAWN);
+  test_root->set_host(host());
+  test_root->SetBounds(gfx::Rect(0, 0, 800, 600));
+
+  TestCursorClient cursor_client(root_window());
+  client::SetCursorClient(root_window(), nullptr);
+  client::SetCursorClient(test_root.get(), &cursor_client);
+
+  Env::GetInstance()->SetLastMouseLocation(gfx::Point(10, 10));
+
+  cursor_client.ShowCursor();
+  EXPECT_TRUE(cursor_client.IsCursorVisible());
+
+  ReentrantDisplayScreen reentrant_screen(
+      original_screen,
+      base::BindLambdaForTesting([&]() { test_root.reset(); }));
+
+  display::Screen::SetScreenInstance(&reentrant_screen);
+
+  // This call synchronously destroys `test_root` during the nested display
+  // nearest window query. With the fix, the ScopedCursorHider destructor
+  // detects this destruction via `WindowTracker` and avoids dereferencing the
+  // freed `CursorClient` pointer or `test_root`, so this call should complete
+  // without crashing.
+  test_root->OnDeviceScaleFactorChanged(1.0f, 2.0f);
+
+  display::Screen::SetScreenInstance(nullptr);
+  display::Screen::SetScreenInstance(original_screen);
+
+  // Restore cursor client.
+  client::SetCursorClient(root_window(), &cursor_client);
 }
 
 }  // namespace

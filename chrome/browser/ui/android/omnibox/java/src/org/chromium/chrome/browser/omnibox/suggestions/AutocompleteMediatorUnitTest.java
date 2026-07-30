@@ -91,6 +91,7 @@ import org.chromium.components.favicon.LargeIconBridge;
 import org.chromium.components.favicon.LargeIconBridgeJni;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.AutocompleteInput.AutocompleteState;
 import org.chromium.components.omnibox.AutocompleteInput.SiteSearchData;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
@@ -852,6 +853,7 @@ public class AutocompleteMediatorUnitTest {
         FuseboxSessionState session = createEmptySession();
         mMediator.beginInput(session);
         mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
+        assertEquals("inline_autocomplete", session.getAutocompleteInput().getPreviewText());
         verify(mAutocompleteDelegate).onSuggestionsChanged(any(), anyBoolean());
 
         // Ensure duplicate requests are not suppressed, to preserve the
@@ -865,12 +867,14 @@ public class AutocompleteMediatorUnitTest {
         mSuggestionsList.remove(0);
         mSuggestionsList.add(0, defaultMatch);
         mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
+        assertEquals("inline_autocomplete2", session.getAutocompleteInput().getPreviewText());
         verify(mAutocompleteDelegate).onSuggestionsChanged(defaultMatch, true);
 
         // Clear the suggestions list so that we do not detect "unchanged suggestions" in the next
         // step. When suggestions are unchanged, we won't rebuild the list, and the events below
         // will not trigger.
         mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(null, null), true);
+        assertFalse(session.getAutocompleteInput().hasPreviewText());
         clearInvocations(mAutocompleteDelegate);
 
         defaultMatch =
@@ -884,6 +888,7 @@ public class AutocompleteMediatorUnitTest {
         var autocompleteInput = session.getAutocompleteInput();
         autocompleteInput.setRequestType(AutocompleteRequestType.AI_MODE);
         mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
+        assertEquals("inline_autocomplete2", session.getAutocompleteInput().getPreviewText());
         verify(mAutocompleteDelegate).onSuggestionsChanged(defaultMatch, false);
     }
 
@@ -999,6 +1004,34 @@ public class AutocompleteMediatorUnitTest {
 
         assertTrue(session.getAutocompleteInput().getSiteSearchData() == null);
         verify(mAutocompleteDelegate).setOmniboxEditingText("something");
+    }
+
+    @Test
+    @SmallTest
+    public void onSuggestionFocused_inlineAutocomplete_doesNotClearPreviewOrUpdateText() {
+        mMediator.onNativeInitialized();
+        var session = createEmptySession();
+        mMediator.beginInput(session);
+        assertTrue("Session should be active", mMediator.isInInputSession());
+
+        // Simulate typing and getting inline autocomplete (which sets preview text but not site
+        // search data)
+        mMediator.propagateOmniboxSessionStateChange(true); // Ensures ignore = true
+        session.getAutocompleteInput().setPreviewText("w.example.com");
+        // siteSearchData remains null
+
+        AutocompleteMatch match =
+                new AutocompleteMatchBuilder()
+                        .setType(OmniboxSuggestionType.HISTORY_URL)
+                        .setFillIntoEdit("https://www.example.com")
+                        .build();
+
+        mMediator.onSuggestionFocused(match);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        assertEquals("w.example.com", session.getAutocompleteInput().getPreviewText());
+        verify(mAutocompleteDelegate, never()).setOmniboxEditingText(any());
     }
 
     @Test
@@ -2717,5 +2750,48 @@ public class AutocompleteMediatorUnitTest {
         mMediator.beginInput(createEmptySession());
         mMediator.propagateOmniboxSessionStateChange(true);
         assertEquals(true, mListModel.get(SuggestionListProperties.APPLY_MARGIN_FOR_LEFT_SIDE_BAR));
+    }
+
+    @Test
+    @SmallTest
+    public void testStateTransitionToEnabled_triggersSuggestions() {
+        GURL url = JUnitTestGURLs.BLUE_1;
+        String title = "Title";
+        int pageClassification = PageClassification.BLANK_VALUE;
+        FuseboxSessionState session = createSession(url, title, pageClassification);
+
+        session.getAutocompleteInput()
+                .setAutocompleteState(AutocompleteState.STANDBY)
+                .setUserText("query")
+                .setInitialUserText("example.com");
+
+        mMediator.beginInput(session);
+
+        verify(mAutocompleteController, never()).start(any(), any(), anyInt(), anyBoolean());
+        verify(mAutocompleteController, never()).startZeroSuggest(any(), any());
+
+        session.getAutocompleteInput().setAutocompleteState(AutocompleteState.ENABLED);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        ArgumentCaptor<AutocompleteInput> captor = ArgumentCaptor.forClass(AutocompleteInput.class);
+        verify(mAutocompleteController).start(any(), captor.capture(), anyInt(), anyBoolean());
+        assertEquals("query", captor.getValue().getUserText());
+    }
+
+    @Test
+    @SmallTest
+    public void testStateTransitionToStandby_stopsAutocomplete() {
+        GURL url = JUnitTestGURLs.BLUE_1;
+        String title = "Title";
+        int pageClassification = PageClassification.BLANK_VALUE;
+        FuseboxSessionState session = createSession(url, title, pageClassification);
+
+        session.getAutocompleteInput().setAutocompleteState(AutocompleteState.ENABLED);
+        mMediator.beginInput(session);
+
+        session.getAutocompleteInput().setAutocompleteState(AutocompleteState.STANDBY);
+
+        verify(mAutocompleteController).stop(AutocompleteStopReason.CLOBBERED);
     }
 }

@@ -6,7 +6,7 @@
 
 #include "components/sync/base/passphrase_enums.h"
 #include "components/sync/base/user_selectable_type.h"
-#include "components/sync/nigori/nigori.h"
+#include "components/sync/model/crypto/nigori.h"
 #include "components/sync/service/sync_prefs.h"
 #include "components/sync/service/sync_service.h"
 #include "components/sync/service/sync_user_settings_impl.h"
@@ -132,6 +132,9 @@ DataTypeSet TestSyncUserSettings::GetPreferredDataTypes() const {
   types.PutAll(UserSelectableOsTypesToDataTypes(GetSelectedOsTypes()));
 #endif
   types.PutAll(ControlTypes());
+  if (service_->IsLocalSyncEnabled()) {
+    types.RetainAll(LocalSyncSupportedTypes());
+  }
   return types;
 }
 

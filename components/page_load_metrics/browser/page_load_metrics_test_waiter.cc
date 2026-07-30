@@ -4,6 +4,7 @@
 
 #include "components/page_load_metrics/browser/page_load_metrics_test_waiter.h"
 
+#include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/i18n/number_formatting.h"
 #include "components/page_load_metrics/browser/observers/page_load_metrics_observer_tester.h"
@@ -238,7 +239,7 @@ void PageLoadMetricsTestWaiter::AddMinimumCompleteResourcesExpectation(
 }
 
 void PageLoadMetricsTestWaiter::AddMinimumNetworkBytesExpectation(
-    base::ByteCount expected_minimum_network_bytes) {
+    base::ByteSize expected_minimum_network_bytes) {
   expected_minimum_network_bytes_ = expected_minimum_network_bytes;
 }
 
@@ -834,7 +835,7 @@ void PageLoadMetricsTestWaiter::ResetExpectations() {
   expected_ = State();
   observed_ = State();
   expected_minimum_complete_resources_ = 0;
-  expected_minimum_network_bytes_ = base::ByteCount(0);
+  expected_minimum_network_bytes_ = base::ByteSize(0);
   expected_minimum_aggregate_cpu_time_ = base::TimeDelta();
 }
 

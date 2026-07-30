@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">ਬਾਰੇ ਪੰਨਾ '<ph name="ABOUT_PAGE" />' ਲੋਡ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ।</translation>
 <translation id="424963718355121712">ਐਪਾਂ ਨੂੰ ਲਾਜ਼ਮੀ ਤੌਰ 'ਤੇ ਉਸ ਹੋਸਟ ਤੋਂ ਦੇਣਾ ਚਾਹੀਦਾ ਹੈ ਜਿਸ ਨੂੰ ਉਹ ਪ੍ਰਭਾਵਿਤ ਕਰਦੀਆਂ ਹਨ</translation>
 <translation id="4306119971288449206">ਐਪਾਂ ਨੂੰ ਲਾਜ਼ਮੀ ਤੌਰ 'ਤੇ ਸਮੱਗਰੀ-ਪ੍ਰਕਾਰ "<ph name="CONTENT_TYPE" />" ਵਿੱਚ ਦੇਣਾ ਚਾਹੀਦਾ ਹੈ</translation>
+<translation id="4349181963619779233">ਇਸ ਵੈੱਬਸਾਈਟ ਤੋਂ ਐਕਸਟੈਂਸ਼ਨਾਂ ਅਤੇ ਐਪਾਂ ਨੂੰ ਸ਼ਾਮਲ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਦਾ</translation>
 <translation id="4625078469366263107">ਐਪ ਨੂੰ ਚਾਲੂ ਕਰੋ</translation>
 <translation id="4633003931260532286">ਐਕਸਟੈਂਸ਼ਨ ਲਈ "<ph name="IMPORT_NAME" />" ਨੂੰ ਨਿਊਨਤਮ "<ph name="IMPORT_VERSION" />" ਵਰਜਨ ਦਾ ਹੋਣਾ ਚਾਹੀਦਾ ਹੈ, ਪਰ ਸਿਰਫ਼ "<ph name="INSTALLED_VERSION" />" ਵਰਜਨ ਹੀ ਸਥਾਪਤ ਕੀਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="4660476621274971848">ਸੰਭਾਵਿਤ ਵਰਜਨ "<ph name="EXPECTED_VERSION" />" ਹੈ, ਪਰ ਵਰਜਨ "<ph name="NEW_ID" />" ਸੀ</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">ਪ੍ਰਾਈਵੇਟ ਕੁੰਜੀ ਲਈ ਇਨਪੁੱਟ ਮੁੱਲ ਵੈਧ ਫਾਰਮੈਟ ਵਿੱਚ ਹੋਣਾ ਲਾਜ਼ਮੀ ਹੈ (PKCS#8-ਫਾਰਮੈਟ PEM-ਇਨਕੋਡ ਕੀਤੀ ਗਈ RSA ਕੁੰਜੀ)।</translation>
-<translation id="765293928828334535">ਇਸ ਵੈੱਬਸਾਈਟ ਤੋਂ ਐਪਾਂ, ਐਕਸਟੈਂਸ਼ਨਾਂ ਅਤੇ ਵਰਤੋਂਕਾਰ ਸਕ੍ਰਿਪਟਾਂ ਸ਼ਾਮਲ ਨਹੀਂ ਕੀਤੀਆਂ ਜਾ ਸਕਦੀਆਂ ਹਨ</translation>
 <translation id="7658239707568436148">ਰੱਦ ਕਰੋ</translation>
 <translation id="7766838926148951335">ਇਜਾਜ਼ਤਾਂ ਸਵੀਕਾਰ ਕਰੋ</translation>
 <translation id="7876803335449432072">ਸਮੱਗਰੀ ਸਕ੍ਰਿਪਟ ਲਈ '<ph name="RELATIVE_PATH" />' ਫ਼ਾਈਲ ਨੂੰ ਲੋਡ ਨਹੀਂ ਕੀਤਾ ਜਾ ਸਕਿਆ, ਸਮੱਗਰੀ ਸਕ੍ਰਿਪਟ ਸਟਾਈਲ ਸ਼ੀਟਾਂ ਨੂੰ ਸਿਰਫ਼ ਸਮਰਥਿਤ ਸਟਾਈਲ ਸ਼ੀਟ ਫ਼ਾਈਲਾਂ ਜਿਵੇਂ ਕਿ .CSS ਫ਼ਾਈਲਾਂ ਤੋਂ ਲੋਡ ਕੀਤਾ ਜਾ ਸਕਦਾ ਹੈ।</translation>

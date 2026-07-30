@@ -19,7 +19,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
+import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -29,9 +31,14 @@ import org.chromium.base.test.util.Restriction;
 import org.chromium.base.test.util.TestAnimations;
 import org.chromium.content.common.ContentInternalFeatures;
 import org.chromium.content_public.browser.ContentFeatureList;
+import org.chromium.content_public.browser.NavigationHandle;
+import org.chromium.content_public.browser.WebContentsObserver;
 import org.chromium.content_public.browser.test.ContentJUnit4ClassRunner;
 import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.ui.test.util.DeviceRestriction;
+
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /** Tests for WebContentsAccessibilityImpl integration with accessibility services. */
 @RunWith(ContentJUnit4ClassRunner.class)
@@ -41,6 +48,8 @@ import org.chromium.ui.test.util.DeviceRestriction;
 @EnableFeatures(ContentFeatureList.ACCESSIBILITY_EXTENDED_SELECTION)
 @TestAnimations.EnableAnimations
 public class WebContentsAccessibilityEventsTest {
+    private WebContentsObserver mWebContentsObserver;
+
     // File path that holds all the relevant tests.
     private static final String BASE_FILE_PATH = "content/test/data/accessibility/event/";
     private static final String EMPTY_EXPECTATIONS_FILE = "EmptyExpectationsFile";
@@ -55,7 +64,10 @@ public class WebContentsAccessibilityEventsTest {
      *
      */
     private void performTest(String inputFile, String expectationFile) {
-        performTest(inputFile, expectationFile, true);
+        performTest(
+                inputFile,
+                expectationFile,
+                /* shouldFilterTrivialEvents= */ true);
     }
 
     /**
@@ -71,7 +83,21 @@ public class WebContentsAccessibilityEventsTest {
     private void performTest(
             String inputFile, String expectationFile, boolean shouldFilterTrivialEvents) {
         performTestWithJavascriptMethod(
-                inputFile, expectationFile, "go()", shouldFilterTrivialEvents);
+                inputFile,
+                expectationFile,
+                "go()",
+                shouldFilterTrivialEvents,
+                /* testServer= */ false);
+    }
+
+    private void performTestWithServer(
+            String inputFile, String expectationFile, boolean shouldFilterTrivialEvents) {
+        performTestWithJavascriptMethod(
+                inputFile,
+                expectationFile,
+                "go()",
+                shouldFilterTrivialEvents,
+                /* testServer= */ true);
     }
 
     /**
@@ -84,14 +110,20 @@ public class WebContentsAccessibilityEventsTest {
      * @param expectationFile TXT expectations file
      * @param javascriptMethod javascript method (e.g. "expand()" or "go()")
      * @param shouldFilterTrivialEvents Flag to filter out TYPE_WINDOW_CONTENT_CHANGED event
+     * @param testServer Flag to indicate that the test server should be used
      */
     private void performTestWithJavascriptMethod(
             String inputFile,
             String expectationFile,
             String javascriptMethod,
-            boolean shouldFilterTrivialEvents) {
+            boolean shouldFilterTrivialEvents,
+            boolean testServer) {
         // Build page from given file and enable testing framework, set a tracker.
-        mActivityTestRule.setupTestFromFile(BASE_FILE_PATH + inputFile, shouldFilterTrivialEvents);
+        mActivityTestRule.setupTestFromFile(
+                BASE_FILE_PATH + inputFile,
+                shouldFilterTrivialEvents,
+                testServer,
+                /* sendReadyForTestSignal= */ true);
 
         // Inject a separator comment to separate initial page-load events from JS events
         mActivityTestRule.addCommentToTracker("=== END INITIAL PAGE LOAD ===");
@@ -122,7 +154,7 @@ public class WebContentsAccessibilityEventsTest {
      * Helper method to compare test outputs with expected results. Reads content of expectations
      * file, asserts non-null, then compares with results.
      *
-     * @param expectationFile           Filename of the expectations for the given test.
+     * @param expectationFile Filename of the expectations for the given test.
      */
     private void assertResults(String expectationFile) {
         String expectedResults;
@@ -894,9 +926,44 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "https://crbug.com/1392791")
-    public void test_immediateRefresh() {
-        performTest("immediate-refresh.html", "immediate-refresh-expected-android.txt");
+    public void test_constantRefresh() throws TimeoutException {
+        // This test differs from the rest given we cannot send the readyForTestSignal because
+        // of the constant refreshing of the webpage. Instead, another parameter could've been added
+        // to performTest(), but the assertion logic is also different given we call no go()
+        // functions.
+        mActivityTestRule.setupTestFromFile(
+                BASE_FILE_PATH + "constant-refresh.html",
+                /* shouldFilterTrivialEvents= */ true,
+                /* testServer= */ false,
+                /* sendReadyForTestSignal= */ false);
+
+        // CallbackHelper detects when the navigation commits.
+        CallbackHelper callbackHelper = new CallbackHelper();
+        int currentCallCount = callbackHelper.getCallCount();
+
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    mWebContentsObserver =
+                            new WebContentsObserver(mActivityTestRule.getWebContents()) {
+                                @Override
+                                public void didFinishNavigationInPrimaryMainFrame(
+                                        NavigationHandle navigation) {
+                                    if (navigation.hasCommitted() && !navigation.isSameDocument()) {
+                                        callbackHelper.notifyCalled();
+                                    }
+                                }
+                            };
+                });
+
+        // We wait for two refresh commits to verify a full navigation cycle has been covered.
+        callbackHelper.waitForCallback(
+                "Timed out waiting for refreshes",
+                currentCallCount,
+                /* numberOfCallsToWaitFor= */ 2,
+                CallbackHelper.WAIT_TIMEOUT_SECONDS,
+                TimeUnit.SECONDS);
+
+        assertResults("constant-refresh-expected-android.txt");
     }
 
     @Test
@@ -1228,9 +1295,11 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "crbug.com/382549182")
     public void test_navigationApi() {
-        performTest("navigation-api.html", "navigation-api-expected-android.txt");
+        performTestWithServer(
+                "navigation-api.html",
+                "navigation-api-expected-android.txt",
+                /* shouldFilterTrivialEvents= */ true);
     }
 
     @Test
@@ -1346,7 +1415,6 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "https://crbug.com/1186376")
     public void test_scrollHorizontalScrollPercentChanged() {
         performTest(
                 "scroll-horizontal-scroll-percent-change.html",
@@ -1355,7 +1423,6 @@ public class WebContentsAccessibilityEventsTest {
 
     @Test
     @SmallTest
-    @DisabledTest(message = "https://crbug.com/1186376")
     public void test_scrollVerticalScrollPercentChanged() {
         performTest(
                 "scroll-vertical-scroll-percent-change.html",
@@ -1544,6 +1611,7 @@ public class WebContentsAccessibilityEventsTest {
     @Test
     @SmallTest
     @DisableFeatures(ContentFeatures.ACCESSIBILITY_REQUEST_SCOPED_CONTENT_CHANGED_EVENTS)
+    @DisabledTest(message = "https://crbug.com/532605121")
     public void test_scopedContentChanged_disabled() {
         performTest(
                 "scoped-content-changed.html",

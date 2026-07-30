@@ -339,45 +339,43 @@ public class BottomAttachedUiObserver
 
         //  For bottom-anchored UI, we should disable animations on appearance and enable
         // animations on disappearance.
-        if (ChromeFeatureList.sNavBarColorAnimation.isEnabled()) {
-            // Checks for bottom controls such as bottom tab group tool bar and read aloud mini
-            // player.
-            boolean nonBottomChinBottomControlsVisible = areNonBottomChinBottomControlsVisible();
+        // Checks for bottom controls such as bottom tab group tool bar and read aloud mini
+        // player.
+        boolean nonBottomChinBottomControlsVisible = areNonBottomChinBottomControlsVisible();
 
-            // Disable animations on tab group toolbar appearance (toolbar visible false -> true).
-            // Enable animations on tab group toolbar disappearance (toolbar visible true -> false).
-            // We still want to enable animations when scrolling on/off (toolbar visible false
-            // -> false or true -> true).
-            boolean disableAnimationsTabGroupToolbar =
-                    !mNonBottomChinBottomControlsVisible && nonBottomChinBottomControlsVisible;
-            mNonBottomChinBottomControlsVisible = nonBottomChinBottomControlsVisible;
+        // Disable animations on tab group toolbar appearance (toolbar visible false -> true).
+        // Enable animations on tab group toolbar disappearance (toolbar visible true -> false).
+        // We still want to enable animations when scrolling on/off (toolbar visible false
+        // -> false or true -> true).
+        boolean disableAnimationsTabGroupToolbar =
+                !mNonBottomChinBottomControlsVisible && nonBottomChinBottomControlsVisible;
+        mNonBottomChinBottomControlsVisible = nonBottomChinBottomControlsVisible;
 
-            if (disableAnimationsTabGroupToolbar) {
-                return true;
-            }
+        if (disableAnimationsTabGroupToolbar) {
+            return true;
+        }
 
-            boolean isBottomBarVisible =
-                    (BottomBarConfigUtils.isBottomBarEnabled(mContext)
-                                    || mBrowserControlsStateProvider.getControlsPosition()
-                                            == ControlsPosition.BOTTOM)
-                            && !BrowserControlsUtils.areBottomControlsOffScreen(
-                                    mBrowserControlsStateProvider);
+        boolean isBottomBarVisible =
+                (BottomBarConfigUtils.isBottomBarEnabled(mContext)
+                                || mBrowserControlsStateProvider.getControlsPosition()
+                                        == ControlsPosition.BOTTOM)
+                        && !BrowserControlsUtils.areBottomControlsOffScreen(
+                                mBrowserControlsStateProvider);
 
-            if (isBottomBarVisible) {
-                return true;
-            }
+        if (isBottomBarVisible) {
+            return true;
+        }
 
-            if (mBottomSheetVisible) {
-                return true;
-            }
+        if (mBottomSheetVisible) {
+            return true;
+        }
 
-            if (mOverlayPanelVisible) {
-                return true;
-            }
+        if (mOverlayPanelVisible) {
+            return true;
+        }
 
-            if (mKeyboardAccessoryVisible) {
-                return true;
-            }
+        if (mKeyboardAccessoryVisible) {
+            return true;
         }
 
         return false;
@@ -386,7 +384,9 @@ public class BottomAttachedUiObserver
     private boolean shouldMatchBottomSheetColor() {
         if (!mBottomSheetVisible) return false;
 
-        if (BottomSheetUtils.isContentActingAsBrowserControls(mBottomSheetController)) {
+        if (BottomSheetUtils.isContentActingAsBrowserControls(
+                mBottomSheetController,
+                ChromeFeatureList.sBottomSheetAsBrowserControls.isEnabled())) {
             return false;
         }
 

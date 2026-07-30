@@ -44,7 +44,6 @@
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/ash/experiences/screenshot_area/screenshot_area.h"
 #include "components/enterprise/common/proto/synced/dlp_policy_event.pb.h"
@@ -65,6 +64,7 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/mojom/mediastream/media_stream.mojom-shared.h"
 #include "ui/aura/window.h"
+#include "ui/events/test/event_generator.h"
 #include "ui/gfx/geometry/rect.h"
 
 using testing::_;
@@ -175,7 +175,7 @@ class DlpContentManagerAshBrowserTest : public InProcessBrowserTest {
   // Sets up mock rules manager.
   void SetupDlpRulesManager() {
     DlpRulesManagerFactory::GetInstance()->SetTestingFactory(
-        browser()->profile(),
+        browser()->GetProfile(),
         base::BindRepeating(
             &DlpContentManagerAshBrowserTest::SetDlpRulesManager,
             base::Unretained(this)));
@@ -550,7 +550,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Open second browser window.
   Browser* browser2 =
-      Browser::Create(Browser::CreateParams(browser()->profile(), true));
+      Browser::Create(Browser::CreateParams(browser()->GetProfile(), true));
   chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
@@ -603,7 +603,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest, VideoCaptureReported) {
 
   // Open second browser window.
   Browser* browser2 =
-      Browser::Create(Browser::CreateParams(browser()->profile(), true));
+      Browser::Create(Browser::CreateParams(browser()->GetProfile(), true));
   chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
@@ -658,7 +658,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Open second browser window.
   Browser* browser2 =
-      Browser::Create(Browser::CreateParams(browser()->profile(), true));
+      Browser::Create(Browser::CreateParams(browser()->GetProfile(), true));
   chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
@@ -712,7 +712,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Open second browser window.
   Browser* browser2 =
-      Browser::Create(Browser::CreateParams(browser()->profile(), true));
+      Browser::Create(Browser::CreateParams(browser()->GetProfile(), true));
   chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
@@ -769,7 +769,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Open second browser window.
   Browser* browser2 =
-      Browser::Create(Browser::CreateParams(browser()->profile(), true));
+      Browser::Create(Browser::CreateParams(browser()->GetProfile(), true));
   chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
@@ -810,9 +810,11 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   // Check that the warning is now shown.
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 1);
   // Hit Enter to "Save anyway".
-  ASSERT_TRUE(ui_test_utils::SendKeyPressSync(
-      browser(), ui::VKEY_RETURN, /*control=*/false,
-      /*shift=*/false, /*alt=*/false, /*command=*/false));
+  ui::test::EventGenerator(
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow())
+      .PressAndReleaseKey(ui::VKEY_RETURN, ui::EF_NONE);
+  // Run loop to process asynchronous widget closure triggered by key event.
+  base::RunLoop().RunUntilIdle();
   histogram_tester_.ExpectBucketCount(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kScreenshotWarnProceededUMA,
@@ -841,7 +843,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
 
   // Open second browser window.
   Browser* browser2 =
-      Browser::Create(Browser::CreateParams(browser()->profile(), true));
+      Browser::Create(Browser::CreateParams(browser()->GetProfile(), true));
   chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
 
@@ -882,9 +884,11 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshBrowserTest,
   // Check that the warning is now shown.
   EXPECT_EQ(helper_->ActiveWarningDialogsCount(), 1);
   // Hit Enter to "Cancel".
-  ASSERT_TRUE(ui_test_utils::SendKeyPressSync(
-      browser(), ui::VKEY_ESCAPE, /*control=*/false,
-      /*shift=*/false, /*alt=*/false, /*command=*/false));
+  ui::test::EventGenerator(
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow())
+      .PressAndReleaseKey(ui::VKEY_ESCAPE, ui::EF_NONE);
+  // Run loop to process asynchronous widget closure triggered by key event.
+  base::RunLoop().RunUntilIdle();
   histogram_tester_.ExpectBucketCount(
       data_controls::GetDlpHistogramPrefix() +
           data_controls::dlp::kScreenshotWarnProceededUMA,
@@ -1000,7 +1004,7 @@ class DlpContentManagerAshScreenShareBrowserTest
         content::DesktopMediaID::kNullId,
         content::WebContentsMediaCaptureId(process_id, frame_id));
 
-    extensions::TabCaptureRegistry::Get(browser()->profile())
+    extensions::TabCaptureRegistry::Get(browser()->GetProfile())
         ->AddRequest(web_contents, /*extension_id=*/"", /*is_anonymous=*/false,
                      GURL(kExampleUrl), media_id, process_id, frame_id);
 
@@ -1025,9 +1029,11 @@ class DlpContentManagerAshScreenShareBrowserTest
   void DismissDialog(bool allow) {
     ASSERT_EQ(helper_->ActiveWarningDialogsCount(), 1);
     ui::KeyboardCode key = allow ? ui::VKEY_RETURN : ui::VKEY_ESCAPE;
-    ASSERT_TRUE(ui_test_utils::SendKeyPressSync(
-        browser(), key, /*control=*/false,
-        /*shift=*/false, /*alt=*/false, /*command=*/false));
+    ui::test::EventGenerator(
+        browser()->GetWindow()->GetNativeWindow()->GetRootWindow())
+        .PressAndReleaseKey(key, ui::EF_NONE);
+    // Run loop to process asynchronous widget closure triggered by key event.
+    base::RunLoop().RunUntilIdle();
   }
 
   // Blocks the test execution to wait for a screen share to be resumed.
@@ -1204,7 +1210,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
                        ScreenShareNotification) {
   helper_->SetScreenShareResumeDelay(kScreenShareResumeDelayForTesting);
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1288,7 +1295,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
 IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
                        ScreenShareStoppedForSourceChange) {
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   DlpContentManagerAsh* manager =
       static_cast<DlpContentManagerAsh*>(helper_->GetContentManager());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
@@ -1420,7 +1428,8 @@ using CheckRunningScreenShareTest = CheckAndStartScreenShareTest;
 IN_PROC_BROWSER_TEST_P(CheckAndStartScreenShareTest, FullScreenShare) {
   const ScreenShareTestParams& param = GetParam();
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1469,7 +1478,8 @@ IN_PROC_BROWSER_TEST_P(CheckAndStartScreenShareTest, FullScreenShare) {
 IN_PROC_BROWSER_TEST_P(CheckAndStartScreenShareTest, TabShare) {
   const ScreenShareTestParams& param = GetParam();
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1519,7 +1529,8 @@ IN_PROC_BROWSER_TEST_P(CheckRunningScreenShareTest, FullScreenShare) {
   const ScreenShareTestParams& param = GetParam();
   helper_->SetScreenShareResumeDelay(kScreenShareResumeDelayForTesting);
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1591,7 +1602,8 @@ IN_PROC_BROWSER_TEST_P(CheckRunningScreenShareTest, TabShare) {
   const ScreenShareTestParams& param = GetParam();
   helper_->SetScreenShareResumeDelay(kScreenShareResumeDelayForTesting);
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1664,7 +1676,8 @@ IN_PROC_BROWSER_TEST_P(CheckRunningScreenShareTest, TabShare) {
 IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
                        ScreenShareResumedWhenNavigatingToBypassedContent) {
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1807,7 +1820,7 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
 
   // Open second browser window.
   Browser* browser2 =
-      Browser::Create(Browser::CreateParams(browser()->profile(), true));
+      Browser::Create(Browser::CreateParams(browser()->GetProfile(), true));
   chrome::NewTab(browser2, NewTabTypes::kNoUserAction);
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser2, GURL(kGoogleUrl)));
   content::WebContents* web_contents2 =
@@ -1852,7 +1865,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
 IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
                        WarningIsShownOnlyOnce) {
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   content::WebContents* web_contents =
@@ -1905,7 +1919,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
 IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
                        ScreenShareWarnedFromLacrosDuringAllowed) {
   SetupReporting();
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
 
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL(kExampleUrl)));
   aura::Window* root_window =
@@ -1948,7 +1963,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
                        ScreenShareReporting) {
   SetupReporting();
   const GURL origin(kExampleUrl);
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), origin));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -1996,7 +2012,8 @@ IN_PROC_BROWSER_TEST_F(DlpContentManagerAshScreenShareBrowserTest,
                        ScreenShareWithoutLabelNotReported) {
   SetupReporting();
   const GURL origin(kExampleUrl);
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), origin));
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
@@ -2049,7 +2066,8 @@ IN_PROC_BROWSER_TEST_P(ScreenShareNavigateWebContentsTest, Reporting) {
   const GURL reported_url(kExampleUrl);
   const GURL unrestricted_url(kChromeUrl);
 
-  NotificationDisplayServiceTester display_service_tester(browser()->profile());
+  NotificationDisplayServiceTester display_service_tester(
+      browser()->GetProfile());
   content::WebContents* web_contents =
       browser()->tab_strip_model()->GetActiveWebContents();
 

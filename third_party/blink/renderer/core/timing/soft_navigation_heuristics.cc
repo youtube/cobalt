@@ -174,13 +174,11 @@ void GroupLcpCandidatesByContext(const HeapVector<Member<T>>& records,
     if (!context || !context->IsRecordingLargestContentfulPaint()) {
       continue;
     }
-    LcpCandidates* candidates = nullptr;
-    if (auto iter = context_map.find(context); iter != context_map.end()) {
-      candidates = iter->value.Get();
-    } else {
-      candidates = MakeGarbageCollected<LcpCandidates>();
-      context_map.insert(context, candidates);
+    auto add_result = context_map.insert(context, nullptr);
+    if (add_result.is_new_entry) {
+      add_result.stored_value->value = MakeGarbageCollected<LcpCandidates>();
     }
+    LcpCandidates* candidates = add_result.stored_value->value.Get();
     candidates->MaybeUpdateCandidate(record);
   }
 }
@@ -191,10 +189,10 @@ SoftNavigationHeuristics::SoftNavigationHeuristics(LocalDOMWindow* window)
     : window_(window),
       task_attribution_tracker_(
           scheduler::TaskAttributionTracker::From(window->GetIsolate())) {
-  LocalFrame* frame = window->GetFrame();
-  CHECK(frame && frame->View());
+  CHECK(window->document());
   TextPaintTimingDetector* detector =
-      &frame->View()->GetPaintTimingDetector().GetTextPaintTimingDetector();
+      &PaintTimingDetector::From(*window->document())
+           .GetTextPaintTimingDetector();
   paint_attribution_tracker_ =
       MakeGarbageCollected<SoftNavigationPaintAttributionTracker>(detector);
 }
@@ -568,13 +566,18 @@ void SoftNavigationHeuristics::ReportSoftNavigationToMetrics(
   CHECK_EQ(context->GetSoftNavigationHeuristics(), this);
 
   if (LocalFrameClient* frame_client = frame->Client()) {
-    // TODO(crbug.com/490814752): Some tests simulate events with an impossibly
-    // small start_time value, which is less than the initial reference time,
-    // which makes the duration appear negative.  We cannot report such values
-    // without failing expectations (in tests).
-    if (context->TimeOrigin() <= loader->GetTiming().ReferenceMonotonicTime()) {
-      return;
-    }
+    // If this CHECK_GT fails in a test, it's likely because the test simulates
+    // events with an impossibly small start_time, which is less than the
+    // initial reference time, which makes the duration appear negative.  In
+    // case you're using ui::test::EventGenerator directly, you may want to use
+    // the Kombucha API's SendKeyPress facility instead; if you must use the
+    // EventGeneratorDirectly, you may need to manually advance its internal
+    // clock to the real time (ui::Test::EventGenerator::AdvanceClock) before
+    // dispatching the event. See also crbug.com/490814752 and
+    // chrome/test/interaction/README.md for the Kombucha API.
+    CHECK_GT(context->TimeOrigin(),
+             loader->GetTiming().ReferenceMonotonicTime());
+
     blink::SoftNavigationMetricsForReporting metrics = {
         .soft_navigation_offset = context->SoftNavigationOffset(),
         .start_time = loader->GetTiming().MonotonicTimeToPseudoWallTime(

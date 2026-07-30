@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">تعذر تحميل حول الصفحة "<ph name="ABOUT_PAGE" />".</translation>
 <translation id="424963718355121712">يجب عرض التطبيقات من المضيف الذي تؤثر فيه.</translation>
 <translation id="4306119971288449206">يجب عرض التطبيقات باستخدام نوع المحتوى "<ph name="CONTENT_TYPE" />".</translation>
+<translation id="4349181963619779233">لا يمكن إضافة التطبيقات والإضافات من هذا الموقع الإلكتروني</translation>
 <translation id="4625078469366263107">تفعيل التطبيق</translation>
 <translation id="4633003931260532286">تتطلب الإضافة "<ph name="IMPORT_NAME" />" بإصدار لا يقل عن "<ph name="IMPORT_VERSION" />" لكن يتم تثبيت "<ph name="INSTALLED_VERSION" />" فقط.</translation>
 <translation id="4660476621274971848">الإصدار المتوقع "<ph name="EXPECTED_VERSION" />"، ولكن الإصدار كان "<ph name="NEW_ID" />".</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">‏يجب أن تكون قيمة الإدخال للمفتاح الخاص تنسيقًا صالحًا (PKCS#8-format مفتاح RSA بتنسيق PEM).</translation>
-<translation id="765293928828334535">لا يمكن إضافة التطبيقات والإضافات والنصوص البرمجية للمستخدم من الموقع الإلكتروني هذا.</translation>
 <translation id="7658239707568436148">إلغاء</translation>
 <translation id="7766838926148951335">قبول الأذونات</translation>
 <translation id="7876803335449432072">‏تعذّر تحميل الملف "<ph name="RELATIVE_PATH" />" للنص البرمجي الخاص بالمحتوى، ولا يمكن تحميل أوراق أنماط النص البرمجي الخاص بالمحتوى إلا من ملفات أوراق الأنماط المتوافقة، مثل "ملفات css.".</translation>

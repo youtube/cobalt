@@ -28,10 +28,13 @@ class Profile;
 
 namespace readaloud {
 
+class ReadAloudPlaybackSession;
+
 // Central lifecycle and state orchestrator for Read Aloud.
-class ReadAloudService : public KeyedService,
-                         public dom_distiller::ViewRequestDelegate,
-                         public read_aloud::mojom::ReadAloudPlayerObserver {
+class ReadAloudService
+    : public KeyedService,
+      public dom_distiller::ViewRequestDelegate,
+      public read_aloud::mojom::ReadAloudPlaybackControllerClient {
  public:
   // TODO(b/522830940): Share this enum with Java using java_cpp_enum.
   enum class PlaybackState {
@@ -174,6 +177,11 @@ class ReadAloudService : public KeyedService,
   // Initiates an asynchronous check to determine if the URL is readable.
   void CheckReadability(const GURL& url);
 
+  // Methods called by ReadAloudPlaybackSession:
+  void OnSessionSuspended();
+  void OnSessionResumed();
+
+  bool IsPlaybackPaused() const;
 
   // KeyedService:
   void Shutdown() override;
@@ -197,11 +205,21 @@ class ReadAloudService : public KeyedService,
   void Initialize();
 
  private:
-  // read_aloud::mojom::ReadAloudPlayerObserver (called by Utility):
-  // TODO(b/524284001): Implement observer methods (OnProgress, OnError, etc.).
+  // read_aloud::mojom::ReadAloudPlaybackControllerClient (called by Utility):
+  void OnPlaybackStateChanged(read_aloud::mojom::PlaybackState state) override;
+  void OnPlaybackDurationChanged(base::TimeDelta duration) override;
+  void OnWordBoundaryReached(uint32_t segment_index,
+                             uint32_t character_offset,
+                             base::TimeDelta audio_timestamp) override;
+  void RequestSpeechSynthesis(
+      const std::u16string& text_chunk,
+      uint64_t sequence_id,
+      read_aloud::mojom::ReadAloudPlaybackControllerClient::
+          RequestSpeechSynthesisCallback callback) override;
 
   void EnsureServiceConnected();
   void OnUtilityDisconnect();
+  PlaybackState GetCurrentPlaybackState() const;
 
   raw_ptr<Profile> profile_;
   std::unique_ptr<dom_distiller::ViewerHandle> viewer_handle_;
@@ -209,12 +227,16 @@ class ReadAloudService : public KeyedService,
   base::TimeTicks distillation_start_time_;
 
   // Connection to the Utility process Factory.
-  mojo::Remote<read_aloud::mojom::ReadAloudPlayerFactory> player_factory_;
+  mojo::Remote<read_aloud::mojom::ReadAloudPlaybackControllerFactory>
+      player_factory_;
 
-  // Connections to the Utility process Player.
-  mojo::Remote<read_aloud::mojom::ReadAloudPlayer> utility_player_;
-  mojo::Receiver<read_aloud::mojom::ReadAloudPlayerObserver>
+  // Connections to the Utility process Controller.
+  mojo::Remote<read_aloud::mojom::ReadAloudPlaybackController> utility_player_;
+  mojo::Receiver<read_aloud::mojom::ReadAloudPlaybackControllerClient>
       utility_observer_receiver_{this};
+
+  std::unique_ptr<ReadAloudPlaybackSession> active_session_;
+  base::WeakPtr<content::WebContents> web_contents_;
 
   base::WeakPtrFactory<ReadAloudService> weak_factory_{this};
 };

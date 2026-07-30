@@ -32,9 +32,10 @@
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/contents_container_view.h"
 #include "chrome/browser/ui/views/frame/contents_web_view.h"
-#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
 #include "chrome/browser/ui/views/frame/shadow_overlay_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_background_blur_backdrop.h"
 #include "chrome/browser/ui/views/intent_picker_bubble_view.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/webui/tab_search/tab_search.mojom.h"
@@ -286,9 +287,7 @@ class BrowserView : public BrowserWindow,
   }
 
   // Accessor for the TabStrip.
-  TabStrip* horizontal_tab_strip_for_testing() {
-    return horizontal_tab_strip_region_view_->tab_strip();
-  }
+  TabStrip* horizontal_tab_strip_for_testing();
 
   // Accessor for the Toolbar.
   const ToolbarView* toolbar() const { return toolbar_; }
@@ -629,9 +628,6 @@ class BrowserView : public BrowserWindow,
   void ShowIncognitoClearBrowsingDataDialog() override;
 
   void ShowIncognitoHistoryDisclaimerDialog() override;
-  bool IsTabModalPopupDeprecated() const override;
-  void SetIsTabModalPopupDeprecated(
-      bool is_tab_modal_popup_deprecated) override;
 
   // TabStripModelObserver:
   void OnTabStripModelChanged(
@@ -755,7 +751,6 @@ class BrowserView : public BrowserWindow,
   void OnFocusBookmarksToolbar() override;
 
   // Testing interface:
-  views::View* GetContentsContainerForTest() { return contents_container_; }
   BrowserViewLayout* GetBrowserViewLayoutForTesting() {
     return GetBrowserViewLayout();
   }
@@ -911,9 +906,6 @@ class BrowserView : public BrowserWindow,
   // Returns the BrowserViewLayout.
   BrowserViewLayout* GetBrowserViewLayout() const;
 
-  // Returns the ContentsLayoutManager.
-  ContentsLayoutManager* GetContentsLayoutManager() const;
-
   // Prepare to show the Bookmark Bar for the specified WebContents.
   // Returns true if the Bookmark Bar can be shown (i.e. it's supported for this
   // Browser type) and there should be a subsequent re-layout to show it.
@@ -1046,6 +1038,7 @@ class BrowserView : public BrowserWindow,
   void MaybeShowSignInBenefitsIPH();
 
   void UpdateWindowControlsOverlayEnabled();
+  void RefreshWindowControlsOverlayAfterFullscreenTransition();
 
   // Updates the Window Controls Overlay availability in this window.
   void UpdateWindowControlsOverlayAvailable();
@@ -1165,8 +1158,7 @@ class BrowserView : public BrowserWindow,
   raw_ptr<views::Label> web_app_window_title_ = nullptr;
 
   // The view that contains the tabstrip, new tab button, and grab handle space.
-  raw_ptr<HorizontalTabStripRegionView> horizontal_tab_strip_region_view_ =
-      nullptr;
+  raw_ptr<TabStripRegionView> horizontal_tab_strip_region_view_ = nullptr;
 
   // The insertion index of the HorizontalTabStripRegionView in the BrowserView
   // view tree. This is used to correctly reparent the tabstrip when exiting
@@ -1224,23 +1216,13 @@ class BrowserView : public BrowserWindow,
   // The view that contains all visible WebContents.
   raw_ptr<MultiContentsView> multi_contents_view_ = nullptr;
 
-  // The view that contains the Lens overlay. The Lens Overlay is a UI overlay
-  // that is shown on top of the web contents. It therefore must always have the
-  // same bounds as the contents_web_view_, but also be above the
-  // contents_web_view_.
-  raw_ptr<views::View> lens_overlay_view_ = nullptr;
-
-  // The view that contains the AI highlight overlay. The AI highlight overlay
-  // is a UI overlay that is shown on top of the web contents. It therefore must
-  // always have the same bounds as the contents_view_, but also be above the
-  // contents_view_.
-  raw_ptr<views::View> context_highlight_view_ = nullptr;
-
   // Handled by ContentsLayoutManager.
   raw_ptr<views::View> contents_container_ = nullptr;
 
   // The view responsible for housing the contents of the vertical tab strip.
   raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_region_view_ = nullptr;
+  raw_ptr<VerticalTabStripBackgroundBlurBackdrop>
+      vertical_tab_strip_background_blur_backdrop_ = nullptr;
 
   // Outward-projecting corners of the vertical tab strip.
   raw_ptr<CustomFloatingCorner> vertical_tab_strip_top_corner_ = nullptr;
@@ -1388,9 +1370,7 @@ class BrowserView : public BrowserWindow,
 
   // Bitmask of current combination of reparenting states, e.g. immersive and
   // ChromeOS tablet modes.
-  base::EnumSet<TabStripAndWebAppViewsReparentedState,
-                TabStripAndWebAppViewsReparentedState::kMinValue,
-                TabStripAndWebAppViewsReparentedState::kMaxValue>
+  base::EnumSet<TabStripAndWebAppViewsReparentedState>
       tab_strip_web_apps_reparented_state_;
 
   mutable base::WeakPtrFactory<BrowserView> weak_ptr_factory_{this};

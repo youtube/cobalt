@@ -569,7 +569,7 @@ public final class ToolbarLongPressMenuHandlerUnitTest {
                 list.get(1).model.get(ListMenuItemProperties.MENU_ITEM_ID));
 
         assertEquals(
-                R.string.sharing_send_tab_to_self,
+                R.string.menu_send_to_devices,
                 list.get(2).model.get(ListMenuItemProperties.TITLE_ID));
         assertEquals(
                 ToolbarLongPressMenuHandler.MenuItemType.SEND_TAB_TO_SELF,
@@ -582,6 +582,23 @@ public final class ToolbarLongPressMenuHandlerUnitTest {
     @EnableFeatures(ChromeFeatureList.SEND_TAB_TO_SELF_EXTRA_ENTRY_POINTS)
     public void testBuildMenuItemsWithSendTabToSelf_invalidUrl() {
         mUrl = GURL.emptyGURL();
+        ModelList list = mToolbarLongPressMenuHandler.buildMenuItems(true);
+
+        assertEquals(2, list.size());
+        assertEquals(
+                R.string.toolbar_move_to_the_bottom,
+                list.get(0).model.get(ListMenuItemProperties.TITLE_ID));
+        assertEquals(
+                R.string.toolbar_copy_link, list.get(1).model.get(ListMenuItemProperties.TITLE_ID));
+    }
+
+    // Verify that the "Send tab to self" menu item is not shown for non-HTTP/HTTPS URLs.
+    @Test
+    @SmallTest
+    @Restriction({DeviceFormFactor.PHONE})
+    @EnableFeatures(ChromeFeatureList.SEND_TAB_TO_SELF_EXTRA_ENTRY_POINTS)
+    public void testBuildMenuItemsWithSendTabToSelf_nonHttpUrl() {
+        mUrl = JUnitTestGURLs.CHROME_ABOUT;
         ModelList list = mToolbarLongPressMenuHandler.buildMenuItems(true);
 
         assertEquals(2, list.size());

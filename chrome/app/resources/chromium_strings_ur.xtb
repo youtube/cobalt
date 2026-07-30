@@ -29,13 +29,11 @@
 <translation id="126567311906253476">‏<ph name="USER_EMAIL" /> کے ساتھ Gmail یا YouTube جیسی Google سروسز میں سائن ان کرتے وقت، آپ اسی اکاؤنٹ سے خودکار طور پر Chromium میں سائن ان کر سکتے ہیں</translation>
 <translation id="1287534462498555020">‏اپنے فون پر Chromium حاصل کریں</translation>
 <translation id="1290883685122687410">سیٹ اپ میں خرابی: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
-<translation id="1312200348844120300">ایک خاکہ جس میں دکھایا گیا ہے کہ آپ پروڈکٹ تلاش کرنے کے لیے تصویر کی تلاش کا استعمال کیسے کر سکتے ہیں</translation>
 <translation id="1315551408014407711">‏اپنی نئی Chromium پروفائل سیٹ اپ کریں</translation>
 <translation id="132092532143527429">‏‫Chromium میں Gemini کے ساتھ آزمائیں</translation>
 <translation id="1324107359134968521">‏‫Chromium کو بلوٹوتھ آلات دریافت کرنے کے لیے بلوٹوتھ تک رسائی درکار ہے۔ <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1329040302064168406">‏اپنے فون پر Chromium میں سائن ان کریں</translation>
 <translation id="1330562121671411446">زبان کا پتا لگائیں</translation>
-<translation id="1330742950061766891">‏‫Chromium کی تجویز کردہ براؤزر کی ترتیبات استعمال کریں</translation>
 <translation id="1342274909142618978">‏Chromium (<ph name="URL" />) سے ڈیٹا بھی حذف کریں</translation>
 <translation id="1345251407431278948">پن کر دیا گیا! آپ ٹول بار پر نئے بٹن سے دوبارہ تصاویر کا استعمال کر کے تلاش تک رسائی حاصل کر سکتے ہیں</translation>
 <translation id="1356661055722410047">نیا! آپ اپنی اسکرین پر ٹیکسٹ اور تصاویر دونوں کا ترجمہ کر سکتے ہیں</translation>
@@ -98,6 +96,7 @@
 <translation id="2018879682492276940">انسٹالیشن ناکام ہو گئی۔ دوبارہ کوشش کریں۔</translation>
 <translation id="2039417478970545937">ترتیبات۔</translation>
 <translation id="2049376729098081731">‏منتخب کریں کہ آیا Google سروسز میں مزید ذاتی نوعیت کے تجربات کے لیے Chromium کی سرگزشت کو شامل کریں</translation>
+<translation id="2050698962207788467">‏مضبوط پاس ورڈز تخلیق کرنے، محفوظ کرنے اور آٹو فل کرنے میں آپ کی مدد کرنے کے لیے Chromium میں پہلے سے شامل ہے۔ آسان رسائی کے لیے شارٹ کٹ شامل کریں۔</translation>
 <translation id="2064856577282482477">‏‫Chromium کو نئی شکل دینے کے لیے نئے ٹیب کے صفحہ پر Chromium کو حسب ضرورت بنائیں بٹن پر کلک کریں</translation>
 <translation id="2066690553719545730">‏ہمیشہ AI وضع دکھائیں</translation>
 <translation id="2086476982681781442">‏Chromium نے اس ڈاؤن لوڈ کو مسدود کر دیا کیونکہ یہ فائل فریب والی ہے اور آپ کے آلے میں غیر متوقع تبدیلیاں کر سکتی ہے</translation>
@@ -233,7 +232,6 @@
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">‏موجودہ Chromium پروفائل پر سوئچ کریں؟</translation>
 <translation id="3412460710772753638">اس آلہ پر پاس ورڈ مینیجر میں</translation>
-<translation id="3423442168617177595">‏مضبوط پاس ورڈز تخلیق کرنے، محفوظ کرنے اور آٹو فل کرنے میں آپ کی مدد کرنے کے لیے Chromium میں پہلے سے شامل ہے۔ آسان رسائی کے لیے شارٹ کٹ شامل کریں</translation>
 <translation id="3455907671758333080">‏اپنے فون پر Chromium کے ساتھ بہتر کردہ محفوظ براؤزنگ کو بڑھائیں</translation>
 <translation id="3461644266919055473">‏‫Chromium کو اپنے لحاظ سے سیٹ کرنا...</translation>
 <translation id="3474745554856756813">‏یہ اس آلہ سے <ph name="ITEMS_COUNT" /> آئٹمز کو حذف کر دے گا۔ بعد میں اپنے ڈیٹا کی بازیافت کرنے کیلئے، Chromium میں <ph name="USER_EMAIL" /> کے بطور سائن ان کریں۔</translation>
@@ -427,6 +425,7 @@
 <translation id="5768371961535086509">‏‫Chromium غیر فعال ٹیبز سے میموری کو خالی کرتا ہے۔ یہ فعال ٹیبز اور دیگر ایپس کو کمپیوٹر کے مزید وسائل فراہم کرتا ہے اور Chromium کو تیز رکھتا ہے۔ جب آپ ان پر واپس جاتے ہیں تو آپ کے غیر فعال ٹیبز خودکار طور پر دوبارہ فعال ہو جاتے ہیں۔ <ph name="BEGIN_LINK" />میموری سیور کے بارے میں مزید جانیں<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">‏اگر آپ اپنا پاس فریز بھول گئے ہیں یا اس ترتیب کو تبدیل کرنا چاہتے ہیں تو اپنے اکاؤنٹ میں موجود Chromium ڈیٹا کو <ph name="SETTINGS_LINK" /></translation>
 <translation id="5800158606660203929">‏Chromium کو حسب ضرورت بنائیں اور کنٹرول کریں۔ Chromium کو بطور ڈیفالٹ براؤزر سیٹ کریں۔</translation>
+<translation id="5802618941556161431">‏‫Chromium کو اپنے ڈیفالٹ براؤزر کے طور پر سیٹ کر کے اپنے پاس ورڈز، بُک مارکس اور سرگزشت کو آلات پر مکمل طور پر مطابقت پذیر رکھیں۔</translation>
 <translation id="5809516625706423866">‏انٹرنیٹ سے منسلک ہونے سے قاصر ہے۔ HTTP 401 غیر مجاز ہے۔ براہ کرم اپنی پراکسی کنفیگریشن چیک کریں۔</translation>
 <translation id="5817952762723416573">‏‫Chromium کے V8 انجن کے ساتھ سائٹس کو تیز رفتار بناتا ہے لیکن Chromium کو حملوں کے خلاف قدرے کم مزاحم بناتا ہے۔ یہ ترتیب آف ہے۔</translation>
 <translation id="5821520528363214608">‏اپنے Google اکاؤنٹ میں Chromium ڈیٹا استعمال کرنے اور محفوظ کرنے کے لیے، Chromium کو اپ ڈیٹ کریں</translation>
@@ -496,7 +495,6 @@
 <translation id="6400112897226594999">‏کمپیوٹر اسکرین کے اندر Chromium لوگو۔</translation>
 <translation id="6403826409255603130">‏Chromium ایک ایسا ویب براؤزر ہے جو ویب صفحات اور ایپلیکیشنز کو روشنی کی رفتار سے چلاتا ہے۔ Chromium میں پہلے سے شامل میلویئر اور فریب دہی تحفظ کے ساتھ ویب کو مزید محفوظ طور پر براؤز کریں۔</translation>
 <translation id="6414624068245092115">‏یہ یقینی بنانے کے لیے کہ آپ اپنے Google اکاؤنٹ میں Chromium ڈیٹا ہمیشہ استعمال اور محفوظ کر سکیں، تصدیق کریں کہ یہ آپ ہی ہیں</translation>
-<translation id="6417332166651156371">‏‫Chromium میں پاس ورڈ مینیجر کے انٹری پوائنٹ کو دکھانے والی ایک آسان تصویر</translation>
 <translation id="642132557830635295">‏‫Chromium تیزی سے چلتا ہے اور JavaScript استعمال کرنے والی خصوصیات کو ڈیزائن کے مطابق کام کرنا چاہیے (تجویز کردہ)</translation>
 <translation id="6436260184216827876">تصاویر کا استعمال کر کے تلاش دستیاب نہیں ہے۔ بعد میں دوبارہ کوشش کریں۔</translation>
 <translation id="6442900851116057561">‏ChromiumOS کو ری سٹارٹ کریں</translation>

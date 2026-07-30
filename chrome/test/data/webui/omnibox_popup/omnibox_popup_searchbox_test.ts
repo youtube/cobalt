@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {omniboxPopupBrowserProxyFactory, OmniboxPopupPageHandlerRemote, SearchboxBrowserProxy} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
+import {omniboxPopupBrowserProxyFactory, OmniboxPopupPageHandlerRemote, sanitizeTextForPaste, SearchboxBrowserProxy, stripJavascriptSchemas} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import type {OmniboxPopupPageRemote, OmniboxPopupSearchboxElement} from 'chrome://omnibox-popup.top-chrome/omnibox_popup.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -259,7 +259,7 @@ suite('OmniboxPopupSearchboxTest', function() {
       sequenceNumber: 1,
       text: 'test.com',
       selection: {start: 0, end: 4},
-      userInputInProgress: true,
+      userInputInProgress: false,
       fullUrl: full_url,
       isFocused: true,
       permanentDisplayText: '',
@@ -306,45 +306,9 @@ suite('OmniboxPopupSearchboxTest', function() {
     assertFalse(searchbox.$.input === searchbox.shadowRoot.activeElement);
   });
 
-  // TODO(crbug.com/529516876): Fix and re-enable
-  test.skip('HandlesManualBlur', async () => {
-    // Test default sequence number (0) when no state is set.
-    const input = searchbox.$.input.inputElement;
-    input.focus();
-    await microtasksFinished();
-
-    assertEquals(searchbox.$.input, searchbox.shadowRoot.activeElement);
-    input.blur();
-    await microtasksFinished();
-
-    assertEquals(1, handler.getCallCount('onManualBlur'));
-    assertEquals(0, handler.getArgs('onManualBlur')[0]);
-    assertFalse(searchbox.$.input === searchbox.shadowRoot.activeElement);
-
-    // Test active sequence number (42) after receiving state.
-    handler.reset();
-    callbackRouter.setInputState({
-      sequenceNumber: 42,
-      text: 'hello',
-      selection: {start: 5, end: 5},
-      userInputInProgress: true,
-      fullUrl: '',
-      isFocused: true,
-      permanentDisplayText: '',
-      showFullUrl: false,
-    });
-    await microtasksFinished();
-
-    input.blur();
-    await microtasksFinished();
-
-    assertEquals(1, handler.getCallCount('onManualBlur'));
-    assertEquals(42, handler.getArgs('onManualBlur')[0]);
-  });
-
   test('HandlesRevert', async () => {
     // Test revert is called with default sequence number (0).
-    searchbox.clearAutocompleteMatches();
+    searchbox.revert();
     await microtasksFinished();
 
     assertEquals(1, handler.getCallCount('revert'));
@@ -365,36 +329,304 @@ suite('OmniboxPopupSearchboxTest', function() {
     });
     await microtasksFinished();
 
-    searchbox.clearAutocompleteMatches();
+    searchbox.revert();
     await microtasksFinished();
 
     assertEquals(1, handler.getCallCount('revert'));
     assertEquals(42, handler.getArgs('revert')[0]);
   });
 
-  test('IgnoresManualBlurWhenWindowInactive', async () => {
-    // Override `document.visibilityState` to 'hidden'.
-    Object.defineProperty(document, 'visibilityState', {
-      value: 'hidden',
-      configurable: true,
+  test('SubsequentSelectionChangesNotIgnoredAfterFocus', async () => {
+    // Set the input state via Mojo with isFocused = true.
+    callbackRouter.setInputState({
+      sequenceNumber: 1,
+      text: 'hello world',
+      selection: {start: 0, end: 0},
+      userInputInProgress: false,
+      fullUrl: '',
+      isFocused: true,
+      permanentDisplayText: '',
+      showFullUrl: false,
     });
+    await microtasksFinished();
+
+    // The input should be focused.
+    const input = searchbox.$.input.inputElement;
+    assertEquals(searchbox.$.input, searchbox.shadowRoot.activeElement);
+    await new Promise(resolve => requestAnimationFrame(resolve));
+
+    // Reset handler call count.
+    handler.reset();
+
+    // Simulate the user changing selection (e.g. by dragging/clicking)
+    // inside the already focused input.
+    input.setSelectionRange(1, 4);
+    await microtasksFinished();
+
+    // Check if the handler was notified.
+    assertEquals(1, handler.getCallCount('onSelectionChanged'));
+  });
+
+  test('MousedownZeroLengthSelectionGuards', async () => {
+    const input = searchbox.$.input.inputElement;
+    input.value = '';
+    await microtasksFinished();
+
+    const mousedownEvent = new MouseEvent('mousedown', {
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(mousedownEvent);
+    await microtasksFinished();
+
+    assertEquals(0, input.selectionStart);
+    assertEquals(0, input.selectionEnd);
+    assertEquals('', input.value);
+  });
+
+  test('ClearsInputTextAndNotifiesHandler', async () => {
+    callbackRouter.setInputState({
+      sequenceNumber: 5,
+      text: 'hello',
+      selection: {start: 0, end: 5},
+      userInputInProgress: false,
+      fullUrl: '',
+      isFocused: true,
+      permanentDisplayText: '',
+      showFullUrl: false,
+    });
+    await microtasksFinished();
+    handler.reset();
+
+    searchbox.$.input.dispatchEvent(new CustomEvent(
+        'searchbox-input-text-updated',
+        {detail: {value: '   ', isComposing: false}}));
+    await microtasksFinished();
+
+    assertEquals(1, handler.getCallCount('onInputCleared'));
+    assertEquals(5, handler.getArgs('onInputCleared')[0]);
+  });
+
+  test('ExecutesDeferredFocusOnVisibilityChange', async () => {
+    Object.defineProperty(
+        document, 'visibilityState', {value: 'hidden', configurable: true});
+
+    callbackRouter.setInputState({
+      sequenceNumber: 1,
+      text: 'test',
+      selection: {start: 0, end: 4},
+      userInputInProgress: false,
+      fullUrl: '',
+      isFocused: true,
+      permanentDisplayText: '',
+      showFullUrl: false,
+    });
+    await microtasksFinished();
 
     const input = searchbox.$.input.inputElement;
-    input.focus();
+    input.blur();
+    assertFalse(searchbox.shadowRoot.activeElement === searchbox.$.input);
+
+    Object.defineProperty(
+        document, 'visibilityState', {value: 'visible', configurable: true});
+    document.dispatchEvent(new Event('visibilitychange'));
     await microtasksFinished();
 
     assertEquals(searchbox.$.input, searchbox.shadowRoot.activeElement);
-    input.blur();
+  });
+
+  // Verifies that when `setFocus(true)` IPC is received while
+  // `document.visibilityState` is hidden, focus and select-all are deferred
+  // until `visibilitychange` occurs (`DeferredFocusAction.FOCUS_AND_SELECT`).
+  test('ExecutesDeferredFocusAndSelectOnVisibilityChange', async () => {
+    Object.defineProperty(
+        document, 'visibilityState', {value: 'hidden', configurable: true});
+
+    // Trigger dedicated `setFocus` IPC while document is hidden.
+    callbackRouter.setFocus(true);
     await microtasksFinished();
 
-    // Verify `onManualBlur` is NOT called because `document.visibilityState` is
-    // hidden.
-    assertEquals(0, handler.getCallCount('onManualBlur'));
+    const input = searchbox.$.input.inputElement;
+    assertFalse(searchbox.shadowRoot.activeElement === searchbox.$.input);
 
-    // Restore `document.visibilityState` to 'visible'.
-    Object.defineProperty(document, 'visibilityState', {
-      value: 'visible',
-      configurable: true,
+    // Make visible and dispatch `visibilitychange` event.
+    Object.defineProperty(
+        document, 'visibilityState', {value: 'visible', configurable: true});
+    document.dispatchEvent(new Event('visibilitychange'));
+    await microtasksFinished();
+
+    // Verify both focus AND select occurred
+    // (`DeferredFocusAction.FOCUS_AND_SELECT`).
+    assertEquals(searchbox.$.input, searchbox.shadowRoot.activeElement);
+    assertEquals(0, input.selectionStart);
+    assertEquals(input.value.length, input.selectionEnd);
+  });
+
+  test('RequestsAndAppliesInitialInputStateOnConnected', async () => {
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    const testText = 'chrome://version';
+
+    // Mock `handler.requestInputState()` to simulate C++ responding with
+    // initial state.
+    handler.requestInputState = () => {
+      callbackRouter.setInputState({
+        sequenceNumber: 1,
+        text: testText,
+        selection: {start: 0, end: testText.length},
+        userInputInProgress: false,
+        fullUrl: '',
+        isFocused: true,
+        permanentDisplayText: testText,
+        showFullUrl: false,
+      });
+    };
+
+    // Attach searchbox to DOM.
+    const newSearchbox = document.createElement('omnibox-popup-searchbox');
+    document.body.appendChild(newSearchbox);
+    await microtasksFinished();
+
+    // Verify `requestInputState()` was called once and DOM input was populated.
+    assertEquals(1, handler.getCallCount('requestInputState'));
+    const input = newSearchbox.$.input.inputElement;
+    assertEquals(testText, input.value);
+    assertEquals(0, input.selectionStart);
+    assertEquals(testText.length, input.selectionEnd);
+  });
+
+  test('HandlesPastePlainText', async () => {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData('text/plain', 'javascript:alert(1)\nhello world');
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      cancelable: true,
     });
+
+    searchbox.$.input.dispatchEvent(pasteEvent);
+    await microtasksFinished();
+
+    assertTrue(pasteEvent.defaultPrevented);
+    assertEquals('alert(1) hello world', searchbox.$.input.inputElement.value);
+  });
+
+  test('HandlesPasteBookmarkFormat', async () => {
+    const dataTransfer = new DataTransfer();
+    dataTransfer.setData(
+        'text/x-moz-url', 'https://example.com\nExample Title');
+    const pasteEvent = new ClipboardEvent('paste', {
+      clipboardData: dataTransfer,
+      cancelable: true,
+    });
+
+    searchbox.$.input.dispatchEvent(pasteEvent);
+    await microtasksFinished();
+
+    assertTrue(pasteEvent.defaultPrevented);
+    assertEquals('https://example.com', searchbox.$.input.inputElement.value);
+  });
+
+  test('StripSchemasUnsafeForPaste', () => {
+    const testCases: Array<{input: string, expected: string}> = [
+      // Safe query.
+      {input: ' \x01 ', expected: ' \x01 '},
+      // Safe URL.
+      {
+        input: 'http://www.google.com?q=javascript:alert(0)',
+        expected: 'http://www.google.com?q=javascript:alert(0)',
+      },
+      // Safe query.
+      {input: 'JavaScript', expected: 'JavaScript'},
+      // Unsafe JS URL.
+      {input: 'javaScript:', expected: ''},
+      // Unsafe JS URL.
+      {input: ' javaScript: ', expected: ''},
+      // Unsafe JS URL.
+      {
+        input: 'javAscript:Javascript:javascript',
+        expected: 'javascript',
+      },
+      // Unsafe JS URL.
+      {input: 'javAscript:alert(1)', expected: 'alert(1)'},
+      // Single strip unsafe.
+      {
+        input: 'javAscript:javascript:alert(2)',
+        expected: 'alert(2)',
+      },
+      // Single strip unsafe.
+      {
+        input: 'jaVascript:\njavaScript:\x01 alert(3) \x01',
+        expected: 'alert(3) \x01',
+      },
+      // Leading control chars unsafe.
+      {
+        input:
+            '\x01\x02\x03\x04\x05\x06\x07\x08\x09\x10\x11\x12\x13\x14\x15\x16\x17\x18\x19\u2009JavaScript:alert(4)',
+        expected: 'alert(4)',
+      },
+      // Embedded control characters unsafe.
+      {
+        input: '\x01\x02javascript:\x03\x04JavaScript:alert(5)',
+        expected: 'alert(5)',
+      },
+    ];
+
+    for (const testCase of testCases) {
+      assertEquals(testCase.expected, stripJavascriptSchemas(testCase.input));
+    }
+  });
+
+  test('SanitizeTextForPaste', () => {
+    const testCases: Array<{input: string, expected: string}> = [
+      // No whitespace: leave unchanged.
+      {input: '', expected: ''},
+      {input: 'a', expected: 'a'},
+      {input: 'abc', expected: 'abc'},
+
+      // Leading/trailing whitespace: remove.
+      {input: ' abc', expected: 'abc'},
+      {input: '  \n  abc', expected: 'abc'},
+      {input: 'abc ', expected: 'abc'},
+      {input: 'abc\t \t', expected: 'abc'},
+      {input: '\nabc\n', expected: 'abc'},
+
+      // All whitespace: Convert to single space.
+      {input: ' ', expected: ' '},
+      {input: '\n', expected: ' '},
+      {input: '   ', expected: ' '},
+      {input: '\n\n\n', expected: ' '},
+      {input: ' \n\t', expected: ' '},
+
+      // Broken URL has newlines stripped.
+      {
+        input: 'http://www.chromium.org/developers/testing/chromium-\n' +
+            'build-infrastructure/tour-of-the-chromium-buildbot',
+        expected: 'http://www.chromium.org/developers/testing/' +
+            'chromium-build-infrastructure/tour-of-the-chromium-buildbot',
+      },
+
+      // Multi-line address is converted to a single-line address.
+      {
+        input: '1600 Amphitheatre Parkway\nMountain View, CA',
+        expected: '1600 Amphitheatre Parkway Mountain View, CA',
+      },
+
+      // Line-breaking the JavaScript scheme with no other whitespace results in
+      // a dangerous URL that is sanitized by dropping the scheme.
+      {input: 'java\r\nscript:alert(0)', expected: 'alert(0)'},
+
+      // Line-breaking the JavaScript scheme with whitespace elsewhere in the
+      // string results in a safe string with a space replacing the line break.
+      {input: 'java\r\nscript: alert(0)', expected: 'java script: alert(0)'},
+
+      // Unusual URL with multiple internal spaces is preserved as-is.
+      {input: 'http://foo.com/a.  b', expected: 'http://foo.com/a.  b'},
+
+      // URL with unicode whitespace is also preserved as-is.
+      {input: 'http://foo.com/a\u3000b', expected: 'http://foo.com/a\u3000b'},
+    ];
+
+    for (const testCase of testCases) {
+      assertEquals(testCase.expected, sanitizeTextForPaste(testCase.input));
+    }
   });
 });

@@ -421,13 +421,11 @@ CompositorAnimations::CheckCanStartEffectOnCompositor(
           // basis.
           break;
         case CSSPropertyID::kVariable: {
-          // Custom properties are supported only in the case of
-          // OffMainThreadCSSPaintEnabled, and even then only for some specific
-          // property types. Otherwise they are treated as unsupported.
+          // Custom properties are supported only for certain property types,
+          // and only when a paint worklet is registered for that property.
           const CompositorKeyframeValue* keyframe_value =
               keyframe->GetCompositorKeyframeValue();
           if (keyframe_value) {
-            DCHECK(RuntimeEnabledFeatures::OffMainThreadCSSPaintEnabled());
             DCHECK(keyframe_value->IsDouble() || keyframe_value->IsColor());
             // If a custom property is not used by CSS Paint, then we should not
             // support that on the compositor thread.
@@ -521,6 +519,14 @@ bool CompositorAnimations::CompositorPropertyAnimationsHaveNoEffect(
 
   if (!paint_artifact_compositor) {
     // TODO(pdr): This should return true. This likely only affects tests.
+    return false;
+  }
+
+  if (layout_object && layout_object->StyleRef().SubtreeWillChangeContents()) {
+    // If the element has will-change: contents, then this function cannot
+    // return a meaningful result, as we decline to generate layers in this
+    // case. See also crbug.com/40061259 - some assumptions made in the below
+    // function are weakened in this case, resulting in DCHECK failures.
     return false;
   }
 
@@ -1063,7 +1069,6 @@ void CompositorAnimations::GetAnimationOnCompositor(
         break;
       }
       case CSSPropertyID::kVariable: {
-        DCHECK(RuntimeEnabledFeatures::OffMainThreadCSSPaintEnabled());
         // Create curve based on the keyframe value type
         if (values.front()->GetCompositorKeyframeValue()->IsColor()) {
           auto color_curve = gfx::KeyframedColorAnimationCurve::Create();

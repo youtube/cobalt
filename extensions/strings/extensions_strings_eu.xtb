@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">Ezin izan da "<ph name="ABOUT_PAGE" />" orria kargatu.</translation>
 <translation id="424963718355121712">Haien eragina jasaten duten ostalarietatik hornitu behar dira aplikazioak</translation>
 <translation id="4306119971288449206">"<ph name="CONTENT_TYPE" />" eduki motarekin hornitu behar dira aplikazioak</translation>
+<translation id="4349181963619779233">Ezin da gehitu luzapenik edo aplikaziorik webgune honetatik</translation>
 <translation id="4625078469366263107">Gaitu aplikazioa</translation>
 <translation id="4633003931260532286">Luzapenak "<ph name="IMPORT_NAME" />" eskatzen du, gutxienez "<ph name="IMPORT_VERSION" />" bertsiokoa, baina "<ph name="INSTALLED_VERSION" />" bertsioa baino ez dago instalatuta</translation>
 <translation id="4660476621274971848">"<ph name="EXPECTED_VERSION" />" bertsioa espero zen, baina "<ph name="NEW_ID" />" da bertsioa</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">Gako pribatuak balio duen formatu bat eduki behar du (PKCS#8 formatua eta PEM kodetzea dituen RSA gakoa).</translation>
-<translation id="765293928828334535">Webgune honetatik ezin da gehitu aplikaziorik, luzapenik edo erabiltzaileen scriptik</translation>
 <translation id="7658239707568436148">Utzi</translation>
 <translation id="7766838926148951335">Eman baimenak</translation>
 <translation id="7876803335449432072">Ezin izan da kargatu "<ph name="RELATIVE_PATH" />" fitxategia eduki-scripta lortzeko. Eduki-scripten estilo-orriak estilo-orrien fitxategi bateragarrietatik (adibidez, .css fitxategiak) karga daitezke soilik.</translation>

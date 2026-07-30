@@ -23,7 +23,7 @@
 #include "components/autofill/core/browser/form_processing/autofill_ai/determine_attribute_types.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/test_autofill_client.h"
-#include "components/autofill/core/browser/network/autofill_ai/mock_personal_context_access_manager.h"
+#include "components/autofill/core/browser/network/autofill_ai/mock_autofill_ai_personal_context_access_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
 #include "components/autofill/core/browser/suggestions/suggestion_test_helpers.h"
 #include "components/autofill/core/browser/suggestions/suggestion_type.h"
@@ -230,7 +230,8 @@ class AutofillAiSuggestionGeneratorTest : public testing::Test {
   test::AutofillUnitTestEnvironment autofill_test_environment_;
   AutofillWebDataServiceTestHelper webdata_helper_{
       std::make_unique<EntityTable>()};
-  testing::NiceMock<MockPersonalContextAccessManager> pcontext_manager_;
+  testing::NiceMock<MockAutofillAiPersonalContextAccessManager>
+      pcontext_manager_;
   TestAutofillClient autofill_client_;
   std::vector<EntityInstance> entities_;
   std::optional<FormStructure> form_structure_;
@@ -815,9 +816,13 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
   SetForm({FLIGHT_RESERVATION_FLIGHT_NUMBER});
 
   client().set_should_show_personal_context_ambient_autofill_notice(true);
-
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
+  EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
+              Not(Contains(HasType(SuggestionType::kPersonalContextNotice))));
+#else
   EXPECT_THAT(CreateAutofillAiFillingSuggestions(field(0)),
               Contains(HasType(SuggestionType::kPersonalContextNotice)));
+#endif
 }
 
 // Tests that a kPersonalContextNotice suggestion is not appended if the
@@ -1128,13 +1133,13 @@ TEST_F(AutofillAiSuggestionGeneratorTest, WalletSuggestionsShowIPH) {
 }
 
 TEST_F(AutofillAiSuggestionGeneratorTest, ShowFetchingSuggestionWhenPending) {
-  testing::NiceMock<MockPersonalContextAccessManager> access_manager;
+  testing::NiceMock<MockAutofillAiPersonalContextAccessManager> access_manager;
   client().set_personal_context_access_manager(&access_manager);
 
   SetForm({PASSPORT_NUMBER});
   SetEntities({});
 
-  using RequestStatus = PersonalContextAccessManager::RequestStatus;
+  using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
   EXPECT_CALL(access_manager,
               ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(true));
@@ -1148,13 +1153,13 @@ TEST_F(AutofillAiSuggestionGeneratorTest, ShowFetchingSuggestionWhenPending) {
 
 TEST_F(AutofillAiSuggestionGeneratorTest,
        NoFetchingSuggestionWhenNoDataExists) {
-  testing::NiceMock<MockPersonalContextAccessManager> access_manager;
+  testing::NiceMock<MockAutofillAiPersonalContextAccessManager> access_manager;
   client().set_personal_context_access_manager(&access_manager);
 
   SetForm({PASSPORT_NUMBER});
   SetEntities({});
 
-  using RequestStatus = PersonalContextAccessManager::RequestStatus;
+  using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
   EXPECT_CALL(access_manager,
               ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(false));
@@ -1167,13 +1172,13 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
 }
 
 TEST_F(AutofillAiSuggestionGeneratorTest, NoFetchingSuggestionWhenNotPending) {
-  testing::NiceMock<MockPersonalContextAccessManager> access_manager;
+  testing::NiceMock<MockAutofillAiPersonalContextAccessManager> access_manager;
   client().set_personal_context_access_manager(&access_manager);
 
   SetForm({PASSPORT_NUMBER});
   SetEntities({});
 
-  using RequestStatus = PersonalContextAccessManager::RequestStatus;
+  using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
   EXPECT_CALL(access_manager,
               ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(true));
@@ -1186,7 +1191,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest, NoFetchingSuggestionWhenNotPending) {
 
 TEST_F(AutofillAiSuggestionGeneratorTest,
        NoFetchingSuggestionWhenTriggerFieldIsNotPending) {
-  testing::NiceMock<MockPersonalContextAccessManager> access_manager;
+  testing::NiceMock<MockAutofillAiPersonalContextAccessManager> access_manager;
   client().set_personal_context_access_manager(&access_manager);
 
   // Form has Passport and National ID.
@@ -1195,7 +1200,7 @@ TEST_F(AutofillAiSuggestionGeneratorTest,
   // Passport has local data.
   SetEntities({test::GetPassportEntityInstance()});
 
-  using RequestStatus = PersonalContextAccessManager::RequestStatus;
+  using RequestStatus = AutofillAiPersonalContextAccessManager::RequestStatus;
   EXPECT_CALL(access_manager,
               ServerHasDataAvailable(EntityType(EntityTypeName::kPassport)))
       .WillRepeatedly(Return(true));

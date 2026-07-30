@@ -13,9 +13,9 @@ source_set("core") {
     "network/personal_context_fetcher.h",
     "network/personal_context_manager.cc",
     "network/personal_context_manager.h",
-    "personal_context_enablement_service.h",
-    "personal_context_enablement_service_impl.cc",
-    "personal_context_enablement_service_impl.h",
+    "personal_context_eligibility_service.h",
+    "personal_context_eligibility_service_impl.cc",
+    "personal_context_eligibility_service_impl.h",
     "personal_context_service.h",
     "personal_context_service_impl.cc",
     "personal_context_service_impl.h",
@@ -33,6 +33,7 @@ source_set("core") {
     "//components/personal_context/proto:personal_context_proto",
     "//components/prefs",
     "//components/signin/public/identity_manager",
+    "//components/variations/net",
     "//net",
   ]
 }
@@ -62,11 +63,11 @@ source_set("prefs") {
 source_set("test_support") {
   testonly = true
   sources = [
-    "mock_personal_context_enablement_service.cc",
-    "mock_personal_context_enablement_service.h",
+    "mock_personal_context_eligibility_service.cc",
+    "mock_personal_context_eligibility_service.h",
     "mock_personal_context_service.cc",
     "mock_personal_context_service.h",
-    "personal_context_enablement_service_impl_test_api.h",
+    "personal_context_eligibility_service_impl_test_api.h",
   ]
   deps = [
     ":core",
@@ -81,7 +82,7 @@ source_set("unit_tests") {
   sources = [
     "network/personal_context_fetcher_unittest.cc",
     "network/personal_context_manager_unittest.cc",
-    "personal_context_enablement_service_impl_unittest.cc",
+    "personal_context_eligibility_service_impl_unittest.cc",
     "personal_context_service_impl_unittest.cc",
   ]
 
@@ -96,6 +97,7 @@ source_set("unit_tests") {
     "//components/prefs:test_support",
     "//components/signin/public/identity_manager:test_support",
     "//components/sync_preferences:test_support",
+    "//components/variations:test_support",
     "//services/network:test_support",
     "//testing/gmock",
     "//testing/gtest",

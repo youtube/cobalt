@@ -458,7 +458,6 @@ void SearchPrefetchService::OnURLOpenedFromOmnibox(OmniboxLog* log) {
   if (!log) {
     return;
   }
-  const GURL& opened_url = log->final_destination_url;
 
   auto& match = log->result->match_at(log->selection.line);
   if (match.type == AutocompleteMatchType::SEARCH_WHAT_YOU_TYPED) {
@@ -485,25 +484,6 @@ void SearchPrefetchService::OnURLOpenedFromOmnibox(OmniboxLog* log) {
         "HistoryOrSuggest",
         has_history_search || has_search_suggest);
   }
-
-  auto* template_url_service =
-      TemplateURLServiceFactory::GetForProfile(profile_);
-  DCHECK(template_url_service);
-  auto* default_search = template_url_service->GetDefaultSearchProvider();
-  if (!default_search) {
-    return;
-  }
-
-  GURL canonical_search_url;
-
-  HasCanonicalPreloadingOmniboxSearchURL(opened_url, profile_,
-                                         &canonical_search_url);
-
-  if (prefetches_.find(canonical_search_url) == prefetches_.end()) {
-    return;
-  }
-  SearchPrefetchRequest& prefetch = *prefetches_[canonical_search_url];
-  prefetch.RecordClickTime();
 }
 
 void SearchPrefetchService::OnPrerenderedRequestUsed(
@@ -517,6 +497,7 @@ void SearchPrefetchService::OnPrerenderedRequestUsed(
     // understand the possibility.
     return;
   }
+  request_it->second->MarkPrefetchAsServed();
   AddCacheEntry(navigation_url, request_it->second->prefetch_url());
   DeletePrefetch(canonical_search_url);
 }
@@ -650,8 +631,6 @@ void SearchPrefetchService::DeletePrefetch(GURL canonical_search_url) {
 }
 
 void SearchPrefetchService::ReportFetchResult(bool error) {
-  UMA_HISTOGRAM_BOOLEAN("Omnibox.SearchPrefetch.FetchResult.SuggestionPrefetch",
-                        !error);
   if (!error)
     return;
   last_error_time_ticks_ = base::TimeTicks::Now();
@@ -865,16 +844,9 @@ bool SearchPrefetchService::OnNavigationLikely(
     }
   }();
 
-  base::TimeTicks prefetch_started_time_stamp = base::TimeTicks::Now();
-  bool was_prefetch_started =
-      MaybePrefetchURL(preload_url,
-                       /*navigation_prefetch=*/true, web_contents, predictor,
-                       should_ignore_saver_modes);
-  if (was_prefetch_started) {
-    UMA_HISTOGRAM_TIMES("Omnibox.SearchPrefetch.StartTimeV2.NavigationPrefetch",
-                        (base::TimeTicks::Now() - prefetch_started_time_stamp));
-  }
-  return was_prefetch_started;
+  return MaybePrefetchURL(preload_url,
+                          /*navigation_prefetch=*/true, web_contents, predictor,
+                          should_ignore_saver_modes);
 }
 
 void SearchPrefetchService::OnTemplateURLServiceChanged() {

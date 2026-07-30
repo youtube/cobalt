@@ -25,59 +25,76 @@ namespace {
 class TokenizerParamsCopy {
  public:
   static std::unique_ptr<TokenizerParamsCopy> Copy(
-      const ChromeMLTokenizerParams& params) {
+      const ChromeMLTokenizerParamsV3& params) {
     TRACE_EVENT("optimization_guide", "TokenizerParamsCopy::Copy");
     auto params_copy = std::make_unique<TokenizerParamsCopy>();
-    params_copy->vocab_size = params.vocab_size;
-    params_copy->eos_token_id = params.eos_token_id;
+    params_copy->vocab_size_ = params.vocab_size;
+
+    // SAFETY: The ChromeML API defines `eos_token_ids` to have
+    // `eos_token_ids_size` elements.
+    auto eos_token_ids_span = UNSAFE_BUFFERS(
+        base::span(params.eos_token_ids, params.eos_token_ids_size));
+    params_copy->eos_token_ids_.assign(eos_token_ids_span.begin(),
+                                       eos_token_ids_span.end());
 
     if (params.token_lens) {
       // SAFETY: The ChromeML API defines `token_lens` to have `vocab_size`
       // elements.
       auto lens_span =
           UNSAFE_BUFFERS(base::span(params.token_lens, params.vocab_size));
-      params_copy->token_lens.assign(lens_span.begin(), lens_span.end());
+      params_copy->token_lens_.assign(lens_span.begin(), lens_span.end());
     }
 
     if (params.token_bytes) {
       size_t bytes_len = 0;
-      for (uint32_t len : params_copy->token_lens) {
+      for (uint32_t len : params_copy->token_lens_) {
         bytes_len += len;
       }
       // SAFETY: The ChromeML API defines `token_bytes` length as the sum of
       // `token_lens` elements.
       auto bytes_span =
           UNSAFE_BUFFERS(base::span(params.token_bytes, bytes_len));
-      params_copy->token_bytes.assign(bytes_span.begin(), bytes_span.end());
+      params_copy->token_bytes_.assign(bytes_span.begin(), bytes_span.end());
     }
     if (params.tokenizer_json_file_content) {
-      params_copy->tokenizer_json_file_content =
+      params_copy->tokenizer_json_file_content_ =
           params.tokenizer_json_file_content;
     }
 
-    params_copy->tokenize_fn = params.tokenize_fn;
-    params_copy->tokenize_user_data = params.tokenize_user_data;
+    params_copy->tokenize_fn_ = params.tokenize_fn;
+    params_copy->tokenize_user_data_ = params.tokenize_user_data;
     return params_copy;
   }
 
   LlgTokenizer* CreateTokenizer() const {
     TRACE_EVENT("optimization_guide", "llg_new_tokenizer");
-    LlgTokenizerInit tokenizer_init{
-        .vocab_size = vocab_size,
-        .tok_eos = eos_token_id,
-        .token_lens = token_lens.empty() ? nullptr : token_lens.data(),
-        .token_bytes = token_bytes.empty() ? nullptr : token_bytes.data(),
-        .tokenizer_json = tokenizer_json_file_content.has_value()
-                              ? tokenizer_json_file_content->c_str()
+    CHECK_GT(eos_token_ids_.size(), 0u);
+
+    base::span<const uint32_t> extra_eos;
+
+    if (eos_token_ids_.size() > 1) {
+      extra_eos = base::span(eos_token_ids_).subspan(1u);
+    }
+
+    LlgTokenizerInitV2 tokenizer_init{
+        .struct_size = sizeof(LlgTokenizerInitV2),
+        .vocab_size = vocab_size_,
+        .tok_eos = eos_token_ids_.at(0),
+        .token_lens = token_lens_.empty() ? nullptr : token_lens_.data(),
+        .token_bytes = token_bytes_.empty() ? nullptr : token_bytes_.data(),
+        .tokenizer_json = tokenizer_json_file_content_.has_value()
+                              ? tokenizer_json_file_content_->c_str()
                               : nullptr,
-        .tokenize_fn = tokenize_fn,
-        .tokenize_user_data = tokenize_user_data,
+        .tokenize_fn = tokenize_fn_,
+        .tokenize_user_data = tokenize_user_data_,
+        .tok_eos_extra = extra_eos.data(),
+        .tok_eos_extra_count = static_cast<uint32_t>(extra_eos.size()),
     };
 
     std::string error;
     error.resize(256);
     LlgTokenizer* tokenizer =
-        llg_new_tokenizer(&tokenizer_init, error.data(), error.size());
+        llg_new_tokenizer_v2(&tokenizer_init, error.data(), error.size());
     if (!tokenizer) {
       LOG(ERROR) << "Error creating tokenizer: " << error;
     }
@@ -85,13 +102,13 @@ class TokenizerParamsCopy {
   }
 
  private:
-  uint32_t vocab_size;
-  uint32_t eos_token_id;
-  std::vector<uint32_t> token_lens;
-  std::vector<uint8_t> token_bytes;
-  std::optional<std::string> tokenizer_json_file_content;
-  ChromeMLTokenizeFn tokenize_fn;
-  raw_ptr<const void> tokenize_user_data;
+  uint32_t vocab_size_;
+  std::vector<uint32_t> eos_token_ids_;
+  std::vector<uint32_t> token_lens_;
+  std::vector<uint8_t> token_bytes_;
+  std::optional<std::string> tokenizer_json_file_content_;
+  ChromeMLTokenizeFn tokenize_fn_;
+  raw_ptr<const void> tokenize_user_data_;
 };
 
 #if defined(ENABLE_ON_DEVICE_CONSTRAINTS)
@@ -183,7 +200,7 @@ void ConstraintFactory::InitializeTokenizer(ChromeMLModel model,
 
   TRACE_EVENT_BEGIN("optimization_guide", "GetTokenizerParams");
   GetTokenizerParams(model, session,
-                     [&](const ChromeMLTokenizerParams& params) {
+                     [&](const ChromeMLTokenizerParamsV3& params) {
                        TRACE_EVENT_END("optimization_guide");
                        params_copy = TokenizerParamsCopy::Copy(params);
                      });
@@ -234,7 +251,7 @@ ConstraintFactory::~ConstraintFactory() {
 bool ConstraintFactory::GetTokenizerParams(
     ChromeMLModel model,
     ChromeMLSession session,
-    const ChromeMLGetTokenizerParamsFn& fn) {
+    const ChromeMLGetTokenizerParamsV3Fn& fn) {
 #if defined(ENABLE_ON_DEVICE_CONSTRAINTS)
   return chrome_ml_->GetTokenizerParams(model, session, fn);
 #else

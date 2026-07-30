@@ -4,10 +4,10 @@
 
 source_set("content") {
   sources = [
+    "content_filter_navigation_observer.cc",
+    "content_filter_navigation_observer.h",
     "filter_initiated_navigation_marker.cc",
     "filter_initiated_navigation_marker.h",
-    "filter_navigation_observer.cc",
-    "filter_navigation_observer.h",
   ]
   public_deps = [ "//components/multistep_filter/core/data_models" ]
   deps = [
@@ -22,16 +22,31 @@ source_set("content") {
   ]
 }
 
-source_set("unit_tests") {
+source_set("test_support") {
   testonly = true
-  sources = [ "filter_navigation_observer_unittest.cc" ]
+  sources = [ "content_filter_navigation_observer_test_api.h" ]
   deps = [
     ":content",
+    "//base",
+    "//components/multistep_filter/core",
+  ]
+}
+
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "content_filter_navigation_observer_unittest.cc" ]
+  deps = [
+    ":content",
+    ":test_support",
     "//base",
     "//base/test:test_support",
     "//components/multistep_filter/core",
     "//components/multistep_filter/core:switches",
+    "//components/multistep_filter/core:test_support",
     "//components/multistep_filter/core/annotation_index:test_support",
+    "//components/multistep_filter/core/prefs",
+    "//components/prefs:test_support",
+    "//components/signin/public/identity_manager:test_support",
     "//components/unified_consent",
     "//content/test:test_support",
     "//testing/gmock",

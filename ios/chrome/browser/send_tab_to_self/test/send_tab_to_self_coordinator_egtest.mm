@@ -610,9 +610,9 @@ void DismissSnackbar() {
   [ChromeEarlGrey closeCurrentTab];
 }
 
-// Tests that long-pressing a tab cell in the tab switcher shows "Send to Your
-// Devices" and tapping it displays the device picker modal.
-- (void)testLongPressTabSwitcherTabToShowSendToYourDevices {
+// Tests that long-pressing a tab cell in the tab switcher shows "Send to your
+// device" and tapping it displays the device picker modal.
+- (void)testLongPressTabSwitcherTabToShowSendToYourDevice {
   [ChromeEarlGrey addFakeSyncServerDeviceInfo:kTargetDeviceName
                          lastUpdatedTimestamp:base::Time::Now()];
   [SigninEarlGrey signinWithFakeIdentity:[FakeSystemIdentity fakeIdentity1]];
@@ -628,7 +628,7 @@ void DismissSnackbar() {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridCellAtIndex(0)]
       performAction:grey_longPress()];
 
-  // Verify the "Send to Your Devices" menu item shows up.
+  // Verify the "Send to your device" menu item shows up.
   id<GREYMatcher> sendToDevicesMenuItem =
       chrome_test_util::ContextMenuItemWithAccessibilityLabelId(
           IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_ACTION);
@@ -670,7 +670,7 @@ void DismissSnackbar() {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridCellAtIndex(0)]
       performAction:grey_longPress()];
 
-  // Verify the "Send to Your Devices" menu item shows up.
+  // Verify the "Send to your device" menu item shows up.
   id<GREYMatcher> sendToDevicesMenuItem =
       chrome_test_util::ContextMenuItemWithAccessibilityLabelId(
           IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_ACTION);
@@ -707,9 +707,9 @@ void DismissSnackbar() {
                       grey_accessibilityID(kSendTabToSelfModalCancelButtonId)];
 }
 
-// Tests that long-pressing the defocused location view shows "Send to Your
-// Devices" and tapping it displays the device picker modal.
-- (void)testLongPressOmniboxToShowSendToYourDevices {
+// Tests that long-pressing the defocused location view shows "Send to your
+// device" and tapping it displays the device picker modal.
+- (void)testLongPressOmniboxToShowSendToYourDevice {
   [ChromeEarlGrey addFakeSyncServerDeviceInfo:kTargetDeviceName
                          lastUpdatedTimestamp:base::Time::Now()];
   // Disable EarlGrey's synchronization during sign-in because the concurrent
@@ -730,7 +730,7 @@ void DismissSnackbar() {
   [[EarlGrey selectElementWithMatcher:chrome_test_util::DefocusedLocationView()]
       performAction:grey_longPress()];
 
-  // Verify the "Send to Your Devices" menu item shows up.
+  // Verify the "Send to your device" menu item shows up.
   id<GREYMatcher> sendToDevicesMenuItem =
       chrome_test_util::ContextMenuItemWithAccessibilityLabelId(
           IDS_IOS_SEND_TAB_TO_SELF_TARGET_DEVICE_ACTION);
@@ -811,7 +811,8 @@ void DismissSnackbar() {
   [ChromeEarlGrey
       waitForSufficientlyVisibleElementWithMatcher:labelsStackMatcher];
 
-  // Tap "Open" on the banner and verify that the Tab Grid opens.
+  // Tap "Open" on the banner and verify that the received tab is opened
+  // directly in the foreground.
   NSString* buttonText =
       l10n_util::GetNSString(IDS_SEND_TAB_TO_SELF_INFOBAR_MESSAGE_URL);
   [[EarlGrey
@@ -819,8 +820,8 @@ void DismissSnackbar() {
                                           grey_sufficientlyVisible(), nil)]
       performAction:grey_tap()];
 
-  [[EarlGrey selectElementWithMatcher:chrome_test_util::TabGridDoneButton()]
-      assertWithMatcher:grey_sufficientlyVisible()];
+  [ChromeEarlGrey
+      waitForWebStateVisibleURL:GURL(base::SysNSStringToUTF8(kExampleURL))];
 }
 
 // Tests that when kSendTabToSelfAutoOpen is enabled and a shared tab is

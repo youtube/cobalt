@@ -72,7 +72,6 @@
 <translation id="1640672724030957280">جارٍ التنزيل...</translation>
 <translation id="1651617469580841801">‏عند استخدام "عدسة Google"، يتم إرسال عنوان الصفحة وعنوان URL والمحتوى (بما في ذلك ملفات PDF) إلى Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">‏لمحة عن نظام التشغيل ChromeOS Flex</translation>
-<translation id="1665867022636014702">‏استخدام إعدادات المتصفِّح المقترَحة من Google</translation>
 <translation id="1674870198290878346">‏فتح الرابط في نافذة تصفح متخفٍ في Chrome</translation>
 <translation id="1682634494516646069">‏يتعذر على Google Chrome القراءة والكتابة في دليل البيانات الخاص به:
 
@@ -235,6 +234,7 @@
 <translation id="3242123554343253302">‏إضافة ملف شخصي على Chrome</translation>
 <translation id="3242486428260808857">‏تجربة تسوّق أكثر تميزًا على الإنترنت بانتظارك مع تطبيق Chrome على "<ph name="DEVICE_TYPE" />"</translation>
 <translation id="3245429137663807393">‏في حال شاركت أيضًا تقارير استخدام Chrome، ستتضمّن عناوين URL التي تنتقل إليها.</translation>
+<translation id="3249558306861350254">‏انقر على <ph name="BEGIN_BOLD" />الضبط كمتصفّح تلقائي<ph name="END_BOLD" /> في إعدادات Windows.</translation>
 <translation id="3259748324892322072">‏تنزيل تطبيق Chrome</translation>
 <translation id="3282568296779691940">‏تسجيل الدخول إلى Chrome</translation>
 <translation id="3286538390144397061">إعادة التشغيل الآن</translation>
@@ -254,7 +254,6 @@
 <translation id="345171907106878721">‏إضافة نفسك إلى Chrome</translation>
 <translation id="3453763134178591239">‏بنود نظام التشغيل Chrome</translation>
 <translation id="3475778264501649775">‏فرصتك لاستخدام كلمات المرور وعلامات التبويب وغيرها من البيانات أثناء التنقل من خلال تطبيق Chrome على هاتفك</translation>
-<translation id="3512495006767217696">‏هذه الخدمة مضمّنة في Chrome لمساعدتك في إنشاء كلمات مرور قوية وحفظها وملئها تلقائيًا. ويمكنك إضافة اختصار للوصول إليها بسهولة</translation>
 <translation id="3539955434060988644">‏فتح الرابط في نافذة "التصفّح المت&amp;خفي" في Chrome</translation>
 <translation id="354621070532799440">‏تذكير: أفضل ميزات الأمان من Google في متناول يدك</translation>
 <translation id="3547866758548131919">‏يمكنك النقر على زر "تلخيص" لمشاركة هذا المستند مع "Gemini في Chrome" والحصول على نظرة عامة سريعة وطرح أسئلة إضافية</translation>
@@ -307,6 +306,7 @@
 <translation id="4012899077942246412">‏بعد تسجيل الدخول إلى حسابك، يمكنك استخدام كلمات المرور وغيرها من بيانات حسابك على Google في Chrome. لتغيير ذلك، يُرجى الانتقال إلى "حسابك في Chrome".</translation>
 <translation id="4022972681110646219">ترجمة محتوى الشاشة</translation>
 <translation id="4023601594785368013">اللغة الأصلية: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">‏هذه الخدمة مضمّنة في Chrome لمساعدتك في إنشاء كلمات مرور قوية وحفظها وملئها تلقائيًا. ويمكنك إضافة اختصار للوصول إليها بسهولة.</translation>
 <translation id="4035053306113201399">‏يجب إعادة تشغيل نظام التشغيل Chrome لتثبيت التحديث.</translation>
 <translation id="4050175100176540509">تحسينات الأمان المهمة والميزات الجديدة متاحة في أحدث إصدار.</translation>
 <translation id="4053720452172726777">‏تخصيص Google Chrome والتحكم فيه</translation>
@@ -545,7 +545,6 @@
 <translation id="6438015621983209660">‏بتنزيل Chrome، ستكون "الحماية المحّسنة للتصفح الآمن" متاحة على هاتفك أيضًا</translation>
 <translation id="6442774133615368941">‏باستخدام الكاميرا في تطبيق Chrome على iOS، يمكنك تسوّق ما يظهر لك أو ترجمته أو التعرّف عليه</translation>
 <translation id="6448835208126432197">‏يمكنك استخدام اختصار لوحة المفاتيح لاختيار جزء من الشاشة في "Gemini في Chrome".</translation>
-<translation id="6473659734176498825">‏صورة مبسّطة تعرض كيفية الوصول إلى "مدير كلمات المرور في Google" في Chrome</translation>
 <translation id="6473905796280459355">‏الانتقال إلى صفحة "لمحة عن Chrome"</translation>
 <translation id="6481963882741794338">‏ربط Chrome وخدمات Google الأخرى لأغراض تخصيص الخيارات وأغراض أخرى</translation>
 <translation id="648319183876919572">تعزِّز ميزة "الحماية المُحسّنة للتصفّح الآمن" حمايتك من المواقع الإلكترونية الضارة وعمليات التنزيل الخطيرة.</translation>
@@ -562,6 +561,7 @@
 <translation id="6539493053177300926">‏يتيح لك هذا الزر الوصول بسهولة إلى "Gemini في Chrome" واستخدامه على جهازك، حتى إذا كان Chrome مصغّرًا.</translation>
 <translation id="6585124893636629274">‏إغلاق Gemini في Chrome</translation>
 <translation id="659498884637196217">‏يمكن إجراء التعديل في "مدير كلمات المرور في Google" على هذا الجهاز</translation>
+<translation id="6613949864921837107">‏للحصول على مزامنة مثالية لكلمات المرور والإشارات المرجعية والسجل على جميع الأجهزة، ما عليك سوى جعل Chrome المتصفح التلقائي.</translation>
 <translation id="6631524303639368205">‏المتابعة من حيث توقفت: استعاد Chrome علامات التبويب من جلستك الأخيرة. يمكنك إيقاف هذه الميزة في</translation>
 <translation id="6632473616050862500">‏أصبح نظام التشغيل ChromeOS Flex متاحًا من خلال <ph name="BEGIN_LINK_CROS_OSS" />برنامج إضافي مفتوح المصدر<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6634299872736643004">‏سيتم تطبيق التغييرات في هذا الإعداد بعد إعادة تشغيل Chrome.</translation>
@@ -687,7 +687,6 @@
 <translation id="7804364787702057554">‏حسابك في Chrome</translation>
 <translation id="7804947029129221742">‏تم تغيير محرك البحث من مصدر خارج Chrome. ولحمايتك، أعاد Chrome ضبطه على الخيار التلقائي الأصلي. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">‏جارٍ الإزالة من Chrome...</translation>
-<translation id="7812800388699096556">‏صورة توضيحية تعرض كيفية استخدام "عدسة Google" للبحث عن منتج</translation>
 <translation id="7827099906024714326">‏يحتاج Chrome إلى إثبات هويتك قبل حفظ بعض البيانات في حسابك على Google واستخدامها على جميع أجهزتك. إذا سجّلت الخروج الآن، فسيتم حذف هذه البيانات.</translation>
 <translation id="7832314606810669113">‏يتيح لك تسجيل الدخول إلى Chrome الوصول إلى الإشارات المرجعية وغيرها على جميع أجهزتك. وسيتم حفظ هذه الإشارة المرجعية في حسابك على Google بعد تسجيل الدخول إليه.</translation>
 <translation id="7845233973568007926">شكرًا على التثبيت. عليك إعادة تشغيل الكمبيوتر قبل استخدام <ph name="BUNDLE_NAME" />.</translation>
@@ -826,7 +825,6 @@
 <translation id="8999208279178790196">{0,plural, =0{‏يتوفر تحديث لمتصفح Chrome}=1{‏يتوفر تحديث لمتصفح Chrome}two{‏يتوفر تحديث لمتصفح Chrome منذ يومين}few{‏يتوفر تحديث لمتصفح Chrome منذ # أيام}many{‏يتوفر تحديث لمتصفح Chrome منذ # يومًا}other{‏يتوفر تحديث لمتصفح Chrome منذ # يوم}}</translation>
 <translation id="9014771989710951291">‏تدير مؤسسات متعدّدة متصفِّح Chrome</translation>
 <translation id="9018218886431812662">اكتمل التثبيت</translation>
-<translation id="9024318700713112071">‏ضبط Chrome كمتصفّح تلقائي</translation>
 <translation id="9066987883552592250">‏إغلاق Gemini في Chrome Canary</translation>
 <translation id="9074041031320636790">‏نجح الإجراء. يمكنك الآن طرح الأسئلة بسهولة أثناء التصفّح باستخدام "وضع AI" في "بحث Google"</translation>
 <translation id="9090566250983691233">‏التعرّف على سبب حظر Chrome لبعض الملفات</translation>

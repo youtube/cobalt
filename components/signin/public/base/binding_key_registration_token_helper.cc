@@ -33,17 +33,16 @@ constexpr std::string_view kSessionBindingResultHistogram =
     "Signin.BoundSessionCredentials."
     "SessionRegistrationGenerateRegistrationTokenResult";
 
-// New session registration doesn't block the user and can be done with a delay.
-constexpr unexportable_keys::BackgroundTaskPriority kTaskPriority =
-    unexportable_keys::BackgroundTaskPriority::kBestEffort;
 
 }  // namespace
 
 BindingKeyRegistrationTokenHelper::BindingKeyRegistrationTokenHelper(
     unexportable_keys::UnexportableKeyService& unexportable_key_service,
-    KeyInitParam key_init_param)
+    KeyInitParam key_init_param,
+    unexportable_keys::BackgroundTaskPriority priority)
     : unexportable_key_service_(unexportable_key_service),
-      key_init_param_(std::move(key_init_param)) {}
+      key_init_param_(std::move(key_init_param)),
+      priority_(priority) {}
 
 BindingKeyRegistrationTokenHelper::~BindingKeyRegistrationTokenHelper() {
   // Explicitly teardown `key_loader_` before `weak_ptr_factory_` gets
@@ -101,14 +100,14 @@ void BindingKeyRegistrationTokenHelper::CreateKeyLoaderIfNeeded() {
             key_loader_ =
                 unexportable_keys::UnexportableKeyLoader::CreateFromWrappedKey(
                     unexportable_key_service_.get(),
-                    wrapped_binding_key_to_reuse, kTaskPriority);
+                    wrapped_binding_key_to_reuse, priority_);
           },
           [&](const std::vector<crypto::SignatureVerifier::SignatureAlgorithm>&
                   acceptable_algorithms) {
             key_loader_ =
                 unexportable_keys::UnexportableKeyLoader::CreateWithNewKey(
                     unexportable_key_service_.get(), acceptable_algorithms,
-                    kTaskPriority);
+                    priority_);
           }},
       key_init_param_);
 }
@@ -146,7 +145,7 @@ void BindingKeyRegistrationTokenHelper::SignHeaderAndPayload(
   }
 
   unexportable_key_service_->SignSlowlyAsync(
-      *binding_key, base::as_byte_span(*header_and_payload), kTaskPriority,
+      *binding_key, base::as_byte_span(*header_and_payload), priority_,
       base::BindOnce(
           &BindingKeyRegistrationTokenHelper::CreateRegistrationToken,
           weak_ptr_factory_.GetWeakPtr(), std::string(*header_and_payload),
@@ -155,7 +154,7 @@ void BindingKeyRegistrationTokenHelper::SignHeaderAndPayload(
 
 void BindingKeyRegistrationTokenHelper::CreateRegistrationToken(
     std::string_view header_and_payload,
-    unexportable_keys::UnexportableKeyId binding_key,
+    unexportable_keys::UnexportableSigningKeyId binding_key,
     base::OnceCallback<void(base::expected<Result, Error>)> callback,
     unexportable_keys::ServiceErrorOr<std::vector<uint8_t>> signature) {
   if (!signature.has_value()) {

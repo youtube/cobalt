@@ -7,16 +7,16 @@
 #include "content/browser/webid/identity_registry_delegate.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_user_data.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "url/origin.h"
 
 namespace content::webid {
 
 IdentityRegistry::IdentityRegistry(
-    content::WebContents* web_contents,
+    WebContents* web_contents,
     base::WeakPtr<IdentityRegistryDelegate> delegate,
     const GURL& idp_config_url)
-    : content::WebContentsUserData<IdentityRegistry>(*web_contents),
+    : WebContentsUserData<IdentityRegistry>(*web_contents),
       delegate_(delegate),
       idp_config_url_(idp_config_url) {}
 

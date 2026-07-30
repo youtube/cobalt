@@ -329,6 +329,7 @@
 <translation id="1486096554574027028">搜尋密碼</translation>
 <translation id="1492194039220927094">政策推送：</translation>
 <translation id="1495677929897281669">返回分頁</translation>
+<translation id="1496318738909526466">管理加強版自動填入</translation>
 <translation id="1500286806237135498">攝錄機 (<ph name="CAMERAS_COUNT" />)</translation>
 <translation id="1504042622576912555">溝紋</translation>
 <translation id="1507202001669085618">&lt;p&gt;如果您正在使用的 Wi-Fi 入口網站需要登入才能連線至網絡，便會看到此錯誤訊息。&lt;/p&gt;
@@ -350,6 +351,7 @@
 <translation id="1542105669288201090">商業教育</translation>
 <translation id="1542830386724426410">結帳時顯示可用的付款卡禮遇和獎賞。受發卡機構條款約束。<ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />瞭解詳情<ph name="CARD_BENEFIT_HELP_LINK_END" /></translation>
 <translation id="1545757265410828525">過往價格</translation>
+<translation id="1546286808622193216">使用 Gemini 比較付款卡禮遇</translation>
 <translation id="1549470594296187301">必須啟用 JavaScript 才能使用此功能。</translation>
 <translation id="1553152622374372421">冬季運動</translation>
 <translation id="1553358976309200471">更新 Chrome</translation>
@@ -504,6 +506,7 @@
 <translation id="175656076281618225">魔術</translation>
 <translation id="1757773103848038814">等寬字型</translation>
 <translation id="1757935267918149452">改 Google 密碼按鈕，啟動之後就可以喺變更 Google 帳戶密碼</translation>
+<translation id="1759776526873274358">自動填入網站用來加強安全的驗證碼。Chrome 可從你的 Gmail 取得這些驗證碼。<ph name="BEGIN_LINK" />進一步瞭解此功能<ph name="LINK_END" /></translation>
 <translation id="1763864636252898013">伺服器無法證明其屬於 <ph name="DOMAIN" /> 網域；其安全性憑證未取得您裝置的操作系統的信任。這可能是因為設定錯誤，或有攻擊者攔截您的連線。</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />嘗試執行 Windows 網絡診斷<ph name="END_LINK" />。</translation>
 <translation id="1777422078676229054">相紙 (封存用)</translation>
@@ -863,6 +866,7 @@
 <translation id="2322254345061973671">{COUNT,plural, =1{1 個視窗}other{# 個視窗}}</translation>
 <translation id="232390861414237658">只要將此卡儲存至 Google Pay，就能在 Chrome 中購物時自動填入卡資料</translation>
 <translation id="2326283484705860548">你現在可自動填入更多「Google 錢包」資料</translation>
+<translation id="2326747055382936979">管理加強版自動填入</translation>
 <translation id="2328651992442742497">已允許 (預設)</translation>
 <translation id="2328955282645810595">建築和電動工具</translation>
 <translation id="2330137317877982892"><ph name="CREDIT_CARD" />，到期日：<ph name="EXPIRATION_DATE_ABBR" /></translation>
@@ -1424,6 +1428,7 @@
 <translation id="3202497928925179914"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />，㩒一下 Tab 鍵，然後㩒一下 Enter 鍵就可以喺 Chrome 設定度管理同步邊啲資料</translation>
 <translation id="3203025201812691413">網址不可留空</translation>
 <translation id="320323717674993345">取消付款</translation>
+<translation id="3204534477198689393">為改善建議並加快填寫表格，你瀏覽的頁面內容和網址可在雲端私人空間處理。</translation>
 <translation id="3207830513221832868"><ph name="BLOCKED_URL" /> 可能含有兒童不宜內容</translation>
 <translation id="3207960819495026254">已加入書籤</translation>
 <translation id="3208701679386778924">請傳送報告，讓我們進一步改善 ChromeOS 更新。</translation>
@@ -1479,6 +1484,7 @@
 <translation id="3272643614306383237">小於 1 MB。下次瀏覽部分網站時，載入速度可能會變慢。</translation>
 <translation id="3273738040255912340">管理員可遠端變更你的設定檔和瀏覽器、透過報告分析瀏覽器相關資料，以及執行其他必要工作。此裝置上的活動亦可透過 Chromium 以外的服務管理。<ph name="BEGIN_LINK" />瞭解詳情<ph name="END_LINK" /></translation>
 <translation id="3273757719652748628">打開咗儲存 IBAN 嘅底部工作表，宜家顯示喺成個畫面。</translation>
+<translation id="327455571215090823">自動填入更智能，確保資料保密</translation>
 <translation id="3281350579597955952">{0,plural, =1{管理員政策不建議在<ph name="DESTINATION_NAME" />中開啟這個檔案}other{管理員政策不建議在<ph name="DESTINATION_NAME" />中開啟這些檔案}}</translation>
 <translation id="3282085321714087552">機構 (<ph name="ENROLLMENT_DOMAIN" />) 已將一些資訊 (例如設定或政策) 傳送到以下網站。</translation>
 <translation id="3286372614333682499">直向</translation>
@@ -2154,6 +2160,7 @@
 <translation id="4304049446746819918">{0,plural, =1{管理員政策不建議將此檔案移至<ph name="DESTINATION_NAME" />}other{管理員政策不建議將這些檔案移至<ph name="DESTINATION_NAME" />}}</translation>
 <translation id="4304485328308299773">閱讀客戶的產品和服務評價或體驗，再根據評論作出決定。</translation>
 <translation id="4305666528087210886">無法存取您的檔案</translation>
+<translation id="4306349443295056740">OCSP 簽署</translation>
 <translation id="4306529830550717874">要儲存地址嗎？</translation>
 <translation id="4306812610847412719">剪貼簿</translation>
 <translation id="4308567447483056043">由於使用者無關聯，因此系統會忽略此政策。如要套用此政策，Chrome 瀏覽器和設定檔必須是由同一機構透過管理控制台管理。</translation>
@@ -2323,6 +2330,7 @@
 <translation id="4607608436550361748">查看 Chrome 提示</translation>
 <translation id="460848736049414407">已被管理員封鎖</translation>
 <translation id="4610279718074907952">此網站屬於由 <ph name="SET_OWNER" /> 定義的群組，因此可查看您的活動</translation>
+<translation id="4612631413844865947">透過 <ph name="PAYMENT_APP_ORIGIN" /> 處理 <ph name="MERCHANT_ORIGIN" /> 的訂單時發生錯誤。</translation>
 <translation id="46128681529823442">足球用品</translation>
 <translation id="4612904677925722054">此網站可能含有兒童不宜內容。你必須獲得家長或監護人許可，才能瀏覽此網站。</translation>
 <translation id="4619564267100705184">驗證身分</translation>
@@ -2412,6 +2420,8 @@
 <translation id="4744603770635761495">可執行檔的路徑</translation>
 <translation id="4744816391336495134">每當使用已儲存的密碼時，你可使用指紋驗證身分</translation>
 <translation id="4749011317274908093">您已啟用無痕模式</translation>
+<translation id="4749620353539006322">盡享獎賞</translation>
+<translation id="4749924365937394956">伺服器驗證</translation>
 <translation id="4750671009706599284">此手機</translation>
 <translation id="4750917950439032686">傳送資料至此網站時 (例如密碼或信用卡號碼)，您的資料將會保密。</translation>
 <translation id="4751249061288707459">同意書上次更新日期：</translation>
@@ -2986,6 +2996,7 @@
 <translation id="5611398002774823980">儲存在帳戶中</translation>
 <translation id="561165882404867731">使用「Google 翻譯」來翻譯此頁面</translation>
 <translation id="5612720917913232150"><ph name="URL" /> 要求使用電腦的位置資料</translation>
+<translation id="5613958591683399697">問 <ph name="ENGINE_NAME" /></translation>
 <translation id="5614190747811328134">使用者通知</translation>
 <translation id="5614520971155863709">卡類遊戲</translation>
 <translation id="5617949217645503996"><ph name="HOST_NAME" /> 的重新導向次數太多。</translation>
@@ -3128,6 +3139,7 @@
 <translation id="5860491529813859533">開啟</translation>
 <translation id="5862579898803147654">堆疊器 8</translation>
 <translation id="5863515189965725638">編輯 IBAN</translation>
+<translation id="5863517400058880216">自動填入 Gmail 中的驗證碼</translation>
 <translation id="5863847714970149516">接下來的頁面可能會向您收取費用</translation>
 <translation id="5866257070973731571">新增電話號碼</translation>
 <translation id="5866327164731551901">來自 <ph name="TYPE_1" /> <ph name="TYPE_2" /></translation>
@@ -3241,6 +3253,7 @@
 <translation id="6034000775414344507">淺灰色</translation>
 <translation id="6034514109191629503">彈弓摺</translation>
 <translation id="6035491133925068289">田徑運動</translation>
+<translation id="6037458223703682108">數碼簽名</translation>
 <translation id="6039846035001940113">如果問題持續，請聯絡網站擁有者。</translation>
 <translation id="6040143037577758943">關閉</translation>
 <translation id="6040539895181423374">價格分析資料</translation>
@@ -3552,6 +3565,7 @@
 <translation id="6474220430271405609">政策測試</translation>
 <translation id="6476284679642588870">管理付款方法</translation>
 <translation id="647881094269678013">表演和戲劇</translation>
+<translation id="6480363549849064919">用戶端驗證</translation>
 <translation id="6480864723214312258">家用電池</translation>
 <translation id="6487678699866233349">世界音樂</translation>
 <translation id="6489534406876378309">開始上載當機報告</translation>
@@ -4518,6 +4532,7 @@
 <translation id="7967973398323409409">你自動填入的資料不會向任何人顯示</translation>
 <translation id="79682505114836835">「<ph name="VALUE" />」是無效的十六進制顏色值。</translation>
 <translation id="7968982339740310781">檢視詳情</translation>
+<translation id="7971403153351954587">你的機構會監察複製行為</translation>
 <translation id="7972714317346275248">PKCS #1 SHA-384 (使用 RSA 加密)</translation>
 <translation id="7976053965094442846">提供分期付款嘅「先買後付」發卡機構。隱藏咗鍵盤。</translation>
 <translation id="7976214039405368314">要求數量過多</translation>
@@ -5131,6 +5146,7 @@
 <translation id="9001074447101275817"><ph name="DOMAIN" /> Proxy 要求提供使用者名稱和密碼。</translation>
 <translation id="9001701119003382280">電腦周邊</translation>
 <translation id="9001963517402879850">跳！</translation>
+<translation id="9003263770394939629">由 Gemini 建議。你可以在設定中管理強化版自動填入功能。</translation>
 <translation id="9003639428623471314">Kahu 信封</translation>
 <translation id="9004367719664099443">正在執行 VR 工作階段</translation>
 <translation id="9005998258318286617">無法載入 PDF 文件。</translation>

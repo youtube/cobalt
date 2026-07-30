@@ -701,20 +701,20 @@ void AXPlatformNodeWin::NotifyAccessibilityEvent(ax::mojom::Event event_type) {
       HasBoolAttribute(ax::mojom::BoolAttribute::kSelected) &&
       !GetBoolAttribute(ax::mojom::BoolAttribute::kSelected);
 
-  // Menu items fire selection events but Windows screen readers work reliably
-  // with focus events. Remap selected menu items and legacy selection events
-  // without explicit selected state, but do not remap explicitly unselected
-  // items.
+  // Menu items and the focused option of a single-select listbox fire selection
+  // events, but Windows screen readers announce reliably from focus events, so
+  // remap those to focus. Explicitly unselected nodes stay as selection events:
+  // a deselection must not be announced as a focus change.
   if (event_type == ax::mojom::Event::kSelection &&
       !selection_event_on_unselected_node) {
-    // A menu item could have something other than a role of
-    // |ROLE_SYSTEM_MENUITEM|. Zoom modification controls for example have a
-    // role of button.
+    // Some selection sources have no explicit selected state and a
+    // non-menuitem, non-listitem role (e.g. zoom controls with a button role);
+    // those only qualify for the parent-role fallback below.
     const bool selection_state_is_unknown =
         !HasBoolAttribute(ax::mojom::BoolAttribute::kSelected);
     if (int role = MSAARole(); role == ROLE_SYSTEM_MENUITEM) {
       event_type = ax::mojom::Event::kFocus;
-    } else if (selection_state_is_unknown && role == ROLE_SYSTEM_LISTITEM) {
+    } else if (role == ROLE_SYSTEM_LISTITEM) {
       if (const AXPlatformNodeBase* container = GetSelectionContainer()) {
         if (container->GetRole() == ax::mojom::Role::kListBox &&
             !container->HasState(ax::mojom::State::kMultiselectable) &&
@@ -7428,7 +7428,16 @@ int32_t AXPlatformNodeWin::ComputeIA2Role() {
       ia2_role = IA2_ROLE_CAPTION;
       break;
     case ax::mojom::Role::kForm:
-      ia2_role = IA2_ROLE_FORM;
+      // Per HTML-AAM and Core-AAM, a <form> maps to the form landmark only when
+      // it has an accessible name. An unnamed <form> must not be a landmark,
+      // otherwise screen readers announce a form region for every <form>. Note
+      // that every kForm node carries the "form" xml-roles attribute, so the
+      // accessible name is the only reliable signal here.
+      if (HasStringAttribute(ax::mojom::StringAttribute::kName)) {
+        ia2_role = IA2_ROLE_FORM;
+      } else {
+        ia2_role = IA2_ROLE_SECTION;
+      }
       break;
     case ax::mojom::Role::kGenericContainer:
       ia2_role = IA2_ROLE_SECTION;
@@ -7943,10 +7952,10 @@ std::optional<LONG> AXPlatformNodeWin::ComputeUIALandmarkType() const {
       // should have no corresponding role, removing the role breaks both
       // aria-setsize and aria-posinset.
       // The only other difference for UIA is that it should not be a landmark.
-      // If the author provided an accessible name, or the role was explicit,
-      // then allow the form landmark.
-      if (HasStringAttribute(ax::mojom::StringAttribute::kName) ||
-          HasStringAttribute(ax::mojom::StringAttribute::kRole)) {
+      // Only expose the form landmark when the form has an accessible name.
+      // Every kForm node carries the "form" xml-roles attribute, so the
+      // accessible name is the only reliable signal here.
+      if (HasStringAttribute(ax::mojom::StringAttribute::kName)) {
         return UIA_FormLandmarkTypeId;
       }
       return {};
@@ -8052,6 +8061,13 @@ IFACEMETHODIMP_(ULONG) AXPlatformNodeWin::AddRef() {
 
 IFACEMETHODIMP_(ULONG) AXPlatformNodeWin::Release() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!IsDestroyed() && ref_count_ == 1) {
+    // Keep the delegate's reference until Destroy().
+    // TODO(crbug.com/532828233): Identify the source of these extra Release()
+    // calls.
+    return 1;
+  }
+
   // As above, infer that the instance is no longer being used for some COM-ish
   // purpose when the refcount drops back down to 1 if it has yet to be
   // disposed. For cases where the instance was disposed while there were
@@ -9140,7 +9156,7 @@ bool AXPlatformNodeWin::IsToggleSupported() const {
   //
   // [2]:https://learn.microsoft.com/en-us/windows/win32/winauto/uiauto-supportbuttoncontroltype#required-control-patterns
   // [3]:https://github.com/microsoft/axe-windows/blob/main/src/Rules/Library/ButtonInvokeAndExpandeCollapsePatterns.cs
-  if (GetData().SupportsExpandCollapse() && IsButton(role)) {
+  if (IsExpandCollapseButton()) {
     return false;
   }
 
@@ -9149,6 +9165,10 @@ bool AXPlatformNodeWin::IsToggleSupported() const {
   //
   // [4]:https://w3c.github.io/core-aam/#mapping_state-property_table
   return IsPlatformCheckable() || SupportsToggle(role);
+}
+
+bool AXPlatformNodeWin::IsExpandCollapseButton() const {
+  return GetData().SupportsExpandCollapse() && IsButton(GetRole());
 }
 
 bool AXPlatformNodeWin::IsInvokeSupported() const {

@@ -124,7 +124,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="Browser.Actions.PinnedActionsCount" units="actions"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>corising@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -134,7 +134,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Cfm.Artemis.EnqueuedPayloadSize" units="bytes"
-    expires_after="2026-08-01">
+    expires_after="2027-08-01">
   <owner>ntsirakis@google.com</owner>
   <owner>kdgwill@google.com</owner>
   <owner>core-devices@google.com</owner>
@@ -145,7 +145,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Cfm.Artemis.LoggerServiceResponse"
-    enum="CfmArtemisLoggerResponse" expires_after="2026-08-01">
+    enum="CfmArtemisLoggerResponse" expires_after="2027-08-01">
   <owner>ntsirakis@google.com</owner>
   <owner>kdgwill@google.com</owner>
   <owner>core-devices@google.com</owner>
@@ -153,7 +153,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Cfm.Artemis.NumberOfRetriesBeforeSuccessfulEnqueue"
-    units="retries" expires_after="2026-08-01">
+    units="retries" expires_after="2027-08-01">
   <owner>ntsirakis@google.com</owner>
   <owner>kdgwill@google.com</owner>
   <owner>core-devices@google.com</owner>
@@ -164,7 +164,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Cfm.Artemis.PayloadQueueSize" units="payloads"
-    expires_after="2026-08-01">
+    expires_after="2027-08-01">
   <owner>ntsirakis@google.com</owner>
   <owner>kdgwill@google.com</owner>
   <owner>core-devices@google.com</owner>
@@ -174,7 +174,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Cfm.Artemis.SetupStatus" enum="CfmArtemisSetupStatus"
-    expires_after="2026-08-01">
+    expires_after="2027-08-01">
   <owner>ntsirakis@google.com</owner>
   <owner>kdgwill@google.com</owner>
   <owner>core-devices@google.com</owner>
@@ -186,7 +186,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Cfm.Artemis.TimeSinceLastSuccessfulEnqueue" units="ms"
-    expires_after="2026-08-01">
+    expires_after="2027-08-01">
   <owner>ntsirakis@google.com</owner>
   <owner>kdgwill@google.com</owner>
   <owner>core-devices@google.com</owner>
@@ -194,7 +194,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.Cfm.Artemis.TimeWaitedBeforeEnqueueRetry" units="ms"
-    expires_after="2026-08-01">
+    expires_after="2027-08-01">
   <owner>ntsirakis@google.com</owner>
   <owner>kdgwill@google.com</owner>
   <owner>core-devices@google.com</owner>
@@ -756,7 +756,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Browser.MainThreadsCongestion.LowMemory" units="janks"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>vovoy@chromium.org</owner>
   <owner>chromeos-memory@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1474,7 +1474,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="BrowserRenderProcessHost.ExistingRendererIsInitializedAndNotDead"
-    enum="Boolean" expires_after="2026-11-01">
+    enum="Boolean" expires_after="2027-01-03">
   <owner>cduvall@chromium.org</owner>
   <owner>swarm-team@google.com</owner>
   <summary>
@@ -1726,7 +1726,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserRenderProcessHost.SpareRendererDispatchResult"
-    enum="SpareRendererDispatchResult" expires_after="2026-11-01">
+    enum="SpareRendererDispatchResult" expires_after="2027-01-03">
   <owner>gjc@google.com</owner>
   <owner>chrome-loading@google.com</owner>
   <summary>
@@ -2118,7 +2118,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="BrowserSwitcher.UrlListWildcard" enum="BooleanPresent"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>nicolaso@chromium.org</owner>
   <owner>pastarmovj@chromium.org</owner>
   <summary>
@@ -2138,6 +2138,30 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="InfoBar.Centralized.{Action}" enum="InfoBarIdentifier"
+    expires_after="2027-07-13">
+  <owner>musalmaan@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    Records when a desktop infobar centralized under the new centralization
+    framework triggers a specific {Action}.
+
+    Each bucket in this sparse histogram corresponds to a unique
+    InfoBarIdentifier, and the count reflects the number of times that specific
+    infobar triggered the {Action}.
+
+    Recorded once per event to track user engagement and health of migrated
+    infobars under the centralization framework.
+  </summary>
+  <token key="Action">
+    <variant name="Accept" summary="Accept/OK button click action"/>
+    <variant name="Cancel" summary="Cancel button click action"/>
+    <variant name="Dismiss" summary="Dismissal action"/>
+    <variant name="LinkClicked" summary="Link click action"/>
+    <variant name="Show" summary="Show/display action"/>
+  </token>
+</histogram>
+
 <histogram name="InfoBar.CountAtShow" units="InfoBars" expires_after="never">
 <!-- expires-never: Required as long as infobars exist. -->
 
@@ -2153,7 +2177,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InfoBar.Prioritization.QueueSize" units="InfoBars"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>koretadaniel@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -2173,7 +2197,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InfoBar.Prioritization.StarvedCount" units="InfoBars"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>koretadaniel@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>

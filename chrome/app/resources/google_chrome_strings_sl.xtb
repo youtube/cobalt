@@ -74,7 +74,6 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="1640672724030957280">Prenos ...</translation>
 <translation id="1651617469580841801">Če uporabljate Google Lens, se naslov strani, URL in vsebina, vključno s PDF-ji, pošljejo Googlu. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">O sistemu ChromeOS Flex</translation>
-<translation id="1665867022636014702">Uporaba Googlovih priporočenih nastavitev brskalnika</translation>
 <translation id="1674870198290878346">Odpiranje povezave v Chromovem oknu brez belež&amp;enja zgodovine</translation>
 <translation id="1682634494516646069">Google Chrome ne more brati svojega imenika s podatki ali pisati vanj:
 
@@ -237,6 +236,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="3242123554343253302">Dodaj profil v Chromu</translation>
 <translation id="3242486428260808857">Kar najbolje izkoristite spletno nakupovanje, ko v napravi <ph name="DEVICE_TYPE" /> uporabljate aplikacijo Chrome</translation>
 <translation id="3245429137663807393">Če delite tudi poročila o uporabi Chroma, so v teh poročilih vključeni URL-ji, ki jih obiščete.</translation>
+<translation id="3249558306861350254">V nastavitvah sistema Windows kliknite <ph name="BEGIN_BOLD" />Nastavi privzeto<ph name="END_BOLD" />.</translation>
 <translation id="3259748324892322072">Prenos aplikacije Chrome</translation>
 <translation id="3282568296779691940">Prijava v Chrome</translation>
 <translation id="3286538390144397061">Znova zaženi</translation>
@@ -256,7 +256,6 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="345171907106878721">Dodajte se v Chrome</translation>
 <translation id="3453763134178591239">Pogoji za Chrome OS</translation>
 <translation id="3475778264501649775">Z aplikacijo Chrome v telefonu vzemite gesla, zavihke in drugo s seboj na pot</translation>
-<translation id="3512495006767217696">Vgrajen je v Chrome, da vam pomaga ustvarjati, shranjevati in samodejno izpolnjevati močna gesla. Dodajte bližnjico za preprost dostop.</translation>
 <translation id="3539955434060988644">Odpri povezavo v Chromovem anonimnem oknu</translation>
 <translation id="354621070532799440">Opomnik: Googlove najboljše varnostne funkcije v vašem žepu</translation>
 <translation id="3547866758548131919">Kliknite gumb za povzetek, če želite ta dokument deliti z Geminijem v Chromu, da pridobite hiter pregled in zastavite dodatna vprašanja</translation>
@@ -309,6 +308,7 @@ Nekatere funkcije morda niso na voljo in spremembe nastavitev ne bodo shranjene.
 <translation id="4012899077942246412">Ko ste prijavljeni, lahko v Chromu uporabljate gesla in drugo iz računa Google. Če želite to spremeniti, odprite »Vaš račun v Chromu«.</translation>
 <translation id="4022972681110646219">Prevedi zaslon</translation>
 <translation id="4023601594785368013">Izvirni jezik: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">Vgrajen je v Chrome, da vam pomaga ustvarjati, shranjevati in samodejno izpolnjevati močna gesla. Dodajte bližnjico za preprost dostop.</translation>
 <translation id="4035053306113201399">Če želite namestiti posodobitev, morate znova zagnati Chrome OS.</translation>
 <translation id="4050175100176540509">V najnovejši različici so na voljo pomembne varnostne izboljšave in nove funkcije.</translation>
 <translation id="4053720452172726777">Prilagajanje in nadziranje Google Chroma</translation>
@@ -549,7 +549,6 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="6438015621983209660">Razširite izboljšano varno brskanje s Chromom v telefonu</translation>
 <translation id="6442774133615368941">Uporabite fotoaparat v aplikaciji Chrome za iOS, da boste lahko nakupovali, prevajali in prepoznavali, kaj je prikazano</translation>
 <translation id="6448835208126432197">Če želite v Geminiju v Chromu izbrati del zaslona, uporabite bližnjične tipke.</translation>
-<translation id="6473659734176498825">Poenostavljena slika vstopne točke Googlovega upravitelja gesel v Chromu</translation>
 <translation id="6473905796280459355">Odprite stran »O Chromu«</translation>
 <translation id="6481963882741794338">Povežite Chrome in druge Googlove storitve za osebno prilagajanje in druge namene</translation>
 <translation id="648319183876919572">Izboljšano varno brskanje vas še bolje varuje pred nevarnimi spletnimi mesti in prenosi</translation>
@@ -566,6 +565,7 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="6539493053177300926">Preprost dostop za uporabo Geminija v Chromu v napravi, tudi če je Chrome pomanjšan.</translation>
 <translation id="6585124893636629274">Zapri Geminija v Chromu</translation>
 <translation id="659498884637196217">V Googlovem upravitelju gesel v tej napravi</translation>
+<translation id="6613949864921837107">Poskrbite, da so gesla, zaznamki in zgodovina popolnoma sinhronizirani v vseh napravah tako, da Chrome nastavite kot privzeti brskalnik.</translation>
 <translation id="6631524303639368205">Nadaljujte, kjer ste končali: Chrome je obnovil zavihke iz zadnje seje. To lahko izklopite v</translation>
 <translation id="6632473616050862500">ChromeOS Flex omogoča dodatna <ph name="BEGIN_LINK_CROS_OSS" />odprtokodna programska oprema<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6634299872736643004">Spremembe te nastavitve bodo uveljavljene, ko se bo Chrome znova zagnal.</translation>
@@ -691,7 +691,6 @@ Google Chrome ne more obnoviti vaših nastavitev.</translation>
 <translation id="7804364787702057554">Vaš račun v Chromu</translation>
 <translation id="7804947029129221742">Iskalnik je bil spremenjen zunaj Chroma. Chrome ga je ponastavil na prvotno privzeto vrednost zaradi vaše zaščite. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Odstranitev iz Chroma ...</translation>
-<translation id="7812800388699096556">Slika, ki prikazuje, kako lahko z Googlom Lens poiščete izdelek</translation>
 <translation id="7827099906024714326">Chrome mora preveriti vašo identiteto, preden bo mogoče nekatere podatke shraniti v račun Google in jih uporabiti v vseh vaših napravah. Če se odjavite zdaj, bodo ti podatki izbrisani.</translation>
 <translation id="7832314606810669113">Če želite dostopati do zaznamkov in drugega v vseh napravah, se prijavite v Chrome. Ta zaznamek bo po prijavi shranjen v računu Google.</translation>
 <translation id="7845233973568007926">Hvala, ker ste se odločili za namestitev. Preden uporabite <ph name="BUNDLE_NAME" />, morate znova zagnati računalnik.</translation>
@@ -830,7 +829,6 @@ Novih zaznamkov ni mogoče shraniti v račun, dokler nekaterih ne izbrišete. Č
 <translation id="8999208279178790196">{0,plural, =0{Posodobitev za Chrome je na voljo}=1{Posodobitev za Chrome je na voljo}one{Posodobitev za Chrome je na voljo že # dan}two{Posodobitev za Chrome je na voljo že # dneva}few{Posodobitev za Chrome je na voljo že # dni}other{Posodobitev za Chrome je na voljo že # dni}}</translation>
 <translation id="9014771989710951291">Chrome upravlja več organizacij</translation>
 <translation id="9018218886431812662">Namestitev je dokončana</translation>
-<translation id="9024318700713112071">Nastavite Chrome kot privzeto možnost</translation>
 <translation id="9066987883552592250">Zapiranje Geminija v Chromu Canary</translation>
 <translation id="9074041031320636790">Uspelo je. Z načinom umetne inteligence v Iskanju Google lahko med brskanjem preprosto postavljate vprašanja</translation>
 <translation id="9090566250983691233">Preberite, zakaj Chrome blokira nekatere datoteke</translation>

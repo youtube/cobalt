@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/rust.gni")
 import("//build/toolchain/kythe.gni")
 
 # Defines a C++ `source_set` (and supporting targets) that contains C++
@@ -26,6 +27,9 @@ import("//build/toolchain/kythe.gni")
 #     Name (potentially mangled/auto-generated) of the crate that `rust_target`
 #     is built into.
 #
+#   h_out
+#     Optional path where the generated `.h` file should be written.
+#
 #   original_attributes
 #     The original `cc_bindings_from_rs = { ... }` dictionary (the value of
 #     the `cc_bindings_from_rs` attribute of a target like
@@ -37,6 +41,20 @@ import("//build/toolchain/kythe.gni")
 #
 #
 template("cpp_api_from_rust") {
+  # `enable_rust` and `use_chromium_rust_toolchain` enforce that `rustc` and
+  # `cpp_api_from_rust` use the same version of Rust compiler sources - this is
+  # required (e.g. to see the same memory layout of repr-Rusts structs) as
+  # explained in
+  # https://github.com/google/crubit/blob/89417b58802e20a6a11db7fea7c31692fef25276/docs/design/design.md?plain=1#L599-L602
+  assert(enable_rust && use_chromium_rust_toolchain)
+
+  # `cpp_api_from_rust`-generated bindings may depend on C++ bindings of Rust
+  # standard library. Currently Chromium is only able to invoke Crubit in
+  # `.rs`-consuming mode (rather than `.rlib`-consuming mode). Together, these
+  # two constraints mean that `cpp_api_from_rust` only works for the target
+  # platform and doesn't yet work for the host platform.
+  assert(!rust_prebuilt_stdlib)
+
   _rspgen_target_name = "${target_name}_crubit_rspgen"
   _action_target_name = "${target_name}_crubit_action"
   _rust_impl_target_name = "${target_name}_crubit_impl"
@@ -52,7 +70,11 @@ template("cpp_api_from_rust") {
   _rust_target = invoker.rust_target
   _rust_target_name = get_label_info(_rust_target, "name")
   _rust_target_dir = get_label_info(_rust_target, "dir")
-  _h_out = "${target_gen_dir}/${_rust_target_name}.h"
+  if (defined(invoker.h_out)) {
+    _h_out = invoker.h_out
+  } else {
+    _h_out = "${target_gen_dir}/${_rust_target_name}.h"
+  }
   _rs_out = "${_h_out}.impl.rs"
 
   _original_attributes = invoker.original_attributes
@@ -67,8 +89,7 @@ template("cpp_api_from_rust") {
     _original_attributes.deps += [ "//build/rust/std:std_bindings" ]
   }
 
-  _crubit_support_path_format =
-      "\"third_party/rust-toolchain/lib/crubit/support/{header}\""
+  _crubit_support_path_format = "\"third_party/crubit/support/{header}\""
   _cpp_api_from_rust_exe_path =
       "//third_party/rust-toolchain/bin/cc_bindings_from_rs"
   _rustfmt_exe_path = "//third_party/rust-toolchain/bin/rustfmt"
@@ -115,11 +136,8 @@ template("cpp_api_from_rust") {
     ]
 
     script = "//build/rust/gni_impl/cpp_api_from_rust_wrapper.py"
-    inputs = [
-      # `import`ed for `LoadRustEnvAndFlags`, etc.
-      "//build/rust/gni_impl/rustc_wrapper.py",
-
-      # Tools / executables:
+    inputs = rustc_wrapper_inputs
+    inputs += [
       _cpp_api_from_rust_exe_path,
       _rustfmt_exe_path,
       _rustfmt_config_path,
@@ -172,7 +190,7 @@ template("cpp_api_from_rust") {
       args += [
         "--kythe-annotations",
         "--kythe-default-corpus",
-        kythe_corpus_identifier,
+        kythe_corpus,
       ]
     }
   }

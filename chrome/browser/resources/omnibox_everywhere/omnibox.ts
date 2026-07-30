@@ -244,7 +244,7 @@ export class OmniboxEverywhereOmniboxElement extends
 
   protected onSearchboxInputTextUpdated_(
       e: CustomEvent<{value: string, isComposing: boolean}>) {
-    this.onSearchboxInputTextUpdated(e, /*forceAutocomplete=*/ false);
+    this.onSearchboxInputTextUpdated(e);
   }
 
   protected onVoiceSearchClick_() {
@@ -267,6 +267,7 @@ export class OmniboxEverywhereOmniboxElement extends
         text: this.$.input.inputElement.value,
         mode: mode,
         model: model,
+        smartTabSharingActive: false,
       });
     }, 300);
   }

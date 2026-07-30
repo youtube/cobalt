@@ -51,8 +51,8 @@
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
-#import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
+#import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/ntp/model/ntp_background_image_cache_service.h"
 #import "ios/chrome/browser/ntp/shared/metrics/feed_metrics_recorder.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_palette.h"
@@ -276,17 +276,17 @@ UIImage* CreateCustomBackgroundPreviewImage(
 
 }  // namespace
 
-@interface OverflowMenuMediator () <BookmarkModelBridgeObserver,
+@interface OverflowMenuMediator () <AuthenticationServiceObserving,
+                                    BookmarkModelBridgeObserver,
                                     CRWWebStateObserver,
+                                    IdentityManagerObserverBridgeDelegate,
                                     IOSLanguageDetectionTabHelperObserving,
                                     OverflowMenuDestinationProvider,
                                     OverlayPresenterObserving,
                                     PrefObserverDelegate,
                                     ReadingListModelBridgeObserver,
                                     SearchEngineObserving,
-                                    WebStateListObserving,
-                                    AuthenticationServiceObserving,
-                                    IdentityManagerObserverBridgeDelegate> {
+                                    WebStateListObserving> {
   std::unique_ptr<web::WebStateObserverBridge> _webStateObserver;
   std::unique_ptr<WebStateListObserverBridge> _webStateListObserver;
 
@@ -2041,19 +2041,25 @@ UIImage* CreateCustomBackgroundPreviewImage(
     // Custom background image.
     previewImage =
         CreateCustomBackgroundPreviewImage(self.backgroundImageCacheService);
-  } else if (colorTheme.has_value()) {
-    // Custom color theme.
-    UIColor* seedColor = skia::UIColorFromSkColor(colorTheme->color());
-    ui::ColorProviderKey::SchemeVariant schemeVariant =
-        ProtoEnumToSchemeVariant(colorTheme->browser_color_variant());
-    NewTabPageColorPalette* customColorPalette =
-        CreateColorPaletteFromSeedColor(seedColor, schemeVariant);
-    previewImage =
-        CreateColorPalettePreviewImage(customColorPalette, traitCollection);
-  } else {
-    // Default (un-themed).
-    previewImage = CreateColorPalettePreviewImage(DefaultNTPColorPalette(),
-                                                  traitCollection);
+  }
+
+  // Fallback to color theme or default preview if the custom background preview
+  // could not be loaded or is not cached.
+  if (!previewImage) {
+    if (colorTheme.has_value()) {
+      // Custom color theme.
+      UIColor* seedColor = skia::UIColorFromSkColor(colorTheme->color());
+      ui::ColorProviderKey::SchemeVariant schemeVariant =
+          ProtoEnumToSchemeVariant(colorTheme->browser_color_variant());
+      NewTabPageColorPalette* customColorPalette =
+          CreateColorPaletteFromSeedColor(seedColor, schemeVariant);
+      previewImage =
+          CreateColorPalettePreviewImage(customColorPalette, traitCollection);
+    } else {
+      // Default (un-themed).
+      previewImage = CreateColorPalettePreviewImage(DefaultNTPColorPalette(),
+                                                    traitCollection);
+    }
   }
 
   _customizeHomepageAction.previewImage = previewImage;

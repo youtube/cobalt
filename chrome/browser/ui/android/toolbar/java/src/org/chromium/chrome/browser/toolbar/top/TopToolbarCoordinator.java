@@ -20,6 +20,7 @@ import androidx.annotation.ColorInt;
 
 import org.chromium.base.Callback;
 import org.chromium.base.DeviceInfo;
+import org.chromium.base.Log;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.NullableObservableSupplier;
@@ -100,6 +101,7 @@ import java.util.function.Supplier;
 @NullMarked
 public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     private static final int UNSPECIFIED_TOOLBAR_OFFSET = -1234;
+    private static final String TAG = "TopToolbarCoord";
 
     /** Observes toolbar color or expanding state change. */
     public interface ToolbarColorObserver {
@@ -469,6 +471,9 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                             mToolbarLayout.getProgressBar());
             layoutManager.addSceneOverlay(mOverlayCoordinator);
             mToolbarLayout.setOverlayCoordinator(mOverlayCoordinator);
+            if (mToolbarLayout.isToolbarHairlineSuppressed()) {
+                mOverlayCoordinator.onToolbarHairlineSuppressedChanged(true);
+            }
 
             // mOverlayCoordinator needs to receive the latest yOffset and offset tags to position
             // the scene layer. It's better to request another update to avoid stale values.
@@ -675,6 +680,14 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
     /** Sets whether the urlbar should be hidden on first page load. */
     public void setUrlBarHidden(boolean hidden) {
         mToolbarLayout.setUrlBarHidden(hidden);
+    }
+
+    /** Sets whether the toolbar hairline should be suppressed. */
+    public void onToolbarHairlineSuppressedChanged(boolean suppressed) {
+        if (mToolbarLayout != null) mToolbarLayout.onToolbarHairlineSuppressedChanged(suppressed);
+        if (mOverlayCoordinator != null) {
+            mOverlayCoordinator.onToolbarHairlineSuppressedChanged(suppressed);
+        }
     }
 
     /** Tells the Toolbar to update what buttons it is currently displaying. */
@@ -1111,6 +1124,20 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                     Math.max(controlContainerHeightExcludingTabStrip, toolbarLayoutHeight);
             int minControlContainerHeightMeasurement =
                     Math.min(controlContainerHeightExcludingTabStrip, toolbarLayoutHeight);
+            if (ChromeFeatureList.sDebugToolbarPositioning.isEnabled()) {
+                Log.e(
+                        TAG,
+                        "[TopControlsPositioning] toolbarLayoutHeight="
+                                + toolbarLayoutHeight
+                                + ", hairlineHeight="
+                                + hairlineHeight
+                                + ", ccHeightExcludingTabStrip="
+                                + controlContainerHeightExcludingTabStrip
+                                + ", maxCCHeight="
+                                + maxControlContainerHeightMeasurement
+                                + ", minCCHeight="
+                                + minControlContainerHeightMeasurement);
+            }
             if (captureHeight >= maxControlContainerHeightMeasurement + tabStripHeight
                     && mTabStripTransitionCoordinator != null) {
                 // Capture includes extra height; use the full height.
@@ -1131,7 +1158,26 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
             hairlineAdjustment = -mControlContainer.getToolbarHairlineHeight();
         }
 
-        assertNonNull(mOverlayCoordinator).setYOffset(mLayerYOffset - diff + hairlineAdjustment);
+        int finalYOffset = mLayerYOffset - diff + hairlineAdjustment;
+        if (ChromeFeatureList.sDebugToolbarPositioning.isEnabled()) {
+            Log.e(
+                    TAG,
+                    "[TopControlsPositioning] updateSceneLayerYOffset: mLayerYOffset="
+                            + mLayerYOffset
+                            + ", captureHeight="
+                            + captureHeight
+                            + ", tabStripHeightResource="
+                            + tabStripHeight
+                            + ", tabStripHeightReal="
+                            + getTabStripHeight()
+                            + ", diff="
+                            + diff
+                            + ", hairlineAdjustment="
+                            + hairlineAdjustment
+                            + ", finalYOffset="
+                            + finalYOffset);
+        }
+        assertNonNull(mOverlayCoordinator).setYOffset(finalYOffset);
     }
 
     /**
@@ -1193,6 +1239,11 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                     }
 
                     @Override
+                    public boolean hasSpaceToShow() {
+                        return shouldShowGlicToolbarButton();
+                    }
+
+                    @Override
                     public int updateVisibility(int availableWidth) {
                         return shouldShowGlicToolbarButton() ? glicButtonWidth : 0;
                     }
@@ -1216,5 +1267,9 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                 .setGlicActionChipVisibility(
                         shouldShowGlicToolbarButton(),
                         v -> assumeNonNull(mToggleGlicCallback).run());
+    }
+
+    void setOverlayCoordinatorForTesting(TopToolbarOverlayCoordinator overlayCoordinator) {
+        mOverlayCoordinator = overlayCoordinator;
     }
 }

@@ -75,6 +75,7 @@ import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
+import org.chromium.chrome.browser.omnibox.UrlBar.BoundsEllipsisSpan;
 import org.chromium.chrome.browser.omnibox.UrlBar.EllipsisSpan;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarDelegate;
 import org.chromium.chrome.browser.omnibox.UrlBar.UrlBarTextContextMenuDelegate;
@@ -382,7 +383,7 @@ public class UrlBarUnitTest {
         mUrlBar.setTextWithTruncation(url, UrlBar.ScrollType.SCROLL_TO_TLD, SHORT_DOMAIN.length());
         Editable text = mUrlBar.getText();
         assertEquals(url, text.toString());
-        EllipsisSpan[] spans = text.getSpans(0, text.length(), EllipsisSpan.class);
+        BoundsEllipsisSpan[] spans = text.getSpans(0, text.length(), BoundsEllipsisSpan.class);
         assertEquals(1, spans.length);
         assertEquals(NUMBER_OF_VISIBLE_CHARACTERS, text.getSpanStart(spans[0]));
     }
@@ -396,7 +397,7 @@ public class UrlBarUnitTest {
         mUrlBar.setTextWithTruncation(url, UrlBar.ScrollType.SCROLL_TO_TLD, SHORT_DOMAIN.length());
         Editable text = mUrlBar.getText();
         assertEquals(url, text.toString());
-        EllipsisSpan[] spans = text.getSpans(0, text.length(), EllipsisSpan.class);
+        BoundsEllipsisSpan[] spans = text.getSpans(0, text.length(), BoundsEllipsisSpan.class);
         assertEquals(0, spans.length);
     }
 
@@ -408,7 +409,7 @@ public class UrlBarUnitTest {
         mUrlBar.setTextWithTruncation(url, UrlBar.ScrollType.SCROLL_TO_TLD, LONG_DOMAIN.length());
         Editable text = mUrlBar.getText();
         assertEquals(url, text.toString());
-        EllipsisSpan[] spans = text.getSpans(0, text.length(), EllipsisSpan.class);
+        BoundsEllipsisSpan[] spans = text.getSpans(0, text.length(), BoundsEllipsisSpan.class);
         assertEquals(1, spans.length);
         assertEquals(LONG_DOMAIN.length(), text.getSpanStart(spans[0]));
     }
@@ -421,7 +422,7 @@ public class UrlBarUnitTest {
         mUrlBar.setTextWithTruncation(url, UrlBar.ScrollType.SCROLL_TO_BEGINNING, 0);
         Editable text = mUrlBar.getText();
         assertEquals(url, text.toString());
-        EllipsisSpan[] spans = text.getSpans(0, text.length(), EllipsisSpan.class);
+        BoundsEllipsisSpan[] spans = text.getSpans(0, text.length(), BoundsEllipsisSpan.class);
         assertEquals(1, spans.length);
         assertEquals(NUMBER_OF_VISIBLE_CHARACTERS, text.getSpanStart(spans[0]));
     }
@@ -437,7 +438,7 @@ public class UrlBarUnitTest {
         mUrlBar.setTextWithTruncation(LONG_DOMAIN, UrlBar.ScrollType.SCROLL_TO_BEGINNING, 0);
         Editable text = mUrlBar.getText();
         assertEquals(LONG_DOMAIN, text.toString());
-        EllipsisSpan[] spans = text.getSpans(0, text.length(), EllipsisSpan.class);
+        BoundsEllipsisSpan[] spans = text.getSpans(0, text.length(), BoundsEllipsisSpan.class);
         assertEquals(0, spans.length);
 
         mUrlBar.setLayoutParams(previousLayoutParams);
@@ -579,6 +580,17 @@ public class UrlBarUnitTest {
 
         // Since we already have focus, expect zero explicit requests to gain focus.
         verify(mUrlBar, times(0)).requestFocus();
+    }
+
+    @Test
+    public void onTouchEvent_rightClickFocusesAndSelectsAll() {
+        MotionEvent evt = MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 0, 0, 0);
+        evt.setButtonState(MotionEvent.BUTTON_SECONDARY);
+
+        mUrlBar.onTouchEvent(evt);
+
+        verify(mUrlBarDelegate).onFocusByTouch();
+        verify(mUrlBar).requestFocus();
     }
 
     @Test
@@ -784,6 +796,33 @@ public class UrlBarUnitTest {
         // We change the width, which may impact scroll position.
         measureAndLayoutUrlBarForSize(URL_BAR_WIDTH + 1, URL_BAR_HEIGHT);
         verify(mUrlBar).scrollDisplayText(anyInt(), anyBoolean());
+    }
+
+    @Test
+    public void scrollDisplayText_clearsSelectionIfNeeded() {
+        mUrlBar.setText(SHORT_DOMAIN);
+        measureAndLayoutUrlBar();
+
+        // Case 1: Cursor at 0, no selection.
+        mUrlBar.setSelection(0);
+        clearInvocations(mUrlBar);
+        mUrlBar.scrollDisplayText(UrlBar.ScrollType.SCROLL_TO_BEGINNING, false);
+        verify(mUrlBar, never()).setSelection(anyInt());
+
+        // Case 2: Cursor at non-zero, no selection.
+        mUrlBar.setSelection(5);
+        clearInvocations(mUrlBar);
+        mUrlBar.scrollDisplayText(UrlBar.ScrollType.SCROLL_TO_BEGINNING, false);
+        verify(mUrlBar).setSelection(0);
+        assertEquals(0, mUrlBar.getSelectionStart());
+
+        // Case 3: Selection exists.
+        mUrlBar.setSelection(1, 3);
+        clearInvocations(mUrlBar);
+        mUrlBar.scrollDisplayText(UrlBar.ScrollType.SCROLL_TO_BEGINNING, false);
+        verify(mUrlBar).setSelection(0);
+        assertEquals(0, mUrlBar.getSelectionStart());
+        assertEquals(0, mUrlBar.getSelectionEnd());
     }
 
     @Test
@@ -1358,7 +1397,7 @@ public class UrlBarUnitTest {
         mUrlBar.setText(SUPER_LONG_URL);
 
         Editable text = mUrlBar.getText();
-        UrlBar.EllipsisSpan[] spans = text.getSpans(0, text.length(), UrlBar.EllipsisSpan.class);
+        EllipsisSpan[] spans = text.getSpans(0, text.length(), EllipsisSpan.class);
         assertNotNull(spans);
         assertEquals(1, spans.length);
 
@@ -1661,14 +1700,15 @@ public class UrlBarUnitTest {
         mUrlBar.setTextWithTruncation(url, UrlBar.ScrollType.SCROLL_TO_TLD, SHORT_DOMAIN.length());
 
         Editable text = mUrlBar.getText();
-        EllipsisSpan[] spansBefore = text.getSpans(0, text.length(), EllipsisSpan.class);
+        BoundsEllipsisSpan[] spansBefore =
+                text.getSpans(0, text.length(), BoundsEllipsisSpan.class);
         assertEquals(1, spansBefore.length);
         assertEquals(NUMBER_OF_VISIBLE_CHARACTERS, text.getSpanStart(spansBefore[0]));
         assertEquals(url.length(), text.getSpanEnd(spansBefore[0]));
 
         mUrlBar.onTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 0, 0, 0));
 
-        EllipsisSpan[] spansAfter = text.getSpans(0, text.length(), EllipsisSpan.class);
+        BoundsEllipsisSpan[] spansAfter = text.getSpans(0, text.length(), BoundsEllipsisSpan.class);
         assertEquals(0, spansAfter.length);
     }
 
@@ -1681,7 +1721,8 @@ public class UrlBarUnitTest {
 
         mUrlBar.setTextWithTruncation(SUPER_LONG_URL, UrlBar.ScrollType.SCROLL_TO_TLD, 10);
         Editable text = mUrlBar.getText();
-        EllipsisSpan[] spansBefore = text.getSpans(0, text.length(), EllipsisSpan.class);
+        BoundsEllipsisSpan[] spansBefore =
+                text.getSpans(0, text.length(), BoundsEllipsisSpan.class);
 
         mUrlBar.onTouchEvent(MotionEvent.obtain(0, 0, MotionEvent.ACTION_DOWN, 0, 0, 0));
 

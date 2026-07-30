@@ -808,21 +808,6 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "gpu_amd_9900x_win_experimental",
-    # We always need this entry to be generated since it is used by
-    # //content/test/gpu/find_bad_machines.py.
-    generate_pyl_entry = targets.IGNORE_UNUSED,
-    swarming = targets.swarming(
-        dimensions = {
-            "display_attached": "1",
-            "gpu": "1002:13c0",
-            "os": "Windows-11",
-            "pool": "chromium.tests.gpu.experimental",
-        },
-    ),
-)
-
-targets.mixin(
     name = "gpu_amd_rx_5500_xt_linux_experimental",
     swarming = targets.swarming(
         dimensions = {
@@ -861,22 +846,6 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "gpu_amd_9900x_linux_experimental",
-    # We always need this entry to be generated since it is used by
-    # //content/test/gpu/find_bad_machines.py.
-    generate_pyl_entry = targets.IGNORE_UNUSED,
-    swarming = targets.swarming(
-        dimensions = {
-            "display_attached": "1",
-            "display_server": "x11",
-            "gpu": "1002:13c0",
-            "os": "Ubuntu",
-            "pool": "chromium.tests.gpu.experimental",
-        },
-    ),
-)
-
-targets.mixin(
     name = "gpu_nvidia_rtx_5080_linux_experimental",
     swarming = targets.swarming(
         dimensions = {
@@ -896,31 +865,6 @@ targets.mixin(
             "display_attached": "1",
             "gpu": "10de:2c02-32.0.15.9597",
             "os": "Windows-11",
-            "pool": "chromium.tests.gpu.experimental",
-        },
-    ),
-)
-
-targets.mixin(
-    name = "gpu_win11_intel_arc_140v_experimental",
-    swarming = targets.swarming(
-        dimensions = {
-            "display_attached": "1",
-            "gpu": "8086:64a0",
-            "os": "Windows-11",
-            "pool": "chromium.tests.gpu.experimental",
-        },
-    ),
-)
-
-targets.mixin(
-    name = "gpu_intel_arc_140v_linux_experimental",
-    swarming = targets.swarming(
-        dimensions = {
-            "display_attached": "1",
-            "display_server": "x11",
-            "gpu": "8086:64a0",
-            "os": "Ubuntu",
             "pool": "chromium.tests.gpu.experimental",
         },
     ),
@@ -1608,7 +1552,7 @@ targets.mixin(
             "cpu": "arm64",
             "gpu": "apple:m2",
             "mac_model": "Mac14,7",
-            "os": "Mac-14.4.1",
+            "os": "Mac-14.4.1|Mac-26.5.1",
             "pool": "chromium.tests.gpu",
             "display_attached": "1",
             "hidpi": "1",
@@ -2317,12 +2261,12 @@ targets.mixin(
     name = "xcode_27_beta",
     args = [
         "--xcode-build-version",
-        "27a5209h",
+        "27a5218g",
     ],
     swarming = targets.swarming(
         named_caches = [
             swarming.cache(
-                name = "xcode_ios_27a5209h",
+                name = "xcode_ios_27a5218g",
                 path = "Xcode.app",
             ),
         ],

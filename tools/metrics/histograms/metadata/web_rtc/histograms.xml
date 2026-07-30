@@ -709,7 +709,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.AudioInputSampleRate" enum="AudioSampleRate"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>saza@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -766,7 +766,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.BWE.InitiallyLostPackets" units="packets"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>holmer@chromium.org</owner>
   <summary>
     The number of video packets lost durig the first 2 seconds in a WebRTC call.
@@ -1224,39 +1224,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.P2P.UDP.SendResult"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-11-01">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2027-01-03">
   <owner>danilchap@chromium.org</owner>
   <owner>stevebe@microsoft.com</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
     Logs the result of sending a packet through a UDP socket. Records net::OK
     after success. Records a network error code after failure.
-  </summary>
-</histogram>
-
-<histogram name="WebRTC.P2P.UDP.SendRetryDelay" units="ms"
-    expires_after="2026-07-01">
-  <owner>danilchap@chromium.org</owner>
-  <owner>stevebe@microsoft.com</owner>
-  <owner>webrtc-dev@chromium.org</owner>
-  <summary>
-    Logs the delay introduced by the retry timer after net::ERR_NO_BUFFER_SPACE.
-    The timer starts at 1 milliseconds. Each retry doubles the interval up to 12
-    times, which introduces a maximum delay of 4095 milliseconds.
-  </summary>
-</histogram>
-
-<histogram name="WebRTC.P2P.UDP.SendRetryResult"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-07-01">
-  <owner>danilchap@chromium.org</owner>
-  <owner>stevebe@microsoft.com</owner>
-  <owner>webrtc-dev@chromium.org</owner>
-  <summary>
-    Logs the final result of retrying to send a packet after
-    net::ERR_NO_BUFFER_SPACE. Records net::OK to indicate recovery. Records
-    errors to indicate that the retry failed. Records net::ERR_NO_BUFFER_SPACE
-    to indicate that the retry timed out after 4095 milliseconds of repeated
-    net::ERR_NO_BUFFER_SPACE results.
   </summary>
 </histogram>
 

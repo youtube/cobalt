@@ -1295,6 +1295,21 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_CLEAR_BROWSING_DATA_MANAGE_OTHER_GOOGLE_DATA_EXPANDABLE_TITLE" desc="Title for the expandable 'Manage other Google data' section in Clear Browsing Data." translateable="false">
         Manage other Google data
       </message>
+            <message name="IDS_PASSWORD_MANAGER_LINK_OUT_TITLE" desc="Title for the link out button in Clear Browsing Data settings that redirects to the Google Password Manager." translateable="false">
+        Passwords and passkeys
+      </message>
+      <message name="IDS_PASSWORD_MANAGER_LINK_OUT_DESCRIPTION" desc="Description for the link out button in Clear Browsing Data settings that redirects to the Google Password Manager." translateable="false">
+        Manage in Google Password Manager
+      </message>
+            <message name="IDS_SEARCH_HISTORY_LINK_OUT_TITLE" desc="Title for the link out button in Clear Browsing Data settings that redirects to the Google Search History page." translateable="false">
+        Search history
+      </message>
+      <message name="IDS_MY_ACTIVITY_LINK_OUT_TITLE" desc="Title for the link out button in Clear Browsing Data settings that redirects to the Google My Activity page." translateable="false">
+        My Activity
+      </message>
+      <message name="IDS_MY_ACTIVITY_LINK_OUT_DESCRIPTION" desc="Description for the link out button in Clear Browsing Data settings that redirects to the Google My Activity page." translateable="false">
+        Manage in your Google Account
+      </message>
       <message name="IDS_IMPORTANT_SITES_TITLE" desc="Title of clear storage dialogs used in a couple different places to confirm clearing site storage data. [CHAR_LIMIT=24]">
         Also clear data from these sites?
       </message>
@@ -2008,10 +2023,10 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_LANGUAGES_SPLIT_FAILED" desc="Text to display next to the native name of a language when a language pack has failed to download. The dash separates the native name from the description. The message asks the user to try again.">
         <ph name="LANG">%1$s<ex>हिन्दी</ex></ph> - This language couldn't be downloaded. Try again later.
       </message>
-      <message name="IDS_LANGUAGES_INFOBAR_READY" desc="Infobar text to appear when a new language pack has been downloaded. [CHAR_LIMIT=32]">
+      <message name="IDS_LANGUAGES_SNACKBAR_READY" desc="Snackbar text to appear when a new language pack has been downloaded. [CHAR_LIMIT=32]">
         <ph name="LANG">%1$s<ex>Hindi</ex></ph> is ready
       </message>
-      <message name="IDS_LANGUAGES_INFOBAR_RESTART" desc="The clickable link letting the user know they can click to restart Chrome. [CHAR_LIMIT=32]">
+      <message name="IDS_LANGUAGES_SNACKBAR_RESTART" desc="The clickable link letting the user know they can click to restart Chrome. [CHAR_LIMIT=32]">
         Restart Chrome
       </message>
       <message name="IDS_LANGUAGES_SETTINGS_TRANSLATION_TITLE" desc="Title of Language settings section to control translation preferences. [CHAR_LIMIT=32]">
@@ -2385,8 +2400,14 @@ Your Google account may have other forms of browsing history like searches and a
       <message name="IDS_SIGN_OUT_MESSAGE" desc="Body of a dialog that is shown when the user starts to sign out. This string precedes the confirmation button 'Sign Out'. If the user chooses to continue to sign out, then the data in their Google Account (such as bookmarks, passwords, history, settings, and more) won't be available on their device. If they sign back in to their Google Account, their data will come back. The tone should be helpful and instructive.">
         After you sign out, your bookmarks, passwords, and more in your Google Account will be removed from this device.
       </message>
-      <message name="IDS_SIGN_OUT_UNSAVED_DATA_PRIMARY_BUTTON" desc="Button title of a dialog shown to users when they sign out of Chrome but Chrome hasn't synced some data yet, which is parmanently deleted if the user proceeds by pressing this button">
+      <message name="IDS_SIGN_OUT_REMOVE_EXTENSIONS_MESSAGE" desc="Checkbox text in the sign-out dialog allowing users to remove extensions associated with their signed in account from this device.">
+        Remove extensions and the data that they saved on this device
+      </message>
+      <message name="IDS_SIGN_OUT_UNSAVED_DATA_PRIMARY_BUTTON" desc="Button title of a dialog shown to users when they sign out of Chrome but Chrome hasn't synced some data yet, which is permanently deleted if the user proceeds by pressing this button">
         Delete and sign out
+      </message>
+      <message name="IDS_SIGN_OUT_UNSAVED_DATA_REMOVE_EXTENSIONS_MESSAGE" desc="Checkbox text in the sign-out dialog if the user initiates a sign-out with unsynced data and they have account extensions installed.">
+        You can also remove extensions from this device
       </message>
 
       <!-- Sync strings -->
@@ -2833,7 +2854,7 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Copy link
       </message>
       <message name="IDS_MENU_SEND_TO_DEVICES" desc="Menu item for sending the page to another device. [CHAR_LIMIT=27]">
-        Send to devices
+        Send to your device
       </message>
       <message name="IDS_MENU_QR_CODE" desc="Menu item for generating a QR Code for the current page. [CHAR_LIMIT=27]">
         QR code
@@ -2913,6 +2934,41 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_CONTEXTMENU_OPEN_IN_NEW_WINDOW" desc="Context sensitive menu item to open the selected link in a new window. [CHAR_LIMIT=30]">
         Open in new window
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_ALL_PLURAL" desc="Context sensitive menu item to open all bookmarks. [ICU Syntax]">
+        {NUM_BOOKMARKS, plural,
+          =1 {Open bookmark}
+          other {Open all (#)}}
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_ALL" desc="Context sensitive menu item to open all bookmarks when there are no bookmarks. [CHAR_LIMIT=30]">
+        Open all
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_ALL_IN_NEW_WINDOW_PLURAL" desc="Context sensitive menu item to open all bookmarks in a new window. [ICU Syntax]">
+        {NUM_BOOKMARKS, plural,
+          =1 {Open in new window}
+          other {Open all (#) in new window}}
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_ALL_IN_NEW_WINDOW" desc="Context sensitive menu item to open all bookmarks in a new window when there are no bookmarks. [CHAR_LIMIT=30]">
+        Open all in new window
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_ALL_IN_INCOGNITO_WINDOW_PLURAL" desc="Context sensitive menu item to open all bookmarks in an incognito window. [ICU Syntax]">
+        {NUM_BOOKMARKS, plural,
+          =1 {Open in Incognito window}
+          other {Open all (#) in Incognito window}}
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_ALL_IN_INCOGNITO_WINDOW" desc="Context sensitive menu item to open all bookmarks in an incognito window when there are no bookmarks. [CHAR_LIMIT=30]">
+        Open all in Incognito window
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_ALL_IN_NEW_TAB_GROUP_PLURAL" desc="Context sensitive menu item to open all bookmarks in a new tab group. [ICU Syntax]">
+        {NUM_BOOKMARKS, plural,
+          =1 {Open in new tab group}
+          other {Open all (#) in new tab group}}
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_ALL_IN_NEW_TAB_GROUP" desc="Context sensitive menu item to open all bookmarks in a new tab group when there are no bookmarks. [CHAR_LIMIT=30]">
+        Open all in new tab group
+      </message>
+      <message name="IDS_CONTEXTMENU_OPEN_BOOKMARKS_MANAGER" desc="Label for the menu item that opens the bookmarks manager.">
+        Open Bookmarks Manager
       </message>
       <message name="IDS_CONTEXTMENU_OPEN_IN_NEW_TAB" desc="Context sensitive menu item to open the selected link in a new tab. [CHAR_LIMIT=30]">
         Open in new tab
@@ -3748,6 +3804,14 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Sign in to this site and Chrome to get your bookmarks and more on all your devices
       </message>
 
+      <!-- Extension requests sign in to Chrome through chrome.identity API -->
+      <message name="IDS_SIGNIN_ACCOUNT_PICKER_BOTTOM_SHEET_TITLE_FOR_EXTENSIONS" desc="This string is the heading of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Google Account.">
+        The extension "<ph name="EXTENSION_NAME">%1$s<ex>Screencast</ex></ph>" wants you to sign in to Chrome
+      </message>
+      <message name="IDS_SIGNIN_ACCOUNT_PICKER_BOTTOM_SHEET_SUBTITLE_FOR_EXTENSIONS" desc="This string is the body of a dialog intended to inform the user that one of their installed extensions wants them to sign in to Chrome to be able to use their Google Account.">
+        To use this extension, sign in to Chrome. You'll also be able to use and save your passwords and more from your Google Account.
+      </message>
+
       <!-- Personalized Signin Promos Strings -->
       <message name="IDS_SYNC_PROMO_CONTINUE_AS" desc="Button to sign into Chrome with the displayed account and without having to reenter a password. ‘John’ is replaced with the user’s given name, or the user’s full name if the given name is not available. Ensure consistency with related OneGoogle sign-in buttons (see e.g. TC ID 5569230012177947065).">
         Continue as <ph name="USER_FULL_NAME">%1$s<ex>John</ex></ph>
@@ -4251,6 +4315,18 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_MENU_HIDE_BOOKMARKS_BAR" desc="Menu item for hiding the bookmarks bar. [CHAR_LIMIT=27]">
         Hide bookmarks bar
       </message>
+      <message name="IDS_CONTEXTMENU_ADD_PAGE" desc="Menu item for adding the current tab page to the current folder. [CHAR_LIMIT=27]">
+        Add page…
+      </message>
+      <message name="IDS_CONTEXTMENU_ADD_FOLDER" desc="Menu item for adding a new folder inside the current folder. [CHAR_LIMIT=27]">
+        Add folder…
+      </message>
+      <message name="IDS_CONTEXTMENU_SHOW_BOOKMARKS_BAR" desc="Menu item for showing the bookmarks bar. [CHAR_LIMIT=27]">
+        Show bookmarks bar
+      </message>
+      <message name="IDS_CONTEXTMENU_EDIT_BOOKMARK_ELLIPSIS" desc="Menu item for editing a bookmark from the context menu. [CHAR_LIMIT=27]">
+        Edit…
+      </message>
       <message name="IDS_MENU_READING_LIST" desc="Menu item for showing items related to reading list. [CHAR_LIMIT=27]">
         Reading list
       </message>
@@ -4621,9 +4697,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_PRICE_INSIGHTS_CONTENT_PRICE_TRACKING_ENABLED_BUTTON_TEXT" desc="The label of the price tracking button when the user is tracking the product.">
         Tracking
       </message>
-      <message name="IDS_PRICE_INSIGHTS_CONTENT_PRICE_TRACKING_BUTTON_ACTION_DESCRIPTION" desc="Accessibility string that describes the price tracking button to track or untrack a product.">
-        Track or untrack a product.
-      </message>
       <message name="IDS_PRICE_INSIGHTS_CONTENT_PRICE_TRACKING_ERROR_MESSAGE" desc="Error message when user is tracking or untracking a product encountered an error.">
         Something went wrong
       </message>
@@ -4945,6 +5018,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_PDF_FIT_WIDTH" desc="Menu option to fit the PDF page width to the screen.">
         Fit to width
+      </message>
+      <message name="IDS_PDF_CANNOT_EDIT_PDF" desc="Toast message shown when a PDF document cannot be edited.">
+        Cannot edit PDF
       </message>
 
       <!-- Accessibility -->
@@ -6302,18 +6378,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_SHARING_HUB_SHEET_CLOSED" desc="Accessibility string read when the sharing hub is closed.">
         List of sharing options is closed.
       </message>
-
-      <!-- ClickToCall -->
-      <message name="IDS_CLICK_TO_CALL_NOTIFICATION_TEXT" desc="Text displayed in a click to call notification to call on a number.">
-        Tap to make call
-      </message>
-      <message name="IDS_CLICK_TO_CALL_DIALER_ABSENT_NOTIFICATION_TITLE" desc="Title of click to call notification when there is no dialer on device.">
-        Can't make calls
-      </message>
-      <message name="IDS_CLICK_TO_CALL_DIALER_ABSENT_NOTIFICATION_TEXT" desc="Text displayed in a click to call notification when there is no dialer on device.">
-        Make sure a phone app is enabled on this device
-      </message>
-
       <!-- Sms Fetcher -->
       <message name="IDS_SMS_FETCHER_NOTIFICATION_TITLE" desc="Title text shown when the Android Chrome receives a ONE_TIME_CODE from an incoming SMS and ask users for permission to submit the code to their linked Desktop Chrome">
         Submit <ph name="ONE_TIME_CODE">%1$s<ex>123</ex></ph> on <ph name="CLIENT_NAME">%2$s<ex>Zoe's Macbook</ex></ph>?
@@ -6455,10 +6519,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
 
       <message name="IDS_SHARING_LONG_SCREENSHOT_UNKNOWN_ERROR" desc="Text shown in the toast notification when screenshot data cannot be captured due to a general or unknown error, in the long screenshots feature.">
         Something went wrong. Try again.
-      </message>
-
-      <message name="IDS_SHARING_SEND_TAB_TO_SELF" desc="Label for the button in sharing hub for sending the current tab to other devices if user signed in (Send Tab to Self feature).">
-        Send to devices
       </message>
 
       <message name="IDS_SHARING_INCLUDING_LINK_TITLE_TEMPLATE" desc="Title used in share sheet when sharing the highlighted text with a generated link.">
@@ -7780,20 +7840,26 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_FORMAT_TITLE" desc="Title of the dialog for selecting immersive playback format." translateable="false">
         Format
       </message>
-      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_STANDARD" desc="Option for standard projection in the immersive playback confirmation dialog." translateable="false">
+      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_RECOMMENDED" desc="Option for detected custom projection in the immersive playback confirmation dialog." translateable="false">
+        Detected
+      </message>
+      <message name="IDS_IMMERSIVE_PLAYBACK_FORMAT_STANDARD" desc="Standard immersive playback format description." translateable="false">
         Standard
       </message>
-      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_STEREO_3D" desc="Option for stereoscopic 3D projection in the immersive playback confirmation dialog." translateable="false">
+      <message name="IDS_IMMERSIVE_PLAYBACK_FORMAT_STEREOSCOPIC" desc="Stereoscopic immersive playback format description." translateable="false">
         Stereoscopic
       </message>
-      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_VR180_3D" desc="Option for VR 180 projection in the immersive playback confirmation dialog." translateable="false">
-        180° stereoscopic
-      </message>
-      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_VR360" desc="Option for VR 360 projection in the immersive playback confirmation dialog." translateable="false">
+      <message name="IDS_IMMERSIVE_PLAYBACK_FORMAT_360" desc="360° immersive playback format description." translateable="false">
         360°
       </message>
-      <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OPTION_RECOMMENDED" desc="Option for recommended custom projection in the immersive playback confirmation dialog." translateable="false">
-        Recommended
+      <message name="IDS_IMMERSIVE_PLAYBACK_FORMAT_360_STEREOSCOPIC" desc="360° stereoscopic immersive playback format description." translateable="false">
+        360° Stereoscopic
+      </message>
+      <message name="IDS_IMMERSIVE_PLAYBACK_FORMAT_180" desc="180° immersive playback format description." translateable="false">
+        180°
+      </message>
+      <message name="IDS_IMMERSIVE_PLAYBACK_FORMAT_180_STEREOSCOPIC" desc="180° stereoscopic immersive playback format description." translateable="false">
+        180° Stereoscopic
       </message>
       <message name="IDS_IMMERSIVE_PLAYBACK_CONFIRMATION_OK" desc="Text for the positive button in the format selection dialog." translateable="false">
         OK
@@ -7806,6 +7872,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_ACCESSIBILITY_EXIT_IMMERSIVE_PLAYBACK" desc="Content description for a button that exits immersive video playback." translateable="false">
         Exit immersive playback
+      </message>
+
+      <!-- Graceful Shutdown strings -->
+      <message name="IDS_GRACEFUL_SHUTDOWN_TITLE" desc="Title of the notification shown when Chrome is finishing shutting down.">
+        Finishing shut down
       </message>
     </messages>
   </release>

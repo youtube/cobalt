@@ -23,8 +23,9 @@ class MultiContentsView;
 class ProjectsPanelView;
 class SidePanel;
 class TabStrip;
-class HorizontalTabStripRegionView;
+class TabStripRegionView;
 class VerticalTabStripRegionView;
+class VerticalTabStripBackgroundBlurBackdrop;
 class WebAppFrameToolbarView;
 
 namespace views {
@@ -64,9 +65,10 @@ struct BrowserViewLayoutViews {
   raw_ptr<views::View> top_container = nullptr;
   raw_ptr<WebAppFrameToolbarView> web_app_frame_toolbar = nullptr;
   raw_ptr<views::Label> web_app_window_title = nullptr;
-  raw_ptr<HorizontalTabStripRegionView> horizontal_tab_strip_region_view =
-      nullptr;
+  raw_ptr<TabStripRegionView> horizontal_tab_strip_region_view = nullptr;
   raw_ptr<VerticalTabStripRegionView> vertical_tab_strip_region_view = nullptr;
+  raw_ptr<VerticalTabStripBackgroundBlurBackdrop>
+      vertical_tab_strip_background_blur_backdrop = nullptr;
   raw_ptr<CustomFloatingCorner> vertical_tab_strip_bottom_corner = nullptr;
   raw_ptr<CustomFloatingCorner> vertical_tab_strip_top_corner = nullptr;
   raw_ptr<ProjectsPanelView> projects_panel_container = nullptr;

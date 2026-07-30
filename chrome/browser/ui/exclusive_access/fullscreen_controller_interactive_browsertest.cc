@@ -6,8 +6,10 @@
 #include "base/feature_list.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/run_until.h"
 #include "build/build_config.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/preloading/scoped_prewarm_feature_list.h"
@@ -22,6 +24,7 @@
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_test.h"
+#include "chrome/browser/ui/fullscreen/browser_window_fullscreen_controller.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/web_applications/test/isolated_web_app_test_utils.h"
 #include "chrome/browser/ui/web_modal/browser_window_modal_dialog_delegate.h"
@@ -59,6 +62,8 @@
 #include "ui/display/screen.h"
 #include "ui/display/test/virtual_display_util.h"
 #include "ui/display/types/display_constants.h"
+#include "ui/views/widget/widget.h"
+#include "ui/views/widget/widget_observer.h"
 
 #if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
@@ -1028,7 +1033,7 @@ class AutomaticFullscreenTest : public FullscreenControllerInteractiveTest,
   void SetUpOnMainThread() override {
     FullscreenControllerInteractiveTest::SetUpOnMainThread();
     auto allow_automatic_fullscreen = [&](const GURL& url) {
-      HostContentSettingsMapFactory::GetForProfile(browser()->profile())
+      HostContentSettingsMapFactory::GetForProfile(browser()->GetProfile())
           ->SetContentSettingDefaultScope(
               url, url, ContentSettingsType::AUTOMATIC_FULLSCREEN,
               CONTENT_SETTING_ALLOW);
@@ -1046,10 +1051,10 @@ class AutomaticFullscreenTest : public FullscreenControllerInteractiveTest,
               .BuildBundle();
       app->TrustSigningKey();
       web_app::IsolatedWebAppUrlInfo url_info =
-          app->InstallChecked(browser()->profile());
+          app->InstallChecked(browser()->GetProfile());
       allow_automatic_fullscreen(url_info.origin().GetURL());
-      auto* frame =
-          web_app::OpenIsolatedWebApp(browser()->profile(), url_info.app_id());
+      auto* frame = web_app::OpenIsolatedWebApp(browser()->GetProfile(),
+                                                url_info.app_id());
       web_contents_ = content::WebContents::FromRenderFrameHost(frame);
     } else {
       GURL url = embedded_https_test_server().GetURL("a.com", "/simple.html");
@@ -1441,7 +1446,7 @@ class MAYBE_MultiScreenFullscreenControllerInteractiveTest
     // it shows the permission bubble before granting the permission, which will
     // cause content fullscreen to exit due to security reason.
     auto* content_settings =
-        HostContentSettingsMapFactory::GetForProfile(browser()->profile());
+        HostContentSettingsMapFactory::GetForProfile(browser()->GetProfile());
     content_settings->SetContentSettingDefaultScope(
         url, GURL(), ContentSettingsType::WINDOW_MANAGEMENT,
         CONTENT_SETTING_ALLOW);
@@ -2052,3 +2057,52 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
 
   watcher.Wait();
 }
+
+class StartFullscreenInteractiveTest : public InProcessBrowserTest {
+ public:
+  // InProcessBrowserTest:
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    InProcessBrowserTest::SetUpCommandLine(command_line);
+    command_line->AppendSwitch(switches::kStartFullscreen);
+  }
+
+  void WaitForViewportSizeToMatchDisplay(BrowserWindowInterface* browser) {
+    EXPECT_TRUE(base::test::RunUntil([&]() {
+      if (!browser->GetWindow()->IsFullscreen()) {
+        return false;
+      }
+      if (!BrowserWindowFullscreenController::From(browser)
+               ->ShouldHideUIForFullscreen()) {
+        return false;
+      }
+      gfx::Rect display_bounds =
+          display::Screen::Get()
+              ->GetDisplayNearestWindow(browser->GetWindow()->GetNativeWindow())
+              .bounds();
+      gfx::Rect web_contents_bounds =
+          browser->GetTabStripModel()->GetActiveWebContents()->GetViewBounds();
+      return display_bounds.size() == web_contents_bounds.size();
+    }));
+  }
+};
+
+// TODO(crbug.com/532711215): The Wayland, X11, and Mac test environments have
+// issues with bounds propagating when entering fullscreen.
+#if BUILDFLAG(IS_WIN)
+IN_PROC_BROWSER_TEST_F(StartFullscreenInteractiveTest,
+                       ViewportSizeMatchesDisplay) {
+  // Create a new browser directly in fullscreen but don't show it yet. This
+  // explicitly mimics session restore recovering a fullscreen window better
+  // than toggling an unshown browser.
+  Browser::CreateParams params(browser()->GetProfile(), true);
+  params.initial_show_state = ui::mojom::WindowShowState::kFullscreen;
+  BrowserWindowInterface* new_browser = Browser::Create(params);
+
+  // Show the browser and wait for it to become fully initialized.
+  AddBlankTabAndShow(new_browser->GetBrowserForMigrationOnly());
+
+  // Verify the WebContents bounds eventually match the display bounds, proving
+  // no space was reserved for the top UI.
+  WaitForViewportSizeToMatchDisplay(new_browser);
+}
+#endif  // BUILDFLAG(IS_WIN)

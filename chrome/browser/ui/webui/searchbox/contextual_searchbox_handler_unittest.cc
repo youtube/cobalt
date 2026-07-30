@@ -1242,6 +1242,7 @@ class SmartTabSharingTest : public ContextualSearchboxHandlerTestHarness {
 
     feature_list_.InitWithFeaturesAndParameters(
         {{contextual_tasks::kContextualTasks, {}},
+         {contextual_tasks::kContextualTasksForceEntryPointEligibility, {}},
          {contextual_tasks::kContextualTasksContext,
           {{"ContextualTasksContextSmartTabSharing", "true"}}},
          {contextual_tasks::
@@ -2167,7 +2168,9 @@ TEST_F(ContextualSearchboxHandlerTest, QueryAutocomplete_SetsLensInputs) {
   handler().SetAutocompleteControllerForTesting(
       std::move(autocomplete_controller));
 
-  handler().QueryAutocomplete(u"test", false, 0);
+  handler().QueryAutocomplete(0, u"test",
+                              /*prevent_inline_autocomplete=*/false, 0,
+                              /*is_on_focus=*/false);
 
   EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
   EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
@@ -2199,7 +2202,9 @@ TEST_F(ContextualSearchboxHandlerTest,
     handler().SetAutocompleteControllerForTesting(
         std::move(autocomplete_controller));
 
-    handler().QueryAutocomplete(u"test", false, 0);
+    handler().QueryAutocomplete(0, u"test",
+                                /*prevent_inline_autocomplete=*/false, 0,
+                                /*is_on_focus=*/false);
     EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
     EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
               "xyz");
@@ -2222,7 +2227,9 @@ TEST_F(ContextualSearchboxHandlerTest,
     handler().SetAutocompleteControllerForTesting(
         std::move(autocomplete_controller));
 
-    handler().QueryAutocomplete(u"test", false, 0);
+    handler().QueryAutocomplete(0, u"test",
+                                /*prevent_inline_autocomplete=*/false, 0,
+                                /*is_on_focus=*/false);
     EXPECT_TRUE(input.lens_overlay_suggest_inputs().has_value());
     EXPECT_EQ(input.lens_overlay_suggest_inputs()->encoded_image_signals(),
               "xyz");
@@ -2831,6 +2838,87 @@ TEST_F(ContextualSearchboxHandlerTestTabsTest,
     handler().OnActiveTabChanged(*tab_list(), nullptr);
     mock_searchbox_page_.FlushForTesting();
   }
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest,
+       ActiveTabNavigationObserverNotifies) {
+  tabs::TabInterface* tab = AddTab(GURL("https://example.com"));
+
+  mock_searchbox_page_.receiver_.reset();
+  handler_ = std::make_unique<FakeContextualSearchboxHandler>(
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+      mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
+      std::make_unique<TestOmniboxClient>(), base::BindLambdaForTesting([&]() {
+        return contextual_session_handle_.get();
+      }));
+
+  EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(1);
+
+  content::WebContents* active_contents = tab->GetContents();
+  content::WebContentsTester::For(active_contents)
+      ->NavigateAndCommit(GURL("https://example.com/new_path"));
+
+  mock_searchbox_page_.FlushForTesting();
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest,
+       ActiveTabNavigationObserverNotifiesOnTitleSet) {
+  tabs::TabInterface* tab = AddTab(GURL("https://example.com"));
+
+  mock_searchbox_page_.receiver_.reset();
+  handler_ = std::make_unique<FakeContextualSearchboxHandler>(
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+      mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
+      std::make_unique<TestOmniboxClient>(), base::BindLambdaForTesting([&]() {
+        return contextual_session_handle_.get();
+      }));
+
+  EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(1);
+
+  content::WebContents* active_contents = tab->GetContents();
+  active_contents->UpdateTitleForEntry(
+      active_contents->GetController().GetActiveEntry(), u"New Title");
+
+  mock_searchbox_page_.FlushForTesting();
+}
+
+TEST_F(ContextualSearchboxHandlerTestTabsTest,
+       ActiveTabNavigationObserverUpdatesOnActiveTabChanged) {
+  tabs::TabInterface* tab1 = AddTab(GURL("https://example.com/tab1"));
+  tabs::TabInterface* tab2 = AddTab(GURL("https://example.com/tab2"));
+
+  mock_searchbox_page_.receiver_.reset();
+  handler_ = std::make_unique<FakeContextualSearchboxHandler>(
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+      mock_searchbox_page_.BindAndGetRemote(), profile(), web_contents(),
+      std::make_unique<TestOmniboxClient>(), base::BindLambdaForTesting([&]() {
+        return contextual_session_handle_.get();
+      }));
+
+  EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(0);
+  content::WebContentsTester::For(tab1->GetContents())
+      ->NavigateAndCommit(GURL("https://example.com/tab1_navigated"));
+  mock_searchbox_page_.FlushForTesting();
+
+  EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(1);
+  content::WebContentsTester::For(tab2->GetContents())
+      ->NavigateAndCommit(GURL("https://example.com/tab2_navigated"));
+  mock_searchbox_page_.FlushForTesting();
+
+  ON_CALL(*tab_list_, GetActiveTab()).WillByDefault(testing::Return(tab1));
+  EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(1);
+  handler().OnActiveTabChanged(*tab_list(), tab1);
+  mock_searchbox_page_.FlushForTesting();
+
+  EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(1);
+  content::WebContentsTester::For(tab1->GetContents())
+      ->NavigateAndCommit(GURL("https://example.com/tab1_navigated_again"));
+  mock_searchbox_page_.FlushForTesting();
+
+  EXPECT_CALL(mock_searchbox_page_, OnTabStripChanged).Times(0);
+  content::WebContentsTester::For(tab2->GetContents())
+      ->NavigateAndCommit(GURL("https://example.com/tab2_navigated_again"));
+  mock_searchbox_page_.FlushForTesting();
 }
 
 // TODO(b:466469292): Figure out how to null-ify the session handle so we can

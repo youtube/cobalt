@@ -172,6 +172,10 @@ void LayoutInline::StyleDidChange(
       SetNeedsCollectInlines();
     }
   }
+  if (RuntimeEnabledFeatures::AnnotationSpaceOnStartEnabled() &&
+      IsInlineRubyText()) {
+    View()->SetContainsAnnotations();
+  }
 
   PropagateStyleToAnonymousChildren();
 }
@@ -872,7 +876,7 @@ void LayoutInline::AddDraggableRegions(Vector<DraggableRegionValue>& regions) {
 
   DraggableRegionValue region;
   region.draggable =
-      StyleRef().DraggableRegionMode() == EDraggableRegionMode::kDrag;
+      StyleRef().DraggableRegionMode() == EDraggableRegionMode::kMove;
   region.bounds = PhysicalLinesBoundingBox();
   // TODO(crbug.com/966048): We probably want to also cover continuations.
 

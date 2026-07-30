@@ -27,6 +27,8 @@
 #include "components/personal_context/proto/context_memory_service.pb.h"
 #include "components/signin/public/identity_manager/identity_test_environment.h"
 #include "components/signin/public/identity_manager/identity_test_utils.h"
+#include "components/variations/net/variations_http_headers.h"
+#include "components/variations/scoped_variations_ids_provider.h"
 #include "net/http/http_status_code.h"
 #include "services/network/public/cpp/data_element.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
@@ -64,6 +66,8 @@ class RemoteResponseHolder {
   ContextMemoryError::ExecutionError error() const {
     return result_->response.error().error();
   }
+
+  std::string server_request_id() const { return result_->server_request_id; }
 
  private:
   void OnResponse(FetchContextResult result) {
@@ -149,6 +153,7 @@ class PersonalContextManagerTest : public testing::Test {
     std::string serialized_response;
     proto::FetchContextResponse fetch_response =
         BuildFetchContextResponse(serialized_message);
+    fetch_response.set_server_request_id("test_id");
     fetch_response.SerializeToString(&serialized_response);
     return SimulateResponse(serialized_response, net::HTTP_OK);
   }
@@ -186,6 +191,8 @@ class PersonalContextManagerTest : public testing::Test {
  protected:
   base::test::TaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  variations::test::ScopedVariationsIdsProvider scoped_variations_ids_provider_{
+      variations::VariationsIdsProvider::Mode::kUseSignedInState};
   base::test::ScopedFeatureList scoped_feature_list_;
   signin::IdentityTestEnvironment identity_test_env_;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
@@ -220,6 +227,7 @@ TEST_F(PersonalContextManagerTest, FetchContextWithUserSignIn) {
   EXPECT_TRUE(SimulateSuccessfulResponse());
   EXPECT_TRUE(response_holder.GetFinalStatus());
   EXPECT_EQ("foo response", response_holder.GetOutput<TestMessage>().test());
+  EXPECT_EQ("test_id", response_holder.server_request_id());
 
   // Check that the result histogram records success.
   histogram_tester.ExpectUniqueSample(

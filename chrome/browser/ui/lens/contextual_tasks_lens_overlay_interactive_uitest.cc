@@ -29,7 +29,6 @@
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/location_bar/lens_overlay_homework_page_action_icon_view.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
@@ -107,7 +106,7 @@ class ContextualTasksLensOverlayControllerInteractiveUiTest
 
     identity_test_environment_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
-            browser()->profile());
+            browser()->GetProfile());
 
     identity_test_environment_adaptor_->identity_test_env()
         ->MakePrimaryAccountAvailable("user@example.com",
@@ -177,7 +176,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksLensOverlayControllerInteractiveUiTest,
       contextual_tasks::ContextualTasksPanelController::From(browser());
   contextual_tasks::ContextualTasksService* contextual_tasks_service =
       contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
-          browser()->profile());
+          browser()->GetProfile());
 
   auto* const browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   auto off_center_point = base::BindLambdaForTesting([browser_view]() {
@@ -431,7 +430,7 @@ class ContextualTasksLensOverlayControllerEligibilityInteractiveUiTest
     WaitForTemplateURLServiceToLoad();
     identity_test_environment_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
-            browser()->profile());
+            browser()->GetProfile());
     identity_test_environment_adaptor_->identity_test_env()
         ->MakePrimaryAccountAvailable("user@example.com",
                                       signin::ConsentLevel::kSignin);

@@ -97,7 +97,8 @@ void FrameView::UpdateViewportIntersection(unsigned flags,
   LayoutEmbeddedContent* owner_layout_object =
       owner_element->GetLayoutEmbeddedContent();
   bool display_locked_in_parent_frame = DisplayLockedInParentFrame();
-  if (!owner_layout_object || owner_layout_object->ContentSize().IsEmpty() ||
+  if (!owner_layout_object ||
+      owner_layout_object->PhysicalContentBoxRect().IsEmpty() ||
       (flags & IntersectionObservation::kAncestorFrameIsDetachedFromLayout) ||
       display_locked_in_parent_frame) {
     // The frame, or an ancestor frame, is detached from layout, not visible, or
@@ -182,7 +183,7 @@ void FrameView::UpdateViewportIntersection(unsigned flags,
     // ... then apply content_box_offset to translate to the coordinate of the
     // child frame.
     parent_frame_to_iframe_content_transform.Move(
-        owner_layout_object->PhysicalContentBoxOffset());
+        owner_layout_object->PhysicalContentBoxRect().offset);
     gfx::Transform matrix =
         parent_frame_to_iframe_content_transform.AccumulatedTransform()
             .InverseOrIdentity();
@@ -206,14 +207,15 @@ void FrameView::UpdateViewportIntersection(unsigned flags,
       // content rect.
       // TODO(crbug.com/1266676): This should be
       //   viewport_intersection.Intersect(gfx::Rect(gfx::Point(),
-      //       owner_layout_object->ContentSize()));
+      //       owner_layout_object->PhysicalContentBoxRect().size));
       // but it exposes a bug of incorrect origin of viewport_intersection in
       // multicol.
       gfx::Point origin = viewport_intersection.origin();
       origin.SetToMax(gfx::Point());
       viewport_intersection.set_origin(origin);
       gfx::Size size = viewport_intersection.size();
-      size.SetToMin(ToRoundedSize(owner_layout_object->ContentSize()));
+      size.SetToMin(
+          ToRoundedSize(owner_layout_object->PhysicalContentBoxRect().size));
       viewport_intersection.set_size(size);
     }
 
@@ -231,14 +233,15 @@ void FrameView::UpdateViewportIntersection(unsigned flags,
       }
       // TODO(crbug.com/1266676): This should be
       //   mainframe_intersection.Intersect(gfx::Rect(gfx::Point(),
-      //       owner_layout_object->ContentSize()));
+      //       owner_layout_object->PhysicalContentBoxRect().size));
       // but it exposes a bug of incorrect origin of mainframe_intersection in
       // multicol.
       gfx::Point origin = mainframe_intersection.origin();
       origin.SetToMax(gfx::Point());
       mainframe_intersection.set_origin(origin);
       gfx::Size size = mainframe_intersection.size();
-      size.SetToMin(ToRoundedSize(owner_layout_object->ContentSize()));
+      size.SetToMin(
+          ToRoundedSize(owner_layout_object->PhysicalContentBoxRect().size));
       mainframe_intersection.set_size(size);
     }
 
@@ -254,7 +257,7 @@ void FrameView::UpdateViewportIntersection(unsigned flags,
           nullptr, child_frame_to_root_frame,
           kTraverseDocumentBoundaries | kApplyRemoteMainFrameTransform);
       child_frame_to_root_frame.Move(
-          owner_layout_object->PhysicalContentBoxOffset());
+          owner_layout_object->PhysicalContentBoxRect().offset);
     }
     main_frame_transform_matrix =
         child_frame_to_root_frame.AccumulatedTransform();
@@ -276,7 +279,7 @@ void FrameView::UpdateViewportIntersection(unsigned flags,
   if (!is_hidden_for_media_playback) {
     is_hidden_for_media_playback =
         (!owner_layout_object  // display:none
-         || owner_layout_object->Style()->Visibility() ==
+         || owner_layout_object->StyleRef().Visibility() ==
                 EVisibility::kHidden  // visibility:hidden
          || owner_layout_object->ReplacedContentRect()
                 .IsEmpty());  // zero-area layout

@@ -136,6 +136,7 @@
 #include "services/network/public/mojom/url_loader_network_service_observer.mojom-forward.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/common/dom/dom_node_id.h"
 #include "third_party/blink/public/common/frame/delegated_capability_request_token.h"
 #include "third_party/blink/public/common/frame/frame_owner_element_type.h"
 #include "third_party/blink/public/common/frame/history_user_activation_state.h"
@@ -185,7 +186,7 @@
 #include "third_party/blink/public/mojom/webaudio/audio_context_manager.mojom-forward.h"
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom-forward.h"
 #include "third_party/blink/public/mojom/webid/digital_identity_request.mojom-forward.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom-forward.h"
 #include "third_party/blink/public/mojom/websockets/websocket_connector.mojom-forward.h"
 #include "third_party/blink/public/mojom/webtransport/web_transport_connector.mojom-forward.h"
 #include "third_party/blink/public/mojom/worker/dedicated_worker_host_factory.mojom-forward.h"
@@ -2558,10 +2559,12 @@ class CONTENT_EXPORT RenderFrameHostImpl
   void UpdateFaviconURL(std::vector<blink::mojom::FaviconURLPtr> favicon_urls,
                         blink::mojom::FaviconUpdateReason reason) override;
   void DownloadURL(blink::mojom::DownloadURLParamsPtr params) override;
-  void FocusedElementChanged(bool is_editable_element,
-                             bool is_richly_editable_element,
-                             const gfx::Rect& bounds_in_frame_widget,
-                             blink::mojom::FocusType focus_type) override;
+  void FocusedElementChanged(
+      bool is_editable_element,
+      bool is_richly_editable_element,
+      const gfx::Rect& bounds_in_frame_widget,
+      blink::mojom::FocusType focus_type,
+      const blink::DOMNodeIdType& editable_dom_node_id) override;
   void TextSelectionChanged(const std::u16string& text,
                             uint32_t offset,
                             const gfx::Range& range) override;

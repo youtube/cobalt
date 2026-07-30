@@ -237,19 +237,6 @@
     "expires": "Dec 1, 2026"
   },
   {
-    "prefix": "audio-decoder-correctness",
-    "owners": ["jophba@chromium.org"],
-    "platforms": ["Android", "Fuchsia", "Linux", "Mac", "Win", "Webview"],
-    "bases": [
-      "webaudio/codec-tests"
-    ],
-    "exclusive_tests": [
-      "webaudio/codec-tests/opus/opus-decode.html"
-    ],
-    "args": ["--enable-features=AudioDecoderAudioFileReader"],
-    "expires": "Jul 7, 2026"
-  },
-  {
     "prefix": "autoplay-policy-no-user-gesture-required",
     "owners": [
       "leimy@google.com"
@@ -552,7 +539,7 @@
     "args": [
       "--enable-features=CpuPerformance"
     ],
-    "expires": "Jun 30, 2026"
+    "expires": "Sep 30, 2026"
   },
   {
     "prefix": "declarative-performance-observer",
@@ -2333,6 +2320,8 @@
       "arthursonzogni@chromium.org"
     ]
   },
+  "CSS Paint worklets require a compositor to pass. Because this suite tests a",
+  "shipping configuration, it never expires.",
   {
     "prefix": "off-main-thread-css-paint",
     "platforms": [
@@ -2342,22 +2331,17 @@
     ],
     "bases": [
       "external/wpt/css/css-paint-api",
-      "http/tests/csspaint",
-      "http/tests/inspector-protocol/paint-worklet"
-    ],
-    "exclusive_tests": [
-      "http/tests/inspector-protocol/paint-worklet"
+      "http/tests/csspaint"
     ],
     "args": [
       "--enable-threaded-compositing",
-      "--enable-blink-features=OffMainThreadCSSPaint",
       "--enable-gpu-rasterization",
       "--enable-accelerated-2d-canvas"
     ],
     "owners": [
       "ikilpatrick@chromium.org"
     ],
-    "expires": "Dec 1, 2026"
+    "expires": "never"
   },
   "The origin trials suite tests that OT-controlled features are exposed to",
   "the web as expected, so should not expire.",
@@ -3187,7 +3171,7 @@
       "dizhangg@chromium.org",
       "jarhar@chromium.org"
     ],
-    "expires": "Jul 1, 2026"
+    "expires": "Jul 1, 2027"
   },
   {
     "prefix": "speculation-rules-prerender-cross-origin-iframes",
@@ -3340,34 +3324,6 @@
     "expires": "never"
   },
   {
-    "prefix": "symphonia-audio-decoding",
-    "owners": [
-      "jophba@chromium.org"
-    ],
-    "platforms": ["Linux", "Mac", "Win", "ChromeOS"],
-    "bases": [
-      "webaudio/codec-tests"
-    ],
-    "exclusive_tests": ["webaudio/codec-tests/opus/opus-decode.html"],
-    "args": [
-      "--enable-features=AudioDecoderAudioFileReader",
-      "--enable-features=SymphoniaAudioDecoding"
-    ],
-    "expires": "Jul 7, 2026"
-  },
-   {
-    "prefix": "symphonia-mp3-decoding",
-    "owners": ["wenz@google.com"],
-    "platforms": ["Linux", "Mac", "Win", "ChromeOS"],
-    "bases": [
-      "webaudio/codec-tests"
-    ],
-    "args": [
-      "--enable-features=SymphoniaMp3Decoding"
-    ],
-    "expires": "Aug 10, 2026"
-  },
-  {
     "prefix": "freeze-shared-worker-bfcache",
     "owners": ["annasato@chromium.org"],
     "platforms": [
@@ -3404,6 +3360,24 @@
     ],
     "args": [
       "--disable-blink-features=DisconnectWebSocketOnBFCache"
+    ],
+    "expires": "Oct 17, 2026"
+  },
+  {
+    "prefix": "disable-back-forward-cache-for-web-sockets",
+    "owners": ["annasato@chromium.org"],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "Fuchsia"
+    ],
+    "bases": [
+      "external/wpt/websockets/back-forward-cache-with-open-websocket-connection.window.js",
+      "external/wpt/websockets/back-forward-cache-closes-open-websocket-connection.tentative.window.js"
+    ],
+    "args": [
+      "--disable-back-forward-cache-for-web-sockets"
     ],
     "expires": "Oct 17, 2026"
   },
@@ -3662,6 +3636,7 @@
       "fast/events/pointerevents/pinch",
       "http/tests/devtools/isolated-code-cache",
       "http/tests/devtools/tracing",
+      "http/tests/inspector-protocol/paint-worklet",
       "http/tests/worklet",
       "inspector-protocol/css/css-get-keyframes-for-view-transitions.js",
       "inspector-protocol/css/css-get-styles-for-nested-view-transition.js",
@@ -3698,6 +3673,7 @@
       "external/wpt/requestidlecallback",
       "external/wpt/scheduler/tentative/yield/yield-priority-idle-callbacks.html",
       "http/tests/devtools/isolated-code-cache",
+      "http/tests/inspector-protocol/paint-worklet",
       "external/wpt/css/css-view-transitions",
       "wpt_internal/html/script-execution",
       "wpt_internal/route",

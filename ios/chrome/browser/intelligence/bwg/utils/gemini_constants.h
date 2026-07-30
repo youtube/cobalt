@@ -39,6 +39,8 @@ enum class EntryPoint {
   ExternalAppStoreEvent = 11,
   // Gemini was opened from the Toolbar.
   Toolbar = 12,
+  // Gemini was opened via App Switcher AI Summarization entry point.
+  AppSwitcherAISummarization = 13,
   // The entry point is unknown.
   Unknown = 100,
   kMaxValue = Unknown,
@@ -268,6 +270,7 @@ extern const char kSecondBoxLink2URLNonManagedAccount[];
 extern const char kLivePrivacyNoticeLinkURL[];
 extern const char kLiveLearnMoreLinkURL[];
 extern const char kLivePrivacyPolicyLinkURL[];
+extern const char kLivePrivacyHubManagedLinkURL[];
 
 // Footnote links.
 extern const char kFirstFootnoteLinkURL[];
@@ -292,6 +295,7 @@ extern NSString* const kGeminiSecondBoxLink2ActionNonManagedAccount;
 extern NSString* const kGeminiLivePrivacyNoticeLinkAction;
 extern NSString* const kGeminiLiveLearnMoreLinkAction;
 extern NSString* const kGeminiLivePrivacyPolicyLinkAction;
+extern NSString* const kGeminiLivePrivacyHubManagedLinkAction;
 
 // Action identifier for links in the Gemini consent footnote.
 extern NSString* const kGeminiFirstFootnoteLinkAction;

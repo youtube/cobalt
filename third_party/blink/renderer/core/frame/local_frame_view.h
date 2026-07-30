@@ -122,7 +122,6 @@ class PaintController;
 class PaintControllerPersistentData;
 class PaintLayer;
 class PaintLayerScrollableArea;
-class PaintTimingDetector;
 class RemoteFrameView;
 class RootFrameViewport;
 class ScrollableArea;
@@ -200,7 +199,7 @@ class CORE_EXPORT LocalFrameView final
   bool LifecycleUpdatesActive() const;
   void SetLifecycleUpdatesThrottledForTesting(bool throttled = true);
   void ScheduleRelayout();
-  void ScheduleRelayoutOfSubtree(LayoutObject*);
+  void ScheduleRelayoutOfSubtree(LayoutObject&);
   bool LayoutPending() const;
   bool IsInPerformLayout() const;
 
@@ -553,10 +552,9 @@ class CORE_EXPORT LocalFrameView final
 
   void OnCommitRequested();
 
-  // FIXME: This should probably be renamed as the 'inSubtreeLayout' parameter
-  // passed around the LocalFrameView layout methods can be true while this
-  // returns false.
-  bool IsSubtreeLayout() const { return !layout_subtree_root_list_.IsEmpty(); }
+  bool HasSubtreeLayoutRoots() const {
+    return !layout_subtree_root_list_.IsEmpty();
+  }
 
   // The window that hosts the LocalFrameView. The LocalFrameView will
   // communicate scrolls and repaints to the host window in the window's
@@ -786,9 +784,6 @@ class CORE_EXPORT LocalFrameView final
   cc::AnimationTimeline* GetScrollAnimationTimeline() const;
 
   LayoutShiftTracker& GetLayoutShiftTracker() { return *layout_shift_tracker_; }
-  PaintTimingDetector& GetPaintTimingDetector() const {
-    return *paint_timing_detector_;
-  }
 
   MobileFriendlinessChecker* GetMobileFriendlinessChecker() const {
     return mobile_friendliness_checker_.Get();
@@ -1331,7 +1326,6 @@ class CORE_EXPORT LocalFrameView final
 
   UniqueObjectId unique_id_;
   Member<LayoutShiftTracker> layout_shift_tracker_;
-  Member<PaintTimingDetector> paint_timing_detector_;
 
   // Non-null in the outermost main frame of an ordinary page only.
   Member<MobileFriendlinessChecker> mobile_friendliness_checker_;

@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/location_bar/webui_content_setting_image_control.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_delegate.h"
 #include "chrome/browser/ui/views/omnibox/webui_readonly_omnibox.h"
+#include "chrome/browser/ui/views/page_action/webui_page_action_control.h"
 #include "components/browser_apis/ui_controllers/toolbar/icon_handle.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "mojo/public/mojom/base/error.mojom.h"
@@ -31,6 +32,10 @@ class PermissionDashboardController;
 class WebUIPermissionDashboard;
 class Profile;
 class WebUIToolbarControlDelegate;
+
+namespace gfx {
+class Point;
+}  // namespace gfx
 
 // A LocationBar implementation using WebUI.
 class WebUILocationBar : public LocationBar,
@@ -48,11 +53,20 @@ class WebUILocationBar : public LocationBar,
       toolbar_ui_api::mojom::OmniboxViewStatePtr update) override;
   void PropagateFocusRequest(
       toolbar_ui_api::mojom::FocusRequestTarget target) override;
+  std::optional<GURL> ConsumeDroppedUrl(
+      const gfx::PointF& drop_position) override;
 
   // Called from WebUIToolbarWebView:
   void OnThemeChanged();
   base::expected<std::monostate, mojo_base::mojom::ErrorPtr> OnOmniboxAction(
       toolbar_ui_api::mojom::OmniboxActionPtr action);
+  void SetFocusWithin(bool focused);
+
+  // `edit_flags` use blink::ContextMenuDataEditFlags.
+  void HandleContextMenu(views::Widget* widget,
+                         const gfx::Point& point,
+                         ui::mojom::MenuSourceType source_type,
+                         int edit_flags);
 
   // LocationBar:
   void FocusLocation(bool is_user_initiated,
@@ -84,6 +98,7 @@ class WebUILocationBar : public LocationBar,
   bool IsFullscreen() const override;
   bool IsEditingOrEmpty() const override;
   bool IsMouseHovered() const override;
+  bool IsFocusWithin() const override;
   void InvalidateLayout() override;
   gfx::Rect Bounds() const override;
   gfx::Rect BoundsInScreen() const override;
@@ -116,6 +131,10 @@ class WebUILocationBar : public LocationBar,
     return content_setting_image_control_;
   }
 
+  page_actions::WebUIPageActionControl& page_action_control() {
+    return page_action_control_;
+  }
+
   // ContentSettingImageViewDelegate:
   bool ShouldHideContentSettingImage() override;
   content::WebContents* GetContentSettingWebContents() override;
@@ -140,12 +159,14 @@ class WebUILocationBar : public LocationBar,
   // Determines whether the location icon should be overridden while a chip is
   // being displayed.
   bool ShouldChipOverrideLocationIcon();
-  bool ShouldShowAddContextButton();
 
   void OnMovedOrShown(ui::TrackedElement* element);
+  void OnPopupStateChanged(OmniboxPopupState old_state,
+                           OmniboxPopupState new_state);
 
   void UpdateLocationBarFlagsState();
   void UpdateSelectedKeywordState();
+  void RefreshAiModePageAction();
 
   // Updates the state of the LHS location bar chips (e.g. security chip) and
   // pushes it to the WebUI.
@@ -180,6 +201,7 @@ class WebUILocationBar : public LocationBar,
   // `permission_dashboard_controller_` depends on models owned by
   // `content_setting_image_control_` during teardown.
   WebUIContentSettingImageControl content_setting_image_control_;
+  page_actions::WebUIPageActionControl page_action_control_;
 
   // Threshold for suppressing LHS chip clicks after bubble closing.
   base::TimeDelta suppression_threshold_ =
@@ -192,8 +214,17 @@ class WebUILocationBar : public LocationBar,
   std::unique_ptr<OmniboxController> omnibox_controller_;
   std::unique_ptr<WebUIReadOnlyOmnibox> omnibox_view_;
   std::unique_ptr<OmniboxPopupViewWebUI> omnibox_popup_view_;
+  // The presenter controlling the showing of the AI mode popup.
+  std::unique_ptr<OmniboxPopupAimPresenter> omnibox_popup_aim_presenter_;
+  std::unique_ptr<OmniboxPopupFileSelector> omnibox_popup_file_selector_;
+  base::CallbackListSubscription popup_state_changed_subscription_;
 
   bool is_initialized_ = false;
+
+  // Keeps track of whether any of our descendant elements has focus.
+  // Updated by SetFocusWithin, which is ultimately called via mojo from
+  // the HTML side.
+  bool focus_within_ = false;
 
   toolbar_ui_api::IconHandle location_icon_;
   security_state::SecurityLevel last_update_security_level_ =

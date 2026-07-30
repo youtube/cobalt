@@ -56,6 +56,9 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
       kAutofillAiLastVersionDeduped, 0,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
   registry->RegisterBooleanPref(
+      kAutofillAiPrivateInferenceOptInStatus, true,
+      user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
+  registry->RegisterBooleanPref(
       kAutofillAiTravelEntitiesEnabled, true,
       user_prefs::PrefRegistrySyncable::SYNCABLE_PREF);
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \
@@ -97,6 +100,10 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry) {
 
   // Non-synced prefs. Used for per-device choices, e.g., signin promo.
   registry->RegisterDictionaryPref(kAutofillAiOptInStatus);
+  registry->RegisterTimePref(
+      kAutofillAiPrivateInferenceNoticeAcknowledgedTimestamp, base::Time());
+  registry->RegisterTimePref(
+      kAutofillAiPrivateInferenceNoticeFirstShownTimestamp, base::Time());
   registry->RegisterBooleanPref(kAutofillEmailVerificationEnabled, true);
   registry->RegisterDictionaryPref(kAutofillEmailVerificationState);
   registry->RegisterBooleanPref(kAutofillCreditCardFidoAuthEnabled, false);
@@ -283,7 +290,11 @@ bool IsAutofillGmailOtpFillingEnabled(const PrefService* prefs) {
 }
 
 void SetAutofillGmailOtpFillingEnabled(PrefService* prefs, bool enabled) {
+  if (prefs->GetBoolean(kAutofillGmailOtpFillingEnabled) == enabled) {
+    return;
+  }
   prefs->SetBoolean(kAutofillGmailOtpFillingEnabled, enabled);
+  base::UmaHistogramBoolean("Autofill.GmailOtpOptIn.SettingsChange", enabled);
 }
 
 base::Time GetAutofillGmailOtpFillingActivationDismissalTimestamp(
@@ -296,6 +307,10 @@ void SetAutofillGmailOtpFillingActivationDismissalTimestamp(PrefService* prefs,
   prefs->SetTime(kAutofillGmailOtpFillingActivationDismissalTimestamp, time);
 }
 
+void ClearAutofillGmailOtpFillingActivationDismissalTimestamp(
+    PrefService* prefs) {
+  prefs->ClearPref(kAutofillGmailOtpFillingActivationDismissalTimestamp);
+}
 
 bool IsAutofillAiReauthBeforeFillingEnabled(const PrefService* prefs) {
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID) || \

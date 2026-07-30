@@ -136,7 +136,7 @@ SigninViewControllerDelegateViews::CreateSyncConfirmationWebView(
   GURL url = GURL(chrome::kChromeUISyncConfirmationURL);
   return CreateDialogWebView(
       browser, AppendSyncConfirmationQueryParams(url, style, is_sync_promo),
-      GetSyncConfirmationDialogPreferredHeight(browser->profile()),
+      GetSyncConfirmationDialogPreferredHeight(browser->GetProfile()),
       kSyncConfirmationDialogWidth, InitializeSigninWebDialogUI(true));
 }
 
@@ -157,6 +157,11 @@ SigninViewControllerDelegateViews::CreateHistorySyncOptInWebView(
                           /*dialog_height=*/0, kModalDialogWidth,
                           InitializeSigninWebDialogUI(false));
   CHECK(web_view);
+  auto* helper = ColorProviderBrowserHelper::From(browser);
+  if (helper && helper->color_provider_source()) {
+    web_view->GetWebContents()->SetColorProviderSource(
+        helper->color_provider_source());
+  }
   HistorySyncOptinUI* web_ui = web_view->GetWebContents()
                                    ->GetWebUI()
                                    ->GetController()
@@ -467,7 +472,7 @@ SigninViewControllerDelegateViews::CreateDialogWebView(
     std::optional<int> opt_width,
     InitializeSigninWebDialogUI initialize_signin_web_dialog_ui) {
   int dialog_width = opt_width.value_or(kModalDialogWidth);
-  views::WebView* web_view = new views::WebView(browser->profile());
+  views::WebView* web_view = new views::WebView(browser->GetProfile());
   web_view->LoadInitialURL(url);
 
   if (initialize_signin_web_dialog_ui) {
@@ -525,7 +530,7 @@ void SigninViewControllerDelegateViews::DeleteProfileOnCancel() {
   ProfileAttributesEntry* entry =
       g_browser_process->profile_manager()
           ->GetProfileAttributesStorage()
-          .GetProfileAttributesWithPath(browser_->profile()->GetPath());
+          .GetProfileAttributesWithPath(browser_->GetProfile()->GetPath());
   DCHECK(entry);
   DCHECK(entry->IsEphemeral());
   // Open the profile picker in the profile creation step again.
@@ -533,7 +538,7 @@ void SigninViewControllerDelegateViews::DeleteProfileOnCancel() {
       ProfilePicker::EntryPoint::kOpenNewWindowAfterProfileDeletion));
   // Since the profile is ephemeral, closing all browser windows triggers the
   // deletion.
-  chrome::CloseAllBrowsersWithProfile(browser_->profile(),
+  chrome::CloseAllBrowsersWithProfile(browser_->GetProfile(),
                                       /*skip_beforeunload=*/true);
 }
 #endif
@@ -653,7 +658,7 @@ SigninViewControllerDelegate::CreateManagedUserNoticeDelegate(
             std::move(callback).Run(signin_choice, std::move(done_callback),
                                     std::move(retry_callback));
           },
-          browser->profile()->GetWeakPtr(),
+          browser->GetProfile()->GetWeakPtr(),
           std::move(std::get<signin::SigninChoiceWithConfirmAndRetryCallback>(
               create_param->process_user_choice_callback)));
     }
@@ -674,7 +679,7 @@ SigninViewControllerDelegate::CreateManagedUserNoticeDelegate(
             }
             std::move(callback).Run(signin_choice);
           },
-          browser->profile()->GetWeakPtr(),
+          browser->GetProfile()->GetWeakPtr(),
           std::move(std::get<signin::SigninChoiceCallback>(
               create_param->process_user_choice_callback)));
     }
@@ -702,7 +707,7 @@ SigninViewControllerDelegate::CreateManagedUserNoticeDelegate(
     CHECK(active_contents);
     on_closed_callback = ManagedProfileRequiredNavigationThrottle::
         BlockNavigationUntilEnterpriseActionTaken(
-            browser->profile(), active_contents, dialog_web_contents, email);
+            browser->GetProfile(), active_contents, dialog_web_contents, email);
 
     content::OpenURLParams params(active_contents->GetVisibleURL(),
                                   content::Referrer(),

@@ -35,6 +35,8 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
+#include "build/build_config.h"
+#include "build/buildflag.h"
 #include "components/content_extraction/content/browser/inner_text.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/content/browser/page_content_proto_util.h"
@@ -79,6 +81,11 @@
 namespace page_content_annotations {
 
 namespace {
+
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kPageContextFetcherAndroidViewportCrop,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 gfx::Size GetScreenshotSize(
     const gfx::Size& original_size,
@@ -136,7 +143,7 @@ double GetScreenshotScaleFactor(const gfx::Size& original_size,
   // The aspect ratio was preserved by GetScreenshotSize, so the ratio of the
   // new width to old width should be the same as the ratio of new height to old
   // height. WLOG, we'll use the widths.
-  return new_size.width() / original_size.width();
+  return static_cast<double>(new_size.width()) / original_size.width();
 }
 
 int GetScreenshotJpegQuality(
@@ -631,6 +638,8 @@ void PageContextFetcher::GetTabScreenshot(
       screenshot_options.screenshot_collection_options();
 
   gfx::Size view_size = view->GetViewBounds().size();
+  float dsf = view->GetDeviceScaleFactor();
+  original_view_size_pixels_ = gfx::ScaleToRoundedSize(view_size, dsf);
 
   if (screenshot_options.use_paint_preview()) {
     PageContentScreenshotService* service =
@@ -663,12 +672,14 @@ void PageContextFetcher::GetTabScreenshot(
       clip_coord_override = paint_preview::mojom::ClipCoordOverride::kNone;
       view_size = web_contents.GetPrimaryMainFrame()->GetFrameSize().value_or(
           gfx::Size());
+      original_view_size_pixels_ = gfx::ScaleToRoundedSize(view_size, dsf);
     }
     PageContentScreenshotService::RequestParams request_params = {
         .clip_rect = clip_rect,
         .scale_factor = GetScreenshotScaleFactor(
-            view_size,
-            GetScreenshotSize(view_size, screenshot_collection_options_)),
+            original_view_size_pixels_,
+            GetScreenshotSize(original_view_size_pixels_,
+                              screenshot_collection_options_)),
         .clip_x_coord_override = clip_coord_override,
         .clip_y_coord_override = clip_coord_override,
         .redaction_params = std::move(redaction_params),
@@ -683,9 +694,31 @@ void PageContextFetcher::GetTabScreenshot(
     SetCaptureCountLock(web_contents);
     ScheduleScreenshotTimeout();
 
+    gfx::Rect src_rect;
+
+#if BUILDFLAG(IS_ANDROID)
+    if (base::FeatureList::IsEnabled(kPageContextFetcherAndroidViewportCrop)) {
+      // On Android, the captured surface may be larger than the viewport (e.g.
+      // including the browser control). The view bounds represents the actual
+      // web content area, excluding top/bottom controls.
+      //
+      // Importantly, Blink's coordinate system always renders the actual web
+      // content starting at (0, 0) of the compositor surface, regardless of
+      // whether the browser control is configured at the top or at the bottom.
+      // This means the "extra" unrendered blank space corresponding to the
+      // height of the browser controls is always appended at the bottom of the
+      // compositor surface.
+      //
+      // Therefore, we can safely crop the screenshot to match the viewport size
+      // starting at (0, 0) without any vertical offsets.
+      src_rect = gfx::Rect(original_view_size_pixels_);
+    }
+#endif
+
     view->CopyFromSurface(
-        gfx::Rect(),  // Copy entire surface area.
-        GetScreenshotSize(view_size, screenshot_collection_options_),
+        src_rect,
+        GetScreenshotSize(original_view_size_pixels_,
+                          screenshot_collection_options_),
         kScreenshotTimeout.Get(),
         base::BindOnce(&PageContextFetcher::ReceivedViewportBitmap,
                        GetWeakPtr()));
@@ -812,13 +845,22 @@ void PageContextFetcher::RedactAndEncodeScreenshotIfNeeded() {
   CHECK(pending_result_);
   CHECK(pending_result_->annotated_page_content_result.has_value());
 
+  double scale_x = 1.0;
+  double scale_y = 1.0;
+  if (!original_view_size_pixels_.IsEmpty() && !screenshot_bitmap_->empty()) {
+    scale_x = static_cast<double>(screenshot_bitmap_->width()) /
+              original_view_size_pixels_.width();
+    scale_y = static_cast<double>(screenshot_bitmap_->height()) /
+              original_view_size_pixels_.height();
+  }
+
   const std::vector<gfx::Rect>& visible_bounding_boxes_for_redaction_from_apc =
       pending_result_->annotated_page_content_result
           ->visible_bounding_boxes_for_redaction;
-  visible_bounding_boxes_for_redaction.insert(
-      visible_bounding_boxes_for_redaction.end(),
-      visible_bounding_boxes_for_redaction_from_apc.begin(),
-      visible_bounding_boxes_for_redaction_from_apc.end());
+  for (const gfx::Rect& rect : visible_bounding_boxes_for_redaction_from_apc) {
+    visible_bounding_boxes_for_redaction.push_back(
+        gfx::ScaleToEnclosingRect(rect, scale_x, scale_y));
+  }
 
   RedactAndEncodeScreenshot(std::move(visible_bounding_boxes_for_redaction));
 }

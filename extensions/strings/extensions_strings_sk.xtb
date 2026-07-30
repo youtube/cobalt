@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">Informačnú stránku <ph name="ABOUT_PAGE" /> sa nepodarilo načítať.</translation>
 <translation id="424963718355121712">Aplikácie musia byť poskytované od hostiteľa, ktorého ovplyvňujú</translation>
 <translation id="4306119971288449206">Aplikácie musia byť poskytované s typom obsahu „<ph name="CONTENT_TYPE" />“</translation>
+<translation id="4349181963619779233">Rozšírenia a aplikácie sa nedajú pridať z tohto webu</translation>
 <translation id="4625078469366263107">Povoliť aplikáciu</translation>
 <translation id="4633003931260532286">Rozšírenie vyžaduje <ph name="IMPORT_NAME" /> minimálne vo verzii <ph name="IMPORT_VERSION" />, ale nainštalovaná je iba verzia <ph name="INSTALLED_VERSION" /></translation>
 <translation id="4660476621274971848">Očakávaná verzia bola „<ph name="EXPECTED_VERSION" />“. Skutočná verzia bola „<ph name="NEW_ID" />“.</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">Vstupná hodnota pre súkromný kľúč musí mať platný formát (kľúč RSA vo formáte PKCS#8 so šifrovaním PEM).</translation>
-<translation id="765293928828334535">Aplikácie, rozšírenia a skripty používateľa sa nedajú pridať z tohto webu</translation>
 <translation id="7658239707568436148">Zrušiť</translation>
 <translation id="7766838926148951335">Prijať povolenia</translation>
 <translation id="7876803335449432072">Pre skript obsahu sa nepodarilo načítať súbor <ph name="RELATIVE_PATH" />. Šablóny kaskádových štýlov skriptu obsahu sa dajú načítať iba zo súborov podporovaných šablónami kaskádových štýlov, napríklad súborov .css.</translation>

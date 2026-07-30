@@ -22,7 +22,6 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/events/test/test_event.h"
 #include "ui/events/types/event_type.h"
-#include "ui/views/input_event_activation_protector.h"
 #include "ui/views/test/mock_input_event_activation_protector.h"
 
 namespace {
@@ -49,7 +48,7 @@ class DownloadBubbleRowViewTest : public TestWithBrowserView {
     TestWithBrowserView::SetUp();
 
     content::DownloadItemUtils::AttachInfoForTesting(
-        &download_item_, browser()->profile(), nullptr);
+        &download_item_, browser()->GetProfile(), nullptr);
     ON_CALL(download_item_, GetURL())
         .WillByDefault(ReturnRef(GURL::EmptyGURL()));
 
@@ -70,7 +69,7 @@ class DownloadBubbleRowViewTest : public TestWithBrowserView {
     auto input_protector =
         std::make_unique<NiceMock<views::MockInputEventActivationProtector>>();
     input_protector_ = input_protector.get();
-    ON_CALL(*input_protector_, IsPossiblyUnintendedInteraction(_, _))
+    ON_CALL(*input_protector_, IsPossiblyUnintendedInteraction(_, _, _))
         .WillByDefault(Return(false));
     row_view_->SetInputProtectorForTesting(std::move(input_protector));
   }
@@ -174,7 +173,7 @@ TEST_F(DownloadBubbleRowViewTest, OnlyEnabledQuickActionsVisible) {
 
 // Test that the input protector can deny button clicks.
 TEST_F(DownloadBubbleRowViewTest, InputProtectorDeniesClicks) {
-  EXPECT_CALL(*input_protector_, IsPossiblyUnintendedInteraction(_, _))
+  EXPECT_CALL(*input_protector_, IsPossiblyUnintendedInteraction(_, _, _))
       .WillRepeatedly(Return(true));
 
   // Test main button

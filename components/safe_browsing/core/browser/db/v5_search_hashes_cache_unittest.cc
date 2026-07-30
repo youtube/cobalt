@@ -1,0 +1,914 @@
+// Copyright 2023 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "components/safe_browsing/core/browser/db/v5_search_hashes_cache.h"
+
+#include "base/command_line.h"
+#include "base/files/scoped_temp_dir.h"
+#include "base/functional/callback_helpers.h"
+#include "base/test/metrics/histogram_tester.h"
+#include "base/test/scoped_feature_list.h"
+#include "base/test/task_environment.h"
+#include "base/time/time.h"
+#include "components/history/core/browser/history_database_params.h"
+#include "components/history/core/browser/history_service.h"
+#include "components/history/core/browser/history_types.h"
+#include "components/history/core/test/history_service_test_util.h"
+#include "components/history/core/test/test_history_database.h"
+#include "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h"
+#include "components/safe_browsing/core/common/features.h"
+#include "components/safe_browsing/core/common/proto/safebrowsingv5.pb.h"
+#include "components/safe_browsing/core/common/safebrowsing_switches.h"
+#include "crypto/sha2.h"
+#include "testing/gtest/include/gtest/gtest.h"
+#include "testing/platform_test.h"
+
+namespace safe_browsing {
+
+const char kArtificialHashRealTimeUnsafeUrl[] = "https://example.test";
+
+class V5SearchHashesCacheTest : public PlatformTest,
+                                public ::testing::WithParamInterface<bool> {
+ protected:
+  void SetUp() override {
+    PlatformTest::SetUp();
+    if (GetParam()) {
+      feature_list_.InitAndEnableFeature(kLocalListsUseSBv5);
+    } else {
+      feature_list_.InitAndDisableFeature(kLocalListsUseSBv5);
+    }
+  }
+  V5::Duration CreateCacheDuration(int seconds, int nanos) {
+    V5::Duration cache_duration;
+    cache_duration.set_seconds(seconds);
+    cache_duration.set_nanos(nanos);
+    return cache_duration;
+  }
+  // Does not populate the "attributes" field.
+  V5::FullHash CreateBasicFullHash(std::string full_hash_str,
+                                   std::vector<V5::ThreatType> threat_types) {
+    V5::FullHash full_hash_object;
+    full_hash_object.set_full_hash(full_hash_str);
+    for (const auto& threat_type : threat_types) {
+      auto* details = full_hash_object.add_full_hash_details();
+      details->set_threat_type(threat_type);
+    }
+    return full_hash_object;
+  }
+  void AddThreatTypeAndAttributes(V5::FullHash& full_hash_object,
+                                  V5::ThreatType threat_type,
+                                  std::vector<V5::ThreatAttribute> attributes) {
+    auto* details = full_hash_object.add_full_hash_details();
+    details->set_threat_type(threat_type);
+    for (const auto& attribute : attributes) {
+      details->add_attributes(attribute);
+    }
+  }
+  void CheckAndResetCacheHitsAndMisses(int num_hits, int num_misses) {
+    std::string prefix =
+        GetParam() ? "SafeBrowsing.V5Cache" : "SafeBrowsing.HPRT";
+    histogram_tester_->ExpectBucketCount(prefix + ".CacheHit",
+                                         /*sample=*/true,
+                                         /*expected_count=*/num_hits);
+    histogram_tester_->ExpectBucketCount(prefix + ".CacheHit",
+                                         /*sample=*/false,
+                                         /*expected_count=*/num_misses);
+    histogram_tester_ = std::make_unique<base::HistogramTester>();
+  }
+  void CheckAndResetCacheDurationLogs(
+      std::optional<int> initial_cache_duration_sec,
+      std::optional<int> remaining_cache_duration_sec) {
+    std::string prefix =
+        GetParam() ? "SafeBrowsing.V5Cache" : "SafeBrowsing.HPRT";
+    if (initial_cache_duration_sec.has_value()) {
+      histogram_tester_->ExpectUniqueSample(
+          /*name=*/prefix + ".CacheDuration.InitialOnSet",
+          /*sample=*/initial_cache_duration_sec.value() * 1000,  // sec to ms
+          /*expected_bucket_count=*/1);
+    } else {
+      histogram_tester_->ExpectTotalCount(
+          /*name=*/prefix + ".CacheDuration.InitialOnSet",
+          /*expected_count=*/0);
+    }
+    if (remaining_cache_duration_sec.has_value()) {
+      histogram_tester_->ExpectUniqueSample(
+          /*name=*/prefix + ".CacheDuration.RemainingOnHit",
+          /*sample=*/remaining_cache_duration_sec.value() * 1000,  // sec to ms
+          /*expected_bucket_count=*/1);
+    } else {
+      histogram_tester_->ExpectTotalCount(
+          /*name=*/prefix + ".CacheDuration.RemainingOnHit",
+          /*expected_count=*/0);
+    }
+    histogram_tester_ = std::make_unique<base::HistogramTester>();
+  }
+  void CheckAndResetCacheSizeOnClear(int num_hash_prefixes,
+                                     int num_full_hashes) {
+    if (GetParam()) {
+      histogram_tester_->ExpectBucketCount(
+          "SafeBrowsing.V5Cache.HashPrefixCount",
+          /*sample=*/num_hash_prefixes,
+          /*expected_count=*/1);
+      histogram_tester_->ExpectBucketCount("SafeBrowsing.V5Cache.FullHashCount",
+                                           /*sample=*/num_full_hashes,
+                                           /*expected_count=*/1);
+    } else {
+      histogram_tester_->ExpectBucketCount(
+          "SafeBrowsing.HPRT.Cache.HashPrefixCount",
+          /*sample=*/num_hash_prefixes,
+          /*expected_count=*/1);
+      histogram_tester_->ExpectBucketCount(
+          "SafeBrowsing.HPRT.Cache.FullHashCount",
+          /*sample=*/num_full_hashes,
+          /*expected_count=*/1);
+    }
+    histogram_tester_ = std::make_unique<base::HistogramTester>();
+  }
+  int GetNumCacheEntries(std::unique_ptr<V5SearchHashesCache>& cache) {
+    // This includes expired entries that have not yet been cleaned up too.
+    return cache->cache_.size();
+  }
+  void ClearExpiredResultsHelper(
+      std::unique_ptr<V5SearchHashesCache>& cache_to_clean) {
+    cache_to_clean->ClearExpiredResults();
+  }
+  void CacheEntry(std::unique_ptr<V5SearchHashesCache>& cache_internal,
+                  std::string full_hash,
+                  int cache_duration_seconds) {
+    cache_internal->CacheSearchHashesResponse(
+        {full_hash.substr(0, 4)},
+        {CreateBasicFullHash(full_hash, {V5::ThreatType::MALWARE})},
+        CreateCacheDuration(cache_duration_seconds, 0));
+  }
+
+  base::test::ScopedFeatureList feature_list_;
+  base::test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
+  std::unique_ptr<base::HistogramTester> histogram_tester_ =
+      std::make_unique<base::HistogramTester>();
+};
+
+TEST_P(V5SearchHashesCacheTest, TestCacheMatching_EmptyCache) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  EXPECT_TRUE(cache->SearchCache({}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/0);
+  EXPECT_TRUE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/1);
+  EXPECT_TRUE(cache->SearchCache({"aaaa", "bbbb"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/2);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestCacheMatching_BasicFunctionality) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  // The below is done within a block to ensure that the cache works even once
+  // the inputs to CacheSearchHashesResponse have been destructed.
+  {
+    std::vector<std::string> requested_hash_prefixes = {"aaaa", "bbbb", "cccc",
+                                                        "dddd"};
+    std::vector<V5::FullHash> response_full_hashes = {
+        CreateBasicFullHash(
+            "aaaa1111111111111111111111111111",
+            {V5::ThreatType::SOCIAL_ENGINEERING, V5::ThreatType::MALWARE,
+             V5::ThreatType::UNWANTED_SOFTWARE,
+             V5::ThreatType::NOTIFICATION_ABUSE}),
+        CreateBasicFullHash("aaaa2222222222222222222222222222",
+                            {V5::ThreatType::MALWARE}),
+        CreateBasicFullHash("aaaa3333333333333333333333333333",
+                            {V5::ThreatType::NOTIFICATION_ABUSE}),
+        CreateBasicFullHash("cccc1111111111111111111111111111",
+                            {V5::ThreatType::NOTIFICATION_ABUSE,
+                             V5::ThreatType::ABUSIVE_EXPERIENCE_VIOLATION,
+                             V5::ThreatType::BETTER_ADS_VIOLATION,
+                             V5::ThreatType::ABUSIVE_EXPERIENCE_VIOLATION,
+                             V5::ThreatType::POTENTIALLY_HARMFUL_APPLICATION}),
+    };
+    cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                     response_full_hashes,
+                                     CreateCacheDuration(300, 0));
+  }
+
+  // Searching for no prefix or for prefixes not in the request should yield
+  // empty cache results.
+  EXPECT_TRUE(cache->SearchCache({}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/0);
+  EXPECT_TRUE(cache->SearchCache({"eeee"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/1);
+  EXPECT_TRUE(cache->SearchCache({"eeee", "ffff"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/2);
+
+  std::set<std::string> hash_prefixes_to_search = {"aaaa", "bbbb", "cccc",
+                                                   "dddd", "eeee", "ffff"};
+  auto cache_results = cache->SearchCache(hash_prefixes_to_search);
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/4, /*num_misses=*/2);
+
+  // Don't expect cache results for eeee and ffff, since they are not in the
+  // cache. Expect cache results for all other prefixes.
+  EXPECT_EQ(cache_results.size(), 4u);
+  EXPECT_TRUE(cache_results.contains("aaaa"));
+  EXPECT_TRUE(cache_results.contains("bbbb"));
+  EXPECT_TRUE(cache_results.contains("cccc"));
+  EXPECT_TRUE(cache_results.contains("dddd"));
+  EXPECT_FALSE(cache_results.contains("eeee"));
+  EXPECT_FALSE(cache_results.contains("ffff"));
+
+  // bbbb and dddd should both have empty results, because they did not have any
+  // corresponding full hashes.
+  EXPECT_TRUE(cache_results["bbbb"].empty());
+  EXPECT_TRUE(cache_results["dddd"].empty());
+  if (GetParam()) {
+    // All results are included for cccc when the kLocalListsUseSBv5 feature is
+    // enabled.
+    EXPECT_EQ(cache_results["cccc"].size(), 1u);
+    auto cccc1_results = cache_results["cccc"][0];
+    EXPECT_EQ(cccc1_results.full_hash(), "cccc1111111111111111111111111111");
+    auto cccc1_details = cccc1_results.full_hash_details();
+    EXPECT_EQ(cccc1_details.size(), 5);
+    EXPECT_EQ(cccc1_details[0].threat_type(),
+              V5::ThreatType::NOTIFICATION_ABUSE);
+    EXPECT_EQ(cccc1_details[1].threat_type(),
+              V5::ThreatType::ABUSIVE_EXPERIENCE_VIOLATION);
+    EXPECT_EQ(cccc1_details[2].threat_type(),
+              V5::ThreatType::BETTER_ADS_VIOLATION);
+    EXPECT_EQ(cccc1_details[3].threat_type(),
+              V5::ThreatType::ABUSIVE_EXPERIENCE_VIOLATION);
+    EXPECT_EQ(cccc1_details[4].threat_type(),
+              V5::ThreatType::POTENTIALLY_HARMFUL_APPLICATION);
+  } else {
+    // cccc should also have empty results, because the threat types returned by
+    // the server for that full hash were not relevant for hash-prefix real-time
+    // lookups.
+    EXPECT_TRUE(cache_results["cccc"].empty());
+  }
+
+  // When kLocalListsUseSBv5 is enabled, aaaa should match aaaa...1, aaaa...2,
+  // and aaaa...3. When disabled, aaaa should match both aaaa...1 and aaaa...2,
+  // but not aaaa...3 due to HPRT-irrelevant threat types.
+  EXPECT_EQ(cache_results["aaaa"].size(), GetParam() ? 3u : 2u);
+
+  // aaaa...1
+  auto aaaa1_results = cache_results["aaaa"][0];
+  EXPECT_EQ(aaaa1_results.full_hash(), "aaaa1111111111111111111111111111");
+  auto aaaa1_details = aaaa1_results.full_hash_details();
+  // When kLocalListsUseSBv5 is disabled, only contains HPRT-relevant threat
+  // types.
+  EXPECT_EQ(aaaa1_details.size(), GetParam() ? 4 : 3);
+  EXPECT_EQ(aaaa1_details[0].threat_type(), V5::ThreatType::SOCIAL_ENGINEERING);
+  EXPECT_TRUE(aaaa1_details[0].attributes().empty());
+  EXPECT_EQ(aaaa1_details[1].threat_type(), V5::ThreatType::MALWARE);
+  EXPECT_TRUE(aaaa1_details[1].attributes().empty());
+  EXPECT_EQ(aaaa1_details[2].threat_type(), V5::ThreatType::UNWANTED_SOFTWARE);
+  EXPECT_TRUE(aaaa1_details[2].attributes().empty());
+  if (GetParam()) {
+    EXPECT_EQ(aaaa1_details[3].threat_type(),
+              V5::ThreatType::NOTIFICATION_ABUSE);
+    EXPECT_TRUE(aaaa1_details[3].attributes().empty());
+  }
+
+  // aaaa...2 should have one threat type (malware).
+  auto aaaa2_results = cache_results["aaaa"][1];
+  EXPECT_EQ(aaaa2_results.full_hash(), "aaaa2222222222222222222222222222");
+  auto aaaa2_details = aaaa2_results.full_hash_details();
+  EXPECT_EQ(aaaa2_details.size(), 1);
+  EXPECT_EQ(aaaa2_details[0].threat_type(), V5::ThreatType::MALWARE);
+  EXPECT_TRUE(aaaa2_details[0].attributes().empty());
+
+  // aaaa...3 is present when kLocalListsUseSBv5 is enabled
+  if (GetParam()) {
+    auto aaaa3_results = cache_results["aaaa"][2];
+    EXPECT_EQ(aaaa3_results.full_hash(), "aaaa3333333333333333333333333333");
+    auto aaaa3_details = aaaa3_results.full_hash_details();
+    EXPECT_EQ(aaaa3_details.size(), 1);
+    EXPECT_EQ(aaaa3_details[0].threat_type(),
+              V5::ThreatType::NOTIFICATION_ABUSE);
+    EXPECT_TRUE(aaaa3_details[0].attributes().empty());
+  }
+}
+
+TEST_P(V5SearchHashesCacheTest, TestCacheMatching_Expiration) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  // The below are done within blocks to ensure that the cache works even once
+  // the inputs to CacheSearchHashesResponse have been destructed.
+  {
+    std::vector<std::string> requested_hash_prefixes = {"aaaa"};
+    std::vector<V5::FullHash> response_full_hashes = {
+        CreateBasicFullHash(
+            "aaaa1111111111111111111111111111",
+            {V5::ThreatType::SOCIAL_ENGINEERING, V5::ThreatType::MALWARE,
+             V5::ThreatType::UNWANTED_SOFTWARE,
+             V5::ThreatType::NOTIFICATION_ABUSE}),
+    };
+    cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                     response_full_hashes,
+                                     CreateCacheDuration(300, 0));
+  }
+  task_environment_.FastForwardBy(base::Seconds(299));
+  {
+    std::vector<std::string> requested_hash_prefixes = {"cccc"};
+    std::vector<V5::FullHash> response_full_hashes = {
+        CreateBasicFullHash("cccc1111111111111111111111111111",
+                            {V5::ThreatType::MALWARE}),
+    };
+    cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                     response_full_hashes,
+                                     CreateCacheDuration(300, 0));
+  }
+
+  // aaaa expires at 300 seconds. cccc expires at 599 seconds.
+  // Current time = 299 seconds. aaaa and cccc have not expired.
+  EXPECT_FALSE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+  EXPECT_FALSE(cache->SearchCache({"cccc"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+  EXPECT_EQ(cache->SearchCache({"aaaa", "cccc"}).size(), 2u);
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/2, /*num_misses=*/0);
+  // Current time = 300 seconds. aaaa has expired. cccc has not expired.
+  task_environment_.FastForwardBy(base::Seconds(1));
+  EXPECT_TRUE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/1);
+  EXPECT_FALSE(cache->SearchCache({"cccc"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+  EXPECT_EQ(cache->SearchCache({"aaaa", "cccc"}).size(), 1u);
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/1);
+  // Current time = 598 seconds. aaaa has expired. cccc has not expired.
+  task_environment_.FastForwardBy(base::Seconds(298));
+  EXPECT_TRUE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/1);
+  EXPECT_FALSE(cache->SearchCache({"cccc"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+  EXPECT_EQ(cache->SearchCache({"aaaa", "cccc"}).size(), 1u);
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/1);
+  // Current time = 599 seconds. aaaa and cccc have expired.
+  task_environment_.FastForwardBy(base::Seconds(1));
+  EXPECT_TRUE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/1);
+  EXPECT_TRUE(cache->SearchCache({"cccc"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/1);
+  EXPECT_TRUE(cache->SearchCache({"aaaa", "cccc"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/2);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestCacheMatching_ExpirationNanos) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  // The below are done within blocks to ensure that the cache works even once
+  // the inputs to CacheSearchHashesResponse have been destructed.
+  {
+    std::vector<std::string> requested_hash_prefixes = {"aaaa"};
+    std::vector<V5::FullHash> response_full_hashes = {
+        CreateBasicFullHash(
+            "aaaa1111111111111111111111111111",
+            {V5::ThreatType::SOCIAL_ENGINEERING, V5::ThreatType::MALWARE,
+             V5::ThreatType::UNWANTED_SOFTWARE,
+             V5::ThreatType::NOTIFICATION_ABUSE}),
+    };
+    cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                     response_full_hashes,
+                                     CreateCacheDuration(300, 500000000));
+  }
+  task_environment_.FastForwardBy(base::Seconds(300));
+
+  // aaaa expires at 300.5 seconds.
+  // Current time = 300.0 seconds. aaaa has not expired.
+  EXPECT_FALSE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+  // Current time = 300.5 seconds. aaaa has expired.
+  task_environment_.FastForwardBy(base::Nanoseconds(500000000));
+  EXPECT_TRUE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/1);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestCacheMatching_Attributes) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  // The below is done within a block to ensure that the cache works even once
+  // the inputs to CacheSearchHashesResponse have been destructed.
+  {
+    std::vector<std::string> requested_hash_prefixes = {"aaaa", "bbbb"};
+    auto full_hash_1 =
+        CreateBasicFullHash("aaaa1111111111111111111111111111", {});
+    AddThreatTypeAndAttributes(full_hash_1, V5::ThreatType::SOCIAL_ENGINEERING,
+                               {V5::ThreatAttribute::FRAME_ONLY});
+    AddThreatTypeAndAttributes(full_hash_1, V5::ThreatType::MALWARE,
+                               {V5::ThreatAttribute::FRAME_ONLY});
+    AddThreatTypeAndAttributes(
+        full_hash_1, V5::ThreatType::NOTIFICATION_ABUSE,
+        {V5::ThreatAttribute::CANARY, V5::ThreatAttribute::FRAME_ONLY});
+    AddThreatTypeAndAttributes(full_hash_1, V5::ThreatType::UNWANTED_SOFTWARE,
+                               {});
+    std::vector<V5::FullHash> response_full_hashes = {
+        full_hash_1, CreateBasicFullHash("aaaa2222222222222222222222222222",
+                                         {V5::ThreatType::MALWARE})};
+    cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                     response_full_hashes,
+                                     CreateCacheDuration(300, 0));
+  }
+
+  std::set<std::string> hash_prefixes_to_search = {"aaaa", "bbbb"};
+  auto cache_results = cache->SearchCache(hash_prefixes_to_search);
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/2, /*num_misses=*/0);
+
+  // Sanity check that adding attributes for aaaa hashes does not change the
+  // fact that there should be no bbbb full hashes / associated attributes.
+  EXPECT_TRUE(cache_results.contains("bbbb"));
+  EXPECT_TRUE(cache_results["bbbb"].empty());
+
+  // We expect aaaa...1 and aaaa...2 both to be in the cache.
+  EXPECT_EQ(cache_results["aaaa"].size(), 2u);
+  // When kLocalListsUseSBv5 is enabled, all threat types and attributes are
+  // kept. When disabled, aaaa...1 should be filtered down to HPRT-relevant
+  // threat types, meaning some attributes get filtered out too since they are
+  // associated with a specific threat type.
+  auto aaaa1_results = cache_results["aaaa"][0];
+  EXPECT_EQ(aaaa1_results.full_hash(), "aaaa1111111111111111111111111111");
+  auto aaaa1_details = aaaa1_results.full_hash_details();
+  EXPECT_EQ(aaaa1_details.size(), GetParam() ? 4 : 3);
+  EXPECT_EQ(aaaa1_details[0].threat_type(), V5::ThreatType::SOCIAL_ENGINEERING);
+  EXPECT_EQ(aaaa1_details[0].attributes().size(), 1);
+  EXPECT_EQ(aaaa1_details[0].attributes()[0], V5::ThreatAttribute::FRAME_ONLY);
+  EXPECT_EQ(aaaa1_details[1].threat_type(), V5::ThreatType::MALWARE);
+  EXPECT_EQ(aaaa1_details[1].attributes().size(), 1);
+  EXPECT_EQ(aaaa1_details[1].attributes()[0], V5::ThreatAttribute::FRAME_ONLY);
+  if (GetParam()) {
+    EXPECT_EQ(aaaa1_details[2].threat_type(),
+              V5::ThreatType::NOTIFICATION_ABUSE);
+    EXPECT_EQ(aaaa1_details[2].attributes().size(), 2);
+    EXPECT_EQ(aaaa1_details[2].attributes()[0], V5::ThreatAttribute::CANARY);
+    EXPECT_EQ(aaaa1_details[2].attributes()[1],
+              V5::ThreatAttribute::FRAME_ONLY);
+    EXPECT_EQ(aaaa1_details[3].threat_type(),
+              V5::ThreatType::UNWANTED_SOFTWARE);
+    EXPECT_TRUE(aaaa1_details[3].attributes().empty());
+  } else {
+    EXPECT_EQ(aaaa1_details[2].threat_type(),
+              V5::ThreatType::UNWANTED_SOFTWARE);
+    EXPECT_TRUE(aaaa1_details[2].attributes().empty());
+  }
+  // Sanity check that aaaa...2 has no attributes in spite of aaaa...1 having
+  // attributes.
+  auto aaaa2_results = cache_results["aaaa"][1];
+  EXPECT_EQ(aaaa2_results.full_hash(), "aaaa2222222222222222222222222222");
+  auto aaaa2_details = aaaa2_results.full_hash_details();
+  EXPECT_EQ(aaaa2_details.size(), 1);
+  EXPECT_EQ(aaaa2_details[0].threat_type(), V5::ThreatType::MALWARE);
+  EXPECT_TRUE(aaaa2_details[0].attributes().empty());
+}
+
+TEST_P(V5SearchHashesCacheTest, TestCacheMatching_OverwrittenEntry) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  // The below are done within blocks to ensure that the cache works even once
+  // the inputs to CacheSearchHashesResponse have been destructed.
+  {
+    // Set up the cache for Request #1.
+    std::vector<std::string> requested_hash_prefixes = {"aaaa"};
+    std::vector<V5::FullHash> response_full_hashes = {
+        CreateBasicFullHash(
+            "aaaa1111111111111111111111111111",
+            {V5::ThreatType::SOCIAL_ENGINEERING, V5::ThreatType::MALWARE,
+             V5::ThreatType::UNWANTED_SOFTWARE,
+             V5::ThreatType::NOTIFICATION_ABUSE}),
+    };
+    cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                     response_full_hashes,
+                                     CreateCacheDuration(300, 0));
+  }
+  // Confirm the cache has the expected results.
+  auto cache_results_1 = cache->SearchCache({"aaaa"});
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+  EXPECT_EQ(cache_results_1.size(), 1u);
+  EXPECT_EQ(cache_results_1["aaaa"].size(), 1u);
+  EXPECT_EQ(cache_results_1["aaaa"][0].full_hash(),
+            "aaaa1111111111111111111111111111");
+  EXPECT_EQ(cache_results_1["aaaa"][0].full_hash_details_size(),
+            GetParam() ? 4 : 3);
+
+  {
+    // Set up the cache for Request #2, overwriting the results of Request #1.
+    std::vector<std::string> requested_hash_prefixes = {"aaaa"};
+    std::vector<V5::FullHash> response_full_hashes = {
+        CreateBasicFullHash("aaaa2222222222222222222222222222",
+                            {V5::ThreatType::MALWARE}),
+    };
+    cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                     response_full_hashes,
+                                     CreateCacheDuration(300, 0));
+  }
+
+  // If there is a race where there are two outgoing hash-prefix real-time
+  // requests for the same prefix, the later-responding result replaces the
+  // earlier-responding result. In practice, the two results are expected to be
+  // the same almost always, but if they are not, this is how the cache behaves.
+  auto cache_results_2 = cache->SearchCache({"aaaa"});
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+  EXPECT_EQ(cache_results_2.size(), 1u);
+  EXPECT_EQ(cache_results_2["aaaa"].size(), 1u);
+  EXPECT_EQ(cache_results_2["aaaa"][0].full_hash(),
+            "aaaa2222222222222222222222222222");
+  EXPECT_EQ(cache_results_2["aaaa"][0].full_hash_details_size(), 1);
+
+  task_environment_.FastForwardBy(base::Seconds(150));
+  {
+    // Set up the cache for Request #3, overwriting the results of Request #2.
+    // The main overwriting here is just the cache duration, since 150 seconds
+    // have passed.
+    std::vector<std::string> requested_hash_prefixes = {"aaaa"};
+    std::vector<V5::FullHash> response_full_hashes = {
+        CreateBasicFullHash("aaaa2222222222222222222222222222",
+                            {V5::ThreatType::MALWARE}),
+    };
+    cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                     response_full_hashes,
+                                     CreateCacheDuration(300, 0));
+  }
+
+  // Confirm caching Request #3 overwrote the cache duration. If it didn't, then
+  // the results of Request #2 would already have expired.
+  task_environment_.FastForwardBy(base::Seconds(150));
+  EXPECT_FALSE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+
+  // Confirm Request #3's cache duration is respected.
+  task_environment_.FastForwardBy(base::Seconds(149));
+  EXPECT_FALSE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/1, /*num_misses=*/0);
+  task_environment_.FastForwardBy(base::Seconds(1));
+  EXPECT_TRUE(cache->SearchCache({"aaaa"}).empty());
+  CheckAndResetCacheHitsAndMisses(/*num_hits=*/0, /*num_misses=*/1);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestCacheMatching_CacheDurationLogging) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  std::vector<std::string> requested_hash_prefixes = {"aaaa"};
+  std::vector<V5::FullHash> response_full_hashes = {
+      CreateBasicFullHash("aaaa1111111111111111111111111111",
+                          {V5::ThreatType::SOCIAL_ENGINEERING}),
+  };
+  cache->CacheSearchHashesResponse(requested_hash_prefixes,
+                                   response_full_hashes,
+                                   CreateCacheDuration(300, 0));
+  CheckAndResetCacheDurationLogs(
+      /*initial_cache_duration_sec=*/300,
+      /*remaining_cache_duration_sec=*/std::nullopt);
+
+  cache->SearchCache({"aaaa"});
+  CheckAndResetCacheDurationLogs(/*initial_cache_duration_sec=*/std::nullopt,
+                                 /*remaining_cache_duration_sec=*/300);
+  task_environment_.FastForwardBy(base::Seconds(299));
+  cache->SearchCache({"aaaa"});
+  CheckAndResetCacheDurationLogs(/*initial_cache_duration_sec=*/std::nullopt,
+                                 /*remaining_cache_duration_sec=*/1);
+  task_environment_.FastForwardBy(base::Seconds(1));
+  cache->SearchCache({"aaaa"});
+  CheckAndResetCacheDurationLogs(
+      /*initial_cache_duration_sec=*/std::nullopt,
+      /*remaining_cache_duration_sec=*/std::nullopt);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestClearExpiredResults_EmptyCache) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  EXPECT_EQ(GetNumCacheEntries(cache), 0);
+  ClearExpiredResultsHelper(cache);
+  EXPECT_EQ(GetNumCacheEntries(cache), 0);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestClearExpiredResults_NoExpiredResults) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  CacheEntry(cache, "aaaa1111111111111111111111111111", 300);
+  CacheEntry(cache, "cccc1111111111111111111111111111", 500);
+
+  EXPECT_EQ(GetNumCacheEntries(cache), 2);
+  EXPECT_TRUE(cache->SearchCache({"aaaa"}).contains("aaaa"));
+  EXPECT_TRUE(cache->SearchCache({"cccc"}).contains("cccc"));
+  ClearExpiredResultsHelper(cache);
+  EXPECT_EQ(GetNumCacheEntries(cache), 2);
+  EXPECT_TRUE(cache->SearchCache({"aaaa"}).contains("aaaa"));
+  EXPECT_TRUE(cache->SearchCache({"cccc"}).contains("cccc"));
+}
+
+TEST_P(V5SearchHashesCacheTest, TestClearExpiredResults_OneExpiredResult) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  CacheEntry(cache, "aaaa1111111111111111111111111111", 300);
+  CacheEntry(cache, "cccc1111111111111111111111111111", 500);
+
+  // After 400 seconds, aaaa is expired but not cccc.
+  task_environment_.FastForwardBy(base::Seconds(400));
+  EXPECT_EQ(GetNumCacheEntries(cache), 2);
+  EXPECT_FALSE(cache->SearchCache({"aaaa"}).contains("aaaa"));
+  EXPECT_TRUE(cache->SearchCache({"cccc"}).contains("cccc"));
+  ClearExpiredResultsHelper(cache);
+  EXPECT_EQ(GetNumCacheEntries(cache), 1);
+  EXPECT_FALSE(cache->SearchCache({"aaaa"}).contains("aaaa"));
+  EXPECT_TRUE(cache->SearchCache({"cccc"}).contains("cccc"));
+}
+
+TEST_P(V5SearchHashesCacheTest, TestClearExpiredResults_SomeExpiredResults) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  auto soon = 300;
+  auto later = 500;
+  CacheEntry(cache, "aaaa1111111111111111111111111111", soon);
+  CacheEntry(cache, "bbbb1111111111111111111111111111", later);
+  CacheEntry(cache, "cccc1111111111111111111111111111", soon);
+  CacheEntry(cache, "dddd1111111111111111111111111111", soon);
+  CacheEntry(cache, "eeee1111111111111111111111111111", soon);
+  CacheEntry(cache, "ffff1111111111111111111111111111", later);
+  CacheEntry(cache, "gggg1111111111111111111111111111", later);
+  CacheEntry(cache, "hhhh1111111111111111111111111111", soon);
+
+  auto validate_cache_contents =
+      [](std::unique_ptr<V5SearchHashesCache>& cache_internal) {
+        EXPECT_FALSE(cache_internal->SearchCache({"aaaa"}).contains("aaaa"));
+        EXPECT_TRUE(cache_internal->SearchCache({"bbbb"}).contains("bbbb"));
+        EXPECT_FALSE(cache_internal->SearchCache({"cccc"}).contains("cccc"));
+        EXPECT_FALSE(cache_internal->SearchCache({"dddd"}).contains("dddd"));
+        EXPECT_FALSE(cache_internal->SearchCache({"eeee"}).contains("eeee"));
+        EXPECT_TRUE(cache_internal->SearchCache({"ffff"}).contains("ffff"));
+        EXPECT_TRUE(cache_internal->SearchCache({"gggg"}).contains("gggg"));
+        EXPECT_FALSE(cache_internal->SearchCache({"hhhh"}).contains("hhhh"));
+      };
+
+  // After 400 seconds, all of the "soon" prefixes have expired, and none of the
+  // "later" prefixes have.
+  task_environment_.FastForwardBy(base::Seconds(400));
+  EXPECT_EQ(GetNumCacheEntries(cache), 8);
+  validate_cache_contents(cache);
+  ClearExpiredResultsHelper(cache);
+  EXPECT_EQ(GetNumCacheEntries(cache), 3);
+  validate_cache_contents(cache);
+}
+
+TEST_P(V5SearchHashesCacheTest,
+       TestClearExpiredResults_SomeExpiredResultsReversed) {
+  // The main difference between TestClearExpiredResults_SomeExpiredResults
+  // above and this one is that whether an entry is expired is reversed. This is
+  // to confirm that the iterative deletion in ClearExpiredResults works as
+  // expected regardless of ordering.
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  auto soon = 300;
+  auto later = 500;
+  CacheEntry(cache, "aaaa1111111111111111111111111111", later);
+  CacheEntry(cache, "bbbb1111111111111111111111111111", soon);
+  CacheEntry(cache, "cccc1111111111111111111111111111", later);
+  CacheEntry(cache, "dddd1111111111111111111111111111", later);
+  CacheEntry(cache, "eeee1111111111111111111111111111", later);
+  CacheEntry(cache, "ffff1111111111111111111111111111", soon);
+  CacheEntry(cache, "gggg1111111111111111111111111111", soon);
+  CacheEntry(cache, "hhhh1111111111111111111111111111", later);
+
+  auto validate_cache_contents =
+      [](std::unique_ptr<V5SearchHashesCache>& cache_internal) {
+        EXPECT_TRUE(cache_internal->SearchCache({"aaaa"}).contains("aaaa"));
+        EXPECT_FALSE(cache_internal->SearchCache({"bbbb"}).contains("bbbb"));
+        EXPECT_TRUE(cache_internal->SearchCache({"cccc"}).contains("cccc"));
+        EXPECT_TRUE(cache_internal->SearchCache({"dddd"}).contains("dddd"));
+        EXPECT_TRUE(cache_internal->SearchCache({"eeee"}).contains("eeee"));
+        EXPECT_FALSE(cache_internal->SearchCache({"ffff"}).contains("ffff"));
+        EXPECT_FALSE(cache_internal->SearchCache({"gggg"}).contains("gggg"));
+        EXPECT_TRUE(cache_internal->SearchCache({"hhhh"}).contains("hhhh"));
+      };
+
+  // After 400 seconds, all of the "soon" prefixes have expired, and none of the
+  // "later" prefixes have.
+  task_environment_.FastForwardBy(base::Seconds(400));
+  EXPECT_EQ(GetNumCacheEntries(cache), 8);
+  validate_cache_contents(cache);
+  ClearExpiredResultsHelper(cache);
+  EXPECT_EQ(GetNumCacheEntries(cache), 5);
+  validate_cache_contents(cache);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestClearExpiredResults_AllExpiredResults) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  CacheEntry(cache, "aaaa1111111111111111111111111111", 300);
+  CacheEntry(cache, "cccc1111111111111111111111111111", 500);
+
+  // After 500 seconds, both have expired.
+  task_environment_.FastForwardBy(base::Seconds(500));
+  EXPECT_EQ(GetNumCacheEntries(cache), 2);
+  EXPECT_FALSE(cache->SearchCache({"aaaa"}).contains("aaaa"));
+  EXPECT_FALSE(cache->SearchCache({"cccc"}).contains("cccc"));
+  ClearExpiredResultsHelper(cache);
+  EXPECT_EQ(GetNumCacheEntries(cache), 0);
+  EXPECT_FALSE(cache->SearchCache({"aaaa"}).contains("aaaa"));
+  EXPECT_FALSE(cache->SearchCache({"cccc"}).contains("cccc"));
+}
+
+TEST_P(V5SearchHashesCacheTest, TestClearExpiredResults_Logging) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+
+  // Cache is empty.
+  ClearExpiredResultsHelper(cache);
+  CheckAndResetCacheSizeOnClear(/*num_hash_prefixes=*/0, /*num_full_hashes=*/0);
+
+  // Fast forward to get close to the first cleanup (occurs at 30 minutes).
+  task_environment_.FastForwardBy(base::Minutes(28));
+
+  // Cache has 1 hash prefix with 1 full hash in it.
+  cache->CacheSearchHashesResponse(
+      {"aaaa"},
+      {CreateBasicFullHash("aaaa1111111111111111111111111111",
+                           {V5::ThreatType::MALWARE})},
+      CreateCacheDuration(300, 0));
+  ClearExpiredResultsHelper(cache);
+  CheckAndResetCacheSizeOnClear(/*num_hash_prefixes=*/1, /*num_full_hashes=*/1);
+
+  // Cache has 2 hash prefixes and 3 full hashes (aaaa entry from above remains
+  // included).
+  cache->CacheSearchHashesResponse(
+      {"bbbb"},
+      {CreateBasicFullHash("bbbb1111111111111111111111111111",
+                           {V5::ThreatType::MALWARE}),
+       CreateBasicFullHash("bbbb2222222222222222222222222222",
+                           {V5::ThreatType::MALWARE})},
+      CreateCacheDuration(500, 0));
+  ClearExpiredResultsHelper(cache);
+  CheckAndResetCacheSizeOnClear(/*num_hash_prefixes=*/2, /*num_full_hashes=*/3);
+
+  // Fast forward beyond when the background cleanup timer has fired, and expect
+  // a log.
+  task_environment_.FastForwardBy(base::Seconds(150));
+  CheckAndResetCacheSizeOnClear(/*num_hash_prefixes=*/2, /*num_full_hashes=*/3);
+
+  // Fast-forward beyond when the first addition to the cache has expired. The
+  // logs should still report 2 hash prefixes and 3 full hashes, because they
+  // report the size at the time the cache started being cleared, not
+  // afterwards.
+  task_environment_.FastForwardBy(base::Seconds(250));
+  ClearExpiredResultsHelper(cache);
+  CheckAndResetCacheSizeOnClear(/*num_hash_prefixes=*/2, /*num_full_hashes=*/3);
+
+  // Clearing the expired results again now displays the size with just the
+  // second addition to the cache.
+  ClearExpiredResultsHelper(cache);
+  CheckAndResetCacheSizeOnClear(/*num_hash_prefixes=*/1, /*num_full_hashes=*/2);
+
+  // 100 seconds later, the second addition to the cache has expired. The log
+  // still includes it in the size (same rationale as above).
+  task_environment_.FastForwardBy(base::Seconds(100));
+  ClearExpiredResultsHelper(cache);
+  CheckAndResetCacheSizeOnClear(/*num_hash_prefixes=*/1, /*num_full_hashes=*/2);
+
+  // Clearing the expired results again now logs that the cache is empty.
+  ClearExpiredResultsHelper(cache);
+  CheckAndResetCacheSizeOnClear(/*num_hash_prefixes=*/0, /*num_full_hashes=*/0);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestBackgroundCleanup) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  CacheEntry(cache, "aaaa1111111111111111111111111111", 10);
+
+  EXPECT_EQ(GetNumCacheEntries(cache), 1);
+
+  task_environment_.FastForwardBy(base::Seconds(1799));
+  EXPECT_EQ(GetNumCacheEntries(cache), 1);
+
+  task_environment_.FastForwardBy(base::Seconds(1));
+  EXPECT_EQ(GetNumCacheEntries(cache), 0);
+
+  CacheEntry(cache, "bbbb1111111111111111111111111111", 10);
+  EXPECT_EQ(GetNumCacheEntries(cache), 1);
+
+  task_environment_.FastForwardBy(base::Seconds(1799));
+  EXPECT_EQ(GetNumCacheEntries(cache), 1);
+
+  task_environment_.FastForwardBy(base::Seconds(1));
+  EXPECT_EQ(GetNumCacheEntries(cache), 0);
+}
+
+TEST_P(V5SearchHashesCacheTest, TestOnHistoryDeletions_AllHistory) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  CacheEntry(cache, "aaaa1111111111111111111111111111", 300);
+  CacheEntry(cache, "cccc1111111111111111111111111111", 500);
+  EXPECT_EQ(GetNumCacheEntries(cache), 2);
+
+  cache->OnHistoryDeletions(/*history_service=*/nullptr,
+                            history::DeletionInfo::ForAllHistory());
+
+  if (GetParam()) {
+    EXPECT_EQ(GetNumCacheEntries(cache), 0);
+  } else {
+    EXPECT_EQ(GetNumCacheEntries(cache), 2);
+  }
+}
+
+TEST_P(V5SearchHashesCacheTest, TestOnHistoryDeletions_PartialHistory) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  GURL url1("https://example.com/foo");
+  cache->CacheArtificialV5SearchHashesLookupVerdict(url1.spec(),
+                                                    /*is_unsafe=*/true);
+  GURL url2("https://other.com");
+  cache->CacheArtificialV5SearchHashesLookupVerdict(url2.spec(),
+                                                    /*is_unsafe=*/true);
+
+  std::string prefix_url1_foo =
+      crypto::SHA256HashString("example.com/foo").substr(0, 4);
+  std::string prefix_url1_root =
+      crypto::SHA256HashString("example.com/").substr(0, 4);
+  std::string prefix_url2 = crypto::SHA256HashString("other.com/").substr(0, 4);
+
+  EXPECT_TRUE(cache->SearchCache({prefix_url1_foo}).contains(prefix_url1_foo));
+  EXPECT_TRUE(
+      cache->SearchCache({prefix_url1_root}).contains(prefix_url1_root));
+  EXPECT_TRUE(cache->SearchCache({prefix_url2}).contains(prefix_url2));
+
+  history::URLRows deleted_rows = {history::URLRow(url1)};
+  cache->OnHistoryDeletions(
+      /*history_service=*/nullptr,
+      history::DeletionInfo::ForUrls(deleted_rows, /*favicon_urls=*/{}));
+
+  if (GetParam()) {
+    EXPECT_FALSE(
+        cache->SearchCache({prefix_url1_foo}).contains(prefix_url1_foo));
+    EXPECT_FALSE(
+        cache->SearchCache({prefix_url1_root}).contains(prefix_url1_root));
+  } else {
+    EXPECT_TRUE(
+        cache->SearchCache({prefix_url1_foo}).contains(prefix_url1_foo));
+    EXPECT_TRUE(
+        cache->SearchCache({prefix_url1_root}).contains(prefix_url1_root));
+  }
+  EXPECT_TRUE(cache->SearchCache({prefix_url2}).contains(prefix_url2));
+}
+
+TEST_P(V5SearchHashesCacheTest, TestHistoryServiceObservation) {
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+
+  auto history_service = std::make_unique<history::HistoryService>();
+  ASSERT_TRUE(history_service->Init(
+      history::TestHistoryDatabaseParamsForPath(temp_dir.GetPath())));
+
+  auto cache = std::make_unique<V5SearchHashesCache>(history_service.get());
+  CacheEntry(cache, "aaaa1111111111111111111111111111", 300);
+  EXPECT_EQ(GetNumCacheEntries(cache), 1);
+
+  // Trigger history deletion on HistoryService and wait for background tasks.
+  base::CancelableTaskTracker tracker;
+  history_service->ExpireHistoryBetween(
+      /*restrict_urls=*/{}, /*restrict_app_id=*/std::nullopt,
+      /*begin_time=*/base::Time(), /*end_time=*/base::Time::Max(),
+      /*user_initiated=*/true, base::DoNothing(), &tracker);
+  history::BlockUntilHistoryProcessesPendingRequests(history_service.get());
+
+  if (GetParam()) {
+    EXPECT_EQ(GetNumCacheEntries(cache), 0);
+  } else {
+    EXPECT_EQ(GetNumCacheEntries(cache), 1);
+  }
+
+  // Destroy HistoryService and verify cache resets observation safely.
+  history_service.reset();
+}
+
+class ArtificialV5SearchHashesCacheTest : public V5SearchHashesCacheTest {
+ public:
+  ArtificialV5SearchHashesCacheTest() {
+    auto* command_line = base::CommandLine::ForCurrentProcess();
+    command_line->AppendSwitchASCII(
+        safe_browsing::switches::kArtificialCachedV5SearchHashesVerdictFlag,
+        kArtificialHashRealTimeUnsafeUrl);
+  }
+  void TearDown() override {
+    V5SearchHashesCacheTest::TearDown();
+    V5SearchHashesCache::ResetHasArtificialCachedUrlForTesting();
+  }
+};
+
+TEST_P(ArtificialV5SearchHashesCacheTest, TestCachePopulated) {
+  auto cache =
+      std::make_unique<V5SearchHashesCache>(/*history_service=*/nullptr);
+  ASSERT_TRUE(V5SearchHashesCache::has_artificial_cached_url());
+
+  std::vector<FullHashStr> full_hashes;
+  SBProtocolManagerUtil::UrlToFullHashes(GURL(kArtificialHashRealTimeUnsafeUrl),
+                                         &full_hashes);
+  ASSERT_EQ(full_hashes.size(), 1u);
+  FullHashStr full_hash = full_hashes[0];
+
+  std::string hash_prefix = SBProtocolManagerUtil::GetHashPrefix(full_hash);
+  auto cache_results = cache->SearchCache({hash_prefix});
+  EXPECT_FALSE(cache_results.empty());
+  EXPECT_TRUE(cache_results.contains(hash_prefix));
+  EXPECT_EQ(cache_results[hash_prefix][0].full_hash(), full_hash);
+}
+
+INSTANTIATE_TEST_SUITE_P(All, V5SearchHashesCacheTest, ::testing::Bool());
+INSTANTIATE_TEST_SUITE_P(All,
+                         ArtificialV5SearchHashesCacheTest,
+                         ::testing::Bool());
+
+}  // namespace safe_browsing

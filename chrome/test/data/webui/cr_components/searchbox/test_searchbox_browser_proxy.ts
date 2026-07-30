@@ -27,43 +27,46 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
 
   constructor() {
     super([
-      'deleteAutocompleteMatch',
       'activateKeyword',
-      'showContextMenu',
+      'activateMetricsFunnel',
+      'addFileContext',
+      'addTabContext',
+      'clearFiles',
+      'deleteAutocompleteMatch',
+      'deleteContext',
+      'deleteTabContext',
       'executeAction',
+      'getDriveDisclaimerStatus',
+      'getInputState',
+      'getPageClassification',
+      'getPlaceholderConfig',
+      'getRecentTabs',
+      'getSmartTabSharingActive',
+      'getTabPreview',
+      'notifySessionAbandoned',
+      'notifySessionStarted',
+      'onDriveDisclaimerAccepted',
+      'onDriveUploadClicked',
+      'onFocusChanged',
       'onNavigationLikely',
       'onThumbnailRemoved',
       'openAutocompleteMatch',
+      'openLensSearch',
+      'openPopupSelection',
       'queryAutocomplete',
       'queryAutocompleteWithSuggestInventory',
-      'stopAutocomplete',
-      'toggleSuggestionGroupIdVisibility',
-      'onFocusChanged',
-      'getPlaceholderConfig',
-      'getRecentTabs',
-      'getTabPreview',
-      'waitForTabFaviconLoad',
-      'notifySessionStarted',
-      'notifySessionAbandoned',
-      'addFileContext',
-      'addTabContext',
-      'onDriveUploadClicked',
-      'deleteContext',
-      'clearFiles',
-      'submitQuery',
-      'openLensSearch',
-      'setActiveToolMode',
+      'recordModelSelectionAction',
       'recordToolSelectionAction',
       'setActiveModelMode',
-      'recordModelSelectionAction',
-      'getInputState',
-      'activateMetricsFunnel',
+      'setActiveToolMode',
       'setPopupSelection',
-      'openPopupSelection',
-      'getDriveDisclaimerStatus',
-      'onDriveDisclaimerAccepted',
-      'getPageClassification',
       'setSmartComposeStats',
+      'setSmartTabSharingActive',
+      'showContextMenu',
+      'stopAutocomplete',
+      'submitQuery',
+      'toggleSuggestionGroupIdVisibility',
+      'waitForTabFaviconLoad',
     ]);
   }
 
@@ -142,19 +145,25 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
   }
 
   queryAutocomplete(
-      input: String16, preventInlineAutocomplete: boolean,
-      cursorPosition: number) {
+      queryId: number, input: String16, preventInlineAutocomplete: boolean,
+      cursorPosition: number, isOnFocus: boolean) {
     this.methodCalled(
         'queryAutocomplete',
-        {input, preventInlineAutocomplete, cursorPosition});
+        {queryId, input, preventInlineAutocomplete, cursorPosition, isOnFocus});
   }
 
   queryAutocompleteWithSuggestInventory(
-      input: String16, preventInlineAutocomplete: boolean,
-      cursorPosition: number, suggestInventory: SuggestInventory) {
-    this.methodCalled(
-        'queryAutocompleteWithSuggestInventory',
-        {input, preventInlineAutocomplete, cursorPosition, suggestInventory});
+      queryId: number, input: String16, preventInlineAutocomplete: boolean,
+      cursorPosition: number, suggestInventory: SuggestInventory,
+      isOnFocus: boolean) {
+    this.methodCalled('queryAutocompleteWithSuggestInventory', {
+      queryId,
+      input,
+      preventInlineAutocomplete,
+      cursorPosition,
+      suggestInventory,
+      isOnFocus,
+    });
   }
 
   stopAutocomplete(clearResult: boolean) {
@@ -240,6 +249,10 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
     this.methodCalled('deleteContext', {fileToken});
   }
 
+  deleteTabContext(tabId: number) {
+    this.methodCalled('deleteTabContext', {tabId});
+  }
+
   clearFiles() {
     this.methodCalled('clearFiles');
   }
@@ -302,6 +315,18 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
   getPageClassification() {
     this.methodCalled('getPageClassification');
     return Promise.resolve({metricSource: 'NTP_REALBOX'});
+  }
+
+  setSmartTabSharingActive(active: boolean) {
+    this.methodCalled('setSmartTabSharingActive', active);
+  }
+
+  getSmartTabSharingActive() {
+    this.methodCalled('getSmartTabSharingActive');
+    if (this.results_.has('getSmartTabSharingActive')) {
+      return this.results_.get('getSmartTabSharingActive');
+    }
+    return Promise.resolve({active: false});
   }
 }
 

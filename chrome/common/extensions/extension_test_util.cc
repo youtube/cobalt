@@ -123,9 +123,6 @@ std::vector<const char*> GetExpectedDelegatedFeaturesForTest() {
 
       // userScripts availability:
       "userScripts",
-      "userScripts.execute",
-      "userScripts.getWorldConfigurations",
-      "userScripts.resetWorldConfiguration",
   };
 }
 

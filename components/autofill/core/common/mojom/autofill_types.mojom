@@ -390,6 +390,7 @@ struct FormFieldDataPredictions {
   uint32 rank_in_signature_group;
   uint32 rank_in_host_form;
   uint32 rank_in_host_form_signature_group;
+  bool did_trigger_javascript_autofill;
 };
 
 // autofill::FormDataPredictions
@@ -612,3 +613,14 @@ enum AutofillSuggestionTriggerSource {
   // Suggestions triggered by the inactivity timer.
   kAtMemoryInactivityNudge = 24,
 };
+
+// LINT.IfChange(EmailVerificationState)
+// Represents the visual verification state of an email input element.
+enum EmailVerificationState {
+  kNone,
+  kLoading,
+  kVerified,
+  kLoggedOutOrUnsupported,
+  kFailed,
+};
+// LINT.ThenChange(//third_party/blink/public/common/webid/email_verification_state.h:EmailVerificationState)

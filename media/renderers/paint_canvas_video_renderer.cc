@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "media/renderers/paint_canvas_video_renderer.h"
 
 #include <GLES3/gl3.h>
@@ -50,10 +49,12 @@
 #include "media/base/data_buffer.h"
 #include "media/base/format_utils.h"
 #include "media/base/video_frame.h"
+#include "media/base/video_transformation.h"
 #include "media/base/video_util.h"
 #include "media/base/wait_and_replace_sync_token_client.h"
 #include "third_party/fp16/src/include/fp16.h"
 #include "third_party/libyuv/include/libyuv.h"
+#include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColorSpace.h"
 #include "third_party/skia/include/core/SkImage.h"
 #include "third_party/skia/include/core/SkImageGenerator.h"
@@ -592,9 +593,12 @@ SkImageInfo GetVideoImageGeneratorSkImageInfo(
   const auto color_type = frame->format() == PIXEL_FORMAT_RGBAF16
                               ? kRGBA_F16_SkColorType
                               : kN32_SkColorType;
-  return SkImageInfo::Make(
-      frame->visible_rect().width(), frame->visible_rect().height(), color_type,
-      kPremul_SkAlphaType, frame_color_space.ToSkColorSpace());
+  const auto alpha_type = media::IsOpaque(frame->format())
+                              ? kOpaque_SkAlphaType
+                              : kPremul_SkAlphaType;
+  return SkImageInfo::Make(frame->visible_rect().width(),
+                           frame->visible_rect().height(), color_type,
+                           alpha_type, frame_color_space.ToSkColorSpace());
 }
 
 }  // anonymous namespace
@@ -623,6 +627,21 @@ class VideoImageGenerator : public cc::PaintImageGenerator {
                  cc::PaintImage::GeneratorClientId client_id,
                  uint32_t lazy_pixel_ref) override {
     DCHECK_EQ(frame_index, 0u);
+
+    if (IsYuvPlanar(frame_->format()) &&
+        dst_pixmap.colorType() != kN32_SkColorType) {
+      SkBitmap temp_bitmap;
+      if (!temp_bitmap.tryAllocPixels(
+              dst_pixmap.info()
+                  .makeColorType(kN32_SkColorType)
+                  .makeColorSpace(GetSkImageInfo().refColorSpace()))) {
+        return false;
+      }
+      PaintCanvasVideoRenderer::ConvertVideoFrameToRGBPixels(
+          frame_.get(), UNSAFE_SKBITMAP_TO_BYTES_SPAN(temp_bitmap),
+          temp_bitmap.rowBytes(), kN32_SkColorType);
+      return temp_bitmap.pixmap().readPixels(dst_pixmap);
+    }
 
     // If skia couldn't do the YUV conversion on GPU, we will on CPU.
     PaintCanvasVideoRenderer::ConvertVideoFrameToRGBPixels(
@@ -722,31 +741,26 @@ class VideoTextureBacking : public cc::TextureBacking {
       scoped_refptr<viz::RasterContextProvider> raster_context_provider,
       const gfx::Size& coded_size,
       const gfx::ColorSpace& color_space)
-      : sk_image_info_(SkImageInfo::Make(gfx::SizeToSkISize(coded_size),
+      : shared_image_(
+            raster_context_provider->SharedImageInterface()->CreateSharedImage(
+                {SHARED_IMAGE_FORMAT, coded_size, color_space,
+                 gpu::SHARED_IMAGE_USAGE_GLES2_READ |
+                     gpu::SHARED_IMAGE_USAGE_RASTER_READ |
+                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE,
+                 "PaintCanvasVideoRenderer"},
+                gpu::kNullSurfaceHandle)),
+        sk_image_info_(SkImageInfo::Make(gfx::SizeToSkISize(coded_size),
                                          kRGBA_8888_SkColorType,
-                                         kPremul_SkAlphaType,
+                                         shared_image_->alpha_type(),
                                          color_space.ToSkColorSpace())) {
     raster_context_provider_ = std::move(raster_context_provider);
-    auto* sii = raster_context_provider_->SharedImageInterface();
-
-    // This SI is used to cache the VideoFrame. We copy the contents of the
-    // source VideoFrame into the cached SI over the raster interface and will
-    // eventually read out its contents into a destination GL texture via the
-    // GLES2 interface.
-    gpu::SharedImageUsageSet flags = gpu::SHARED_IMAGE_USAGE_GLES2_READ |
-                                     gpu::SHARED_IMAGE_USAGE_RASTER_READ |
-                                     gpu::SHARED_IMAGE_USAGE_RASTER_WRITE;
-    shared_image_ =
-        sii->CreateSharedImage({SHARED_IMAGE_FORMAT, coded_size, color_space,
-                                flags, "PaintCanvasVideoRenderer"},
-                               gpu::kNullSurfaceHandle);
     CHECK(shared_image_);
     sync_token_ = shared_image_->creation_sync_token();
   }
 
   VideoTextureBacking(VideoTextureBacking&& other)
-      : sk_image_info_(std::move(other.sk_image_info_)),
-        shared_image_(std::move(other.shared_image_)),
+      : shared_image_(std::move(other.shared_image_)),
+        sk_image_info_(std::move(other.sk_image_info_)),
         sync_token_(other.sync_token_),
         acquired_(true) {
     if (other.ri_access_) {
@@ -850,13 +864,11 @@ class VideoTextureBacking : public cc::TextureBacking {
   }
 
  private:
-  SkImageInfo sk_image_info_;
-  scoped_refptr<viz::RasterContextProvider> raster_context_provider_;
-
   // This is a newly allocated shared image if a copy or conversion was
   // necessary.
   scoped_refptr<gpu::ClientSharedImage> shared_image_;
-
+  const SkImageInfo sk_image_info_;
+  scoped_refptr<viz::RasterContextProvider> raster_context_provider_;
   std::unique_ptr<gpu::RasterScopedAccess> ri_access_;
   gpu::SyncToken sync_token_;
   bool acquired_ = false;
@@ -973,9 +985,7 @@ void PaintCanvasVideoRenderer::Paint(
 
     gfx::SizeF rotated_dest_size = dest_rect.size();
 
-    const bool has_flipped_size =
-        params.transformation.rotation == VIDEO_ROTATION_90 ||
-        params.transformation.rotation == VIDEO_ROTATION_270;
+    const bool has_flipped_size = params.transformation.IsOrthogonal();
     if (has_flipped_size) {
       rotated_dest_size =
           gfx::SizeF(rotated_dest_size.height(), rotated_dest_size.width());
@@ -1005,14 +1015,21 @@ void PaintCanvasVideoRenderer::Paint(
   // This if is a special handling of video for SkiaPaintcanvas backend, where
   // the video does not need any transform and it is enough to draw the frame
   // directly into the skia canvas
+  const SkColorType canvas_color_type = info.colorType();
+  const bool is_yuv = media::IsYuvPlanar(video_frame->format());
+  const bool color_type_compatible =
+      is_yuv ? (canvas_color_type == kN32_SkColorType)
+             : (canvas_color_type == kBGRA_8888_SkColorType ||
+                canvas_color_type == kRGBA_8888_SkColorType);
+
   if (!need_transform && !params.reinterpret_as_srgb &&
       video_frame->HasDirectCpuAccess() && flags.isOpaque() &&
       flags.getBlendMode() == SkBlendMode::kSrc &&
       flags.getFilterQuality() == cc::PaintFlags::FilterQuality::kLow &&
-      !pixels.empty() && info.colorType() == kBGRA_8888_SkColorType) {
+      !pixels.empty() && color_type_compatible) {
     const size_t offset = info.computeOffset(origin.x(), origin.y(), row_bytes);
     ConvertVideoFrameToRGBPixels(video_frame.get(), pixels.subspan(offset),
-                                 row_bytes, kBGRA_8888_SkColorType);
+                                 row_bytes, canvas_color_type);
   } else if (video_frame->HasSharedImage()) {
     DCHECK_EQ(video_frame->coded_size(),
               gfx::Size(image.width(), image.height()));

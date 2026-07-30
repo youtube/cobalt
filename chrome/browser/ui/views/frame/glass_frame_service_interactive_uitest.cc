@@ -2,12 +2,18 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/callback_list.h"
+#include "base/functional/bind.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/frame/glass_frame_service.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/ui_base_features.h"
@@ -23,10 +29,18 @@ class GlassFrameServiceInteractiveTest : public InProcessBrowserTest {
 };
 
 IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest, GetInstance) {
+  if (!features::IsGlassFrameEnabled()) {
+    GTEST_SKIP();
+  }
+
   EXPECT_TRUE(GlassFrameService::GetInstance());
 }
 
 IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest, SingleWindowEligible) {
+  if (!features::IsGlassFrameEnabled()) {
+    GTEST_SKIP();
+  }
+
   BrowserWindowInterface* const browser1 = browser();
   EXPECT_TRUE(
       GlassFrameService::GetInstance()->IsBrowserWindowEligible(browser1));
@@ -34,6 +48,10 @@ IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest, SingleWindowEligible) {
 
 IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest,
                        ThreeWindowsActivationSwap) {
+  if (!features::IsGlassFrameEnabled()) {
+    GTEST_SKIP();
+  }
+
   BrowserWindowInterface* const browser1 = browser();
   BrowserWindowInterface* const browser2 = CreateBrowser(browser()->profile());
   BrowserWindowInterface* const browser3 = CreateBrowser(browser()->profile());
@@ -63,6 +81,10 @@ IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest,
 
 IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest,
                        ThreeWindowsCloseMiddle) {
+  if (!features::IsGlassFrameEnabled()) {
+    GTEST_SKIP();
+  }
+
   BrowserWindowInterface* const browser1 = browser();
   BrowserWindowInterface* const browser2 = CreateBrowser(browser()->profile());
   BrowserWindowInterface* const browser3 = CreateBrowser(browser()->profile());
@@ -76,11 +98,84 @@ IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest,
       GlassFrameService::GetInstance()->IsBrowserWindowEligible(browser2));
 
   // Close window 2.
-  CloseBrowserSynchronously(browser2->GetBrowserForMigrationOnly());
+  CloseBrowserSynchronously(browser2);
 
   // Window 3 should still be eligible, and window 1 is ineligible.
   EXPECT_TRUE(
       GlassFrameService::GetInstance()->IsBrowserWindowEligible(browser3));
   EXPECT_FALSE(
       GlassFrameService::GetInstance()->IsBrowserWindowEligible(browser1));
+}
+
+IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest, CallbackNotified) {
+  if (!features::IsGlassFrameEnabled()) {
+    GTEST_SKIP();
+  }
+
+  GlassFrameService* const glass_frame_service =
+      GlassFrameService::GetInstance();
+  BrowserWindowInterface* const browser1 = browser();
+
+  bool browser1_eligible =
+      glass_frame_service->IsBrowserWindowEligible(browser1);
+  base::CallbackListSubscription sub1 =
+      glass_frame_service->RegisterGlassFrameEligibilityChangedCallback(
+          browser1, base::BindRepeating(
+                        [](bool* out_eligible, bool is_eligible) {
+                          *out_eligible = is_eligible;
+                        },
+                        &browser1_eligible));
+
+  EXPECT_TRUE(browser1_eligible);
+
+  // Create a second browser, which becomes the active and eligible browser.
+  BrowserWindowInterface* const browser2 = CreateBrowser(browser()->profile());
+  bool browser2_eligible =
+      glass_frame_service->IsBrowserWindowEligible(browser2);
+  base::CallbackListSubscription sub2 =
+      glass_frame_service->RegisterGlassFrameEligibilityChangedCallback(
+          browser2, base::BindRepeating(
+                        [](bool* out_eligible, bool is_eligible) {
+                          *out_eligible = is_eligible;
+                        },
+                        &browser2_eligible));
+
+  // Wait for the new browser to be eligible. The callback should be notified.
+  ASSERT_TRUE(base::test::RunUntil([&] { return browser2_eligible; }));
+  EXPECT_FALSE(browser1_eligible);
+
+  // Activate window 1.
+  browser1->GetWindow()->Activate();
+  ASSERT_TRUE(base::test::RunUntil([&] { return browser1_eligible; }));
+  EXPECT_FALSE(browser2_eligible);
+
+  // Close window 1 (the currently active/eligible window).
+  CloseBrowserSynchronously(browser1);
+
+  // The remaining window (browser2) should become eligible.
+  ASSERT_TRUE(base::test::RunUntil([&] { return browser2_eligible; }));
+}
+
+IN_PROC_BROWSER_TEST_F(GlassFrameServiceInteractiveTest, LocalStatePref) {
+  if (!features::IsGlassFrameEnabled()) {
+    GTEST_SKIP();
+  }
+
+  PrefService* const local_state = g_browser_process->local_state();
+  ASSERT_TRUE(local_state);
+  EXPECT_TRUE(local_state->GetBoolean(prefs::kGlassFrameEnabled));
+
+  GlassFrameService* const glass_frame_service =
+      GlassFrameService::GetInstance();
+  BrowserWindowInterface* const browser1 = browser();
+
+  EXPECT_TRUE(glass_frame_service->IsBrowserWindowEligible(browser1));
+
+  local_state->SetBoolean(prefs::kGlassFrameEnabled, false);
+  EXPECT_FALSE(local_state->GetBoolean(prefs::kGlassFrameEnabled));
+  EXPECT_FALSE(glass_frame_service->IsBrowserWindowEligible(browser1));
+
+  local_state->SetBoolean(prefs::kGlassFrameEnabled, true);
+  EXPECT_TRUE(local_state->GetBoolean(prefs::kGlassFrameEnabled));
+  EXPECT_TRUE(glass_frame_service->IsBrowserWindowEligible(browser1));
 }

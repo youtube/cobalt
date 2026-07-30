@@ -63,6 +63,7 @@ import org.chromium.cc.input.BrowserControlsState;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.ActivityTabProvider;
 import org.chromium.chrome.browser.IntentHandler;
+import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.back_press.BackPressManager;
 import org.chromium.chrome.browser.back_press.BackPressMetrics;
 import org.chromium.chrome.browser.back_press.BackPressMetrics.NavigationDirection;
@@ -3232,8 +3233,9 @@ public class ToolbarManager
 
     private void updateHairlineVisibility() {
         if (mHairlineVisibilityTokenHolder != null) {
-            setToolbarShadowVisibility(
-                    mHairlineVisibilityTokenHolder.hasTokens() ? View.INVISIBLE : View.VISIBLE);
+            boolean suppressed = mHairlineVisibilityTokenHolder.hasTokens();
+            setToolbarShadowVisibility(suppressed ? View.INVISIBLE : View.VISIBLE);
+            if (mToolbar != null) mToolbar.onToolbarHairlineSuppressedChanged(suppressed);
         }
     }
 
@@ -3873,6 +3875,7 @@ public class ToolbarManager
         return TabSwitcherActionMenuCoordinator.createOnLongClickListener(
                 menuItemId -> mAppMenuDelegate.onOptionsItemSelected(menuItemId, null),
                 profile,
-                mTabModelSelectorSupplier);
+                mTabModelSelectorSupplier,
+                TabWindowManagerSingleton.getInstance());
     }
 }

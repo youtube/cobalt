@@ -469,7 +469,7 @@ bool Navigator::StartHistoryNavigationInNewSubframe(
     RenderFrameHostImpl* render_frame_host,
     mojo::PendingAssociatedRemote<mojom::NavigationClient>* navigation_client,
     blink::LocalFrameToken initiator_frame_token,
-    int initiator_process_id,
+    ChildProcessId initiator_process_id,
     scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
     base::TimeTicks actual_navigation_start) {
   return controller_.StartHistoryNavigationInNewSubframe(
@@ -1176,7 +1176,7 @@ void Navigator::NavigateFromFrameProxy(
     RenderFrameHostImpl* render_frame_host,
     const GURL& url,
     const blink::LocalFrameToken* initiator_frame_token,
-    int initiator_process_id,
+    ChildProcessId initiator_process_id,
     const url::Origin& initiator_origin,
     const std::optional<GURL>& initiator_base_url,
     scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
@@ -1319,7 +1319,7 @@ void Navigator::OnBeginNavigation(
     mojo::PendingAssociatedRemote<mojom::NavigationClient> navigation_client,
     scoped_refptr<PrefetchedSignedExchangeCache>
         prefetched_signed_exchange_cache,
-    int initiator_process_id,
+    ChildProcessId initiator_process_id,
     mojo::PendingReceiver<mojom::NavigationRendererCancellationListener>
         renderer_cancellation_listener,
     mojo::PendingReceiver<

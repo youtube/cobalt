@@ -72,7 +72,6 @@ css3/blending/mix-blend-mode-isolated-group-2.html
 css3/blending/mix-blend-mode-isolated-group-3.html
 css3/filters/blur-filter-page-scroll-parents.html
 css3/filters/blur-filter-page-scroll.html
-css3/filters/crash-filter-change.html
 css3/filters/effect-blur.html
 css3/filters/effect-brightness-clamping.html
 css3/filters/effect-combined.html
@@ -87,6 +86,7 @@ css3/masking/mask-repeat-round-border.html
 css3/masking/mask-repeat-round-content.html
 css3/masking/mask-repeat-round-padding.html
 css3/masking/mask-repeat-space-border.html
+external/wpt/css/filter-effects/crashtests/filter-change.html
 images/color-profile-animate-rotate.html
 images/color-profile-animate.html
 images/color-profile-background-image-cover.html
@@ -587,14 +587,6 @@ css3/masking/clip-path-reference-userSpaceOnUse.html
 css3/masking/parsing-clip-path-iri.html
 css3/motion-path/offset-anchor-rotation.html
 css3/motion-path/path-establishes-stacking-context.html
-css3/selectors3/html/css3-modsel-148.html
-css3/selectors3/html/css3-modsel-151.html
-css3/selectors3/html/css3-modsel-168.html
-css3/selectors3/html/css3-modsel-169a.html
-css3/selectors3/html/css3-modsel-175c.html
-css3/selectors3/html/css3-modsel-184c.html
-css3/selectors3/html/css3-modsel-184e.html
-css3/supports-crash.html
 css3/tab-size-span.html
 css3/viewport-percentage-lengths/css3-viewport-percentage-lengths-getStyle.html
 css3/viewport-percentage-lengths/css3-viewport-percentage-lengths-vmax-absolute.html
@@ -603,6 +595,7 @@ cssom/elementfrompoint-scrolloffset.html
 external/wpt/css/css-animations/crashtests/animation-transition-collision-crash.html
 external/wpt/css/css-animations/crashtests/keyframe-timing-function-unset-crash.html
 external/wpt/css/css-animations/crashtests/option-opacity-inherit-crash.html
+external/wpt/css/css-conditional/crashtests/supports-malformed.html
 external/wpt/css/css-fonts/animations/font-size-composition.html
 external/wpt/css/css-transforms/crashtests/transformed-scroller-snapping-crash.html
 external/wpt/svg/geometry/animations/x-composition.html

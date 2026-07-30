@@ -66,6 +66,7 @@
 #include "content/browser/loader/browser_initiated_resource_request.h"
 #include "content/browser/loader/cached_navigation_url_loader.h"
 #include "content/browser/loader/navigation_early_hints_manager.h"
+#include "content/browser/loader/navigation_fast_fetch_manager.h"
 #include "content/browser/loader/navigation_url_loader.h"
 #include "content/browser/loader/object_navigation_fallback_body_loader.h"
 #include "content/browser/loader/url_loader_factory_utils.h"
@@ -1264,7 +1265,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateBrowserInitiated(
       frame_tree_node, std::move(common_params), std::move(commit_params),
       /*browser_initiated=*/true, was_opener_suppressed,
       std::nullopt /* initiator_frame_token */,
-      ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
+      ChildProcessId() /* initiator_process_id */,
       nullptr /* initiator_navigation_state */,
       false /* should_ignore_initiator_policies_for_inheritance */,
       extra_headers, frame_entry, entry, is_form_submission,
@@ -1288,7 +1289,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::Create(
     bool browser_initiated,
     bool was_opener_suppressed,
     const std::optional<blink::LocalFrameToken>& initiator_frame_token,
-    int initiator_process_id,
+    ChildProcessId initiator_process_id,
     scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
     bool should_ignore_initiator_policies_for_inheritance,
     const std::string& extra_headers,
@@ -1429,9 +1430,8 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           // navigation.
           blink::StorageKey(), override_user_agent,
           /*redirects=*/std::vector<GURL>(),
-          /*redirect_response=*/
-          std::vector<network::mojom::URLResponseHeadPtr>(),
-          /*redirect_infos=*/std::vector<net::RedirectInfo>(),
+          /*redirect_params=*/
+          std::vector<blink::mojom::NavigationRedirectParamsPtr>(),
           /*post_content_type=*/std::string(), original_url,
           common_params->method,
           /*can_load_local_resources=*/false,
@@ -1509,8 +1509,8 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
   // initiated by a frame in the same process.
   // TODO(crbug.com/40686861): Find a way to CHECK that the routing ID
   // is from the current RFH.
-  int initiator_process_id =
-      frame_tree_node->current_frame_host()->GetProcess()->GetDeprecatedID();
+  ChildProcessId initiator_process_id =
+      frame_tree_node->current_frame_host()->GetProcess()->GetID();
 
   // `was_opener_suppressed` can be true for renderer initiated navigations, but
   // only in cases which get routed through `CreateBrowserInitiated()` instead.
@@ -1604,9 +1604,8 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           // The correct storage key is computed right after creating the
           // NavigationRequest below.
           blink::StorageKey(), is_overriding_user_agent, redirects,
-          /*redirect_response=*/
-          std::vector<network::mojom::URLResponseHeadPtr>(),
-          /*redirect_infos=*/std::vector<net::RedirectInfo>(),
+          /*redirect_params=*/
+          std::vector<blink::mojom::NavigationRedirectParamsPtr>(),
           /*post_content_type=*/std::string(), original_url_for_renderer,
           /*original_method=*/method,
           /*can_load_local_resources=*/false,
@@ -1687,7 +1686,7 @@ NavigationRequest::CreateForSynchronousRendererCommit(
       mojo::NullAssociatedRemote(),
       nullptr /* prefetched_signed_exchange_cache */,
       std::nullopt /* rfh_restored_from_back_forward_cache */,
-      ChildProcessHost::kInvalidUniqueID /* initiator_process_id */,
+      ChildProcessId() /* initiator_process_id */,
       nullptr /* initiator_navigation_state */,
       false /* should_ignore_initiator_policies_for_inheritance */,
       false /* was_opener_suppressed */, EmbedderIsolationInfo::Mode::kNone));
@@ -1750,7 +1749,7 @@ NavigationRequest::NavigationRequest(
         prefetched_signed_exchange_cache,
     std::optional<base::SafeRef<RenderFrameHostImpl>>
         rfh_restored_from_back_forward_cache,
-    int initiator_process_id,
+    ChildProcessId initiator_process_id,
     scoped_refptr<InitiatorNavigationState> initiator_navigation_state,
     bool should_ignore_initiator_policies_for_inheritance,
     bool was_opener_suppressed,
@@ -3050,6 +3049,15 @@ void NavigationRequest::BeginNavigationImpl() {
   }
 #endif
 
+  if (base::FeatureList::IsEnabled(features::kNavigationFastFetchDryRun)) {
+    fast_fetch_manager_ = NavigationFastFetchManager::Create(*this);
+    navigation_handle_timing_.fast_fetch_eligibility_check_time =
+        fast_fetch_manager_->eligibility_check_time();
+    navigation_handle_timing_.is_fast_fetch_eligible =
+        (fast_fetch_manager_->eligibility_reason() ==
+         NavigationFastFetchManager::EligibilityReason::kEligible);
+  }
+
   // Check Content Security Policy before the NavigationThrottles run. This
   // gives CSP a chance to modify requests that NavigationThrottles would
   // otherwise block. Similarly, the NavigationHandle is created afterwards, so
@@ -3602,6 +3610,10 @@ void NavigationRequest::ResetForCrossDocumentRestart() {
 
   // Reset the state of the NavigationRequest, and the navigation_handle_id.
   StopCommitTimeout();
+  if (fast_fetch_manager_) {
+    fast_fetch_manager_->SuppressEligibilityReasonRecording();
+    fast_fetch_manager_.reset();
+  }
   SetState(NOT_STARTED);
   is_navigation_started_ = false;
   processing_navigation_throttle_ = false;
@@ -3991,8 +4003,9 @@ void NavigationRequest::OnRequestRedirected(
   commit_params_->navigation_timing->redirect_end = base::TimeTicks::Now();
   commit_params_->navigation_timing->fetch_start = base::TimeTicks::Now();
 
-  commit_params_->redirect_response.push_back(response_head_.Clone());
-  commit_params_->redirect_infos.push_back(redirect_info);
+  commit_params_->redirect_params.emplace_back(
+      blink::mojom::NavigationRedirectParams::New(redirect_info,
+                                                  response_head_.Clone()));
 
   // TODO(rakina): This should use `GetTentativeOriginAtRequestTime()` instead
   // of the url from `common_params_`.
@@ -4032,7 +4045,7 @@ void NavigationRequest::OnRequestRedirected(
   // On redirects, the initial referrer is no longer correct, so it must
   // be updated.  (A parallel process updates the outgoing referrer in the
   // network stack.)
-  commit_params_->redirect_infos.back().new_referrer =
+  commit_params_->redirect_params.back()->redirect_info.new_referrer =
       common_params_->referrer->url.spec();
 
   // When the redirection happens, the cookie_change_listener_ should be
@@ -5614,6 +5627,14 @@ void NavigationRequest::OnRequestFailedInternal(
           error_page_content.has_value()));
   ScopedCrashKeys crash_keys(*this);
 
+  if (fast_fetch_manager_) {
+    // TODO(crbug.com/529425553): Some failed navigations don't call
+    // OnRequestFailedInternal(), e.g. this request gets deleted directly
+    // (OnNavigationClientDisconnected, new NavigationRequest takes over etc).
+    // Consider whether those cases also need to be covered.
+    fast_fetch_manager_->OnRequestFailed(*this, status, skip_throttles);
+  }
+
   if (!response() && IsInPrimaryMainFrame() && status.error_code != net::OK) {
     DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
         this, GetStoragePartitionWithCurrentSiteInfo(), status.error_code);
@@ -6325,7 +6346,7 @@ void NavigationRequest::OnRedirectChecksComplete(
     // desired IsPrimary() status and the desired top-level frame that
     // `HandleTopicsEligibleResponse()` is interested in knowing.
     HandleTopicsEligibleResponse(
-        commit_params_->redirect_response.back().get()->parsed_headers,
+        commit_params_->redirect_params.back()->response_head->parsed_headers,
         url::Origin::Create(commit_params_->redirects.back()),
         *frame_tree_node_->current_frame_host(),
         browsing_topics::ApiCallerSource::kIframeAttribute);
@@ -6392,7 +6413,7 @@ void NavigationRequest::OnRedirectChecksComplete(
     const url::Origin& source_origin =
         url::Origin::Create(commit_params_->redirects.back());
     const network::mojom::URLResponseHead* response_head =
-        commit_params_->redirect_response.back().get();
+        commit_params_->redirect_params.back()->response_head.get();
     ParseAndPersistAcceptCHForNavigation(
         source_origin, response_head->parsed_headers,
         response_head->headers.get(), browser_context, client_hints_delegate,
@@ -6916,6 +6937,11 @@ bool NavigationRequest::ShouldDispatchPageSwapEvent() const {
 void NavigationRequest::CommitNavigation() {
   TRACE_EVENT("navigation", "NavigationRequest::CommitNavigation",
               perfetto::Flow::FromPointer(this));
+
+  if (fast_fetch_manager_) {
+    fast_fetch_manager_->OnCommitNavigation(*this);
+  }
+
   // A navigation request should only commit once the response has been
   // processed.
   CHECK_GE(state_, WILL_PROCESS_RESPONSE);
@@ -7323,10 +7349,6 @@ void NavigationRequest::CommitNavigation() {
         std::move(subresource_loader_params_.prefetched_signed_exchanges);
   }
 
-  // TODO(https://crbug.com/40095391): Convert to CHECK if it proves to be
-  // consistently upheld condition.
-  DUMP_WILL_BE_CHECK(commit_params->redirect_response.size() ==
-                     commit_params->redirect_infos.size());
   // Before sending the commit parameters to the renderer process, sanitize
   // the redirect URLs to avoid leaking potentially sensitive data into
   // processes which are cross-site. There is no dependency on the
@@ -8319,14 +8341,15 @@ void NavigationRequest::SanitizeRedirectsForCommit(
     redirect = redirect.DeprecatedGetOriginAsURL();
   }
 
-  // In the redirect_infos vector, the last entry is the URL we are going to
-  // commit after following all redirects. We should not be sanitizing it, as
+  // In the redirect_params vector, the last entry contains the URL we are going
+  // to commit after following all redirects. We should not be sanitizing it, as
   // we need to commit the real URL as part of the navigation.
-  if (!commit_params->redirect_infos.empty()) {
-    auto redirect_infos_span = base::span(commit_params->redirect_infos);
-    for (net::RedirectInfo& redirect :
-         redirect_infos_span.first(redirect_infos_span.size() - 1)) {
-      redirect.new_url = redirect.new_url.DeprecatedGetOriginAsURL();
+  if (!commit_params->redirect_params.empty()) {
+    auto redirect_params_span = base::span(commit_params->redirect_params);
+    for (blink::mojom::NavigationRedirectParamsPtr& redirect :
+         redirect_params_span.first(redirect_params_span.size() - 1)) {
+      redirect->redirect_info.new_url =
+          redirect->redirect_info.new_url.DeprecatedGetOriginAsURL();
     }
   }
 
@@ -8339,14 +8362,15 @@ void NavigationRequest::SanitizeRedirectsForCommit(
     // TODO(crbug.com/495463654): Consider if we need to handle cases that
     // inherit an origin (e.g. about:blank), or if we cross a CSP sandbox
     // boundary where the origin becomes unique/opaque.
-    for (size_t i = 0; i < commit_params->redirect_response.size(); ++i) {
-      auto& response_head = commit_params->redirect_response[i];
+    for (size_t i = 0; i < commit_params->redirect_params.size(); ++i) {
+      auto& response_head = commit_params->redirect_params[i]->response_head;
       if (!response_head || !response_head->headers ||
           !response_head->headers->HasHeader("Location")) {
         continue;
       }
 
-      const GURL& target_url = commit_params->redirect_infos[i].new_url;
+      const GURL& target_url =
+          commit_params->redirect_params[i]->redirect_info.new_url;
       const url::Origin target_origin = url::Origin::Create(target_url);
       if (!target_origin.IsSameOriginWith(final_origin)) {
         response_head->headers->SetHeader("Location",
@@ -10497,7 +10521,7 @@ NavigationRequest::GetInitiatorFrameToken() {
   return initiator_frame_token_;
 }
 
-int NavigationRequest::GetInitiatorProcessId() {
+ChildProcessId NavigationRequest::GetInitiatorProcessId() {
   return initiator_process_id_;
 }
 
@@ -13049,6 +13073,15 @@ bool NavigationRequest::IsInitialWebUINavigation() {
 
 perfetto::NamedTrack NavigationRequest::GetNavigationTracingTrack() const {
   return navigation_trace_track_;
+}
+
+bool NavigationRequest::HasPrefetchedSignedExchange() const {
+  CHECK(base::FeatureList::IsEnabled(features::kNavigationFastFetchDryRun));
+  if (!prefetched_signed_exchange_cache_) {
+    return false;
+  }
+  const auto& exchanges = prefetched_signed_exchange_cache_->GetExchanges();
+  return exchanges.find(common_params().url) != exchanges.end();
 }
 
 }  // namespace content

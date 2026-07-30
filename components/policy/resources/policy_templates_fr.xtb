@@ -2687,6 +2687,7 @@ Si la règle est définie sur 2 (désactivée), l'intégration du Google Develo
 <translation id="2707733461906745082">Séparation du profil</translation>
 <translation id="2707873794476722903">La navigation sécurisée est active et en mode de protection standard.</translation>
 <translation id="2709516037105925701">Saisie automatique</translation>
+<translation id="2712089199157322391">Autoriser les Outils pour les développeurs pour la navigation Web standard, mais les limiter pour les extensions installées par l'entreprise et celles intégrées pour les utilisateurs gérés (blocage sur les pages intégrant ces extensions depuis M150, sauf pour la visionneuse PDF intégrée).</translation>
 <translation id="2713913573196284609">Cette valeur a été abandonnée dans la version M121. Dans M121 et les versions ultérieures, les valeurs seront traitées comme EnabledUnderThreshold.</translation>
 <translation id="2713977837384407666">Toujours envoyer des métriques à Google</translation>
 <translation id="2714359695399346815">Si cette règle est activée ou qu'elle n'est pas configurée, elle permet d'utiliser des serveurs STUN. Les clients distants peuvent ainsi détecter cet ordinateur et s'y connecter même s'ils sont séparés par un pare-feu.
@@ -3142,6 +3143,11 @@ Cette règle n'affecte pas la règle "<ph name="WEB_APP_INSTALL_FORCE_LIST_POLIC
         Cette règle n'a aucune incidence sur les règles déjà publiées.</translation>
 <translation id="3002067315837777719">Ne pas autoriser l'activation des notifications Phone Hub</translation>
 <translation id="3003490107503207900">Forcer le téléchargement des documents Office (.docx, par exemple) au lieu de les ouvrir dans <ph name="BASIC_EDITOR_NAME" /></translation>
+<translation id="3003832749381802588">Contrôle la façon dont <ph name="PRODUCT_OS_NAME" /> gère une non-concordance de mot de passe détectée lors d'une connexion en ligne. Cette règle détermine ce qui se passe lorsque le mot de passe de l'utilisateur, authentifié via un IdP en ligne (par exemple, un IdP tiers ou Gaia), ne correspond pas au mot de passe utilisé pour chiffrer ses données locales. Cela se produit généralement après qu'un utilisateur a modifié son mot de passe depuis un service externe.
+
+Si vous définissez la règle sur "0" (processus standard de modification du mot de passe) ou si vous ne la configurez pas, le processus standard de modification du mot de passe est lancé. L'utilisateur sera invité à saisir son ancien mot de passe pour mettre à jour le chiffrement de ses données locales. Il pourra aussi utiliser d'autres mécanismes de récupération des données locales, si disponibles.
+
+Si cette règle est définie sur "1" (effacement automatique des données locales), le processus standard de modification du mot de passe est contourné. En cas de détection d'une non-concordance de mot de passe, les données locales de l'utilisateur seront automatiquement effacées. L'utilisateur peut ainsi se connecter facilement avec son nouveau mot de passe, mais toutes les données stockées localement dans son profil (les téléchargements et les paramètres non synchronisés, par exemple) sont perdues. Cette option est destinée aux environnements dans lesquels les utilisateurs stockent principalement des données dans le cloud ou dans lesquels le mot de passe doit être mis à jour fréquemment.</translation>
 <translation id="300673820739371513">Cette règle détermine si des entités de texte brut sont détectées sur les pages Web, ce qui permet aux utilisateurs de déclencher des actions contextuelles en interagissant avec elles.
 La règle comporte une propriété distincte pour chaque type d'entité.
 Les types d'entités sont <ph name="DEFAULT_ENUM_VALUE" />, <ph name="ADDRESS_ENUM_VALUE" />…
@@ -4019,7 +4025,6 @@ Veillez à ne pas laisser cette règle activée en permanence, en particulier po
 <translation id="3591584750136265240">Configurer le mode d'authentification lors de la connexion</translation>
 <translation id="3593905652755912452">L'ancien comportement d'envoi des événements sur les commandes de formulaire désactivées sera utilisé.</translation>
 <translation id="3596112486106491038">Activer l'accès par ligne de commande aux machines virtuelles</translation>
-<translation id="3600342552601917721">Autoriser l'utilisation des Outils pour les développeurs pour la navigation Web standard, mais limiter leur utilisation pour les extensions installées par l'entreprise et les extensions intégrées pour les utilisateurs gérés. À partir de la version M150, ils sont également bloqués sur toute page qui intègre ces extensions, à la seule exception de la visionneuse PDF intégrée.</translation>
 <translation id="3603469950773500315">Permet d'atténuer les contrôles <ph name="CORS" /> dans la nouvelle mise en œuvre de <ph name="CORS" />. Les extensions peuvent ainsi conserver un comportement compatible, et <ph name="PRODUCT_NAME" /> peut envoyer les en-têtes spécifiés sans contrôles <ph name="CORS" />.
 
       Si aucun paramètre d'atténuation n'est indiqué dans la liste, <ph name="PRODUCT_NAME" /> essaie d'exécuter les extensions de manière compatible, et n'introduit pas de modifications de <ph name="API" /> pour <ph name="PRODUCT_NAME" /> 79 (comme indiqué à la page <ph name="WEB_REQUEST_API_MANUAL" />).
@@ -8858,6 +8863,7 @@ Pour que les modifications apportées à cette règle puissent être appliquées
 
       Remarque : Utilisez cette règle avec la règle "<ph name="REMOTE_ACCESS_HOST_TOKEN_URL_POLICY_NAME" />".</translation>
 <translation id="6625136649067113817">Flag booléen spécifiant si le correcteur orthographique est disponible ou non avec le clavier à l'écran.</translation>
+<translation id="6625424971640741579">Processus standard de modification du mot de passe</translation>
 <translation id="6625716212597516929">Rétablir l'ancien comportement du champ d'application des cookies</translation>
 <translation id="6626319579493977784">Paramètres du code dynamique</translation>
 <translation id="66265932317331474">Transmettre les informations concernant le ou les processeurs</translation>
@@ -9063,6 +9069,7 @@ Pour en savoir plus sur la gestion des données pour les fonctionnalités d'IA 
 <translation id="6763023079133439068">Autoriser les certificats sans extension subjectAlternativeName lorsqu'ils sont émis par des ancres de confiance locales</translation>
 <translation id="6766216162565713893">Autoriser les sites à demander à l'utilisateur d'accorder l'accès à un appareil Bluetooth à proximité</translation>
 <translation id="6770454900105963262">Envoyer des rapports sur les sessions Kiosque actives</translation>
+<translation id="6770703270685871935">Effacement automatique des données locales</translation>
 <translation id="6774132787348495175">Ne pas autoriser les utilisateurs à se servir des machines virtuelles nécessaires pour faire fonctionner les applis Linux</translation>
 <translation id="6782331708811245959">Activer les rapports sur le mode de démarrage de l'appareil</translation>
 <translation id="6783578496154221347">Utiliser WeeklyTimeIntervalChecked dans le nouveau code.</translation>
@@ -9357,6 +9364,7 @@ Cette règle sera supprimée quand la fonctionnalité de pilotes d'impression ho
       Si elle n'est pas configurée, aucune imprimante associée à un appareil n'est affichée, et les autres règles <ph name="DEVICE_PRINTERS_POLICY_PATTERN" /> sont ignorées.</translation>
 <translation id="69525503251220566">Paramètre qui active la fonctionnalité de recherche par image pour le moteur de recherche par défaut</translation>
 <translation id="6953102253399571439">Activer l'impression par code définie par défaut</translation>
+<translation id="6953246833109449226">Configurer le comportement en cas de non-concordance des mots de passe en ligne</translation>
 <translation id="695532899547292238">Activer la collecte des journaux d'applis kiosque</translation>
 <translation id="6956272732789158625">Interdire à tous les sites d'utiliser la génération de clé</translation>
 <translation id="6960996423652450945">Désactiver la mise en surbrillance du curseur de saisie sur l'écran de connexion</translation>
@@ -12459,27 +12467,6 @@ Pour en savoir plus, consultez https://support.google.com/chrome/a/answer/930189
 <translation id="8931555638815157255">Si cette règle est activée ou qu'elle n'est pas configurée, les appareils enregistrés communiquent régulièrement la version de leur système d'exploitation et celle du micrologiciel.
 
       Si cette règle est désactivée, les appareils enregistrés ne communiquent pas d'informations sur les versions.</translation>
-<translation id="8931984670731745012">Cette règle vous permet de spécifier les types de données utilisés par la saisie automatique qui sont bloqués sur des formats d'URL spécifiques.
-
-La règle prend la forme d'une liste de dictionnaires. Chaque dictionnaire doit contenir :
-* "url_pattern" : format d'URL de paramètre de contenu (par exemple, "https://[*.]example.com").
-* "blocked_types" : liste de chaînes représentant les catégories de données utilisées par la saisie automatique à bloquer.
-
-Les valeurs acceptées pour "blocked_types" sont les suivantes :
-* "contact_info" : bloque la saisie et l'enregistrement des coordonnées.
-* "paiements" : bloque la saisie et l'enregistrement des cartes de crédit et des modes de paiement.
-* "identity_docs" : bloque la saisie et l'enregistrement des pièces d'identité (par exemple, passeport, permis de conduire, pièce d'identité nationale).
-* "travel" : bloque la saisie et l'enregistrement des informations de voyage (par exemple, réservation de vol, numéro d'immatriculation de véhicule).
-* "shopping" : bloque la saisie et l'enregistrement des informations d'achat (par exemple, commandes en ligne et livraisons).
-
-Si un type de données est bloqué pour un site, la génération de suggestions et l'invite d'enregistrement/d'importation de nouvelles données de ce type sont désactivées sur ce site.
-
-Si une URL correspond à plusieurs entrées de format dans la liste, les types bloqués de toutes les entrées correspondantes sont combinés (fusion par union). Les formats d'URL non valides de la liste sont ignorés.
-
-Si cette règle n'est pas configurée, aucun type de données utilisé par la saisie automatique n'est bloqué par domaine.
-
-Pour en savoir plus sur les formats d'URL valides, veuillez consulter :
-https://chromeenterprise.google/policies/url-patterns. Le caractère générique * est pris en charge. Ce format correspond à n'importe quelle URL, avec n'importe quel schéma, port ou chemin.</translation>
 <translation id="8934296213794658971">Paramètres pour l'intégration de Gemini</translation>
 <translation id="8937282917198525844"> À partir de la version M81, les éléments de contrôle de formulaire (par exemple, &lt;select&gt;, &lt;button&gt;, &lt;input type=date&gt;) ont été actualisés pour améliorer leur accessibilité et l'uniformité de la plate-forme. Cette règle restaure les anciens éléments de contrôle de formulaire (jusqu'à la version M84).
 

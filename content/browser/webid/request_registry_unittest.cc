@@ -32,20 +32,20 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/common/webid/login_status_options.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
-using ApiPermissionStatus =
-    content::FederatedIdentityApiPermissionContextDelegate::PermissionStatus;
-using blink::mojom::RegisterIdpStatus;
+namespace content::webid {
+
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
 using ::testing::StrictMock;
-
-namespace content::webid {
+using ApiPermissionStatus =
+    FederatedIdentityApiPermissionContextDelegate::PermissionStatus;
+using blink::mojom::RegisterIdpStatus;
 
 namespace {
 
@@ -476,6 +476,19 @@ TEST_F(RequestRegistryTest, SetIdpSigninStatusInsecurePictureUrl) {
 
   EXPECT_THAT(bad_message_observer.WaitForBadMessage(),
               testing::HasSubstr("VALIDATION_ERROR_DESERIALIZATION_FAILED"));
+}
+
+// Test that CloseModalDialogView via FederatedRequestService Mojo remote
+// notifies IdentityRegistry.
+TEST_F(RequestRegistryTest, RequestServiceCloseModalDialogView) {
+  base::RunLoop run_loop;
+  url::Origin origin = url::Origin::Create(GURL(kIdpUrl));
+  EXPECT_CALL(*mock_identity_registry_, NotifyClose(origin))
+      .WillOnce([&run_loop]() { run_loop.Quit(); });
+
+  request_service_remote_->CloseModalDialogView();
+
+  run_loop.Run();
 }
 
 }  // namespace content::webid

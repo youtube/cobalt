@@ -5,6 +5,7 @@
 
 #include "components/page_load_metrics/browser/observers/ad_metrics/frame_data_utils.h"
 
+#include "base/byte_size.h"
 #include "components/page_load_metrics/common/page_load_metrics.mojom.h"
 #include "mojo/public/cpp/bindings/struct_ptr.h"
 #include "net/base/mime_util.h"
@@ -63,7 +64,7 @@ void ResourceLoadAggregator::ProcessResourceLoad(
   }
 }
 
-void ResourceLoadAggregator::AdjustAdBytes(base::ByteCount unaccounted_ad_bytes,
+void ResourceLoadAggregator::AdjustAdBytes(base::ByteSize unaccounted_ad_bytes,
                                            ResourceMimeType mime_type) {
   ad_network_bytes_ += unaccounted_ad_bytes;
   ad_bytes_ += unaccounted_ad_bytes;

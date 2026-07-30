@@ -17,12 +17,13 @@
 #include "content/public/browser/webid/federated_identity_permission_context_delegate.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom-shared.h"
 
-using ::blink::mojom::FederatedAuthRequestResult;
-using LoginState = content::IdentityRequestAccount::LoginState;
-using SignInStateMatchStatus = content::webid::SignInStateMatchStatus;
-using TokenStatus = content::webid::RequestIdTokenStatus;
-
 namespace content::webid {
+
+using ::blink::mojom::FederatedRequestResult;
+using LoginState = IdentityRequestAccount::LoginState;
+using MediationRequirement = ::password_manager::CredentialMediationRequirement;
+using RpMode = blink::mojom::RpMode;
+using TokenStatus = RequestIdTokenStatus;
 
 namespace {
 static constexpr char kVcSdJwt[] = "vc+sd-jwt";
@@ -129,7 +130,7 @@ void AccountsFetcher::FetchEndpointsForIdps(
 }
 
 void AccountsFetcher::SendAllFailedTokenRequestMetrics(
-    blink::mojom::FederatedAuthRequestResult result,
+    blink::mojom::FederatedRequestResult result,
     bool did_show_ui) {
   DCHECK(IsMetricsEndpointEnabled());
   for (const auto& metrics_endpoint_kv : metrics_endpoints_) {
@@ -235,7 +236,7 @@ void AccountsFetcher::OnAllConfigAndWellKnownFetched(
 
       if (IsWellKnownEndpointValidationEnabled()) {
         result.idp_info = std::move(idp_info);
-        result.error = FederatedAuthRequestResult::kWellKnownInvalidResponse;
+        result.error = FederatedRequestResult::kWellKnownInvalidResponse;
         result.token_status = TokenStatus::kWellKnownInvalidResponse;
         result.should_delay_callback = false;
         AddResult(std::move(result));
@@ -249,7 +250,7 @@ void AccountsFetcher::OnAllConfigAndWellKnownFetched(
                 fetch_result.metadata->types,
                 get_info_it->second.provider->config->type)) {
           result.idp_info = std::move(idp_info);
-          result.error = FederatedAuthRequestResult::kTypeNotMatching;
+          result.error = FederatedRequestResult::kTypeNotMatching;
           result.token_status = TokenStatus::kConfigNotMatchingType;
           result.should_delay_callback = false;
           AddResult(std::move(result));
@@ -264,7 +265,7 @@ void AccountsFetcher::OnAllConfigAndWellKnownFetched(
       if (!IsDelegationEnabled() ||
           !std::ranges::contains(fetch_result.metadata->formats, kVcSdJwt)) {
         result.idp_info = std::move(idp_info);
-        result.error = FederatedAuthRequestResult::kConfigInvalidResponse;
+        result.error = FederatedRequestResult::kConfigInvalidResponse;
         result.token_status = TokenStatus::kConfigInvalidResponse;
         result.should_delay_callback = false;
         AddResult(std::move(result));
@@ -278,7 +279,7 @@ void AccountsFetcher::OnAllConfigAndWellKnownFetched(
     // originally, because we need the well-known and config files to find
     // the login URL.
     idp_info->has_failing_idp_signin_status =
-        webid::ShouldFailAccountsEndpointRequestBecauseNotSignedInWithIdp(
+        ShouldFailAccountsEndpointRequestBecauseNotSignedInWithIdp(
             identity_provider_config_url, permission_delegate_);
     if (idp_info->has_failing_idp_signin_status) {
       // If the user is logged out and we are in a active-mode, allow the
@@ -295,7 +296,7 @@ void AccountsFetcher::OnAllConfigAndWellKnownFetched(
       idp_info->endpoints.metrics = GURL();
 
       result.idp_info = std::move(idp_info);
-      result.error = FederatedAuthRequestResult::kNotSignedInWithIdp;
+      result.error = FederatedRequestResult::kNotSignedInWithIdp;
       result.token_status = TokenStatus::kNotSignedInWithIdp;
       result.should_delay_callback = true;
       AddResult(std::move(result));
@@ -329,12 +330,12 @@ void AccountsFetcher::OnAccountsResponseReceived(
   const std::optional<bool> old_idp_signin_status =
       permission_delegate_->GetIdpSigninStatus(
           url::Origin::Create(idp_config_url));
-  webid::UpdateIdpSigninStatusForAccountsEndpointResponse(
+  UpdateIdpSigninStatusForAccountsEndpointResponse(
       idp_config_url, status, idp_info->has_failing_idp_signin_status,
       permission_delegate_);
 
   if (status.parse_status != ParseStatus::kSuccess) {
-    std::pair<FederatedAuthRequestResult, TokenStatus> resultAndTokenStatus =
+    std::pair<FederatedRequestResult, TokenStatus> resultAndTokenStatus =
         AccountParseStatusToRequestResultAndTokenStatus(status.parse_status);
     HandleAccountsFetchFailure(
         std::move(idp_info), old_idp_signin_status, resultAndTokenStatus.first,
@@ -370,7 +371,7 @@ void AccountsFetcher::OnAccountsResponseReceived(
     // as if we had received an empty accounts list, i.e.
     // ParseStatus::kEmptyListError.
     HandleAccountsFetchFailure(std::move(idp_info), old_idp_signin_status,
-                               FederatedAuthRequestResult::kAccountsListEmpty,
+                               FederatedRequestResult::kAccountsListEmpty,
                                TokenStatus::kAccountsListEmpty, status,
                                std::move(filtered_accounts),
                                accounts_fetched_time);
@@ -413,8 +414,8 @@ void AccountsFetcher::OnAccountsFetchSucceeded(
   }
 
   if (need_client_metadata &&
-      webid::IsEndpointSameOrigin(idp_info->provider->config->config_url,
-                                  idp_info->endpoints.client_metadata)) {
+      IsEndpointSameOrigin(idp_info->provider->config->config_url,
+                           idp_info->endpoints.client_metadata)) {
     // Copy OnClientMetadataResponseReceived() parameters because `idp_info`
     // is moved.
     GURL client_metadata_endpoint = idp_info->endpoints.client_metadata;
@@ -473,7 +474,7 @@ void AccountsFetcher::OnFetchDataForIdpSucceeded(
   std::vector<IdentityRequestDialogDisclosureField> disclosure_fields =
       GetDisclosureFields(idp_info->provider->fields);
 
-  const std::string idp_for_display = webid::FormatUrlToSite(idp_config_url);
+  const std::string idp_for_display = FormatUrlToSite(idp_config_url);
   idp_info->data = base::MakeRefCounted<IdentityProviderData>(
       idp_for_display, idp_info->metadata,
       ClientMetadata{client_metadata.terms_of_service_url,
@@ -599,7 +600,7 @@ void AccountsFetcher::ComputeLoginStates(
           idp_config_url, SignInStateMatchStatus::kBrowserObservedSignIn);
     }
 
-    if (webid::HasSharingPermissionOrIdpHasThirdPartyCookiesAccess(
+    if (HasSharingPermissionOrIdpHasThirdPartyCookiesAccess(
             *render_frame_host_, /*provider_url=*/idp_config_url,
             embedding_origin_, render_frame_host_->GetLastCommittedOrigin(),
             account->id, permission_delegate_, api_permission_delegate_)) {
@@ -619,14 +620,14 @@ void AccountsFetcher::ComputeLoginStates(
 void AccountsFetcher::HandleAccountsFetchFailure(
     std::unique_ptr<IdentityProviderInfo> idp_info,
     std::optional<bool> old_idp_signin_status,
-    blink::mojom::FederatedAuthRequestResult result,
+    blink::mojom::FederatedRequestResult result,
     std::optional<TokenStatus> token_status,
     const FetchStatus& status,
     std::vector<IdentityRequestAccountPtr> filtered_accounts,
     base::TimeTicks accounts_fetched_time) {
   if (status.parse_status != ParseStatus::kSuccess) {
-    webid::MaybeAddResponseCodeToConsole(
-        *render_frame_host_, "accounts endpoint", status.response_code);
+    MaybeAddResponseCodeToConsole(*render_frame_host_, "accounts endpoint",
+                                  status.response_code);
   }
   if (!old_idp_signin_status.has_value()) {
     if (params_.rp_mode == blink::mojom::RpMode::kActive) {
@@ -655,7 +656,7 @@ void AccountsFetcher::HandleAccountsFetchFailure(
     Result res;
     res.idp_config_url = idp_info->provider->config->config_url;
     res.idp_info = std::move(idp_info);
-    res.error = FederatedAuthRequestResult::kRpPageNotVisible;
+    res.error = FederatedRequestResult::kRpPageNotVisible;
     res.token_status = TokenStatus::kRpPageNotVisible;
     res.should_delay_callback = true;
     res.filtered_accounts = std::move(filtered_accounts);
@@ -672,7 +673,7 @@ void AccountsFetcher::HandleAccountsFetchFailure(
     Result res;
     res.idp_config_url = idp_info->provider->config->config_url;
     res.idp_info = std::move(idp_info);
-    res.error = FederatedAuthRequestResult::kSilentMediationFailure;
+    res.error = FederatedRequestResult::kSilentMediationFailure;
     res.token_status = TokenStatus::kSilentMediationFailure;
     res.should_delay_callback = true;
     res.filtered_accounts = std::move(filtered_accounts);
@@ -694,7 +695,7 @@ void AccountsFetcher::OnIdpMismatch(
     base::TimeTicks accounts_fetched_time,
     std::unique_ptr<IdentityProviderInfo> idp_info) {
   const std::string idp_for_display =
-      webid::FormatUrlToSite(idp_info->provider->config->config_url);
+      FormatUrlToSite(idp_info->provider->config->config_url);
   idp_info->data = base::MakeRefCounted<IdentityProviderData>(
       idp_for_display, idp_info->metadata,
       ClientMetadata{GURL(), GURL(), GURL(), gfx::Image()},
@@ -712,7 +713,7 @@ void AccountsFetcher::OnIdpMismatch(
 
 void AccountsFetcher::SendFailedTokenRequestMetrics(
     const GURL& metrics_endpoint,
-    blink::mojom::FederatedAuthRequestResult result,
+    blink::mojom::FederatedRequestResult result,
     bool did_show_ui) {
   DCHECK(IsMetricsEndpointEnabled());
   if (!metrics_endpoint.is_valid()) {
@@ -721,7 +722,7 @@ void AccountsFetcher::SendFailedTokenRequestMetrics(
 
   network_manager_->SendFailedTokenRequestMetrics(
       metrics_endpoint, did_show_ui,
-      FederatedAuthRequestResultToMetricsEndpointErrorCode(result));
+      FederatedRequestResultToMetricsEndpointErrorCode(result));
 }
 
 void AccountsFetcher::AddResult(Result&& result) {

@@ -70,13 +70,13 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
 // Returns true if the account is eligible for Personal Context (e.g. to
 // determine whether to show Personal Context settings UI).
 [[nodiscard]] bool IsPersonalContextEligible(
-    personal_context::PersonalContextEnablementState state) {
-  using personal_context::PersonalContextEnablementState;
+    personal_context::PersonalContextEligibilityState state) {
+  using personal_context::PersonalContextEligibilityState;
   switch (state) {
-    case PersonalContextEnablementState::kEnabled:
+    case PersonalContextEligibilityState::kEligible:
       return true;
-    case PersonalContextEnablementState::kDisabledNotEligible:
-    case PersonalContextEnablementState::kDisabledNeedsOptIn:
+    case PersonalContextEligibilityState::kDisabledNotEligible:
+    case PersonalContextEligibilityState::kDisabledNeedsOptIn:
       return false;
   }
 }
@@ -585,8 +585,8 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
     bool supports_reauth,
     bool has_entity_data_saved,
     const GeoIpCountryCode& country_code,
-    personal_context::PersonalContextEnablementState
-        personal_context_enablement_state,
+    personal_context::PersonalContextEligibilityState
+        personal_context_eligibility_state,
     AutofillAiAction action,
     std::optional<EntityType> entity_type,
     std::string* debug_message) {
@@ -669,7 +669,7 @@ base::flat_set<int32_t> GetAutofillAmbientAutofillEligibleTiers() {
               features::debug::kAutofillAmbientAutofillSkipEligibilityChecks)) {
         return true;
       }
-      if (!IsPersonalContextEligible(personal_context_enablement_state)) {
+      if (!IsPersonalContextEligible(personal_context_eligibility_state)) {
         return false;
       }
       break;
@@ -748,7 +748,7 @@ bool MayPerformAutofillAiAction(const AutofillClient& client,
       client.IsWalletPublicPassStorageEnabled(), client.IsOffTheRecord(),
       client.GetVariationConfigCountryCode(),
       client.GetSubscriptionEligibilityService(),
-      client.GetPersonalContextEnablementState(), action, entity_type,
+      client.GetPersonalContextEligibilityState(), action, entity_type,
       debug_message);
 }
 
@@ -765,8 +765,8 @@ bool MayPerformAutofillAiAction(
     const GeoIpCountryCode& country_code,
     const subscription_eligibility::SubscriptionEligibilityService*
         subscription_service,
-    personal_context::PersonalContextEnablementState
-        personal_context_enablement_state,
+    personal_context::PersonalContextEligibilityState
+        personal_context_eligibility_state,
     AutofillAiAction action,
     std::optional<EntityType> entity_type,
     std::string* debug_message) {
@@ -813,7 +813,7 @@ bool MayPerformAutofillAiAction(
   // If the re-auth availability is unknown, error on the side of caution.
   return SatisfiesMiscellaneousRequirements(
       is_off_the_record, edm->GetReauthAvailability().value_or(false),
-      has_entity_data_saved, country_code, personal_context_enablement_state,
+      has_entity_data_saved, country_code, personal_context_eligibility_state,
       action, entity_type, debug_message);
 }
 
@@ -830,6 +830,14 @@ bool GetAutofillAiOptInStatus(const PrefService* prefs,
 
   if (base::FeatureList::IsEnabled(features::debug::kAutofillAiForceOptIn)) {
     return true;
+  }
+
+  if (base::FeatureList::IsEnabled(features::kAutofillAiUsePrivateAi)) {
+    return prefs->GetBoolean(prefs::kAutofillAiPrivateInferenceOptInStatus) &&
+           !prefs
+                ->GetTime(
+                    prefs::kAutofillAiPrivateInferenceNoticeFirstShownTimestamp)
+                .is_null();
   }
 
   const std::optional<GaiaIdHash> signed_in_hash =
@@ -853,7 +861,7 @@ bool SetAutofillAiOptInStatus(AutofillClient& client,
       client.IsWalletPublicPassStorageEnabled(), client.IsOffTheRecord(),
       client.GetVariationConfigCountryCode(),
       client.GetSubscriptionEligibilityService(),
-      client.GetPersonalContextEnablementState(), opt_in_status);
+      client.GetPersonalContextEligibilityState(), opt_in_status);
 }
 
 bool SetAutofillAiOptInStatus(
@@ -869,8 +877,8 @@ bool SetAutofillAiOptInStatus(
     const GeoIpCountryCode& country_code,
     const subscription_eligibility::SubscriptionEligibilityService*
         subscription_service,
-    personal_context::PersonalContextEnablementState
-        personal_context_enablement_state,
+    personal_context::PersonalContextEligibilityState
+        personal_context_eligibility_state,
     AutofillAiOptInStatus opt_in_status) {
   if (!MayPerformAutofillAiAction(
 #if !BUILDFLAG(IS_FUCHSIA)
@@ -878,8 +886,8 @@ bool SetAutofillAiOptInStatus(
 #endif
           prefs, edm, identity_manager, sync_service,
           is_wallet_public_pass_storage_enabled, is_off_the_record,
-          country_code, subscription_service, personal_context_enablement_state,
-          AutofillAiAction::kOptIn)) {
+          country_code, subscription_service,
+          personal_context_eligibility_state, AutofillAiAction::kOptIn)) {
     return false;
   }
 

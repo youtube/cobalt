@@ -350,6 +350,7 @@ Ndryshe kjo do të bllokohet nga cilësimet e tua të privatësisë. Kjo do ta l
 <translation id="1542105669288201090">Edukim për biznesin</translation>
 <translation id="1542830386724426410">Shfaq përfitimet dhe shpërblimet e disponueshme të kartës në përfundim të blerjes. Zbatohen kushtet e lëshuesit. <ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />Mëso më shumë<ph name="CARD_BENEFIT_HELP_LINK_END" /></translation>
 <translation id="1545757265410828525">Historiku i çmimeve</translation>
+<translation id="1546286808622193216">Krahaso përfitimet e kartave duke përdorur Gemini</translation>
 <translation id="1549470594296187301">Duhet të aktivizohet JavaScript për të përdorur këtë funksion.</translation>
 <translation id="1553152622374372421">Sporte dimërore</translation>
 <translation id="1553358976309200471">Përditëso Chrome</translation>
@@ -504,6 +505,7 @@ Ndryshe kjo do të bllokohet nga cilësimet e tua të privatësisë. Kjo do ta l
 <translation id="175656076281618225">Magjia</translation>
 <translation id="1757773103848038814">Fonti me hapësirë fikse</translation>
 <translation id="1757935267918149452">Butoni "Ndrysho fjalëkalimin e Google". Aktivizoje për të ndryshuar fjalëkalimin e "Llogarisë sate të Google"</translation>
+<translation id="1759776526873274358">Plotëso automatikisht kodet e verifikimit që përdorin sajtet për të përmirësuar sigurinë tënde. Chrome mund t'i marrë këto kode nga Gmail. <ph name="BEGIN_LINK" />Mëso më shumë rreth kësaj veçorie<ph name="LINK_END" /></translation>
 <translation id="1763864636252898013">Ky server nuk mundi të dëshmonte se ky është <ph name="DOMAIN" />; certifikata e tij e sigurisë nuk është e besueshme nga Chromium. Kjo mund të shkaktohet nga keqkonfigurimi ose ndonjë sulmues që po kap lidhjen tënde.</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Provo të ekzekutosh diagnostikimin e rrjetit të Windows<ph name="END_LINK" />.</translation>
 <translation id="1777422078676229054">Fotografi (arkivore)</translation>
@@ -2155,6 +2157,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="4304049446746819918">{0,plural, =1{Politika e administratorit nuk rekomandon zhvendosjen e këtij skedari te: <ph name="DESTINATION_NAME" />}other{Politika e administratorit nuk rekomandon zhvendosjen e këtyre skedarëve te: <ph name="DESTINATION_NAME" />}}</translation>
 <translation id="4304485328308299773">Lexo vlerësimet e klientëve për produktet, shërbimet ose përvojat për të marrë informacione për vendimet e tua në lidhje me komentet.</translation>
 <translation id="4305666528087210886">Qasja te skedari ishte e pamundur</translation>
+<translation id="4306349443295056740">Nënshkrim OCSP</translation>
 <translation id="4306529830550717874">Të ruhet adresa?</translation>
 <translation id="4306812610847412719">kujtesa e fragmenteve</translation>
 <translation id="4308567447483056043">Kjo politikë është shpërfillur sepse përdoruesi nuk është i lidhur. Që kjo politikë të zbatohet, shfletuesi dhe profili i Chrome duhet të menaxhohen nëpërmjet "Panelit të administratorit" nga e njëjta organizatë.</translation>
@@ -2324,6 +2327,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="4607608436550361748">Shiko këshillat për Chrome</translation>
 <translation id="460848736049414407">Bllokuar nga administratori</translation>
 <translation id="4610279718074907952">Ky sajt është në një grup, i përcaktuar nga <ph name="SET_OWNER" />, që mund ta shikojë aktivitetin tënd</translation>
+<translation id="4612631413844865947">Ndodhi një gabim gjatë përpunimit të porosisë sate në <ph name="MERCHANT_ORIGIN" /> nëpërmjet <ph name="PAYMENT_APP_ORIGIN" />.</translation>
 <translation id="46128681529823442">Pajisja për futboll</translation>
 <translation id="4612904677925722054">Ky sajt mund të ketë përmbajtje për të rritur. Një prind ose kujdestar duhet të pranojë që ta vizitosh këtë uebsajt.</translation>
 <translation id="4619564267100705184">Verifiko që je ti</translation>
@@ -2413,6 +2417,8 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="4744603770635761495">Shtegu i ekzekutueshëm</translation>
 <translation id="4744816391336495134">Mund të përdorësh gjurmën e gishtit për të verifikuar që je ti sa herë që përdor një fjalëkalim të ruajtur</translation>
 <translation id="4749011317274908093">Ke kaluar në modalitetin "e fshehtë"</translation>
+<translation id="4749620353539006322">Maksimizo shpërblimet</translation>
+<translation id="4749924365937394956">Vërtetim serveri</translation>
 <translation id="4750671009706599284">këtë telefon</translation>
 <translation id="4750917950439032686">Informacionet e tua (p.sh. fjalëkalimet ose numrat e kartave të kreditit) janë private kur dërgohen në këtë sajt.</translation>
 <translation id="4751249061288707459">Përditësimi i fundit i pëlqimit:</translation>
@@ -2987,6 +2993,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="5611398002774823980">Ruaje te llogaria</translation>
 <translation id="561165882404867731">Përktheje këtë faqe me "Përkthe me Google"</translation>
 <translation id="5612720917913232150"><ph name="URL" /> do të përdorë vendndodhjen e kompjuterit tënd</translation>
+<translation id="5613958591683399697">Pyet <ph name="ENGINE_NAME" /></translation>
 <translation id="5614190747811328134">Njoftimi i përdoruesit</translation>
 <translation id="5614520971155863709">Lojëra me letra</translation>
 <translation id="5617949217645503996"><ph name="HOST_NAME" /> të ridrejtoi shumë herë.</translation>
@@ -3129,6 +3136,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="5860491529813859533">Aktivizo</translation>
 <translation id="5862579898803147654">Stivuesi 8</translation>
 <translation id="5863515189965725638">Modifiko numrin IBAN</translation>
+<translation id="5863517400058880216">Plotëso automatikisht kodet e verifikimit nga Gmail</translation>
 <translation id="5863847714970149516">Faqja në vijim mund të përpiqet të të tarifojë në para</translation>
 <translation id="5866257070973731571">Shto numër telefoni</translation>
 <translation id="5866327164731551901">Nga <ph name="TYPE_1" /> <ph name="TYPE_2" /></translation>
@@ -3242,6 +3250,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="6034000775414344507">Gri e çelur</translation>
 <translation id="6034514109191629503">Palosje fizarmonikë</translation>
 <translation id="6035491133925068289">Atletikë</translation>
+<translation id="6037458223703682108">Nënshkrim dixhital</translation>
 <translation id="6039846035001940113">Nëse problemi vazhdon, kontakto me zotëruesin e sajtit.</translation>
 <translation id="6040143037577758943">Mbyll</translation>
 <translation id="6040539895181423374">Statistikat e çmimeve</translation>
@@ -3552,6 +3561,7 @@ Për të fshehur opsionet e "Paguaj më vonë", shko te <ph name="BEGIN_LINK" />
 <translation id="6474220430271405609">Testet e politikave</translation>
 <translation id="6476284679642588870">Menaxho mënyrat e pagesës</translation>
 <translation id="647881094269678013">Aktrim dhe teatër</translation>
+<translation id="6480363549849064919">Vërtetim klienti</translation>
 <translation id="6480864723214312258">Bateri për përdorim të përgjithshëm</translation>
 <translation id="6487678699866233349">Muzikë botërore</translation>
 <translation id="6489534406876378309">Nis ngarkimin e ndërprerjeve aksidentale</translation>
@@ -4517,6 +4527,7 @@ Detaje shtesë:
 <translation id="7967973398323409409">Informacionet që plotëson automatikisht nuk shihen asnjëherë nga askush</translation>
 <translation id="79682505114836835">Vlera "<ph name="VALUE" />" është një ngjyrë hekzadecimale e pavlefshme.</translation>
 <translation id="7968982339740310781">Shiko detajet</translation>
+<translation id="7971403153351954587">Organizata jote monitoron kopjimin</translation>
 <translation id="7972714317346275248">PKCS #1 SHA-384 me enkriptim RSA</translation>
 <translation id="7976053965094442846">Lëshuesit e "Bli tani, paguaj më vonë" që disponohen për të paguar me kalimin e kohës. Tastiera është e fshehur.</translation>
 <translation id="7976214039405368314">Ka shumë kërkesa</translation>
@@ -5130,6 +5141,7 @@ Detaje shtesë:
 <translation id="9001074447101275817">Përfaqësuesi <ph name="DOMAIN" /> kërkon një emër përdoruesi dhe një fjalëkalim.</translation>
 <translation id="9001701119003382280">Pajisje periferike të kompjuterit</translation>
 <translation id="9001963517402879850">Kërce!</translation>
+<translation id="9003263770394939629">Sugjeruar nga Gemini. Menaxho plotësimin automatik të përmirësuar te cilësimet.</translation>
 <translation id="9003639428623471314">Zarf Kahu</translation>
 <translation id="9004367719664099443">Sesioni VR në proces</translation>
 <translation id="9005998258318286617">Ngarkimi i dokumentit PDF dështoi.</translation>

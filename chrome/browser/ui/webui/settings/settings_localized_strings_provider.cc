@@ -543,6 +543,9 @@ void AddAiStrings(content::WebUIDataSource* html_source) {
   html_source->AddString("passwordChangeSettingsUrl",
                          chrome::kChromeUiPasswordChangeUrl);
   html_source->AddString("indigoSavedUrl", features::kIndigoSavedUrl.Get());
+
+  html_source->AddString("googleSearchAiModeWorkspaceUrl",
+                         chrome::kMyActivitySearchServicesAppsUrl);
 }
 
 void AddAppearanceStrings(content::WebUIDataSource* html_source,
@@ -586,6 +589,8 @@ void AddAppearanceStrings(content::WebUIDataSource* html_source,
       {"sidePanelPosition", IDS_SETTINGS_SIDE_PANEL_POSITION},
       {"sidePanelAlignmentChromePanels",
        IDS_SETTINGS_SIDE_PANEL_ALIGNMENT_CHROME_PANELS},
+      {"sidePanelAlignmentA11yLabel",
+       IDS_SETTINGS_SIDE_PANEL_ALIGNMENT_A11Y_LABEL},
       {"tabSearchPosition", IDS_SETTINGS_TAB_SEARCH_POSITION},
       {"homePageNtp", IDS_SETTINGS_HOME_PAGE_NTP},
       {"changeHomePage", IDS_SETTINGS_CHANGE_HOME_PAGE},
@@ -1988,8 +1993,6 @@ void AddAutofillStrings(content::WebUIDataSource* html_source,
                           base::FeatureList::IsEnabled(
                               autofill::features::kAutofillAiReauthRequired));
 
-  html_source->AddString("personalContextSettingsUrl",
-                         personal_context::kPersonalContextSettingsURL);
   html_source->AddString("personalContextConnectedAppsUrl",
                          personal_context::kPersonalContextConnectedAppsURL);
 }

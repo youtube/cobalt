@@ -53,6 +53,11 @@ class TestUpdatePropagator : public WebUIReadOnlyOmnibox::UpdatePropagator {
   void PropagateFocusRequest(
       toolbar_ui_api::mojom::FocusRequestTarget target) override {}
 
+  std::optional<GURL> ConsumeDroppedUrl(
+      const gfx::PointF& drop_position) override {
+    return std::nullopt;
+  }
+
   toolbar_ui_api::mojom::OmniboxViewStatePtr TakeState() {
     return std::move(state_);
   }
@@ -95,7 +100,7 @@ void WebUIReadOnlyOmniboxTest::SetUp() {
       .WillRepeatedly(testing::Return(profile_->GetPrefs()));
 
   omnibox_view_ = std::make_unique<WebUIReadOnlyOmnibox>(
-      omnibox_controller_.get(), update_propagator_);
+      /*location_bar=*/nullptr, omnibox_controller_.get(), update_propagator_);
 
   wc1_ = web_contents_factory_.CreateWebContents(profile_.get());
   wc2_ = web_contents_factory_.CreateWebContents(profile_.get());

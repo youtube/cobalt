@@ -103,6 +103,13 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   // as they may be different on some platforms.
   Corner GetWindowCorner(bool upper) const;
 
+  // Sets whether to create an artificial glass effect behind the background.
+  // Has no effect if glass is disabled or if artificial glass is set to opaque.
+  // Setting to true requires the following:
+  //  - Host view has a layer.
+  //  - Corners have already been updated for the current frame.
+  void SetUseBackgroundBlur(bool use_background_blur);
+
   bool visible_for_testing() const { return visible_; }
 
   // Takes the inverse of a view with a CustomCornersBackground - i.e. it cuts
@@ -119,6 +126,10 @@ class CustomCornersBackground : public views::Background, public CustomCorners {
   };
   using Cutout = std::variant<InverseOf, const views::View*>;
   using Cutouts = std::vector<Cutout>;
+
+  [[nodiscard]] inline SkPath GetBackgroundPath() const {
+    return GetBackgroundPath(view_->GetLocalBounds(), nullptr);
+  }
 
   // Cuts `cutouts` out of `this`. Works for views with a
   // `CustomCornersBackground` as well as for `CustomFloatingCorner`. Empty

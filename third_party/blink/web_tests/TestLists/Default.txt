@@ -45,19 +45,13 @@ crypto/subtle/importKey-badParameters.html
 css1/units/rounding.html
 css3/blending/isolation-parsing.html
 css3/calc/reflection-computed-style.html
-css3/filters/crash-hw-sw-switch.html
 css3/flexbox/assert-generated-new-flexbox.html
 css3/fonts/font-feature-settings-parsing-prefixed.html
 css3/masking/clip-path-reference-of-fake-clipPath.html
 css3/masking/mask-serializing.html
 css3/motion-path/use-count-offset.html
 css3/motion-path/use-count-offset-position.html
-css3/selectors3/html/css3-modsel-61.html
-css3/selectors3/xhtml/css3-modsel-17.xml
-css3/selectors3/xml/css3-modsel-17.xml
-css3/selectors3/xml/css3-modsel-61.xml
 css3/style-zoomed-image.html
-css3/supports-crash.html
 css-parser/color-escape-parsing.html
 css-parser/font-size-adjust.html
 custom-elements/array-squat-crash.html
@@ -130,6 +124,8 @@ external/wpt/css/css-align/content-distribution/place-content-shorthand-002.html
 external/wpt/css/css-align/content-distribution/place-content-shorthand-003.html
 external/wpt/css/css-align/default-alignment/place-items-shorthand-001.html
 external/wpt/css/css-backgrounds/background-clip/clip-text-constrain-geometry.html
+external/wpt/css/css-color/crashtests/stop-color-invalid-rgb.html
+external/wpt/css/css-conditional/crashtests/supports-malformed.html
 external/wpt/css/css-display/display-contents-computed-style.html
 external/wpt/css/css-grid/grid-definition/grid-template-columns-rows-resolved-values-001.xht
 external/wpt/css/css-grid/grid-layout-properties.html
@@ -153,6 +149,7 @@ external/wpt/css/css-typed-om/CSSMatrixComponent-DOMMatrix-mutable.html
 external/wpt/css/css-typed-om/declared-styleMap-accepts-inherit.html
 external/wpt/css/css-typed-om/stylevalue-subclasses/cssKeywordValue.html
 external/wpt/css/css-typed-om/the-stylepropertymap/properties/border-style.html
+external/wpt/css/filter-effects/crashtests/filter-hw-sw-switch.html
 external/wpt/css/filter-effects/crashtests/multiple-references-id-crash-001.html
 external/wpt/custom-elements/HTMLElement-constructor.html
 external/wpt/custom-elements/parser/parser-constructs-custom-element-in-document-write.html
@@ -283,6 +280,7 @@ external/wpt/streams/piping/multiple-propagation.html
 external/wpt/streams/readable-streams/floating-point-total-queue-size.html
 external/wpt/streams/writable-streams/bad-strategies.html
 external/wpt/streams/writable-streams/brand-checks.html
+external/wpt/svg/crashtests/image-dispatch-event-on-destruct.html
 external/wpt/touch-events/historical.html
 external/wpt/touch-events/touch-globaleventhandler-interface.html
 external/wpt/touch-events/touch-retargeting.html
@@ -438,7 +436,6 @@ fast/css/line-height-font-order.html
 fast/css/line-thickness-underline-strikethrough-overline.html
 fast/css/namespaces/empty-namespace-compound-selector-2.xhtml
 fast/css/nth-child-dynamic.html
-fast/css/parse-color-int-or-percent-crash.html
 fast/css/text-overflow-ellipsis.html
 fast/css/text-overflow-ellipsis-strict.html
 fast/css/variables/accessing-variable-as-named-property.html
@@ -860,7 +857,6 @@ svg/custom/favicon-link.svg
 svg/custom/recursive-use2.svg
 svg/custom/svg-use-style-float-crash.svg
 svg/custom/use-invalid-font-face.svg
-svg/dispatch-event-crash-on-destruct.html
 svg/dom/smil-methods.svg
 svg/dom/SVGStyleElement/disable-svg-style-element.html
 svg/dom/SVGStyleElement/style-langspace.html

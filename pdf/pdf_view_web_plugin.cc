@@ -313,8 +313,9 @@ class PdfViewWebPlugin::PdfInkModuleClientImpl : public PdfInkModuleClient {
 
   // PdfInkModuleClient:
   void AddFont(FontId font_id,
+               const std::string& font_name,
                base::span<const uint8_t> serialized_typeface) override {
-    plugin_->engine_->AddFont(font_id, serialized_typeface);
+    plugin_->engine_->AddFont(font_id, font_name, serialized_typeface);
   }
 
   void ClearSelection() override { plugin_->engine_->ClearTextSelection(); }
@@ -1779,6 +1780,11 @@ void PdfViewWebPlugin::HasMeaningfulText(HasMeaningfulTextCallback callback) {
 
 void PdfViewWebPlugin::HasJavaScript(HasJavaScriptCallback callback) {
   std::move(callback).Run(engine_ && engine_->HasJavaScript());
+}
+
+void PdfViewWebPlugin::IsPasswordProtected(
+    IsPasswordProtectedCallback callback) {
+  std::move(callback).Run(engine_ && engine_->IsPasswordProtected());
 }
 
 void PdfViewWebPlugin::GetPageText(int32_t page_index,

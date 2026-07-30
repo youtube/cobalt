@@ -284,7 +284,7 @@
 #endif  // BUILDFLAG(ENTERPRISE_CLIENT_CERTIFICATES)
 
 #if BUILDFLAG(ENTERPRISE_WATERMARK)
-#include "components/enterprise/watermarking/watermark_style_policy_handler.h"
+#include "components/enterprise/watermarking/watermark_style_policy_handler.h"  // nogncheck crbug.com/40147906
 #endif  // BUILDFLAG(ENTERPRISE_WATERMARK)
 
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -339,6 +339,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::INTEGER },
   { key::kDefaultPopupsSetting,
     prefs::kManagedDefaultPopupsSetting,
+    base::Value::Type::INTEGER },
+  { key::kDefaultWebHidGuardSetting,
+    prefs::kManagedDefaultWebHidGuardSetting,
     base::Value::Type::INTEGER },
   { key::kDisableScreenshots,
     prefs::kDisableScreenshots,
@@ -474,8 +477,11 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kSharedWorkerExtendedLifetimeEnabled,
     prefs::kSharedWorkerExtendedLifetimeEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kBackForwardCacheForWebSocketsAllowed,
+    policy::policy_prefs::kBackForwardCacheForWebSocketsAllowed,
+    base::Value::Type::BOOLEAN },
   { key::kGeminiSettings,
-    prefs::kGeminiSettings,
+    optimization_guide::prefs::kGeminiSettings,
     base::Value::Type::INTEGER },
 #if !BUILDFLAG(IS_ANDROID)
   { key::kVoiceTypingSettings,
@@ -518,6 +524,15 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kIsolatedModeSettings,
     enterprise_isolated_mode::kEnterpriseIsolatedModeSettings,
     base::Value::Type::INTEGER },
+  { key::kWebHidAllowAllDevicesForUrls,
+    prefs::kManagedWebHidAllowAllDevicesForUrls,
+    base::Value::Type::LIST },
+  { key::kWebHidAskForUrls,
+    prefs::kManagedWebHidAskForUrls,
+    base::Value::Type::LIST },
+  { key::kWebHidBlockedForUrls,
+    prefs::kManagedWebHidBlockedForUrls,
+    base::Value::Type::LIST },
 // Policies for all platforms - End
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_FUCHSIA)
   { key::kChromeSuggestionsSettings,
@@ -647,9 +662,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kDefaultSearchProviderContextMenuAccessAllowed,
     prefs::kDefaultSearchProviderContextMenuAccessAllowed,
     base::Value::Type::BOOLEAN },
-  { key::kDefaultWebHidGuardSetting,
-    prefs::kManagedDefaultWebHidGuardSetting,
-    base::Value::Type::INTEGER },
   { key::kDefaultDirectSocketsPrivateNetworkAccessSetting,
     prefs::kManagedDefaultDirectSocketsPrivateNetworkAccessSetting,
     base::Value::Type::INTEGER },
@@ -913,15 +925,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kWebAuthenticationRemoteProxiedRequestsAllowed,
     webauthn::pref_names::kRemoteProxiedRequestsAllowed,
     base::Value::Type::BOOLEAN },
-  { key::kWebHidAllowAllDevicesForUrls,
-    prefs::kManagedWebHidAllowAllDevicesForUrls,
-    base::Value::Type::LIST },
-  { key::kWebHidAskForUrls,
-    prefs::kManagedWebHidAskForUrls,
-    base::Value::Type::LIST },
-  { key::kWebHidBlockedForUrls,
-    prefs::kManagedWebHidBlockedForUrls,
-    base::Value::Type::LIST },
   { key::kWebRtcIPHandling,
     prefs::kWebRTCIPHandlingPolicy,
     base::Value::Type::STRING },
@@ -2325,6 +2328,9 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kCreatePasskeysInICloudKeychain,
     prefs::kCreatePasskeysInICloudKeychain,
     base::Value::Type::BOOLEAN },
+  { key::kUpdateOnZeroWindowEnabled,
+    prefs::kUpdateOnZeroWindowEnabled,
+    base::Value::Type::BOOLEAN },
 #endif
   { key::kAccessControlAllowMethodsInCORSPreflightSpecConformant,
     prefs::kAccessControlAllowMethodsInCORSPreflightSpecConformant,
@@ -2789,6 +2795,17 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
   handlers->AddHandler(std::make_unique<BookmarkBarPolicyHandler>());
   handlers->AddHandler(std::make_unique<BrowsingHistoryPolicyHandler>());
+  handlers->AddHandler(std::make_unique<WebHidDevicePolicyHandler>(
+      key::kWebHidAllowDevicesForUrls, prefs::kManagedWebHidAllowDevicesForUrls,
+      chrome_schema));
+#if BUILDFLAG(IS_CHROMEOS)
+  handlers->AddHandler(std::make_unique<WebHidDevicePolicyHandler>(
+      key::kDeviceLoginScreenWebHidAllowDevicesForUrls,
+      prefs::kManagedWebHidAllowDevicesForUrlsOnLoginScreen, chrome_schema));
+#endif  // BUILDFLAG(IS_CHROMEOS)
+  handlers->AddHandler(std::make_unique<WebHidDevicePolicyHandler>(
+      key::kWebHidAllowDevicesWithHidUsagesForUrls,
+      prefs::kManagedWebHidAllowDevicesWithHidUsagesForUrls, chrome_schema));
 #if BUILDFLAG(IS_ANDROID)
   handlers->AddHandler(
       std::make_unique<ContextualSearchPolicyHandlerAndroid>());
@@ -2914,17 +2931,6 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       chrome_schema, SCHEMA_ALLOW_UNKNOWN_WITHOUT_WARNING,
       SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
       SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
-  handlers->AddHandler(std::make_unique<WebHidDevicePolicyHandler>(
-      key::kWebHidAllowDevicesForUrls, prefs::kManagedWebHidAllowDevicesForUrls,
-      chrome_schema));
-#if BUILDFLAG(IS_CHROMEOS)
-  handlers->AddHandler(std::make_unique<WebHidDevicePolicyHandler>(
-      key::kDeviceLoginScreenWebHidAllowDevicesForUrls,
-      prefs::kManagedWebHidAllowDevicesForUrlsOnLoginScreen, chrome_schema));
-#endif  // BUILDFLAG(IS_CHROMEOS)
-  handlers->AddHandler(std::make_unique<WebHidDevicePolicyHandler>(
-      key::kWebHidAllowDevicesWithHidUsagesForUrls,
-      prefs::kManagedWebHidAllowDevicesWithHidUsagesForUrls, chrome_schema));
 
   // WindowPlacement policies to be deprecated and replaced by WindowManagement.
   // crbug.com/40842072
@@ -3080,19 +3086,22 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
       SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
 
-  handlers->AddHandler(std::make_unique<URLSchemeListPolicyHandler>(
-      key::kSaasUsageReportingDomainUrlsForBrowsers,
-      enterprise_reporting::kSaasUsageDomainUrlsForBrowser));
-  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
-      std::make_unique<URLSchemeListPolicyHandler>(
-          key::kSaasUsageReportingDomainUrlsForProfiles,
-          enterprise_reporting::kSaasUsageDomainUrlsForProfile)));
-
 #elif BUILDFLAG(IS_CHROMEOS)
   handlers->AddHandler(
       std::make_unique<ManagedAccountRestrictionsPolicyHandler>(chrome_schema));
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
-
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || \
+    BUILDFLAG(IS_WIN)
+  handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
+      std::make_unique<URLSchemeListPolicyHandler>(
+          key::kSaasUsageReportingDomainUrlsForProfiles,
+          enterprise_reporting::kSaasUsageDomainUrlsForProfile)));
+#endif
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
+  handlers->AddHandler(std::make_unique<URLSchemeListPolicyHandler>(
+      key::kSaasUsageReportingDomainUrlsForBrowsers,
+      enterprise_reporting::kSaasUsageDomainUrlsForBrowser));
+#endif
 #if BUILDFLAG(IS_CHROMEOS)
   handlers->AddHandler(std::make_unique<IntRangePolicyHandler>(
       key::kDeviceChromeVariations, nullptr,
@@ -3668,7 +3677,7 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
           {{0, 0}, {1, 0}, {2, 1}}));
   gen_ai_default_policies.emplace_back(
-      key::kGeminiSettings, prefs::kGeminiSettings,
+      key::kGeminiSettings, optimization_guide::prefs::kGeminiSettings,
       GenAiDefaultSettingsPolicyHandler::PolicyValueToPrefMap(
           {{0, 0}, {1, 0}, {2, 1}}));
 #if !BUILDFLAG(IS_ANDROID)

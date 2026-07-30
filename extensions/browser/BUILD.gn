@@ -460,14 +460,14 @@ source_set("browser_sources") {
     "manifest_check_level.h",
     "manifest_v2_handler.cc",
     "manifest_v2_handler.h",
+    "manifest_v2_util.cc",
+    "manifest_v2_util.h",
     "message_service_api.cc",
     "message_service_api.h",
     "message_tracker.cc",
     "message_tracker.h",
     "mojo/keep_alive_impl.cc",
     "mojo/keep_alive_impl.h",
-    "mv2_deprecation_impact_checker.cc",
-    "mv2_deprecation_impact_checker.h",
     "network_permissions_updater.cc",
     "network_permissions_updater.h",
     "null_app_sorting.cc",
@@ -496,6 +496,7 @@ source_set("browser_sources") {
     "policy_check.h",
     "pref_names.cc",
     "pref_names.h",
+    "pref_transformer_interface.h",
     "pref_types.cc",
     "pref_types.h",
     "preload_check.cc",
@@ -529,6 +530,7 @@ source_set("browser_sources") {
     "sandboxed_unpacker.h",
     "scoped_active_install.cc",
     "scoped_active_install.h",
+    "screenshot_access.h",
     "script_executor.cc",
     "script_executor.h",
     "script_injection_tracker.cc",
@@ -693,10 +695,6 @@ source_set("browser_sources") {
 
   if (enable_rlz) {
     deps += [ "//rlz:rlz_lib" ]
-  }
-
-  if (!is_android) {
-    deps += [ "//extensions/browser/mime_handler" ]
   }
 
   public_deps = [
@@ -1259,6 +1257,7 @@ source_set("unit_tests") {
       "//ash/constants",
       "//chrome/common:constants",
       "//chromeos:test_support",
+      "//chromeos/ash/components/browser_context_helper",
       "//chromeos/ash/components/dbus:test_support",
       "//chromeos/ash/components/dbus/audio",
       "//chromeos/ash/components/dbus/debug_daemon",
@@ -1273,10 +1272,13 @@ source_set("unit_tests") {
       "//chromeos/dbus/permission_broker",
       "//chromeos/dbus/power",
       "//components/account_id",
+      "//components/account_id:test_support",
       "//components/feedback",
       "//components/feedback/content:factory",
       "//components/prefs",
       "//components/prefs:test_support",
+      "//components/session_manager/core",
+      "//components/session_manager/test:test_support",
       "//components/user_manager",
       "//components/user_manager:test_support",
       "//google_apis",

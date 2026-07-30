@@ -2674,6 +2674,7 @@ PAC 样式的字符串：
 <translation id="2707733461906745082">资料分离</translation>
 <translation id="2707873794476722903">“安全浏览”功能会处于开启状态且会在标准模式下运行。</translation>
 <translation id="2709516037105925701">自动填充</translation>
+<translation id="2712089199157322391">允许在标准网页浏览情境中使用开发者工具，但在企业安装的扩展程序及受管用户内置的扩展程序中限制使用该工具（自 M150 版起，在嵌入这些扩展程序的页面上会被屏蔽，内置 PDF 查看器除外）。</translation>
 <translation id="2713913573196284609">自 M121 起，此值已被弃用。在 M121 及之后，相关值将被视为 EnabledBelowThreshold。</translation>
 <translation id="2713977837384407666">始终向 Google 发送指标</translation>
 <translation id="2714359695399346815">如果此政策已启用或未设置，系统会允许使用 STUN 服务器，以便远程客户端（即使受到防火墙阻隔）能够发现和连接到这台计算机。
@@ -3128,6 +3129,11 @@ PAC 样式的字符串：
         此政策不会影响已发布的政策。</translation>
 <translation id="3002067315837777719">不允许启用 Phone Hub 通知</translation>
 <translation id="3003490107503207900">强制下载 Office 文档（例如 .docx），而不是在<ph name="BASIC_EDITOR_NAME" />中打开它们</translation>
+<translation id="3003832749381802588">控制 <ph name="PRODUCT_OS_NAME" /> 如何处理在线登录时检测到的密码不匹配。此政策决定了当用户通过在线 IdP（例如第三方 IdP、Gaia）验证身份时所用的密码，与用于加密其本地数据的密码不匹配时，系统应如何处理。通常，用户在外部更改密码后会发生这种情况。
+
+如果此政策设为 0（标准密码更改流程）或未设置，系统将启动标准密码更改流程。系统会提示用户输入旧密码以更新本地数据加密，或者用户可以使用其他本地数据恢复机制（如果有）。
+
+如果此政策设为 1（自动擦除本地数据），系统会绕过标准密码更改流程。检测到密码不匹配后，系统会自动擦除用户的本地数据。这样，用户便可使用新密码顺畅登录，但会导致用户个人资料中本地存储的所有数据（例如，下载内容、未同步的设置）丢失。此选项适用于用户主要在云端存储数据的环境，或者需要经常更新密码的环境。</translation>
 <translation id="300673820739371513">此政策可决定能否在网页上检测到纯文本实体，以便让用户通过与这些实体互动来触发关联操作。
 此政策具有多个属性，每个实体类型对应一个。
 实体类型包括 <ph name="DEFAULT_ENUM_VALUE" />、<ph name="ADDRESS_ENUM_VALUE" />…。
@@ -4001,7 +4007,6 @@ Microsoft Outlook 卡片需要由管理员进行额外配置。如需详细了�
 <translation id="3591584750136265240">配置登录身份验证行为</translation>
 <translation id="3593905652755912452">系统将使用针对已停用的表单控件分派事件的旧行为。</translation>
 <translation id="3596112486106491038">启用虚拟机命令行访问权限</translation>
-<translation id="3600342552601917721">允许在标准网页浏览情境中使用开发者工具，但在企业安装的扩展程序及受管用户内置的扩展程序中限制使用该工具。从 M150 版开始，这些工具也会在所有嵌入上述扩展程序的页面上被屏蔽，只有内置 PDF 查看器例外。</translation>
 <translation id="3603469950773500315">在新版 <ph name="CORS" /> 实现方案中启用 <ph name="CORS" /> 检查缓解功能，从而允许扩展程序保持兼容的行为，并允许 <ph name="PRODUCT_NAME" /> 无需进行 <ph name="CORS" /> 检查便可发送指定标头。
 
       如果此列表设为空，<ph name="PRODUCT_NAME" /> 会尝试以兼容的方式运行扩展程序，而不会激活 <ph name="PRODUCT_NAME" /> 79 版中引入的 <ph name="API" /> 更改（如 <ph name="WEB_REQUEST_API_MANUAL" /> 所述）。
@@ -8788,6 +8793,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 
       注意：请将此政策与 <ph name="REMOTE_ACCESS_HOST_TOKEN_URL_POLICY_NAME" /> 搭配使用。</translation>
 <translation id="6625136649067113817">一个布尔值标记，用于表明屏幕键盘能否提供拼写检查功能。</translation>
+<translation id="6625424971640741579">标准密码更改流程</translation>
 <translation id="6625716212597516929">还原为旧版 Cookie 范围行为</translation>
 <translation id="6626319579493977784">动态代码设置</translation>
 <translation id="66265932317331474">报告 CPU 信息</translation>
@@ -8993,6 +8999,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
 <translation id="6763023079133439068">允许使用由本地信任锚颁发的缺少 subjectAlternativeName 扩展项的证书</translation>
 <translation id="6766216162565713893">允许网站请求用户授予对附近蓝牙设备的访问权限</translation>
 <translation id="6770454900105963262">报告自助服务终端的相关信息</translation>
+<translation id="6770703270685871935">自动擦除本地数据</translation>
 <translation id="6774132787348495175">不允许用户使用所需的虚拟机来支持 Linux 应用</translation>
 <translation id="6782331708811245959">启用设备启动模式报告功能</translation>
 <translation id="6783578496154221347">在新代码中使用 WeeklyTimeIntervalChecked。</translation>
@@ -9283,6 +9290,7 @@ Related Website Set 中的所有网站都必须是采用 HTTPS 协议的可注�
       若未设置，便不存在任何设备打印机，同时其他 <ph name="DEVICE_PRINTERS_POLICY_PATTERN" /> 政策会被忽略。</translation>
 <translation id="69525503251220566">用来为默认搜索服务提供商提供图片搜索功能的参数</translation>
 <translation id="6953102253399571439">默认启用 PIN 码打印</translation>
+<translation id="6953246833109449226">配置在线密码不匹配时的行为</translation>
 <translation id="695532899547292238">启用自助服务终端应用日志收集功能</translation>
 <translation id="6956272732789158625">不允许任何网站使用密钥生成功能</translation>
 <translation id="6960996423652450945">禁止在登录屏幕上使用插入符号突出显示</translation>
@@ -12352,26 +12360,6 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8931555638815157255">如果此政策已启用或未设置，已注册的设备将会定期报告其操作系统和固件版本。
 
       如果此政策已停用，已注册的设备将不会报告版本信息。</translation>
-<translation id="8931984670731745012">通过设置此政策，您可以针对特定的网址格式，指定要屏蔽哪些类型的自动填充数据。
-
-此政策的结构是一个字典列表。每个字典必须包含：
-*“url_pattern”：内容设置网址格式（例如“https://[*.]example.com”）。
-*“blocked_types”：字符串列表，表示要屏蔽的自动填充数据类别。
-
-“blocked_types”支持的值包括：
-*“contact_info”：禁止填充和保存联系信息。
-*“payments”：禁止填充和保存信用卡及支付方式。
-*“identity_docs”：禁止填充和保存身份证件（例如护照、驾照、国民身份证）。
-*“travel”：禁止填充和保存出行信息（例如航班预订、车辆登记信息）。
-*“shopping”：禁止填充和保存购物信息（例如在线订单、货运信息）。
-
-如果某个网站屏蔽了某种数据类型，则该网站将无法生成相关建议，系统也不会再提示在该网站上保存或导入该类型的新数据。
-
-如果某个网址与列表中的多个格式条目匹配，则所有匹配条目中被屏蔽的类型将合并（取并集）。系统会忽略列表中的无效网址格式。
-
-如果未设置此政策，系统不会按网域屏蔽任何自动填充数据类型。
-
-如需详细了解有效的网址格式，请访问：https://chromeenterprise.google/policies/url-patterns。支持通配符 *，此格式会匹配包含任何协议、端口和路径的网址。</translation>
 <translation id="8934296213794658971">Gemini 集成的设置</translation>
 <translation id="8937282917198525844"> 从 M81 开始，我们不仅更新了标准表单控件元素（例如 &lt;select&gt;、&lt;button&gt;、&lt;input type=date&gt;）的外观和风格，还改进了无障碍功能并提升了平台统一性。此政策用于在 M84 之前的版本中恢复“旧版”表单控件元素。
 

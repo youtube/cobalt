@@ -7,24 +7,32 @@
 
 #include <deque>
 
-#include "base/observer_list.h"
-#include "base/observer_list_types.h"
+#include "base/callback_list.h"
+#include "base/containers/flat_set.h"
+#include "base/functional/callback.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
+#include "components/prefs/pref_change_registrar.h"
+#include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
-class GlobalBrowserCollection;
+class BrowserProcess;
 class BrowserWindowInterface;
+class GlobalBrowserCollection;
+class PrefRegistrySimple;
 
 // A singleton service that is the single source of truth for whether
 // a browser window should display the glass frame or not.
 class GlassFrameService : public BrowserCollectionObserver {
  public:
-  class Observer : public base::CheckedObserver {
-   public:
-    virtual void OnGlassFrameStateChanged(GlassFrameService* service) = 0;
-  };
+  DECLARE_USER_DATA(GlassFrameService);
 
+  // Returns non-null if glass frame is enabled for this process (though it may
+  // still be disabled in prefs, or for a particular background window). Call
+  // IsBrowserWindowEligible() to determine if a particular window should get
+  // glass treatment.
   static GlassFrameService* GetInstance();
+
+  static void RegisterLocalStatePrefs(PrefRegistrySimple* registry);
 
   // Maximum number of windows that will display the glass frame at any given
   // time.
@@ -33,12 +41,15 @@ class GlassFrameService : public BrowserCollectionObserver {
   GlassFrameService(const GlassFrameService&) = delete;
   GlassFrameService& operator=(const GlassFrameService&) = delete;
 
-  void AddObserver(Observer* observer);
-  void RemoveObserver(Observer* observer);
+  using GlassFrameEligibilityChangedCallback =
+      base::RepeatingCallback<void(bool is_eligible)>;
+  base::CallbackListSubscription RegisterGlassFrameEligibilityChangedCallback(
+      BrowserWindowInterface* browser_window_interface,
+      GlassFrameEligibilityChangedCallback callback);
 
   bool IsBrowserWindowEligible(BrowserWindowInterface* browser);
 
-  GlassFrameService();
+  explicit GlassFrameService(BrowserProcess& process);
   ~GlassFrameService() override;
 
   // BrowserCollectionObserver:
@@ -46,14 +57,28 @@ class GlassFrameService : public BrowserCollectionObserver {
   void OnBrowserClosed(BrowserWindowInterface* browser) override;
 
  private:
-  base::ObserverList<Observer> observers_;
+  // Returns the set of BrowserWindowInterfaces for the most recently activated
+  // browser window interfaces. The returned set has at most `kMaxGlassWindows`
+  // elements.
+  base::flat_set<BrowserWindowInterface*> MostRecentActivatedBrowsers();
 
+  // Returns the set of BrowserWindowInterfaces that are eligible to display
+  // the glass frame.
+  base::flat_set<BrowserWindowInterface*> GetEligibleBrowserWindowInterfaces();
+
+  void OnGlassFrameEnabledPrefChanged();
+
+  base::RepeatingCallbackList<void(
+      const base::flat_set<BrowserWindowInterface*>&)>
+      callbacks_;
   // Deque of tracked browsers, ordered from most recently activated to
   // least recently activated.
   std::deque<BrowserWindowInterface*> activated_browsers_;
 
   base::ScopedObservation<GlobalBrowserCollection, BrowserCollectionObserver>
       browser_collection_observation_{this};
+  PrefChangeRegistrar pref_change_registrar_;
+  ::ui::ScopedUnownedUserData<GlassFrameService> scoped_unowned_user_data_;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_FRAME_GLASS_FRAME_SERVICE_H_

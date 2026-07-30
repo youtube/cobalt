@@ -2081,12 +2081,6 @@ class ComputedStyle final : public ComputedStyleBase {
            IsRunningRotateAnimationOnCompositor() ||
            IsRunningTranslateAnimationOnCompositor();
   }
-  bool RequiresPropertyNodeForAnimation() const {
-    return IsRunningOpacityAnimationOnCompositor() ||
-           IsRunningTransformRelatedAnimationOnCompositor() ||
-           IsRunningFilterAnimationOnCompositor() ||
-           IsRunningBackdropFilterAnimationOnCompositor();
-  }
 
   // Opacity utility functions.
   bool HasOpacity() const { return Opacity() < 1.0f; }
@@ -2298,11 +2292,6 @@ class ComputedStyle final : public ComputedStyleBase {
   bool HasVisualOverflowingEffect() const {
     return BoxShadow() || HasBorderImageOutsets() || HasOutline() ||
            HasMaskBoxImageOutsets() || HasGapRule() || HasBorderShape();
-  }
-
-  bool IsStackedWithoutContainment() const {
-    return IsStackingContextWithoutContainment() ||
-           GetPosition() != EPosition::kStatic;
   }
 
   // Pseudo-element styles.

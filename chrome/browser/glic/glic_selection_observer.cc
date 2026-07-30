@@ -29,6 +29,7 @@
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/public/service/glic_instance_coordinator.h"
 #include "chrome/browser/platform_util.h"
 #include "chrome/browser/profiles/profile.h"
@@ -102,48 +103,7 @@ enum class GlicSelectionAction {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicSelectionAction)
 
-void DoUpdateNudgeLabel(
-    base::WeakPtr<content::WebContents> web_contents,
-    std::string text,
-    std::optional<std::string> prompt_suggestion,
-    std::string anchored_message_text,
-    std::optional<GlicNudgeActivity> activity,
-    GlicNudgeController::GlicNudgeActivityCallback invoke_glic) {
-  if (!web_contents) {
-    return;
-  }
-  auto* tab_interface =
-      tabs::TabInterface::MaybeGetFromContents(web_contents.get());
-  if (!tab_interface) {
-    return;
-  }
-  auto* bwi = tab_interface->GetBrowserWindowInterface();
-  if (!bwi) {
-    return;
-  }
-  auto* controller = bwi->GetFeatures().glic_nudge_controller();
-  if (!controller) {
-    return;
-  }
 
-  controller->UpdateNudgeLabel(
-      web_contents.get(), std::move(text), std::move(prompt_suggestion),
-      std::move(anchored_message_text), activity, std::move(invoke_glic));
-}
-
-void PostUpdateNudgeLabel(
-    content::WebContents* web_contents,
-    std::string text,
-    std::optional<std::string> prompt_suggestion,
-    std::string anchored_message_text,
-    std::optional<GlicNudgeActivity> activity,
-    GlicNudgeController::GlicNudgeActivityCallback invoke_glic) {
-  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-      FROM_HERE, base::BindOnce(&DoUpdateNudgeLabel, web_contents->GetWeakPtr(),
-                                std::move(text), std::move(prompt_suggestion),
-                                std::move(anchored_message_text), activity,
-                                std::move(invoke_glic)));
-}
 
 mojom::AdditionalContextPtr CreateAdditionalContext(
     content::WebContents* web_contents,
@@ -241,14 +201,14 @@ GlicSelectionObserver::GlicSelectionObserver(content::WebContents* web_contents)
   }
 
   auto* tab_interface = tabs::TabInterface::MaybeGetFromContents(web_contents);
-  if (tab_interface) {
-    auto* helper = tabs::PageContextEligibilityHelper::From(tab_interface);
-    if (helper) {
-      page_context_eligibility_subscription_ =
-          helper->RegisterEligibilityChangeCallback(base::BindRepeating(
-              &GlicSelectionObserver::OnPageContextEligibilityChanged,
-              weak_ptr_factory_.GetWeakPtr()));
-    }
+  auto* helper = tab_interface
+                     ? tabs::PageContextEligibilityHelper::From(tab_interface)
+                     : nullptr;
+  if (helper) {
+    page_context_eligibility_subscription_ =
+        helper->RegisterEligibilityChangeCallback(base::BindRepeating(
+            &GlicSelectionObserver::OnPageContextEligibilityChanged,
+            weak_ptr_factory_.GetWeakPtr()));
   } else {
     CreatePageContextEligibilityAPI(std::move(account));
   }
@@ -533,14 +493,6 @@ void GlicSelectionObserver::DismissUI(bool keep_nudge) {
   if (widget_delegate_) {
     widget_delegate_->CloseWidget();
   }
-  // Only dismiss the nudge if this is NOT a scroll event.
-  // The nudge lives in the toolbar and doesn't need to be hidden when
-  // scrolling.
-  if (!keep_nudge && !features::kGlicSelectionPromptUpdatesOnly.Get()) {
-    PostUpdateNudgeLabel(web_contents(), "", std::nullopt,
-                         /*anchored_message_text=*/std::string(),
-                         GlicNudgeActivity::kNudgeDismissed, base::DoNothing());
-  }
 }
 
 void GlicSelectionObserver::ProcessPendingSelection() {
@@ -607,7 +559,21 @@ void GlicSelectionObserver::InvokeGlicFromSelectionAffordance(
           options.additional_context = AdditionalTabContext(
               CreateAdditionalContext(web_contents.get(), selected_text),
               content::GlobalRenderFrameHostId(), PolicyCheck::kNone);
-          glic_keyed_service->Invoke(std::move(options));
+          if (features::kGlicSelectionAutoSendPrompt.Get()) {
+            std::string cta = features::kGlicSelectionPromptCta.Get();
+            std::string prompt = l10n_util::GetStringUTF8(
+                IDS_GLIC_SELECTION_AUTO_SEND_PROMPT_TELL_ME);
+            if (cta == features::kGlicSelectionPromptCtaExplain) {
+              prompt = l10n_util::GetStringUTF8(
+                  IDS_GLIC_SELECTION_AUTO_SEND_PROMPT_EXPLAIN);
+            }
+            options.prompts.push_back(prompt);
+            glic_keyed_service->InvokeWithAutoSubmit(
+                InvokeWithAutoSubmitPasskeyProvider::GetPassKey(),
+                std::move(options));
+          } else {
+            glic_keyed_service->Invoke(std::move(options));
+          }
         }
       }
     }
@@ -630,13 +596,6 @@ void GlicSelectionObserver::UpdateSelectionState(
       widget_delegate_->CloseWidget();
     }
 
-    if (!features::kGlicSelectionPromptUpdatesOnly.Get()) {
-      PostUpdateNudgeLabel(web_contents(), "", std::nullopt,
-                           /*anchored_message_text=*/std::string(),
-                           GlicNudgeActivity::kNudgeDismissed,
-                           base::DoNothing());
-    }
-
     if (has_sent_selection_context_) {
       SendAdditionalContextToPanel(tab_interface, u"");
       has_sent_selection_context_ = false;
@@ -652,10 +611,9 @@ void GlicSelectionObserver::UpdateSelectionState(
   bool panel_showing = IsPanelShowing(tab_interface, bwi);
 
   if (panel_showing) {
-    if (is_pending_selection && features::kGlicSelectionPromptUseWidget.Get()) {
-      if (!features::kGlicSelectionPromptUpdatesOnly.Get()) {
-        ShowSelectionAffordance(selected_text, bwi);
-      }
+    if (is_pending_selection &&
+        !features::kGlicSelectionPromptUpdatesOnly.Get()) {
+      ShowSelectionAffordance(selected_text, bwi);
     } else if (widget_delegate_) {
       widget_delegate_->CloseWidget();
     }
@@ -664,8 +622,7 @@ void GlicSelectionObserver::UpdateSelectionState(
     SendAdditionalContextToPanel(tab_interface, selected_text);
     has_sent_selection_context_ = true;
   } else {
-    if ((!features::kGlicSelectionPromptUseWidget.Get() ||
-         is_pending_selection) &&
+    if (is_pending_selection &&
         !features::kGlicSelectionPromptUpdatesOnly.Get()) {
       ShowSelectionAffordance(selected_text, bwi);
     }
@@ -678,81 +635,54 @@ void GlicSelectionObserver::ShowSelectionAffordance(
     BrowserWindowInterface* bwi) {
   auto* controller = bwi->GetFeatures().glic_nudge_controller();
   if (controller) {
-    std::u16string truncated_text;
-    if (selected_text.length() <= 13) {
-      truncated_text = selected_text;
-    } else {
-      truncated_text = gfx::StringSlicer(selected_text, gfx::kEllipsisUTF16,
-                                         /*elide_in_middle=*/false,
-                                         /*elide_at_beginning=*/false)
-                           .CutString(13, /*insert_ellipsis=*/true);
-    }
-    std::u16string label = l10n_util::GetStringFUTF16(
-        IDS_GLIC_SELECTION_ASK_ABOUT, truncated_text);
-
     bool is_post_fre = GlicEnabling::HasConsentedForProfile(
         Profile::FromBrowserContext(web_contents()->GetBrowserContext()));
     const char* histogram_suffix = is_post_fre ? ".PostFre" : ".PreFre";
 
-    if (!features::kGlicSelectionPromptUseWidget.Get()) {
-      // Show selection nudge
+    // Show selection widget
+    if (!ShouldShowSelectionWidget()) {
+      return;
+    }
+    // Find the RenderFrameHost that has the selection.
+    content::RenderFrameHost* selected_frame =
+        last_selection_frame_token_.has_value()
+            ? content::RenderFrameHost::FromFrameToken(
+                  *last_selection_frame_token_)
+            : nullptr;
+    if (!selected_frame) {
+      return;
+    }
+
+    std::optional<gfx::Rect> bounds =
+        web_contents()->GetTextSelectionBounds(selected_frame);
+    if (bounds.has_value() && !bounds->IsEmpty()) {
+      if (widget_delegate_) {
+        widget_delegate_->CloseWidget();
+      }
+
       base::UmaHistogramEnumeration(
           base::StrCat({"Glic.Selection.Action", histogram_suffix}),
-          GlicSelectionAction::kNudgeShown);
-      auto invoke_glic = base::BindRepeating(
-          &GlicSelectionObserver::InvokeGlicFromSelectionAffordance,
-          selected_text,
-          /*is_widget=*/false, web_contents()->GetWeakPtr());
-      PostUpdateNudgeLabel(web_contents(), base::UTF16ToUTF8(label),
-                           std::nullopt,
-                           /*anchored_message_text=*/std::string(),
-                           std::nullopt, std::move(invoke_glic));
-    } else {
-      // Show selection widget
-      if (!ShouldShowSelectionWidget()) {
-        return;
-      }
-      // Find the RenderFrameHost that has the selection.
-      content::RenderFrameHost* selected_frame =
-          last_selection_frame_token_.has_value()
-              ? content::RenderFrameHost::FromFrameToken(
-                    *last_selection_frame_token_)
-              : nullptr;
-      if (!selected_frame) {
-        return;
-      }
+          GlicSelectionAction::kWidgetShown);
 
-      std::optional<gfx::Rect> bounds =
-          web_contents()->GetTextSelectionBounds(selected_frame);
-      if (bounds.has_value() && !bounds->IsEmpty()) {
-        if (widget_delegate_) {
-          widget_delegate_->CloseWidget();
-        }
-
-        base::UmaHistogramEnumeration(
-            base::StrCat({"Glic.Selection.Action", histogram_suffix}),
-            GlicSelectionAction::kWidgetShown);
-
-        widget_delegate_ = std::make_unique<GlicSelectionWidgetDelegate>(
-            *action_delegate_, *bounds, web_contents()->GetContainerBounds(),
-            std::u16string(selected_text), is_widget_pinned_);
-        widget_delegate_->set_parent_window(platform_util::GetViewForWindow(
-            web_contents()->GetTopLevelNativeWindow()));
-        widget_delegate_->ShowWidget();
-        if (features::kGlicSelectionShowCopyButtons.Get()) {
-          RequestLinkGeneration(selected_frame);
-        }
-      } else if (bounds_retry_count_ < 5) {
-        // Retry showing the widget, bounds might not be available yet due
-        // to IPC timing (especially on double click).
-        bounds_retry_count_++;
-        pending_selection_text_ = selected_text;
-        base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
-            FROM_HERE,
-            base::BindOnce(&GlicSelectionObserver::ProcessPendingSelection,
-                           weak_ptr_factory_.GetWeakPtr()),
-            base::Milliseconds(100));
+      widget_delegate_ = std::make_unique<GlicSelectionWidgetDelegate>(
+          *action_delegate_, *bounds, web_contents()->GetContainerBounds(),
+          std::u16string(selected_text), is_widget_pinned_);
+      widget_delegate_->set_parent_window(platform_util::GetViewForWindow(
+          web_contents()->GetTopLevelNativeWindow()));
+      widget_delegate_->ShowWidget();
+      if (features::kGlicSelectionShowCopyButtons.Get()) {
+        RequestLinkGeneration(selected_frame);
       }
+    } else if (bounds_retry_count_ < 5) {
+      // Retry showing the widget, bounds might not be available yet due
+      // to IPC timing (especially on double click).
+      bounds_retry_count_++;
+      pending_selection_text_ = selected_text;
+      base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+          FROM_HERE,
+          base::BindOnce(&GlicSelectionObserver::ProcessPendingSelection,
+                         weak_ptr_factory_.GetWeakPtr()),
+          base::Milliseconds(100));
     }
   }
 }
@@ -815,6 +745,14 @@ void GlicSelectionObserver::OnHideForThisSite() {
   }
 
   DismissUI(/*keep_nudge=*/false);
+  ShowHiddenToast(ToastId::kGlicSelectionHiddenForSite);
+}
+
+void GlicSelectionObserver::ShowHiddenToast(ToastId toast_id) {
+  if (auto* toast_controller =
+          ToastController::MaybeGetForWebContents(web_contents())) {
+    toast_controller->MaybeShowToast(ToastParams(toast_id));
+  }
 }
 
 void GlicSelectionObserver::OnSettings() {
@@ -928,7 +866,7 @@ void GlicSelectionObserver::SendAdditionalContextToPanel(
   }
 
   // If the page is not eligible, do not send the additional context.
-  if (IsPageContextEligible() == false && !selected_text.empty()) {
+  if (!IsPageContextEligible() && !selected_text.empty()) {
     return;
   }
 
@@ -939,32 +877,30 @@ void GlicSelectionObserver::SendAdditionalContextToPanel(
   }
 }
 
-std::optional<bool> GlicSelectionObserver::IsPageContextEligible() const {
+bool GlicSelectionObserver::IsPageContextEligible() const {
   auto* tab_interface =
       tabs::TabInterface::MaybeGetFromContents(web_contents());
   if (tab_interface) {
     auto* helper = tabs::PageContextEligibilityHelper::From(tab_interface);
     if (helper) {
-      return helper->IsPageContextEligible();
+      return helper->IsPageContextEligible() ==
+             optimization_guide::PageContextEligibilityStatus::kEligible;
     }
   }
   if (page_context_tracker_) {
-    auto status = page_context_tracker_->IsPageContextEligible();
-    if (status == optimization_guide::PageContextEligibilityStatus::kUnknown) {
-      return std::nullopt;
-    }
-    return status ==
+    return page_context_tracker_->IsPageContextEligible() ==
            optimization_guide::PageContextEligibilityStatus::kEligible;
   }
-  return std::nullopt;
+  return false;
 }
 
 void GlicSelectionObserver::OnPageContextEligibilityChanged(
-    std::optional<bool> is_eligible) {
-  // If the page context transitions into a liminal state (nullopt) or becomes
-  // ineligible (false), and we've already sent selection context, we should
-  // clear it.
-  if (is_eligible != true && has_sent_selection_context_) {
+    optimization_guide::PageContextEligibilityStatus status) {
+  // If the page context transitions into a liminal state (kUnknown) or becomes
+  // ineligible (kNotEligible), and we've already sent selection context, we
+  // should clear it.
+  if (status != optimization_guide::PageContextEligibilityStatus::kEligible &&
+      has_sent_selection_context_) {
     auto* tab_interface =
         tabs::TabInterface::MaybeGetFromContents(web_contents());
     if (tab_interface) {
@@ -993,9 +929,10 @@ void GlicSelectionObserver::OnPageContextEligibilityAPILoaded(
       optimization_guide::PageContextEligibilityObserver::Create(
           web_contents(), std::move(account),
           base::BindRepeating(
-              [](base::WeakPtr<GlicSelectionObserver> observer, bool eligible) {
+              [](base::WeakPtr<GlicSelectionObserver> observer,
+                 optimization_guide::PageContextEligibilityStatus status) {
                 if (observer) {
-                  observer->OnPageContextEligibilityChanged(eligible);
+                  observer->OnPageContextEligibilityChanged(status);
                 }
               },
               weak_ptr_factory_.GetWeakPtr()));

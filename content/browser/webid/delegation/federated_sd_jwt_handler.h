@@ -11,7 +11,7 @@
 #include "base/memory/weak_ptr.h"
 #include "content/browser/webid/delegation/sd_jwt.h"
 #include "crypto/keypair.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom-forward.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -27,7 +27,7 @@ class FederatedSdJwtHandler {
   explicit FederatedSdJwtHandler(
       const blink::mojom::IdentityProviderRequestOptionsPtr& provider,
       RenderFrameHost& render_frame_host,
-      webid::Request* federated_auth_request_impl);
+      webid::Request* request);
   ~FederatedSdJwtHandler();
 
   std::string ComputeUrlEncodedTokenPostDataForIssuers(
@@ -41,7 +41,7 @@ class FederatedSdJwtHandler {
 
   // A list of disclosures that were parsed in the token response, when
   // the token's format is "vc+sd-jwt".
-  std::vector<std::pair<std::string, content::sdjwt::JSONString>> disclosures_;
+  std::vector<std::pair<std::string, sdjwt::JSONString>> disclosures_;
   // A private key that is used to bind the token when the token "format" is
   // "vc+sd-jwt".
   std::optional<crypto::keypair::PrivateKey> private_key_;
@@ -51,7 +51,7 @@ class FederatedSdJwtHandler {
   GURL config_url_;
 
   raw_ptr<RenderFrameHost> render_frame_host_;
-  raw_ptr<webid::Request> federated_auth_request_impl_;
+  raw_ptr<webid::Request> request_;
 
   base::WeakPtrFactory<FederatedSdJwtHandler> weak_ptr_factory_{this};
 };

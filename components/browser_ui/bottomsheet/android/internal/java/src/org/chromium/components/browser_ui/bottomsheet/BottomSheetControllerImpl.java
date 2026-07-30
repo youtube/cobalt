@@ -17,6 +17,7 @@ import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
@@ -122,6 +123,7 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
     private int mAppHeaderHeight;
     private int mBottomControlsOffset;
     private boolean mIsAnchoredToBottomControls;
+    private final boolean mEnableLargeFormFactorUi;
 
     /**
      * Build a new controller of the bottom sheet.
@@ -135,6 +137,8 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
      * @param edgeToEdgeBottomInsetSupplier The supplier of bottom inset when e2e is on.
      * @param desktopWindowStateManager The {@link DesktopWindowStateManager} for the app header.
      * @param insetObserver The {@link InsetObserver} for inset changes.
+     * @param enableLargeFormFactorUi Whether to use a different UI explicitly designed for bottom
+     *     sheets when operating in a desktop or large form factor environment.
      */
     public BottomSheetControllerImpl(
             final Supplier<@Nullable ScrimManager> scrimManagerSupplier,
@@ -144,7 +148,8 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
             boolean alwaysFullWidth,
             Supplier<Integer> edgeToEdgeBottomInsetSupplier,
             @Nullable DesktopWindowStateManager desktopWindowStateManager,
-            InsetObserver insetObserver) {
+            InsetObserver insetObserver,
+            boolean enableLargeFormFactorUi) {
         mScrimManagerSupplier = scrimManagerSupplier;
         mPendingSheetObservers = new ArrayList<>();
         mSuppressionTokens = new TokenHolder(this::onSuppressionTokensChanged);
@@ -155,6 +160,7 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
         if (mDesktopWindowStateManager != null) {
             mDesktopWindowStateManager.addObserver(this);
         }
+        mEnableLargeFormFactorUi = enableLargeFormFactorUi;
 
         mSheetInitializer =
                 () -> {
@@ -196,6 +202,11 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
         if (mBottomSheet != null) {
             mBottomSheet.onAppHeaderHeightChanged(mAppHeaderHeight);
         }
+    }
+
+    @VisibleForTesting
+    boolean isDesktopUi() {
+        return mEnableLargeFormFactorUi && DeviceInfo.isDesktop();
     }
 
     @Override
@@ -487,7 +498,11 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
                 mSheetStateBeforeSuppress = getSheetState();
             }
 
-            mContentWhenSuppressed = getCurrentSheetContent();
+            // Prevent sheets that are already animating to a HIDDEN state from being captured
+            // and resurrected.
+            if (!mBottomSheet.isHiding()) {
+                mContentWhenSuppressed = getCurrentSheetContent();
+            }
             mBottomSheet.setSheetState(SheetState.HIDDEN, false, reason);
         }
 
@@ -578,8 +593,12 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
             // TabBottomSheetManager ensures that we always close the previous coBrowse
             // bottomSheet before ever showing a new one.
             if (!isCobrowse) {
-                mIsSuppressingCurrentContent = true;
-                mContentQueue.add(mBottomSheet.getCurrentSheetContent());
+                // Prevent sheets that are already animating to a HIDDEN state from being captured
+                // and resurrected.
+                if (!mBottomSheet.isHiding()) {
+                    mIsSuppressingCurrentContent = true;
+                    mContentQueue.add(mBottomSheet.getCurrentSheetContent());
+                }
             }
             if (!mSuppressionTokens.hasTokens()) {
                 mBottomSheet.setSheetState(SheetState.HIDDEN, animate);
@@ -601,8 +620,15 @@ class BottomSheetControllerImpl implements ManagedBottomSheetController {
             @StateChangeReason int hideReason) {
         if (mBottomSheet == null) return;
 
-        if (content != mBottomSheet.getCurrentSheetContent()) {
+        if (content != null) {
             assumeNonNull(mContentQueue).remove(content);
+            // Ensure permanently hidden sheets are completely purged from the suppression cache.
+            if (mContentWhenSuppressed == content) {
+                mContentWhenSuppressed = null;
+            }
+        }
+
+        if (content != mBottomSheet.getCurrentSheetContent()) {
             return;
         }
 

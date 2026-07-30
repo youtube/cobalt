@@ -211,10 +211,11 @@ bool HasGuid(const Suggestion::Payload& payload) {
   // The text entered by the user into the active field.
   NSString* _typedValue;
 
-  // Delegate for the most recent suggestions.
-  // The reference is weak because a weak pointer is sent to our
-  // BrowserAutofillManagerDelegate.
-  base::WeakPtr<autofill::AutofillSuggestionDelegate> _suggestionDelegate;
+  // Primary autofill suggestions carry their delegate directly in
+  // `FormSuggestionMetadata` for stateless routing. `_lastReceivedDelegate` is
+  // updated here as a passive fallback for unbound suggestions (e.g. manual
+  // fill) targeting the currently active frame.
+  base::WeakPtr<autofill::AutofillSuggestionDelegate> _lastReceivedDelegate;
 
   // The autofill data that needs to be sent when the |webState_| is shown.
   std::optional<AutofillData> _pendingFormData;
@@ -408,22 +409,28 @@ bool HasGuid(const Suggestion::Payload& payload) {
       (base::FeatureList::IsEnabled(
            autofill::features::kAutofillEnableBottomSheetScanCardAndFill) &&
        suggestion.type == SuggestionType::kSaveAndFillCreditCardEntry)) {
-    CHECK(suggestion.type != SuggestionType::kFillAutofillAi ||
-          base::FeatureList::IsEnabled(
-              autofill::features::kAutofillAiCreateEntityDataManager));
+    // Pick the delegate bound to the suggestion if available.
+    // Otherwise, fall back to the last received delegate (e.g. for manual
+    // fill).
+    base::WeakPtr<autofill::AutofillSuggestionDelegate> delegate =
+        suggestion.metadata.suggestion_delegate
+            ? suggestion.metadata.suggestion_delegate
+            : _lastReceivedDelegate;
 
-    if (_suggestionDelegate) {
+    if (delegate) {
       Suggestion autofill_suggestion(suggestion.type);
       autofill_suggestion.main_text.value =
           SysNSStringToUTF16(suggestion.value);
       autofill_suggestion.field_by_field_filling_type_used =
           suggestion.fieldByFieldFillingTypeUsed;
-      autofill_suggestion.payload = HasGuid(suggestion.payload)
-                                        ? suggestion.payload
-                                        : Suggestion::Payload();
+      autofill_suggestion.payload =
+          base::FeatureList::IsEnabled(autofill::features::kAutofillUseOriginalPayloadIos) ||
+                  HasGuid(suggestion.payload)
+              ? suggestion.payload
+              : Suggestion::Payload();
 
       CHECK_GE(index, 0);
-      _suggestionDelegate->DidAcceptSuggestion(
+      delegate->DidAcceptSuggestion(
           autofill_suggestion, {.multi_index = {static_cast<size_t>(index)}});
     }
     return;
@@ -475,8 +482,17 @@ bool HasGuid(const Suggestion::Payload& payload) {
 }
 
 - (autofill::FillingProduct)mainFillingProduct {
-  return _suggestionDelegate ? _suggestionDelegate->GetMainFillingProduct()
-                             : autofill::FillingProduct::kNone;
+  // All suggestions in the list are currently tied to the same delegate,
+  // so we can pick the delegate from any suggestion to determine the
+  // main filling product.
+  for (FormSuggestion* suggestion in _mostRecentSuggestions) {
+    if (suggestion.metadata.suggestion_delegate) {
+      return suggestion.metadata.suggestion_delegate->GetMainFillingProduct();
+    }
+  }
+  // Use _lastReceivedDelegate as a fallback (e.g. for manual fill suggestions).
+  return _lastReceivedDelegate ? _lastReceivedDelegate->GetMainFillingProduct()
+                               : autofill::FillingProduct::kNone;
 }
 
 #pragma mark - AutofillDriverIOSBridge
@@ -664,12 +680,14 @@ bool HasGuid(const Suggestion::Payload& payload) {
       case SuggestionType::kAddressEntryOnTyping:
       case SuggestionType::kAllLoyaltyCardsEntry:
       case SuggestionType::kAllSavedPasswordsEntry:
+      case SuggestionType::kAtMemoryAiDisclosure:
       case SuggestionType::kAtMemoryGenericError:
       case SuggestionType::kAtMemoryInactivityNudge:
       case SuggestionType::kAtMemoryNoConnection:
       case SuggestionType::kAtMemorySearchAffordance:
       case SuggestionType::kAtMemorySearchResult:
       case SuggestionType::kAutofillAiOtherOrders:
+      case SuggestionType::kAutofillAiPrivateInferenceNotice:
       case SuggestionType::kBackupPasswordEntry:
       case SuggestionType::kBnplEntry:
       case SuggestionType::kBnplFootnote:
@@ -699,6 +717,7 @@ bool HasGuid(const Suggestion::Payload& payload) {
       case SuggestionType::kManageCreditCard:
       case SuggestionType::kManageIban:
       case SuggestionType::kManageLoyaltyCard:
+      case SuggestionType::kManageEnhancedAutofill:
       case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       case SuggestionType::kMerchantPromoCodeEntry:
       case SuggestionType::kMixedFormMessage:
@@ -737,6 +756,10 @@ bool HasGuid(const Suggestion::Payload& payload) {
         (popup_suggestion.field_by_field_filling_type_used
              ? *popup_suggestion.field_by_field_filling_type_used
              : autofill::FieldType::EMPTY_TYPE);
+
+    FormSuggestionMetadata metadata;
+    metadata.suggestion_delegate = delegate;
+
     FormSuggestion* suggestion =
         [FormSuggestion suggestionWithValue:value
                                  minorValue:minorValue
@@ -746,7 +769,8 @@ bool HasGuid(const Suggestion::Payload& payload) {
                                     payload:popup_suggestion.payload
                 fieldByFieldFillingTypeUsed:fieldByFieldFillingTypeUsed
                              requiresReauth:NO
-                 acceptanceA11yAnnouncement:acceptanceA11yAnnouncement];
+                 acceptanceA11yAnnouncement:acceptanceA11yAnnouncement
+                                   metadata:metadata];
 
     suggestion.featureForIPH = SuggestionFeatureForIPH::kUnknown;
     suggestion.suggestionIconType = suggestionIconType;
@@ -775,19 +799,24 @@ bool HasGuid(const Suggestion::Payload& payload) {
     }
   }
 
-  [self onSuggestionsReady:suggestions suggestionDelegate:delegate];
+  // Primary autofill suggestions carry their delegate directly in
+  // `FormSuggestionMetadata` for stateless routing. `_lastReceivedDelegate` is
+  // updated here as a passive fallback for unbound suggestions (e.g. manual
+  // fill) targeting the currently active frame.
+  _lastReceivedDelegate = delegate;
+
+  [self onSuggestionsReady:suggestions];
 
   // TODO(crbug.com/363958046): Pass the actually shown suggestions instead of
   // `popup_suggestions`.
   if (delegate) {
-    delegate->OnSuggestionsShown(popup_suggestions);
+    delegate->OnSuggestionsShown(popup_suggestions, std::nullopt);
   }
 }
 
 - (void)hideAutofillPopup {
-  [self
-      onSuggestionsReady:@[]
-      suggestionDelegate:base::WeakPtr<autofill::AutofillSuggestionDelegate>()];
+  _lastReceivedDelegate.reset();
+  [self onSuggestionsReady:@[]];
 }
 
 - (bool)isLastQueriedField:(FieldGlobalId)fieldID {
@@ -1294,7 +1323,7 @@ bool HasGuid(const Suggestion::Payload& payload) {
 }
 
 // Notifies the autofill manager when forms are detected on a page.
-- (void)notifyFormsSeen:(const FormDataVector&)updatedForms
+- (void)notifyFormsSeen:(FormDataVector)updatedForms
                 inFrame:(web::WebFrame*)frame {
   auto* driver =
       autofill::AutofillDriverIOS::FromWebStateAndWebFrame(_webState, frame);
@@ -1304,7 +1333,8 @@ bool HasGuid(const Suggestion::Payload& payload) {
 
   DCHECK(!updatedForms.empty());
 
-  driver->FormsSeen(/*updated_forms=*/updatedForms, /*removed_forms=*/{});
+  driver->FormsSeen(/*updated_forms=*/std::move(updatedForms),
+                    /*removed_forms=*/{});
 }
 
 // Invokes the form extraction script in |frame| and loads the output into the
@@ -1351,11 +1381,7 @@ bool HasGuid(const Suggestion::Payload& payload) {
       frame, std::move(extractForms).Then(std::move(completionHandler)));
 }
 
-- (void)onSuggestionsReady:(NSArray<FormSuggestion*>*)suggestions
-        suggestionDelegate:
-            (const base::WeakPtr<autofill::AutofillSuggestionDelegate>&)
-                delegate {
-  _suggestionDelegate = delegate;
+- (void)onSuggestionsReady:(NSArray<FormSuggestion*>*)suggestions {
   _mostRecentSuggestions = suggestions;
   if (SuggestionsAvailableCompletion completion =
           std::exchange(_suggestionsAvailableCompletion, nil)) {
@@ -1426,7 +1452,7 @@ bool HasGuid(const Suggestion::Payload& payload) {
   driver->set_processed(true);
 
   if (frame->IsMainFrame()) {
-    _suggestionDelegate.reset();
+    _lastReceivedDelegate.reset();
     _suggestionsAvailableCompletion = nil;
     _suggestionHandledCompletion = nil;
     _mostRecentSuggestions = nil;

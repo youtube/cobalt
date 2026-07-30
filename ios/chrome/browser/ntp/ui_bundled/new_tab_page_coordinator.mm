@@ -166,24 +166,24 @@
                                      DiscoverFeedObserverBridgeDelegate,
                                      DiscoverFeedPreviewDelegate,
                                      DiscoverFeedVisibilityObserver,
+                                     FamilyLinkUserCapabilitiesObserving,
                                      FeedControlDelegate,
                                      FeedSignInPromoDelegate,
                                      FeedWrapperViewControllerDelegate,
                                      HomeCustomizationDelegate,
                                      HomeStartDataSource,
                                      IdentityManagerObserverBridgeDelegate,
+                                     NewTabPageActionsDelegate,
                                      NewTabPageContentDelegate,
                                      NewTabPageDelegate,
                                      NewTabPageHeaderCommands,
-                                     NewTabPageActionsDelegate,
+                                     NewTabPageShortcutsHandler,
                                      NewTabPageURLLoaderDelegate,
                                      OverscrollActionsControllerDelegate,
                                      ProfileStateObserver,
+                                     SafariDataImportChildCoordinatorDelegate,
                                      SceneStateObserver,
-                                     TabGridStateObserving,
-                                     FamilyLinkUserCapabilitiesObserving,
-                                     NewTabPageShortcutsHandler,
-                                     SafariDataImportChildCoordinatorDelegate> {
+                                     TabGridStateObserving> {
   // Observes changes in the IdentityManager.
   std::unique_ptr<signin::IdentityManagerObserverBridge>
       _identityObserverBridge;
@@ -830,7 +830,11 @@
   PlaceholderService* placeholderService =
       ios::PlaceholderServiceFactory::GetForProfile(self.profile);
   NTPMediator.placeholderService = placeholderService;
-  NTPMediator.imageUpdater = self.headerView;
+  if (IsNTPRedesignEnabled()) {
+    NTPMediator.imageUpdater = self.NTPRedesignViewController;
+  } else {
+    NTPMediator.imageUpdater = self.headerView;
+  }
   NTPMediator.logoMediator = _searchEngineLogoMediator;
 
   [NTPMediator setUp];
@@ -866,7 +870,10 @@
 - (void)configureNTPViewController {
   if (IsNTPRedesignEnabled()) {
     self.NTPRedesignViewController.NTPContentDelegate = self;
+    self.NTPRedesignViewController.headerCommandsHandler = self;
     self.NTPRedesignViewController.feedViewController = self.feedViewController;
+    self.NTPRedesignViewController.mostVisitedViewController =
+        self.contentSuggestionsCoordinator.viewController;
     [self configureMainViewControllerUsing:self.NTPRedesignViewController];
     return;
   }
@@ -929,9 +936,6 @@
   DCHECK(self.started);
   if (self.isOffTheRecord) {
     return self.incognitoViewController;
-  }
-  if (IsNTPRedesignEnabled()) {
-    return self.NTPRedesignViewController;
   }
   return self.containerViewController;
 }
@@ -1167,6 +1171,7 @@
                                    title:title
                                 scenario:SharingScenario::MostVisitedEntry];
   UIViewController* baseVC = [self activeViewController];
+  [_sharingCoordinator stop];
   _sharingCoordinator =
       [[SharingCoordinator alloc] initWithBaseViewController:baseVC
                                                      browser:self.browser

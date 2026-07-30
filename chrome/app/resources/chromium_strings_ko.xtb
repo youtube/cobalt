@@ -29,13 +29,11 @@
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> 계정으로 Gmail 또는 YouTube와 같은 Google 서비스에 로그인하면 동일한 계정으로 Chromium에 자동으로 로그인할 수 있습니다.</translation>
 <translation id="1287534462498555020">휴대전화에 Chromium을 다운로드하세요</translation>
 <translation id="1290883685122687410">설정 오류: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
-<translation id="1312200348844120300">이미지 검색을 사용하여 제품을 검색하는 방법을 보여주는 삽화</translation>
 <translation id="1315551408014407711">새 Chromium 프로필 설정</translation>
 <translation id="132092532143527429">Chromium의 Gemini로 사용해 보기</translation>
 <translation id="1324107359134968521">블루투스 기기를 탐색하려면 Chromium에 블루투스 액세스 권한이 필요합니다. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1329040302064168406">휴대전화에서 Chromium에 로그인</translation>
 <translation id="1330562121671411446">언어 감지</translation>
-<translation id="1330742950061766891">Chromium 권장 브라우저 설정 사용</translation>
 <translation id="1342274909142618978">Chromium(<ph name="URL" />)에서도 데이터 삭제</translation>
 <translation id="1345251407431278948">고정되었습니다. 툴바의 새 버튼에서 이미지 검색을 다시 이용할 수 있습니다</translation>
 <translation id="1356661055722410047">New! 화면의 텍스트와 이미지를 모두 번역할 수 있습니다.</translation>
@@ -98,6 +96,7 @@
 <translation id="2018879682492276940">설치할 수 없습니다. 다시 시도해 보세요.</translation>
 <translation id="2039417478970545937">설정</translation>
 <translation id="2049376729098081731">보다 맞춤설정된 Google 서비스 환경을 사용하기 위해 Chromium 방문 기록을 포함할지 선택하세요.</translation>
+<translation id="2050698962207788467">Chromium에 내장되어 있어 안전한 비밀번호를 만들고, 저장하고, 자동 완성하도록 도와줍니다. 바로가기를 추가하여 간편하게 액세스하세요</translation>
 <translation id="2064856577282482477">새 탭 페이지에서 'Chromium 맞춤설정' 버튼을 클릭하여 Chromium에 새로운 디자인을 적용하세요</translation>
 <translation id="2066690553719545730">AI 모드 항상 표시</translation>
 <translation id="2086476982681781442">사기성 파일이며 기기에 예기치 않은 변경사항이 적용될 수 있기 때문에 Chromium에서 이 다운로드를 차단했습니다.</translation>
@@ -233,7 +232,6 @@
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">기존 Chromium 프로필로 전환하시겠습니까?</translation>
 <translation id="3412460710772753638">기기의 비밀번호 관리자에 업데이트합니다.</translation>
-<translation id="3423442168617177595">Chromium에 내장되어 있어 안전한 비밀번호를 만들고, 저장하고, 자동 완성할 수 있습니다. 바로가기를 추가하여 간편하게 액세스하세요.</translation>
 <translation id="3455907671758333080">휴대전화에서 Chromium으로 향상된 세이프 브라우징을 확장하세요</translation>
 <translation id="3461644266919055473">나만의 Chromium 만들기...</translation>
 <translation id="3474745554856756813">항목 <ph name="ITEMS_COUNT" />개가 기기에서 삭제됩니다. 나중에 데이터를 가져오려면 Chromium에 <ph name="USER_EMAIL" />(으)로 로그인하세요.</translation>
@@ -427,6 +425,7 @@
 <translation id="5768371961535086509">Chromium이 비활성 탭에서 메모리를 확보합니다. 이에 따라 활성 탭과 기타 앱에 더 많은 컴퓨터 리소스가 제공되고 Chromium의 빠른 속도가 유지됩니다. 비활성 탭으로 돌아가면 탭이 자동으로 다시 활성화됩니다. <ph name="BEGIN_LINK" />메모리 절약 모드에 관해 자세히 알아보기<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">암호가 기억나지 않거나 이 설정을 변경하려면 계정의 Chromium 데이터를 <ph name="SETTINGS_LINK" />하세요.</translation>
 <translation id="5800158606660203929">Chromium을 맞춤설정 및 제어합니다. Chromium을 기본 브라우저로 설정합니다.</translation>
+<translation id="5802618941556161431">Chromium을 기본 브라우저로 설정하여 비밀번호, 북마크, 방문 기록을 모든 기기에서 완벽하게 동기화하세요.</translation>
 <translation id="5809516625706423866">인터넷에 연결할 수 없습니다(HTTP 401 Unauthorized). 프록시 설정을 확인하시기 바랍니다.</translation>
 <translation id="5817952762723416573">Chromium의 V8 엔진으로 사이트 속도를 높이지만 Chromium이 공격에 약간 더 취약해집니다. 설정이 사용 중지되어 있습니다.</translation>
 <translation id="5821520528363214608">Google 계정에서 Chromium 데이터를 사용하고 저장하려면 Chromium을 업데이트하세요.</translation>
@@ -496,7 +495,6 @@
 <translation id="6400112897226594999">컴퓨터 화면에 표시된 Chromium 로고입니다.</translation>
 <translation id="6403826409255603130">Chromium은 빠른 속도로 웹페이지와 애플리케이션을 실행하는 웹 브라우저입니다. 빠르고 안정적이며 사용하기에 편리합니다. Chromium에 내장된 멀웨어 및 악성 코드 방지 기능을 사용하여 더욱 안전하게 웹을 검색하세요.</translation>
 <translation id="6414624068245092115">언제든지 Chromium 데이터를 사용하고 Google 계정에 저장할 수 있도록 본인 인증을 진행하세요</translation>
-<translation id="6417332166651156371">Chromium의 비밀번호 관리자 진입점을 보여주는 간소화된 이미지</translation>
 <translation id="642132557830635295">Chromium이 더 빠르게 실행되며 JavaScript를 사용하는 기능이 의도한 대로 작동함</translation>
 <translation id="6436260184216827876">이미지 검색을 사용할 수 없습니다. 나중에 다시 시도해 주세요.</translation>
 <translation id="6442900851116057561">ChromiumOS 다시 시작</translation>

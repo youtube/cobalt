@@ -43,17 +43,6 @@ config("inside_blink") {
       "-Wno-sign-conversion",
       "-Wno-implicit-float-conversion",
       "-Wno-implicit-int-conversion",
-    ]
-  }
-}
-
-# narrowing --------------------------------------------------------------------
-
-# crbug.com/514751964: This should be replaced with
-# //build/config/compiler:prevent_unsafe_narrowing
-config("narrowing") {
-  if (is_clang) {
-    cflags = [
       "-Wshorten-64-to-32",
       "-Wtautological-unsigned-zero-compare",
     ]

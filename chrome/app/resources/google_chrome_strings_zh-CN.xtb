@@ -72,7 +72,6 @@
 <translation id="1640672724030957280">正在下载...</translation>
 <translation id="1651617469580841801">当您使用 Google 智能镜头时，系统会将网页的标题、网址和内容（包括 PDF 文件）发送给 Google。<ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">ChromeOS Flex 简介</translation>
-<translation id="1665867022636014702">使用 Google 推荐的浏览器设置</translation>
 <translation id="1674870198290878346">在 Chrome 无痕式窗口中打开链接(&amp;G)</translation>
 <translation id="1682634494516646069">Google Chrome 无法对其数据目录 <ph name="USER_DATA_DIRECTORY" /> 执行读写操作</translation>
 <translation id="1688214853608504530">当您在地址栏或搜索框中输入内容时，Chrome 会将您输入的内容发送给组织的搜索、AI 和代理工具，以便获取建议。</translation>
@@ -233,6 +232,7 @@
 <translation id="3242123554343253302">添加 Chrome 个人资料</translation>
 <translation id="3242486428260808857">网购更尽兴，尽在 <ph name="DEVICE_TYPE" /> 版 Chrome 应用</translation>
 <translation id="3245429137663807393">如果您还共享了 Chrome 使用情况报告，这些报告会包含您访问过的网址</translation>
+<translation id="3249558306861350254">在 Windows 设置中点击<ph name="BEGIN_BOLD" />设为默认<ph name="END_BOLD" />。</translation>
 <translation id="3259748324892322072">获取 Chrome 应用</translation>
 <translation id="3282568296779691940">登录 Chrome</translation>
 <translation id="3286538390144397061">立即重新启动</translation>
@@ -252,7 +252,6 @@
 <translation id="345171907106878721">将您自己添加到Chrome</translation>
 <translation id="3453763134178591239">Chrome 操作系统条款</translation>
 <translation id="3475778264501649775">借助手机上的 Chrome 应用，随时随地同步您的密码、标签页等内容</translation>
-<translation id="3512495006767217696">内置于 Chrome 中，可帮助您创建、保存和自动填充安全系数高的密码。添加快捷方式，访问更轻松</translation>
 <translation id="3539955434060988644">在 Chrome 无痕式窗口中打开链接(&amp;G)</translation>
 <translation id="354621070532799440">温馨提示：Google 顶级安全防护，随身守护</translation>
 <translation id="3547866758548131919">点击“总结”按钮，即可与 Chrome 中的 Gemini 分享此文档，快速获取内容概览并进行追问</translation>
@@ -304,6 +303,7 @@
 <translation id="4012899077942246412">登录后，您可以在 Chrome 中使用 Google 账号中的密码等信息。如需更改此设置，请前往“设置 Chrome 账号”。</translation>
 <translation id="4022972681110646219">翻译屏幕</translation>
 <translation id="4023601594785368013">源语言：<ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">内置于 Chrome 中，可帮助您创建、保存和自动填充安全系数高的密码。添加快捷方式，即可轻松访问。</translation>
 <translation id="4035053306113201399">需要重新启动 Chrome 操作系统以应用更新。</translation>
 <translation id="4050175100176540509">最新版本不仅在安全性方面做出了重要改进，还提供了多项新功能。</translation>
 <translation id="4053720452172726777">自定义及控制 Google Chrome</translation>
@@ -540,7 +540,6 @@
 <translation id="6438015621983209660">借助 Chrome 在手机上使用增强型安全浏览功能</translation>
 <translation id="6442774133615368941">在 iOS 版 Chrome 应用中，借助摄像头轻松购买、翻译和识别所见内容</translation>
 <translation id="6448835208126432197">可以使用键盘快捷键在 Chrome 中的 Gemini 中选择屏幕上的部分内容。</translation>
-<translation id="6473659734176498825">这张简图展示了 Chrome 中 Google 密码管理工具的入口点</translation>
 <translation id="6473905796280459355">前往“关于 Chrome”页面</translation>
 <translation id="6481963882741794338">关联 Chrome 和其他 Google 服务，以便获得个性化体验和实现其他用途</translation>
 <translation id="648319183876919572">“增强型安全浏览”功能有助于保护您免受危险的网站及下载内容的侵害</translation>
@@ -557,6 +556,7 @@
 <translation id="6539493053177300926">在设备上轻松使用 Chrome 中的 Gemini，即使 Chrome 已最小化也无妨。</translation>
 <translation id="6585124893636629274">关闭 Chrome 中的 Gemini</translation>
 <translation id="659498884637196217">在此设备上的 Google 密码管理工具中</translation>
+<translation id="6613949864921837107">将 Chrome 设为默认浏览器，让您的密码、书签和历史记录在所有设备上完美同步。</translation>
 <translation id="6631524303639368205">从上次停下的地方继续：Chrome 已恢复您上次会话中的标签页。如需关闭此功能，请前往</translation>
 <translation id="6632473616050862500">ChromeOS Flex 是借助了其他<ph name="BEGIN_LINK_CROS_OSS" />开放源代码软件<ph name="END_LINK_CROS_OSS" />才得以问世。</translation>
 <translation id="6634299872736643004">对此设置的更改将在 Chrome 重启后生效。</translation>
@@ -682,7 +682,6 @@
 <translation id="7804364787702057554">设置 Chrome 账号</translation>
 <translation id="7804947029129221742">搜索引擎已被 Chrome 之外的其他应用更改。为保护您的安全，Chrome 已将其重置为原始默认设置。<ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">从Chrome中移除…</translation>
-<translation id="7812800388699096556">插图：展示如何使用 Google 智能镜头查找商品</translation>
 <translation id="7827099906024714326">Chrome 需要先验证您的身份，然后才能将某些数据保存到您的 Google 账号中，供您在所有设备上使用。如果现在就退出账号，这些数据将被删除。</translation>
 <translation id="7832314606810669113">如需在您的所有设备上获取书签等信息，请登录 Chrome。登录后，此书签将保存到您的 Google 账号。</translation>
 <translation id="7845233973568007926">感谢您完成安装。您必须重启计算机才能使用 <ph name="BUNDLE_NAME" />。</translation>
@@ -821,7 +820,6 @@
 <translation id="8999208279178790196">{0,plural, =0{有一项可用的 Chrome 更新}=1{有一项可用的 Chrome 更新}other{有一项可用的 Chrome 更新（已发布 # 天）}}</translation>
 <translation id="9014771989710951291">多个组织负责管理 Chrome</translation>
 <translation id="9018218886431812662">安装完成</translation>
-<translation id="9024318700713112071">将 Chrome 设为默认浏览器</translation>
 <translation id="9066987883552592250">关闭 Chrome Canary 版中的 Gemini</translation>
 <translation id="9074041031320636790">成功！现在，您可以使用 Google 搜索 AI 模式，在浏览时轻松提问</translation>
 <translation id="9090566250983691233">了解 Chrome 为何屏蔽某些文件</translation>

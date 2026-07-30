@@ -9,6 +9,7 @@
 
 #include "base/bits.h"
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/functional/callback_helpers.h"
 #include "base/memory/raw_ptr.h"
 #include "base/test/run_until.h"
@@ -111,12 +112,7 @@ class EGLImageBackingFactoryThreadSafeTest
   EGLImageBackingFactoryThreadSafeTest()
       : shared_image_manager_(std::make_unique<SharedImageManager>(true)) {}
   ~EGLImageBackingFactoryThreadSafeTest() override {
-    // |context_state_| and |context_state2_| must be destroyed on its own
-    // context.
-    if (context_state2_) {
-      context_state2_->MakeCurrent(surface2_.get(), /*needs_gl=*/true);
-      context_state2_.reset();
-    }
+    // |context_state_| must be destroyed on its own context.
     if (context_state_) {
       context_state_->MakeCurrent(surface_.get(), /*needs_gl=*/true);
       context_state_.reset();
@@ -150,7 +146,6 @@ class EGLImageBackingFactoryThreadSafeTest
         std::make_unique<SharedImageRepresentationFactory>(
             shared_image_manager_.get(), nullptr);
 
-    CreateSharedContext(workarounds, surface2_, context2_, context_state2_);
   }
 
   bool use_passthrough() {
@@ -192,20 +187,21 @@ class EGLImageBackingFactoryThreadSafeTest
         SkImageInfo::Make(size.width(), size.height(), kRGBA_8888_SkColorType,
                           kOpaque_SkAlphaType, nullptr);
 
-    const int num_pixels = size.width() * size.height();
+    const size_t num_pixels = static_cast<size_t>(size.width()) * size.height();
     std::vector<uint8_t> dst_pixels(num_pixels * 4);
 
     // Read back pixels from Sk Image.
     EXPECT_TRUE(sk_image->readPixels(dst_info, dst_pixels.data(),
                                      dst_info.minRowBytes(), 0, 0));
 
-    for (int i = 0; i < num_pixels; i++) {
+    auto dst_pixels_span = base::span(dst_pixels);
+    for (size_t i = 0; i < num_pixels; i++) {
       // Compare the pixel values.
-      const uint8_t* pixel = UNSAFE_TODO(dst_pixels.data() + (i * 4));
+      auto pixel = dst_pixels_span.subspan(i * 4u, 4u);
       EXPECT_EQ(pixel[0], expected_color[0]);
-      UNSAFE_TODO(EXPECT_EQ(pixel[1], expected_color[1]));
-      UNSAFE_TODO(EXPECT_EQ(pixel[2], expected_color[2]));
-      UNSAFE_TODO(EXPECT_EQ(pixel[3], expected_color[3]));
+      EXPECT_EQ(pixel[1], expected_color[1]);
+      EXPECT_EQ(pixel[2], expected_color[2]);
+      EXPECT_EQ(pixel[3], expected_color[3]);
     }
   }
 
@@ -245,17 +241,20 @@ class EGLImageBackingFactoryThreadSafeTest
         instance.WaitAny(1, &wait_info, std::numeric_limits<uint64_t>::max());
     DCHECK(status == wgpu::WaitStatus::Success);
 
-    const uint8_t* dst_pixels =
-        reinterpret_cast<const uint8_t*>(buffer.GetConstMappedRange());
-    for (int row = 0; row < size.height(); row++) {
-      for (int col = 0; col < size.width(); col++) {
+    // SAFETY: buffer.GetConstMappedRange() returns a pointer to a mapped range
+    // of size buffer_size.
+    auto dst_pixels_span = UNSAFE_BUFFERS(base::span(
+        reinterpret_cast<const uint8_t*>(buffer.GetConstMappedRange()),
+        buffer_size));
+    for (size_t row = 0; row < static_cast<size_t>(size.height()); row++) {
+      for (size_t col = 0; col < static_cast<size_t>(size.width()); col++) {
         // Compare the pixel values.
-        const uint8_t* pixel =
-            UNSAFE_TODO(dst_pixels + (row * buffer_stride) + col * 4);
+        auto pixel =
+            dst_pixels_span.subspan(row * buffer_stride + col * 4u, 4u);
         EXPECT_EQ(pixel[0], expected_color[0]);
-        UNSAFE_TODO(EXPECT_EQ(pixel[1], expected_color[1]));
-        UNSAFE_TODO(EXPECT_EQ(pixel[2], expected_color[2]));
-        UNSAFE_TODO(EXPECT_EQ(pixel[3], expected_color[3]));
+        EXPECT_EQ(pixel[1], expected_color[1]);
+        EXPECT_EQ(pixel[2], expected_color[2]);
+        EXPECT_EQ(pixel[3], expected_color[3]);
       }
     }
   }
@@ -270,9 +269,6 @@ class EGLImageBackingFactoryThreadSafeTest
   std::unique_ptr<SharedImageRepresentationFactory>
       shared_image_representation_factory_;
 
-  scoped_refptr<gl::GLSurface> surface2_;
-  scoped_refptr<gl::GLContext> context2_;
-  scoped_refptr<SharedContextState> context_state2_;
 };
 
 class CreateAndValidateSharedImageRepresentations {
@@ -379,9 +375,21 @@ TEST_P(EGLImageBackingFactoryThreadSafeTest, OneWriterOneReader) {
 
   // Launch 2nd thread.
   std::thread second_thread([&]() {
-    // Do ReadPixels() on 2nd SharedContextState |context_state2_|.
-    dst_pixels = ReadPixels(mailbox, size, context_state2_.get(),
+    scoped_refptr<gl::GLSurface> surface2;
+    scoped_refptr<gl::GLContext> context2;
+    scoped_refptr<SharedContextState> context_state2;
+    GpuDriverBugWorkarounds workarounds;
+    CreateSharedContext(workarounds, surface2, context2, context_state2);
+
+    // Do ReadPixels() on 2nd SharedContextState |context_state2|.
+    dst_pixels = ReadPixels(mailbox, size, context_state2.get(),
                             shared_image_representation_factory_.get());
+
+    // Clean up on this thread.
+    context_state2->MakeCurrent(surface2.get(), /*needs_gl=*/true);
+    context_state2.reset();
+    context2.reset();
+    surface2.reset();
   });
 
   // Wait for this thread to be done.

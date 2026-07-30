@@ -23,8 +23,10 @@ import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.Page
 import org.chromium.components.search_engines.StarterPackId;
 import org.chromium.url.GURL;
 
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.Locale;
 import java.util.Objects;
 
@@ -61,6 +63,7 @@ public class AutocompleteInput implements UserData {
         AutocompleteState.STANDBY_NO_FOCUS
     })
     @Retention(RetentionPolicy.SOURCE)
+    @Target({ElementType.TYPE_USE})
     public @interface AutocompleteState {
         /** Fully disabled autocompletion. */
         int DISABLED = 0;
@@ -122,7 +125,9 @@ public class AutocompleteInput implements UserData {
     private String mPageTitle;
     private boolean mAllowExactKeywordMatch;
     private boolean mHasAttachments;
-    private @AutocompleteState int mAutocompleteState = AutocompleteState.ENABLED;
+    private final SettableNonNullObservableSupplier<@AutocompleteState Integer>
+            mAutocompleteStateSupplier =
+                    ObservableSuppliers.createNonNull(AutocompleteState.ENABLED);
     private TextSelection mSelection;
     private @RefineActionUsage int mRefineActionUsage;
     private boolean mSuggestionsListScrolled;
@@ -178,7 +183,7 @@ public class AutocompleteInput implements UserData {
         mPageTitle = other.mPageTitle;
         mAllowExactKeywordMatch = other.mAllowExactKeywordMatch;
         mHasAttachments = other.mHasAttachments;
-        mAutocompleteState = other.mAutocompleteState;
+        mAutocompleteStateSupplier.set(other.getAutocompleteState());
         mSelection = other.mSelection; // Copied.
         mRefineActionUsage = other.mRefineActionUsage;
         mSuggestionsListScrolled = other.mSuggestionsListScrolled;
@@ -353,12 +358,21 @@ public class AutocompleteInput implements UserData {
      * @return The AutocompleteInput object.
      */
     public AutocompleteInput setUserText(@Nullable String text) {
+        return setUserText(text, TextSelection.SELECT_END);
+    }
+
+    public AutocompleteInput setUserText(@Nullable String text, TextSelection selection) {
         if (text == null) text = "";
 
         mPreviewText = null;
 
         String oldText = mUserText.get();
-        if (TextUtils.equals(text, oldText)) return this;
+        if (TextUtils.equals(text, oldText)) {
+            mSelection = selection;
+            return this;
+        }
+
+        mSelection = selection;
 
         boolean oldTextUsesKeywordActivator = allowExactKeywordTrigger(oldText);
         boolean newTextUsesKeywordActivator = allowExactKeywordTrigger(text);
@@ -368,18 +382,13 @@ public class AutocompleteInput implements UserData {
         // Suppress Keyword mode when reverting back to the url.
         mAllowExactKeywordMatch &= !(oldTextUsesKeywordActivator && !newTextUsesKeywordActivator);
 
-        // Update autocomplete state to ENABLED before notifying observers via mUserText.set().
-        // Otherwise, synchronous observers (e.g. AutocompleteMediator.onInputChanged) will run
-        // while the state is still in STANDBY, causing them to ignore the first keystroke.
-        if ((mAutocompleteState == AutocompleteState.STANDBY
-                        || mAutocompleteState == AutocompleteState.STANDBY_NO_FOCUS)
-                && !TextUtils.equals(text, mInitialUserText)) {
-            mAutocompleteState = AutocompleteState.ENABLED;
-        }
-
+        // Notify text change FIRST to ensure new text is available during reparenting.
         mUserText.set(text);
-        // Place cursor at the end of text.
-        mSelection = TextSelection.SELECT_END;
+
+        // Then notify state change (which triggers reparenting).
+        if (isStandby() && !TextUtils.equals(text, mInitialUserText)) {
+            setAutocompleteState(AutocompleteState.ENABLED);
+        }
 
         return this;
     }
@@ -489,11 +498,15 @@ public class AutocompleteInput implements UserData {
         return setPreviewText(null);
     }
 
-    /** Commits the preview text as the user text. */
+    /**
+     * Commits the preview text as the user text, retaining the selection of the committed preview
+     * text part.
+     */
     public AutocompleteInput commitPreviewText() {
-        if (hasPreviewText()) {
-            String textToCommit = mPreviewText;
-            setUserText(textToCommit);
+        if (mPreviewText != null) {
+            TextSelection selection =
+                    new TextSelection(mUserText.get().length(), mPreviewText.length());
+            setUserText(mPreviewText, selection);
         }
         return this;
     }
@@ -592,7 +605,7 @@ public class AutocompleteInput implements UserData {
         mSiteSearchData.set(null);
         mUrlFocusTime = 0;
         mSuggestionsListScrolled = false;
-        mAutocompleteState = AutocompleteState.ENABLED;
+        mAutocompleteStateSupplier.set(AutocompleteState.ENABLED);
 
         return this;
     }
@@ -619,18 +632,29 @@ public class AutocompleteInput implements UserData {
      * reflect typing started.
      */
     public @AutocompleteState int getAutocompleteState() {
-        return mAutocompleteState;
+        return mAutocompleteStateSupplier.get();
+    }
+
+    /**
+     * Returns the supplier for the AutocompleteState.
+     *
+     * <p>Use sparingly - to install/remove observers. Readers should use {@see
+     * getAutocompleteState()}. Writers should use {@see setAutocompleteState()}.
+     */
+    public NonNullObservableSupplier<@AutocompleteState Integer> getAutocompleteStateSupplier() {
+        return mAutocompleteStateSupplier;
     }
 
     /** Returns whether the current autocomplete state is a standby state. */
     public boolean isStandby() {
-        return mAutocompleteState == AutocompleteState.STANDBY
-                || mAutocompleteState == AutocompleteState.STANDBY_NO_FOCUS;
+        @AutocompleteState int current = getAutocompleteState();
+        return current == AutocompleteState.STANDBY
+                || current == AutocompleteState.STANDBY_NO_FOCUS;
     }
 
     /** Sets the {@link AutocompleteState}. */
     public AutocompleteInput setAutocompleteState(@AutocompleteState int state) {
-        mAutocompleteState = state;
+        mAutocompleteStateSupplier.set(state);
         return this;
     }
 

@@ -145,7 +145,7 @@ class ContextualTasksUrlLoaderFactoryInterceptorBrowserTest
     // Sign in.
     identity_test_environment_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
-            browser()->profile());
+            browser()->GetProfile());
     identity_test_environment_adaptor_->identity_test_env()
         ->MakePrimaryAccountAvailable(kTestEmail,
                                       signin::ConsentLevel::kSignin);
@@ -171,6 +171,10 @@ class ContextualTasksUrlLoaderFactoryInterceptorBrowserTest
                   nullptr, nullptr);
           ON_CALL(*service, IsAimEligible())
               .WillByDefault(testing::Return(true));
+          ON_CALL(*service, IsAimUrl(testing::_, testing::_))
+              .WillByDefault(testing::Return(false));
+          ON_CALL(*service, IsAimHost(testing::_, testing::_))
+              .WillByDefault(testing::Return(false));
           return service;
         }));
 
@@ -622,7 +626,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUrlLoaderFactoryInterceptorBrowserTest,
       GURL("https://" + GaiaUrls::GetInstance()->gaia_origin().host());
 
   ASSERT_TRUE(
-      content::SetCookie(browser()->profile(), gaia_url,
+      content::SetCookie(browser()->GetProfile(), gaia_url,
                          "test_cookie=test_value; Secure; SameSite=None"));
 
   // Navigate to the Contextual Tasks WebUI.

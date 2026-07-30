@@ -20,7 +20,8 @@ class DownloadBubbleRowListViewInfoObserver : public base::CheckedObserver {
   ~DownloadBubbleRowListViewInfoObserver() override;
 
   // Called when a new row is added.
-  virtual void OnRowAdded(const offline_items_collection::ContentId& id) {}
+  virtual void OnRowAdded(const offline_items_collection::ContentId& id,
+                          size_t index) {}
 
   // Called when a row is about to be removed. At this time, the row info for
   // `id` still exists.
@@ -48,11 +49,8 @@ class DownloadBubbleRowListViewInfo
   const DownloadBubbleRowViewInfo* GetRowInfo(
       const offline_items_collection::ContentId& id) const;
 
-  std::optional<base::Time> last_completed_time() const {
-    return last_completed_time_;
-  }
-
-  void AddRow(DownloadUIModel::DownloadUIModelPtr model);
+  void AddRow(DownloadUIModel::DownloadUIModelPtr model,
+              std::optional<size_t> index = std::nullopt);
   void RemoveRow(const offline_items_collection::ContentId& id);
 
  private:
@@ -68,7 +66,6 @@ class DownloadBubbleRowListViewInfo
   // (because the pointer to the download has been set to null), so we need a
   // way to locate the correct info to remove, given a ContentId.
   RowListIterMap row_list_iter_map_;
-  std::optional<base::Time> last_completed_time_;
 };
 
 #endif  // CHROME_BROWSER_UI_DOWNLOAD_DOWNLOAD_BUBBLE_ROW_LIST_VIEW_INFO_H_

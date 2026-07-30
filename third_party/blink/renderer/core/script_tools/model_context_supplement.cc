@@ -5,8 +5,6 @@
 #include "third_party/blink/renderer/core/script_tools/model_context_supplement.h"
 
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
-#include "third_party/blink/renderer/core/frame/navigator.h"
-#include "third_party/blink/renderer/core/inspector/console_message.h"
 
 namespace blink {
 
@@ -32,33 +30,8 @@ ModelContext* ModelContextSupplement::GetIfExists(Document& document) {
 }
 
 // static
-ModelContext* ModelContextSupplement::modelContext(Navigator& navigator) {
-  auto* window = navigator.DomWindow();
-  if (!window || !window->document()) {
-    return nullptr;
-  }
-  window->AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
-                                mojom::blink::ConsoleMessageSource::kJavaScript,
-                                mojom::blink::ConsoleMessageLevel::kWarning,
-                                "navigator.modelContext is deprecated. Please "
-                                "use document.modelContext instead."),
-                            /*discard_duplicates=*/true);
-  return From(*window->document()).modelContext();
-}
-
-// static
 ModelContext* ModelContextSupplement::modelContext(Document& document) {
   return From(document).modelContext();
-}
-
-// static
-ModelContextTesting* ModelContextSupplement::modelContextTesting(
-    Navigator& navigator) {
-  auto* window = navigator.DomWindow();
-  if (!window || !window->document()) {
-    return nullptr;
-  }
-  return From(*window->document()).modelContextTesting();
 }
 
 ModelContextSupplement::ModelContextSupplement(Document& document)
@@ -66,7 +39,6 @@ ModelContextSupplement::ModelContextSupplement(Document& document)
 
 void ModelContextSupplement::Trace(Visitor* visitor) const {
   visitor->Trace(model_context_);
-  visitor->Trace(model_context_testing_);
   Supplement<Document>::Trace(visitor);
 }
 
@@ -77,14 +49,6 @@ ModelContext* ModelContextSupplement::modelContext() {
     model_context_ = MakeGarbageCollected<ModelContext>(*document);
   }
   return model_context_.Get();
-}
-
-ModelContextTesting* ModelContextSupplement::modelContextTesting() {
-  if (!model_context_testing_ && modelContext()) {
-    model_context_testing_ =
-        MakeGarbageCollected<ModelContextTesting>(*modelContext());
-  }
-  return model_context_testing_.Get();
 }
 
 }  // namespace blink

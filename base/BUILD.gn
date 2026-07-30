@@ -685,6 +685,7 @@ component("base") {
     "strings/durable_string_view.h",
     "strings/escape.cc",
     "strings/escape.h",
+    "strings/join_string_internal.h",
     "strings/lazy_string_builder.cc",
     "strings/lazy_string_builder.h",
     "strings/levenshtein_distance.cc",
@@ -3000,10 +3001,7 @@ buildflag_header("anchor_functions_buildflags") {
   header = "anchor_functions_buildflags.h"
   header_dir = "base/android/library_loader"
 
-  flags = [
-    "USE_LLD=$use_lld",
-    "SUPPORTS_CODE_ORDERING=$_enable_code_ordering",
-  ]
+  flags = [ "SUPPORTS_CODE_ORDERING=$_enable_code_ordering" ]
 }
 
 buildflag_header("clang_profiling_buildflags") {

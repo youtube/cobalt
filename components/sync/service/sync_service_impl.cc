@@ -81,7 +81,7 @@
 #include "components/password_manager/core/browser/split_stores_and_local_upm.h"
 #include "components/sync/android/jni_headers/ExplicitPassphrasePlatformClient_jni.h"
 #include "components/sync/android/sync_service_android_bridge.h"
-#include "components/sync/nigori/nigori.h"
+#include "components/sync/model/crypto/nigori.h"
 #include "components/sync/protocol/nigori_specifics.pb.h"
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -1186,6 +1186,16 @@ void SyncServiceImpl::OnActionableProtocolError(
         account_mutator->RemovePrimaryAccountButKeepTokens(
             signin_metrics::ProfileSignout::kServerForcedDisable);
 #else
+        // The Sync consent will be revoked, and Sync will enter
+        // Sync-the-transport mode.
+        if (base::FeatureList::IsEnabled(
+                kSyncCopyPreferencesToTransportModeOnServerForcedDisable)) {
+          CHECK(!GetAccountInfo().gaia.empty());
+          // Migrating the user's selected types prefs to ensure that they will
+          // be available in Sync-the-transport mode.
+          SyncPrefs::MigrateGlobalDataTypePrefsToAccount(
+              sync_client_->GetPrefService(), GetAccountInfo().gaia);
+        }
         // Note: On some platforms, revoking the sync consent will also clear
         // the primary account as transitioning from ConsentLevel::kSync to
         // ConsentLevel::kSignin is not supported.

@@ -8,19 +8,16 @@
 #include <optional>
 
 #include "base/functional/callback.h"
-#include "base/functional/callback_forward.h"
 #include "base/types/pass_key.h"
 #include "base/unguessable_token.h"
 #include "third_party/blink/public/mojom/content_extraction/script_tools.mojom-blink.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_execute_tool_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_model_context.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_tool_execute_callback.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/abort_signal.h"
-#include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/events/event_target.h"
+#include "third_party/blink/renderer/core/dom/scoped_abort_state.h"
 #include "third_party/blink/renderer/core/script_tools/script_tool_types.h"
 #include "third_party/blink/renderer/platform/allow_discouraged_type.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
@@ -28,7 +25,8 @@
 #include "third_party/blink/renderer/platform/mojo/heap_mojo_remote.h"
 
 namespace blink {
-class AbortSignal;
+class AbortController;
+class Document;
 class Element;
 class ExecuteToolOptions;
 class SourceLocation;
@@ -36,6 +34,7 @@ class ModelContextGetToolOptions;
 class ModelContextRegisterToolOptions;
 class ModelContextTool;
 class RegisteredTool;
+class V8ToolExecuteCallback;
 
 class DeclarativeWebMCPTool : public GarbageCollectedMixin {
  public:
@@ -151,7 +150,6 @@ class CORE_EXPORT ModelContext : public EventTarget,
   bool ExecuteTool(const base::UnguessableToken& invocation_id,
                    const String& name,
                    const String& input_arguments,
-                   AbortSignal* signal,
                    ScriptToolExecutedCallback tool_executed_cb);
   using CrossDocumentScriptToolResultCallback =
       base::OnceCallback<void(String)>;
@@ -161,16 +159,13 @@ class CORE_EXPORT ModelContext : public EventTarget,
 
   bool CancelTool(const base::UnguessableToken& invocation_id);
 
-  void SetToolChangeCallback(std::optional<base::RepeatingClosure> cb) {
-    tool_change_closure_ = std::move(cb);
-  }
-
   void RegisterDeclarativeTool(DeclarativeWebMCPTool* tool);
   void PauseExecution();
 
   // mojom::blink::ScriptToolReceiver implementation:
   void NotifyToolChange() override;
-  void ExecuteScriptTool(const String& name,
+  void ExecuteScriptTool(const base::UnguessableToken& invocation_id,
+                         const String& name,
                          const String& input_arguments,
                          ExecuteScriptToolCallback callback) override;
 
@@ -202,11 +197,12 @@ class CORE_EXPORT ModelContext : public EventTarget,
                      const base::UnguessableToken& invocation_id,
                      const String& name,
                      const String& input_arguments,
-                     AbortSignal* signal,
+                     AbortController* abort_controller,
                      ScriptToolExecutedCallback tool_executed_cb);
   void ExecuteDeclarativeTool(DeclarativeWebMCPTool* tool,
                               const base::UnguessableToken& invocation_id,
                               const String& input_arguments,
+                              AbortController* abort_controller,
                               ScriptToolExecutedCallback tool_executed_cb);
 
   void OnToolFailed(ScriptToolExecutedCallback callback,
@@ -222,16 +218,25 @@ class CORE_EXPORT ModelContext : public EventTarget,
   HeapHashMap<String, Member<ToolData>> tool_map_;
 
   struct PendingExecution {
+    DISALLOW_NEW();
+
+   public:
+    void Trace(Visitor* visitor) const;
     String tool_name;
     ScriptToolExecutedCallback callback;
     base::UnguessableToken invocation_id;
+    Member<AbortController> abort_controller;
+    // Manages the lifetime of the abort algorithm associated with this
+    // execution's AbortSignal. Storing this here ensures the algorithm is
+    // automatically unregistered when the execution completes (i.e. is removed
+    // from `pending_executions_`).
+    std::unique_ptr<ScopedAbortState> scoped_abort_state;
   };
-  HashMap<String, PendingExecution> pending_executions_;
+  HeapHashMap<String, PendingExecution> pending_executions_;
 
   Vector<CrossDocumentScriptToolResultCallback>
       cross_document_result_callbacks_;
 
-  std::optional<base::RepeatingClosure> tool_change_closure_;
   Member<Document> document_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
 

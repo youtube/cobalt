@@ -29,7 +29,7 @@
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/field_type_utils.h"
 #include "components/autofill/core/browser/field_types.h"
-#include "components/autofill/core/browser/network/autofill_ai/personal_context_access_manager_impl.h"
+#include "components/autofill/core/browser/network/autofill_ai/autofill_ai_personal_context_access_manager_impl.h"
 
 namespace autofill {
 
@@ -326,7 +326,8 @@ void SetDataForEDM(base::WeakPtr<EntityDataManager> edm,
           break;
       }
     }
-    edm->SetPersonalContextEntitiesForTesting(personal_context_entities);
+    edm->SetPersonalContextEntitiesForTesting(
+        std::move(personal_context_entities));
   }
 }
 

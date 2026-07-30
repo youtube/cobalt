@@ -30,7 +30,10 @@ mojom("icon_handle_mojom") {
 mojom("extensions_bar_data_model_mojom") {
   sources = [ "extensions_bar_data_model.mojom" ]
 
-  public_deps = [ ":icon_handle_mojom" ]
+  public_deps = [
+    ":icon_handle_mojom",
+    "//mojo/public/mojom/base",
+  ]
 
   # Generate TypeScript bindings for WebUI.
   webui_module_path = "/"
@@ -47,6 +50,7 @@ mojom("mojom_data_model") {
     "//components/browser_apis/browser_controls:mojom_data_model",
     "//components/content_settings/core/common:content_settings_types",
     "//mojo/public/mojom/base",
+    "//ui/gfx/geometry/mojom",
     "//ui/gfx/range/mojom",
   ]
 

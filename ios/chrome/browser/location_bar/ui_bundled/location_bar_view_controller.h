@@ -85,7 +85,7 @@ class Tracker;
 // Returns whether the location bar can send the current tab to other devices.
 - (BOOL)locationBarCanSendTabToSelf;
 
-// Notifies the delegate that the "Send to Your Devices" context menu item was
+// Notifies the delegate that the "Send to your device" context menu item was
 // tapped.
 - (void)locationBarSendTabToSelfTapped;
 
@@ -96,10 +96,10 @@ class Tracker;
 // the omnibox textfield is displayed; in the non-editing state, the current
 // location is displayed.
 @interface LocationBarViewController
-    : UIViewController <FullscreenUIElement,
+    : UIViewController <ContextMenuTransitionStateProviding,
+                        FullscreenUIElement,
                         LocationBarAnimatee,
-                        LocationBarConsumer,
-                        ContextMenuTransitionStateProviding>
+                        LocationBarConsumer>
 
 @property(nonatomic, assign) BOOL incognito;
 
@@ -248,6 +248,9 @@ class Tracker;
 
 // Sets the custom leading view visibility, optionally animated.
 - (void)setCustomLeadingViewVisible:(BOOL)visible animated:(BOOL)animated;
+
+// Returns the width of the text in the location bar.
+- (CGFloat)locationBarTextWidth;
 
 @end
 

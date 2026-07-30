@@ -230,6 +230,9 @@ struct Suggestion {
     // The type of the entry from accessibility annotator.
     accessibility_annotator::MemoryDataType memory_data_type =
         accessibility_annotator::MemoryDataType::kUnknown;
+
+    // Whether the entry is sourced from `PersonalContextService`.
+    bool is_personal_context_sourced = false;
   };
 
   struct OpenGeminiPayload final {
@@ -354,8 +357,23 @@ struct Suggestion {
 
   // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.ui.suggestion
   enum class Icon {
+    // kNoIcon is kept at the top of the list.
     kNoIcon,
+
+    // 1P Google services start
+    kGmail,
+    kGoogleCalendar,
+    kGooglePhotos,
+    // 1P Google services end
+
+    // Address profile icons start
+    kHome,
+    kWork,
+    // Address profile icons end
+
+    // Generic icons start
     kAccount,
+    kAndroidMessages,
     // TODO(crbug.com/40266549): Rename to Undo.
     kClear,
     kCode,
@@ -373,7 +391,6 @@ struct Suggestion {
     kGooglePay,
     kGoogleWallet,
     kGoogleWalletMonochrome,
-    kHome,
     kIdCard,
     kIdCard2,
     kIdCard2Spark,
@@ -392,21 +409,26 @@ struct Suggestion {
     kPersonCheck,
     kQuestionMark,
     kRecoveryPassword,
+    kSadTab,
     kScanCreditCard,
     kSettings,
     kShipment,
     kShipmentSpark,
+    kSpark,
     kTextSpark,
     kUndo,
     kVehicle,
     kVehicleSpark,
-    kWork,
-    kGmail,
-    kGooglePhotos,
-    kGoogleCalendar,
-    // Payment method icons
+    // Generic icons end
+
+    // Payment method icons start
     kCardGeneric,
     kCardGenericSpark,
+    // A vector representation of the generic card icon, which is used when a
+    // vector icon is preferred over a raster image (e.g., in the AtMemory UI
+    // on both Android and Desktop). In contrast, kCardGeneric maps to a raster
+    // image.
+    kCardGenericVector,
     kCardAmericanExpress,
     kCardDiners,
     kCardDiscover,
@@ -425,9 +447,7 @@ struct Suggestion {
     kBnplKlarna,
     kBnplZip,
     kSaveAndFill,
-    kAndroidMessages,
-    kSpark,
-    kSadTab,
+    // Payment method icons end
   };
 
   // This enum is used to control filtration of suggestions (see it's used in
@@ -527,7 +547,8 @@ struct Suggestion {
       case SuggestionType::kBnplEntry:
         if (base::FeatureList::IsEnabled(
                 features::kAutofillEnablePayNowPayLaterTabs)) {
-          return std::holds_alternative<BnplIssuer>(payload);
+          return std::holds_alternative<BnplIssuer>(payload) ||
+                 std::holds_alternative<PaymentsPayload>(payload);
         }
         return std::holds_alternative<PaymentsPayload>(payload);
       case SuggestionType::kAtMemorySearchResult:

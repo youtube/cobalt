@@ -62,18 +62,19 @@ constexpr base::TimeDelta kMaxWaitForResponseTime = base::Seconds(10);
 // These values are persisted to logs. Entries should not be renumbered and
 // numeric values should never be reused.
 // See `screen_ai_service.mojom` for more info.
-// LINT.IfChange(OcrClientType)
+// LINT.IfChange(OCRClientType)
 enum class OcrClientTypeForMetrics {
   kTest = 0,
   kPdfViewer = 1,
   kLocalSearch = 2,
   kCameraApp = 3,
-  kNotUsed = 4,  // Can be used for a new client.
+  kNotUsed = 4,
   kMediaApp = 5,
-  kScreenshotTextDetection,
-  kMaxValue = kScreenshotTextDetection
+  kScreenshotTextDetection = 6,
+  kCanvas = 7,
+  kMaxValue = kCanvas
 };
-// LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:OcrClientType)
+// LINT.ThenChange(//tools/metrics/histograms/metadata/accessibility/enums.xml:OCRClientType)
 
 OcrClientTypeForMetrics GetClientType(mojom::OcrClientType client_type) {
   switch (client_type) {
@@ -86,6 +87,8 @@ OcrClientTypeForMetrics GetClientType(mojom::OcrClientType client_type) {
       return OcrClientTypeForMetrics::kLocalSearch;
     case mojom::OcrClientType::kCameraApp:
       return OcrClientTypeForMetrics::kCameraApp;
+    case mojom::OcrClientType::kCanvas:
+      return OcrClientTypeForMetrics::kCanvas;
     case mojom::OcrClientType::kMediaApp:
       return OcrClientTypeForMetrics::kMediaApp;
     case mojom::OcrClientType::kScreenshotTextDetection:
@@ -365,6 +368,11 @@ ScreenAIService::PerformOcrAndRecordMetrics(const SkBitmap& image) {
       ocr_client_types_.find(screen_ai_annotators_.current_receiver())->second);
   base::UmaHistogramEnumeration("Accessibility.ScreenAI.OCR.ClientType",
                                 client_type);
+
+  if (image.drawsNothing()) {
+    VLOG(1) << "Skipping OCR because image is empty.";
+    return std::nullopt;
+  }
 
   bool light_client =
       light_ocr_clients_.contains(screen_ai_annotators_.current_receiver());

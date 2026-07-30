@@ -20,12 +20,14 @@
 #include "chrome/browser/devtools/devtools_infobar_delegate.h"
 #include "chrome/browser/devtools/devtools_window.h"
 #include "chrome/browser/global_features.h"
+#include "chrome/browser/infobars/browser_infobar_manager.h"
 #include "chrome/browser/infobars/infobar_features.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/collected_cookies_infobar_delegate.h"
 #include "chrome/browser/ui/omnibox/alternate_nav_infobar_delegate.h"
+#include "chrome/browser/ui/page_info/page_info_infobar_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/site_data/page_specific_site_data_dialog_controller.h"
 #include "chrome/common/pref_names.h"
@@ -70,6 +72,10 @@
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_prefs.h"  // nogncheck
 #include "chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_delegate.h"
 #include "chrome/browser/ui/views/session_restore_infobar/session_restore_infobar_manager.h"
+#endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+#include "chrome/browser/ui/pdf/infobar/pdf_infobar_controller.h"
 #endif
 
 #if BUILDFLAG(IS_WIN)
@@ -165,6 +171,22 @@ void InfoBarInternalsHandler::GetInfoBars(GetInfoBarsCallback callback) {
       "This can only be triggered on Mac."));
 #endif
 
+  infobar_list.emplace_back(InfoBarEntry::New(
+      /*type=*/InfoBarType::kPageInfo, /*name=*/"Page Info",
+      /*description=*/
+      "The Page Info infobar is shown when a user changes permissions, "
+      "asking them to reload the page to apply settings."));
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  infobar_list.emplace_back(InfoBarEntry::New(
+      /*type=*/InfoBarType::kPdf, /*name=*/"PDF",
+      /*description=*/
+      "The PDF infobar offers to set Chrome as the default PDF viewer "
+      "if it's not already. This trigger resets any browser state "
+      "that prevents the infobar from being shown, then shows the infobar. "
+      "This can only be triggered on Windows or Mac."));
+#endif
+
 #if BUILDFLAG(ENABLE_PLUGINS)
   infobar_list.emplace_back(InfoBarEntry::New(
       /*type=*/InfoBarType::kReloadPlugin, /*name=*/"Reload Plugin",
@@ -199,6 +221,7 @@ void InfoBarInternalsHandler::GetInfoBars(GetInfoBarsCallback callback) {
 bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
   BrowserWindowInterface* const bwi =
       GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+  Profile* const profile = bwi ? bwi->GetProfile() : nullptr;
 
   // Please keep the entries in alphabetized order base on the type.
   switch (type) {
@@ -240,8 +263,6 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
     }
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
     case InfoBarType::kDefaultBrowser: {
-      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
-
       if (!profile) {
         return false;
       }
@@ -251,8 +272,6 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
       return true;
     }
     case InfoBarType::kSessionRestore: {
-      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
-
       if (!profile) {
         return false;
       }
@@ -282,7 +301,6 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
     }
     case InfoBarType::kExtensionDevTools: {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
       if (!profile) {
         return false;
       }
@@ -311,7 +329,6 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
     }
     case InfoBarType::kIncognitoConnectability: {
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
       if (!profile || !bwi->GetActiveTabInterface()) {
         return false;
       }
@@ -383,6 +400,33 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
       return false;
     }
 #endif
+    case InfoBarType::kPageInfo: {
+      if (!bwi || !bwi->GetActiveTabInterface()) {
+        return false;
+      }
+      content::WebContents* web_contents =
+          bwi->GetActiveTabInterface()->GetContents();
+
+      if (infobars::IsInfoBarMigrated(
+              infobars::InfoBarDelegate::PAGE_INFO_INFOBAR_DELEGATE)) {
+        auto* browser_infobar_manager =
+            infobars::BrowserInfoBarManager::From(g_browser_process);
+        if (!browser_infobar_manager) {
+          return false;
+        }
+        browser_infobar_manager->Show(
+            web_contents,
+            infobars::InfoBarDelegate::PAGE_INFO_INFOBAR_DELEGATE);
+      } else {
+        infobars::ContentInfoBarManager* infobar_manager =
+            infobars::ContentInfoBarManager::FromWebContents(web_contents);
+        if (!infobar_manager) {
+          return false;
+        }
+        PageInfoInfoBarDelegate::Create(infobar_manager);
+      }
+      return true;
+    }
 #if BUILDFLAG(ENABLE_PLUGINS)
     case InfoBarType::kReloadPlugin: {
       if (!bwi || !bwi->GetActiveTabInterface()) {
@@ -402,8 +446,6 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
 #if BUILDFLAG(IS_MAC)
     case InfoBarType::kKeystone: {
 #if BUILDFLAG(ENABLE_UPDATER)
-      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
-
       if (!profile) {
         return false;
       }
@@ -414,6 +456,28 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
 #else
       return false;
 #endif
+    }
+#endif
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+    case InfoBarType::kPdf: {
+      if (!bwi || !bwi->GetActiveTabInterface()) {
+        return false;
+      }
+
+      auto* controller = pdf::infobar::PdfInfoBarController::From(bwi);
+      if (!controller) {
+        return false;
+      }
+      // Reset rate-limiting preferences to ensure repeated triggers succeed.
+      PrefService* local_state = g_browser_process->local_state();
+      local_state->ClearPref(prefs::kPdfInfoBarTimesShown);
+      local_state->ClearPref(prefs::kPdfInfoBarLastShown);
+      pdf::infobar::PdfInfoBarController::
+          SetHigherPriorityInfoBarShownForTesting(false);
+
+      controller->MaybeShowInfoBarCallback(
+          shell_integration::DefaultWebClientState::NOT_DEFAULT);
+      return true;
     }
 #endif
 #if BUILDFLAG(IS_WIN)
@@ -436,7 +500,6 @@ bool InfoBarInternalsHandler::TriggerInfoBarInternal(InfoBarType type) {
 #endif
 #if BUILDFLAG(ENABLE_EXTENSIONS)
     case InfoBarType::kThemeInstalled: {
-      Profile* profile = bwi ? bwi->GetProfile() : nullptr;
       if (!profile) {
         return false;
       }

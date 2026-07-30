@@ -4,7 +4,7 @@
 
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_page_handler.h"
 
-#include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/files/file_util.h"
 #include "base/functional/callback_helpers.h"
 #include "base/json/values_util.h"
@@ -105,13 +105,13 @@ base::flat_map<std::string, std::string> GetCriteria(
   std::string disk_space_string =
       base::ToString(criteria->is_disk_space_available());
   if (!criteria->is_disk_space_available()) {
-    base::ByteCount disk_space_required = optimization_guide::features::
+    base::ByteSize disk_space_required = optimization_guide::features::
         GetDiskSpaceRequiredForOnDeviceModelInstall();
-    base::ByteCount disk_space_available = criteria->disk_space_free;
+    int64_t disk_space_available =
+        criteria->disk_space_free ? criteria->disk_space_free->InMiB() : -1;
     disk_space_string = base::StrCat(
-        {" (", base::NumberToString(disk_space_available.InMiB()),
-         " MiB available, ", base::NumberToString(disk_space_required.InMiB()),
-         " MiB required)"});
+        {" (", base::NumberToString(disk_space_available), " MiB available, ",
+         base::NumberToString(disk_space_required.InMiB()), " MiB required)"});
   }
   mojom_criteria["disk space available"] = disk_space_string;
   return mojom_criteria;
@@ -352,6 +352,15 @@ void PageHandler::OnLogMessageAdded(
 }
 
 void PageHandler::GetPageData(PageHandler::GetPageDataCallback callback) {
+  // Guarantee the callback runs even if the page handler is destroyed
+  // while the request is in flight.
+  auto default_page_data = mojom::PageData::New();
+  default_page_data->base_model = mojom::BaseModelState::New();
+  default_page_data->performance_info =
+      on_device_model::mojom::DevicePerformanceInfo::New();
+  callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      std::move(callback), std::move(default_page_data));
+
   auto data = mojom::PageData::New();
   data->base_model = mojom::BaseModelState::New();
 

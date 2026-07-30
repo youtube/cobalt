@@ -16,6 +16,7 @@
 #include "chrome/common/request_header_integrity/buildflags.h"
 #include "chrome/common/request_header_integrity/chrome_companero.mojom-forward.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
+#include "services/network/public/mojom/http_request_headers.mojom-forward.h"
 
 #if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
 #include "base/scoped_native_library.h"
@@ -73,23 +74,20 @@ class ChromeCompaneroLoader {
                                                    std::string_view api_key,
                                                    std::string_view user_agent);
 
-  // TODO(deepakr): Update FFI return types from int32_t to size_t to cleanly
-  // represent written byte counts without signed conversion artifacts across
-  // ABI boundaries.
   // Typedefs for function pointers.
-  using GetCompaneroValueFunc = int32_t (*)(const char*,
-                                            size_t,
-                                            const char*,
-                                            size_t,
-                                            const char*,
-                                            size_t,
-                                            char*,
-                                            size_t);
-  using GetHeaderNameFunc = int32_t (*)(char*, size_t);
+  using GetCompaneroValueFunc = size_t (*)(const char*,
+                                           size_t,
+                                           const char*,
+                                           size_t,
+                                           const char*,
+                                           size_t,
+                                           char*,
+                                           size_t);
+  using GetHeaderNameFunc = size_t (*)(char*, size_t);
 
   void RefreshValue();
   void RefreshValueLocked() EXCLUSIVE_LOCKS_REQUIRED(cache_lock_);
-  void OnValueReceived(mojom::HeaderNameAndValuePtr result);
+  void OnValueReceived(network::mojom::HttpRequestHeaderKeyValuePairPtr result);
 
   base::ScopedNativeLibrary library_;
   GetCompaneroValueFunc get_companero_value_fn_ = nullptr;
@@ -106,7 +104,7 @@ class ChromeCompaneroLoader {
 
   // TODO(deepakr): Waking up background renderers periodically just to
   // refresh the token is inefficient. Consider switching to a lazy,
-  // on-demand refresh model where we only request a new token from the
+  // on-demand refresh model where a new token is only requested from the
   // browser when a network request is actually initiated and the cached
   // token needs to be refreshed.
   base::RetainingOneShotTimer refresh_timer_ GUARDED_BY(cache_lock_);

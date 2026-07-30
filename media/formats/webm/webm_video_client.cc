@@ -37,7 +37,7 @@ media::VideoCodecProfile GetAV1CodecProfile(const std::vector<uint8_t>& data) {
   }
 
   mp4::AV1CodecConfigurationRecord av1_config;
-  if (av1_config.Parse(data.data(), data.size())) {
+  if (av1_config.Parse(data)) {
     return av1_config.profile;
   }
 
@@ -278,7 +278,7 @@ bool WebMVideoClient::OnUInt(int id, int64_t val) {
   return true;
 }
 
-bool WebMVideoClient::OnBinary(int id, const uint8_t* data, int size) {
+bool WebMVideoClient::OnBinary(int id, base::span<const uint8_t> data) {
   // Accept binary fields we don't care about for now.
   return true;
 }

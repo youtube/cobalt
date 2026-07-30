@@ -3280,6 +3280,10 @@ public class WebContentsAccessibilityTest {
                 imageIndex + 1,
                 OFFSET_TYPE_CHILD);
 
+        // Image, using text offset. Text offset 0 points to the beginning of the non-text nodes.
+        setAndAssertExtendedSelection(
+                rootVvid, imageVvid, 0, OFFSET_TYPE_TEXT, buttonVvid, 0, OFFSET_TYPE_TEXT);
+
         // Button, although it is a non-text node, selecting by text offset as it
         // is a leaf.
         setAndAssertExtendedSelection(
@@ -3617,6 +3621,58 @@ public class WebContentsAccessibilityTest {
                 rootVvid,
                 imageIndex + 1,
                 OFFSET_TYPE_CHILD);
+    }
+
+    /**
+     * Test extended selection action behavior when crossing form control/widget boundaries and when
+     * staying within the main document context.
+     */
+    @Test
+    @LargeTest
+    public void testPerformAction_setExtendedSelection_widgetBoundaries() throws Throwable {
+        setupTestWithHTML(
+                """
+                <p>Paragraph1</p>
+                <select id="select">
+                  <option>Apple</option>
+                </select>
+                <p>Paragraph2</p>
+                """);
+
+        // Find nodes.
+        int rootVvid = waitForNodeMatching(sClassNameMatcher, "android.webkit.WebView");
+        int paragraph1Vvid = waitForNodeMatching(sTextMatcher, "Paragraph1");
+        int selectVvid = waitForNodeMatching(sViewIdResourceNameMatcher, "select");
+        int optionVvid = waitForNodeMatching(sTextMatcher, "Apple");
+        int paragraph2Vvid = waitForNodeMatching(sTextMatcher, "Paragraph2");
+
+        // Selecting from outside the dropdown to inside the dropdown (crossing widget boundary into
+        // collapsed select MenuListOption) should fail.
+        Assert.assertFalse(
+                mActivityTestRule.setSelectionOnUiThread(
+                        rootVvid,
+                        paragraph1Vvid,
+                        0,
+                        OFFSET_TYPE_TEXT,
+                        optionVvid,
+                        5,
+                        OFFSET_TYPE_TEXT));
+
+        // It should also fail when using child offsets.
+        Assert.assertFalse(
+                mActivityTestRule.setSelectionOnUiThread(
+                        rootVvid,
+                        paragraph1Vvid,
+                        0,
+                        OFFSET_TYPE_TEXT,
+                        selectVvid,
+                        1,
+                        OFFSET_TYPE_CHILD));
+
+        // Selecting from before the dropdown to after the dropdown (staying in the light DOM main
+        // document) should succeed.
+        setAndAssertExtendedSelection(
+                rootVvid, paragraph1Vvid, 0, OFFSET_TYPE_TEXT, paragraph2Vvid, 0, OFFSET_TYPE_TEXT);
     }
 
     /** Test extended selection with a leaf node at the end of root to trigger at_end_of_anchor. */

@@ -21,6 +21,7 @@ import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.GLIC_
 
 import android.Manifest;
 import android.content.Context;
+import android.os.Bundle;
 
 import androidx.fragment.app.FragmentManager;
 import androidx.lifecycle.Lifecycle.State;
@@ -43,6 +44,8 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.prefs.LocalStatePrefs;
+import org.chromium.chrome.browser.prefs.LocalStatePrefsJni;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.components.browser_ui.settings.ChromeSwitchPreference;
@@ -58,8 +61,7 @@ import org.chromium.ui.base.TestActivity;
 @RunWith(BaseRobolectricTestRunner.class)
 @DisableFeatures({
     ChromeFeatureList.ANDROID_BOTTOM_BAR,
-    ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL,
-    ChromeFeatureList.GLIC_EXPERIMENTAL_LOCATION
+    ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL
 })
 @EnableFeatures(ChromeFeatureList.ACTOR_LOGIN_PERMISSIONS_UI)
 public class GlicSettingsUnitTest {
@@ -79,6 +81,8 @@ public class GlicSettingsUnitTest {
     @Mock private GlicKeyedServiceFactory.Natives mGlicKeyedServiceFactoryJniMock;
     @Mock private GlicKeyedService mGlicKeyedServiceMock;
     @Mock private GlicEnabling.Natives mGlicEnablingJniMock;
+    @Mock private LocalStatePrefs.Natives mLocalStatePrefsJniMock;
+    @Mock private PrefService mLocalPrefServiceMock;
 
     @Before
     public void setUp() {
@@ -86,17 +90,24 @@ public class GlicSettingsUnitTest {
         PrefChangeRegistrarJni.setInstanceForTesting(mPrefChangeRegistrarJniMock);
         GlicKeyedServiceFactoryJni.setInstanceForTesting(mGlicKeyedServiceFactoryJniMock);
         GlicEnablingJni.setInstanceForTesting(mGlicEnablingJniMock);
+        LocalStatePrefsJni.setInstanceForTesting(mLocalStatePrefsJniMock);
+        LocalStatePrefs.setNativePrefsLoadedForTesting(true);
 
         when(mUserPrefsJniMock.get(mProfileMock)).thenReturn(mPrefServiceMock);
         when(mGlicKeyedServiceFactoryJniMock.getForProfile(mProfileMock))
                 .thenReturn(mGlicKeyedServiceMock);
         when(mGlicEnablingJniMock.shouldShowWebActuationToggle(any())).thenReturn(true);
+        when(mLocalStatePrefsJniMock.getPrefService()).thenReturn(mLocalPrefServiceMock);
         doNothing().when(mCustomTabLauncher).openUrlInCct(any(Context.class), anyString());
 
         mActivityScenarioRule.getScenario().onActivity(activity -> mActivity = activity);
     }
 
     private GlicSettings launchFragment() {
+        return launchFragment(null);
+    }
+
+    private GlicSettings launchFragment(Bundle args) {
         FragmentManager fragmentManager = mActivity.getSupportFragmentManager();
         GlicSettings glicSettings =
                 (GlicSettings)
@@ -107,6 +118,9 @@ public class GlicSettingsUnitTest {
                                         GlicSettings.class.getName());
         glicSettings.setProfile(mProfileMock);
         glicSettings.setCustomTabLauncher(mCustomTabLauncher);
+        if (args != null) {
+            glicSettings.setArguments(args);
+        }
         fragmentManager.beginTransaction().replace(android.R.id.content, glicSettings).commit();
         mActivityScenarioRule.getScenario().moveToState(State.STARTED);
 
@@ -121,6 +135,23 @@ public class GlicSettingsUnitTest {
     public void testLaunchGlicSettings() {
         // Verifies that the fragment can be launched without crashing.
         launchFragment();
+    }
+
+    @Test
+    public void testLocationHighlightParam() {
+        Bundle args = new Bundle();
+        args.putString(
+                GlicNavigationUtils.EXTRA_HIGHLIGHT_FIELD,
+                GlicNavigationUtils.FIELD_LOCATION_PERMISSION);
+
+        // Verifies launching with highlight parameters does not crash
+        GlicSettings fragment = launchFragment(args);
+
+        // Flush shadow main looper to run the posted scroll/highlight runnables
+        org.robolectric.shadows.ShadowLooper.idleMainLooper();
+
+        ChromeSwitchPreference locationPref = fragment.findPreference(GlicSettings.PERMISSION_LOCATION);
+        assertTrue("Location preference should be visible", locationPref.isVisible());
     }
 
     @Test
@@ -368,5 +399,86 @@ public class GlicSettingsUnitTest {
         assertTrue("Preference glic_custom_box_preference should exist", aiInfoPref != null);
 
         assertEquals("Order should be 999 for enterprise", 999, aiInfoPref.getOrder());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testLauncherToggle_InitialState_Enabled() {
+        when(mLocalPrefServiceMock.getBoolean(GlicPrefNames.GLIC_LAUNCHER_ENABLED))
+                .thenReturn(true);
+        GlicSettings fragment = launchFragment();
+        ChromeSwitchPreference togglePref = fragment.findPreference("glic_launcher_enabled");
+        assertTrue("Launcher toggle should be checked", togglePref.isChecked());
+
+        Preference hotkeyPref = fragment.findPreference("glic_launcher_hotkey");
+        assertTrue(
+                "Hotkey preference should be visible when launcher is enabled",
+                hotkeyPref.isVisible());
+        Preference navShortcutPref = fragment.findPreference(GlicSettings.PREF_NAVIGATION_SHORTCUT);
+        assertTrue(
+                "Navigation shortcut should be visible when launcher is enabled",
+                navShortcutPref.isVisible());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testLauncherToggle_InitialState_Disabled() {
+        when(mLocalPrefServiceMock.getBoolean(GlicPrefNames.GLIC_LAUNCHER_ENABLED))
+                .thenReturn(false);
+        GlicSettings fragment = launchFragment();
+        ChromeSwitchPreference togglePref = fragment.findPreference("glic_launcher_enabled");
+        assertFalse("Launcher toggle should not be checked", togglePref.isChecked());
+
+        Preference hotkeyPref = fragment.findPreference("glic_launcher_hotkey");
+        assertFalse(
+                "Hotkey preference should not be visible when launcher is disabled",
+                hotkeyPref.isVisible());
+        Preference navShortcutPref = fragment.findPreference(GlicSettings.PREF_NAVIGATION_SHORTCUT);
+        assertFalse(
+                "Navigation shortcut should not be visible when launcher is disabled",
+                navShortcutPref.isVisible());
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testLauncherToggle_Click() {
+        when(mLocalPrefServiceMock.getBoolean(GlicPrefNames.GLIC_LAUNCHER_ENABLED))
+                .thenReturn(false);
+        GlicSettings fragment = launchFragment();
+        ChromeSwitchPreference togglePref = fragment.findPreference("glic_launcher_enabled");
+        Preference hotkeyPref = fragment.findPreference("glic_launcher_hotkey");
+        Preference navShortcutPref = fragment.findPreference(GlicSettings.PREF_NAVIGATION_SHORTCUT);
+
+        assertFalse("Hotkey preference should not be visible initially", hotkeyPref.isVisible());
+        assertFalse(
+                "Navigation shortcut should not be visible initially", navShortcutPref.isVisible());
+
+        // Simulate toggling On
+        togglePref.getOnPreferenceChangeListener().onPreferenceChange(togglePref, true);
+        verify(mLocalPrefServiceMock).setBoolean(GlicPrefNames.GLIC_LAUNCHER_ENABLED, true);
+        assertTrue("Hotkey preference should become visible", hotkeyPref.isVisible());
+        assertTrue("Navigation shortcut should become visible", navShortcutPref.isVisible());
+
+        // Simulate toggling Off
+        togglePref.getOnPreferenceChangeListener().onPreferenceChange(togglePref, false);
+        verify(mLocalPrefServiceMock).setBoolean(GlicPrefNames.GLIC_LAUNCHER_ENABLED, false);
+        assertFalse("Hotkey preference should become invisible", hotkeyPref.isVisible());
+        assertFalse("Navigation shortcut should become invisible", navShortcutPref.isVisible());
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.ENABLE_ANDROID_SIDE_PANEL)
+    public void testNavigationShortcutPreference_SidePanelDisabled() {
+        // Even if launcher is enabled, the navigation shortcut should be invisible if side panel is
+        // disabled.
+        when(mLocalPrefServiceMock.getBoolean(GlicPrefNames.GLIC_LAUNCHER_ENABLED))
+                .thenReturn(true);
+        GlicSettings fragment = launchFragment();
+        Preference navShortcutPreference =
+                fragment.findPreference(GlicSettings.PREF_NAVIGATION_SHORTCUT);
+        assertFalse(
+                "Preference glic_navigation_shortcut should be invisible with side panel FF"
+                        + " disabled",
+                navShortcutPreference.isVisible());
     }
 }

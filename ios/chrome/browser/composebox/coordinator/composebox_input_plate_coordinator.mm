@@ -113,10 +113,10 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
 @interface ComposeboxInputPlateCoordinator () <
     ComposeboxInputPlateMediatorDelegate,
     ComposeboxInputPlateViewControllerDelegate,
-    ComposeboxPickerPresenterDelegate,
-    ComposeboxPickerPresenterDataSource,
     ComposeboxMenuCoordinatorDelegate,
     ComposeboxMenuCoordinatorInputPlateDelegate,
+    ComposeboxPickerPresenterDataSource,
+    ComposeboxPickerPresenterDelegate,
     LocationBarModelDelegateWebStateProvider,
     LocationBarURLLoader,
     OmniboxFocusDelegate,
@@ -905,6 +905,16 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
   if (attachments) {
     [_mediator updateAttachments:attachments];
   }
+}
+
+- (void)composeboxMenuCoordinator:(ComposeboxMenuCoordinator*)coordinator
+      didRemoveTabWithServerToken:(const base::UnguessableToken&)serverToken {
+  [_mediator removeSharedTabWithServerToken:serverToken];
+}
+
+- (ComposeboxUIInputState*)currentUIInputStateForMenuCoordinator:
+    (ComposeboxMenuCoordinator*)coordinator {
+  return [_mediator currentUIInputState];
 }
 
 #pragma mark - ComposeboxMenuCoordinatorDelegate

@@ -1,0 +1,16 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+assert(!is_android)
+
+source_set("browser_tests") {
+  testonly = true
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+  sources = [ "wasm_trap_handler_browsertest.cc" ]
+  deps = [
+    "//chrome/test/base:in_process_browser_test",
+    "//chrome/test/base:ui_test_utils",
+    "//v8",
+  ]
+}

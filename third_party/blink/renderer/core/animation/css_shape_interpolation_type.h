@@ -7,7 +7,7 @@
 
 #include "third_party/blink/renderer/core/animation/css_interpolation_type.h"
 #include "third_party/blink/renderer/core/animation/non_interpolable_value.h"
-#include "third_party/blink/renderer/core/style/computed_style_constants.h"
+#include "third_party/blink/renderer/core/animation/shape_property_functions.h"
 
 namespace blink {
 
@@ -36,25 +36,19 @@ class CSSShapeInterpolationType : public CSSInterpolationType {
                                              const NonInterpolableValue&,
                                              const CSSToLengthConversionData&);
 
-  static InterpolationValue MaybeConvertCSSValue(
-      const CSSValue& value,
-      const CSSProperty& property,
-      std::optional<GeometryBox> geometry_box,
-      std::optional<CoordBox> coord_box,
-      std::optional<ShapeBox> css_box = std::nullopt);
+  static InterpolationValue MaybeConvertCSSValue(const CSSValue& value,
+                                                 const CSSProperty& property,
+                                                 ShapeReferenceBox box);
   static InterpolationValue MaybeConvertBasicShape(const BasicShape* shape,
                                                    const CSSProperty& property,
                                                    double zoom,
-                                                   GeometryBox geometry_box,
-                                                   CoordBox coord_box);
+                                                   ShapeReferenceBox box);
   static bool ShapesAreCompatible(const NonInterpolableValue& a,
                                   const NonInterpolableValue& b);
   static InterpolableValue* CreateNeutralValue(
       const NonInterpolableValue& non_interpolable);
   static NonInterpolableValue::Type ShapeNonInterpolableValueType();
-  static std::optional<GeometryBox> GetGeometryBox(
-      const NonInterpolableValue& value);
-  static std::optional<CoordBox> GetCoordBox(const NonInterpolableValue& value);
+  static ShapeReferenceBox GetBox(const NonInterpolableValue& value);
 
  protected:
   InterpolationValue MaybeConvertNeutral(const InterpolationValue& underlying,

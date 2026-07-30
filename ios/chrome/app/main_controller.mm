@@ -111,6 +111,8 @@
 #import "ios/chrome/browser/share_extension/model/share_extension_controller.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_delegate.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state_options.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_util.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list.h"
@@ -355,12 +357,12 @@ base::span<const ProfileChoice> GetProfileChoices() {
 
 // Returns the profile name associated with a pending task for `scene_state` in
 // `orchestrator`, if any.
-std::string GetProfileNameFromTask(SceneState* scene_state,
+std::string GetProfileNameFromTask(std::string_view scene_state_id,
                                    TaskOrchestrator* orchestrator) {
   if (!orchestrator) {
     return std::string();
   }
-  NSString* gaia_id = [orchestrator gaiaIDForScene:scene_state.sceneSessionID];
+  NSString* gaia_id = [orchestrator gaiaIDForScene:scene_state_id];
   if (!gaia_id) {
     return std::string();
   }
@@ -382,17 +384,17 @@ std::string GetProfileNameFromTask(SceneState* scene_state,
 // Returns the name of the profile for `choice`. May be empty in some cases,
 // e.g. when a corresponding pref isn't set yet.
 std::string GetProfileNameForChoice(ProfileChoice choice,
-                                    SceneState* scene_state,
+                                    std::string_view scene_state_id,
+                                    UISceneConnectionOptions* options,
                                     TaskOrchestrator* orchestrator,
                                     ProfileManagerIOS* manager,
                                     ProfileAttributesStorageIOS* storage,
                                     PrefService* local_state) {
   switch (choice) {
     case ProfileChoice::kProfileFromTask:
-      return GetProfileNameFromTask(scene_state, orchestrator);
+      return GetProfileNameFromTask(scene_state_id, orchestrator);
     case ProfileChoice::kProfileFromActivity: {
-      for (NSUserActivity* activity in scene_state.connectionOptions
-               .userActivities) {
+      for (NSUserActivity* activity in options.userActivities) {
         std::string profile_name = GetProfileNameFromActivity(activity);
         if (!profile_name.empty()) {
           return profile_name;
@@ -401,7 +403,7 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
       return std::string();
     }
     case ProfileChoice::kProfileForScene:
-      return storage->GetProfileNameForSceneID(scene_state.sceneSessionID);
+      return storage->GetProfileNameForSceneID(scene_state_id);
     case ProfileChoice::kLastUsedProfile:
       return local_state->GetString(prefs::kLastUsedProfile);
     case ProfileChoice::kPersonalProfile:
@@ -1723,16 +1725,16 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
                          sceneDelegate.window)];
 
   ProfileAttributesStorageIOS* storage = manager->GetProfileAttributesStorage();
-  const std::string_view sceneIdentifier = sceneState.sceneSessionID;
+  const std::string_view sceneStateID = sceneState.sceneSessionID;
 
   // If the SceneState is not associated with the correct profile, then
   // perform the necessary work to switch the profile used for the scene.
-  if (profileName != storage->GetProfileNameForSceneID(sceneIdentifier)) {
+  if (profileName != storage->GetProfileNameForSceneID(sceneStateID)) {
     // The UI has to be destroyed, start animating.
     [animator startAnimation];
 
     // Set the mapping between profile and scene.
-    storage->SetProfileNameForSceneID(sceneIdentifier, profileName);
+    storage->SetProfileNameForSceneID(sceneStateID, profileName);
 
     // Pretend the scene has been disconnected, then reconnect it.
     const SceneActivationLevel savedLevel = sceneState.activationLevel;
@@ -1834,7 +1836,8 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
               profileManager:(ProfileManagerIOS*)manager
            attributesStorage:(ProfileAttributesStorageIOS*)storage
                   localState:(PrefService*)localState {
-  const std::string_view sceneID = sceneState.sceneSessionID;
+  // Determine the identifier for the SceneState.
+  std::string sceneStateID = SessionIdentifierForScene(sceneState.scene);
 
   // Determine which profile to use. The logic is to take the first valid
   // profile (i.e. the value is set and the profile is known) amongst the
@@ -1843,9 +1846,9 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
   // resort a new profile.
   std::string profileName;
   for (ProfileChoice choice : GetProfileChoices()) {
-    profileName = GetProfileNameForChoice(choice, sceneState,
-                                          self.appState.taskOrchestrator,
-                                          manager, storage, localState);
+    profileName = GetProfileNameForChoice(
+        choice, sceneStateID, sceneState.connectionOptions,
+        self.appState.taskOrchestrator, manager, storage, localState);
 
     // Pick the first valid profile name found.
     if (storage->HasProfileWithName(profileName)) {
@@ -1857,11 +1860,10 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
   // new profile name must have been generated).
   CHECK(storage->HasProfileWithName(profileName));
 
-  // If the mapping has changed, store the mapping between the SceneID
-  // and the profile in the ProfileAttributesStorageIOS so that it is
-  // accessible the next time the window is open.
-  if (profileName != storage->GetProfileNameForSceneID(sceneID)) {
-    storage->SetProfileNameForSceneID(sceneID, profileName);
+  // If the mapping has changed, update the mapping so that it is accessible
+  // the next time the window is open.
+  if (profileName != storage->GetProfileNameForSceneID(sceneStateID)) {
+    storage->SetProfileNameForSceneID(sceneStateID, profileName);
   }
 
   // Update kLastUsedProfile, to ensure that new window will use the same
@@ -1887,11 +1889,12 @@ std::string GetProfileNameForChoice(ProfileChoice choice,
   }
 
   DCHECK(iterator != _profileControllers.end());
-  ProfileState* state = iterator->second.state;
-  DCHECK(state != nil);
+  DCHECK(iterator->second.state != nil);
 
-  // Attach the SceneState to the ProfileState.
-  [sceneState.controller setProfileState:state];
+  // Connects the SceneState to the ProfileState.
+  [sceneState.controller
+      connectWithOptions:{.profile_state = iterator->second.state,
+                          .identifier = std::move(sceneStateID)}];
 }
 
 // Drops all unused profile controllers. This will cause the corresponding

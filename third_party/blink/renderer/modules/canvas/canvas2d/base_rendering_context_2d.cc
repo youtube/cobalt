@@ -76,6 +76,8 @@
 #include "third_party/blink/renderer/platform/geometry/path.h"
 #include "third_party/blink/renderer/platform/graphics/bitmap_image.h"
 #include "third_party/blink/renderer/platform/graphics/blend_mode.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_bitmap_provider.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_2d_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_deferred_paint_record.h"
 #include "third_party/blink/renderer/platform/graphics/flush_reason.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
@@ -726,6 +728,28 @@ void BaseRenderingContext2D::RestoreCanvasMatrixClipStack(
 
 void BaseRenderingContext2D::Reset() {
   ResetInternal();
+}
+
+std::optional<cc::PaintRecord> BaseRenderingContext2D::FlushCanvasInternal(
+    Canvas2DResourceProvider* shared_image_provider,
+    Canvas2DBitmapProvider* bitmap_provider,
+    FlushReason reason) {
+  std::optional<cc::PaintRecord> recording;
+  if (shared_image_provider) {
+    recording = shared_image_provider->Flush(reason);
+    if (recording) {
+      shared_image_provider->ReleaseImageProviderImages();
+    }
+  } else if (bitmap_provider) {
+    recording = bitmap_provider->Flush(reason);
+    if (recording) {
+      bitmap_provider->ReleaseImageProviderImages();
+    }
+  }
+  if (recording && Host()) {
+    Host()->DidFlush();
+  }
+  return recording;
 }
 
 void BaseRenderingContext2D::WillUseCurrentFont() const {

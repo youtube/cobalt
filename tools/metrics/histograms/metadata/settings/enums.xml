@@ -133,11 +133,6 @@ chromium-metrics-reviews@google.com.
       label="(Obsolete) IncognitoTrackingProtectionsFragment"/>
 </enum>
 
-<enum name="ClearBrowsingDataMyActivityNavigation">
-  <int value="0" label="Top level MyActivity URL"/>
-  <int value="1" label="Search history in MyActivity"/>
-</enum>
-
 <!-- LINT.IfChange(DisruptiveNotificationRevocationResult) -->
 
 <enum name="DisruptiveNotificationRevocationResult">
@@ -385,6 +380,7 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="Suggestions row click"/>
   <int value="8" label="Skills row click"/>
   <int value="9" label="Indigo row click"/>
+  <int value="10" label="Google Search AI Mode Workspace row click"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/settings/metrics_browser_proxy.ts:AiPageInteractions) -->

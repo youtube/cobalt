@@ -25,8 +25,8 @@
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/ui/page_action_menu_entrypoint_view.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
-#import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_presentation_type.h"
+#import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/ui/lens_overlay_entrypoint_view.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/badges_container_view.h"
 #import "ios/chrome/browser/location_bar/ui_bundled/fakebox_buttons_snapshot_provider.h"
@@ -1112,7 +1112,7 @@ const CGFloat kGeminiLiveCircleSize = 20.0;
   }
 
   // Used to easily trigger the Assistant sheet during development.
-  if (IsAssistantContainerEnabled()) {
+  if (IsAssistantContainerDebugEnabled()) {
     UIAction* assistantAction = [UIAction
         actionWithTitle:l10n_util::GetNSString(IDS_IOS_APP_BAR_ASK_GEMINI)
                   image:DefaultSymbolWithPointSize(kMagicStackSymbol,
@@ -1468,6 +1468,13 @@ const CGFloat kGeminiLiveCircleSize = 20.0;
 - (void)setCustomLeadingViewVisible:(BOOL)visible animated:(BOOL)animated {
   [self.locationBarSteadyView updateCustomLeadingViewVisibility:visible
                                                        animated:animated];
+}
+
+- (CGFloat)locationBarTextWidth {
+  if (!IsToolbarGlassPrototypeEnabled()) {
+    return 0.0;
+  }
+  return [self.locationBarSteadyView.locationLabel intrinsicContentSize].width;
 }
 
 @end

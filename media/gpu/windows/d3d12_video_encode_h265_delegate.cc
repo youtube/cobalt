@@ -195,9 +195,6 @@ size_t D3D12VideoEncodeH265Delegate::GetMaxNumOfRefFrames() const {
 }
 
 size_t D3D12VideoEncodeH265Delegate::GetMaxNumOfManualRefBuffers() const {
-  // We should have initialized.
-  CHECK_GT(max_num_ref_frames_, 0u);
-
   // TODO(https://crbug.com/440117473): remove the limitation of 2.
   // Some IHV driver reports MaxDPBCapacity as 16 regardless of current level
   // used. Decoder will check the `vps|sps_max_dec_pic_buffering_minus1` value
@@ -513,7 +510,9 @@ EncoderStatus D3D12VideoEncodeH265Delegate::InitializeVideoEncoder(
                   max_num_ref_frames_)};
     }
   } else {
-    max_num_ref_frames_ = picture_control_support_h265.MaxDPBCapacity;
+    max_num_ref_frames_ =
+        std::min<uint32_t>(picture_control_support_h265.MaxDPBCapacity,
+                           picture_control_support_h265.MaxL0ReferencesForP);
   }
 
   if ((config.bitrate.mode() == Bitrate::Mode::kConstant ||

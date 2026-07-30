@@ -137,6 +137,7 @@ class ContextualSearchboxHandler
   void OnDriveUploadClicked(OnDriveUploadClickedCallback callback) override;
   void DeleteContext(const base::UnguessableToken& file_token,
                      bool from_automatic_chip) override;
+  void DeleteTabContext(int32_t tab_id) override;
   void DeleteContextFromBrowser(const base::UnguessableToken& file_token,
                                 bool from_automatic_chip);
   void ClearFiles(bool should_block_auto_suggested_tabs) override;
@@ -167,14 +168,18 @@ class ContextualSearchboxHandler
   void GetDriveDisclaimerStatus(
       GetDriveDisclaimerStatusCallback callback) override;
   void OnDriveDisclaimerAccepted() override;
-  void QueryAutocomplete(const std::u16string& input,
+  void QueryAutocomplete(int32_t query_id,
+                         const std::u16string& input,
                          bool prevent_inline_autocomplete,
-                         uint32_t cursor_position) override;
+                         uint32_t cursor_position,
+                         bool is_on_focus) override;
   void QueryAutocompleteWithSuggestInventory(
+      int32_t query_id,
       const std::u16string& input,
       bool prevent_inline_autocomplete,
       uint32_t cursor_position,
-      omnibox::SuggestInventory suggest_inventory) override;
+      omnibox::SuggestInventory suggest_inventory,
+      bool is_on_focus) override;
 
 #if !BUILDFLAG(IS_ANDROID)
   // drive_picker_host::mojom::DrivePickerResultHandler:
@@ -187,10 +192,12 @@ class ContextualSearchboxHandler
   // Returns true if smart tab sharing is active for the current query.
   virtual bool IsSmartTabSharingActive() const;
 
-  virtual void SetSmartTabSharingActive(bool active);
-  virtual void GetSmartTabSharingActive(
-      composebox::mojom::PageHandler::GetSmartTabSharingActiveCallback
-          callback);
+#if !BUILDFLAG(IS_ANDROID)
+  void SetSmartTabSharingActive(bool active) override;
+  void GetSmartTabSharingActive(
+      searchbox::mojom::PageHandler::GetSmartTabSharingActiveCallback callback)
+      override;
+#endif
 
   // Returns the list of selected tab IDs that should be transferred.
   virtual std::vector<int32_t> GetSelectedTabIds() const;
@@ -403,6 +410,11 @@ class ContextualSearchboxHandler
   std::unique_ptr<contextual_tasks::DesktopQueryContextualizerDelegate>
       desktop_delegate_;
   std::unique_ptr<contextual_tasks::QueryContextualizer> query_contextualizer_;
+
+  class ActiveTabNavigationObserver;
+  std::unique_ptr<ActiveTabNavigationObserver> active_tab_nav_observer_;
+
+  void OnActiveTabNavigated();
 
   raw_ptr<contextual_tasks::ContextualTasksContextService>
       contextual_tasks_context_service_;

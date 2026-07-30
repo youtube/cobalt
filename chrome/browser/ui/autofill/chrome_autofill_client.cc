@@ -35,12 +35,12 @@
 #include "chrome/browser/autofill/autocomplete_history_manager_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_cache_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_executor_factory.h"
+#include "chrome/browser/autofill/autofill_ai_personal_context_access_manager_factory.h"
 #include "chrome/browser/autofill/autofill_entity_data_manager_factory.h"
 #include "chrome/browser/autofill/autofill_field_classification_model_service_factory.h"
 #include "chrome/browser/autofill/autofill_optimization_guide_decider_factory.h"
 #include "chrome/browser/autofill/autofill_policy_service_factory.h"
 #include "chrome/browser/autofill/one_time_token_service_factory.h"
-#include "chrome/browser/autofill/personal_context_access_manager_factory.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
 #include "chrome/browser/autofill/valuables_data_manager_factory.h"
@@ -62,7 +62,7 @@
 #include "chrome/browser/password_manager/factories/password_manager_settings_service_factory.h"
 #include "chrome/browser/password_manager/password_field_classification_model_handler_factory.h"
 #include "chrome/browser/personal_context/first_run/personal_context_first_run_service_factory.h"
-#include "chrome/browser/personal_context/personal_context_enablement_service_factory.h"
+#include "chrome/browser/personal_context/personal_context_eligibility_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -366,7 +366,10 @@ void ChromeAutofillClient::AtMemoryCopyPasteObserver::OnPaste() {
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
 void ChromeAutofillClient::ShowAutofillAtMemoryPromo() {
-  if (!MayPerformAtMemoryAction(AtMemoryAction::kShowIph, *this)) {
+  // TODO(crbug.com/519061643) Double check if we also need to check a field
+  // url here.
+  if (!MayPerformAtMemoryAction(AtMemoryAction::kShowIph, *this,
+                                GetLastCommittedPrimaryMainFrameURL())) {
     return;
   }
   auto* user_education_interface =
@@ -537,20 +540,20 @@ AtMemoryQueryService* ChromeAutofillClient::GetAtMemoryQueryService() {
   return AtMemoryQueryServiceFactory::GetForProfile(profile);
 }
 
-personal_context::PersonalContextEnablementState
-ChromeAutofillClient::GetPersonalContextEnablementState() const {
+personal_context::PersonalContextEligibilityState
+ChromeAutofillClient::GetPersonalContextEligibilityState() const {
   Profile* profile = GetProfile();
-  personal_context::PersonalContextEnablementService* service =
-      PersonalContextEnablementServiceFactory::GetForProfile(profile);
-  return service ? service->GetEnablementState()
-                 : personal_context::PersonalContextEnablementState::
+  personal_context::PersonalContextEligibilityService* service =
+      PersonalContextEligibilityServiceFactory::GetForProfile(profile);
+  return service ? service->GetEligibilityState()
+                 : personal_context::PersonalContextEligibilityState::
                        kDisabledNotEligible;
 }
 
-personal_context::PersonalContextEnablementService*
-ChromeAutofillClient::GetPersonalContextEnablementService() const {
+personal_context::PersonalContextEligibilityService*
+ChromeAutofillClient::GetPersonalContextEligibilityService() const {
   Profile* profile = GetProfile();
-  return PersonalContextEnablementServiceFactory::GetForProfile(profile);
+  return PersonalContextEligibilityServiceFactory::GetForProfile(profile);
 }
 
 PasswordManagerDelegate* ChromeAutofillClient::GetPasswordManagerDelegate(
@@ -581,12 +584,13 @@ AutofillAiManager* ChromeAutofillClient::GetAutofillAiManager() {
   return autofill_ai_manager_.get();
 }
 
-PersonalContextAccessManager*
-ChromeAutofillClient::GetPersonalContextAccessManager() {
+AutofillAiPersonalContextAccessManager*
+ChromeAutofillClient::GetAutofillAiPersonalContextAccessManager() {
   if (!base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill)) {
     return nullptr;
   }
-  return PersonalContextAccessManagerFactory::GetForProfile(GetProfile());
+  return AutofillAiPersonalContextAccessManagerFactory::GetForProfile(
+      GetProfile());
 }
 
 AutofillAiModelCache* ChromeAutofillClient::GetAutofillAiModelCache() {
@@ -836,6 +840,10 @@ void ChromeAutofillClient::ShowAutofillSettings(
             "wallet?p=loyalty&utm_source=chrome&utm_medium=redirect&utm_"
             "campaign=loyalty";
         ShowSingletonTab(browser, GURL(kValuableManagementUrl));
+        return;
+      case SuggestionType::kManageEnhancedAutofill:
+        chrome::ShowSettingsSubPage(browser,
+                                    chrome::kSuggestionsFromGeminiSubPage);
         return;
       default:
         NOTREACHED();
@@ -1570,6 +1578,15 @@ void ChromeAutofillClient::ShowAutofillAiPreFetchFailureNotification() {
     ToastParams params(ToastId::kAutofillAiPreFetchErrorMessage);
     toast_controller->MaybeShowToast(std::move(params));
   }
+#endif  // BUILDFLAG(IS_ANDROID)
+}
+
+void ChromeAutofillClient::ShowAutofillAiPrivateInferenceNotice() {
+#if BUILDFLAG(IS_ANDROID)
+  GetAutofillMessageController()->Show(
+      AutofillMessageModel::CreateForPrivateInferenceNotice(web_contents()));
+#else
+  NOTREACHED();
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 

@@ -74,4 +74,86 @@ public class TabListModelUnitTest {
         tabListModel.add(listItemWithType(ModelType.MESSAGE));
         assertEquals(newFirstTabItem.model, tabListModel.getFirstTabPropertyModel());
     }
+
+    @Test
+    public void testArchivedTabGroupHelpers() {
+        TabListModel tabListModel = new TabListModel();
+
+        // Add a regular TAB card
+        PropertyModel tabModel =
+                new PropertyModel.Builder(TabProperties.ALL_KEYS_TAB_GRID)
+                        .with(CardProperties.CARD_TYPE, ModelType.TAB)
+                        .build();
+        tabListModel.add(new ListItem(UiType.TAB, tabModel));
+
+        // Add an active TAB_GROUP card
+        PropertyModel activeGroupModel =
+                new PropertyModel.Builder(TabProperties.ALL_KEYS_TAB_GROUP_GRID)
+                        .with(CardProperties.CARD_TYPE, ModelType.TAB_GROUP)
+                        .build();
+        tabListModel.add(new ListItem(UiType.TAB_GROUP, activeGroupModel));
+
+        // Add an ARCHIVED_TAB_GROUP card
+        PropertyModel archivedGroupModel =
+                new PropertyModel.Builder(TabProperties.ALL_KEYS_TAB_GROUP_GRID)
+                        .with(CardProperties.CARD_TYPE, ModelType.ARCHIVED_TAB_GROUP)
+                        .with(TabProperties.TAB_GROUP_SYNC_ID, "sync_id_1")
+                        .build();
+        tabListModel.add(new ListItem(UiType.TAB_GROUP, archivedGroupModel));
+
+        // Verify count helper: only the ARCHIVED_TAB_GROUP card should be counted
+        assertEquals(1, tabListModel.getArchivedTabGroupCardCount());
+
+        // Verify index lookup helper
+        assertEquals(2, tabListModel.indexFromArchivedTabGroupSyncId("sync_id_1"));
+        assertEquals(
+                TabModel.INVALID_TAB_INDEX,
+                tabListModel.indexFromArchivedTabGroupSyncId("non_existent"));
+
+        // Verify model lookup helper
+        assertEquals(
+                archivedGroupModel, tabListModel.getModelFromArchivedTabGroupSyncId("sync_id_1"));
+        assertNull(tabListModel.getModelFromArchivedTabGroupSyncId("non_existent"));
+    }
+
+    @Test
+    public void testMoveItem() {
+        TabListModel tabListModel = new TabListModel();
+        ListItem item0 = listItemWithType(ModelType.TAB);
+        ListItem item1 = listItemWithType(ModelType.TAB_GROUP);
+        ListItem item2 = listItemWithType(ModelType.MESSAGE);
+
+        tabListModel.add(item0);
+        tabListModel.add(item1);
+        tabListModel.add(item2);
+
+        // Move item0 from index 0 to index 1
+        tabListModel.moveItem(0, 1);
+        assertEquals(item1, tabListModel.get(0));
+        assertEquals(item0, tabListModel.get(1));
+        assertEquals(item2, tabListModel.get(2));
+
+        // Move item0 (now index 1) to index 2 (end of list)
+        tabListModel.moveItem(1, 2);
+        assertEquals(item1, tabListModel.get(0));
+        assertEquals(item2, tabListModel.get(1));
+        assertEquals(item0, tabListModel.get(2));
+
+        // Move item0 (now index 2) back to index 0
+        tabListModel.moveItem(2, 0);
+        assertEquals(item0, tabListModel.get(0));
+        assertEquals(item1, tabListModel.get(1));
+        assertEquals(item2, tabListModel.get(2));
+
+        // Test invalid moves (should no-op)
+        tabListModel.moveItem(-1, 1);
+        tabListModel.moveItem(0, -1);
+        tabListModel.moveItem(0, 3); // desIndex == size() is out-of-bounds
+        tabListModel.moveItem(0, 4); // desIndex > size()
+        tabListModel.moveItem(1, 1); // srcIndex == desIndex
+
+        assertEquals(item0, tabListModel.get(0));
+        assertEquals(item1, tabListModel.get(1));
+        assertEquals(item2, tabListModel.get(2));
+    }
 }

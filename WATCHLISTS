@@ -1058,9 +1058,6 @@
                   '|components/policy/'\
                   '|docs/website/site/administrators/',
     },
-    'cros_commercial_policy_proto': {
-      'filepath': 'components/policy/proto/chrome_device_policy.proto',
-    },
     'cros_reporting': {
       'filepath': 'chrome/browser/policy/messaging_layer/'\
                   '|chrome/browser/ash/policy/status_collector/'\
@@ -1304,7 +1301,22 @@
       'filepath': 'fuchsia.*$(?<!sdk_override.txt)',
     },
     'fuzzing': {
-      'filepath': '^(?!third_party/fuzztest/src$).*(fuzz|Fuzz)',
+      'filepath': '^(?!' \
+                  'third_party/fuzztest/src$|' \
+                  'third_party/libFuzzer/src$|' \
+                  'clusterfuzz-data$|' \
+                  'testing/libfuzzer/fuzzers/wasm_corpus$' \
+                  ').*(fuzz|Fuzz)',
+    },
+    'fuzzing_core': {
+      'filepath': 'testing/libfuzzer/|' \
+                  'content/test/fuzzer/|' \
+                  'chrome/test/fuzzing/|' \
+                  'third_party/libFuzzer/(?!src)|' \
+                  'third_party/fuzztest/(?!src)|' \
+                  'agents/skills/fuzzing/|' \
+                  'build/config/sanitizers/|' \
+                  'third_party/libprotobuf-mutator/(?!src)',
     },
     'gamepad': {
       'filepath': 'gamepad',
@@ -2390,6 +2402,9 @@
       'filepath': 'components/unified_consent/'\
                   '|chrome/browser/unified_consent/',
     },
+    'url_constant_resolver': {
+      'filepath': 'chrome/browser/url_constants/android/',
+    },
     'usb': {
       'filepath': '/usb/',
     },
@@ -2975,7 +2990,6 @@
               'wry+watch-creator@chromium.org',],
     'cros_commercial_enrollment': ['asumaneev+watch@google.com'],
     'cros_commercial_policy': ['enterprise-policy-review@google.com'],
-    'cros_commercial_policy_proto': ['vsavu+watch@google.com'],
     'cros_reporting': ['cros-reporting-reviews@google.com'],
     'crosapi': ['ffred+watch@chromium.org', 'tluk+watch@chromium.org'],
     'crostini': ['crostini-ui@chromium.org'],
@@ -2992,14 +3006,18 @@
                    'pnevase@microsoft.com'],
     'data_decoder': ['mbarowsky+watch-data-decoder@chromium.org'],
     'dbus': ['hashimoto+watch@chromium.org'],
-    'desktop_composebox': ['omnibox-dev+watch@chromium.org',
+    'desktop_composebox': ['ananyaseelam+watch@google.com',
                            'niharm+watch@google.com',
-                           'ananyaseelam+watch@google.com'],
+			   'omnibox-dev+watch@chromium.org',
+                           'orinj+watch@chromium.org'],
     'desktop_in_product_help': ['dfried+watch@chromium.org',
       'estalin+watch@chromium.org'],
     'desktop_omnibox': ['jdonnelly+watch@chromium.org',
-                        'omnibox-dev+watch@chromium.org'],
-    'desktop_searchbox': ['omnibox-dev+watch@chromium.org', 'niharm+watch@google.com'],
+                        'omnibox-dev+watch@chromium.org',
+			'orinj+watch@chromium.org'],
+    'desktop_searchbox': ['niharm+watch@google.com',
+                          'omnibox-dev+watch@chromium.org',
+			  'orinj+watch@chromium.org'],
     'desktop_whats_new': ['mickeyburks+watch@chromium.org'],
     'device_bluetooth': ['mattreynolds+watch@chromium.org'],
     'device_chooser': ['mattreynolds+watch@chromium.org',
@@ -3047,8 +3065,10 @@
     'fsp': ['mtomasz+watch@chromium.org'],
     'fuchsia': ['fuchsia-reviews@chromium.org',
                 'zijiehe@google.com'],
-    'fuzzing': ['ortuno+watch@chromium.org',
+    'fuzzing': ['ortuno+watch-fuzzing@chromium.org',
                 'titouan+watch@chromium.org'],
+    'fuzzing_core': ['aakallam+watch@chromium.org',
+                     'ortuno+watch-core@chromium.org'],
     'gamepad': ['mattreynolds+watch@chromium.org'],
     'gcm': ['peter@chromium.org', 'dibyapal+watch-webapps@chromium.org'],
     'gemini_app': ['dmblack+watch@google.com',
@@ -3423,6 +3443,7 @@
     'ui_views': ['robliao+watch@chromium.org',
                  'sky+watch@chromium.org'],
     'unified_consent': ['wfh+watch@chromuium.org'],
+    'url_constant_resolver': ['mfiaz+watch@google.com'],
     'usb': ['mattreynolds+watch@chromium.org',
             'odejesush+watch@chromium.org'],
     'user_education': ['cros-system-ui-productivity-eng+reviews@google.com'],

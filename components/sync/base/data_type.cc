@@ -13,7 +13,6 @@
 #include "base/logging.h"
 #include "base/no_destructor.h"
 #include "base/notreached.h"
-#include "components/sync/base/features.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
@@ -1113,6 +1112,22 @@ constexpr std::array<DataTypeInfo, syncer::GetNumDataTypes()>
             .local_sync_support_policy = LocalSyncSupportPolicy::kUnsupported,
         },
         {
+            .type = ENCRYPTED_TAB_CONTEXT_CONTAINER,
+            .specifics_field_number = sync_pb::EntitySpecifics::
+                kEncryptedTabContextContainerFieldNumber,
+            .debug_string = "Encrypted Tab Context Container",
+            .histogram_suffix = "ENCRYPTED_TAB_CONTEXT_CONTAINER",
+            .stable_lowercase_string = "encrypted_tab_context_container",
+            .encryption_policy = EncryptionPolicy::kAlwaysEncrypted,
+            .priority = DataTypePriority::kRegular,
+            .communication_direction = CommunicationDirection::kRegularTwoWay,
+            .apply_updates_batch_policy = ApplyUpdatesBatchPolicy::kStandard,
+            .unsynced_data_check_on_signout_policy =
+                UnsyncedDataCheckOnSignoutPolicy::kNone,
+            .cross_user_sharing_policy = CrossUserSharingPolicy::kNone,
+            .local_sync_support_policy = LocalSyncSupportPolicy::kUnsupported,
+        },
+        {
             .type = THEMES_IOS,
             .specifics_field_number =
                 sync_pb::EntitySpecifics::kThemeIosFieldNumber,
@@ -1167,7 +1182,7 @@ constexpr std::array<DataTypeInfo, syncer::GetNumDataTypes()>
     }};
 
 // LINT.IfChange(DataTypeHistogramSuffix)
-static_assert(GetNumDataTypes() == 63,
+static_assert(GetNumDataTypes() == 64,
               "When adding a new type, update kDataTypeInfoTable, update "
               "histograms.xml and follow the integration checklist in "
               "https://www.chromium.org/developers/design-documents/sync/"
@@ -1230,6 +1245,9 @@ void AddDefaultFieldValue(DataType type, sync_pb::EntitySpecifics* specifics) {
       break;
     case THEMES:
       specifics->mutable_theme();
+      break;
+    case ENCRYPTED_TAB_CONTEXT_CONTAINER:
+      specifics->mutable_encrypted_tab_context_container();
       break;
     case THEMES_IOS:
       specifics->mutable_theme_ios();
@@ -1455,32 +1473,6 @@ DataTypeSet UserTypes() {
   return types;
 }
 
-DataTypeSet AlwaysPreferredUserTypes() {
-  // TODO(crbug.com/477624427): add SKILL to a corresponding UserSelectableType
-  // or another toggle.
-  DataTypeSet types = {ACCOUNT_SETTING,
-                       DEVICE_INFO,
-                       USER_CONSENTS,
-                       PLUS_ADDRESS,
-                       PLUS_ADDRESS_SETTING,
-                       PRIORITY_PREFERENCES,
-                       SECURITY_EVENTS,
-                       SEND_TAB_TO_SELF,
-                       SUPERVISED_USER_SETTINGS,
-                       SHARING_MESSAGE,
-                       SKILL,
-                       AI_THREAD,
-                       GEMINI_THREAD};
-  // TODO(crbug.com/412602018): Mark AlwaysPreferredUserTypes() method as
-  // constexpr when removing the feature flag.
-  if (!base::FeatureList::IsEnabled(
-          kSyncSupportAlwaysSyncingPriorityPreferences)) {
-    types.Remove(PRIORITY_PREFERENCES);
-  }
-
-
-  return types;
-}
 
 DataTypeSet AlwaysEncryptedUserTypes() {
   static const DataTypeSet types = [] {
@@ -1643,6 +1635,8 @@ DataTypeForHistograms DataTypeHistogramValue(DataType data_type) {
       return DataTypeForHistograms::kAutofillWalletUsage;
     case THEMES:
       return DataTypeForHistograms::kThemes;
+    case ENCRYPTED_TAB_CONTEXT_CONTAINER:
+      return DataTypeForHistograms::kEncryptedTabContextContainer;
     case THEMES_IOS:
       return DataTypeForHistograms::kThemesIos;
     case EXTENSIONS:

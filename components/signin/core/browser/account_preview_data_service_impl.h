@@ -51,14 +51,18 @@ class AccountPreviewDataServiceImpl : public AccountPreviewDataService,
   ~AccountPreviewDataServiceImpl() override;
 
   // AccountPreviewDataService implementation:
+  AccountPreviewPreference GetPreferredAccountForPromo() const override;
+
+  // Retrieves the cached preview data. Exposed specifically for testing.
   std::optional<AccountPreviewData> GetAccountPreviewData(
-      const GaiaId& gaia_id) override;
+      const GaiaId& gaia_id) const;
 
   bool HasActiveFetcherForTesting(const GaiaId& gaia_id) const {
     return active_fetchers_.contains(gaia_id);
   }
 
   void SetFetchCompleteCallbackForTesting(base::OnceClosure callback);
+  void SetAllDataAvailableCallbackForTesting(base::OnceClosure callback);
 
   // IdentityManager::Observer implementation:
   void OnRefreshTokenUpdatedForAccount(
@@ -70,27 +74,43 @@ class AccountPreviewDataServiceImpl : public AccountPreviewDataService,
 
  private:
   void RefreshAllAccountPreviewData();
+  void EnsureAllAccountsFetched(bool is_periodic_refresh);
   void FetchAccountPreviewData(const GaiaId& gaia_id);
   void StartFetch(const GaiaId& gaia_id);
-  void OnFetchCompleted(const GaiaId& gaia_id,
-                        std::optional<AccountPreviewData> data);
+  void OnSingleFetchCompleted(const GaiaId& gaia_id,
+                              std::optional<AccountPreviewData> data);
+  void OnAllFetchesCompleted(bool should_reset_periodic_timer);
+  void CreateAndStartRepeatingTimer();
+  void ResetTimer();
+  AccountPreviewPreference ComputePreferredAccount() const;
+
+  AccountPreviewPreference ReadPreviewPreferenceFromPrefs() const;
+  void WritePreviewPreferenceToPrefs(
+      const AccountPreviewPreference& preference);
 
   raw_ptr<IdentityManager> identity_manager_ = nullptr;
+  raw_ptr<PrefService> pref_service_ = nullptr;
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
   std::unique_ptr<WaitForNetworkCallbackHelper> network_delay_helper_;
   const version_info::Channel channel_;
   AccountPreviewMetricsRecorder metrics_recorder_;
 
   std::unique_ptr<PersistentRepeatingTimer> repeating_timer_;
-  bool deferred_refresh_pending_ = false;
+  base::OnceClosure deferred_fetch_on_loaded_tokens_callback_;
 
   base::OnceClosure fetch_complete_callback_for_testing_;
+  base::OnceClosure all_data_available_callback_for_testing_;
 
   absl::flat_hash_map<GaiaId, AccountPreviewData, GaiaId::Hash> cached_data_;
   absl::flat_hash_map<GaiaId,
                       std::unique_ptr<AccountPreviewDataFetcher>,
                       GaiaId::Hash>
       active_fetchers_;
+  base::RepeatingClosure all_accounts_fetched_barrier_;
+
+  // Mapping used to look up gaia_id based on account_id, used when an account
+  // is removed.
+  absl::flat_hash_map<CoreAccountId, GaiaId> account_id_to_gaia_id_;
 
   base::ScopedObservation<IdentityManager, IdentityManager::Observer>
       identity_manager_observation_{this};

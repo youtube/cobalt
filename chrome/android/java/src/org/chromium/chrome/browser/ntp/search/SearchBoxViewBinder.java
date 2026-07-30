@@ -27,12 +27,19 @@ class SearchBoxViewBinder
     @Override
     public final void bind(
             PropertyModel model, SearchBoxContainerView view, PropertyKey propertyKey) {
-        if (SearchBoxProperties.ALPHA == propertyKey) {
+        if (SearchBoxProperties.AI_CHIP_CLICK_CALLBACK == propertyKey) {
+            view.mAiChip.setOnClickListener(model.get(SearchBoxProperties.AI_CHIP_CLICK_CALLBACK));
+        } else if (SearchBoxProperties.AI_CHIP_VISIBILITY == propertyKey) {
+            view.mAiChip.setVisibility(
+                    model.get(SearchBoxProperties.AI_CHIP_VISIBILITY) ? View.VISIBLE : View.GONE);
+        } else if (SearchBoxProperties.ALPHA == propertyKey) {
             view.setAlpha(model.get(SearchBoxProperties.ALPHA));
         } else if (SearchBoxProperties.APPLY_WHITE_BACKGROUND == propertyKey) {
             view.applyWhiteBackground(model.get(SearchBoxProperties.APPLY_WHITE_BACKGROUND));
         } else if (SearchBoxProperties.DSE_ICON_DRAWABLE == propertyKey) {
             view.setDseIconDrawable(model.get(SearchBoxProperties.DSE_ICON_DRAWABLE));
+        } else if (SearchBoxProperties.DSE_ICON_TINT == propertyKey) {
+            view.setDseIconTint(model.get(SearchBoxProperties.DSE_ICON_TINT));
         } else if (SearchBoxProperties.ENABLE_SEARCH_BOX_EDIT_TEXT == propertyKey) {
             view.mHintTextView.setEnabled(
                     model.get(SearchBoxProperties.ENABLE_SEARCH_BOX_EDIT_TEXT));

@@ -13,6 +13,7 @@
 namespace signin {
 class IdentityManager;
 }
+class AimEligibilityService;
 class AuthenticationService;
 @class BrowserActionFactory;
 class FullscreenBrowserAgent;
@@ -24,7 +25,9 @@ class GeminiBrowserAgent;
 @protocol GeminiCommands;
 class GeminiService;
 @class IncognitoState;
+@class LayoutState;
 @protocol LensCommands;
+@class LensOverlayStateNotifier;
 class PrefService;
 @protocol SceneCommands;
 @protocol SettingsCommands;
@@ -75,6 +78,9 @@ class WebStateList;
 // Handler for the lens commands.
 @property(nonatomic, weak) id<LensCommands> lensHandler;
 
+// The layout state of the scene.
+@property(nonatomic, strong) LayoutState* layoutState;
+
 // The regular FullscreenCommands handler.
 @property(nonatomic, weak) id<FullscreenCommands> regularFullscreenHandler;
 
@@ -108,9 +114,13 @@ class WebStateList;
                     identityManager:(signin::IdentityManager*)identityManager
                       geminiService:(GeminiService*)geminiService
                  geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent
+              aimEligibilityService:
+                  (AimEligibilityService*)aimEligibilityService
                           URLLoader:(UrlLoadingBrowserAgent*)URLLoader
                        tabGridState:(TabGridState*)tabGridState
-                     incognitoState:(IncognitoState*)incognitoState;
+                     incognitoState:(IncognitoState*)incognitoState
+           lensOverlayStateNotifier:
+               (LensOverlayStateNotifier*)lensOverlayStateNotifier;
 
 - (instancetype)init NS_UNAVAILABLE;
 

@@ -19,19 +19,18 @@
 #include "chrome/browser/ui/immersive/immersive_mode_controller.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/animations/side_panel_animations.h"
 #include "chrome/browser/ui/views/animations/tab_strip_animations.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
 #include "chrome/browser/ui/views/frame/custom_floating_corner.h"
-#include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_impl.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_params.h"
-#include "chrome/browser/ui/views/frame/main_background_region_view.h"
 #include "chrome/browser/ui/views/frame/multi_contents_view.h"
 #include "chrome/browser/ui/views/frame/shadow_frame_view.h"
+#include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
+#include "chrome/browser/ui/views/frame/vertical_tab_strip_background_blur_backdrop.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/infobars/infobar_container_view.h"
 #include "chrome/browser/ui/views/side_panel/side_panel.h"
@@ -791,6 +790,15 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
                     layout_data_->tab_strip_type == TabStripType::kVertical);
   }
 
+  if (IsParentedTo(views().vertical_tab_strip_background_blur_backdrop,
+                   views().browser_view)) {
+    layout.AddChild(
+        views().vertical_tab_strip_background_blur_backdrop,
+        vertical_tab_strip_bounds,
+        in_glass_mode() && features::kBackgroundBlurOpacity.Get() < 1.0 &&
+            layout_data_->vertical_tab_strip_animation.expand_on_hover > 0.0f);
+  }
+
   // Position the vertical tabstrip top corner.
   if (IsParentedTo(views().vertical_tab_strip_top_corner,
                    views().browser_view)) {
@@ -1156,7 +1164,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
     }
   }
 
-  if (features::IsGlassFrameEnabled()) {
+  // If the window goes out of glass mode, these changes won't hurt anything.
+  if (in_glass_mode()) {
     gfx::RoundedCornersF content_corners;
     if (layout_data_->tab_strip_type == TabStripType::kVertical &&
         !is_fullscreen(layout_data_->window_state)) {
@@ -1374,6 +1383,17 @@ void BrowserViewTabbedLayoutImpl::OnLayoutParamsChanged(
   layout_data_->revised_params.visual_client_area.Inset(insets);
 }
 
+void BrowserViewTabbedLayoutImpl::OnGlassModeChanged() {
+  if (IsParentedToAndVisible(views().horizontal_tab_strip_region_view,
+                             views().browser_view)) {
+    views().horizontal_tab_strip_region_view->InvalidateLayout();
+  }
+  if (IsParentedToAndVisible(views().vertical_tab_strip_region_view,
+                             views().browser_view)) {
+    views().vertical_tab_strip_region_view->InvalidateLayout();
+  }
+}
+
 void BrowserViewTabbedLayoutImpl::DoPreLayoutComputations(
     const BrowserLayoutParams& params) {
   layout_data_ = std::make_unique<TransientLayoutData>(params);
@@ -1412,7 +1432,7 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
     CHECK(vertical_tabs_background)
         << "Expected vertical tab strip to have a CustomCornersBackground.";
 
-    if (features::IsGlassFrameEnabled()) {
+    if (in_glass_mode()) {
       if (!is_fullscreen(layout_data_->window_state)) {
         frame_color.opacity = 0.0f;
       }
@@ -1423,22 +1443,13 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
           std::powf(static_cast<float>(animation.expand_on_hover), 0.2f);
       auto vertical_tabs_background_color = frame_color;
       static const float expand_on_hover_opacity =
-          static_cast<float>(features::kExpandOnHoverOpacity.Get());
+          static_cast<float>(features::kBackgroundBlurOpacity.Get());
       vertical_tabs_background_color.opacity =
           (1.0f - scaled_percent) * frame_color.opacity +
           scaled_percent * expand_on_hover_opacity;
       vertical_tabs_background->SetPrimaryColor(vertical_tabs_background_color);
-      auto* const layer = views().vertical_tab_strip_region_view->layer();
-
-      // TODO(https://crbug.com/526614803): Move the following to a feature of
-      // CustomCornersBackground, clip corners appropriately.
-      if (animation.expand_on_hover > 0 && expand_on_hover_opacity < 1.0f) {
-        static const float expand_on_hover_blur_radius =
-            static_cast<float>(features::kExpandOnHoverBlurRadius.Get());
-        layer->SetBackgroundBlur(expand_on_hover_blur_radius);
-      } else {
-        layer->SetBackgroundBlur(0.0f);
-      }
+    } else {
+      vertical_tabs_background->SetPrimaryColor(frame_color);
     }
 
     // Ensure that corners of the window remain rounded.
@@ -1558,15 +1569,26 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
       }
     }
 
-    // Do corner cutouts and transparency.
+    // Do corner cutouts and transparency. These updates are needed in glass-
+    // enabled mode even if glass is off for the current window.
     if (features::IsGlassFrameEnabled()) {
       views().vertical_tab_strip_top_corner->SetAlpha(frame_color.opacity);
       views().vertical_tab_strip_bottom_corner->SetAlpha(frame_color.opacity);
       vertical_tabs_background->SetCutoutFrom(tab_strip_cutout_views);
+
+      // Has to be done after most other adjustments to ensure the correct
+      // outline path.
+      const bool use_blur_background = IsParentedToAndVisible(
+          views().vertical_tab_strip_background_blur_backdrop,
+          views().browser_view);
+      vertical_tabs_background->SetUseBackgroundBlur(use_blur_background);
+      if (use_blur_background) {
+        views().vertical_tab_strip_background_blur_backdrop->UpdateGeometry(
+            views().vertical_tab_strip_region_view, animation.expand_on_hover);
+      }
     }
   } else if (layout_data_->tab_strip_type == TabStripType::kHorizontal &&
-             !is_fullscreen(layout_data_->window_state) &&
-             features::IsGlassFrameEnabled()) {
+             !is_fullscreen(layout_data_->window_state) && in_glass_mode()) {
     frame_color.opacity = 0.0f;
   }
 
@@ -1622,13 +1644,16 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
   CHECK(top_container_background)
       << "Expected top container to have a CustomCornersBackground.";
 
-  // Set up top container cutouts.
+  // Set up top container cutouts. These need to be updated whether or not glass
+  // is active for the current window.
   if (features::IsGlassFrameEnabled()) {
     if (!is_fullscreen(layout_data_->window_state)) {
       toolbar_background->SetCutoutFrom(top_container_cutout_views);
       // Cut the toolbar corners out of the top container itself.
-      top_container_cutout_views.push_back(
-          CustomCornersBackground::InverseOf(*toolbar_background));
+      if (in_glass_mode()) {
+        top_container_cutout_views.push_back(
+            CustomCornersBackground::InverseOf(*toolbar_background));
+      }
       top_container_background->SetCutoutFrom(top_container_cutout_views);
     } else {
       toolbar_background->SetCutoutFrom({});
@@ -1674,7 +1699,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
     CHECK(main_background)
         << "Expected main background region to have a CustomCornersBackground.";
 
-    // Do the main area cutouts.
+    // Do the main area cutouts. These adjustments need to be made regardless of
+    // whether the current window is in glass mode.
     if (features::IsGlassFrameEnabled()) {
       main_background->SetCutoutFrom(main_background_cutout_views);
       main_background->SetCornerColor(frame_color);

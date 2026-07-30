@@ -22,7 +22,7 @@ class GURL;
 
 namespace ash {
 
-class AccountManagerUIImpl;
+class AccountManagerDialogCoordinator;
 
 // Extends from |SystemWebDialogDelegate| to create an always-on-top dialog.
 class InlineLoginDialog : public SystemWebDialogDelegate,
@@ -67,8 +67,8 @@ class InlineLoginDialog : public SystemWebDialogDelegate,
  private:
   class ModalDialogManagerCleanup;
 
-  // `Show` method can be called directly only by `AccountManagerUIImpl` class.
-  friend class AccountManagerUIImpl;
+  // Use AccountManagerDialogCoordinator to open this dialog.
+  friend class AccountManagerDialogCoordinator;
 
   // Displays the dialog. |close_dialog_closure| will be called when the dialog
   // is closed.

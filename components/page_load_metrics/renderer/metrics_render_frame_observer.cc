@@ -346,10 +346,6 @@ void MetricsRenderFrameObserver::DidStartResponse(
     bool is_ad_resource) {
   if (provisional_frame_resource_data_use_ &&
       blink::IsRequestDestinationFrame(request_destination)) {
-    // TODO(rajendrant): This frame request might start before the provisional
-    // load starts, and data use of the frame request might be missed in that
-    // case. There should be a guarantee that DidStartProvisionalLoad be called
-    // before DidStartResponse for the frame request.
     provisional_frame_resource_data_use_->DidStartResponse(
         final_response_url, request_id, response_head, request_destination,
         is_ad_resource);
@@ -385,7 +381,7 @@ void MetricsRenderFrameObserver::DidCancelResponse(int request_id) {
 
 void MetricsRenderFrameObserver::DidReceiveTransferSizeUpdate(
     int request_id,
-    base::ByteCount received_data_length) {
+    base::ByteSize received_data_length) {
   if (provisional_frame_resource_data_use_ &&
       provisional_frame_resource_data_use_->resource_id() == request_id) {
     provisional_frame_resource_data_use_->DidReceiveTransferSizeUpdate(
@@ -400,7 +396,7 @@ void MetricsRenderFrameObserver::DidReceiveTransferSizeUpdate(
 void MetricsRenderFrameObserver::DidLoadResourceFromMemoryCache(
     const GURL& response_url,
     int request_id,
-    base::ByteCount encoded_body_length,
+    base::ByteSize encoded_body_length,
     const std::string& mime_type,
     bool from_archive) {
   // Resources from archives, such as subresources from a MHTML archive, do not

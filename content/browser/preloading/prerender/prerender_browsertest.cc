@@ -2076,7 +2076,7 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
 
   // Start prerendering `prerendering_url2`.
   test::PrerenderHostCreationWaiter host_creation_waiter2;
-  AddPrerenderAsync(prerendering_url2, R"(params=(\\\"a\\\"))");
+  AddPrerenderAsync(prerendering_url2, R"(params=(\\\"a\\\" \\\"extra\\\"))");
   PrerenderHostId host_id2 = host_creation_waiter2.Wait();
   auto* host2 =
       web_contents_impl()->GetPrerenderHostRegistry()->FindNonReservedHostById(
@@ -2166,6 +2166,48 @@ IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest, HintIsPopulated) {
           host_id);
   ASSERT_TRUE(host);
   ASSERT_TRUE(host->no_vary_search_hint().has_value());
+}
+
+// Tests that a second prerender speculation rule whose URL only differs from
+// an existing prerendering URL by query parameters covered by a matching
+// No-Vary-Search hint is rejected as a duplicate, rather than creating a
+// second prerender host.
+IN_PROC_BROWSER_TEST_P(NoVarySearchPrerenderBrowserTest,
+                       EquivalentUrlsUnderNoVarySearchHintAreDeduped) {
+  const GURL kInitialUrl = GetUrl("/empty.html");
+  const GURL kPrerenderingUrl1 = GetUrl("/no_vary_search_a.html?prerender&a=1");
+  const GURL kPrerenderingUrl2 = GetUrl("/no_vary_search_a.html?prerender&a=2");
+
+  // Navigate to an initial page.
+  ASSERT_TRUE(NavigateToURL(shell(), kInitialUrl));
+  ASSERT_EQ(web_contents()->GetLastCommittedURL(), kInitialUrl);
+
+  PrerenderHostRegistry* registry =
+      web_contents_impl()->GetPrerenderHostRegistry();
+
+  // Trigger both prerenders from a single speculation rule set. They differ
+  // only by the "a" query param, which the matching No-Vary-Search hint
+  // declares as not affecting the response, so the browser should create a
+  // single prerender host for the first URL and reject the second as a
+  // duplicate (per HTML 7.6.1.3's "redundant with" definition).
+  prerender_helper()->AddPrerendersAsync(
+      {kPrerenderingUrl1, kPrerenderingUrl2},
+      /*eagerness=*/std::nullopt,
+      /*no_vary_search_hint=*/R"(params=(\\\"a\\\"))",
+      /*target_hint=*/std::string());
+  WaitForPrerenderLoadCompletion(kPrerenderingUrl1);
+
+  PrerenderHost* host1 = registry->FindHostByUrlForTesting(kPrerenderingUrl1);
+  ASSERT_TRUE(host1);
+  ASSERT_TRUE(host1->no_vary_search_hint().has_value());
+  // The surviving host was created for the first URL.
+  EXPECT_EQ(host1->GetInitialUrl(), kPrerenderingUrl1);
+
+  // The second URL should resolve to the same (surviving) host rather than to
+  // a newly-created second host. If dedupe failed, a distinct host with
+  // initial URL kPrerenderingUrl2 would exist and be returned here.
+  PrerenderHost* host2 = registry->FindHostByUrlForTesting(kPrerenderingUrl2);
+  EXPECT_EQ(host2, host1);
 }
 
 // Tests that the speculationrules trigger works in the presence of
@@ -13165,6 +13207,29 @@ IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
   std::unique_ptr<PrerenderHandle> prerender_handle =
       AddEmbedderTriggeredPrerenderAsync(embedder_triggered_prerendering_url);
   EXPECT_TRUE(prerender_handle);
+}
+
+// Regression test for bug 40893667:
+// Tests that destroying a WebContents with multiple active prerenders sharing a
+// process does not crash during teardown when one RFH destruction triggers
+// RenderProcessGone notification for another RFH while PrerenderHostRegistry is
+// being destroyed.
+IN_PROC_BROWSER_TEST_F(MultiplePrerendersBrowserTest,
+                       TeardownWithMultiplePrerendersSharingProcess) {
+  const GURL initial_url = GetUrl("/empty.html");
+  ASSERT_TRUE(NavigateToURL(shell(), initial_url));
+
+  // Trigger multiple prerenders so they exist concurrently in the registry.
+  GURL prerender_url1 = GetUrl("/empty.html?prerender1");
+  GURL prerender_url2 = GetUrl("/empty.html?prerender2");
+  AddPrerender(prerender_url1);
+  AddPrerender(prerender_url2);
+  EXPECT_TRUE(HasHostForUrl(prerender_url1));
+  EXPECT_TRUE(HasHostForUrl(prerender_url2));
+
+  // Destroying the shell (and thus WebContents) should complete cleanly without
+  // crashing due to accessing a null PrerenderHostRegistry during RFH teardown.
+  shell()->Close();
 }
 
 // Tests that PrerenderHostRegistry can start prerendering when the DevTools is

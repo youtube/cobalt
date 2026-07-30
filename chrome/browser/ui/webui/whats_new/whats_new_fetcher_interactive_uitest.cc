@@ -29,7 +29,8 @@ class WhatsNewFetcherActiveStateTest : public InProcessBrowserTest {
   // On linux, the activation is asynchronous, which makes it impossible to
   // reliably wait for the posted task after activation change. Use mocked
   // activation logic which is synchronous.
-  views::test::MockActivationController activation_controller_;
+  views::test::MockActivationController activation_controller_{
+      /*allow_in_interactive_ui_tests=*/true};
 #endif
 };
 
@@ -42,7 +43,7 @@ IN_PROC_BROWSER_TEST_F(WhatsNewFetcherActiveStateTest,
   }
 #endif
 
-  Browser* new_browser = CreateBrowser(browser()->profile());
+  Browser* new_browser = CreateBrowser(browser()->GetProfile());
   ui_test_utils::BrowserActivationWaiter(new_browser).WaitForActivation();
   EXPECT_TRUE(new_browser->IsActive());
 

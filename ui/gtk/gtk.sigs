@@ -95,7 +95,6 @@ void gtk_enumerate_printers(GtkPrinterFunc func, gpointer data, GDestroyNotify d
 GList* gtk_print_backend_load_modules(void);
 GListModel* gtk_print_backend_get_printers(GtkPrintBackend* print_backend);
 GList* gtk_print_backend_get_printer_list(GtkPrintBackend* print_backend);
-GtkPrinter* gtk_print_backend_find_printer(GtkPrintBackend* print_backend, const char* printer_name);
 void gtk_file_chooser_add_filter(GtkFileChooser* chooser, GtkFileFilter* filter);
 GFile* gtk_file_chooser_get_file(GtkFileChooser* chooser);
 GtkFileFilter* gtk_file_chooser_get_filter(GtkFileChooser* chooser);
@@ -196,3 +195,5 @@ void gtk_widget_show(GtkWidget* widget);
 void gtk_window_set_modal(GtkWindow* window, gboolean modal);
 void gtk_print_settings_set_printer(GtkPrintSettings* settings, const gchar* printer);
 GType gtk_settings_get_type(void);
+GType gtk_dialog_get_type(void);
+void gtk_dialog_set_default_response(GtkDialog* dialog, gint response_id);

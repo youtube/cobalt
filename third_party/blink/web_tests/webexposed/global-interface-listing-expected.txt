@@ -4746,6 +4746,7 @@ interface HTMLInstallElement : HTMLElement
     getter installURL
     getter invalidReason
     getter isValid
+    getter manifest
     getter manifestId
     getter onpromptaction
     getter onpromptdismiss
@@ -4753,6 +4754,7 @@ interface HTMLInstallElement : HTMLElement
     getter permissionStatus
     method constructor
     setter installURL
+    setter manifest
     setter manifestId
     setter onpromptaction
     setter onpromptdismiss
@@ -7065,8 +7067,6 @@ interface Navigator
     getter mediaDevices
     getter mediaSession
     getter mimeTypes
-    getter modelContext
-    getter modelContextTesting
     getter onLine
     getter pdfViewerEnabled
     getter permissions
@@ -7127,7 +7127,6 @@ interface Navigator
     method updateAdInterestGroups
     method vibrate
     method webkitGetUserMedia
-    setter modelContextTesting
 interface NavigatorLogin
     attribute @@toStringTag
     method constructor
@@ -7645,6 +7644,7 @@ interface Performance : EventTarget
     method getEntriesByType
     method getSpeculations
     method mark
+    method markConditional
     method measure
     method now
     method setResourceTimingBufferSize
@@ -7707,6 +7707,7 @@ interface PerformanceLongAnimationFrameTiming : PerformanceEntry
     getter scripts
     getter styleAndLayoutStart
     getter styleDuration
+    getter userTimingEntries
     method constructor
     method toJSON
 interface PerformanceLongTaskTiming : PerformanceEntry
@@ -7717,6 +7718,9 @@ interface PerformanceLongTaskTiming : PerformanceEntry
 interface PerformanceMark : PerformanceEntry
     attribute @@toStringTag
     getter detail
+    method constructor
+interface PerformanceMarkConditional : PerformanceEntry
+    attribute @@toStringTag
     method constructor
 interface PerformanceMeasure : PerformanceEntry
     attribute @@toStringTag

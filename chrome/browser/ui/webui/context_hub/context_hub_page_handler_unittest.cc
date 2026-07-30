@@ -9,19 +9,27 @@
 #include <vector>
 
 #include "base/functional/bind.h"
+#include "base/strings/strcat.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/gmock_callback_support.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/context_hub/context_hub_service.h"
 #include "chrome/browser/context_hub/context_hub_service_factory.h"
 #include "chrome/browser/context_hub/features.h"
+#include "chrome/browser/optimization_guide/mock_optimization_guide_keyed_service.h"
+#include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/personal_context/personal_context_service_factory.h"
 #include "chrome/browser/ui/webui/context_hub/context_hub.mojom.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/optimization_guide/proto/features/context_hub.pb.h"
 #include "components/personal_context/core/mock_personal_context_service.h"
 #include "components/personal_context/core/personal_context_service.h"
 #include "components/personal_context/proto/features/auto_todos.pb.h"
+#include "components/sessions/content/session_tab_helper.h"
 #include "content/public/test/browser_task_environment.h"
+#include "content/public/test/test_renderer_host.h"
+#include "content/public/test/web_contents_tester.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -32,6 +40,17 @@ namespace {
 
 using ::base::test::RunOnceCallback;
 using ::testing::_;
+
+#if !BUILDFLAG(IS_ANDROID)
+class MockTabProvider : public ContextHubPageHandler::TabProvider {
+ public:
+  MOCK_METHOD(std::vector<content::WebContents*>,
+              GetTabs,
+              (content::WebContents*),
+              (override));
+  MOCK_METHOD(void, SwitchToTab, (content::WebContents*, int32_t), (override));
+};
+#endif
 
 class ContextHubPageHandlerTest : public testing::Test {
  public:
@@ -50,10 +69,31 @@ class ContextHubPageHandlerTest : public testing::Test {
           return std::make_unique<
               personal_context::MockPersonalContextService>();
         }));
+    OptimizationGuideKeyedServiceFactory::GetInstance()->SetTestingFactory(
+        &profile_, base::BindRepeating([](content::BrowserContext* context)
+                                           -> std::unique_ptr<KeyedService> {
+          return std::make_unique<MockOptimizationGuideKeyedService>();
+        }));
 
+#if !BUILDFLAG(IS_ANDROID)
+    auto mock_tab_provider = std::make_unique<MockTabProvider>();
+    mock_tab_provider_ = mock_tab_provider.get();
     handler_ = std::make_unique<ContextHubPageHandler>(
         mojo::PendingReceiver<browser::context_hub::mojom::PageHandler>(),
-        &profile_, nullptr);
+        &profile_, nullptr, std::move(mock_tab_provider));
+#else
+    handler_ = std::make_unique<ContextHubPageHandler>(
+        mojo::PendingReceiver<browser::context_hub::mojom::PageHandler>(),
+        &profile_, nullptr, nullptr);
+#endif
+  }
+
+  void TearDown() override {
+#if !BUILDFLAG(IS_ANDROID)
+    mock_tab_provider_ = nullptr;
+#endif
+    handler_.reset();
+    testing::Test::TearDown();
   }
 
  protected:
@@ -62,9 +102,18 @@ class ContextHubPageHandlerTest : public testing::Test {
         PersonalContextServiceFactory::GetForProfile(&profile_));
   }
 
+  MockOptimizationGuideKeyedService* GetMockOptimizationGuideService() {
+    return static_cast<MockOptimizationGuideKeyedService*>(
+        OptimizationGuideKeyedServiceFactory::GetForProfile(&profile_));
+  }
+
   content::BrowserTaskEnvironment task_environment_;
+  content::RenderViewHostTestEnabler rvh_test_enabler_;
   TestingProfile profile_;
   base::test::ScopedFeatureList feature_list_;
+#if !BUILDFLAG(IS_ANDROID)
+  raw_ptr<MockTabProvider> mock_tab_provider_ = nullptr;
+#endif
   std::unique_ptr<ContextHubPageHandler> handler_;
 };
 
@@ -73,6 +122,7 @@ TEST_F(ContextHubPageHandlerTest, GenerateAutoTodos_Success) {
   personal_context::proto::AutoTodoItem* todo = response.add_todos();
   todo->set_title("Test Title");
   todo->set_description("Test Description");
+  todo->set_actionable_url("https://example.com/action");
 
   personal_context::proto::Any any_response;
   response.SerializeToString(any_response.mutable_value());
@@ -95,6 +145,7 @@ TEST_F(ContextHubPageHandlerTest, GenerateAutoTodos_Success) {
   ASSERT_EQ(result->size(), 1u);
   EXPECT_EQ(result->at(0)->title, "Test Title");
   EXPECT_EQ(result->at(0)->description, "Test Description");
+  EXPECT_EQ(result->at(0)->actionable_url, GURL("https://example.com/action"));
   EXPECT_TRUE(result->at(0)->source_references.empty());
 }
 
@@ -103,6 +154,7 @@ TEST_F(ContextHubPageHandlerTest, GenerateAutoTodos_WithSourceReferences) {
   personal_context::proto::AutoTodoItem* todo = response.add_todos();
   todo->set_title("Test Title");
   todo->set_description("Test Description");
+  todo->set_actionable_url("https://example.com/action2");
 
   personal_context::proto::SourceReference* ref_gmail =
       todo->add_source_references();
@@ -135,6 +187,7 @@ TEST_F(ContextHubPageHandlerTest, GenerateAutoTodos_WithSourceReferences) {
   ASSERT_EQ(result->size(), 1u);
   EXPECT_EQ(result->at(0)->title, "Test Title");
   EXPECT_EQ(result->at(0)->description, "Test Description");
+  EXPECT_EQ(result->at(0)->actionable_url, GURL("https://example.com/action2"));
 
   ASSERT_EQ(result->at(0)->source_references.size(), 2u);
 
@@ -189,7 +242,7 @@ TEST_F(ContextHubPageHandlerTest, GetAllMemoryBankEntries_Success) {
   ASSERT_TRUE(service);
 
   base::test::TestFuture<void> save_tab_future;
-  service->SaveTab(GURL("https://example.com/tab"), "Tab Title",
+  service->SaveTab(GURL("https://example.com/tab"), "Tab Title", "Page text",
                    save_tab_future.GetCallback());
   ASSERT_TRUE(save_tab_future.Wait());
 
@@ -239,12 +292,12 @@ TEST_F(ContextHubPageHandlerTest, DeleteMemoryBankEntries_Success) {
 
   base::test::TestFuture<void> save_tab_future1;
   service->SaveTab(GURL("https://example.com/tab1"), "Tab Title 1",
-                   save_tab_future1.GetCallback());
+                   "Page text 1", save_tab_future1.GetCallback());
   ASSERT_TRUE(save_tab_future1.Wait());
 
   base::test::TestFuture<void> save_tab_future2;
   service->SaveTab(GURL("https://example.com/tab2"), "Tab Title 2",
-                   save_tab_future2.GetCallback());
+                   "Page text 2", save_tab_future2.GetCallback());
   ASSERT_TRUE(save_tab_future2.Wait());
 
   base::test::TestFuture<
@@ -268,6 +321,138 @@ TEST_F(ContextHubPageHandlerTest, DeleteMemoryBankEntries_Success) {
       get_all_future2.Take();
   EXPECT_TRUE(entries2.empty());
 }
+
+#if !BUILDFLAG(IS_ANDROID)
+TEST_F(ContextHubPageHandlerTest, SwitchToTab) {
+  EXPECT_CALL(*mock_tab_provider_, SwitchToTab(_, 42)).Times(1);
+
+  handler_->SwitchToTab(42);
+}
+
+TEST_F(ContextHubPageHandlerTest, GetTabs_NoTabs) {
+  EXPECT_CALL(*mock_tab_provider_, GetTabs(_))
+      .WillOnce(testing::Return(std::vector<content::WebContents*>{}));
+
+  base::test::TestFuture<std::vector<browser::context_hub::mojom::TabInfoPtr>>
+      future;
+  handler_->GetTabs(future.GetCallback());
+
+  std::vector<browser::context_hub::mojom::TabInfoPtr> tabs = future.Take();
+  EXPECT_TRUE(tabs.empty());
+}
+
+TEST_F(ContextHubPageHandlerTest, GetTabs_WithTabs) {
+  std::vector<std::unique_ptr<content::WebContents>> test_tabs;
+  std::vector<content::WebContents*> raw_test_tabs;
+  for (int i = 0; i < 3; ++i) {
+    auto tab =
+        content::WebContentsTester::CreateTestWebContents(&profile_, nullptr);
+    sessions::SessionTabHelper::CreateForWebContents(
+        tab.get(), sessions::SessionTabHelper::DelegateLookup());
+    raw_test_tabs.push_back(tab.get());
+    test_tabs.push_back(std::move(tab));
+  }
+
+  EXPECT_CALL(*mock_tab_provider_, GetTabs(_))
+      .WillOnce(testing::Return(raw_test_tabs));
+
+  base::test::TestFuture<std::vector<browser::context_hub::mojom::TabInfoPtr>>
+      future;
+  handler_->GetTabs(future.GetCallback());
+
+  std::vector<browser::context_hub::mojom::TabInfoPtr> tabs = future.Take();
+  EXPECT_EQ(tabs.size(), 3u);
+}
+
+TEST_F(ContextHubPageHandlerTest, RetrieveAndGroupTabs_NoTabs) {
+  EXPECT_CALL(*mock_tab_provider_, GetTabs(_))
+      .WillOnce(testing::Return(std::vector<content::WebContents*>{}));
+
+  base::test::TestFuture<std::vector<browser::context_hub::mojom::TabGroupPtr>,
+                         std::vector<browser::context_hub::mojom::TabInfoPtr>>
+      future;
+  handler_->RetrieveAndGroupTabs(
+      future
+          .GetCallback<std::vector<browser::context_hub::mojom::TabGroupPtr>,
+                       std::vector<browser::context_hub::mojom::TabInfoPtr>>());
+
+  auto [groups, ungrouped_tabs] = future.Take();
+  EXPECT_TRUE(groups.empty());
+  EXPECT_TRUE(ungrouped_tabs.empty());
+}
+
+TEST_F(ContextHubPageHandlerTest, RetrieveAndGroupTabs_WithTabs) {
+  std::vector<std::unique_ptr<content::WebContents>> test_tabs;
+  std::vector<content::WebContents*> raw_test_tabs;
+  std::vector<int32_t> tab_ids;
+  for (int i = 0; i < 5; ++i) {
+    auto tab =
+        content::WebContentsTester::CreateTestWebContents(&profile_, nullptr);
+    sessions::SessionTabHelper::CreateForWebContents(
+        tab.get(), sessions::SessionTabHelper::DelegateLookup());
+    tab_ids.push_back(sessions::SessionTabHelper::IdForTab(tab.get()).id());
+    raw_test_tabs.push_back(tab.get());
+    test_tabs.push_back(std::move(tab));
+  }
+
+  EXPECT_CALL(*mock_tab_provider_, GetTabs(_))
+      .WillOnce(testing::Return(raw_test_tabs));
+
+  EXPECT_CALL(
+      *GetMockOptimizationGuideService(),
+      ExecuteModel(optimization_guide::ModelBasedCapabilityKey::kContextHub, _,
+                   _, _))
+      .WillOnce([tab_ids](
+                    optimization_guide::ModelBasedCapabilityKey feature,
+                    const google::protobuf::MessageLite& request_metadata,
+                    const optimization_guide::ModelExecutionOptions& options,
+                    optimization_guide::
+                        OptimizationGuideModelExecutionResultCallback
+                            callback) {
+        optimization_guide::proto::ContextHubResponse response;
+        optimization_guide::proto::GroupResponse* group_response =
+            response.mutable_group_response();
+        optimization_guide::proto::TabGroup* group1 =
+            group_response->add_tab_groups();
+        group1->set_label("Group 1");
+        group1->add_tabs()->set_tab_id(tab_ids[0]);
+        group1->add_tabs()->set_tab_id(tab_ids[1]);
+
+        optimization_guide::proto::TabGroup* group2 =
+            group_response->add_tab_groups();
+        group2->set_label("Group 2");
+        group2->add_tabs()->set_tab_id(tab_ids[2]);
+        group2->add_tabs()->set_tab_id(tab_ids[3]);
+
+        optimization_guide::proto::Any any_response;
+        any_response.set_type_url(
+            "type.googleapis.com/optimization_guide.proto.ContextHubResponse");
+        response.SerializeToString(any_response.mutable_value());
+
+        std::move(callback).Run(
+            optimization_guide::OptimizationGuideModelExecutionResult(
+                base::ok(std::move(any_response)), nullptr),
+            nullptr);
+      });
+
+  base::test::TestFuture<std::vector<browser::context_hub::mojom::TabGroupPtr>,
+                         std::vector<browser::context_hub::mojom::TabInfoPtr>>
+      future;
+  handler_->RetrieveAndGroupTabs(
+      future
+          .GetCallback<std::vector<browser::context_hub::mojom::TabGroupPtr>,
+                       std::vector<browser::context_hub::mojom::TabInfoPtr>>());
+
+  auto [groups, ungrouped_tabs] = future.Take();
+  EXPECT_EQ(groups.size(), 2u);
+  size_t total_tabs = ungrouped_tabs.size();
+  for (const auto& group : groups) {
+    total_tabs += group->tabs.size();
+    EXPECT_GE(group->tabs.size(), 2u);
+  }
+  EXPECT_EQ(total_tabs, 5u);
+}
+#endif
 
 }  // namespace
 }  // namespace context_hub

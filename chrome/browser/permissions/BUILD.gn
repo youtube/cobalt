@@ -370,6 +370,10 @@ if (!is_android) {
       deps += [ "//chrome/browser/ash/privacy_hub" ]
     }
 
+    if (is_mac) {
+      sources += [ "system/system_permission_settings_mac_browsertest.mm" ]
+    }
+
     # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
     # enable the diagnostic by removing this line.
     configs += [ "//build/config/compiler:no_exit_time_destructors" ]
@@ -382,7 +386,10 @@ if (!is_android && !is_chromeos_device) {
 
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
 
-    sources = [ "permissions_security_model_interactive_uitest.cc" ]
+    sources = [
+      "one_time_permissions_tracker_helper_interactive_uitest.cc",
+      "permissions_security_model_interactive_uitest.cc",
+    ]
 
     deps = [
       ":permissions",

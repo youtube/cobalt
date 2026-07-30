@@ -465,6 +465,7 @@ void WebGL2RenderingContextBase::blitFramebuffer(GLint src_x0,
                                                  GLenum filter) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
 
   if (base::FeatureList::IsEnabled(features::kWebGLDiscardBackBuffer)) {
     // If the canvas has been created with preserveDrawingBuffer set to false,
@@ -512,11 +513,15 @@ void WebGL2RenderingContextBase::framebufferTextureLayer(GLenum target,
                                                          WebGLTexture* texture,
                                                          GLint level,
                                                          GLint layer) {
-  if (isContextLost() ||
-      !ValidateFramebufferFuncParameters("framebufferTextureLayer", target,
-                                         attachment) ||
-      !ValidateNullableWebGLObject("framebufferTextureLayer", texture))
+  if (isContextLost()) {
     return;
+  }
+  MaybeEndPixelLocalStorageImplicit();
+  if (!ValidateFramebufferFuncParameters("framebufferTextureLayer", target,
+                                         attachment) ||
+      !ValidateNullableWebGLObject("framebufferTextureLayer", texture)) {
+    return;
+  }
   GLenum textarget = texture ? texture->GetTarget() : 0;
   if (texture) {
     if (textarget != GL_TEXTURE_3D && textarget != GL_TEXTURE_2D_ARRAY) {
@@ -709,6 +714,7 @@ void WebGL2RenderingContextBase::invalidateFramebuffer(
     const Vector<GLenum>& attachments) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
 
   Vector<GLenum> translated_attachments = attachments;
   if (!CheckAndTranslateAttachments("invalidateFramebuffer", target,
@@ -727,6 +733,7 @@ void WebGL2RenderingContextBase::invalidateSubFramebuffer(
     GLsizei height) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
 
   Vector<GLenum> translated_attachments = attachments;
   if (!CheckAndTranslateAttachments("invalidateSubFramebuffer", target,
@@ -833,6 +840,7 @@ void WebGL2RenderingContextBase::readPixels(
     MaybeShared<DOMArrayBufferView> pixels) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
   if (bound_pixel_pack_buffer_.Get()) {
     SynthesizeGLError(GL_INVALID_OPERATION, "readPixels",
                       "PIXEL_PACK buffer should not be bound");
@@ -853,6 +861,7 @@ void WebGL2RenderingContextBase::readPixels(
     int64_t offset) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
   if (bound_pixel_pack_buffer_.Get()) {
     SynthesizeGLError(GL_INVALID_OPERATION, "readPixels",
                       "PIXEL_PACK buffer should not be bound");
@@ -871,6 +880,7 @@ void WebGL2RenderingContextBase::readPixels(GLint x,
                                             int64_t offset) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
 
   // Due to WebGL's same-origin restrictions, it is not possible to
   // taint the origin using the WebGL API.
@@ -2385,6 +2395,7 @@ void WebGL2RenderingContextBase::copyTexSubImage3D(GLenum target,
                                                    GLsizei height) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
   if (!ValidateTexture3DBinding("copyTexSubImage3D", target))
     return;
   WebGLFramebuffer* read_framebuffer_binding = nullptr;
@@ -3319,6 +3330,7 @@ void WebGL2RenderingContextBase::drawRangeElements(GLenum mode,
 void WebGL2RenderingContextBase::drawBuffers(const Vector<GLenum>& buffers) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
 
   for (const auto& buf : buffers) {
     switch (buf) {
@@ -3546,6 +3558,9 @@ bool WebGL2RenderingContextBase::isQuery(WebGLQuery* query) {
 }
 
 void WebGL2RenderingContextBase::beginQuery(GLenum target, WebGLQuery* query) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateWebGLObject("beginQuery", query))
     return;
 
@@ -3701,6 +3716,9 @@ ScriptValue WebGL2RenderingContextBase::getQueryParameter(
     ScriptState* script_state,
     WebGLQuery* query,
     GLenum pname) {
+  if (isContextLost()) {
+    return ScriptValue::CreateNull(script_state->GetIsolate());
+  }
   if (!ValidateWebGLObject("getQueryParameter", query))
     return ScriptValue::CreateNull(script_state->GetIsolate());
 
@@ -3766,6 +3784,9 @@ bool WebGL2RenderingContextBase::isSampler(WebGLSampler* sampler) {
 
 void WebGL2RenderingContextBase::bindSampler(GLuint unit,
                                              WebGLSampler* sampler) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("bindSampler", sampler))
     return;
 
@@ -3785,6 +3806,9 @@ void WebGL2RenderingContextBase::SamplerParameter(WebGLSampler* sampler,
                                                   GLfloat paramf,
                                                   GLint parami,
                                                   bool is_float) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateWebGLObject("samplerParameter", sampler))
     return;
 
@@ -3910,6 +3934,9 @@ ScriptValue WebGL2RenderingContextBase::getSamplerParameter(
     ScriptState* script_state,
     WebGLSampler* sampler,
     GLenum pname) {
+  if (isContextLost()) {
+    return ScriptValue::CreateNull(script_state->GetIsolate());
+  }
   if (!ValidateWebGLObject("getSamplerParameter", sampler))
     return ScriptValue::CreateNull(script_state->GetIsolate());
 
@@ -3980,6 +4007,9 @@ void WebGL2RenderingContextBase::deleteSync(WebGLSync* sync) {
 GLenum WebGL2RenderingContextBase::clientWaitSync(WebGLSync* sync,
                                                   GLbitfield flags,
                                                   GLuint64 timeout) {
+  if (isContextLost()) {
+    return GL_WAIT_FAILED;
+  }
   if (!ValidateWebGLObject("clientWaitSync", sync))
     return GL_WAIT_FAILED;
 
@@ -4013,6 +4043,9 @@ GLenum WebGL2RenderingContextBase::clientWaitSync(WebGLSync* sync,
 void WebGL2RenderingContextBase::waitSync(WebGLSync* sync,
                                           GLbitfield flags,
                                           GLint64 timeout) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateWebGLObject("waitSync", sync))
     return;
 
@@ -4033,6 +4066,9 @@ ScriptValue WebGL2RenderingContextBase::getSyncParameter(
     ScriptState* script_state,
     WebGLSync* sync,
     GLenum pname) {
+  if (isContextLost()) {
+    return ScriptValue::CreateNull(script_state->GetIsolate());
+  }
   if (!ValidateWebGLObject("getSyncParameter", sync))
     return ScriptValue::CreateNull(script_state->GetIsolate());
 
@@ -4095,6 +4131,9 @@ bool WebGL2RenderingContextBase::isTransformFeedback(
 void WebGL2RenderingContextBase::bindTransformFeedback(
     GLenum target,
     WebGLTransformFeedback* feedback) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("bindTransformFeedback", feedback))
     return;
 
@@ -4127,6 +4166,7 @@ void WebGL2RenderingContextBase::bindTransformFeedback(
 void WebGL2RenderingContextBase::beginTransformFeedback(GLenum primitive_mode) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
   if (!ValidateTransformFeedbackPrimitiveMode("beginTransformFeedback",
                                               primitive_mode))
     return;
@@ -4722,6 +4762,9 @@ bool WebGL2RenderingContextBase::isVertexArray(
 
 void WebGL2RenderingContextBase::bindVertexArray(
     WebGLVertexArrayObject* vertex_array) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("bindVertexArray", vertex_array))
     return;
 
@@ -4739,6 +4782,10 @@ void WebGL2RenderingContextBase::bindVertexArray(
 
 void WebGL2RenderingContextBase::bindFramebuffer(GLenum target,
                                                  WebGLFramebuffer* buffer) {
+  if (isContextLost()) {
+    return;
+  }
+  MaybeEndPixelLocalStorageImplicit();
   if (!ValidateNullableWebGLObject("bindFramebuffer", buffer))
     return;
 

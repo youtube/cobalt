@@ -120,8 +120,7 @@ IN_PROC_BROWSER_TEST_F(ClickToCallBrowserTest,
   // Check click to call items in context menu
   ASSERT_TRUE(menu->IsItemPresent(
       IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE));
-  EXPECT_FALSE(menu->IsItemPresent(
-      IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_MULTIPLE_DEVICES));
+  EXPECT_FALSE(menu->IsItemPresent(kClickToCallMultipleDevicesMenuId));
 
   menu->ExecuteCommand(IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE,
                        0);
@@ -139,8 +138,7 @@ IN_PROC_BROWSER_TEST_F(ClickToCallBrowserTest, ContextMenu_NoDevicesAvailable) {
       InitContextMenu(GURL(kTelUrl), kLinkText, kTextWithoutPhoneNumber);
   EXPECT_FALSE(menu->IsItemPresent(
       IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE));
-  EXPECT_FALSE(menu->IsItemPresent(
-      IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_MULTIPLE_DEVICES));
+  EXPECT_FALSE(menu->IsItemPresent(kClickToCallMultipleDevicesMenuId));
 }
 
 IN_PROC_BROWSER_TEST_F(ClickToCallBrowserTest, ContextMenu_UnsafeTelLink) {
@@ -155,8 +153,7 @@ IN_PROC_BROWSER_TEST_F(ClickToCallBrowserTest, ContextMenu_UnsafeTelLink) {
       GURL("tel:%23*999%23"), kLinkText, kTextWithoutPhoneNumber);
   EXPECT_FALSE(menu->IsItemPresent(
       IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE));
-  EXPECT_FALSE(menu->IsItemPresent(
-      IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_MULTIPLE_DEVICES));
+  EXPECT_FALSE(menu->IsItemPresent(kClickToCallMultipleDevicesMenuId));
 }
 
 IN_PROC_BROWSER_TEST_F(ClickToCallBrowserTest, ContextMenu_EscapedCharacters) {
@@ -172,8 +169,7 @@ IN_PROC_BROWSER_TEST_F(ClickToCallBrowserTest, ContextMenu_EscapedCharacters) {
       InitContextMenu(phone_number, kLinkText, kTextWithoutPhoneNumber);
   ASSERT_TRUE(menu->IsItemPresent(
       IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE));
-  EXPECT_FALSE(menu->IsItemPresent(
-      IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_MULTIPLE_DEVICES));
+  EXPECT_FALSE(menu->IsItemPresent(kClickToCallMultipleDevicesMenuId));
 
   menu->ExecuteCommand(IDC_CONTENT_CONTEXT_SHARING_CLICK_TO_CALL_SINGLE_DEVICE,
                        0);
@@ -455,11 +451,11 @@ IN_PROC_BROWSER_TEST_P(ClickToCallPolicyTest, RunTest) {
   EXPECT_EQ(expected_configured,
             prefs->IsManagedPreference(prefs::kClickToCallEnabled));
 
-  EXPECT_EQ(expected_enabled, ShouldOfferClickToCallForURL(browser()->profile(),
-                                                           GURL(kPhoneLink)));
+  EXPECT_EQ(expected_enabled, ShouldOfferClickToCallForURL(
+                                  browser()->GetProfile(), GURL(kPhoneLink)));
 
   std::optional<std::string> extracted =
-      ExtractPhoneNumberForClickToCall(browser()->profile(), kPhoneNumber);
+      ExtractPhoneNumberForClickToCall(browser()->GetProfile(), kPhoneNumber);
   if (expected_enabled) {
     EXPECT_EQ(kPhoneNumber, extracted.value());
   } else {

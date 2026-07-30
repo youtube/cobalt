@@ -81,6 +81,16 @@ class OptimizationGuideAnnotationIndexClient : public AnnotationIndexClient {
   // Callbacks invoked by `OptimizationGuideDecider` when queried for
   // optimization types. Parses `metadata`, logs the result to `log_router_`,
   // and invokes `callback` with the result.
+  void OnFilterExecutionStrategyDecision(
+      int64_t navigation_id,
+      base::OnceCallback<
+          void(std::optional<std::vector<FilterSuggestionCandidate>>)> callback,
+      const GURL& url,
+      const base::flat_map<
+          optimization_guide::proto::OptimizationType,
+          optimization_guide::OptimizationGuideDecisionWithMetadata>&
+          decisions);
+
   void OnFilterTasksSupportedDecision(
       const GURL& url,
       int64_t navigation_id,

@@ -16,12 +16,15 @@ import android.os.SystemClock;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.app.ServiceCompat;
 
+import org.chromium.base.Log;
 import org.chromium.base.SplitCompatService;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.actor.ActorForegroundServiceUmaHelper.ForegroundLifecycle;
 import org.chromium.chrome.browser.actor.ActorForegroundServiceUmaHelper.StopReason;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.components.browser_ui.notifications.ForegroundServiceUtils;
+import org.chromium.components.browser_ui.notifications.NotificationWrapper;
 
 /** Implementation of ActorForegroundService. */
 @NullMarked
@@ -30,6 +33,8 @@ public class ActorForegroundServiceImpl extends SplitCompatService.Impl {
     private long mStartTime;
     private boolean mIsForeground;
     private boolean mStopReasonRecorded;
+
+    private static final String TAG = "Actor";
 
     /**
      * Start the foreground service with this given context.
@@ -89,8 +94,25 @@ public class ActorForegroundServiceImpl extends SplitCompatService.Impl {
 
     @Override
     public int onStartCommand(@Nullable Intent intent, int flags, int startId) {
+        Log.d(TAG, "GlicTrigger: ActorForegroundService onStartCommand");
         if (mStartTime == 0) {
             mStartTime = SystemClock.elapsedRealtime();
+        }
+
+        if (!mIsForeground
+                && ChromeFeatureList.isEnabled(ChromeFeatureList.GLIC_BACKGROUND_TRIGGERING)) {
+            Log.d(TAG, "GlicTrigger: Promoting to foreground");
+            NotificationWrapper taskStartsSoonNotificationWrapper =
+                    ActorNotificationFactory.buildTaskStartsSoonNotification();
+            Notification taskStartsSoonNotification =
+                    taskStartsSoonNotificationWrapper.getNotification();
+            if (taskStartsSoonNotification != null) {
+                startOrUpdateForegroundService(
+                        ActorNotificationFactory.TASK_STARTS_SOON_NOTIFICATION_ID,
+                        taskStartsSoonNotification,
+                        -1,
+                        false);
+            }
         }
 
         // Return START_NOT_STICKY so the system doesn't attempt to recreate the service if it is

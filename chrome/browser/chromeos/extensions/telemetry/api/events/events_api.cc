@@ -14,8 +14,8 @@
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
 #include "chrome/common/chromeos/extensions/api/events.h"
-#include "chromeos/crosapi/mojom/telemetry_extension_exception.mojom.h"
 #include "content/public/browser/browser_context.h"
+#include "extensions/common/features/feature_provider.h"
 #include "ui/base/page_transition_types.h"
 #include "url/gurl.h"
 
@@ -23,17 +23,54 @@ namespace chromeos {
 
 namespace {
 
-const char kKeyboardDiagnosticsUrl[] =
+constexpr char kKeyboardDiagnosticsUrl[] =
     "chrome://diagnostics?input&showDefaultKeyboardTester";
 
 namespace cx_events = ::chromeos::api::os_events;
-namespace crosapi = ::crosapi::mojom;
 
 void OpenDiagnosticsKeyboardPage(content::BrowserContext* browser_context) {
   NavigateParams navigate_params(Profile::FromBrowserContext(browser_context),
                                  GURL(kKeyboardDiagnosticsUrl),
                                  ui::PAGE_TRANSITION_FIRST);
   Navigate(&navigate_params);
+}
+
+std::string GetFeatureName(cx_events::EventCategory category) {
+  switch (category) {
+    case cx_events::EventCategory::kNone:
+      return "";
+    case cx_events::EventCategory::kAudioJack:
+      return "os.events.onAudioJackEvent";
+    case cx_events::EventCategory::kLid:
+      return "os.events.onLidEvent";
+    case cx_events::EventCategory::kUsb:
+      return "os.events.onUsbEvent";
+    case cx_events::EventCategory::kExternalDisplay:
+      return "os.events.onExternalDisplayEvent";
+    case cx_events::EventCategory::kSdCard:
+      return "os.events.onSdCardEvent";
+    case cx_events::EventCategory::kPower:
+      return "os.events.onPowerEvent";
+    case cx_events::EventCategory::kKeyboardDiagnostic:
+      return "os.events.onKeyboardDiagnosticEvent";
+    case cx_events::EventCategory::kStylusGarage:
+      return "os.events.onStylusGarageEvent";
+    case cx_events::EventCategory::kTouchpadButton:
+      return "os.events.onTouchpadButtonEvent";
+    case cx_events::EventCategory::kTouchpadTouch:
+      return "os.events.onTouchpadTouchEvent";
+    case cx_events::EventCategory::kTouchpadConnected:
+      return "os.events.onTouchpadConnectedEvent";
+    case cx_events::EventCategory::kTouchscreenTouch:
+      return "os.events.onTouchscreenTouchEvent";
+    case cx_events::EventCategory::kTouchscreenConnected:
+      return "os.events.onTouchscreenConnectedEvent";
+    case cx_events::EventCategory::kStylusTouch:
+      return "os.events.onStylusTouchEvent";
+    case cx_events::EventCategory::kStylusConnected:
+      return "os.events.onStylusConnectedEvent";
+  }
+  NOTREACHED();
 }
 
 }  // namespace
@@ -63,35 +100,64 @@ void OsEventsIsEventSupportedFunction::RunIfAllowed() {
     return;
   }
 
+  std::string feature_name = GetFeatureName(params->category);
+  const auto* feature =
+      extensions::FeatureProvider::GetAPIFeatures()->GetFeature(feature_name);
+  // Healthd team uses feature flag "TelemetryExtensionPendingApprovalApi" for
+  // pending APIs. "os.events" API has been released, and we keep adding API
+  // under it like "os.events.abc" and use the feature flag for pending
+  // approval. Once it's approved, we remove it from the "_api_features.json"
+  // file.
+  //
+  // Hence, for the API under "os.events", as long as we can find it in the
+  // "_api_features.json" file, it means it's behind a feature flag and then we
+  // should report it as "unsupported".
+  //
+  // Note 1: This check is based on the above assumption. That is, if we need to
+  // add the feature into _api_features.json due to other reasons, this check
+  // will report incorrect answer.
+  //
+  // TODO(b/296816372): Retrieve the feature flag name to see if it's really
+  // behind a flag.
+  //
+  // Note 2: Indeed this will not work if we control feature access using ways
+  // other than adding feature flag (such as through blocklist).
+  if (feature) {
+    cx_events::EventSupportStatusInfo result;
+    result.status = cx_events::EventSupportStatus::kUnsupported;
+    Respond(ArgumentList(cx_events::IsEventSupported::Results::Create(result)));
+    return;
+  }
+
   auto* event_manager = EventManager::Get(browser_context());
   event_manager->IsEventSupported(
-      converters::events::Convert(params->category),
+      params->category,
       base::BindOnce(&OsEventsIsEventSupportedFunction::OnEventManagerResult,
                      this));
 }
 
 void OsEventsIsEventSupportedFunction::OnEventManagerResult(
-    crosapi::TelemetryExtensionSupportStatusPtr status) {
+    ash::cros_healthd::mojom::SupportStatusPtr status) {
   if (!status) {
     Respond(Error("API internal error."));
     return;
   }
 
   switch (status->which()) {
-    case crosapi::TelemetryExtensionSupportStatus::Tag::kUnmappedUnionField:
+    case ash::cros_healthd::mojom::SupportStatus::Tag::kUnmappedUnionField:
       Respond(Error("API internal error."));
       break;
-    case crosapi::TelemetryExtensionSupportStatus::Tag::kException:
+    case ash::cros_healthd::mojom::SupportStatus::Tag::kException:
       Respond(Error(status->get_exception()->debug_message));
       break;
-    case crosapi::TelemetryExtensionSupportStatus::Tag::kSupported: {
+    case ash::cros_healthd::mojom::SupportStatus::Tag::kSupported: {
       cx_events::EventSupportStatusInfo success;
       success.status = cx_events::EventSupportStatus::kSupported;
       Respond(
           ArgumentList(cx_events::IsEventSupported::Results::Create(success)));
       break;
     }
-    case crosapi::TelemetryExtensionSupportStatus::Tag::kUnsupported:
+    case ash::cros_healthd::mojom::SupportStatus::Tag::kUnsupported:
       cx_events::EventSupportStatusInfo result;
       result.status = cx_events::EventSupportStatus::kUnsupported;
 
@@ -116,8 +182,8 @@ void OsEventsStartCapturingEventsFunction::RunIfAllowed() {
     OpenDiagnosticsKeyboardPage(browser_context());
   }
 
-  auto result = event_manager->RegisterExtensionForEvent(
-      extension_id(), converters::events::Convert(params->category));
+  auto result = event_manager->RegisterExtensionForEvent(extension_id(),
+                                                         params->category);
 
   switch (result) {
     case EventManager::kSuccess:
@@ -141,8 +207,8 @@ void OsEventsStopCapturingEventsFunction::RunIfAllowed() {
   }
 
   auto* event_manager = EventManager::Get(browser_context());
-  event_manager->RemoveObservationsForExtensionAndCategory(
-      extension_id(), converters::events::Convert(params->category));
+  event_manager->RemoveObservationsForExtensionAndCategory(extension_id(),
+                                                           params->category);
   Respond(NoArguments());
 }
 

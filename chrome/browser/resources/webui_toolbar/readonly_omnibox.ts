@@ -6,6 +6,7 @@ import {assertNotReachedCase} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from '//resources/lit/v3_0/lit.rollup.js';
 import {type Range as MojomRange} from '//resources/mojo/ui/gfx/range/mojom/range.mojom-webui.js';
+import type {AdjustOmniboxTextForCopyResult} from '/shared/toolbar_ui_api.mojom-webui.js';
 import type {OmniboxTextPortion, OmniboxViewState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 import {FocusRequestTarget, OmniboxTextColor} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
@@ -110,6 +111,9 @@ export class ReadonlyOmniboxElement extends CrLitElement {
   // handling can tell whether it previously had focus or it was acquired
   // immediately before. `null` if there is no focus.
   private lastFocusAcquisition_: number|null = null;
+  private isDraggingFromSelf_: boolean = false;
+  private adjustedCopyResult_: AdjustOmniboxTextForCopyResult|null = null;
+  private onSelectionChangeBound_ = this.onSelectionChange_.bind(this);
 
   // Bitmap of mouse buttons down. This is using `event.button` as bit position,
   // not their position in `event.buttons`, as that's what's most convenient to
@@ -139,11 +143,14 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     super.connectedCallback();
     this.focusRequestHandle_ = this.browserProxy_.addFocusRequestListener(
         this.onFocusRequest.bind(this));
+    document.addEventListener('selectionchange', this.onSelectionChangeBound_);
   }
 
   override disconnectedCallback() {
     super.disconnectedCallback();
     this.browserProxy_.removeFocusRequestListener(this.focusRequestHandle_);
+    document.removeEventListener(
+        'selectionchange', this.onSelectionChangeBound_);
   }
 
   override willUpdate(changedProperties: PropertyValues<this>): void {
@@ -184,6 +191,15 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     textInput.addEventListener('input', this.onInputInput.bind(this));
     textInput.addEventListener('keydown', this.onInputKeyDown.bind(this));
     textInput.addEventListener('keyup', this.onInputKeyUp.bind(this));
+    textInput.addEventListener('copy', this.onInputCopy_.bind(this));
+
+    this.addEventListener('contextmenu', this.onContextMenu_.bind(this));
+    this.addEventListener('dragstart', this.onDragStart_.bind(this));
+    this.addEventListener('dragend', this.onDragEnd_.bind(this));
+    this.addEventListener('dragenter', this.onDragEnter_.bind(this));
+    this.addEventListener('dragleave', this.onDragLeave_.bind(this));
+    this.addEventListener('dragover', this.onDragOver_.bind(this));
+    this.addEventListener('drop', this.onDrop_.bind(this));
   }
 
   override updated(changedProperties: PropertyValues<this>): void {
@@ -610,6 +626,12 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     this.checkForSelectionChange_();
   }
 
+  private onContextMenu_(event: PointerEvent): void {
+    // We want the menu handled on the C++ side, so we let default handling
+    // happen, and prevent the toolbar's own handling.
+    event.stopPropagation();
+  }
+
   private checkForSelectionChange_(): void {
     // If the selection isn't what we think it should be, that suggests the user
     // has changed it, so unelide, but not if the mouse is down. We poll this
@@ -633,7 +655,150 @@ export class ReadonlyOmniboxElement extends CrLitElement {
     if (this.omniboxViewState.inlineAutocompletion.length !== 0) {
       return {start: this.userText.length, end: this.userText.length};
     }
+    return this.getSelection();
+  }
 
+  private populateDataTransfer_(dataTransfer: DataTransfer): boolean {
+    const input = this.$.textInput;
+    const selectionStart = input.selectionStart!;
+    const selectionEnd = input.selectionEnd!;
+
+    if (selectionStart !== selectionEnd && this.adjustedCopyResult_) {
+      dataTransfer.setData('text/plain', this.adjustedCopyResult_.adjustedText);
+
+      if (this.adjustedCopyResult_.adjustedUrl) {
+        dataTransfer.setData(
+            'text/uri-list', this.adjustedCopyResult_.adjustedUrl);
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private onDragStart_(e: DragEvent): void {
+    this.isDraggingFromSelf_ = true;
+
+    if (e.dataTransfer && this.populateDataTransfer_(e.dataTransfer)) {
+      e.dataTransfer.effectAllowed = 'copy';
+    }
+  }
+
+  private onInputCopy_(e: ClipboardEvent): void {
+    if (e.clipboardData && this.populateDataTransfer_(e.clipboardData)) {
+      e.preventDefault();
+    }
+  }
+
+  private onSelectionChange_(): void {
+    const input = this.$.textInput;
+    const start = input.selectionStart!;
+    const end = input.selectionEnd!;
+    if (start !== end) {
+      const selectedText = input.value.substring(start, end);
+      this.browserProxy_.toolbarUIHandler
+          .adjustOmniboxTextForCopy(selectedText, start)
+          .then(response => {
+            this.adjustedCopyResult_ = response || null;
+          })
+          .catch(() => {
+            this.adjustedCopyResult_ = null;
+          });
+    } else {
+      this.adjustedCopyResult_ = null;
+    }
+  }
+
+  private onDragEnd_(): void {
+    this.isDraggingFromSelf_ = false;
+  }
+
+  private onDragEnter_(e: DragEvent): void {
+    if (this.isDraggingFromSelf_) {
+      return;
+    }
+    const types = e.dataTransfer?.types;
+    if (types &&
+        (types.includes('text/uri-list') || types.includes('text/plain') ||
+         types.includes('Files'))) {
+      e.preventDefault();
+      this.classList.add('dragging-over');
+    }
+  }
+
+  private onDragLeave_(): void {
+    this.classList.remove('dragging-over');
+  }
+
+  private onDragOver_(e: DragEvent): void {
+    if (this.isDraggingFromSelf_) {
+      return;
+    }
+    const types = e.dataTransfer?.types;
+    if (types &&
+        (types.includes('text/uri-list') || types.includes('text/plain') ||
+         types.includes('Files'))) {
+      e.preventDefault();
+      e.stopPropagation();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  }
+
+  private onDrop_(e: DragEvent): void {
+    if (this.isDraggingFromSelf_) {
+      return;
+    }
+
+    this.classList.remove('dragging-over');
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!e.dataTransfer) {
+      return;
+    }
+
+    const types = e.dataTransfer.types;
+
+    if (types.includes('text/uri-list')) {
+      let url = e.dataTransfer.getData('text/uri-list');
+      // For restricted URLs (e.g. javascript: or chrome:// links), Blink's IPC
+      // sanitization intercepts the drop and overwrites the URL with
+      // about:blank#blocked. We can recover the original string from text/plain
+      // and forward it to C++ where it will be properly sanitized
+      // (e.g. via StripJavascriptSchemas) before being set in the omnibox.
+      if (url.startsWith('about:blank#blocked') &&
+          types.includes('text/plain')) {
+        const plainText = e.dataTransfer.getData('text/plain');
+        if (plainText) {
+          url = plainText;
+        }
+      }
+
+      if (url) {
+        this.browserProxy_.toolbarUIHandler.onOmniboxAction({
+          dropText: {
+            text: url.split('\n')[0]!,
+          },
+        });
+      }
+    } else if (types.includes('Files')) {
+      this.browserProxy_.toolbarUIHandler.onOmniboxAction({
+        dropFile: {
+          dropPosition: {x: e.clientX, y: e.clientY},
+        },
+      });
+    } else if (types.includes('text/plain')) {
+      const text = e.dataTransfer.getData('text/plain');
+      if (text) {
+        this.browserProxy_.toolbarUIHandler.onOmniboxAction({
+          dropText: {
+            text: text,
+          },
+        });
+      }
+    }
+  }
+
+  private getSelection(): MojomRange {
     // selectionStart/End should work since <input> is of appropriate type
     // for them.
     let selection: MojomRange = {

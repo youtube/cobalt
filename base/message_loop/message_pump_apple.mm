@@ -2,15 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifdef UNSAFE_BUFFERS_BUILD
-// TODO(crbug.com/40284755): Remove this and spanify to fix the errors.
-#pragma allow_unsafe_buffers
-#endif
-
 #import "base/message_loop/message_pump_apple.h"
 
 #import <Foundation/Foundation.h>
 
+#include <array>
 #include <atomic>
 #include <limits>
 #include <memory>
@@ -21,6 +17,7 @@
 #include "base/apple/scoped_nsautorelease_pool.h"
 #include "base/auto_reset.h"
 #include "base/check_op.h"
+#include "base/compiler_specific.h"
 #include "base/feature_list.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
@@ -106,7 +103,7 @@ class OptionalAutoreleasePool {
 
 class MessagePumpCFRunLoopBase::ScopedModeEnabler {
  public:
-  ScopedModeEnabler(MessagePumpCFRunLoopBase* owner, int mode_index)
+  ScopedModeEnabler(MessagePumpCFRunLoopBase* owner, size_t mode_index)
       : owner_(owner), mode_index_(mode_index) {
     CFRunLoopRef loop = owner_->run_loop_.get();
     CFRunLoopAddTimer(loop, owner_->delayed_work_timer_.get(), mode());
@@ -141,7 +138,7 @@ class MessagePumpCFRunLoopBase::ScopedModeEnabler {
   //  - com.apple.hitoolbox.windows.transitionmode
   //  - com.apple.hitoolbox.windows.flushmode
   const CFStringRef& mode() const {
-    static const CFStringRef modes[] = {
+    static const std::array<CFStringRef, kNumModes> modes = {
         // The standard Core Foundation "common modes" constant. Must always be
         // first in this list to match the value of kCommonModeMask.
         kCFRunLoopCommonModes,
@@ -161,7 +158,7 @@ class MessagePumpCFRunLoopBase::ScopedModeEnabler {
 
  private:
   const raw_ptr<MessagePumpCFRunLoopBase> owner_;  // Weak. Owns this.
-  const int mode_index_;
+  const size_t mode_index_;
 };
 
 // Must be called on the run loop thread.
@@ -430,8 +427,8 @@ bool MessagePumpCFRunLoopBase::ShouldCreateAutoreleasePool() {
 void MessagePumpCFRunLoopBase::SetModeMask(int mode_mask) {
   for (size_t i = 0; i < kNumModes; ++i) {
     bool enable = mode_mask & (0x1 << i);
-    if (enable == !enabled_modes_[i]) {
-      enabled_modes_[i] =
+    if (enable == !UNSAFE_TODO(enabled_modes_[i])) {
+      UNSAFE_TODO(enabled_modes_[i]) =
           enable ? std::make_unique<ScopedModeEnabler>(this, i) : nullptr;
     }
   }
@@ -440,7 +437,7 @@ void MessagePumpCFRunLoopBase::SetModeMask(int mode_mask) {
 int MessagePumpCFRunLoopBase::GetModeMask() const {
   int mask = 0;
   for (size_t i = 0; i < kNumModes; ++i) {
-    mask |= enabled_modes_[i] ? (0x1 << i) : 0;
+    mask |= UNSAFE_TODO(enabled_modes_[i]) ? (0x1 << i) : 0;
   }
   return mask;
 }

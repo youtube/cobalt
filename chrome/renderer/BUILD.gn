@@ -51,8 +51,8 @@ static_library("renderer") {
   configs = []
   configs = [ "//third_party/tflite:tflite_shim_config" ] + _configs
   sources = [
-    "benchmarking_extension.cc",
-    "benchmarking_extension.h",
+    "benchmarking_bindings.cc",
+    "benchmarking_bindings.h",
     "browser_exposed_renderer_interfaces.cc",
     "browser_exposed_renderer_interfaces.h",
     "chrome_content_renderer_client.cc",
@@ -69,8 +69,8 @@ static_library("renderer") {
     "google_accounts_private_api_util.cc",
     "google_accounts_private_api_util.h",
     "instant_restricted_id_cache.h",
-    "loadtimes_extension_bindings.cc",
-    "loadtimes_extension_bindings.h",
+    "loadtimes_bindings.cc",
+    "loadtimes_bindings.h",
     "media/flash_embed_rewrite.cc",
     "media/flash_embed_rewrite.h",
     "media/media_feeds.cc",
@@ -83,8 +83,6 @@ static_library("renderer") {
     "net/net_error_helper_core.h",
     "net/net_error_page_controller.cc",
     "net/net_error_page_controller.h",
-    "net_benchmarking_extension.cc",
-    "net_benchmarking_extension.h",
     "plugins/non_loadable_plugin_placeholder.cc",
     "plugins/non_loadable_plugin_placeholder.h",
     "plugins/pdf_plugin_placeholder.cc",

@@ -921,18 +921,6 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerSignInBanner,
   EXPECT_EQ(0u, infobar_manager->infobars().size());
 }
 
-IN_PROC_BROWSER_TEST_F(SigninViewControllerSignInBanner, WebUIEnabled) {
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-
-  // Navigation should succeed when the feature flag is enabled.
-  bool success = ui_test_utils::NavigateToURL(
-      browser(), GURL(chrome::kChromeUISigninQRCodeBarURL));
-  EXPECT_TRUE(success);
-  EXPECT_EQ(web_contents->GetVisibleURL(), chrome::kChromeUISigninQRCodeBarURL);
-  EXPECT_NE(web_contents->GetWebUI(), nullptr);
-}
-
 class SigninViewControllerSignInBannerNoBluetooth
     : public SigninViewControllerBrowserTestBase {
  public:
@@ -995,12 +983,14 @@ class SigninViewControllerCrossDeviceSigninBrowserTest
 
 IN_PROC_BROWSER_TEST_F(SigninViewControllerCrossDeviceSigninBrowserTest,
                        ShowCrossDeviceSigninQrBubble) {
+  SetPrimaryAccount();
+
   views::AnyWidgetObserver observer(views::test::AnyWidgetTestPasskey{});
   views::Widget* bubble_widget = nullptr;
   base::RunLoop run_loop;
   observer.set_shown_callback(base::BindRepeating(
       [](views::Widget** out_widget, base::RepeatingClosure quit_closure,
-         views::Widget* widget) {
+          views::Widget* widget) {
         *out_widget = widget;
         quit_closure.Run();
       },
@@ -1024,10 +1014,6 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerCrossDeviceSigninBrowserTest,
   run_loop.Run();
   ASSERT_TRUE(bubble_widget);
 
-  // After showing, the explicit state should be set.
-  EXPECT_TRUE(avatar_button->HasExplicitButtonState());
-
-  // Verify that the WebUI URL loaded successfully.
   views::WidgetDelegate* delegate = bubble_widget->widget_delegate();
   ASSERT_TRUE(delegate);
   EXPECT_TRUE(delegate->ShouldShowCloseButton());
@@ -1043,7 +1029,25 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerCrossDeviceSigninBrowserTest,
 
   content::WebContents* web_contents = web_view->GetWebContents();
   ASSERT_TRUE(web_contents);
-  content::WaitForLoadStop(web_contents);
+
+  // Note: This observer is attached after the WebContents has started loading,
+  // so it won't reliably catch load-time JS errors (like missing imports),
+  // but it will successfully catch post-load runtime errors or unhandled
+  // exceptions.
+  content::WebContentsConsoleObserver console_observer(web_contents);
+  if (web_contents->IsLoading()) {
+    content::WaitForLoadStop(web_contents);
+  }
+  for (const auto& message : console_observer.messages()) {
+    LOG(INFO) << "Console message: " << message.message;
+    EXPECT_NE(message.log_level, blink::mojom::ConsoleMessageLevel::kError)
+        << "JS Error on WebUI: " << message.message;
+  }
+
+  // After showing, the explicit state should be set.
+  EXPECT_TRUE(avatar_button->HasExplicitButtonState());
+
+  // Verify that the WebUI URL loaded successfully.
   EXPECT_EQ(web_contents->GetVisibleURL(),
             GURL(chrome::kChromeUICrossDeviceSigninQrBubbleURL));
 
@@ -1055,6 +1059,84 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerCrossDeviceSigninBrowserTest,
 
   // After closing, wait until the explicit state is cleared (reverted).
   EXPECT_FALSE(avatar_button->HasExplicitButtonState());
+}
+IN_PROC_BROWSER_TEST_F(SigninViewControllerCrossDeviceSigninBrowserTest,
+                       ClosesOnSignOut) {
+  AccountInfo account_info = SetPrimaryAccount();
+
+  base::MockCallback<base::OnceClosure> closing_callback;
+  browser()
+      ->GetFeatures()
+      .signin_view_controller()
+      ->ShowCrossDeviceSigninQrBubble(closing_callback.Get());
+
+  views::Widget* bubble_widget =
+      views::ElementTrackerViews::GetInstance()
+          ->GetFirstMatchingView(
+              kCrossDeviceSigninQrBubbleWebViewElementId,
+              views::ElementTrackerViews::GetContextForWidget(
+                  BrowserView::GetBrowserViewForBrowser(browser())
+                      ->GetWidget()))
+          ->GetWidget();
+  ASSERT_TRUE(bubble_widget);
+  EXPECT_TRUE(bubble_widget->IsVisible());
+
+  views::test::WidgetDestroyedWaiter waiter(bubble_widget);
+  identity_test_env()->ClearPrimaryAccount();
+  waiter.Wait();
+}
+
+IN_PROC_BROWSER_TEST_F(SigninViewControllerCrossDeviceSigninBrowserTest,
+                       ClosesOnRefreshTokenRemoved) {
+  AccountInfo account_info = SetPrimaryAccount();
+
+  base::MockCallback<base::OnceClosure> closing_callback;
+  browser()
+      ->GetFeatures()
+      .signin_view_controller()
+      ->ShowCrossDeviceSigninQrBubble(closing_callback.Get());
+
+  views::Widget* bubble_widget =
+      views::ElementTrackerViews::GetInstance()
+          ->GetFirstMatchingView(
+              kCrossDeviceSigninQrBubbleWebViewElementId,
+              views::ElementTrackerViews::GetContextForWidget(
+                  BrowserView::GetBrowserViewForBrowser(browser())
+                      ->GetWidget()))
+          ->GetWidget();
+  ASSERT_TRUE(bubble_widget);
+  EXPECT_TRUE(bubble_widget->IsVisible());
+
+  views::test::WidgetDestroyedWaiter waiter(bubble_widget);
+  identity_test_env()->RemoveRefreshTokenForAccount(account_info.account_id);
+  waiter.Wait();
+}
+IN_PROC_BROWSER_TEST_F(SigninViewControllerCrossDeviceSigninBrowserTest,
+                       ClosesOnRefreshTokenError) {
+  AccountInfo account_info = SetPrimaryAccount();
+
+  base::MockCallback<base::OnceClosure> closing_callback;
+  browser()
+      ->GetFeatures()
+      .signin_view_controller()
+      ->ShowCrossDeviceSigninQrBubble(closing_callback.Get());
+
+  views::Widget* bubble_widget =
+      views::ElementTrackerViews::GetInstance()
+          ->GetFirstMatchingView(
+              kCrossDeviceSigninQrBubbleWebViewElementId,
+              views::ElementTrackerViews::GetContextForWidget(
+                  BrowserView::GetBrowserViewForBrowser(browser())
+                      ->GetWidget()))
+          ->GetWidget();
+  ASSERT_TRUE(bubble_widget);
+  EXPECT_TRUE(bubble_widget->IsVisible());
+
+  views::test::WidgetDestroyedWaiter waiter(bubble_widget);
+  identity_test_env()->UpdatePersistentErrorOfRefreshTokenForAccount(
+      account_info.account_id,
+      GoogleServiceAuthError(GoogleServiceAuthError::INVALID_GAIA_CREDENTIALS));
+  waiter.Wait();
 }
 
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -1080,10 +1162,10 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
               mock_process_user_choice_callback.Get(),
               mock_done_callback.Get()));
   EXPECT_FALSE(ManagedProfileRequiredNavigationThrottle::IsBlockingNavigations(
-      browser()->profile()));
+      browser()->GetProfile()));
   browser()->GetFeatures().signin_view_controller()->CloseModalSignin();
   EXPECT_FALSE(ManagedProfileRequiredNavigationThrottle::IsBlockingNavigations(
-      browser()->profile()));
+      browser()->GetProfile()));
 
   browser()
       ->GetFeatures()
@@ -1099,10 +1181,10 @@ IN_PROC_BROWSER_TEST_F(SigninViewControllerBrowserTest,
               mock_process_user_choice_callback.Get(),
               mock_done_callback.Get()));
   EXPECT_TRUE(ManagedProfileRequiredNavigationThrottle::IsBlockingNavigations(
-      browser()->profile()));
+      browser()->GetProfile()));
   browser()->GetFeatures().signin_view_controller()->CloseModalSignin();
   EXPECT_FALSE(ManagedProfileRequiredNavigationThrottle::IsBlockingNavigations(
-      browser()->profile()));
+      browser()->GetProfile()));
 }
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)

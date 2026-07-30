@@ -10,7 +10,6 @@ import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetPropert
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.FlyoutProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.HomeProperties;
-import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SearchItemProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SuggestionItemProperties;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -50,11 +49,8 @@ class AtMemoryBottomSheetViewBinder {
      */
     static void bindAtMemoryHomeView(
             PropertyModel model, AtMemoryHomeView view, PropertyKey propertyKey) {
-        if (propertyKey == HomeProperties.ON_QUERY_SUBMITTED_CALLBACK) {
-            view.setOnQuerySubmittedCallback(model.get(HomeProperties.ON_QUERY_SUBMITTED_CALLBACK));
-        } else if (propertyKey == HomeProperties.ON_QUERY_TEXT_CHANGED_CALLBACK) {
-            view.setOnQueryTextChangedCallback(
-                    model.get(HomeProperties.ON_QUERY_TEXT_CHANGED_CALLBACK));
+        if (propertyKey == HomeProperties.SEARCH_BAR_DELEGATE) {
+            view.setSearchBarDelegate(model.get(HomeProperties.SEARCH_BAR_DELEGATE));
         } else if (propertyKey == HomeProperties.IS_LOADING) {
             view.setIsLoading(model.get(HomeProperties.IS_LOADING));
         } else if (propertyKey == HomeProperties.SHOW_SUGGESTIONS_BACKGROUND) {
@@ -101,29 +97,6 @@ class AtMemoryBottomSheetViewBinder {
     }
 
     /**
-     * Called whenever the search item property model changes. It updates the given view
-     * accordingly.
-     *
-     * @param model The model containing the search item properties.
-     * @param view The view to update.
-     * @param propertyKey The property key that changed.
-     */
-    static void bindSearchItemView(
-            PropertyModel model, AtMemoryBottomSheetSearchTileView view, PropertyKey propertyKey) {
-        if (propertyKey == SearchItemProperties.TILE_ICON) {
-            view.setIcon(model.get(SearchItemProperties.TILE_ICON));
-        } else if (propertyKey == SearchItemProperties.TILE_TITLE) {
-            view.setTitle(model.get(SearchItemProperties.TILE_TITLE));
-        } else if (propertyKey == SearchItemProperties.TILE_DETAILS) {
-            view.setDetails(model.get(SearchItemProperties.TILE_DETAILS));
-        } else if (propertyKey == SearchItemProperties.ON_TILE_CLICKED) {
-            view.setClickListener(model.get(SearchItemProperties.ON_TILE_CLICKED));
-        } else {
-            assert false : "Unhandled property: " + propertyKey;
-        }
-    }
-
-    /**
      * Called whenever the suggestion property model changes. It updates the given view accordingly.
      *
      * @param model The model containing the suggestion properties.
@@ -143,6 +116,8 @@ class AtMemoryBottomSheetViewBinder {
                     model.get(SuggestionItemProperties.ON_SUGGESTION_CLICKED));
         } else if (propertyKey == SuggestionItemProperties.ON_FLYOUT_CLICKED) {
             view.setFlyoutClickListener(model.get(SuggestionItemProperties.ON_FLYOUT_CLICKED));
+        } else if (propertyKey == SuggestionItemProperties.IS_FLYOUT_VISIBLE) {
+            view.setFlyoutVisible(model.get(SuggestionItemProperties.IS_FLYOUT_VISIBLE));
         } else {
             assert false : "Unhandled property: " + propertyKey;
         }

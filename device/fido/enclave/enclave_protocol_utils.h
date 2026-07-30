@@ -85,23 +85,28 @@ std::variant<std::pair<AuthenticatorMakeCredentialResponse,
 // Returns a CBOR value with the provided GetAssertion request and associated
 // passkey. The return value can be serialized into a Command request according
 // to the enclave protocol.
+// If `cmtg_device_keys` is not null, CMTG key creation will be requested.
 cbor::Value COMPONENT_EXPORT(DEVICE_FIDO) BuildGetAssertionCommand(
     const sync_pb::WebauthnCredentialSpecifics& passkey,
     scoped_refptr<JSONRequest> request,
-    std::string client_data_hash,
+    std::string client_data_json,
     std::unique_ptr<ClaimedPIN> claimed_pin,
     std::optional<std::vector<uint8_t>> wrapped_secret,
-    std::optional<std::vector<uint8_t>> secret);
+    std::optional<std::vector<uint8_t>> secret,
+    std::optional<std::vector<std::vector<uint8_t>>> cmtg_device_keys);
 
 // Returns a CBOR value with the provided MakeCredential request. The return
 // value can be serialized into a Command request according to the enclave
 // protocol.
+// If `cmtg_device_key` is not null, CMTG key creation will be requested.
 cbor::Value COMPONENT_EXPORT(DEVICE_FIDO) BuildMakeCredentialCommand(
     scoped_refptr<JSONRequest> request,
     std::unique_ptr<ClaimedPIN> claimed_pin,
     std::optional<std::vector<uint8_t>> wrapped_secret,
     std::optional<std::vector<uint8_t>> secret,
-    UserPresentAndVerifiedBits up_and_uv_bits);
+    UserPresentAndVerifiedBits up_and_uv_bits,
+    base::span<const uint8_t> client_data_json,
+    std::optional<std::vector<uint8_t>> cmtg_device_key);
 
 // Returns a CBOR value with the provided AddUVKey command to the enclave.
 // It must precede a credential registration or assertion request in the

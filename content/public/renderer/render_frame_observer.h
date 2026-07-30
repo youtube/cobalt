@@ -11,7 +11,7 @@
 #include <string>
 #include <vector>
 
-#include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/time/time.h"
@@ -83,10 +83,6 @@ class CONTENT_EXPORT RenderFrameObserver {
   // Called when the RenderFrame visiblity is changed.
   virtual void WasHidden() {}
   virtual void WasShown() {}
-
-  // Called when the RenderFrame's visibility status changes.
-  virtual void OnFrameVisibilityChanged(
-      blink::mojom::FrameVisibility render_status) {}
 
   // Navigation callbacks.
   //
@@ -306,7 +302,7 @@ class CONTENT_EXPORT RenderFrameObserver {
   virtual void DidLoadResourceFromMemoryCache(
       const GURL& response_url,
       int request_id,
-      base::ByteCount encoded_body_length,
+      base::ByteSize encoded_body_length,
       const std::string& mime_type,
       bool from_archive) {}
 
@@ -316,7 +312,7 @@ class CONTENT_EXPORT RenderFrameObserver {
   // render frame.
   virtual void DidReceiveTransferSizeUpdate(
       int resource_id,
-      base::ByteCount received_data_length) {}
+      base::ByteSize received_data_length) {}
 
   // Called when the focused element has changed to |element|.
   virtual void FocusedElementChanged(const blink::WebElement& element) {}

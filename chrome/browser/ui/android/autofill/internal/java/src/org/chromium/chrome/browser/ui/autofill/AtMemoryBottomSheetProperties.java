@@ -49,12 +49,7 @@ class AtMemoryBottomSheetProperties {
         // Indicates whether the bottom sheet dialog should display a loading state.
         static final WritableBooleanPropertyKey IS_LOADING = new WritableBooleanPropertyKey();
 
-        // Invoked when the user submits a search query.
-        static final ReadableObjectPropertyKey<Callback<String>> ON_QUERY_SUBMITTED_CALLBACK =
-                new ReadableObjectPropertyKey<>();
-
-        // Invoked when the user changes the search query.
-        static final ReadableObjectPropertyKey<Callback<String>> ON_QUERY_TEXT_CHANGED_CALLBACK =
+        static final ReadableObjectPropertyKey<AtMemorySearchBarView.Delegate> SEARCH_BAR_DELEGATE =
                 new ReadableObjectPropertyKey<>();
 
         // Indicates whether the bottom sheet dialog should display the suggestions background.
@@ -79,8 +74,7 @@ class AtMemoryBottomSheetProperties {
 
         static final PropertyKey[] ALL_KEYS = {
             IS_LOADING,
-            ON_QUERY_SUBMITTED_CALLBACK,
-            ON_QUERY_TEXT_CHANGED_CALLBACK,
+            SEARCH_BAR_DELEGATE,
             SHOW_SUGGESTIONS_BACKGROUND,
             SHEET_ITEMS,
             IS_NOTICE_VISIBLE,
@@ -88,17 +82,20 @@ class AtMemoryBottomSheetProperties {
             NOTICE_SETTINGS_CLICK_LISTENER
         };
 
-        @IntDef({ItemType.SEARCH_TILE, ItemType.SUGGESTION, ItemType.ZERO_STATE})
+        @IntDef({ItemType.SUGGESTION, ItemType.ZERO_STATE})
         @Retention(RetentionPolicy.SOURCE)
         @interface ItemType {
-            /** A search tile (used to start a new search). */
-            int SEARCH_TILE = 0;
-
             /** A section containing suggestions. */
-            int SUGGESTION = 1;
+            int SUGGESTION = 0;
 
             /** A section containing no results. */
-            int ZERO_STATE = 2;
+            int ZERO_STATE = 1;
+        }
+
+        /** Delegate to request search UI actions (e.g. hiding keyboard or clearing focus). */
+        public interface SearchDelegate {
+            /** Hides the keyboard and clears focus from the search area. */
+            void hideKeyboardAndClearFocus();
         }
 
         private HomeProperties() {}
@@ -144,39 +141,15 @@ class AtMemoryBottomSheetProperties {
         // Invoked when the flyout button is clicked on the suggestion item.
         static final ReadableObjectPropertyKey<Runnable> ON_FLYOUT_CLICKED =
                 new ReadableObjectPropertyKey<>();
+        // Indicates whether the flyout arrow and divider should be visible.
+        static final WritableBooleanPropertyKey IS_FLYOUT_VISIBLE =
+                new WritableBooleanPropertyKey();
 
         static final PropertyKey[] ALL_KEYS = {
-            ICON, TITLE, DETAILS, ON_SUGGESTION_CLICKED, ON_FLYOUT_CLICKED,
+            ICON, TITLE, DETAILS, ON_SUGGESTION_CLICKED, ON_FLYOUT_CLICKED, IS_FLYOUT_VISIBLE
         };
 
         private SuggestionItemProperties() {}
-    }
-
-    /** Properties for the search tile displayed within the bottom sheet. */
-    static class SearchItemProperties {
-        // Icon to be displayed in the search tile.
-        static final ReadableIntPropertyKey TILE_ICON = new ReadableIntPropertyKey();
-        // Title to be displayed in the search tile.
-        static final WritableObjectPropertyKey<@Nullable String> TILE_TITLE =
-                new WritableObjectPropertyKey<>();
-        // Details to be displayed in the search tile.
-        static final ReadableObjectPropertyKey<String> TILE_DETAILS =
-                new ReadableObjectPropertyKey<>();
-        // Invoked when the search tile is clicked.
-        static final ReadableObjectPropertyKey<Runnable> ON_TILE_CLICKED =
-                new ReadableObjectPropertyKey<>();
-
-        /** Delegate for the search tile to request UI actions. */
-        interface Delegate {
-            /** Hides the keyboard and clears focus from the search area. */
-            void hideKeyboardAndClearFocus();
-        }
-
-        static final PropertyKey[] ALL_KEYS = {
-            TILE_ICON, TILE_TITLE, TILE_DETAILS, ON_TILE_CLICKED
-        };
-
-        private SearchItemProperties() {}
     }
 
     private AtMemoryBottomSheetProperties() {}

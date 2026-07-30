@@ -32,6 +32,7 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 
 import androidx.recyclerview.widget.GridLayoutManager;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.test.filters.SmallTest;
 
 import org.junit.After;
@@ -47,6 +48,7 @@ import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
 import org.robolectric.shadows.ShadowLooper;
 
+import org.chromium.base.FeatureOverrides;
 import org.chromium.base.Token;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
@@ -81,9 +83,11 @@ import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorObserver;
 import org.chromium.chrome.browser.tasks.tab_management.TabActionListener;
+import org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties;
 import org.chromium.chrome.browser.tasks.tab_management.TabListRecyclerView;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties;
 import org.chromium.chrome.browser.tasks.tab_management.TabProperties.UiType;
+import org.chromium.chrome.browser.tasks.tab_management.vertical_tabs.VerticalTabListCoordinator.RailCollapseListener;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelper;
 import org.chromium.chrome.browser.ui.favicon.FaviconHelperJni;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
@@ -256,7 +260,7 @@ public class VerticalTabListCoordinatorUnitTest {
         ViewGroup container = (ViewGroup) mCoordinator.getView();
         TabListRecyclerView realRecyclerView = container.findViewById(R.id.tab_list_recycler_view);
 
-        // Populate the real UI list dataset with a dummy tab item data properties bundle.
+        // Populate the real UI list dataset with a placeholder tab item data properties bundle.
         SimpleRecyclerViewAdapter adapter =
                 (SimpleRecyclerViewAdapter) realRecyclerView.getAdapter();
         PropertyModel tabPropertyModel = new PropertyModel(TabProperties.ALL_KEYS_VERTICAL_TAB);
@@ -280,11 +284,55 @@ public class VerticalTabListCoordinatorUnitTest {
         assertNotNull(recyclerView.getAdapter());
         assertNotNull(recyclerView.getLayoutManager());
 
-        GridLayoutManager layoutManager = (GridLayoutManager) recyclerView.getLayoutManager();
-        assertEquals(4, layoutManager.getSpanCount());
+        LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+        assertEquals(LinearLayoutManager.VERTICAL, layoutManager.getOrientation());
+
+        // Verify the pinned tabs RecyclerView is initialized but hidden when empty.
+        TabListRecyclerView pinnedRecyclerView = view.findViewById(R.id.pinned_tabs_recycler_view);
+        assertNotNull(pinnedRecyclerView);
+        assertNotNull(pinnedRecyclerView.getAdapter());
+        assertNotNull(pinnedRecyclerView.getLayoutManager());
+        assertEquals(View.GONE, pinnedRecyclerView.getVisibility());
+
+        GridLayoutManager pinnedLayoutManager =
+                (GridLayoutManager) pinnedRecyclerView.getLayoutManager();
+        assertEquals(4, pinnedLayoutManager.getSpanCount());
 
         assertNotNull(mSelectorObserverCaptor.getValue());
         verify(mTabModelSelector).addObserver(mSelectorObserverCaptor.getValue());
+    }
+
+    @Test
+    @SmallTest
+    public void testPinnedTabsVisibility() {
+        // Set up the tab model with a pinned tab.
+        Tab pinnedTab = prepareMockTab(123);
+        when(pinnedTab.getIsPinned()).thenReturn(true);
+        when(mTabModel.getRepresentativeTabList()).thenReturn(List.of(pinnedTab));
+        when(mTabModel.iterator()).thenReturn(List.of(pinnedTab).iterator());
+        when(mTabModel.getTabById(123)).thenReturn(pinnedTab);
+        when(mTabModel.getCount()).thenReturn(1);
+        when(mTabModel.getTabAt(0)).thenReturn(pinnedTab);
+
+        createCoordinator();
+
+        // Verify the pinned tabs RecyclerView becomes visible when it contains elements.
+        ViewGroup view = (ViewGroup) mCoordinator.getView();
+        TabListRecyclerView pinnedRecyclerView = view.findViewById(R.id.pinned_tabs_recycler_view);
+        assertNotNull(pinnedRecyclerView);
+        assertEquals(View.VISIBLE, pinnedRecyclerView.getVisibility());
+
+        // Swap to an empty tab model.
+        TabModel emptyTabModel = mock(TabModel.class);
+        when(emptyTabModel.getProfile()).thenReturn(mProfile);
+        when(emptyTabModel.isTabModelRestored()).thenReturn(true);
+        when(emptyTabModel.getRepresentativeTabList()).thenReturn(Collections.emptyList());
+        when(emptyTabModel.iterator()).thenReturn(Collections.emptyIterator());
+
+        mCurrentTabModelSupplier.set(emptyTabModel);
+
+        // Verify the pinned tabs RecyclerView becomes hidden when empty.
+        assertEquals(View.GONE, pinnedRecyclerView.getVisibility());
     }
 
     @Test
@@ -593,14 +641,12 @@ public class VerticalTabListCoordinatorUnitTest {
 
     @Test
     @SmallTest
-    public void testAdapterInterceptionAndSpanLookup() {
+    public void testAdapterInterception() {
         createCoordinator();
         TabListRecyclerView recycler =
                 mCoordinator.getView().findViewById(R.id.tab_list_recycler_view);
         SimpleRecyclerViewAdapter adapter = (SimpleRecyclerViewAdapter) recycler.getAdapter();
         assertNotNull(recycler.getLayoutManager());
-        GridLayoutManager.SpanSizeLookup lookup =
-                ((GridLayoutManager) recycler.getLayoutManager()).getSpanSizeLookup();
 
         PropertyModel reg = new PropertyModel(TabProperties.ALL_KEYS_VERTICAL_TAB);
         PropertyModel pin = new PropertyModel(TabProperties.ALL_KEYS_VERTICAL_TAB);
@@ -616,9 +662,6 @@ public class VerticalTabListCoordinatorUnitTest {
         assertEquals(UiType.TAB, adapter.getItemViewType(0));
         assertEquals(UiType.PINNED_TAB, adapter.getItemViewType(1));
         assertEquals(UiType.TAB_GROUP, adapter.getItemViewType(2));
-        assertEquals(4, lookup.getSpanSize(0));
-        assertEquals(1, lookup.getSpanSize(1));
-        assertEquals(4, lookup.getSpanSize(2));
     }
 
     @Test
@@ -856,5 +899,119 @@ public class VerticalTabListCoordinatorUnitTest {
         observer.onAppHeaderStateChanged(appHeaderState2);
 
         assertEquals("Spacer view should be hidden.", View.GONE, spacer.getVisibility());
+    }
+
+    @Test
+    @SmallTest
+    public void testScrollActiveTabIntoView_PinnedTab_NoScroll() {
+        int pinnedTabId = 111;
+        Tab pinnedTab = prepareMockTab(pinnedTabId);
+        when(pinnedTab.getIsPinned()).thenReturn(true);
+        when(mTabModel.getTabById(pinnedTabId)).thenReturn(pinnedTab);
+        when(mTabModelSelector.getCurrentTabId()).thenReturn(pinnedTabId);
+
+        mIsVerticalTabsActiveSupplier.set(false);
+        createCoordinator();
+        mActivity.setContentView(mCoordinator.getView());
+
+        ViewGroup view = (ViewGroup) mCoordinator.getView();
+        TabListRecyclerView recyclerView = view.findViewById(R.id.tab_list_recycler_view);
+        LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+        recyclerView.setLayoutManager(null);
+        assert layoutManager != null;
+        LinearLayoutManager spyLayoutManager = spy(layoutManager);
+        recyclerView.setLayoutManager(spyLayoutManager);
+
+        mIsVerticalTabsActiveSupplier.set(true);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        verify(spyLayoutManager, never()).scrollToPositionWithOffset(anyInt(), anyInt());
+    }
+
+    @Test
+    @SmallTest
+    public void testScrollActiveTabIntoView_RegularTab_Scrolls() {
+        int regTabId = 222;
+        Tab regTab = prepareMockTab(regTabId);
+        when(regTab.getIsPinned()).thenReturn(false);
+        when(mTabModel.getTabById(regTabId)).thenReturn(regTab);
+        when(mTabModelSelector.getCurrentTabId()).thenReturn(regTabId);
+
+        mIsVerticalTabsActiveSupplier.set(false);
+        createCoordinator();
+        mActivity.setContentView(mCoordinator.getView());
+
+        ViewGroup view = (ViewGroup) mCoordinator.getView();
+        TabListRecyclerView recyclerView = view.findViewById(R.id.tab_list_recycler_view);
+        SimpleRecyclerViewAdapter adapter = (SimpleRecyclerViewAdapter) recyclerView.getAdapter();
+        assertNotNull(adapter);
+
+        PropertyModel model =
+                new PropertyModel.Builder(TabProperties.ALL_KEYS_VERTICAL_TAB)
+                        .with(CardProperties.CARD_TYPE, CardProperties.ModelType.TAB)
+                        .with(TabProperties.TAB_ID, regTabId)
+                        .build();
+        adapter.getModelList().add(new MVCListAdapter.ListItem(UiType.TAB, model));
+
+        LinearLayoutManager layoutManager = (LinearLayoutManager) recyclerView.getLayoutManager();
+        recyclerView.setLayoutManager(null);
+        assert layoutManager != null;
+        LinearLayoutManager spyLayoutManager = spy(layoutManager);
+        recyclerView.setLayoutManager(spyLayoutManager);
+
+        mIsVerticalTabsActiveSupplier.set(true);
+
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        verify(spyLayoutManager).scrollToPositionWithOffset(eq(0), anyInt());
+    }
+
+    @Test
+    @SmallTest
+    public void testCollapseListenerAndModelToggle() {
+        FeatureOverrides.newBuilder()
+                .enable(ChromeFeatureList.ANDROID_VERTICAL_TABS)
+                .param("enable_collapsible_rail", true)
+                .apply();
+
+        createCoordinator();
+
+        // Mock listener
+        RailCollapseListener mockListener = mock(RailCollapseListener.class);
+        mCoordinator.setCollapseListener(mockListener);
+
+        ViewGroup view = (ViewGroup) mCoordinator.getView();
+        View collapseButton = view.findViewById(R.id.collapse_button);
+        assertNotNull(collapseButton);
+        assertEquals(View.VISIBLE, collapseButton.getVisibility());
+
+        // Initially expanded
+        assertFalse(
+                mCoordinator
+                        .getContainerModelForTesting()
+                        .get(VerticalTabListProperties.IS_COLLAPSED));
+        assertEquals(4, mCoordinator.getPinnedLayoutManagerForTesting().getSpanCount());
+
+        // Click collapse
+        collapseButton.performClick();
+
+        // Verify model updated
+        assertTrue(
+                mCoordinator
+                        .getContainerModelForTesting()
+                        .get(VerticalTabListProperties.IS_COLLAPSED));
+        // Verify listener notified
+        verify(mockListener).onRailCollapseChanged(true);
+        assertEquals(1, mCoordinator.getPinnedLayoutManagerForTesting().getSpanCount());
+
+        // Click again to expand
+        collapseButton.performClick();
+        assertFalse(
+                mCoordinator
+                        .getContainerModelForTesting()
+                        .get(VerticalTabListProperties.IS_COLLAPSED));
+        verify(mockListener).onRailCollapseChanged(false);
+        assertEquals(4, mCoordinator.getPinnedLayoutManagerForTesting().getSpanCount());
     }
 }

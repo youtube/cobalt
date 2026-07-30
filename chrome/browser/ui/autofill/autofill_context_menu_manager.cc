@@ -21,7 +21,7 @@
 #include "chrome/browser/metrics/variations/google_groups_manager_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/factories/password_counter_factory.h"
-#include "chrome/browser/personal_context/personal_context_enablement_service_factory.h"
+#include "chrome/browser/personal_context/personal_context_eligibility_service_factory.h"
 #include "chrome/browser/plus_addresses/plus_address_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -176,7 +176,8 @@ bool IsLikelyDogfoodClient() {
 // Returns true if the field is a username or password field.
 bool IsPasswordFormField(ContentPasswordManagerDriver& password_manager_driver,
                          const content::ContextMenuParams& params) {
-  const FieldRendererId current_field_renderer_id(params.field_renderer_id);
+  const FieldRendererId current_field_renderer_id(
+      params.field_renderer_id.value());
   return password_manager_driver.GetPasswordManager()
       ->GetPasswordFormCache()
       ->GetPasswordForm(&password_manager_driver, current_field_renderer_id);
@@ -190,8 +191,8 @@ base::DictValue LoadTriggerFormAndFieldLogs(
     return base::DictValue();
   }
 
-  FormGlobalId form_global_id = {frame_token,
-                                 FormRendererId(params.form_renderer_id)};
+  FormGlobalId form_global_id = {
+      frame_token, FormRendererId(params.form_renderer_id.value())};
 
   base::DictValue trigger_form_logs;
   if (const FormStructure* form = manager.FindCachedFormById(form_global_id)) {
@@ -199,7 +200,7 @@ base::DictValue LoadTriggerFormAndFieldLogs(
 
     if (params.form_control_type) {
       FieldGlobalId field_global_id = {
-          frame_token, FieldRendererId(params.field_renderer_id)};
+          frame_token, FieldRendererId(params.field_renderer_id.value())};
       if (const AutofillField* field = form->GetFieldById(field_global_id)) {
         trigger_form_logs.Set("triggerFieldSignature",
                               field->FieldSignatureAsStr());
@@ -223,12 +224,13 @@ AutofillContextMenuManager::~AutofillContextMenuManager() = default;
 
 void AutofillContextMenuManager::AppendItems() {
   if (params_.is_content_editable_for_autofill) {
-    MaybeAddAutofillAtMemoryItem();
+    if (MaybeAddAtMemoryItem()) {
+      menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
+    }
     return;
   }
 
   MaybeAddAutofillManualFallbackItems();
-  MaybeAddAutofillAtMemoryItem();
   MaybeAddAutofillFeedbackItem();
 }
 
@@ -325,31 +327,35 @@ void AutofillContextMenuManager::MaybeAddAutofillFeedbackItem() {
   }
 }
 
-void AutofillContextMenuManager::MaybeAddAutofillAtMemoryItem() {
+bool AutofillContextMenuManager::MaybeAddAtMemoryItem() {
   content::RenderFrameHost* const rfh = delegate_->GetRenderFrameHost();
   if (!rfh) {
-    return;
+    return false;
   }
 
   if (params_.form_control_type &&
       params_.form_control_type.value() ==
           blink::mojom::FormControlType::kInputPassword) {
-    return;
+    return false;
   }
 
   if (!ShouldShowAutofillContextMenu(params_)) {
-    return;
+    return false;
   }
 
   ContentAutofillDriver* autofill_driver =
       ContentAutofillDriver::GetForRenderFrameHost(rfh);
   if (!autofill_driver || !autofill_driver->CanShowAutofillUi()) {
-    return;
+    return false;
   }
 
   if (!MayPerformAtMemoryAction(AtMemoryAction::kTriggerSearchUI,
-                                autofill_driver->GetAutofillClient())) {
-    return;
+                                autofill_driver->GetAutofillClient(),
+                                params_.page_url) ||
+      !MayPerformAtMemoryAction(AtMemoryAction::kTriggerSearchUI,
+                                autofill_driver->GetAutofillClient(),
+                                params_.frame_url)) {
+    return false;
   }
 
   menu_model_->AddItemWithStringIdAndIcon(
@@ -359,7 +365,7 @@ void AutofillContextMenuManager::MaybeAddAutofillAtMemoryItem() {
                                          ? vector_icons::kSearchIcon
                                          : vector_icons::kSearchOldIcon,
                                      ui::kColorIcon, kContextMenuIconSize));
-  menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
+  return true;
 }
 
 void AutofillContextMenuManager::MaybeAddAutofillManualFallbackItems() {
@@ -395,10 +401,6 @@ void AutofillContextMenuManager::MaybeAddAutofillManualFallbackItems() {
         ShouldAddPasswordsManualFallbackItem(*password_manager_driver);
   }
 
-  if (!add_plus_address_fallback && !add_passwords_fallback) {
-    return;
-  }
-
   if (add_passwords_fallback) {
     Profile* profile = Profile::FromBrowserContext(rfh->GetBrowserContext());
     password_manager::PasswordCounter* counter =
@@ -423,7 +425,12 @@ void AutofillContextMenuManager::MaybeAddAutofillManualFallbackItems() {
         plus_addresses::features::kPlusAddressFallbackFromContextMenu);
     // TODO(crbug.com/327566698): Log metrics for plus address fallbacks, too.
   }
-  menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
+  const bool add_at_memory_fallback = MaybeAddAtMemoryItem();
+
+  if (add_passwords_fallback || add_plus_address_fallback ||
+      add_at_memory_fallback) {
+    menu_model_->AddSeparator(ui::NORMAL_SEPARATOR);
+  }
 }
 
 bool AutofillContextMenuManager::ShouldAddPlusAddressManualFallbackItem(
@@ -475,12 +482,12 @@ void AutofillContextMenuManager::AddPasswordsManualFallbackItems(
       password_manager_util::ManualPasswordGenerationEnabled(
           &password_manager_driver) &&
       password_manager_driver.IsPasswordFieldForPasswordManager(
-          FieldRendererId(params_.field_renderer_id),
+          FieldRendererId(params_.field_renderer_id.value()),
           params_.form_control_type);
   const bool add_passkey_from_another_device_option =
       webauthn::IsPasskeyFromAnotherDeviceContextMenuEnabled(
-          delegate_->GetRenderFrameHost(), params_.form_renderer_id,
-          params_.field_renderer_id);
+          delegate_->GetRenderFrameHost(), params_.form_renderer_id.value(),
+          params_.field_renderer_id.value());
   const bool add_import_passwords_option = !add_select_password_option;
 
   if (add_select_password_option) {
@@ -543,7 +550,8 @@ void AutofillContextMenuManager::
 void AutofillContextMenuManager::ExecuteFallbackForAtMemoryCommand(
     AutofillDriver& driver) {
   driver.RendererShouldTriggerSuggestions(
-      {driver.GetFrameToken(), FieldRendererId(params_.field_renderer_id)},
+      {driver.GetFrameToken(),
+       FieldRendererId(params_.field_renderer_id.value())},
       AutofillSuggestionTriggerSource::kAtMemoryContextMenu);
 }
 
@@ -571,7 +579,7 @@ void AutofillContextMenuManager::ExecuteFallbackForSelectPasswordCommand(
     AutofillDriver& autofill_driver) {
   autofill_driver.RendererShouldTriggerSuggestions(
       /*field_id=*/{autofill_driver.GetFrameToken(),
-                    FieldRendererId(params_.field_renderer_id)},
+                    FieldRendererId(params_.field_renderer_id.value())},
       AutofillSuggestionTriggerSource::kManualFallbackPasswords);
 
   LogSelectPasswordManualFallbackContextMenuEntryAccepted();

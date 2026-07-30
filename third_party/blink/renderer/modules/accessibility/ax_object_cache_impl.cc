@@ -125,6 +125,7 @@
 #include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 #include "third_party/blink/renderer/platform/graphics/dom_node_id.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
+#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/functional.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_common.h"
@@ -752,6 +753,13 @@ LayoutObject* PreviousLayoutObjectTextOnLine(
   LayoutObject* previous = layout_object.PreviousInPreOrder(&block_flow);
   while (previous) {
     if (IsA<LayoutText>(previous)) {
+      if (!previous->IsInLayoutNGInlineFormattingContext() &&
+          RuntimeEnabledFeatures::
+              AccessibilityCheckIfcInPreviousTextOnLineEnabled()) {
+        // Avoid `MoveToIncludingCulledInline()` to fail.
+        previous = previous->PreviousInPreOrder(&block_flow);
+        continue;
+      }
       InlineCursor cursor;
       cursor.MoveToIncludingCulledInline(*previous);
       while (cursor) {
@@ -1396,9 +1404,8 @@ bool AXObjectCacheImpl::IsRelevantPseudoElement(const Node& node) {
         node.parentNode()->GetLayoutObject()->IsInline()) {
       return true;  // Parent inline: not a clearfix hack.
     }
-    const ComputedStyle* style = node.GetLayoutObject()->Style();
-    DCHECK(style);
-    ContentData* content_data = style->GetContentData();
+    const ComputedStyle& style = node.GetLayoutObject()->StyleRef();
+    ContentData* content_data = style.GetContentData();
     if (!content_data)
       return true;
     if (!content_data->IsText())
@@ -2706,6 +2713,9 @@ void AXObjectCacheImpl::DiscardBadAriaHiddenBecauseOfFocus(AXObject& obj) {
   CHECK(bad_aria_hidden_ancestor->IsDetached());
 
   ancestor_to_rebuild->UpdateChildrenIfNecessary();
+  // Recreating objects during child updates can enqueue new relations (e.g.
+  // aria-owns) that must be processed before tree finalization.
+  relation_cache_->ProcessUpdatesWithCleanLayout();
   bad_aria_hidden_ancestor = Get(bad_aria_hidden_ancestor_node);
   if (bad_aria_hidden_ancestor) {
     CHECK(!bad_aria_hidden_ancestor->IsAriaHiddenRoot());

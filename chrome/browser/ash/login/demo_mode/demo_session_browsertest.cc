@@ -14,6 +14,7 @@
 #include "base/scoped_observation.h"
 #include "base/test/bind.h"
 #include "base/test/run_until.h"
+#include "chrome/browser/ash/browser_delegate/browser_delegate.h"
 #include "chrome/browser/ash/drive/drive_integration_service.h"
 #include "chrome/browser/ash/drive/drive_integration_service_factory.h"
 #include "chrome/browser/ash/drive/drivefs_test_support.h"
@@ -26,7 +27,6 @@
 #include "chrome/browser/ash/login/test/oobe_base_test.h"
 #include "chrome/browser/ash/login/test/scoped_policy_update.h"
 #include "chrome/browser/ash/policy/core/device_local_account.h"
-#include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/chrome_browser_main.h"
@@ -34,9 +34,9 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/browser_process_platform_part_test_api_chromeos.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "chromeos/ash/components/browser_context_helper/browser_context_types.h"
 #include "chromeos/ash/components/demo_mode/utils/demo_session_utils.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "chromeos/dbus/power/fake_power_manager_client.h"
@@ -393,12 +393,11 @@ IN_PROC_BROWSER_TEST_F(DemoSessionLoginTest, DemoSWALaunchesOnSessionStartup) {
   OpenBrowserAndInstallSystemAppForActiveProfile();
 
   // Verify that Demo Mode App is opened.
-  Browser* app_browser = FindSystemWebAppBrowser(
-      ProfileManager::GetActiveUserProfile(), SystemWebAppType::DEMO_MODE,
-      Browser::TYPE_APP, GURL(kDemoModeAppUrl));
+  ash::BrowserDelegate* app_browser = ash::FindSystemWebAppBrowser(
+      ProfileManager::GetActiveUserProfile(), ash::SystemWebAppType::DEMO_MODE,
+      ash::BrowserType::kApp, GURL(kDemoModeAppUrl));
   ASSERT_TRUE(app_browser);
-  content::WebContents* tab =
-      app_browser->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* tab = app_browser->GetActiveWebContents();
   ASSERT_TRUE(tab);
   EXPECT_EQ(tab->GetController().GetVisibleEntry()->GetPageType(),
             content::PAGE_TYPE_NORMAL);
@@ -466,13 +465,12 @@ IN_PROC_BROWSER_TEST_F(DemoSessionLoginWithGrowthCampaignTest,
       R"({"attractionLoop":{"videoSrcLang1":"/asset/peripherals_lang1.mp4",)"
       R"("videoSrcLang2":"/asset/peripherals_lang2.mp4"}})";
   auto url = net::AppendQueryParameter(base_url, /*name=*/"model", param_value);
-  Browser* app_browser = FindSystemWebAppBrowser(
-      ProfileManager::GetActiveUserProfile(), SystemWebAppType::DEMO_MODE,
-      Browser::TYPE_APP, url);
+  ash::BrowserDelegate* app_browser = ash::FindSystemWebAppBrowser(
+      ProfileManager::GetActiveUserProfile(), ash::SystemWebAppType::DEMO_MODE,
+      ash::BrowserType::kApp, url);
   ASSERT_TRUE(app_browser);
 
-  content::WebContents* tab =
-      app_browser->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* tab = app_browser->GetActiveWebContents();
   ASSERT_TRUE(tab);
   EXPECT_EQ(tab->GetController().GetVisibleEntry()->GetPageType(),
             content::PAGE_TYPE_NORMAL);
@@ -498,12 +496,11 @@ IN_PROC_BROWSER_TEST_F(DemoSessionLoginWithGrowthCampaignTest,
 
   // Verify that Demo Mode App is opened without payload.
   auto base_url = GURL(kDemoModeAppUrl);
-  Browser* app_browser = FindSystemWebAppBrowser(
-      ProfileManager::GetActiveUserProfile(), SystemWebAppType::DEMO_MODE,
-      Browser::TYPE_APP, base_url);
+  ash::BrowserDelegate* app_browser = ash::FindSystemWebAppBrowser(
+      ProfileManager::GetActiveUserProfile(), ash::SystemWebAppType::DEMO_MODE,
+      ash::BrowserType::kApp, base_url);
   ASSERT_TRUE(app_browser);
-  content::WebContents* tab =
-      app_browser->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* tab = app_browser->GetActiveWebContents();
   ASSERT_TRUE(tab);
   EXPECT_EQ(tab->GetController().GetVisibleEntry()->GetPageType(),
             content::PAGE_TYPE_NORMAL);
@@ -552,12 +549,11 @@ IN_PROC_BROWSER_TEST_F(DemoSessionLoginWithGrowthCampaignTest,
 
   // Verify that Demo Mode App is opened without payload.
   auto base_url = GURL(kDemoModeAppUrl);
-  Browser* app_browser = FindSystemWebAppBrowser(
-      ProfileManager::GetActiveUserProfile(), SystemWebAppType::DEMO_MODE,
-      Browser::TYPE_APP, base_url);
+  ash::BrowserDelegate* app_browser = ash::FindSystemWebAppBrowser(
+      ProfileManager::GetActiveUserProfile(), ash::SystemWebAppType::DEMO_MODE,
+      ash::BrowserType::kApp, base_url);
   ASSERT_TRUE(app_browser);
-  content::WebContents* tab =
-      app_browser->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* tab = app_browser->GetActiveWebContents();
   ASSERT_TRUE(tab);
   EXPECT_EQ(tab->GetController().GetVisibleEntry()->GetPageType(),
             content::PAGE_TYPE_NORMAL);
@@ -593,13 +589,12 @@ IN_PROC_BROWSER_TEST_F(DemoSessionLoginWithGrowthCampaignTest,
       R"({"attractionLoop":{"videoSrcLang1":"/asset/peripherals_lang1.mp4",)"
       R"("videoSrcLang2":"/asset/peripherals_lang2.mp4"}})";
   auto url = net::AppendQueryParameter(base_url, /*name=*/"model", param_value);
-  Browser* app_browser = FindSystemWebAppBrowser(
-      ProfileManager::GetActiveUserProfile(), SystemWebAppType::DEMO_MODE,
-      Browser::TYPE_APP, url);
+  ash::BrowserDelegate* app_browser = ash::FindSystemWebAppBrowser(
+      ProfileManager::GetActiveUserProfile(), ash::SystemWebAppType::DEMO_MODE,
+      ash::BrowserType::kApp, url);
   ASSERT_TRUE(app_browser);
 
-  content::WebContents* tab =
-      app_browser->tab_strip_model()->GetActiveWebContents();
+  content::WebContents* tab = app_browser->GetActiveWebContents();
   ASSERT_TRUE(tab);
   EXPECT_EQ(tab->GetController().GetVisibleEntry()->GetPageType(),
             content::PAGE_TYPE_NORMAL);
@@ -652,7 +647,7 @@ class DemoSessionLoginIdleHandlerTest : public DemoSessionLoginTest {
   drive::DriveIntegrationService* CreateDriveIntegrationService(
       Profile* profile) {
     // Ignore non-user profile.
-    if (!ProfileHelper::IsUserProfile(profile)) {
+    if (!IsUserBrowserContext(profile)) {
       return nullptr;
     }
 

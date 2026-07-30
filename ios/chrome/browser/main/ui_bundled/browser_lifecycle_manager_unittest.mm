@@ -11,6 +11,9 @@
 #import "base/test/scoped_feature_list.h"
 #import "components/bookmarks/test/bookmark_test_helpers.h"
 #import "components/sync/test/test_sync_service.h"
+#import "ios/chrome/app/profile/profile_init_stage.h"
+#import "ios/chrome/app/profile/profile_state.h"
+#import "ios/chrome/app/profile/profile_state_test_utils.h"
 #import "ios/chrome/browser/bookmarks/model/bookmark_model_factory.h"
 #import "ios/chrome/browser/browser_view/ui_bundled/browser_view_controller.h"
 #import "ios/chrome/browser/favicon/model/favicon_service_factory.h"
@@ -28,7 +31,7 @@
 #import "ios/chrome/browser/sessions/model/test_session_restoration_service.h"
 #import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_scene_agent.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
-#import "ios/chrome/browser/shared/coordinator/scene/scene_util_test_support.h"
+#import "ios/chrome/browser/shared/coordinator/scene/scene_state_options.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list.h"
 #import "ios/chrome/browser/shared/model/browser/browser_list_factory.h"
@@ -52,13 +55,6 @@
 class BrowserLifecycleManagerTest : public PlatformTest {
  protected:
   BrowserLifecycleManagerTest() {
-    fake_scene_ = FakeSceneWithIdentifier([[NSUUID UUID] UUIDString]);
-    scene_state_ = [[SceneStateWithFakeScene alloc] initWithScene:fake_scene_
-                                                         appState:nil];
-    LayoutGuideSceneAgent* layout_guide_scene_agent =
-        [[LayoutGuideSceneAgent alloc] init];
-    [scene_state_ addAgent:layout_guide_scene_agent];
-
     TestProfileIOS::Builder test_profile_builder;
     test_profile_builder.AddTestingFactory(
         SendTabToSelfSyncServiceFactory::GetInstance(),
@@ -102,6 +98,18 @@ class BrowserLifecycleManagerTest : public PlatformTest {
             TestSessionRestorationService::GetTestingFactory(),
         }});
 
+    profile_state_ = [[ProfileState alloc] initWithAppState:nil];
+    SetProfileStateInitStage(profile_state_, ProfileInitStage::kFinal);
+    profile_state_.profile = profile_.get();
+
+    scene_state_ = [[SceneState alloc] initWithAppState:nil];
+    [scene_state_ connectWithOptions:{.profile_state = profile_state_,
+                                      .identifier = "scene"}];
+
+    LayoutGuideSceneAgent* layout_guide_scene_agent =
+        [[LayoutGuideSceneAgent alloc] init];
+    [scene_state_ addAgent:layout_guide_scene_agent];
+
     scoped_session_restoration_observation_.AddObservation(
         SessionRestorationServiceFactory::GetForProfile(profile_.get()));
     scoped_session_restoration_observation_.AddObservation(
@@ -110,6 +118,13 @@ class BrowserLifecycleManagerTest : public PlatformTest {
 
     scoped_browser_list_observation_.Observe(
         BrowserListFactory::GetForProfile(profile_.get()));
+  }
+
+  void TearDown() override {
+    @autoreleasepool {
+      scene_state_ = nil;
+      profile_state_ = nil;
+    }
   }
 
   void RecreateOffTheRecordProfile() {
@@ -145,7 +160,7 @@ class BrowserLifecycleManagerTest : public PlatformTest {
   web::WebTaskEnvironment task_environment_;
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   std::unique_ptr<TestProfileIOS> profile_;
-  id fake_scene_;
+  ProfileState* profile_state_;
   SceneState* scene_state_;
 
   // SessionRestorationObserver and its scoped observation.

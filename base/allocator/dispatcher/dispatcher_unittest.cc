@@ -95,12 +95,12 @@ TEST_F(BaseAllocatorDispatcherTest, VerifyInitialization) {
 }
 
 #if PA_BUILDFLAG(USE_PARTITION_ALLOC) && \
-    !defined(MEMORY_TOOL_REPLACES_ALLOCATOR)
+    !PA_BUILDFLAG(MEMORY_TOOL_REPLACES_ALLOCATOR)
 // Don't enable this test when MEMORY_TOOL_REPLACES_ALLOCATOR is defined,
 // because it makes PartitionAlloc take a different path that doesn't provide
 // notifications to observer hooks.
 struct PartitionAllocator {
-  void* Alloc(size_t size) { return alloc_.AllocInline(size); }
+  void* Alloc(size_t size) { return alloc_.Alloc(size); }
   void Free(void* data) { alloc_.Free(data); }
   ~PartitionAllocator() {
     // Use |DisallowLeaks| to confirm that there is no memory allocated and

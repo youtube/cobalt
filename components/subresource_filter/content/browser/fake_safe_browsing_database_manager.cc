@@ -24,14 +24,6 @@ void FakeSafeBrowsingDatabaseManager::AddBlocklistedUrl(
   url_to_threat_type_[url] = std::make_pair(threat_type, metadata);
 }
 
-void FakeSafeBrowsingDatabaseManager::AddBlocklistedUrl(
-    const GURL& url,
-    safe_browsing::SBThreatType threat_type,
-    safe_browsing::ThreatPatternType pattern_type) {
-  safe_browsing::ThreatMetadata metadata;
-  metadata.threat_pattern_type = pattern_type;
-  AddBlocklistedUrl(url, threat_type, metadata);
-}
 
 void FakeSafeBrowsingDatabaseManager::RemoveBlocklistedUrl(const GURL& url) {
   url_to_threat_type_.erase(url);
@@ -91,7 +83,8 @@ void FakeSafeBrowsingDatabaseManager::OnCheckUrlForSubresourceFilterComplete(
     threat_type = it->second.first;
     metadata = it->second.second;
   }
-  client->OnCheckBrowseUrlResult(url, threat_type, metadata);
+  client->OnCheckSubresourceFilterUrlResult(url, threat_type,
+                                            metadata.subresource_filter_match);
 
   // Erase the client when a check is complete. Otherwise, it's possible
   // subsequent clients that share an address with this one will CHECK in

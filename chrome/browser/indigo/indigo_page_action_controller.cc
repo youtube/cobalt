@@ -27,6 +27,7 @@
 #include "chrome/browser/indigo/indigo_agent_host.h"
 #include "chrome/browser/indigo/indigo_image_replacement.h"
 #include "chrome/browser/indigo/indigo_image_replacement_manager.h"
+#include "chrome/browser/indigo/indigo_menu_model.h"
 #include "chrome/browser/indigo/indigo_prefs.h"
 #include "chrome/browser/indigo/indigo_service.h"
 #include "chrome/browser/indigo/indigo_service_factory.h"
@@ -107,6 +108,9 @@ void RecordTransformationResultCannotGenerateImage(
         break;
       case LocalEligibility::kGlicDisabledForProfile:
         result = IndigoTransformationResult::kGlicDisabledForProfile;
+        break;
+      case LocalEligibility::kEnterpriseDisallowed:
+        result = IndigoTransformationResult::kEnterpriseDisallowed;
         break;
       case LocalEligibility::kEligible:
         NOTREACHED();
@@ -389,7 +393,7 @@ void IndigoPageActionController::TriggerIndigoAgentWithDelay() {
 void IndigoPageActionController::ShowOnboardingDialog(
     OnboardingDisposition disposition,
     bool skip_glic_invoke) {
-  if (onboarding_dialog_) {
+  if (!indigo_service_ || onboarding_dialog_) {
     return;
   }
 
@@ -401,6 +405,12 @@ void IndigoPageActionController::ShowOnboardingDialog(
   }
 
   GURL url(onboarding_url);
+
+  const bool model_improvement_allowed =
+      indigo_service_->IsModelImprovementAllowed();
+  url = net::AppendQueryParameter(
+      url, "toyut", model_improvement_allowed ? "chrome-mi" : "chrome-nomi");
+
   if (disposition == OnboardingDisposition::kReplacePhoto) {
     url = net::AppendQueryParameter(url, "toyri", "1");
     base::RecordAction(base::UserMetricsAction("Indigo.ReplaceImage.Trigger"));
@@ -458,7 +468,11 @@ void IndigoPageActionController::ShowToolbar() {
   }
 }
 
-void IndigoPageActionController::ShowInvocationErrorToast() {
+void IndigoPageActionController::ShowInvocationErrorToast(
+    IndigoTransformationResult result) {
+  CHECK_NE(result, IndigoTransformationResult::kSuccess);
+  base::UmaHistogramEnumeration("Indigo.Transformation.Result", result);
+
   ToastController* toast_controller =
       ToastController::MaybeGetForTabInterface(&tab());
   if (toast_controller) {
@@ -598,6 +612,24 @@ void IndigoPageActionController::OnDeleteOriginalPhotoComplete(
   }
 }
 
+std::optional<IndigoTriggerSource>
+IndigoPageActionController::DetermineTriggerSource() const {
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(kForceIndigoSwitch)) {
+    return IndigoTriggerSource::kForced;
+  }
+  if (!indigo_service_ || !indigo_service_->IsLocallyEligible()) {
+    return std::nullopt;
+  }
+  if (optimization_guide_decision_ ==
+      optimization_guide::OptimizationGuideDecision::kTrue) {
+    return IndigoTriggerSource::kOptimizationGuide;
+  }
+  if (page_has_allowed_category_by_heuristic_) {
+    return IndigoTriggerSource::kLocalProductKeywordHeuristic;
+  }
+  return std::nullopt;
+}
+
 void IndigoPageActionController::UpdateEntryPointsState() {
   CHECK(base::FeatureList::IsEnabled(features::kIndigo));
 
@@ -605,22 +637,15 @@ void IndigoPageActionController::UpdateEntryPointsState() {
     return;
   }
 
-  const bool forced =
-      base::CommandLine::ForCurrentProcess()->HasSwitch(kForceIndigoSwitch);
-  const bool eligible =
-      (optimization_guide_decision_ ==
-           optimization_guide::OptimizationGuideDecision::kTrue ||
-       page_has_allowed_category_by_heuristic_) &&
-      indigo_service_->IsLocallyEligible();
-
-  const bool should_show = forced || eligible;
+  std::optional<IndigoTriggerSource> trigger_source = DetermineTriggerSource();
+  const bool should_show = trigger_source.has_value();
   if (should_show == is_shown_) {
     return;
   }
 
   if (should_show) {
     page_action_controller_->Show(kActionIndigo);
-    if (indigo_service_->CanShowAnchoredMessage() &&
+    if (indigo_service_->CanShowContextualCue() &&
         !glic::GlicSidePanelCoordinator::IsShowing(&tab())) {
       ShowAnchoredMessage(
           page_actions::PageActionPriorityCategory::kContextualCue);
@@ -628,6 +653,8 @@ void IndigoPageActionController::UpdateEntryPointsState() {
       page_action_controller_->ShowSuggestionChip(kActionIndigo);
     }
     base::RecordAction(base::UserMetricsAction("Indigo.PageAction.Show"));
+    base::UmaHistogramEnumeration("Indigo.PageAction.TriggerSource",
+                                  *trigger_source);
 
     // Refresh discovery skills to make sure the latest skills are available for
     // the user.
@@ -695,7 +722,7 @@ void IndigoPageActionController::OnLocalEligibilityChanged(
 void IndigoPageActionController::OnPageActionAnchoredMessageShown(
     const page_actions::PageActionState& page_action) {
   if (indigo_service_) {
-    indigo_service_->AnchoredMessageShown();
+    indigo_service_->ContextualCueShown();
   }
   base::RecordAction(
       base::UserMetricsAction("Indigo.PageAction.ShowAnchoredMessage"));
@@ -740,6 +767,24 @@ void IndigoPageActionController::ShowAnchoredMessage(
   page_action_controller_->SetAnchoredMessageIcon(
       kActionIndigo,
       icon ? ui::ImageModel::FromImageSkia(*icon) : ui::ImageModel());
+
+  if (priority == page_actions::PageActionPriorityCategory::kUserInteraction) {
+    page_action_controller_->SetAnchoredMessageAction(
+        kActionIndigo, page_actions::AnchoredMessageActionIconType::kClose,
+        nullptr);
+  } else {
+    CHECK_EQ(priority,
+             page_actions::PageActionPriorityCategory::kContextualCue);
+    content::WebContents* web_contents = tab().GetContents();
+    Profile* profile =
+        web_contents
+            ? Profile::FromBrowserContext(web_contents->GetBrowserContext())
+            : nullptr;
+    page_action_controller_->SetAnchoredMessageAction(
+        kActionIndigo, page_actions::AnchoredMessageActionIconType::kMenu,
+        std::make_unique<IndigoMenuModel>(profile, GetWeakPtr()));
+  }
+
   page_action_controller_->ShowAnchoredMessage(kActionIndigo,
                                                {.priority = priority});
 }
@@ -782,7 +827,8 @@ void IndigoPageActionController::FrameSizeChanged(
 
   if (frame_size.IsEmpty()) {
     Reset(ResetType::kResetReplacementsAndContentScript);
-    ShowInvocationErrorToast();
+    ShowInvocationErrorToast(
+        IndigoTransformationResult::kEmptyPrimaryImageSize);
     return;
   }
 
@@ -793,7 +839,7 @@ void IndigoPageActionController::FrameSizeChanged(
   float width_dips = frame_size.width() / device_scale_factor;
   if (width_dips < kMinPrimaryImageWidthDips) {
     Reset(ResetType::kResetReplacementsAndContentScript);
-    ShowInvocationErrorToast();
+    ShowInvocationErrorToast(IndigoTransformationResult::kPrimaryImageTooSmall);
   }
 }
 

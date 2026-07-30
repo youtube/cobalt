@@ -22,7 +22,6 @@
 #include "content/public/test/test_navigation_observer.h"
 #include "extensions/browser/browsertest_util.h"
 #include "extensions/browser/extension_registrar.h"
-#include "extensions/browser/extension_system.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
@@ -62,7 +61,7 @@ ExtensionsToolbarUITest::ForceInstallExtension(const std::string& name) {
           .SetLocation(extensions::mojom::ManifestLocation::kExternalPolicy)
           .SetID(crx_file::id_util::GenerateId(name))
           .Build();
-  extensions::ExtensionRegistrar::Get(browser()->profile())
+  extensions::ExtensionRegistrar::Get(browser()->GetProfile())
       ->AddExtension(extension);
   return extension;
 }
@@ -127,7 +126,7 @@ void ExtensionsToolbarUITest::AppendExtension(
 
 void ExtensionsToolbarUITest::DisableExtension(
     const extensions::ExtensionId& extension_id) {
-  extensions::ExtensionRegistrar::Get(browser()->profile())
+  extensions::ExtensionRegistrar::Get(browser()->GetProfile())
       ->DisableExtension(extension_id,
                          {extensions::disable_reason::DISABLE_USER_ACTION});
 }

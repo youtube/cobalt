@@ -484,8 +484,7 @@ class WebMediaPlayerImplTest
         provider.Unbind(),
         blink::BindOnce(&WebMediaPlayerImplTest::CreateMockSurfaceLayerBridge,
                         base::Unretained(this)),
-        viz::TestContextProvider::CreateGLES(),
-        /*use_surface_layer=*/true, is_background_suspend_enabled_,
+        viz::TestContextProvider::CreateGLES(), is_background_suspend_enabled_,
         is_background_video_playback_enabled_, true,
         std::move(demuxer_override), nullptr);
   }
@@ -3059,6 +3058,14 @@ TEST_F(WebMediaPlayerImplTest, DisabledFlagShouldPauseWhenFrameIsHidden) {
   ForegroundPlayer(BackgroundBehaviorType::Frame);
   EXPECT_FALSE(IsPausedBecausePageHidden());
   EXPECT_FALSE(IsPausedBecauseFrameHidden());
+}
+
+TEST_F(WebMediaPlayerImplTest, IsVideoBeingCapturedTracksCanvasReadback) {
+  InitializeWebMediaPlayerImpl();
+  EXPECT_FALSE(wmpi_->IsVideoBeingCaptured());
+
+  wmpi_->GetCurrentFrameThenUpdate();
+  EXPECT_TRUE(wmpi_->IsVideoBeingCaptured());
 }
 
 TEST_F(WebMediaPlayerImplTest, NotifiesObserverWhenFrozen) {

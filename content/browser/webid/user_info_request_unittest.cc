@@ -27,19 +27,21 @@
 #include "net/http/http_status_code.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
-using ApiPermissionStatus =
-    content::FederatedIdentityApiPermissionContextDelegate::PermissionStatus;
-using LoginState = content::IdentityRequestAccount::LoginState;
-using blink::mojom::RequestUserInfoStatus;
+namespace content::webid {
+
 using ::testing::_;
 using ::testing::NiceMock;
 using ::testing::Return;
+using ApiPermissionStatus =
+    FederatedIdentityApiPermissionContextDelegate::PermissionStatus;
+using LoginState = IdentityRequestAccount::LoginState;
+using UserInfoRequestResult = UserInfoRequest::UserInfoRequestResult;
+using blink::mojom::RequestUserInfoStatus;
 
-namespace content::webid {
 namespace {
 
 constexpr char kRpUrl[] = "https://rp.example";
@@ -291,8 +293,7 @@ class UserInfoRequestTest : public RenderViewHostImplTestHarness {
 
     // Add a subframe that navigates to kPersonalizedButtonFrameUrl.
     TestRenderFrameHost* subframe = static_cast<TestRenderFrameHost*>(
-        content::RenderFrameHostTester::For(main_rfh())
-            ->AppendChild("subframe"));
+        RenderFrameHostTester::For(main_rfh())->AppendChild("subframe"));
     iframe_render_frame_host_ = static_cast<TestRenderFrameHost*>(
         NavigationSimulator::NavigateAndCommitFromDocument(
             GURL(kPersonalizedButtonFrameUrl), subframe));
@@ -357,14 +358,12 @@ class UserInfoRequestTest : public RenderViewHostImplTestHarness {
   }
 
   void ExpectUniqueIssue(UserInfoRequestResult result) {
-    EXPECT_EQ(
-        iframe_render_frame_host_->GetFederatedAuthUserInfoRequestIssueCount(
-            result),
-        1);
-    EXPECT_EQ(
-        iframe_render_frame_host_->GetFederatedAuthUserInfoRequestIssueCount(
-            std::nullopt),
-        1);
+    EXPECT_EQ(iframe_render_frame_host_->GetFederatedUserInfoRequestIssueCount(
+                  result),
+              1);
+    EXPECT_EQ(iframe_render_frame_host_->GetFederatedUserInfoRequestIssueCount(
+                  std::nullopt),
+              1);
   }
 
  protected:

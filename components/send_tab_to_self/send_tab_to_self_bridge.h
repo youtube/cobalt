@@ -167,8 +167,8 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
   // Returns the DeviceInfo for the local device, or nullptr if not available.
   const syncer::DeviceInfo* GetLocalDeviceInfo() const;
 
-  // Returns the fallback full name of the local device.
-  std::string GetLocalFallbackFullName() const;
+  // Returns the display name of the local device.
+  std::string GetLocalDeviceName() const;
 
   // Returns true if the device should be included in the target list.
   bool ShouldIncludeDevice(const syncer::DeviceInfo& device) const;
@@ -188,6 +188,8 @@ class SendTabToSelfBridge : public syncer::DataTypeSyncBridge,
 
   void EraseEntryInBatch(std::string_view guid,
                          syncer::DataTypeStore::WriteBatch* batch);
+
+  void MarkEntryOpenedImpl(std::string_view guid, base::Time opened_time);
 
   void MarkEntryActivatedImpl(std::string_view guid,
                               ShareActivatedEntryPoint entry_point,

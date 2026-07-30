@@ -126,10 +126,6 @@ class OmniboxWebUiInteractiveTestBase
       features.emplace_back(omnibox::internal::kWebUIOmniboxSimplification,
                             simplification_params);
       features.emplace_back(omnibox::kAimEnabled, base::FieldTrialParams());
-      features.emplace_back(
-          features::kPageActionsMigration,
-          base::FieldTrialParams(
-              {{features::kPageActionsMigrationAiMode.name, "true"}}));
     }
     return features;
   }
@@ -227,13 +223,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxWebUiInteractiveTest, GeminiHidesVerbatimMatch) {
 // Ensures Gemini mode's null match; e.g. "<Type search term>" is hidden, and
 // that clicking the default search suggestion navigates correctly.
 // TODO(crbug.com/496926191): Re-enable after de-flaking.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_GeminiHidesNullMatch DISABLED_GeminiHidesNullMatch
-#else
-#define MAYBE_GeminiHidesNullMatch GeminiHidesNullMatch
-#endif
-IN_PROC_BROWSER_TEST_F(OmniboxWebUiInteractiveTest,
-                       MAYBE_GeminiHidesNullMatch) {
+IN_PROC_BROWSER_TEST_F(OmniboxWebUiInteractiveTest, GeminiHidesNullMatch) {
   RunTestSequence(
       // Enter Gemini mode in Omnibox.
       AddInstrumentedTab(kNewTab, chrome::ChromeUINewTabURLAsGURL()),
@@ -924,8 +914,8 @@ class WebUIOmniboxSimplificationInteractiveTest
   base::test::ScopedFeatureList feature_list_;
 };
 
-// TODO(crbug.com/512352908): Flaky on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/512348269): Flaky on Mac and Windows.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #define MAYBE_HasBackgroundApplied DISABLED_HasBackgroundApplied
 #else
 #define MAYBE_HasBackgroundApplied HasBackgroundApplied
@@ -948,8 +938,8 @@ IN_PROC_BROWSER_TEST_F(WebUIOmniboxSimplificationInteractiveTest,
           true)));
 }
 
-// TODO(crbug.com/512348269): Flaky on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/512348269): Flaky on Mac and Windows.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN)
 #define MAYBE_OblongShapeApplied DISABLED_OblongShapeApplied
 #else
 #define MAYBE_OblongShapeApplied OblongShapeApplied

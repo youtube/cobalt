@@ -14,9 +14,10 @@ import {prefToString} from '/shared/settings/prefs/pref_util.js';
 import {CrRippleMixinPolymer} from 'chrome://resources/cr_elements/cr_ripple/cr_ripple_mixin_polymer.js';
 
 import {getTemplate} from './controlled_radio_button.html.js';
+import {PrefKeyObserverMixin} from './pref_key_observer_mixin.js';
 
-const ControlledRadioButtonElementBase =
-    CrRippleMixinPolymer(CrRadioButtonMixin(PrefControlMixin(PolymerElement)));
+const ControlledRadioButtonElementBase = PrefKeyObserverMixin(
+    CrRippleMixinPolymer(CrRadioButtonMixin(PrefControlMixin(PolymerElement))));
 
 export class ControlledRadioButtonElement extends
     ControlledRadioButtonElementBase {

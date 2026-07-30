@@ -5,13 +5,17 @@
 #ifndef COMPONENTS_AUTOFILL_CORE_BROWSER_AT_MEMORY_AT_MEMORY_ENABLEMENT_UTILS_H_
 #define COMPONENTS_AUTOFILL_CORE_BROWSER_AT_MEMORY_AT_MEMORY_ENABLEMENT_UTILS_H_
 
+#include <string>
+
+#include "base/types/optional_ref.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 
 class GoogleGroupsManager;
+class GURL;
 class PrefService;
 
 namespace personal_context {
-class PersonalContextEnablementService;
+class PersonalContextEligibilityService;
 }  // namespace personal_context
 
 namespace subscription_eligibility {
@@ -21,6 +25,7 @@ class SubscriptionEligibilityService;
 namespace autofill {
 
 // An AtMemory-related action that a user may take (directly or indirectly).
+// LINT.IfChange(AtMemoryAction)
 enum class AtMemoryAction {
   // Trigger main AtMemory component using the keyboard invocation.
   kTriggerSearchUI,
@@ -41,23 +46,33 @@ enum class AtMemoryAction {
   // Show the AtMemory button in the Autocomplete dialog.
   kShowAutocompleteAtMemoryButton,
 };
+// LINT.ThenChange(/chrome/browser/ui/webui/autofill_and_password_manager_internals/internals_ui_handler.cc:AtMemoryAction,
+// /components/autofill/core/browser/autofill_and_password_manager_internals/autofill_and_password_manager_internals.ts:AtMemoryAction)
+
+class AutofillOptimizationGuideDecider;
 
 // Returns whether all permission-related requirements are met for `action`.
 //
 // Checks that AtMemory feature flags are enabled, AtMemory eligibility
 // criteria are met and PersonalContext settings toggle is on if required by
 // the action.
-[[nodiscard]] bool MayPerformAtMemoryAction(AtMemoryAction action,
-                                            const AutofillClient& client);
+[[nodiscard]] bool MayPerformAtMemoryAction(
+    AtMemoryAction action,
+    const AutofillClient& client,
+    base::optional_ref<const GURL> url = std::nullopt,
+    std::string* debug_message = nullptr);
 
 [[nodiscard]] bool MayPerformAtMemoryAction(
     AtMemoryAction action,
-    personal_context::PersonalContextEnablementService*
+    personal_context::PersonalContextEligibilityService*
         personal_context_service,
     const subscription_eligibility::SubscriptionEligibilityService*
         subscription_eligibility_service,
     const PrefService* pref_service,
-    const GoogleGroupsManager* google_groups_manager);
+    const GoogleGroupsManager* google_groups_manager,
+    AutofillOptimizationGuideDecider* decider,
+    base::optional_ref<const GURL> url = std::nullopt,
+    std::string* debug_message = nullptr);
 
 // Returns whether the AtMemory feature is enabled.
 //

@@ -184,6 +184,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="WebAuthentication.Cmtg.BlockedDelay" units="ms"
+    expires_after="2026-12-31">
+  <owner>nsatragno@chromium.org</owner>
+  <owner>chrome-webauthn@google.com</owner>
+  <summary>
+    Measures the additional delay the CMTG device key fetch is adding to the
+    WebAuthn transaction. Recorded once per transaction when the flow is blocked
+    waiting for keys to become ready.
+  </summary>
+</histogram>
+
 <histogram name="WebAuthentication.CmtgDeviceKeys.RequestDuration" units="ms"
     expires_after="2027-05-15">
   <owner>nsatragno@chromium.org</owner>
@@ -581,7 +592,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.GPM.RecoveryEvent"
-    enum="WebAuthenticationGPMRecoveryEvent" expires_after="2026-11-01">
+    enum="WebAuthenticationGPMRecoveryEvent" expires_after="2027-01-03">
   <owner>ylahodiuk@google.com</owner>
   <owner>izuzic@google.com</owner>
   <owner>chrome-webauthn@google.com</owner>
@@ -628,7 +639,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.IsUVPlatformAuthenticatorAvailable2"
-    enum="Boolean" expires_after="2026-11-01">
+    enum="Boolean" expires_after="2027-01-03">
   <owner>kenrb@chromium.org</owner>
   <owner>martinkr@google.com</owner>
   <summary>
@@ -847,7 +858,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebAuthentication.Windows.ForegroundedWindowsHelloDialog"
-    enum="WindowsForegroundedHelloDialog" expires_after="2026-11-01">
+    enum="WindowsForegroundedHelloDialog" expires_after="2027-01-03">
   <owner>kenrb@chromium.org</owner>
   <owner>chrome-webauthn@google.com</owner>
   <summary>

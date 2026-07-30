@@ -24,7 +24,6 @@
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_omnibox_client.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_omnibox_client_delegate.h"
-#import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_mediator.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_mediator_delegate.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_tab_change_audience.h"
@@ -38,6 +37,7 @@
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_snapshot_controller.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
 #import "ios/chrome/browser/lens_overlay/model/snapshot_cover_view_controller.h"
+#import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/ui/lens_overlay_consent_presenter.h"
 #import "ios/chrome/browser/lens_overlay/ui/lens_overlay_consent_view_controller.h"
 #import "ios/chrome/browser/lens_overlay/ui/lens_overlay_container_presenter.h"
@@ -55,7 +55,10 @@
 #import "ios/chrome/browser/omnibox/ui/omnibox_focus_delegate.h"
 #import "ios/chrome/browser/overlays/model/public/overlay_presentation_context.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
+#import "ios/chrome/browser/shared/coordinator/layout_guide/layout_guide_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/lens_overlay_state_notifier.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
@@ -75,9 +78,11 @@
 #import "ios/chrome/browser/shared/public/commands/toolbar_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
+#import "ios/chrome/browser/shared/ui/util/layout_guide_names.h"
 #import "ios/chrome/browser/shared/ui/util/omnibox_util.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/web/model/web_state_delegate_browser_agent.h"
@@ -104,7 +109,8 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 }  // namespace
 
-@interface LensOverlayCoordinator () <LensOverlayConsentPresenterDelegate,
+@interface LensOverlayCoordinator () <LayoutStateObserver,
+                                      LensOverlayConsentPresenterDelegate,
                                       LensOverlayConsentViewControllerDelegate,
                                       LensOverlayCommands,
                                       LensOverlayNetworkIssuePresenterDelegate,
@@ -179,6 +185,13 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   /// Presenter for the lens container.
   LensOverlayContainerPresenter* _containerPresenter;
 
+  /// Layout guide for the initial visible area (when results bottom sheet is
+  /// not shown).
+  UILayoutGuide* _initialVisibleAreaLayoutGuide;
+
+  /// Constraints for the initial visible area layout guide.
+  NSArray<NSLayoutConstraint*>* _initialVisibleAreaConstraints;
+
   // The entrypoint associated with the current session.
   LensOverlayEntrypoint _entrypoint;
 
@@ -216,6 +229,9 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   _mediator.lensHandler = _selectionViewController;
   _mediator.commandsHandler = self;
   _mediator.delegate = self;
+
+  [self.browser->GetSceneState().layoutState addObserver:self];
+  [self updateInitialVisibleAreaLayoutGuide];
   // The mediator might destroy lens UI if the search engine doesn't support
   // lens.
   _mediator.templateURLService =
@@ -701,14 +717,25 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   [self destroyViewControllersAndMediators];
   [self notifyDestroyCompleted];
   self.exiting = NO;
-  [self.presentationEnvironment lensOverlayDidDisappear];
 }
 
 #pragma mark - Exit helpers
 
 // Disconnect and destroy all of the owned view controllers.
 - (void)destroyViewControllersAndMediators {
+  if (self.browser) {
+    [self.browser->GetSceneState().layoutState removeObserver:self];
+  }
   [self stopResultPage];
+  if (_initialVisibleAreaConstraints) {
+    [NSLayoutConstraint deactivateConstraints:_initialVisibleAreaConstraints];
+    _initialVisibleAreaConstraints = nil;
+  }
+  if (_initialVisibleAreaLayoutGuide) {
+    [_containerViewController.view
+        removeLayoutGuide:_initialVisibleAreaLayoutGuide];
+    _initialVisibleAreaLayoutGuide = nil;
+  }
   _containerViewController = nil;
   [_mediator disconnect];
   _selectionViewController = nil;
@@ -772,14 +799,22 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 - (void)lensOverlayContainerPresenterWillBeginPresentation:
     (LensOverlayContainerPresenter*)containerPresenter {
   [self setInfobarBannerOverlaysEnabled:NO];
-  [self.presentationEnvironment lensOverlayWillAppear];
+  [self.browser->GetSceneState()
+          .lensOverlayStateNotifier lensOverlayWillAppear];
 }
 
 - (void)lensOverlayContainerPresenterWillDismissPresentation:
     (LensOverlayContainerPresenter*)containerPresenter {
   [self setInfobarBannerOverlaysEnabled:YES];
-  [self.presentationEnvironment lensOverlayWillDisappear];
+  [self.browser->GetSceneState()
+          .lensOverlayStateNotifier lensOverlayWillDisappear];
   [self indicateLensOverlayVisible:NO];
+}
+
+- (void)lensOverlayContainerPresenterDidDismissPresentation:
+    (LensOverlayContainerPresenter*)containerPresenter {
+  [self.browser->GetSceneState()
+          .lensOverlayStateNotifier lensOverlayDidDisappear];
 }
 
 - (void)lensOverlayContainerPresenterDidCompletePresentation:
@@ -796,6 +831,8 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   if (self.suspended) {
     return;
   }
+
+  [self updateInitialVisibleAreaLayoutGuide];
 
   if (!lens::IsLVFEntrypoint(_entrypoint)) {
     PrefService* local_state = GetApplicationContext()->GetLocalState();
@@ -841,8 +878,10 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 
 - (void)lensOverlayContainerPresenterDidReadjustPresentation:
     (LensOverlayContainerPresenter*)containerPresenter {
+  [self updateInitialVisibleAreaLayoutGuide];
   [_resultsPagePresenter readjustPresentationIfNeeded];
-  [self.presentationEnvironment lensOverlayDidReadjustPresentation];
+  [self.browser->GetSceneState()
+          .lensOverlayStateNotifier lensOverlayDidReadjustPresentation];
 }
 
 - (NSDirectionalEdgeInsets)lensOverlayContainerPresenterInsetsForPresentation:
@@ -1202,7 +1241,8 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   _associatedTabHelper->SetLensOverlayCommandsHandler(self);
   _associatedTabHelper->SetLensOverlayUIAttachedAndAlive(true);
 
-  [self.presentationEnvironment lensOverlayDidPrepare];
+  [self.browser->GetSceneState()
+          .lensOverlayStateNotifier lensOverlayDidPrepare];
   return YES;
 }
 
@@ -1505,6 +1545,67 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
   _associatedTabHelper->CaptureFullscreenSnapshot(base::BindOnce(completion));
 }
 
+// Creates or updates the initial visible area layout guide, to ensure that it
+// takes into account the AppBar when it overlaps the browser.
+- (void)updateInitialVisibleAreaLayoutGuide {
+  if (!IsChromeNextIaEnabled() || !IsFullscreenRefactoringEnabled()) {
+    return;
+  }
+
+  if (!_containerViewController) {
+    return;
+  }
+
+  if (!_initialVisibleAreaLayoutGuide) {
+    _initialVisibleAreaLayoutGuide = [[UILayoutGuide alloc] init];
+    [_containerViewController.view
+        addLayoutGuide:_initialVisibleAreaLayoutGuide];
+  }
+
+  if (_initialVisibleAreaConstraints) {
+    [NSLayoutConstraint deactivateConstraints:_initialVisibleAreaConstraints];
+  }
+
+  NSLayoutYAxisAnchor* bottomAnchor =
+      _containerViewController.view.bottomAnchor;
+
+  BOOL appBarAtBottom =
+      self.browser->GetSceneState().layoutState.appBarPosition ==
+      AppBarPosition::kBottom;
+  BOOL viewInWindow = _containerViewController.view.window != nil;
+
+  if (appBarAtBottom && viewInWindow) {
+    LayoutGuideCenter* layoutGuideCenter =
+        LayoutGuideCenterForBrowser(self.browser);
+    UIView* appBarView =
+        [layoutGuideCenter referencedViewUnderName:kAppBarGuide];
+    if (appBarView) {
+      bottomAnchor = appBarView.topAnchor;
+    }
+  }
+
+  _initialVisibleAreaConstraints = @[
+    [_initialVisibleAreaLayoutGuide.topAnchor
+        constraintEqualToAnchor:_containerViewController.view.topAnchor],
+    [_initialVisibleAreaLayoutGuide.leadingAnchor
+        constraintEqualToAnchor:_containerViewController.view.leadingAnchor],
+    [_initialVisibleAreaLayoutGuide.trailingAnchor
+        constraintEqualToAnchor:_containerViewController.view.trailingAnchor],
+    [_initialVisibleAreaLayoutGuide.bottomAnchor
+        constraintEqualToAnchor:bottomAnchor],
+  ];
+
+  [NSLayoutConstraint activateConstraints:_initialVisibleAreaConstraints];
+
+  // Only update selection VC's visible area layout guide if results bottom
+  // sheet is not currently visible.
+  if (!self.isResultsBottomSheetCreated ||
+      !_resultsPagePresenter.isResultPageVisible) {
+    _selectionViewController.visibleAreaLayoutGuide =
+        _initialVisibleAreaLayoutGuide;
+  }
+}
+
 #pragma mark - Low memory warning
 
 // Whether to monitor low memory warnings.
@@ -1687,6 +1788,13 @@ const base::TimeDelta kSearchWithCameraTooltipHintDelay = base::Seconds(2.0);
 - (void)indicateLensOverlayVisible:(BOOL)lensOverlayVisible {
   [HandlerForProtocol(self.browser->GetCommandDispatcher(), ToolbarCommands)
       indicateLensOverlayVisible:lensOverlayVisible];
+}
+
+#pragma mark - LayoutStateObserver
+
+- (void)layoutState:(LayoutState*)layoutState
+    didChangeAppBarPosition:(AppBarPosition)appBarPosition {
+  [self updateInitialVisibleAreaLayoutGuide];
 }
 
 @end

@@ -18,6 +18,7 @@ import android.widget.ImageButton;
 import androidx.annotation.CallSuper;
 import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
+import androidx.appcompat.widget.TooltipCompat;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.widget.ImageViewCompat;
 
@@ -279,6 +280,12 @@ public class LocationBarLayout extends ConstraintLayout {
     /* package */ void setDeleteButtonVisibility(boolean shouldShow) {
         mShowDeleteButton = shouldShow;
         setButtonVisibility(mDeleteButton, shouldShow);
+    }
+
+    /** Sets the tooltip text of the delete URL content button. */
+    /* package */ void setDeleteButtonTooltip(@Nullable String tooltipText) {
+        if (mDeleteButton == null) return;
+        TooltipCompat.setTooltipText(mDeleteButton, tooltipText);
     }
 
     protected boolean isBackButtonVisible() {
@@ -565,11 +572,18 @@ public class LocationBarLayout extends ConstraintLayout {
      */
     void setFuseboxLayoutMode(@FuseboxLayoutMode int layoutMode) {}
 
+    /** Sets the visibility of the UrlBar and StatusView group. */
+    /* package */ void setUrlAndStatusGroupVisibility(boolean visible) {
+        int visibility = visible ? View.VISIBLE : View.INVISIBLE;
+        mUrlBar.setVisibility(visibility);
+        mLocationBarStatusView.setVisibility(visibility);
+    }
+
     /**
      * Informs the location bar whether the autocomplete system is in "standby" i.e. accepting input
      * but not showing suggestions until input is received.
      */
-    void setIsInStandby(boolean isInStandby) {}
+    void setShowStandbyRing(boolean showStandbyRing) {}
 
     View getUrlBar() {
         return mUrlBar;
@@ -581,5 +595,9 @@ public class LocationBarLayout extends ConstraintLayout {
 
     View getNavigateButton() {
         return mNavigateButton;
+    }
+
+    View getDeleteButton() {
+        return mDeleteButton;
     }
 }

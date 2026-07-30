@@ -5,7 +5,6 @@
 import {SubmitButtonIconType} from 'chrome://new-tab-page/lazy_load.js';
 import {$$} from 'chrome://new-tab-page/new_tab_page.js';
 import {InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
-import type {ContextualEntrypointAndMenuElement} from 'chrome://resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import {WindowProxy as CrWindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
 import type {SearchAnimatedGlowElement} from 'chrome://resources/cr_components/search/animated_glow.js';
 import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
@@ -244,6 +243,7 @@ suite('NewTabPageComposeboxTest', () => {
         [createSearchMatchForTesting({allowedToBeDefaultMatch: true})];
     testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
         createAutocompleteResultForTesting({
+          queryId: testProxy.element.activeQueryId,
           input: 'some text',
           matches,
         }));
@@ -491,6 +491,7 @@ suite('NewTabPageComposeboxTest', () => {
         ];
         testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
             createAutocompleteResultForTesting({
+              queryId: testProxy.element.activeQueryId,
               matches,
             }));
         await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
@@ -539,6 +540,7 @@ suite('NewTabPageComposeboxTest', () => {
             ];
             testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
                 createAutocompleteResultForTesting({
+                  queryId: testProxy.element.activeQueryId,
                   matches,
                 }));
             await testProxy.searchboxCallbackRouterRemote.$.flushForTesting();
@@ -620,6 +622,7 @@ suite('NewTabPageComposeboxTest', () => {
           [createSearchMatchForTesting({allowedToBeDefaultMatch: true})];
       testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
           createAutocompleteResultForTesting({
+            queryId: testProxy.element.activeQueryId,
             input: 'test',
             matches,
           }));
@@ -651,6 +654,7 @@ suite('NewTabPageComposeboxTest', () => {
           [createSearchMatchForTesting({allowedToBeDefaultMatch: true})];
       testProxy.searchboxCallbackRouterRemote.autocompleteResultChanged(
           createAutocompleteResultForTesting({
+            queryId: testProxy.element.activeQueryId,
             input: 'test',
             matches: matches,
           }));
@@ -685,25 +689,6 @@ suite('NewTabPageComposeboxTest', () => {
           testProxy.searchboxHandler.getCallCount('openAutocompleteMatch'), 1);
     });
 
-    test('ShareComposeboxMountPreservesAutoReposition', async () => {
-      createComposeboxElement(testProxy);
-      await testProxy.element.updateComplete;
-
-      const entrypointAndMenu =
-          testProxy.element.shadowRoot
-              .querySelector<ContextualEntrypointAndMenuElement>(
-                  'cr-composebox-contextual-entrypoint-and-menu');
-      assertTrue(!!entrypointAndMenu);
-      await entrypointAndMenu.updateComplete;
-      assertFalse(entrypointAndMenu.disableAutoReposition);
-
-      const contextualActionMenu = entrypointAndMenu.$.menu;
-      await contextualActionMenu.updateComplete;
-      const crActionMenu = contextualActionMenu.$.menu;
-      assertTrue(crActionMenu.autoReposition);
-      assertTrue(crActionMenu.hasAttribute('auto-reposition'));
-    });
-
     // Required to test how the voice chips are integrated into NTP html
     // (event listeners, id's, classes, etc.):
     suite('voice search', () => {
@@ -730,6 +715,108 @@ suite('NewTabPageComposeboxTest', () => {
         testProxy.element.showVoiceSearch = true;
         await testProxy.element.updateComplete;
       });
+
+      if (useForked) {
+        test(
+            'voice search button tab order precedes cancel button' +
+                ' and context entrypoint',
+            () => {
+              const composeboxInput =
+                  testProxy.element.shadowRoot.querySelector(
+                      'cr-composebox-input');
+              assertTrue(!!composeboxInput);
+
+              const voiceSearchButton =
+                  testProxy.element.shadowRoot.querySelector(
+                      '#voiceSearchButton');
+              assertTrue(!!voiceSearchButton);
+              assertEquals(
+                  'action-buttons', voiceSearchButton.getAttribute('slot'));
+
+              const input = composeboxInput.shadowRoot.querySelector('#input');
+              assertTrue(!!input);
+
+              const actionButtonsSlot =
+                  composeboxInput.shadowRoot.querySelector(
+                      'slot[name="action-buttons"]');
+              assertTrue(!!actionButtonsSlot);
+
+              const cancelContainer =
+                  composeboxInput.shadowRoot.querySelector('#cancelContainer');
+              assertTrue(!!cancelContainer);
+
+              const contextEntrypoint =
+                  testProxy.element.shadowRoot.querySelector(
+                      '#contextEntrypoint');
+              assertTrue(!!contextEntrypoint);
+
+              // Assert accessibility tabbing order:
+              // Verify #input comes BEFORE actionButtonsSlot (Voice Search)
+              assertTrue(
+                  (input.compareDocumentPosition(actionButtonsSlot) &
+                   Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+
+              // Verify actionButtonsSlot (Voice Search) comes
+              // BEFORE cancelContainer (Clear "X")
+              assertTrue(
+                  (actionButtonsSlot.compareDocumentPosition(cancelContainer) &
+                   Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+
+              // Verify composeboxInput (Voice Search + Clear)
+              // comes BEFORE contextEntrypoint (+)
+              assertTrue(
+                  (composeboxInput.compareDocumentPosition(contextEntrypoint) &
+                   Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+            });
+      } else {
+        test(
+            'voice search button tab order succeeds cancel button' +
+                ' and context entrypoint',
+            () => {
+              const composeboxInput =
+                  testProxy.element.shadowRoot.querySelector(
+                      'cr-composebox-input');
+              assertTrue(!!composeboxInput);
+
+              const voiceSearchButton =
+                  testProxy.element.shadowRoot.querySelector(
+                      '#voiceSearchButton');
+              assertTrue(!!voiceSearchButton);
+              assertFalse(voiceSearchButton.hasAttribute('slot'));
+
+              const input = composeboxInput.shadowRoot.querySelector('#input');
+              assertTrue(!!input);
+
+              const cancelContainer =
+                  composeboxInput.shadowRoot.querySelector('#cancelContainer');
+              assertTrue(!!cancelContainer);
+
+              const contextEntrypoint =
+                  testProxy.element.shadowRoot.querySelector(
+                      '#contextEntrypoint');
+              assertTrue(!!contextEntrypoint);
+
+              // Assert accessibility tabbing order:
+              // Verify #input comes BEFORE #cancelContainer (Clear "X")
+              assertTrue(
+                  (input.compareDocumentPosition(cancelContainer) &
+                   Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+
+              // Verify composeboxInput (Input + Clear) comes
+              // BEFORE contextEntrypoint (+)
+              assertTrue(
+                  (composeboxInput.compareDocumentPosition(contextEntrypoint) &
+                   Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+
+              // Verify contextEntrypoint (+) comes BEFORE voiceSearchButton
+              // (Voice Search)
+              assertTrue(
+                  (contextEntrypoint.compareDocumentPosition(
+                       voiceSearchButton) &
+                   Node.DOCUMENT_POSITION_FOLLOWING) !== 0);
+            });
+      }
+
 
       async function enterVoiceSearchMode() {
         const voiceSearchButton =

@@ -2516,6 +2516,36 @@ TEST_F(DualLayerUserPrefStoreMergeTest,
                              kMergeableDictPref1, new_value));
 }
 
+// Regression test for crbug.com/496990174.
+TEST_F(DualLayerUserPrefStoreTest,
+       UnmergeValueHandlesIncorrectTypeInLocalStore) {
+  store()->GetLocalPrefStore()->SetValueSilently(kMergeableDictPref1,
+                                                 base::Value("not_a_dict"), 0);
+
+  store()->GetAccountPrefStore()->SetValueSilently(
+      kMergeableDictPref1, MakeDict({{"account_key", "account_value"}}), 0);
+
+  base::Value new_dict = MakeDict({{"new_key", "new_value"}});
+  store()->SetValue(kMergeableDictPref1, new_dict.Clone(), 0);
+
+  EXPECT_TRUE(ValueInStoreIs(*store(), kMergeableDictPref1, new_dict));
+}
+
+// Regression test for crbug.com/496990174.
+TEST_F(DualLayerUserPrefStoreTest,
+       UnmergeValueHandlesIncorrectTypeInAccountStore) {
+  store()->GetLocalPrefStore()->SetValueSilently(
+      kMergeableDictPref1, MakeDict({{"local_key", "local_value"}}), 0);
+
+  store()->GetAccountPrefStore()->SetValueSilently(
+      kMergeableDictPref1, base::Value("not_a_dict"), 0);
+
+  base::Value new_dict = MakeDict({{"new_key", "new_value"}});
+  store()->SetValue(kMergeableDictPref1, new_dict.Clone(), 0);
+
+  EXPECT_TRUE(ValueInStoreIs(*store(), kMergeableDictPref1, new_dict));
+}
+
 TEST_F(
     DualLayerUserPrefStoreMergeTest,
     ShouldClearAccountPrefsOnDisableAndNotifyObserversIfEffectiveValueChanges) {
@@ -3034,13 +3064,7 @@ TEST_F(DualLayerUserPrefStoreHistoryOptInTest,
   store()->RemoveObserver(&observer);
 }
 
-class DualLayerUserPrefStorePriorityPrefDecoupleTest
-    : public DualLayerUserPrefStoreTest {
-  base::test::ScopedFeatureList scoped_feature_list_{
-      syncer::kSyncSupportAlwaysSyncingPriorityPreferences};
-};
-
-TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
+TEST_F(DualLayerUserPrefStoreTest,
        ShouldGetAllowlistedPrefFromAccountStoreIfUserToggleIsOff) {
   store()->SetUserSelectedTypesForTest(syncer::UserSelectableTypeSet());
   account_store()->SetValueSilently(kPriorityPrefName,
@@ -3067,7 +3091,7 @@ TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
               testing::Pointee(testing::Eq("account value")));
 }
 
-TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
+TEST_F(DualLayerUserPrefStoreTest,
        ShouldGetRegularPrefFromAccountStoreIfUserToggleIsOn) {
   store()->SetUserSelectedTypesForTest(syncer::UserSelectableTypeSet(
       {syncer::UserSelectableType::kPreferences}));
@@ -3097,8 +3121,7 @@ TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
               testing::Pointee(testing::Eq("account value")));
 }
 
-TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
-       ShouldObserverUserToggleChange) {
+TEST_F(DualLayerUserPrefStoreTest, ShouldObserverUserToggleChange) {
   syncer::TestSyncService sync_service;
   sync_service.GetUserSettings()->SetSelectedTypes(
       /*sync_everything=*/false, syncer::UserSelectableTypeSet());
@@ -3136,8 +3159,7 @@ TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
 
 // Test to verify that the user selected types are loaded from a pref in the
 // local store.
-TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
-       ShouldGetUserSelectedTypesFromLocalStore) {
+TEST_F(DualLayerUserPrefStoreTest, ShouldGetUserSelectedTypesFromLocalStore) {
   // Multiple types.
   local_store()->SetValueSilently(kUserSelectedTypesPrefName,
                                   base::Value(base::ListValue()
@@ -3159,8 +3181,7 @@ TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
 
 // Test to verify that the user selected types are stored in a pref in the local
 // store.
-TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
-       ShouldSetUserSelectedTypesToLocalStore) {
+TEST_F(DualLayerUserPrefStoreTest, ShouldSetUserSelectedTypesToLocalStore) {
   // Multiple types.
   store()->SetUserSelectedTypesForTest(
       syncer::UserSelectableTypeSet({syncer::UserSelectableType::kPreferences,
@@ -3180,7 +3201,7 @@ TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
 
 // Test to verify that the user selected types pref is cleared from the local
 // store upon sync stop.
-TEST_F(DualLayerUserPrefStorePriorityPrefDecoupleTest,
+TEST_F(DualLayerUserPrefStoreTest,
        ShouldClearUserSelectedTypesIfLocalStoreUponSyncStop) {
   store()->SetUserSelectedTypesForTest(
       syncer::UserSelectableTypeSet({syncer::UserSelectableType::kPreferences,

@@ -291,6 +291,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, HelpPage) {
   RunTest("settings/help_page_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, HomeUrlInput) {
+  RunTest("settings/home_url_input_test.js", "mocha.run()");
+}
+
 #if !BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(SettingsTest, ImportDataDialog) {
   RunTest("settings/import_data_dialog_test.js", "mocha.run()");
@@ -420,7 +424,13 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyPageIndex) {
           "runMochaSuite('PrivacyPageIndex Main')");
 }
 
-IN_PROC_BROWSER_TEST_F(SettingsTest, PrivacyPageIndexSiteSettings) {
+// TODO(crbug.com/533057215): Flaky on Linux and ChromeOS debug builds.
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX)
+#define MAYBE_PrivacyPageIndexSiteSettings DISABLED_PrivacyPageIndexSiteSettings
+#else
+#define MAYBE_PrivacyPageIndexSiteSettings PrivacyPageIndexSiteSettings
+#endif
+IN_PROC_BROWSER_TEST_F(SettingsTest, MAYBE_PrivacyPageIndexSiteSettings) {
   RunTest("settings/privacy_page_index_test.js",
           "runMochaSuite('PrivacyPageIndex SiteSettings')");
 }
@@ -1052,6 +1062,11 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SearchableViewContainerMixin) {
   RunTest("settings/searchable_view_container_mixin_test.js", "mocha.run()");
 }
 
+IN_PROC_BROWSER_TEST_F(SettingsTest, SearchableViewContainerMixinLit) {
+  RunTest("settings/searchable_view_container_mixin_lit_test.js",
+          "mocha.run()");
+}
+
 IN_PROC_BROWSER_TEST_F(SettingsTest, SearchEngineEditDialog) {
   RunTest("settings/search_engine_edit_dialog_test.js", "mocha.run()");
 }
@@ -1137,6 +1152,10 @@ IN_PROC_BROWSER_TEST_F(SettingsTest, SettingsCategoryDefaultRadioGroup) {
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, SettingsMenu) {
   RunTest("settings/settings_menu_test.js", "mocha.run()");
+}
+
+IN_PROC_BROWSER_TEST_F(SettingsTest, SettingsRadioGroup) {
+  RunTest("settings/settings_radio_group_test.js", "mocha.run()");
 }
 
 IN_PROC_BROWSER_TEST_F(SettingsTest, SimpleConfirmationDialog) {

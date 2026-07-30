@@ -120,6 +120,21 @@ suite('SettingsMenuElement', () => {
         assertEquals(8, submenuEvents);
       });
 
+  test('with improved read aloud flag enabled', async () => {
+    chrome.readingMode.isImprovedReadAloudEnabled = true;
+    chrome.readingMode.isImmersiveEnabled = true;
+    settingsMenu.isImmersiveMode = true;
+    await microtasksFinished();
+
+    const actionMenu = settingsMenu.$.lazyMenu.get();
+    const menuItems =
+        Array.from(actionMenu.querySelectorAll<HTMLButtonElement>('.menu-row'));
+    const ids = menuItems.map(item => item.id);
+    assertTrue(ids.includes(SettingsOption.APPEARANCE));
+    assertFalse(ids.includes(SettingsOption.COLOR));
+    assertFalse(ids.includes(SettingsOption.PRESENTATION));
+  });
+
   test('links event is fired when links item is clicked', async () => {
     const actionMenu = settingsMenu.$.lazyMenu.get();
     const menuItems =
@@ -459,5 +474,90 @@ suite('SettingsMenuElement', () => {
     const pinnedPrevious = pinnedToggle.previousElementSibling;
     assertTrue(!!pinnedPrevious);
     assertNotEquals('HR', pinnedPrevious.tagName);
+  });
+
+  test(
+      'improved read aloud menu requires both isImprovedReadAloudEnabled and ' +
+          'isImmersiveEnabled',
+      async () => {
+        chrome.readingMode.isImprovedReadAloudEnabled = true;
+        chrome.readingMode.isImmersiveEnabled = false;
+        settingsMenu.settingsPrefs = {...settingsMenu.settingsPrefs};
+        await microtasksFinished();
+
+        const actionMenu = settingsMenu.$.lazyMenu.get();
+        let menuItems = Array.from(
+            actionMenu.querySelectorAll<HTMLButtonElement>('.menu-row'));
+        assertTrue(
+            !menuItems.find(item => item.id === SettingsOption.APPEARANCE));
+        assertTrue(!!menuItems.find(item => item.id === SettingsOption.COLOR));
+
+        chrome.readingMode.isImprovedReadAloudEnabled = true;
+        chrome.readingMode.isImmersiveEnabled = true;
+        settingsMenu.settingsPrefs = {...settingsMenu.settingsPrefs};
+        await microtasksFinished();
+
+        menuItems = Array.from(
+            actionMenu.querySelectorAll<HTMLButtonElement>('.menu-row'));
+        assertTrue(
+            !!menuItems.find(item => item.id === SettingsOption.APPEARANCE));
+        assertTrue(!menuItems.find(item => item.id === SettingsOption.COLOR));
+
+        chrome.readingMode.isImprovedReadAloudEnabled = false;
+        chrome.readingMode.isImmersiveEnabled = true;
+        settingsMenu.settingsPrefs = {...settingsMenu.settingsPrefs};
+        await microtasksFinished();
+
+        menuItems = Array.from(
+            actionMenu.querySelectorAll<HTMLButtonElement>('.menu-row'));
+        assertTrue(
+            !menuItems.find(item => item.id === SettingsOption.APPEARANCE));
+        assertTrue(!!menuItems.find(item => item.id === SettingsOption.COLOR));
+      });
+
+  test('translate action fires event when clicked', async () => {
+    chrome.readingMode.isReadAnythingTranslateEntryPointEnabled = true;
+    settingsMenu.settingsPrefs = {...settingsMenu.settingsPrefs};
+    await microtasksFinished();
+
+    const actionMenu = settingsMenu.$.lazyMenu.get();
+    const menuItems =
+        Array.from(actionMenu.querySelectorAll<HTMLButtonElement>('.menu-row'));
+    const translateItem = menuItems.find(
+        item => item.id === SettingsOption.TRANSLATION_REQUESTED);
+    assertTrue(!!translateItem);
+
+    const whenFired =
+        eventToPromise(ToolbarEvent.TRANSLATION_REQUESTED, settingsMenu);
+    translateItem.click();
+    await whenFired;
+    assertFalse(actionMenu.open);
+  });
+
+  test('clicking translate closes open submenu', async () => {
+    chrome.readingMode.isReadAnythingTranslateEntryPointEnabled = true;
+    settingsMenu.settingsPrefs = {...settingsMenu.settingsPrefs};
+    await microtasksFinished();
+
+    const actionMenu = settingsMenu.$.lazyMenu.get();
+    const menuItems =
+        Array.from(actionMenu.querySelectorAll<HTMLButtonElement>('.menu-row'));
+    const fontItem = menuItems.find(item => item.id === SettingsOption.FONT);
+    const translateItem = menuItems.find(
+        item => item.id === SettingsOption.TRANSLATION_REQUESTED);
+    assertTrue(!!fontItem);
+    assertTrue(!!translateItem);
+
+    // Click fontItem to open its submenu.
+    fontItem.click();
+    await microtasksFinished();
+
+    const whenFired = eventToPromise<CustomEvent<{previousId: SettingsOption}>>(
+        ToolbarEvent.CLOSE_SUBMENU_REQUESTED, settingsMenu);
+
+    // Now click the Translate action item.
+    translateItem.click();
+    const event = await whenFired;
+    assertEquals(SettingsOption.FONT, event.detail.previousId);
   });
 });

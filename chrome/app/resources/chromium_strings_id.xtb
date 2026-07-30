@@ -27,14 +27,12 @@
 <translation id="126567311906253476">Saat login ke layanan Google seperti Gmail atau YouTube dengan <ph name="USER_EMAIL" />, Anda dapat login otomatis ke Chromium dengan akun yang sama</translation>
 <translation id="1287534462498555020">Dapatkan Chromium di ponsel</translation>
 <translation id="1290883685122687410">Kesalahan saat penyiapan: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
-<translation id="1312200348844120300">Ilustrasi yang menunjukkan cara menggunakan Penelusuran Gambar untuk mencari produk</translation>
 <translation id="1315551408014407711">Siapkan profil Chromium baru Anda</translation>
 <translation id="132092532143527429">Coba dengan Gemini di Chromium</translation>
 <translation id="1324107359134968521">Chromium memerlukan akses Bluetooth untuk menjelajah 
  perangkat Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1329040302064168406">Login ke Chromium di ponsel Anda</translation>
 <translation id="1330562121671411446">Deteksi bahasa</translation>
-<translation id="1330742950061766891">Gunakan setelan browser yang direkomendasikan Chromium</translation>
 <translation id="1342274909142618978">Hapus juga data dari Chromium (<ph name="URL" />)</translation>
 <translation id="1345251407431278948">Disematkan. Anda dapat mengakses Penelusuran Gambar lagi dari tombol baru di toolbar</translation>
 <translation id="1356661055722410047">Baru! Anda dapat menerjemahkan teks dan gambar di layar</translation>
@@ -97,6 +95,7 @@
 <translation id="2018879682492276940">Gagal menginstal. Coba lagi.</translation>
 <translation id="2039417478970545937">Setelan.</translation>
 <translation id="2049376729098081731">Pilih apakah akan menyertakan histori Chromium untuk mendapatkan pengalaman yang lebih dipersonalisasi di layanan Google</translation>
+<translation id="2050698962207788467">Diintegrasikan dalam Chromium untuk membantu Anda membuat, menyimpan, dan mengisi otomatis sandi kuat. Tambahkan pintasan untuk memudahkan akses.</translation>
 <translation id="2064856577282482477">Klik tombol Sesuaikan Chromium di Halaman Tab Baru untuk memberikan tampilan baru pada Chromium</translation>
 <translation id="2066690553719545730">Selalu Tampilkan Mode AI</translation>
 <translation id="2086476982681781442">Chromium memblokir download ini karena file tersebut tidak jujur dan dapat menyebabkan perubahan tidak terduga di perangkat Anda</translation>
@@ -232,7 +231,6 @@
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">Beralih ke profil Chromium yang sudah ada?</translation>
 <translation id="3412460710772753638">Di Pengelola Sandi di perangkat ini</translation>
-<translation id="3423442168617177595">Diintegrasikan dalam Chromium untuk membantu Anda membuat, menyimpan, dan mengisi otomatis sandi kuat. Tambahkan pintasan untuk memudahkan akses</translation>
 <translation id="3455907671758333080">Manfaatkan Safe Browsing yang Disempurnakan dengan Chromium di ponsel</translation>
 <translation id="3461644266919055473">Personalisasi Chromium untuk Anda...</translation>
 <translation id="3474745554856756813">Tindakan ini akan menghapus <ph name="ITEMS_COUNT" /> item dari perangkat. Untuk mengambil data nanti, login ke Chromium sebagai <ph name="USER_EMAIL" />.</translation>
@@ -426,6 +424,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="5768371961535086509">Chromium akan membebaskan memori dari tab yang tidak aktif. Tindakan ini akan memberikan lebih banyak resource komputer untuk tab aktif dan aplikasi lainnya, serta menjaga Chromium tetap cepat. Tab yang tidak aktif akan otomatis menjadi aktif lagi saat Anda kembali ke tab tersebut. <ph name="BEGIN_LINK" />Pelajari lebih lanjut Penghemat Memori<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">Jika lupa frasa sandi atau ingin mengubah setelan ini, <ph name="SETTINGS_LINK" /> data Chromium di akun Anda</translation>
 <translation id="5800158606660203929">Sesuaikan dan kontrol Chromium. Setel Chromium sebagai browser default.</translation>
+<translation id="5802618941556161431">Selalu sinkronkan sandi, bookmark, dan histori lintas perangkat dengan menyetel Chromium sebagai browser default Anda.</translation>
 <translation id="5809516625706423866">Tidak dapat terhubung ke internet. HTTP 401 Tidak Sah. Periksa konfigurasi proxy Anda.</translation>
 <translation id="5817952762723416573">Mempercepat situs dengan mesin V8 Chromium, tetapi membuat Chromium sedikit lebih rentan terhadap serangan. Setelan ini nonaktif.</translation>
 <translation id="5821520528363214608">Untuk menggunakan dan menyimpan data Chromium di Akun Google Anda, update Chromium</translation>
@@ -495,7 +494,6 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="6400112897226594999">Logo Chromium di dalam layar komputer.</translation>
 <translation id="6403826409255603130">Chromium adalah browser web yang menjalankan halaman web dan aplikasi dengan kecepatan kilat. Browser ini cepat, stabil, dan mudah digunakan. Jelajahi web lebih aman dengan perlindungan dari software perusak dan phishing yang tertanam di dalam Chromium.</translation>
 <translation id="6414624068245092115">Untuk memastikan Anda selalu dapat menggunakan dan menyimpan data Chromium di Akun Google Anda, verifikasi diri Anda</translation>
-<translation id="6417332166651156371">Gambar sederhana yang menampilkan titik entri Pengelola Sandi di Chromium</translation>
 <translation id="642132557830635295">Chromium berjalan lebih cepat dan fitur yang menggunakan JavaScript akan berfungsi sebagaimana mestinya</translation>
 <translation id="6436260184216827876">Penelusuran Gambar tidak tersedia. Coba lagi nanti.</translation>
 <translation id="6442900851116057561">Mulai ulang ChromiumOS</translation>

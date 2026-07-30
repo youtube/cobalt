@@ -72,6 +72,7 @@
 <translation id="4233778200880751280">'<ph name="ABOUT_PAGE" />' Тухай хуудсыг ачаалж чадсангүй.</translation>
 <translation id="424963718355121712">Аппыг нөлөөлдөг толгой компьютероос нь ажиллуулах шаардлагатай</translation>
 <translation id="4306119971288449206">Аппыг заавал "<ph name="CONTENT_TYPE" />" агуулгын төрөлтэй ажиллуулах шаардлагатай</translation>
+<translation id="4349181963619779233">Энэ вебсайтаас өргөтгөл, апп нэмэх боломжгүй</translation>
 <translation id="4625078469366263107">Аппыг идэвхжүүлэх</translation>
 <translation id="4633003931260532286">Өргөтгөлд хамгийн бага "<ph name="IMPORT_VERSION" />" хувилбартай "<ph name="IMPORT_NAME" />" шаардлагатай хэдий ч зөвхөн "<ph name="INSTALLED_VERSION" />" хувилбарыг суулгасан байна</translation>
 <translation id="4660476621274971848">"<ph name="EXPECTED_VERSION" />" хувилбарыг шаардсан хэдий ч "<ph name="NEW_ID" />" хувилбар байсан</translation>
@@ -122,7 +123,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">Хувийн түлхүүрийн оролтын утга хүчинтэй формат байх ёстой (PKCS#8-формат PEM-кодолсон RSA түлхүүр).</translation>
-<translation id="765293928828334535">Энэ вебсайтаас апп, өргөтгөлүүд болон хэрэглэгчийн скриптийг нэмэх боломжгүй</translation>
 <translation id="7658239707568436148">Болих</translation>
 <translation id="7766838926148951335">Зөвшөөрлийг зөвшөөрөх</translation>
 <translation id="7876803335449432072">Контентын скриптэд зориулж '<ph name="RELATIVE_PATH" />' файлыг ачаалж чадсангүй. Контентын скриптийн style sheet-г зөвхөн .css файл зэрэг дэмжигдсэн style sheet файлаас ачаалж болно.</translation>

@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_UI_WEBUI_WEBUI_TOOLBAR_WEBUI_TOOLBAR_EXTENSIONS_CONTAINER_H_
 
 #include <map>
+#include <string_view>
 
 #include "base/observer_list_types.h"
 #include "base/scoped_observation.h"
@@ -21,6 +22,7 @@
 
 class BrowserWindowInterface;
 class ExtensionsMenuCoordinator;
+class WebUIToolbarWebViewBrowserTest;
 
 namespace webui_toolbar {
 class IconTable;
@@ -87,6 +89,17 @@ class WebUIToolbarExtensionsContainer
   void NotifyOfAllActions();
   void NotifyOfOneAction(const ToolbarActionsModel::ActionId& action_id);
 
+  // Returns the ElementIdentifier for the extension button with
+  // `extension_id`, or kExtensionsMenuButtonElementId if `extension_id` is
+  // empty.
+  static ui::ElementIdentifier GetElementId(std::string_view extension_id);
+
+  // Returns the TrackedElement representing the anchor for the extension button
+  // with `extension_id`, or the extensions menu button (puzzle piece) if
+  // `extension_id` is empty. Returns nullptr if the element has not registered
+  // yet (e.g. while animating in).
+  ui::TrackedElement* GetExtensionAnchor(std::string_view extension_id) const;
+
   // extensions_bar::mojom::PageHandler:
   void ExecuteUserAction(const std::string& id) override;
   void ShowContextMenu(ui::mojom::MenuSourceType source,
@@ -94,6 +107,9 @@ class WebUIToolbarExtensionsContainer
   void ToggleExtensionsMenuFromWebUI() override;
 
  private:
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewBrowserTest,
+                           ExtensionUserActionsPlumbing);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewBrowserTest, ExtensionAnchoring);
   class ActionInfo;
   class ContextMenu;
 

@@ -35,6 +35,7 @@ import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_C
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_IS_SNACKBAR_SHOWN;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_TIP_BOTTOM_SHEET_SHOWN_TIMESTAMP_MS;
+import static org.chromium.chrome.browser.url_constants.UrlOverrideUtils.isWebUiNtpOverrideEnabled;
 import static org.chromium.components.browser_ui.styles.SemanticColorUtils.getDefaultIconColor;
 
 import android.app.Activity;
@@ -74,7 +75,6 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.IntentUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
-import org.chromium.base.TimeUtils;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.task.AsyncTask;
 import org.chromium.base.task.BackgroundOnlyAsyncTask;
@@ -114,6 +114,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
+import java.nio.file.Paths;
 import java.util.concurrent.Executor;
 
 /** Utility class of the NTP customization. */
@@ -169,15 +170,10 @@ public class NtpCustomizationUtils {
         }
     }
 
-    /** The time duration limit to refresh NTP's background. */
-    @VisibleForTesting
-    static final long DEFAULT_DAILY_REFRESH_HOURS_MS = TimeUtils.MILLISECONDS_PER_DAY;
+    public static final String NTP_UPLOAD_IMAGES_DIR = "upload_images";
+    public static final String NTP_THEME_COLLECTION_IMAGES_DIR = "theme_collection_images";
 
     @VisibleForTesting static final String NTP_BACKGROUND_IMAGE_FILE = "ntp_background_image";
-    @VisibleForTesting static final String NTP_UPLOAD_IMAGES_DIR = "upload_images";
-
-    @VisibleForTesting
-    static final String NTP_THEME_COLLECTION_IMAGES_DIR = "theme_collection_images";
 
     @VisibleForTesting
     static final String NTP_BACKGROUND_IMAGE_FILE_FOR_DAILY_REFRESH =
@@ -329,6 +325,10 @@ public class NtpCustomizationUtils {
     public static boolean isNtpThemeCustomizationEnabled(
             WindowAndroid windowAndroid, boolean isLff) {
         if (!isNtpThemeCustomizationEnabled()) {
+            return false;
+        }
+
+        if (isWebUiNtpOverrideEnabled()) {
             return false;
         }
 
@@ -627,26 +627,12 @@ public class NtpCustomizationUtils {
     }
 
     /**
-     * Creates a file for the upload image with provided file name. The file will be in the sub
-     * directory NTP_UPLOAD_IMAGES_DIR.
+     * Creates a file for the background theme image with provided file name. The file will be in
+     * the sub directory of dirName.
      *
      * @param fileName The file name of the upload image file to create.
      */
-    public static File createUploadImageFileInDir(String fileName) {
-        return createThemeImageFileInDir(fileName, NTP_UPLOAD_IMAGES_DIR);
-    }
-
-    /**
-     * Creates a file for the theme collection image with provided file name. The file will be in
-     * the sub directory NTP_THEME_COLLECTION_IMAGES_DIR.
-     *
-     * @param fileName The file name of the upload image file to create.
-     */
-    public static File createThemeCollectionImageFileInDir(String fileName) {
-        return createThemeImageFileInDir(fileName, NTP_THEME_COLLECTION_IMAGES_DIR);
-    }
-
-    private static File createThemeImageFileInDir(String fileName, String dirName) {
+    public static File createThemeImageFileInDir(String fileName, String dirName) {
         File themeImageDir = new File(ContextUtils.getApplicationContext().getFilesDir(), dirName);
         // Check if the directory already exists; if not, create it.
         if (!themeImageDir.exists()) {
@@ -654,6 +640,21 @@ public class NtpCustomizationUtils {
         }
 
         return new File(themeImageDir, fileName);
+    }
+
+    /**
+     * Gets the original file ID hash from the path of the image file.
+     *
+     * @param filePath The absolute file path of the image file.
+     */
+    public static @Nullable String getFileIdHashFromFilePath(@Nullable String filePath) {
+        if (filePath == null
+                || filePath.isEmpty()
+                || filePath.endsWith(NTP_BACKGROUND_IMAGE_FILE)) {
+            return null;
+        }
+
+        return Paths.get(filePath).getFileName().toString();
     }
 
     /** Returns the file to save the NTP's daily refresh background image. */
@@ -687,17 +688,8 @@ public class NtpCustomizationUtils {
         }
     }
 
-    /** Deletes the entire directory of NTP_UPLOAD_IMAGES_DIR. */
-    public static void deleteUploadImageFileDir() {
-        deleteThemeImageFileDir(NTP_UPLOAD_IMAGES_DIR);
-    }
-
-    /** Deletes the entire directory of NTP_THEME_COLLECTION_IMAGES_DIR. */
-    public static void deleteThemeCollectionImageFileDir() {
-        deleteThemeImageFileDir(NTP_THEME_COLLECTION_IMAGES_DIR);
-    }
-
-    private static void deleteThemeImageFileDir(String dirName) {
+    /** Deletes the entire image file directory. */
+    public static void deleteThemeImageFileDir(String dirName) {
         File themeImageDir = new File(ContextUtils.getApplicationContext().getFilesDir(), dirName);
         if (themeImageDir.exists()) {
             deleteDirectory(themeImageDir);
@@ -1132,8 +1124,8 @@ public class NtpCustomizationUtils {
         if (deleteImageFile) {
             deleteBackgroundImageFile(createBackgroundImageFile());
             deleteBackgroundImageFile(createDailyRefreshBackgroundImageFile());
-            deleteUploadImageFileDir();
-            deleteThemeCollectionImageFileDir();
+            deleteThemeImageFileDir(NTP_UPLOAD_IMAGES_DIR);
+            deleteThemeImageFileDir(NTP_THEME_COLLECTION_IMAGES_DIR);
         }
     }
 
@@ -1735,8 +1727,9 @@ public class NtpCustomizationUtils {
         ntpCustomizationButton.setLayoutParams(layoutParams);
 
         ntpCustomizationButton.setOnClickListener(onClickListener);
-        ntpCustomizationButton.setContentDescription(
-                context.getString(R.string.ntp_customization_title));
+        String contentDescription = context.getString(R.string.ntp_customization_title);
+        ntpCustomizationButton.setContentDescription(contentDescription);
+        ntpCustomizationButton.setTooltipText(contentDescription);
 
         return ntpCustomizationButton;
     }
@@ -1842,5 +1835,25 @@ public class NtpCustomizationUtils {
     public static boolean isNTPCustomizationSyncEnabled() {
         return ChromeFeatureList.sNewTabPageCustomizationV2.isEnabled()
                 && ChromeFeatureList.sNewTabPageCustomizationThemeSync.isEnabled();
+    }
+
+    /**
+     * Creates a file for the upload image with provided file name. The file will be in the sub
+     * directory NTP_UPLOAD_IMAGES_DIR.
+     *
+     * @param fileName The file name of the upload image file to create.
+     */
+    public static File createUploadImageFileInDirForTesting(String fileName) {
+        return createThemeImageFileInDir(fileName, NTP_UPLOAD_IMAGES_DIR);
+    }
+
+    /**
+     * Creates a file for the theme collection image with provided file name. The file will be in
+     * the sub directory NTP_THEME_COLLECTION_IMAGES_DIR.
+     *
+     * @param fileName The file name of the upload image file to create.
+     */
+    public static File createThemeCollectionImageFileInDirForTesting(String fileName) {
+        return createThemeImageFileInDir(fileName, NTP_THEME_COLLECTION_IMAGES_DIR);
     }
 }

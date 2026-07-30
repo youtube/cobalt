@@ -10,6 +10,7 @@ import android.animation.Animator;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.res.ColorStateList;
+import android.content.res.Resources;
 import android.graphics.Color;
 import android.graphics.Rect;
 import android.util.AttributeSet;
@@ -781,21 +782,11 @@ class BottomSheet extends FrameLayout
         mIsSheetOpen = false;
 
         for (BottomSheetObserver o : mObservers) o.onSheetClosed(reason);
-        // If the sheet contents are cleared out before #onSheetClosed is called, do not try to
-        // retrieve the accessibility string.
-        if (getCurrentSheetContent() != null) {
-            updateA11yPaneTitle(
-                    getResources()
-                            .getString(
-                                    getCurrentSheetContent()
-                                            .getSheetClosedAccessibilityStringId()));
-        }
-        clearFocus();
 
+        clearFocus();
         setFocusable(false);
         setFocusableInTouchMode(false);
         setContentDescription(null);
-        sendPaneChangeAccessibilityEvent(false);
     }
 
     /** Cancels and nulls the height animation if it exists. */
@@ -849,8 +840,10 @@ class BottomSheet extends FrameLayout
         mSettleAnimator.start();
     }
 
-    /** @return Get the height in px that the sheet is offset due to the browser controls. */
-    private float getOffsetFromBrowserControls() {
+    /**
+     * @return Get the height in px that the sheet is offset due to the browser controls.
+     */
+    float getOffsetFromBrowserControls() {
         if (mSheetContent == null || !mSheetContent.hideOnScroll()) return 0;
 
         // We only care about peek/half state.
@@ -901,7 +894,20 @@ class BottomSheet extends FrameLayout
         // Ensure we don't over translate the bottom container.
         translationY = Math.max(0, translationY);
 
-        if (isSheetOpen() && MathUtils.areFloatsEqual(translationY, getTranslationY())) return;
+        updateViewport();
+        boolean translationChanged = !MathUtils.areFloatsEqual(translationY, getTranslationY());
+        boolean heightNeedsUpdate = false;
+        if (isFullHeightResizeContent()) {
+            @Px float minContentHeight = getSheetHeightForState(SheetState.HALF);
+            @Px int newHeight = (int) Math.max(minContentHeight, mCurrentOffsetPx);
+            newHeight = Math.min(mVisibleViewportRect.height(), newHeight);
+            var params = mBottomSheetContentContainer.getLayoutParams();
+            if (params != null && params.height != newHeight) {
+                heightNeedsUpdate = true;
+            }
+        }
+
+        if (isSheetOpen() && !translationChanged && !heightNeedsUpdate) return;
 
         setTranslationY(translationY);
 
@@ -1177,13 +1183,8 @@ class BottomSheet extends FrameLayout
 
         cancelAnimation();
         mTargetState = state;
-        if (getCurrentSheetContent() != null
-                && (state == SheetState.HALF || state == SheetState.FULL)) {
-            @StringRes
-            int resId =
-                    state == SheetState.FULL
-                            ? getCurrentSheetContent().getSheetFullHeightAccessibilityStringId()
-                            : getCurrentSheetContent().getSheetHalfHeightAccessibilityStringId();
+        if (getCurrentSheetContent() != null) {
+            @StringRes int resId = getAccessibilityStringIdForState(state);
             updateA11yPaneTitle(getResources().getString(resId));
         }
 
@@ -1198,10 +1199,26 @@ class BottomSheet extends FrameLayout
         }
     }
 
+    private @StringRes int getAccessibilityStringIdForState(@SheetState int state) {
+        assert getCurrentSheetContent() != null : "Sheet content cannot be null";
+        switch (state) {
+            case SheetState.PEEK:
+                return getCurrentSheetContent().getSheetClosedAccessibilityStringId();
+            case SheetState.HALF:
+                return getCurrentSheetContent().getSheetHalfHeightAccessibilityStringId();
+            case SheetState.FULL:
+                return getCurrentSheetContent().getSheetFullHeightAccessibilityStringId();
+            case SheetState.HIDDEN:
+                return getCurrentSheetContent().getSheetHiddenAccessibilityStringId();
+            default:
+                assert false : "Invalid sheet state: " + state;
+                return Resources.ID_NULL;
+        }
+    }
+
     /**
      * @return The target state that the sheet is moving to during animation. If the sheet is
-     *         stationary or a target state has not been determined, SheetState.NONE will be
-     *         returned.
+     *     stationary or a target state has not been determined, SheetState.NONE will be returned.
      */
     int getTargetSheetState() {
         return mTargetState;
@@ -1280,8 +1297,9 @@ class BottomSheet extends FrameLayout
 
             setContentDescription(contentDescription);
             if (getFocusedChild() == null) requestFocus();
-            sendPaneChangeAccessibilityEvent(true);
         }
+
+        sendPaneChangeAccessibilityEvent(mCurrentState != SheetState.HIDDEN);
 
         for (BottomSheetObserver o : mObservers) {
             o.onSheetStateChanged(mCurrentState, reason);

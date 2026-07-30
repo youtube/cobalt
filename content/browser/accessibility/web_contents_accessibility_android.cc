@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-
 #include "content/browser/accessibility/web_contents_accessibility_android.h"
 
 #include <algorithm>
@@ -46,6 +45,7 @@
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_node_id_forward.h"
 #include "ui/accessibility/ax_range.h"
+#include "ui/accessibility/ax_role_properties.h"
 #include "ui/accessibility/ax_selection.h"
 #include "ui/accessibility/platform/ax_android_constants.h"
 #include "ui/accessibility/platform/browser_accessibility.h"
@@ -541,22 +541,46 @@ ScopedJavaLocalRef<jobject> ToJavaStringRangesMap(
       ranges_count);
 }
 
-// If `node` is or is under an editable, returns the highest editable parent,
-// otherwise returns null.
-ui::AXNode* GetRootEditable(ui::AXNode* node) {
+// Returns the selection context boundary node (editable text field or collapsed
+// control widget), or nullptr if the node is in the main document.
+//
+// RATIONALE:
+// This function resolves the enclosing selection context container. Chromium
+// has the following selection restrictions:
+// 1. Text Fields (Editable Regions / Root Editables): A selection is allowed to
+//    start and end inside the same editable text field, but cannot span from
+//    one editable field to another, or cross in/out of an editable field
+//    boundary. Thus, we return the root editable node (IsAtomicTextField() or
+//    kNonAtomicTextFieldRoot) representing the local text editing scope.
+// 2. Collapsed Widgets: DOM selections (SelectionInDomTree) cannot cross
+//    user-agent shadow root boundaries (e.g. outside into a collapsed dropdown
+//    option element). These collapsed controls (exposed via
+//    HasState(ax::mojom::State::kCollapsed)) act as selection boundaries. Thus,
+//    we return the containing control widget node to block selections crossing
+//    control boundary edges. Selection into layouted non-collapsed controls
+//    (like visible listboxes) is valid and does not cross shadow boundaries.
+// If selection endpoints do not share the exact same selection context node,
+// the select request should be rejected early in the browser process.
+ui::AXNode* GetSelectionContext(ui::AXNode* node) {
   while (node) {
     if (node->data().IsAtomicTextField() ||
         node->data().GetBoolAttribute(
             ax::mojom::BoolAttribute::kNonAtomicTextFieldRoot)) {
       return node;
     }
+    if (ui::IsControl(node->GetRole())) {
+      if (node->HasState(ax::mojom::State::kCollapsed)) {
+        return node;
+      }
+    }
     node = node->parent();
   }
-  return node;
+  return nullptr;
 }
 
-// Selection is not valid if it is cross documents, or its start and end have
-// different root editable nodes.
+// Selection is not valid if it crosses document boundaries, or if its start and
+// end positions belong to different selection contexts (e.g. crossing widget
+// boundaries or different editable inputs).
 // These restrictions are primarily validated in `blink::AXSelection::IsValid()`
 // for atomic text fields and in `blink::AssertUserSelection` in general, and
 // are based on the behavior in `blink::SelectionAdjuster` class.
@@ -574,11 +598,11 @@ bool IsSelectionValid(
     return true;
   }
 
-  ui::AXNode* start_root_editable =
-      GetRootEditable(start_position->GetAnchor());
-  ui::AXNode* end_root_editable = GetRootEditable(end_position->GetAnchor());
-
-  return start_root_editable == end_root_editable;
+  // Ensure that both endpoints belong to the exact same selection context
+  // (e.g., both are in the main document, or both are inside the same text
+  // input or select widget).
+  return GetSelectionContext(start_position->GetAnchor()) ==
+         GetSelectionContext(end_position->GetAnchor());
 }
 
 std::optional<ExtendedSelectionOffsetType> AsExtendedSelectionOffsetType(
@@ -1572,7 +1596,8 @@ void WebContentsAccessibilityAndroid::
       node->IsFocusable(), node->IsFocused(), node->IsCollapsed(),
       node->IsExpanded(), node->HasNonEmptyValue(),
       !node->GetTextContentUTF16().empty(), node->IsSeekControl(),
-      node->IsFormDescendant());
+      node->IsFormDescendant(), !node->GetAndroidTooltipText().empty(),
+      tooltip_showing_node_id_ == unique_id);
 }
 
 void WebContentsAccessibilityAndroid::
@@ -2288,6 +2313,34 @@ void WebContentsAccessibilityAndroid::ShowContextMenu(JNIEnv* env,
   if (node) {
     node->manager()->ShowContextMenu(*node);
   }
+}
+
+bool WebContentsAccessibilityAndroid::ShowTooltip(JNIEnv* env,
+                                                  int32_t unique_id) {
+  BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
+  if (node) {
+    node->manager()->ShowTooltip(*node);
+    tooltip_showing_node_id_ = unique_id;
+    return true;
+  }
+  return false;
+}
+
+bool WebContentsAccessibilityAndroid::HideTooltip(JNIEnv* env,
+                                                  int32_t unique_id) {
+  BrowserAccessibilityAndroid* node = GetAXFromUniqueID(unique_id);
+  if (node) {
+    node->manager()->HideTooltip(*node);
+    if (tooltip_showing_node_id_ == unique_id) {
+      tooltip_showing_node_id_ = 0;
+    }
+    return true;
+  }
+  return false;
+}
+
+void WebContentsAccessibilityAndroid::OnTooltipCleared() {
+  tooltip_showing_node_id_ = 0;
 }
 
 int32_t WebContentsAccessibilityAndroid::FindElementType(

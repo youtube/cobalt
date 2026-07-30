@@ -14,7 +14,7 @@
 #include "base/memory/ref_counted.h"
 #include "content/common/content_export.h"
 #include "content/public/browser/webid/identity_request_account.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom-forward.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "url/gurl.h"
 #include "url/origin.h"
@@ -335,9 +335,6 @@ class CONTENT_EXPORT IdentityRequestDialogController {
 
   // Notifies when the autofill data source is ready to be queried.
   virtual void NotifyAutofillSourceReadyForTesting();
-
-  // Whether UI has been shown or not.
-  virtual bool DidShowUi() const;
 
  protected:
   bool is_interception_enabled_{false};

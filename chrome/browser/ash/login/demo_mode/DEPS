@@ -22,7 +22,6 @@ include_rules = [
   "+chrome/browser/ash/login",
   "+chrome/browser/ash/policy/core",
   "+chrome/browser/ash/policy/enrollment",
-  "+chrome/browser/ash/profiles",
   "+chrome/browser/ash/settings",
   "+chrome/browser/ash/system_web_apps",
   "+chrome/browser/ash/wallpaper_handlers",
@@ -43,6 +42,7 @@ include_rules = [
 
 specific_include_rules = {
   ".*test(|_.*)\\.(cc|h)": [
+    "+chrome/browser/ash/browser_delegate/browser_delegate.h",
     "+chrome/browser/ash/browser_delegate/browser_controller_impl.h",
     "+chrome/browser/ui/browser.h",
     "+chrome/browser/ui/browser_window/public/global_browser_collection.h",
@@ -57,7 +57,7 @@ specific_include_rules = {
     "+chrome/browser/global_features.h",
   ],
   "demo_session\\.cc": [
-    "+chrome/grit",
+    "+ash/login/resources/grit"
   ],
   "demo_setup_browsertest\\.cc": [
     "+chrome/grit",

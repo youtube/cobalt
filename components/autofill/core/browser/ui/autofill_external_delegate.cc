@@ -64,6 +64,7 @@
 #include "components/autofill/core/browser/metrics/autofill_metrics_utils.h"
 #include "components/autofill/core/browser/metrics/loyalty_cards_metrics.h"
 #include "components/autofill/core/browser/metrics/suggestions_list_metrics.h"
+#include "components/autofill/core/browser/payments/ai_card_recommendation_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_manager.h"
 #include "components/autofill/core/browser/payments/bnpl_util.h"
 #include "components/autofill/core/browser/payments/credit_card_access_manager.h"
@@ -211,6 +212,7 @@ bool HasAutofillSuggestionsForA11y(SuggestionType type) {
     case SuggestionType::kAccountStoragePasswordEntry:
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
+    case SuggestionType::kAtMemoryAiDisclosure:
     case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kAtMemoryNoConnection:
@@ -218,6 +220,7 @@ bool HasAutofillSuggestionsForA11y(SuggestionType type) {
     case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplEntry:
     case SuggestionType::kBnplFootnote:
@@ -244,6 +247,7 @@ bool HasAutofillSuggestionsForA11y(SuggestionType type) {
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kManageEnhancedAutofill:
     case SuggestionType::kMaximizeCreditCardBenefitsEntry:
     case SuggestionType::kMixedFormMessage:
     case SuggestionType::kOpenGemini:
@@ -306,6 +310,7 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kAccountStoragePasswordEntry:
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
+    case SuggestionType::kAtMemoryAiDisclosure:
     case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kAtMemoryNoConnection:
@@ -314,6 +319,7 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutocompleteEntry:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplEntry:
     case SuggestionType::kBnplFootnote:
@@ -343,6 +349,7 @@ bool AutofillExternalDelegate::IsAutofillAndFirstLayerSuggestionId(
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kManageEnhancedAutofill:
     case SuggestionType::kMaximizeCreditCardBenefitsEntry:
     case SuggestionType::kMerchantPromoCodeEntry:
     case SuggestionType::kMixedFormMessage:
@@ -586,7 +593,8 @@ AutofillExternalDelegate::GetDriver_DoNotUse() {
 }
 
 void AutofillExternalDelegate::OnSuggestionsShown(
-    base::span<const Suggestion> suggestions) {
+    base::span<const Suggestion> suggestions,
+    base::optional_ref<const SuggestionMetadata> parent_suggestion_metadata) {
   // Popups are expected to be Autofill or Autocomplete.
   DCHECK(suggestions.empty() ||
          GetFillingProductFromSuggestionType(suggestions[0].type) !=
@@ -594,23 +602,26 @@ void AutofillExternalDelegate::OnSuggestionsShown(
 
   const DenseSet<SuggestionType> shown_suggestion_types(suggestions,
                                                         &Suggestion::type);
+  const bool is_subpopup = parent_suggestion_metadata.has_value();
 
-  if (std::ranges::any_of(shown_suggestion_types,
-                          HasAutofillSuggestionsForA11y)) {
-    OnAutofillAvailabilityEvent(
-        mojom::AutofillSuggestionAvailability::kAutofillAvailable);
-  } else if (shown_suggestion_types.contains(
-                 SuggestionType::kAutocompleteEntry)) {
-    OnAutofillAvailabilityEvent(
-        mojom::AutofillSuggestionAvailability::kAutocompleteAvailable);
-    if (autofill_metrics::ShouldLogAutofillSuggestionShown(trigger_source_)) {
-      AutofillMetrics::OnAutocompleteSuggestionsShown();
+  if (!is_subpopup) {
+    if (std::ranges::any_of(shown_suggestion_types,
+                            HasAutofillSuggestionsForA11y)) {
+      OnAutofillAvailabilityEvent(
+          mojom::AutofillSuggestionAvailability::kAutofillAvailable);
+    } else if (shown_suggestion_types.contains(
+                   SuggestionType::kAutocompleteEntry)) {
+      OnAutofillAvailabilityEvent(
+          mojom::AutofillSuggestionAvailability::kAutocompleteAvailable);
+      if (autofill_metrics::ShouldLogAutofillSuggestionShown(trigger_source_)) {
+        AutofillMetrics::OnAutocompleteSuggestionsShown();
+      }
     }
   }
 
   manager_->DidShowSuggestions(
-      suggestions, last_query_.form_id, last_query_.field_id,
-      CreateUpdateSuggestionsCallback(), trigger_source_);
+      suggestions, parent_suggestion_metadata, last_query_.form_id,
+      last_query_.field_id, CreateUpdateSuggestionsCallback(), trigger_source_);
 }
 
 void AutofillExternalDelegate::OnSuggestionsHidden(
@@ -727,12 +738,14 @@ void AutofillExternalDelegate::DidSelectSuggestion(
                                                 last_query_.field_id);
       break;
     case SuggestionType::kAllLoyaltyCardsEntry:
+    case SuggestionType::kAtMemoryAiDisclosure:
     case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kAtMemoryNoConnection:
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBnplEntry:
     case SuggestionType::kComposeDisable:
     case SuggestionType::kComposeGoToSettings:
@@ -752,6 +765,7 @@ void AutofillExternalDelegate::DidSelectSuggestion(
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kManageEnhancedAutofill:
     case SuggestionType::kMaximizeCreditCardBenefitsEntry:
     case SuggestionType::kMixedFormMessage:
     // So far OTP suggestions are only available on Android, so no preview
@@ -807,7 +821,6 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       break;
     case SuggestionType::kCreditCardEntry:
     case SuggestionType::kIbanEntry:
-    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
     case SuggestionType::kMerchantPromoCodeEntry:
     case SuggestionType::kSaveAndFillCreditCardEntry:
     case SuggestionType::kScanCreditCard:
@@ -815,6 +828,11 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kVirtualCreditCardEntry:
       DidAcceptPaymentsSuggestion(suggestion, metadata);
       break;
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
+      DidAcceptPaymentsSuggestion(suggestion, metadata);
+      // For `kMaximizeCreditCardBenefitsEntry`, the popup remains open as it is
+      // needed to display the best reward card from Gemini.
+      return;
     case SuggestionType::kBnplEntry:
       DidAcceptPaymentsSuggestion(suggestion, metadata);
       if (base::FeatureList::IsEnabled(
@@ -830,7 +848,8 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kManageAutofillAiTravel:
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
-    case SuggestionType::kManageLoyaltyCard: {
+    case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kManageEnhancedAutofill: {
       manager_->client().ShowAutofillSettings(suggestion.type);
       break;
     }
@@ -965,6 +984,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
       break;
     }
     case SuggestionType::kLoyaltyCardEntry: {
+      CHECK(std::holds_alternative<Suggestion::Guid>(suggestion.payload));
       manager_->FillOrPreviewField(
           mojom::ActionPersistence::kFill, mojom::FieldActionType::kReplaceAll,
           last_query_.form_id, last_query_.field_id, suggestion.main_text.value,
@@ -1007,7 +1027,7 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kAtMemorySearchResult:
       manager_->GetAtMemoryManager().FillOrPreviewSearchResult(
           mojom::ActionPersistence::kFill, last_query_.form_id,
-          last_query_.field_id, suggestion);
+          last_query_.field_id, suggestion, metadata);
       break;
     case SuggestionType::kOpenGemini:
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
@@ -1027,11 +1047,17 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
           suggestion.main_text.value);
       // The popup remains open to show search results once the query completes.
       return;
+    case SuggestionType::kPersonalContextNotice:
+      // Accepting the suggestion is a no-op - accepting the notice happens via
+      // `RemoveSuggestion`.
+      return;
     case SuggestionType::kAccountStoragePasswordEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
+    case SuggestionType::kAtMemoryAiDisclosure:
     case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemoryNoConnection:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplFootnote:
     case SuggestionType::kDevtoolsTestAddressByCountry:
@@ -1044,7 +1070,6 @@ void AutofillExternalDelegate::DidAcceptSuggestion(
     case SuggestionType::kPasswordEntry:
     case SuggestionType::kPasswordFieldByFieldFilling:
     case SuggestionType::kPendingStateSignin:
-    case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kSeparator:
     case SuggestionType::kTitle:
     case SuggestionType::kTroubleSigningInEntry:
@@ -1076,6 +1101,7 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
       return false;
     }
     case SuggestionType::kCreditCardEntry: {
+      CHECK(std::holds_alternative<Suggestion::Guid>(suggestion.payload));
       const std::string guid =
           std::get<Suggestion::Guid>(suggestion.payload).value();
       if (PaymentsDataManager& pdm = manager_->client()
@@ -1100,16 +1126,24 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
       return true;
     }
     // This suggestion type represents a notice about the usage of personal
-    // context in autofill. The user can acknowledge it to dismiss it.
+    // context in ambient autofill and AtMemory. The user can acknowledge it to
+    // dismiss it.
     case SuggestionType::kPersonalContextNotice: {
-      manager_->client()
-          .MarkPersonalContextAmbientAutofillNoticeAsAcknowledged();
+      if (IsAtMemoryTriggerSource(trigger_source_)) {
+        manager_->client().MarkPersonalContextAtMemoryNoticeAsAcknowledged();
+      } else {
+        // This assumes only autofill and AtMemory embed this notice. If this
+        // changes in the future, this needs to be updated.
+        manager_->client()
+            .MarkPersonalContextAmbientAutofillNoticeAsAcknowledged();
+      }
       return true;
     }
     case SuggestionType::kAccountStoragePasswordEntry:
     case SuggestionType::kAddressEntryOnTyping:
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kAllSavedPasswordsEntry:
+    case SuggestionType::kAtMemoryAiDisclosure:
     case SuggestionType::kAtMemoryGenericError:
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kAtMemoryNoConnection:
@@ -1117,6 +1151,7 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kAutocompleteAtMemoryButton:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kBackupPasswordEntry:
     case SuggestionType::kBnplEntry:
     case SuggestionType::kBnplFootnote:
@@ -1148,6 +1183,7 @@ bool AutofillExternalDelegate::RemoveSuggestion(const Suggestion& suggestion) {
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kManageEnhancedAutofill:
     case SuggestionType::kMaximizeCreditCardBenefitsEntry:
     case SuggestionType::kMerchantPromoCodeEntry:
     case SuggestionType::kMixedFormMessage:
@@ -1304,6 +1340,7 @@ void AutofillExternalDelegate::AutofillForm(
     }
     return;
   }
+  CHECK(std::holds_alternative<Suggestion::Guid>(payload));
   if (const CreditCard* credit_card =
           pdm.payments_data_manager().GetCreditCardByGUID(
               std::get<Suggestion::Guid>(payload).value())) {
@@ -1536,9 +1573,10 @@ void AutofillExternalDelegate::DidAcceptPaymentsSuggestion(
       }
       break;
     }
-    case SuggestionType::kMaximizeCreditCardBenefitsEntry:
-      // TODO(haochenf) Handle MaximizeCreditCardBenefitsEntry selection.
-      [[fallthrough]];
+    case SuggestionType::kMaximizeCreditCardBenefitsEntry: {
+      manager_->GetAiCardRecommendationManager().MaximizeCreditCardBenefits();
+      break;
+    }
     default:
       NOTREACHED();  // Should be handled elsewhere
   }

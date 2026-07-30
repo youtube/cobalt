@@ -56,7 +56,6 @@
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "chromeos/constants/chromeos_features.h"
 #include "components/language/core/browser/pref_names.h"
@@ -1075,7 +1074,7 @@ IN_PROC_BROWSER_TEST_P(HelpAppIntegrationTest,
 
   // Wait for system apps background tasks to start.
   base::RunLoop run_loop;
-  SystemWebAppManager::GetForTest(browser()->profile())
+  SystemWebAppManager::GetForTest(browser()->GetProfile())
       ->on_tasks_started()
       .Post(FROM_HERE, run_loop.QuitClosure());
   run_loop.Run();

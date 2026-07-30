@@ -19,6 +19,7 @@
 #include "chrome/browser/glic/widget/glic_widget.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/prefs/prefs_tab_helper.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/performance_manager/public/decorators/page_live_state_decorator.h"
 #include "content/public/browser/navigation_handle.h"
@@ -88,6 +89,7 @@ WebUIContentsContainerImpl::WebUIContentsContainerImpl(Profile* profile,
   CHECK(web_contents_);
   CreateGlicWebUiData(web_contents_.get());
   Observe(web_contents_.get());
+  PrefsTabHelper::CreateForWebContents(web_contents_.get());
   web_contents_->SetPageBaseBackgroundColor(
       GetGlicBackgroundColor(profile, web_contents_->GetColorProvider()));
 
@@ -222,7 +224,12 @@ void WebUIContentsContainerImpl::OnTaskTabsVisibilityChanged(
 
 void WebUIContentsContainerImpl::UpdateActuationTracker() {
   auto* guest = GetGlicGuestWebContents(web_contents_.get());
-  CHECK(guest);
+  if (!guest) {
+    // Visibility might change before the guest is created or after it is
+    // teared down. In both cases, there is no point in tracking the actuation
+    // state.
+    return;
+  }
   GlicActuationState state = GlicActuationState::kNone;
   if (is_actuating_) {
     state = is_actuating_on_visible_tab_

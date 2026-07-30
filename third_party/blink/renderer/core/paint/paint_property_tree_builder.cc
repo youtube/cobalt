@@ -1934,21 +1934,16 @@ FragmentPaintPropertyTreeBuilder::ParentForViewTransitionPseudoEffect() const {
 
 static void PopulateCanvasChildPaintState(HTMLCanvasElement* canvas,
                                           CanvasChildPaintState& paint_state) {
-  gfx::Size canvas_device_pixel_content_box =
+  const LayoutReplaced* replaced = To<LayoutReplaced>(canvas->GetLayoutBox());
+  const ComputedStyle& style = replaced->StyleRef();
+
+  paint_state.canvas_content_size =
+      gfx::SizeF(replaced->ReplacedContentRect().size);
+  paint_state.canvas_device_pixel_content_box =
       ResizeObserverUtilities::ComputeSnappedDevicePixelContentBox(
-          LogicalSize(canvas->GetLayoutBox()->ContentLogicalWidth(),
-                      canvas->GetLayoutBox()->ContentLogicalHeight()),
-          *canvas->GetLayoutBox(), canvas->GetLayoutBox()->StyleRef());
-
-  PhysicalRect canvas_content_size;
-  if (auto* replaced = DynamicTo<LayoutReplaced>(canvas->GetLayoutBox())) {
-    canvas_content_size = replaced->ReplacedContentRect();
-  } else {
-    canvas_content_size = canvas->GetLayoutBox()->PhysicalContentBoxRect();
-  }
-
-  paint_state.canvas_content_size = gfx::SizeF(canvas_content_size.size);
-  paint_state.canvas_device_pixel_content_box = canvas_device_pixel_content_box;
+          ToLogicalSize(replaced->PhysicalContentBoxRect().size,
+                        style.GetWritingMode()),
+          *replaced, style);
   paint_state.canvas_node_id = canvas->GetDomNodeId();
   paint_state.animated_image_frame_index_map =
       canvas->GetDocument().View()->GetAnimatedImageFrameIndexes();
@@ -4435,16 +4430,17 @@ void PaintPropertyTreeBuilder::UpdateForSelf() {
     }
   }
 
-  // Resolve the current composited clip path animation status. This is needed
-  // to determine whether we need to initialize paint properties for this
-  // object.
-  const bool is_in_fragment_container =
-      !RuntimeEnabledFeatures::FragmentedOofInCbEnabled() && pre_paint_info_ &&
-      pre_paint_info_->fragmentainer_is_oof_containing_block &&
-      IsA<LayoutBox>(object_) &&
-      (To<LayoutBox>(object_).PhysicalFragmentCount() > 1);
+  // Our own FragmentData will not have been populated at this point, but
+  // clip-path animations need to know whether there are >1 fragments to
+  // determine composited eligibility. So, we use the information collected
+  // earlier in the walk.
+  const bool object_is_fragmented =
+      (object_.IsBox() && To<LayoutBox>(object_).PhysicalFragmentCount() > 1) ||
+      (pre_paint_info_ && object_.IsInline() &&
+       pre_paint_info_->is_inside_fragment_child &&
+       !pre_paint_info_->is_last_for_node);
   ClipPathClipper::FallbackClipPathAnimationIfNecessary(
-      object_, /* should_force_fallback = */ is_in_fragment_container);
+      object_, /* should_force_fallback = */ object_is_fragmented);
 
   UpdatePaintingLayer();
   UpdateFragmentData();

@@ -226,6 +226,7 @@ class ReadAnythingAppController
   void OnFontSizeChanged(bool increase);
   void OnFontSizeReset();
   void OnLinksEnabledToggled();
+  void OnTranslationRequested();
   void OnImagesEnabledToggled();
   int LetterSpacing() const;
   int LineSpacing() const;
@@ -316,6 +317,8 @@ class ReadAnythingAppController
                          ui::AXNodeID focus_node_id,
                          int focus_offset);
   void OnCollapseSelection();
+  bool MaybeHasKeyPointsSection() const;
+  std::string GetKeyPointsRegex() const;
   void AttemptLogEarlySelection(bool from_side_panel);
   void OnDistilled(int word_count);
   void OnRenderedTextBlocksAvailable(const std::vector<std::u16string>& blocks);
@@ -324,6 +327,7 @@ class ReadAnythingAppController
   bool IsPdf() const;
   bool IsImmersiveEnabled() const;
   bool IsImprovedReadAloudEnabled() const;
+  bool IsReadAnythingTranslateEntryPointEnabled() const;
   bool IsTsTextSegmentationEnabled() const;
   bool IsReadabilityEnabled() const;
   bool IsReadabilitySelectTextEnabled() const;
@@ -561,6 +565,8 @@ class ReadAnythingAppController
   void IncrementLineFocusSpeechLines();
 
   void OnUrlInformationSet();
+
+  void OnPdfDebounceFinished();
 
   // Stores a screenshot of the page and triggers distillation to record protos.
   // This function is not used in production and is behind the disabled

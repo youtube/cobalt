@@ -139,6 +139,7 @@ source_set("impl") {
     "//chrome/browser/tab_list",
     "//chrome/browser/ui",
     "//chrome/browser/ui/browser_window",
+    "//chrome/browser/ui/omnibox",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/common:channel_info",
     "//components/contextual_search:public",
@@ -220,7 +221,7 @@ source_set("ui") {
     ":mojom_traits",
     "//base",
     "//chrome/browser/tab_list",
-    "//chrome/common:url_constants",
+    "//chrome/common",
     "//components/contextual_search:public",
     "//components/contextual_tasks/public:query_contextualizer",
     "//components/prefs",
@@ -321,6 +322,8 @@ source_set("ui_impl") {
 
   if (is_android) {
     sources += [
+      "android/contextual_tasks_control_coordinator_android.cc",
+      "android/contextual_tasks_control_coordinator_android.h",
       "android/contextual_tasks_panel_host_android.cc",
       "android/contextual_tasks_panel_host_desktop_android.cc",
     ]
@@ -366,6 +369,7 @@ source_set("ui_impl") {
     "//chrome/browser/ui/contextual_search",
     "//chrome/browser/ui/hats",
     "//chrome/browser/ui/navigator",
+    "//chrome/browser/ui/omnibox",
     "//chrome/browser/ui/select_file_policy",
     "//chrome/browser/ui/tabs:tabs_public",
     "//chrome/browser/ui/webui:plural_string_handler",
@@ -416,7 +420,6 @@ source_set("ui_impl") {
       "//chrome/browser/tab_list",
       "//chrome/browser/ui:browser_actions",
       "//chrome/browser/ui/lens",
-      "//chrome/browser/ui/omnibox",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/user_education",
       "//chrome/browser/ui/views/interaction",
@@ -546,6 +549,7 @@ if (!is_android) {
       "//components/contextual_search:test_support",
       "//components/contextual_tasks/public:feature_list",
       "//components/contextual_tasks/public:test_support",
+      "//components/omnibox/browser:test_support",
       "//components/omnibox/common:features",
       "//components/optimization_guide/core:test_support",
       "//components/page_content_annotations/core",
@@ -659,6 +663,7 @@ source_set("unit_tests") {
       "//chrome/browser/ui/tabs:tab_list_bridge",
       "//chrome/browser/ui/tabs:test_support",
       "//chrome/browser/ui/webui/searchbox:searchbox_test_utils",
+      "//chrome/test/user_education:impl",
       "//components/omnibox/browser:test_support",
       "//components/passage_embeddings/core",
       "//services/network/public/cpp",
@@ -722,6 +727,7 @@ if (is_android) {
   android_resources("java_resources") {
     deps = [
       "//components/browser_ui/strings/android:browser_ui_strings_grd",
+      "//components/browser_ui/styles/android:java_resources",
       "//components/strings:components_strings_grd",
     ]
   }
@@ -746,6 +752,8 @@ if (is_android) {
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTaskBottomSheetContent.java",
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTasksBridge.java",
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTasksFuseboxManagerImpl.java",
+      "android/java/src/org/chromium/chrome/browser/contextual_tasks/ui/ContextualTasksControlCoordinator.java",
+      "android/java/src/org/chromium/chrome/browser/contextual_tasks/ui/ContextualTasksControlMediator.java",
     ]
 
     deps = [
@@ -767,6 +775,7 @@ if (is_android) {
       "//chrome/browser/ui/browser_window/public/android:java",
       "//chrome/browser/ui/messages/android:java",
       "//components/browser_ui/bottomsheet/android:java",
+      "//components/browser_ui/styles/android:java",
       "//components/strings:components_strings_grd",
       "//content/public/android:content_java",
       "//third_party/androidx:androidx_annotation_annotation_java",
@@ -780,6 +789,7 @@ if (is_android) {
     sources = [
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTaskBottomSheetComponentProvider.java",
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTasksBridge.java",
+      "android/java/src/org/chromium/chrome/browser/contextual_tasks/ui/ContextualTasksControlCoordinator.java",
     ]
   }
 
@@ -791,6 +801,7 @@ if (is_android) {
     sources = [
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTasksBridgeUnitTest.java",
       "android/java/src/org/chromium/chrome/browser/contextual_tasks/ContextualTasksFuseboxManagerImplUnitTest.java",
+      "android/java/src/org/chromium/chrome/browser/contextual_tasks/ui/ContextualTasksControlCoordinatorUnitTest.java",
       "fusebox/android/java/src/org/chromium/chrome/browser/contextual_tasks/fusebox/ContextualTasksSessionStateUnitTest.java",
     ]
     deps = [
@@ -800,6 +811,7 @@ if (is_android) {
       "//base:base_junit_test_support",
       "//base:supplier_java",
       "//chrome/browser/android/lifecycle:java",
+      "//chrome/browser/context_sharing/tab_bottom_sheet/public/android:java",
       "//chrome/browser/contextual_tasks/fusebox/android:java",
       "//chrome/browser/feedback/android:factory_java",
       "//chrome/browser/feedback/android:java",

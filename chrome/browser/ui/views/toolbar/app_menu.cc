@@ -699,7 +699,8 @@ class AppMenu::ZoomView : public AppMenuView, public views::WidgetObserver {
            size_t fullscreen_index)
       : AppMenuView(menu, menu_model) {
     browser_zoom_subscription_ =
-        zoom::ZoomEventManager::GetForBrowserContext(menu->browser_->profile())
+        zoom::ZoomEventManager::GetForBrowserContext(
+            menu->browser_->GetProfile())
             ->AddZoomLevelChangedCallback(
                 base::BindRepeating(&AppMenu::ZoomView::OnZoomLevelChanged,
                                     base::Unretained(this)));
@@ -1054,7 +1055,7 @@ AppMenu::AppMenu(Browser* browser,
       run_types_(run_types),
       on_menu_closed_callback_(std::move(on_menu_closed_callback)) {
   global_error_observation_.Observe(
-      GlobalErrorServiceFactory::GetForProfile(browser->profile()));
+      GlobalErrorServiceFactory::GetForProfile(browser->GetProfile()));
 
   DCHECK(!root_);
   auto root = std::make_unique<MenuItemView>(/*delegate=*/this);
@@ -1077,7 +1078,8 @@ AppMenu::AppMenu(Browser* browser,
 AppMenu::~AppMenu() {
   if (bookmark_menu_delegate_.get()) {
     BookmarkMergedSurfaceService* service =
-        BookmarkMergedSurfaceServiceFactory::GetForProfile(browser_->profile());
+        BookmarkMergedSurfaceServiceFactory::GetForProfile(
+            browser_->GetProfile());
     if (service) {
       service->RemoveObserver(this);
     }
@@ -1124,6 +1126,10 @@ const gfx::FontList* AppMenu::GetLabelFontList(int command_id) const {
   ui::MenuModel* model = model_;
   size_t index = 0;
   ui::MenuModel::GetModelAndIndexForCommandId(command_id, &model, &index);
+  if (model->GetTypeAt(index) == ui::MenuModel::TYPE_TITLE) {
+    return &views::TypographyProvider::Get().GetFont(
+        views::style::CONTEXT_LABEL, views::style::STYLE_HEADLINE_5);
+  }
   return model->GetLabelFontListAt(index);
 }
 
@@ -1226,7 +1232,7 @@ int AppMenu::GetDragOperations(MenuItemView* sender) {
 }
 
 int AppMenu::GetMaxWidthForMenu(MenuItemView* menu) {
-  if (menu->GetCommand() == IDC_BOOKMARKS_MENU ||
+  if (menu->GetCommand() == AppMenuModel::kBookmarksMenuPlaceholder ||
       IsBookmarkCommand(menu->GetCommand())) {
     return bookmark_menu_delegate_->GetMaxWidthForMenu(menu);
   }
@@ -1264,22 +1270,23 @@ bool AppMenu::IsCommandEnabled(int command_id) const {
     return true;
   }
 
-  if (command_id == IDC_MORE_TOOLS_MENU) {
+  if (command_id == AppMenuModel::kMoreToolsMenuPlaceholder) {
     return true;
   }
 
-  if (command_id == IDC_EXTENSIONS_SUBMENU) {
+  if (command_id == AppMenuModel::kExtensionsSubmenuPlaceholder) {
     return true;
   }
 
-  if (command_id == IDC_SHARING_HUB_MENU) {
+  if (command_id == AppMenuModel::kSharingHubMenuPlaceholder) {
     return true;
   }
 
   // The items representing the cut menu (cut/copy/paste), zoom menu
   // (increment/decrement/reset) and extension toolbar view are always enabled.
   // The child views of these items enabled state updates appropriately.
-  if (command_id == IDC_EDIT_MENU || command_id == IDC_ZOOM_MENU) {
+  if (command_id == AppMenuModel::kEditMenuPlaceholder ||
+      command_id == AppMenuModel::kZoomMenuPlaceholder) {
     return true;
   }
 
@@ -1312,7 +1319,8 @@ void AppMenu::ExecuteCommand(int command_id, int mouse_event_flags) {
     return;
   }
 
-  if (command_id == IDC_EDIT_MENU || command_id == IDC_ZOOM_MENU) {
+  if (command_id == AppMenuModel::kEditMenuPlaceholder ||
+      command_id == AppMenuModel::kZoomMenuPlaceholder) {
     // These items are represented by child views. If ExecuteCommand is invoked
     // it means the user clicked on the area around the buttons and we should
     // not do anyting.
@@ -1360,7 +1368,8 @@ bool AppMenu::GetAccelerator(int command_id,
     return false;
   }
 
-  if (command_id == IDC_EDIT_MENU || command_id == IDC_ZOOM_MENU) {
+  if (command_id == AppMenuModel::kEditMenuPlaceholder ||
+      command_id == AppMenuModel::kZoomMenuPlaceholder) {
     // These have special child views; don't show the accelerator for them.
     return false;
   }
@@ -1432,7 +1441,8 @@ void AppMenu::OnMenuClosed(views::MenuItemView* menu) {
   if (has_safety_hub_notification &&
       menu_opened_timer_.Elapsed() >= base::Seconds(5)) {
     if (SafetyHubHatsService* hats_service =
-            SafetyHubHatsServiceFactory::GetForProfile(browser_->profile())) {
+            SafetyHubHatsServiceFactory::GetForProfile(
+                browser_->GetProfile())) {
       hats_service->SafetyHubNotificationSeen();
     }
   }
@@ -1441,7 +1451,8 @@ void AppMenu::OnMenuClosed(views::MenuItemView* menu) {
 
   if (bookmark_menu_delegate_.get()) {
     BookmarkMergedSurfaceService* service =
-        BookmarkMergedSurfaceServiceFactory::GetForProfile(browser_->profile());
+        BookmarkMergedSurfaceServiceFactory::GetForProfile(
+            browser_->GetProfile());
     if (service) {
       service->RemoveObserver(this);
     }
@@ -1537,7 +1548,7 @@ void AppMenu::OnGlobalErrorsChanged() {
 }
 
 views::View* AppMenu::GetZoomAppMenuViewForTest() {
-  std::optional<int> zoom_view_command_id = IDC_ZOOM_MENU;
+  std::optional<int> zoom_view_command_id = AppMenuModel::kZoomMenuPlaceholder;
   auto* menu_item = root_->GetMenuItemByID(zoom_view_command_id.value());
   DCHECK(menu_item);
 
@@ -1573,17 +1584,17 @@ void AppMenu::PopulateMenu(MenuItemView* parent, MenuModel* model) {
     };
 
     switch (model->GetCommandIdAt(i)) {
-      case IDC_PROFILE_MENU_IN_APP_MENU: {
+      case AppMenuModel::kProfileMenuPlaceholder: {
         add_menu_row_background(ChromeLayoutProvider::Get()->GetDistanceMetric(
                                     DISTANCE_CONTENT_LIST_VERTICAL_MULTI),
                                 ui::kColorAppMenuProfileRowBackground);
         ProfileAttributesEntry* profile_attributes =
-            GetProfileAttributesFromProfile(browser_->profile());
+            GetProfileAttributesFromProfile(browser_->GetProfile());
         if (profile_attributes &&
             !profile_attributes->GetLocalProfileName().empty()) {
           const MenuConfig& config = MenuConfig::instance();
           AddSignedInChipToProfileMenuItem(
-              browser_->profile(), item,
+              browser_->GetProfile(), item,
               config.arrow_to_edge_padding + config.arrow_size,
               profile_menu_item_selected_subscription_list_);
         }
@@ -1624,7 +1635,7 @@ void AppMenu::PopulateMenu(MenuItemView* parent, MenuModel* model) {
         }
         break;
       }
-      case IDC_EDIT_MENU: {
+      case AppMenuModel::kEditMenuPlaceholder: {
         ui::ButtonMenuItemModel* submodel = model->GetButtonMenuItemAt(i);
         DCHECK_EQ(IDC_CUT, submodel->GetCommandIdAt(0));
         DCHECK_EQ(IDC_COPY, submodel->GetCommandIdAt(1));
@@ -1636,7 +1647,7 @@ void AppMenu::PopulateMenu(MenuItemView* parent, MenuModel* model) {
         break;
       }
 
-      case IDC_ZOOM_MENU: {
+      case AppMenuModel::kZoomMenuPlaceholder: {
         ui::ButtonMenuItemModel* submodel = model->GetButtonMenuItemAt(i);
         DCHECK_EQ(IDC_ZOOM_MINUS, submodel->GetCommandIdAt(0));
         DCHECK_EQ(IDC_ZOOM_PLUS, submodel->GetCommandIdAt(1));
@@ -1647,12 +1658,12 @@ void AppMenu::PopulateMenu(MenuItemView* parent, MenuModel* model) {
         break;
       }
 
-      case IDC_BOOKMARKS_MENU:
+      case AppMenuModel::kBookmarksMenuPlaceholder:
         DCHECK(!bookmark_menu_);
         bookmark_menu_ = item;
         break;
 
-      case IDC_SAVED_TAB_GROUPS_MENU:
+      case AppMenuModel::kSavedTabGroupsMenuPlaceholder:
         DCHECK(!saved_tab_groups_menu_);
         saved_tab_groups_menu_ = item;
         break;
@@ -1671,7 +1682,7 @@ void AppMenu::PopulateMenu(MenuItemView* parent, MenuModel* model) {
         break;
 #endif
 
-      case IDC_RECENT_TABS_MENU:
+      case AppMenuModel::kRecentTabsMenuPlaceholder:
         DCHECK(!recent_tabs_menu_model_delegate_.get());
         recent_tabs_menu_model_delegate_ =
             std::make_unique<RecentTabsMenuModelDelegate>(
@@ -1731,7 +1742,8 @@ void AppMenu::CreateBookmarkMenu() {
   }
 
   BookmarkMergedSurfaceService* service =
-      BookmarkMergedSurfaceServiceFactory::GetForProfile(browser_->profile());
+      BookmarkMergedSurfaceServiceFactory::GetForProfile(
+          browser_->GetProfile());
   if (!service->loaded()) {
     return;
   }

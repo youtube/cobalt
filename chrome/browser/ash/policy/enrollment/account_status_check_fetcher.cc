@@ -7,15 +7,13 @@
 #include <string>
 #include <utility>
 
+#include "base/check.h"
+#include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/uuid.h"
-#include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
-#include "chrome/browser/net/system_network_context_manager.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 #include "components/policy/core/common/cloud/dm_auth.h"
 #include "components/policy/core/common/cloud/dmserver_job_configurations.h"
@@ -93,23 +91,15 @@ void RecordEnrollmentNudgePolicyFetchResult(
 }  // namespace
 
 AccountStatusCheckFetcher::AccountStatusCheckFetcher(
+    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+    DeviceManagementService* device_management_service,
     const std::string& canonicalized_email)
-    : AccountStatusCheckFetcher(
-          canonicalized_email,
-          g_browser_process->platform_part()
-              ->browser_policy_connector_ash()
-              ->device_management_service(),
-          g_browser_process->system_network_context_manager()
-              ->GetSharedURLLoaderFactory()) {}
-
-AccountStatusCheckFetcher::AccountStatusCheckFetcher(
-    const std::string& canonicalized_email,
-    DeviceManagementService* service,
-    scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory)
-    : email_(canonicalized_email),
-      service_(service),
-      url_loader_factory_(url_loader_factory),
-      random_device_id_(base::Uuid::GenerateRandomV4().AsLowercaseString()) {}
+    : url_loader_factory_(std::move(url_loader_factory)),
+      device_management_service_(CHECK_DEREF(device_management_service)),
+      email_(canonicalized_email),
+      random_device_id_(base::Uuid::GenerateRandomV4().AsLowercaseString()) {
+  CHECK(url_loader_factory_);
+}
 
 AccountStatusCheckFetcher::~AccountStatusCheckFetcher() = default;
 
@@ -121,7 +111,7 @@ void AccountStatusCheckFetcher::Fetch(FetchCallback callback,
   is_fetching_enrollment_nudge_policy_ = fetch_enrollment_nudge_policy;
   std::unique_ptr<DMServerJobConfiguration> config =
       std::make_unique<DMServerJobConfiguration>(
-          service_,
+          &device_management_service_.get(),
           DeviceManagementService::JobConfiguration::TYPE_CHECK_USER_ACCOUNT,
           random_device_id_, /*critical=*/false, DMAuth::NoAuth(),
           /*oauth_token=*/std::nullopt, url_loader_factory_,
@@ -133,7 +123,7 @@ void AccountStatusCheckFetcher::Fetch(FetchCallback callback,
       config->request()->mutable_check_user_account_request();
   request->set_user_email(email_);
   request->set_enrollment_nudge_request(fetch_enrollment_nudge_policy);
-  fetch_request_job_ = service_->CreateJob(std::move(config));
+  fetch_request_job_ = device_management_service_->CreateJob(std::move(config));
 }
 
 void AccountStatusCheckFetcher::OnAccountStatusCheckReceived(

@@ -206,10 +206,18 @@ class CORE_EXPORT HTMLCapabilityElementBase
                            InvalidUrlMakesElementInvalid);
   FRIEND_TEST_ALL_PREFIXES(HTMLInstallElementTestBase,
                            InvalidManifestIdMakesElementInvalid);
+  FRIEND_TEST_ALL_PREFIXES(HTMLInstallElementTestBase,
+                           ActivationWithManifestDataError);
+  FRIEND_TEST_ALL_PREFIXES(HTMLInstallElementTestBase,
+                           ManifestIdOnlyMakesElementInvalid);
+  FRIEND_TEST_ALL_PREFIXES(HTMLInstallElementTestBase,
+                           InvalidManifestUrlMakesElementInvalid);
   FRIEND_TEST_ALL_PREFIXES(HTMLCapabilityElementBaseClickingEnabledTest,
                            UnclickableBeforeRegistered);
   FRIEND_TEST_ALL_PREFIXES(HTMLCapabilityElementBaseIntersectionTest,
                            IntersectionChanged);
+  FRIEND_TEST_ALL_PREFIXES(HTMLCapabilityElementBaseIntersectionTest,
+                           MovePEPCFromIframeAndDestroyIframe);
   FRIEND_TEST_ALL_PREFIXES(HTMLCapabilityElementBaseIntersectionTest,
                            IntersectionChangedDisableEnableDisable);
   FRIEND_TEST_ALL_PREFIXES(HTMLCapabilityElementBaseIntersectionTest,

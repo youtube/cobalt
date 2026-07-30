@@ -7,7 +7,6 @@
 
 #include "base/memory/raw_ptr.h"
 
-class Browser;
 class BrowserWindowInterface;
 class Profile;
 
@@ -28,7 +27,9 @@ class ScopedTabbedBrowserDisplayer {
 
   ~ScopedTabbedBrowserDisplayer();
 
-  Browser* browser();
+  // Returns the browser this displayer found or created, as a
+  // BrowserWindowInterface.
+  BrowserWindowInterface* browser_window_interface() { return browser_; }
 
  private:
   raw_ptr<BrowserWindowInterface> browser_;

@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
 
 #include "base/memory/raw_ptr.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_delegate.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/gfx/geometry/rect.h"
@@ -69,7 +70,28 @@ class OmniboxPopupPresenterBaseTest : public views::ViewsTestBase {
   std::unique_ptr<TestOmniboxPopupPresenter> presenter_;
 
   raw_ptr<views::Widget> widget_ptr_ = nullptr;
+
+  void CallOnVisualStateReadyForMetrics(base::TimeTicks result_ready_time,
+                                        bool success) {
+    presenter_->OnVisualStateReadyForMetrics(result_ready_time, success);
+  }
+
+  base::WeakPtr<OmniboxPopupPresenterBase> GetMetricsWeakPtr() {
+    return presenter_->metrics_weak_factory_.GetWeakPtr();
+  }
 };
+
+TEST_F(OmniboxPopupPresenterBaseTest, InvalidatesMetricsCallbacksOnHide) {
+  presenter_->Show();
+  // Get a weak pointer using the metrics factory to simulate a pending
+  // callback.
+  auto weak_ptr = GetMetricsWeakPtr();
+  EXPECT_TRUE(weak_ptr);
+
+  // Hiding the popup should invalidate the pending metrics callback.
+  presenter_->Hide();
+  EXPECT_FALSE(weak_ptr);
+}
 
 TEST_F(OmniboxPopupPresenterBaseTest, OpenSmallThenGrowLarger) {
   widget_ptr_->SetBounds(gfx::Rect(0, 0, 300, 50));
@@ -116,4 +138,33 @@ TEST_F(OmniboxPopupPresenterBaseTest, ResetsOnAllClosureStates) {
   test_closure("Deny/Close");
   test_closure("Out of Focus (Blur)");
   test_closure("Allow Always");
+}
+
+TEST_F(OmniboxPopupPresenterBaseTest, MetricsRecording) {
+  base::HistogramTester histogram_tester;
+
+  // The dummy presenter returns "TestPrefix" for GetPopupMetricPrefix.
+  base::TimeTicks ready_time = base::TimeTicks::Now() - base::Milliseconds(50);
+
+  // Need to simulate a 'Show' so flags like
+  // has_logged_content_ready_since_open_ are cleanly initialized.
+  presenter_->Show();
+
+  CallOnVisualStateReadyForMetrics(ready_time, /*success=*/true);
+
+  histogram_tester.ExpectTotalCount("TestPrefix.ResultToContentReadyPerShow",
+                                    1);
+  histogram_tester.ExpectTotalCount(
+      "TestPrefix.ResultToContentReadyOnFirstShow", 1);
+
+  // To increment PerShow, we must Hide and Show again to simulate a new
+  // lifecycle loop.
+  presenter_->Hide();
+  presenter_->Show();
+  CallOnVisualStateReadyForMetrics(ready_time, /*success=*/true);
+
+  histogram_tester.ExpectTotalCount("TestPrefix.ResultToContentReadyPerShow",
+                                    2);
+  histogram_tester.ExpectTotalCount(
+      "TestPrefix.ResultToContentReadyOnFirstShow", 1);
 }

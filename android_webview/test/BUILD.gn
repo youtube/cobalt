@@ -127,35 +127,8 @@ script_test("system_webview_wpt") {
   ]
 }
 
-script_test("trichrome_webview_wpt") {
-  script = "//third_party/blink/tools/run_wpt_tests.py"
-  args = _common_web_test_options + [
-           "--product",
-           "android_webview",
-           "--test-type",
-           "testharness",
-           "reftest",
-           "crashtest",
-           "print-reftest",
-           "--zero-tests-executed-ok",
-           "--webview-provider",
-           "@WrappedPath(apks/TrichromeWebView.apk)",
-           "--browser-apk",
-           "@WrappedPath(apks/SystemWebViewShell.apk)",
-           "--additional-apk",
-           "@WrappedPath(apks/TrichromeLibrary.apk)",
-         ]
-  data_deps = [
-    "//android_webview:trichrome_webview_apk",
-    "//android_webview/tools/system_webview_shell:system_webview_shell_layout_test_apk",
-    "//chrome/test/chromedriver:chromedriver_server($host_toolchain)",
-    "//third_party/blink/tools:wpt_tests_android_isolate",
-    "//third_party/blink/web_tests:wpt_tests",
-  ]
-}
-
 if (android_64bit_target_cpu) {
-  script_test("trichrome_webview_wpt_64") {
+  script_test("system_webview_wpt_64") {
     script = "//third_party/blink/tools/run_wpt_tests.py"
     args = _common_web_test_options + [
              "--product",
@@ -167,14 +140,12 @@ if (android_64bit_target_cpu) {
              "print-reftest",
              "--zero-tests-executed-ok",
              "--webview-provider",
-             "@WrappedPath(apks/TrichromeWebView64.apk)",
+             "@WrappedPath(apks/SystemWebView64.apk)",
              "--browser-apk",
              "@WrappedPath(apks/SystemWebViewShell.apk)",
-             "--additional-apk",
-             "@WrappedPath(apks/TrichromeLibrary64.apk)",
            ]
     data_deps = [
-      "//android_webview:trichrome_webview_64_apk",
+      "//android_webview:system_webview_64_apk",
       "//android_webview/tools/system_webview_shell:system_webview_shell_layout_test_apk",
       "//chrome/test/chromedriver:chromedriver_server($host_toolchain)",
       "//third_party/blink/tools:wpt_tests_android_isolate",
@@ -812,6 +783,7 @@ test("android_webview_unittests") {
     "//components/safe_browsing/core/common",
     "//components/tracing:background_tracing_utils",
     "//components/variations",
+    "//components/visitedlink/browser",
     "//components/viz/service",
     "//components/webui/flags",
     "//content",
@@ -870,6 +842,7 @@ test("android_webview_unittests") {
     "../browser/metrics/aw_server_side_allowlist_metrics_provider_unittest.cc",
     "../browser/metrics/visibility_metrics_logger_unittest.cc",
     "../browser/network_service/aw_proxying_restricted_cookie_manager_unittest.cc",
+    "../browser/network_service/aw_proxying_url_loader_factory_unittest.cc",
     "../browser/permission/media_access_permission_request_unittest.cc",
     "../browser/permission/permission_request_handler_unittest.cc",
     "../browser/prefetch/aw_prefetch_manager_unittest.cc",

@@ -193,8 +193,8 @@ rust_static_library("font_format_check") {
   cxx_bindings = [ crate_root ]
   deps = [
     "//third_party/rust/font_types/v0_12:lib",
-    "//third_party/rust/read_fonts/v0_40:lib",
-    "//third_party/rust/skrifa/v0_43:lib",
+    "//third_party/rust/read_fonts/v0_41:lib",
+    "//third_party/rust/skrifa/v0_44:lib",
   ]
 }
 
@@ -206,7 +206,6 @@ config("blink_platform_config") {
   configs = [
     "//third_party/blink/renderer:config",
     "//third_party/blink/renderer:inside_blink",
-    "//third_party/blink/renderer:narrowing",
   ]
 }
 
@@ -1518,6 +1517,8 @@ component("platform") {
     "text/emoji_segmentation_category.h",
     "text/emoji_segmentation_category_inline_header.h",
     "text/han_kerning_char_type.h",
+    "text/hanging_punctuation.cc",
+    "text/hanging_punctuation.h",
     "text/hyphenation.cc",
     "text/hyphenation.h",
     "text/icu_error.cc",
@@ -2110,7 +2111,6 @@ static_library("test_support") {
     ":blink_platform_pch",
     "//third_party/blink/renderer:config",
     "//third_party/blink/renderer:inside_blink",
-    "//third_party/blink/renderer:narrowing",
     "//third_party/blink/renderer:non_test_config",
   ]
 
@@ -2406,6 +2406,7 @@ source_set("blink_platform_unittests_sources") {
     "text/character_break_iterator_test.cc",
     "text/character_test.cc",
     "text/date_time_format_test.cc",
+    "text/hanging_punctuation_test.cc",
     "text/hyphenation_test.cc",
     "text/icu_error_test.cc",
     "text/layout_locale_test.cc",
@@ -2483,7 +2484,7 @@ source_set("blink_platform_unittests_sources") {
     ":blink_platform_pch",
     "//third_party/blink/renderer/platform/wtf:wtf_config",
     "//third_party/blink/renderer:config",
-    "//third_party/blink/renderer:narrowing",
+    "//third_party/blink/renderer:inside_blink",
   ]
 
   deps = [

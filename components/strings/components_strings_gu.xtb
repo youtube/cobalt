@@ -350,6 +350,7 @@
 <translation id="1542105669288201090">વ્યવસાય સંબંધિત શિક્ષણ</translation>
 <translation id="1542830386724426410">ચેકઆઉટ વખતે ઉપલબ્ધ કાર્ડના લાભ અને રિવૉર્ડ બતાવો. રજૂકર્તાની શરતો લાગુ થાય છે. <ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />વધુ જાણો<ph name="CARD_BENEFIT_HELP_LINK_END" /></translation>
 <translation id="1545757265410828525">કિંમતનો ઇતિહાસ</translation>
+<translation id="1546286808622193216">Geminiનો ઉપયોગ કરીને કાર્ડના લાભની તુલના કરો</translation>
 <translation id="1549470594296187301">આ સુવિધાનો ઉપયોગ કરવા માટે JavaScript સક્ષમ કરેલ હોવી આવશ્યક છે.</translation>
 <translation id="1553152622374372421">શિયાળામાં રમાતી રમતો</translation>
 <translation id="1553358976309200471">Chrome અપડેટ કરો</translation>
@@ -504,6 +505,7 @@
 <translation id="175656076281618225">જાદુ</translation>
 <translation id="1757773103848038814">Monospace ફૉન્ટ</translation>
 <translation id="1757935267918149452">'Google પાસવર્ડ બદલો' બટન, તમારા Google એકાઉન્ટનો પાસવર્ડ બદલવા માટે સક્રિય કરો</translation>
+<translation id="1759776526873274358">તમારી સુરક્ષા બહેતર બનાવવા માટે સાઇટ ચકાસણી કોડનો ઉપયોગ કરે છે, તેને ઑટોમૅટિક રીતે ભરો. Chrome તમારા Gmailમાંથી આ કોડ મેળવી શકે છે. <ph name="BEGIN_LINK" />આ સુવિધા વિશે વધુ જાણો<ph name="LINK_END" /></translation>
 <translation id="1763864636252898013">આ સર્વર સાબિત કરી શક્યું નથી કે એ <ph name="DOMAIN" /> છે; એનું સુરક્ષા પ્રમાણપત્ર તમારા ડિવાઇસની ઑપરેટિંગ સિસ્ટમ દ્વારા વિશ્વસનીય નથી. આ કોઈ ખોટી ગોઠવણીને કારણે થયું હશે અથવા કોઈ હુમલાખોર તમારા કનેક્શનને અટકાવી રહ્યો છે.</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Windows નેટવર્ક ડાયગ્નોસ્ટિક્સ ચલાવવાનો પ્રયાસ કરો<ph name="END_LINK" />.</translation>
 <translation id="1777422078676229054">ફોટો (આર્કાઇવલ)</translation>
@@ -2155,6 +2157,7 @@
 <translation id="4304049446746819918">{0,plural, =1{ઍડમિનિસ્ટ્રેટરની પૉલિસી આ ફાઇલને <ph name="DESTINATION_NAME" /> પર ખસેડવાનો સુઝાવ આપતી નથી}one{ઍડમિનિસ્ટ્રેટરની પૉલિસી આ ફાઇલને <ph name="DESTINATION_NAME" /> પર ખસેડવાનો સુઝાવ આપતી નથી}other{ઍડમિનિસ્ટ્રેટરની પૉલિસી આ ફાઇલોને <ph name="DESTINATION_NAME" /> પર ખસેડવાનો સુઝાવ આપતી નથી}}</translation>
 <translation id="4304485328308299773">મહત્ત્વપૂર્ણ નિર્ણય લેવામાં તમને સહાય મળે તે માટે, પ્રોડક્ટ, સેવાઓ કે અનુભવો સંબંધિત ગ્રાહકોના રિવ્યૂ વાંચો.</translation>
 <translation id="4305666528087210886">તમારી ફાઇલ ઍક્સેસ કરી શકાઈ નથી</translation>
+<translation id="4306349443295056740">OCSP પર સહી કરવી</translation>
 <translation id="4306529830550717874">સરનામું સાચવીએ?</translation>
 <translation id="4306812610847412719">ક્લિપબોર્ડ</translation>
 <translation id="4308567447483056043">આ પૉલિસીને અવગણવામાં આવે છે કારણ કે વપરાશકર્તા સંકળાયેલા નથી. આ પૉલિસી લાગુ થાય તે માટે, એ જ સંસ્થા દ્વારા Chrome બ્રાઉઝર અને પ્રોફાઇલ ઍડમિન કન્સોલ મારફતે મેનેજ થવા આવશ્યક છે.</translation>
@@ -2324,6 +2327,7 @@
 <translation id="4607608436550361748">Chrome વિશે ટિપ જુઓ</translation>
 <translation id="460848736049414407">ઍડમિન દ્વારા બ્લૉક કરવામાં આવ્યું છે</translation>
 <translation id="4610279718074907952">આ સાઇટ <ph name="SET_OWNER" /> દ્વારા નિર્ધારિત ગ્રૂપમાં છે, જે તમારી પ્રવૃત્તિ જોઈ શકે છે</translation>
+<translation id="4612631413844865947"><ph name="PAYMENT_APP_ORIGIN" /> મારફતે <ph name="MERCHANT_ORIGIN" /> પર તમારા ઑર્ડર પર પ્રક્રિયા કરતી વખતે ભૂલ આવી હતી.</translation>
 <translation id="46128681529823442">સૉકરનું સાધન</translation>
 <translation id="4612904677925722054">આ સાઇટમાં વયસ્ક લોકો માટેનું કન્ટેન્ટ હોઈ શકે છે. માતાપિતા અથવા વાલીએ જણાવવું આવશ્યક છે કે જો તમે આ વેબસાઇટની મુલાકાત લો, તો તેમાં કોઈ વાંધો નથી.</translation>
 <translation id="4619564267100705184">આ તમે જ છો તેની ચકાસણી કરો</translation>
@@ -2413,6 +2417,8 @@
 <translation id="4744603770635761495">અમલ કરવાયોગ્ય પાથ</translation>
 <translation id="4744816391336495134">જ્યારે પણ તમે સાચવેલા પાસવર્ડનો ઉપયોગ કરો, ત્યારે તે તમે જ છો તેની ચકાસણી કરવા માટે તમે તમારી ફિંગરપ્રિન્ટનો ઉપયોગ કરી શકો છો</translation>
 <translation id="4749011317274908093">તમે છૂપા મોડમાં ગયા છો</translation>
+<translation id="4749620353539006322">રિવૉર્ડ વધારો</translation>
+<translation id="4749924365937394956">સર્વર પ્રમાણીકરણ</translation>
 <translation id="4750671009706599284">આ ફોન</translation>
 <translation id="4750917950439032686">તમારી માહિતી (ઉદાહરણ તરીકે, પાસવર્ડ્સ અથવા ક્રેડિટ કાર્ડ નંબર્સ) ખાનગી હોય છે જ્યારે તે આ સાઇટ પર મોકલવામાં આવે.</translation>
 <translation id="4751249061288707459">સંમતિ છેલ્લે અપડેટ કર્યાની તારીખ:</translation>
@@ -2987,6 +2993,7 @@
 <translation id="5611398002774823980">એકાઉન્ટમાં સાચવો</translation>
 <translation id="561165882404867731">Google Translate વડે આ પેજનો અનુવાદ કરો</translation>
 <translation id="5612720917913232150"><ph name="URL" /> તમારા કમ્પ્યુટરનાં સ્થાનનો ઉપયોગ કરવા માગે છે</translation>
+<translation id="5613958591683399697"><ph name="ENGINE_NAME" />ને પૂછો</translation>
 <translation id="5614190747811328134">વપરાશકર્તા સૂચના</translation>
 <translation id="5614520971155863709">પત્તાંની રમતો</translation>
 <translation id="5617949217645503996"><ph name="HOST_NAME" /> એ તમને ઘણીબધી વખત રીડાયરેક્ટ કર્યું.</translation>
@@ -3129,6 +3136,7 @@
 <translation id="5860491529813859533">ચાલુ કરો</translation>
 <translation id="5862579898803147654">સ્ટૅકર 8</translation>
 <translation id="5863515189965725638">IBANમાં ફેરફાર કરો</translation>
+<translation id="5863517400058880216">Gmailમાંથી ચકાસણી કોડ ઑટોમૅટિક રીતે ભરો</translation>
 <translation id="5863847714970149516">આગળનું પેજ તમને શુલ્ક લાગુ કરી શકે છે</translation>
 <translation id="5866257070973731571">ફોન નંબર ઉમેરો</translation>
 <translation id="5866327164731551901"><ph name="TYPE_1" /> <ph name="TYPE_2" /> તરફથી</translation>
@@ -3242,6 +3250,7 @@
 <translation id="6034000775414344507">આછો ગ્રે</translation>
 <translation id="6034514109191629503">અકૉર્ડિઅન ફોલ્ડ</translation>
 <translation id="6035491133925068289">ટ્રૅક અને ફીલ્ડ</translation>
+<translation id="6037458223703682108">ડિજિટલ સહી</translation>
 <translation id="6039846035001940113">જો સમસ્યા ચાલુ રહે, તો સાઇટના માલિકનો સંપર્ક કરો.</translation>
 <translation id="6040143037577758943">બંધ કરો</translation>
 <translation id="6040539895181423374">કિંમત વિશેની જાણકારી</translation>
@@ -3553,6 +3562,7 @@
 <translation id="6474220430271405609">પૉલિસીના પરીક્ષણો</translation>
 <translation id="6476284679642588870">ચુકવણી પદ્ધતિઓ મેનેજ કરો</translation>
 <translation id="647881094269678013">અભિનય અને થિયેટર</translation>
+<translation id="6480363549849064919">ક્લાયન્ટનું પ્રમાણીકરણ</translation>
 <translation id="6480864723214312258">ઘર માટે બૅટરી</translation>
 <translation id="6487678699866233349">વર્લ્ડ મ્યુઝિક</translation>
 <translation id="6489534406876378309">ક્રેશ અપલોડ કરવાનું શરૂ કરો</translation>
@@ -4519,6 +4529,7 @@
 <translation id="7967973398323409409">તમે ઑટોમૅટિક રીતે ભરેલી માહિતી અન્ય કોઈ જોઈ શકતું નથી</translation>
 <translation id="79682505114836835">"<ph name="VALUE" />" મૂલ્ય એ એક અમાન્ય હેક્સ રંગ છે.</translation>
 <translation id="7968982339740310781">વિગતો જુઓ</translation>
+<translation id="7971403153351954587">તમારી સંસ્થા કૉપિ કરવાની ક્રિયાને મૉનિટર કરે છે</translation>
 <translation id="7972714317346275248">RSA એન્ક્રિપ્શનવાળું PKCS #1 SHA-384</translation>
 <translation id="7976053965094442846">સમય જતાં ચુકવણી કરવા માટે ઉપલબ્ધ હમણાં ખરીદો, પછીથી ચુકવો વિકલ્પના જારીકર્તાઓ. કીબોર્ડ છુપાવેલું છે.</translation>
 <translation id="7976214039405368314">ઘણી બધી વિનંતીઓ</translation>
@@ -5132,6 +5143,7 @@
 <translation id="9001074447101275817">પ્રૉક્સી <ph name="DOMAIN" />ને વપરાશકર્તાનામ અને પાસવર્ડની જરૂર છે.</translation>
 <translation id="9001701119003382280">કમ્પ્યૂટર સાધનો</translation>
 <translation id="9001963517402879850">કૂદો!</translation>
+<translation id="9003263770394939629">Gemini દ્વારા સૂચિત. સેટિંગમાં જઈને વધુ સારી બનાવેલી ઑટોમૅટિક રીતે ભરવાની સુવિધા મેનેજ કરો.</translation>
 <translation id="9003639428623471314">એન્વલપ કાહૂ</translation>
 <translation id="9004367719664099443">VR સત્ર ચાલુ છે</translation>
 <translation id="9005998258318286617">PDF દસ્તાવેજ લોડ કરવામાં નિષ્ફળ થયાં.</translation>

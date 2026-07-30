@@ -13,6 +13,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/ref_counted_memory.h"
+#include "base/types/expected.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -23,6 +24,7 @@
 #include "extensions/browser/extension_event_histogram_value.h"
 #include "extensions/browser/extension_prefs_observer.h"
 #include "extensions/browser/extensions_browser_api_provider.h"
+#include "extensions/browser/screenshot_access.h"
 #include "extensions/common/extension_id.h"
 #include "extensions/common/mojom/view_type.mojom.h"
 #include "extensions/common/url_pattern_set.h"
@@ -109,11 +111,13 @@ class ExtensionAssetsManager;
 class ExtensionCache;
 class ExtensionError;
 class ExtensionHostDelegate;
+class ExtensionInstallPromptClient;
 class ExtensionManagementClient;
 class ExtensionSet;
 class ExtensionSystem;
 class ExtensionSystemProvider;
 class ExtensionWebContentsObserver;
+class InstallPromptData;
 class InstallStageTracker;
 class InstallTracker;
 class InstallVerifier;
@@ -246,11 +250,6 @@ class ExtensionsBrowserClient {
   // Returns true if `browser_context` is the active one.
   virtual bool IsActiveContext(
       content::BrowserContext* browser_context) const = 0;
-
-  // Returns a user id hash from `context` or an empty string if no hash could
-  // be extracted.
-  virtual std::string GetUserIdHashFromContext(
-      content::BrowserContext* context) = 0;
 #endif
 
   // Returns true if `context` corresponds to a guest session.
@@ -284,7 +283,8 @@ class ExtensionsBrowserClient {
       const base::FilePath& resource_relative_path,
       int resource_id,
       scoped_refptr<net::HttpResponseHeaders> headers,
-      mojo::PendingRemote<network::mojom::URLLoaderClient> client) = 0;
+      mojo::PendingRemote<network::mojom::URLLoaderClient> client,
+      content::BrowserContext* browser_context) = 0;
 
   // Returns true if the embedder wants to allow a chrome-extension:// resource
   // request coming from renderer A to access a resource in an extension running
@@ -509,9 +509,10 @@ class ExtensionsBrowserClient {
   virtual bool HasIsolatedStorage(const ExtensionId& extension_id,
                                   content::BrowserContext* context);
 
-  // Returns whether screenshot of `web_contents` is restricted due to Data Leak
-  // Protection policy.
-  virtual bool IsScreenshotRestricted(content::WebContents* web_contents) const;
+  // Returns whether screenshot of `web_contents` is restricted due to
+  // preference or Data Leak Protection policy.
+  virtual base::expected<void, ScreenshotAccessError> IsScreenshotRestricted(
+      content::WebContents* web_contents) const;
 
   // Returns true if `tab_id` exists on `browser_context`.
   virtual bool IsValidTabId(content::BrowserContext* browser_context,
@@ -699,6 +700,11 @@ class ExtensionsBrowserClient {
       const ExtensionId& extension_id,
       const base::Version& extension_version,
       base::OnceCallback<void(bool, std::u16string)> callback);
+
+  // Creates install prompt UI.
+  virtual std::unique_ptr<ExtensionInstallPromptClient> CreateInstallPrompt(
+      content::WebContents* web_contents,
+      std::unique_ptr<InstallPromptData> prompt);
 
  protected:
   std::unique_ptr<ExtensionAssetsManager> assets_manager_;

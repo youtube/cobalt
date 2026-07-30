@@ -144,6 +144,7 @@ chrome_ios_eg2_test("ios_chrome_settings_eg2tests_module") {
 
   deps = [
     "//ios/chrome/browser/settings/autofill/autofill_ai/test:eg2_tests",
+    "//ios/chrome/browser/settings/autofill/autofill_and_passwords/ui:eg2_tests",
     "//ios/chrome/browser/settings/clear_browsing_data/quick_delete_browsing_data/test:eg2_tests",
     "//ios/chrome/browser/settings/clear_browsing_data/quick_delete_other_data/test:eg2_tests",
     "//ios/chrome/browser/settings/clear_browsing_data/test:eg2_tests",
@@ -282,6 +283,7 @@ chrome_ios_eg2_test("ios_chrome_ui_eg2tests_module") {
     "//ios/chrome/browser/webui/ui_bundled:eg2_tests",
     "//ios/chrome/browser/webui/ui_bundled/interstitials:eg2_tests",
     "//ios/chrome/browser/webui/ui_bundled/optimization_guide_internals:eg2_tests",
+    "//ios/chrome/browser/webui/ui_bundled/private_ai_internals:eg2_tests",
   ]
 
   if (target_environment == "device") {

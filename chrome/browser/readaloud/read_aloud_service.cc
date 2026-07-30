@@ -10,10 +10,12 @@
 #include "base/metrics/histogram_functions.h"
 #include "chrome/browser/dom_distiller/dom_distiller_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/readaloud/read_aloud_playback_session.h"
 #include "components/dom_distiller/content/browser/distiller_page_web_contents.h"
 #include "components/dom_distiller/core/dom_distiller_service.h"
 #include "content/public/browser/service_process_host.h"
 #include "content/public/browser/web_contents.h"
+#include "mojo/public/cpp/base/big_buffer.h"
 
 namespace readaloud {
 
@@ -25,9 +27,42 @@ void ReadAloudService::SetDelegate(std::unique_ptr<Delegate> delegate) {
   delegate_ = std::move(delegate);
 }
 
-void ReadAloudService::Play() {}
-void ReadAloudService::Pause() {}
-void ReadAloudService::Stop() {}
+void ReadAloudService::Play() {
+  PlaybackState previous_state = GetCurrentPlaybackState();
+  if (!active_session_ && web_contents_) {
+    active_session_ =
+        std::make_unique<ReadAloudPlaybackSession>(web_contents_.get(), this);
+  }
+  if (active_session_) {
+    active_session_->NotifyPlaybackStarted();
+  }
+  PlaybackState current_state = GetCurrentPlaybackState();
+  if (current_state != previous_state && delegate_) {
+    delegate_->OnPlaybackStateChanged(current_state);
+  }
+}
+
+void ReadAloudService::Pause() {
+  PlaybackState previous_state = GetCurrentPlaybackState();
+  if (active_session_) {
+    active_session_->NotifyPlaybackPaused();
+  }
+  PlaybackState current_state = GetCurrentPlaybackState();
+  if (current_state != previous_state && delegate_) {
+    delegate_->OnPlaybackStateChanged(current_state);
+  }
+}
+
+void ReadAloudService::Stop() {
+  PlaybackState previous_state = GetCurrentPlaybackState();
+  if (active_session_) {
+    active_session_->NotifyPlaybackStopped();
+  }
+  PlaybackState current_state = GetCurrentPlaybackState();
+  if (current_state != previous_state && delegate_) {
+    delegate_->OnPlaybackStateChanged(current_state);
+  }
+}
 void ReadAloudService::SeekToWordIndex(int word_index) {}
 void ReadAloudService::Seek(base::TimeDelta absolute_time) {}
 void ReadAloudService::SeekRelative(base::TimeDelta offset) {}
@@ -40,8 +75,33 @@ void ReadAloudService::SetHighlightingEnabled(bool enabled) {}
 void ReadAloudService::SendFeedback(FeedbackType feedback_type) {}
 void ReadAloudService::CheckReadability(const GURL& url) {}
 
+void ReadAloudService::OnSessionSuspended() {
+  Pause();
+}
+
+void ReadAloudService::OnSessionResumed() {
+  Play();
+}
+
+bool ReadAloudService::IsPlaybackPaused() const {
+  return !active_session_ || active_session_->is_paused();
+}
+
+ReadAloudService::PlaybackState ReadAloudService::GetCurrentPlaybackState()
+    const {
+  if (!active_session_) {
+    return PlaybackState::kStopped;
+  }
+  if (!active_session_->is_playback_in_progress()) {
+    return PlaybackState::kStopped;
+  }
+  return active_session_->is_paused() ? PlaybackState::kPaused
+                                      : PlaybackState::kPlaying;
+}
+
 void ReadAloudService::Shutdown() {
   weak_factory_.InvalidateWeakPtrs();
+  active_session_.reset();
   if (delegate_) {
     delegate_->OnNativeDestroyed();
     delegate_.reset();
@@ -98,7 +158,7 @@ void ReadAloudService::EnsureServiceConnected() {
     return;
   }
   content::ServiceProcessHost::Launch<
-      read_aloud::mojom::ReadAloudPlayerFactory>(
+      read_aloud::mojom::ReadAloudPlaybackControllerFactory>(
       player_factory_.BindNewPipeAndPassReceiver(),
       content::ServiceProcessHost::Options()
           // TODO(b/525116429): Use localized string resource.
@@ -106,11 +166,11 @@ void ReadAloudService::EnsureServiceConnected() {
           .Pass());
   player_factory_.reset_on_disconnect();
 
-  // Create player in utility process and bind our utility endpoints.
+  // Create controller in utility process and bind our utility endpoints.
   utility_player_.reset();
   utility_observer_receiver_.reset();
 
-  player_factory_->CreatePlayer(
+  player_factory_->CreateController(
       utility_player_.BindNewPipeAndPassReceiver(),
       utility_observer_receiver_.BindNewPipeAndPassRemote());
 
@@ -127,6 +187,23 @@ void ReadAloudService::OnUtilityDisconnect() {
 void ReadAloudService::OnDistillationFailed(
     dom_distiller::DistillationParseResult reason) {
   base::UmaHistogramEnumeration("ReadAloud.Distillation.FailureReason", reason);
+}
+
+void ReadAloudService::OnPlaybackStateChanged(
+    read_aloud::mojom::PlaybackState state) {}
+
+void ReadAloudService::OnPlaybackDurationChanged(base::TimeDelta duration) {}
+
+void ReadAloudService::OnWordBoundaryReached(uint32_t segment_index,
+                                             uint32_t character_offset,
+                                             base::TimeDelta audio_timestamp) {}
+
+void ReadAloudService::RequestSpeechSynthesis(
+    const std::u16string& text_chunk,
+    uint64_t sequence_id,
+    read_aloud::mojom::ReadAloudPlaybackControllerClient::
+        RequestSpeechSynthesisCallback callback) {
+  std::move(callback).Run(mojo_base::BigBuffer(), false);
 }
 
 }  // namespace readaloud

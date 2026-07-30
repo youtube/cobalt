@@ -43,11 +43,15 @@
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_availability.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
+#import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/search_engines/model/search_engine_observer_bridge.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/layout_state_passkey.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/lens_overlay_state_notifier.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
@@ -79,10 +83,26 @@
 
 using base::UmaHistogramEnumeration;
 
+namespace layout_state {
+class AppBarMediatorPassKeyFactory {
+ public:
+  static base::PassKey<AppBarMediatorPassKeyFactory> CreateKey() {
+    return base::PassKey<AppBarMediatorPassKeyFactory>();
+  }
+};
+}  // namespace layout_state
+
+namespace {
+inline LayoutStateAssistantPassKey PassKey() {
+  return layout_state::AppBarMediatorPassKeyFactory::CreateKey();
+}
+}  // namespace
+
 @interface AppBarMediator () <GeminiBrowserAgentObserving,
                               GeminiServiceObserving,
                               IdentityManagerObserverBridgeDelegate,
                               IncognitoStateObserver,
+                              LensOverlayStateNotifierObserver,
                               PrefObserverDelegate,
                               SearchEngineObserving,
                               TabGridStateObserving,
@@ -130,11 +150,13 @@ using base::UmaHistogramEnumeration;
   TabGridPage _currentPage;
   TabGridState* _tabGridState;
   IncognitoState* _incognitoState;
+  LensOverlayStateNotifier* _lensOverlayState;
   ToolbarButtonMenuFactory* _regularButtonMenuFactory;
   ToolbarButtonMenuFactory* _incognitoButtonMenuFactory;
   std::unique_ptr<PrefChangeRegistrar> _prefChangeRegistrar;
   std::unique_ptr<PrefObserverBridge> _prefObserverBridge;
   BOOL _initialAssistantButtonStateRecorded;
+  raw_ptr<AimEligibilityService> _aimEligibilityService;
 }
 
 - (instancetype)
@@ -158,9 +180,13 @@ using base::UmaHistogramEnumeration;
                     identityManager:(signin::IdentityManager*)identityManager
                       geminiService:(GeminiService*)geminiService
                  geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent
+              aimEligibilityService:
+                  (AimEligibilityService*)aimEligibilityService
                           URLLoader:(UrlLoadingBrowserAgent*)URLLoader
                        tabGridState:(TabGridState*)tabGridState
-                     incognitoState:(IncognitoState*)incognitoState {
+                     incognitoState:(IncognitoState*)incognitoState
+           lensOverlayStateNotifier:
+               (LensOverlayStateNotifier*)lensOverlayStateNotifier {
   self = [super init];
   if (self) {
     _regularWebStateList = regularWebStateList;
@@ -197,12 +223,16 @@ using base::UmaHistogramEnumeration;
       _geminiObserver = std::make_unique<GeminiBrowserAgentObserverBridge>(
           self, _geminiBrowserAgent);
     }
+    _aimEligibilityService = aimEligibilityService;
 
     _tabGridState = tabGridState;
     [_tabGridState addObserver:self];
 
     _incognitoState = incognitoState;
     [_incognitoState addObserver:self];
+
+    _lensOverlayState = lensOverlayStateNotifier;
+    [_lensOverlayState addObserver:self];
 
     _regularButtonMenuFactory = [[ToolbarButtonMenuFactory alloc]
         initForAppBarWithIncognito:NO
@@ -341,6 +371,7 @@ using base::UmaHistogramEnumeration;
   _lensHandler = nil;
   [_tabGridState removeObserver:self];
   [_incognitoState removeObserver:self];
+  [_lensOverlayState removeObserver:self];
   _observerBridge.reset();
   _regularWebStateList = nullptr;
   _incognitoWebStateList = nullptr;
@@ -357,6 +388,7 @@ using base::UmaHistogramEnumeration;
   _URLLoader = nullptr;
   _incognitoState = nil;
   _tabGridState = nil;
+  _lensOverlayState = nil;
   _identityManagerObserver.reset();
   _identityManager = nullptr;
 }
@@ -570,7 +602,8 @@ using base::UmaHistogramEnumeration;
       break;
     }
     case AppBarAssistantButtonState::kAIM: {
-      [self.sceneHandler showAssistant];
+      // TODO(crbug.com/532071605): Route to AIM SRP in current tab instead of
+      // calling showAssistant.
       break;
     }
     case AppBarAssistantButtonState::kLens: {
@@ -616,9 +649,55 @@ using base::UmaHistogramEnumeration;
 
 - (void)geminiFloatyInvokedChanged:(BOOL)isInvoked {
   [self updateAssistantButton];
+  [self.layoutState setGeminiFloatyInvoked:isInvoked passKey:PassKey()];
+
+  if (IsAppBarHiddenInFullscreen()) {
+    if (IsFullscreenRefactoringEnabled()) {
+      if (_regularFullscreenBrowserAgent) {
+        _regularFullscreenBrowserAgent->InvalidateInsetRange();
+      }
+      if (_incognitoFullscreenBrowserAgent) {
+        _incognitoFullscreenBrowserAgent->InvalidateInsetRange();
+      }
+    } else {
+      if (_regularFullscreenController) {
+        _regularFullscreenController->ExitFullscreen();
+      }
+      if (_incognitoFullscreenController) {
+        _incognitoFullscreenController->ExitFullscreen();
+      }
+    }
+  }
 }
 
 - (void)geminiAvailabilityChanged:(BOOL)available {
+  [self updateAssistantButton];
+}
+
+#pragma mark - LensOverlayStateNotifierObserver
+
+- (void)lensOverlayDidPrepare:
+    (LensOverlayStateNotifier*)lensOverlayStateNotifier {
+  [self updateAssistantButton];
+}
+
+- (void)lensOverlayWillAppear:
+    (LensOverlayStateNotifier*)lensOverlayStateNotifier {
+  [self updateAssistantButton];
+}
+
+- (void)lensOverlayWillDisappear:
+    (LensOverlayStateNotifier*)lensOverlayStateNotifier {
+  [self updateAssistantButton];
+}
+
+- (void)lensOverlayDidDisappear:
+    (LensOverlayStateNotifier*)lensOverlayStateNotifier {
+  [self updateAssistantButton];
+}
+
+- (void)lensOverlayDidReadjustPresentation:
+    (LensOverlayStateNotifier*)lensOverlayStateNotifier {
   [self updateAssistantButton];
 }
 
@@ -743,9 +822,22 @@ using base::UmaHistogramEnumeration;
   [self.consumer setIncognito:isIncognitoContentVisible];
 }
 
-// Updates the consumer with the latest state of the assistant button.
-- (void)updateAssistantButton {
-  AppBarAssistantButtonState state = AppBarAssistantButtonState::kAccount;
+// Returns YES if the user is in the EEA or Japan region.
+- (BOOL)isEEAOrJapan {
+  variations::VariationsService* variationsService =
+      GetApplicationContext()->GetVariationsService();
+  if (variationsService) {
+    country_codes::CountryId countryId(
+        base::ToUpperASCII(variationsService->GetStoredPermanentCountry()));
+    return regional_capabilities::RegionalCapabilitiesService::
+               IsInAnySearchEngineChoiceScreenRegion(countryId) ||
+           countryId == country_codes::CountryId("JP");
+  }
+  return NO;
+}
+
+// Returns YES if Gemini is eligible to be shown in the App Bar.
+- (BOOL)isGeminiEligible {
   BOOL geminiAllowed = NO;
   if (_geminiService) {
     geminiAllowed = _geminiService->IsProfileEligibleForGemini();
@@ -754,58 +846,87 @@ using base::UmaHistogramEnumeration;
       // If the profile is ineligible, it might be just because the user is
       // signed out. We still want to show the Gemini button (disabled) for
       // signed-out users to encourage sign-in, unless a local enterprise
-      // policy explicitly disables it.
-      geminiAllowed = gemini::GeminiAllowedByPolicy(_prefService);
+      // policy explicitly disables it or sign-in is disabled.
+      geminiAllowed = gemini::GeminiAllowedByPolicy(_prefService) &&
+                      _authenticationService->SigninEnabled();
     }
   }
-  BOOL useLens = _overrideLensAvailabilityForTesting;
-  if (!useLens) {
-    useLens = lens_availability::CheckAvailabilityForLensEntryPoint(
-        LensEntrypoint::AppBar,
-        search::DefaultSearchProviderIsGoogle(_templateURLService));
+
+  return IsPageActionMenuEnabled() && geminiAllowed && ![self isEEAOrJapan];
+}
+
+// Returns YES if AIM is eligible to be shown in the App Bar.
+- (BOOL)isAimEligible {
+  return _aimEligibilityService && _aimEligibilityService->IsAimEligible();
+}
+
+// Returns YES if Lens is eligible to be shown in the App Bar.
+- (BOOL)isLensEligible {
+  if (_overrideLensAvailabilityForTesting) {
+    return YES;
+  }
+  return lens_availability::CheckAvailabilityForLensEntryPoint(
+      LensEntrypoint::AppBar,
+      search::DefaultSearchProviderIsGoogle(_templateURLService));
+}
+
+// Returns whether the Lens overlay is currently visible.
+- (BOOL)isLensOverlayVisible {
+  if (!self.currentWebStateList) {
+    return NO;
+  }
+  web::WebState* activeWebState = self.currentWebStateList->GetActiveWebState();
+
+  if (!activeWebState) {
+    return NO;
   }
 
-  BOOL isEEAOrJapan = NO;
-  variations::VariationsService* variationsService =
-      GetApplicationContext()->GetVariationsService();
-  if (variationsService) {
-    country_codes::CountryId countryId(
-        base::ToUpperASCII(variationsService->GetStoredPermanentCountry()));
-    isEEAOrJapan = regional_capabilities::RegionalCapabilitiesService::
-                       IsInAnySearchEngineChoiceScreenRegion(countryId) ||
-                   countryId == country_codes::CountryId("JP");
+  LensOverlayTabHelper* lensOverlayTabHelper =
+      LensOverlayTabHelper::FromWebState(activeWebState);
+  return lensOverlayTabHelper &&
+         lensOverlayTabHelper->IsLensOverlayInvokedOnCurrentNavigationItem();
+}
+
+// Returns the avatar image for the primary identity, or nil if not signed in
+// or if the avatar is not available.
+- (UIImage*)avatarForPrimaryIdentity {
+  id<SystemIdentity> identity = _authenticationService->GetPrimaryIdentity();
+  ApplicationContext* context = GetApplicationContext();
+  signin::AvatarProvider* avatarProvider =
+      context ? context->GetIdentityAvatarProvider() : nullptr;
+  if (avatarProvider && identity) {
+    return avatarProvider->GetIdentityAvatar(identity,
+                                             IdentityAvatarSize::TableViewIcon);
   }
+  return nil;
+}
 
-  if (IsPageActionMenuEnabled() && geminiAllowed && !isEEAOrJapan) {
-    state = AppBarAssistantButtonState::kAsk;
-  } else if (IsAimCobrowseEnabled() && IsAssistantContainerEnabled() &&
-             AimEligibilityService::IsAimAllowedByPolicy(_prefService)) {
-    state = AppBarAssistantButtonState::kAIM;
-  } else if (useLens) {
-    state = AppBarAssistantButtonState::kLens;
-  }
-
-  [self recordAssistantButtonStateOnLoad:state];
-
+// Applies the assistant button state to the consumer, configuring its
+// enabled, highlighted, and avatar properties based on the state.
+- (void)applyAssistantButtonState:(AppBarAssistantButtonState)state {
   BOOL highlighted = NO;
   BOOL enabled = YES;
-  if (state == AppBarAssistantButtonState::kAsk) {
-    enabled = _geminiBrowserAgent &&
-              _geminiBrowserAgent->IsGeminiAvailableForActiveWebState();
-    highlighted = enabled && _geminiBrowserAgent &&
-                  _geminiBrowserAgent->is_floaty_invoked();
+  UIImage* avatar = nil;
+  switch (state) {
+    case AppBarAssistantButtonState::kAsk:
+      enabled = _geminiBrowserAgent &&
+                _geminiBrowserAgent->IsGeminiAvailableForActiveWebState();
+      highlighted = enabled && _geminiBrowserAgent &&
+                    _geminiBrowserAgent->is_floaty_invoked();
+      break;
+    case AppBarAssistantButtonState::kAccount:
+      if (_authenticationService && !_authenticationService->SigninEnabled()) {
+        enabled = NO;
+      }
+      avatar = [self avatarForPrimaryIdentity];
+      break;
+    case AppBarAssistantButtonState::kAIM:
+    case AppBarAssistantButtonState::kLens:
+      break;
   }
 
-  UIImage* avatar = nil;
-  if (state == AppBarAssistantButtonState::kAccount) {
-    id<SystemIdentity> identity = _authenticationService->GetPrimaryIdentity();
-    ApplicationContext* context = GetApplicationContext();
-    signin::AvatarProvider* avatarProvider =
-        context ? context->GetIdentityAvatarProvider() : nullptr;
-    if (avatarProvider && identity) {
-      avatar = avatarProvider->GetIdentityAvatar(
-          identity, IdentityAvatarSize::TableViewIcon);
-    }
+  if ([self isLensOverlayVisible]) {
+    enabled = NO;
   }
 
   BOOL signedIn = _authenticationService->HasPrimaryIdentity();
@@ -814,6 +935,22 @@ using base::UmaHistogramEnumeration;
                                  enabled:enabled
                                   avatar:avatar
                                 signedIn:signedIn];
+}
+
+// Updates the assistant button state based on eligibility and applies it to the
+// consumer.
+- (void)updateAssistantButton {
+  AppBarAssistantButtonState state = AppBarAssistantButtonState::kAccount;
+  if ([self isGeminiEligible]) {
+    state = AppBarAssistantButtonState::kAsk;
+  } else if ([self isLensEligible]) {
+    // TODO(crbug.com/532071605): Re-enable AIM check to show the AIM button
+    // once AIM SRP routing is implemented.
+    state = AppBarAssistantButtonState::kLens;
+  }
+
+  [self recordAssistantButtonStateOnLoad:state];
+  [self applyAssistantButtonState:state];
 }
 
 // Records the assistant button state on load.

@@ -19,6 +19,7 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_controller.h"
+#include "chrome/browser/glic/experimental_triggering/glic_experimental_triggering_manager.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
@@ -359,13 +360,15 @@ class ExperimentalTriggeringUpdatesHandler
             }
           },
           message_handler_, context_id_));
-      instance_->GetExperimentalTriggeringUpdates(
-          std::move(remote), base::BindOnce([](bool success) {
-            if (!success) {
-              DLOG(WARNING) << "Failed to register experimental triggering "
-                               "updates handler.";
-            }
-          }));
+      if (auto* manager = instance_->GetExperimentalTriggeringManager()) {
+        manager->GetExperimentalTriggeringUpdates(
+            std::move(remote), base::BindOnce([](bool success) {
+              if (!success) {
+                DLOG(WARNING) << "Failed to register experimental triggering "
+                                 "updates handler.";
+              }
+            }));
+      }
     }
   }
 
@@ -700,6 +703,22 @@ void GlicExperimentalTriggeringMessageHandler::OnMessage(
     SharingMessageHandler::DoneCallback done_callback) {
   CHECK(base::FeatureList::IsEnabled(features::kGlicExperimentalTriggering));
   CHECK(message.has_glic_experimental_triggering());
+
+#if BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(features::kGlicBackgroundTriggering)) {
+    VLOG(1) << "GlicTrigger: Triggering ActorForegroundService from native";
+    if (profile_) {
+      actor::ActorKeyedService* actor_service =
+          actor::ActorKeyedService::Get(profile_);
+      if (actor_service) {
+        actor_service->EnsureForegroundServiceStarted();
+      }
+    }
+  } else {
+    VLOG(1) << "GlicTrigger: GlicBackgroundTriggering feature disabled, "
+               "skipping FGS trigger";
+  }
+#endif
 
   const auto& request = message.glic_experimental_triggering();
   // If no `context_id` is present in the request, we generate one that

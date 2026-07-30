@@ -888,6 +888,7 @@ chromium-metrics-reviews@google.com.
   <int value="102" label="Sync Preview"/>
   <int value="103" label="Fpop Service"/>
   <int value="104" label="Context Containers Service"/>
+  <int value="105" label="Remote Actor Login Credentials Service"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -919,7 +920,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="kInvalidTokens"/>
   <int value="5" label="kError"/>
   <int value="6" label="kRetryWithTokenBindingChallenge"/>
-  <int value="7" label="kNetworkError (not recorded)"/>
+  <int value="7" label="kNetworkError"/>
 </enum>
 
 <!-- LINT.ThenChange(//google_apis/gaia/oauth_multilogin_result.h:OAuthMultiloginResponseStatus) -->
@@ -1203,6 +1204,13 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Abort (deprecated)"/>
   <int value="2" label="Failure">Failed with Gaia error.</int>
   <int value="3" label="Timeout"/>
+</enum>
+
+<enum name="SigninGaiaAuthFetcherIOSCookiesState">
+  <int value="0" label="No Cookies"/>
+  <int value="1" label="All Cookies Insecure"/>
+  <int value="2" label="All Cookies Secure"/>
+  <int value="3" label="Secure and Insecure Cookies"/>
 </enum>
 
 <enum name="SigninGaiaCookieManagerLogout">

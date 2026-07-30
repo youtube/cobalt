@@ -273,6 +273,7 @@ component("views") {
     "input_protection/default_input_protector_delegate.h",
     "input_protection/input_protector_delegate.h",
     "input_protection/occluded_widget_input_protector.h",
+    "input_protection/occlusion_aware_input_protection_delegate.h",
     "interaction/element_highlighter_views.h",
     "interaction/element_tracker_views.h",
     "interaction/element_tracker_widget_state.h",
@@ -518,6 +519,7 @@ component("views") {
     "input_event_activation_protector.cc",
     "input_protection/default_input_protector_delegate.cc",
     "input_protection/occluded_widget_input_protector.cc",
+    "input_protection/occlusion_aware_input_protection_delegate.cc",
     "interaction/element_highlighter_views.cc",
     "interaction/element_tracker_views.cc",
     "interaction/element_tracker_widget_state.cc",
@@ -1164,8 +1166,6 @@ source_set("test_support") {
     "view_test_api.h",
     "views_test_suite.cc",
     "views_test_suite.h",
-    "widget/widget_interactive_uitest_utils.cc",
-    "widget/widget_interactive_uitest_utils.h",
   ]
 
   configs += [ "//build/config:precompiled_headers" ]
@@ -1357,11 +1357,13 @@ test("views_unittests") {
     "controls/theme_tracking_animated_image_view_unittest.cc",
     "controls/theme_tracking_image_view_unittest.cc",
     "controls/tree/tree_view_unittest.cc",
+    "debug_utils_unittest.cc",
     "event_monitor_unittest.cc",
     "focus/focus_manager_unittest.cc",
     "focus/focus_traversal_unittest.cc",
     "input_event_activation_protector_unittest.cc",
     "input_protection/occluded_widget_input_protector_unittest.cc",
+    "input_protection/occlusion_aware_input_protection_delegate_unittest.cc",
     "layout/animating_layout_manager_unittest.cc",
     "layout/box_layout_unittest.cc",
     "layout/box_layout_view_unittest.cc",
@@ -1668,7 +1670,7 @@ source_set("views_interactive_ui_tests") {
   testonly = true
 
   sources = [
-    "widget/any_widget_observer_uitest.cc",
+    "widget/any_widget_observer_interactive_uitest.cc",
     "widget/widget_interactive_uitest.cc",
   ]
 
@@ -1691,6 +1693,10 @@ source_set("views_interactive_ui_tests") {
   ]
 
   public_deps = [ "//ui/base/mojom" ]
+
+  if (use_ozone) {
+    deps += [ "//ui/ozone" ]
+  }
 
   if (is_win) {
     sources += [

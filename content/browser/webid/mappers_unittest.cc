@@ -11,14 +11,15 @@
 #include "base/test/scoped_feature_list.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
-
-using Field = content::IdentityRequestDialogDisclosureField;
-using LoginState = content::IdentityRequestAccount::LoginState;
-using ::testing::ElementsAre;
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 
 namespace content {
 namespace webid {
+
+using ::testing::ElementsAre;
+using Field = IdentityRequestDialogDisclosureField;
+using IdentityRequestAccountPtr = scoped_refptr<IdentityRequestAccount>;
+using LoginState = IdentityRequestAccount::LoginState;
 
 namespace {
 IdentityRequestAccountPtr CreateEmptyAccount() {

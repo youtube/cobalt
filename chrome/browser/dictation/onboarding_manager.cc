@@ -24,16 +24,19 @@ OnboardingManager::~OnboardingManager() = default;
 
 bool OnboardingManager::ShowOnboardingIfNeeded(
     tabs::TabInterface& tab,
-    const TargetId& target_id,
+    const content::GlobalDOMNodeId& target_id,
     DictationSessionEntryPoint entry_point) {
   if (pref_service_->GetBoolean(prefs::kPrefDictationOnboardingCompleted)) {
     return false;
   }
 
-  // TODO(b/525857719): Handle the case where the FRE is triggered from a second
-  // tab while a first tab already has an active FRE.
+  // If an FRE dialog is already active on another tab, close it before opening
+  // a new FRE dialog on the current tab.
   if (dialog_controller_) {
-    return true;
+    dialog_controller_.reset();
+    pending_tab_.reset();
+    pending_target_id_.reset();
+    pending_entry_point_.reset();
   }
 
   // TODO(bokan): I think we can extract this from the dialog_controller_ rather
@@ -62,18 +65,20 @@ bool OnboardingManager::ShowOnboardingIfNeeded(
 
 void OnboardingManager::OnOnboardingCompleted() {
   pref_service_->SetBoolean(prefs::kPrefDictationOnboardingCompleted, true);
-  if (pending_tab_) {
-    CHECK(pending_target_id_);
-    CHECK(pending_entry_point_);
-    service_->StartSession(*pending_tab_, *pending_target_id_,
-                           *pending_entry_point_);
+}
+
+void OnboardingManager::OnDialogClosed() {
+  if (pref_service_->GetBoolean(prefs::kPrefDictationOnboardingCompleted)) {
+    if (pending_tab_) {
+      CHECK(pending_target_id_);
+      CHECK(pending_entry_point_);
+      service_->StartSession(*pending_tab_, *pending_target_id_,
+                             *pending_entry_point_);
+    }
   }
   pending_tab_.reset();
   pending_target_id_.reset();
   pending_entry_point_.reset();
-}
-
-void OnboardingManager::OnDialogClosed() {
   dialog_controller_.reset();
 }
 

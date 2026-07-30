@@ -125,6 +125,7 @@
 using blink::WebInputEvent;
 using content::BrowserThread;
 using content::DevToolsAgentHost;
+using content::GlobalRenderFrameHostId;
 using content::WebContents;
 
 namespace {
@@ -1585,12 +1586,12 @@ WebContents* DevToolsWindow::AddNewContents(
   return nullptr;
 }
 
-void DevToolsWindow::WebContentsCreated(WebContents* source_contents,
-                                        int opener_render_process_id,
-                                        int opener_render_frame_id,
-                                        const std::string& frame_name,
-                                        const GURL& target_url,
-                                        WebContents* new_contents) {
+void DevToolsWindow::WebContentsCreated(
+    WebContents* source_contents,
+    const GlobalRenderFrameHostId& opener_id,
+    const std::string& frame_name,
+    const GURL& target_url,
+    WebContents* new_contents) {
   if (target_url.SchemeIs(content::kChromeDevToolsScheme) &&
       target_url.GetPath().rfind("device_mode_emulation_frame.html") !=
           std::string::npos) {
@@ -1840,8 +1841,8 @@ void DevToolsWindow::OpenInNewTab(const GURL& url) {
     NOTIMPLEMENTED();
 #else
     chrome::ScopedTabbedBrowserDisplayer displayer(profile_);
-    chrome::AddSelectedTabWithURL(displayer.browser(), fixed_url,
-                                  ui::PAGE_TRANSITION_LINK);
+    chrome::AddSelectedTabWithURL(displayer.browser_window_interface(),
+                                  fixed_url, ui::PAGE_TRANSITION_LINK);
 #endif
   }
 }

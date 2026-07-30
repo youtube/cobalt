@@ -75,6 +75,7 @@ import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.layouts.EventFilter.EventType;
 import org.chromium.chrome.browser.layouts.SceneOverlay;
 import org.chromium.chrome.browser.layouts.components.VirtualView;
+import org.chromium.chrome.browser.layouts.components.VirtualView.VirtualViewPriority;
 import org.chromium.chrome.browser.preferences.Pref;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.Tab;
@@ -97,6 +98,7 @@ import org.chromium.chrome.browser.ui.side_ui.SideUiStateProvider;
 import org.chromium.components.browser_ui.widget.TouchEventObserver;
 import org.chromium.components.browser_ui.widget.TouchEventProvider;
 import org.chromium.components.content_capture.OnscreenContentProvider;
+import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.content_public.browser.NavigationHandle;
@@ -783,6 +785,13 @@ public class CompositorViewHolder extends FrameLayout
                     mApplicationBottomInsetSupplier.getInsets().webContentsHeightInset);
             if (mApplicationBottomInsetSupplier.insetsAffectWebContentsSize()) {
                 tryUpdateControlsAndWebContentsSizing();
+            } else if (BaseFeatureList.sVirtualKeyboardGeometryAndInsetFixes.isEnabled()
+                    && mVirtualKeyboardMode == VirtualKeyboardMode.OVERLAYS_CONTENT) {
+                Tab tab = getCurrentTab();
+                if (tab != null && tab.getWebContents() != null) {
+                    notifyVirtualKeyboardOverlayGeometryChangeEvent(
+                            getWidth(), getHeight(), tab.getWebContents());
+                }
             }
         }
 
@@ -1197,15 +1206,12 @@ public class CompositorViewHolder extends FrameLayout
             // TODO(bokan): This doesn't belong in updateWebContentsSize. Ideally the content/ layer
             // would listen to changes in keyboard state and dispatch this event itself.
             if (mVirtualKeyboardMode == VirtualKeyboardMode.OVERLAYS_CONTENT) {
-                int keyboardHeight =
-                        KeyboardVisibilityDelegate.getInstance()
-                                .calculateTotalKeyboardHeight(this.getRootView());
                 int geometryChangeWidth =
                         BaseFeatureList.sVirtualKeyboardGeometryAndInsetFixes.isEnabled()
                                 ? webContentsWidth
                                 : width;
                 notifyVirtualKeyboardOverlayGeometryChangeEvent(
-                        geometryChangeWidth, webContentsHeight, keyboardHeight, webContents);
+                        geometryChangeWidth, webContentsHeight, webContents);
             }
         } else {
             // Need to call layout() for the following View if it is not attached to the view
@@ -1243,8 +1249,27 @@ public class CompositorViewHolder extends FrameLayout
      * @param webContents Active WebContent for which this event needs to be fired.
      */
     private void notifyVirtualKeyboardOverlayGeometryChangeEvent(
-            int viewportWidth, int viewportHeight, int keyboardHeight, WebContents webContents) {
+            int viewportWidth, int viewportHeight, WebContents webContents) {
         assert mVirtualKeyboardMode == VirtualKeyboardMode.OVERLAYS_CONTENT;
+
+        int keyboardHeight =
+                KeyboardVisibilityDelegate.getInstance()
+                        .calculateTotalKeyboardHeight(this.getRootView());
+        // Fullscreen viewports extend behind system bars. In this state, the keyboard height
+        // reported by the delegate may not match the actual IME inset. Retrieve the raw IME inset
+        // from WindowInsets to ensure we have the correct keyboard height, which also correctly
+        // accounts for different navigation bar modes (e.g., 3-button vs gesture).
+        if (BaseFeatureList.sVirtualKeyboardGeometryAndInsetFixes.isEnabled()
+                && mShowingFullscreen
+                && getRootView().getRootWindowInsets() != null) {
+            WindowInsetsCompat windowInsetsCompat =
+                    WindowInsetsCompat.toWindowInsetsCompat(
+                            getRootView().getRootWindowInsets(), getRootView());
+            int imeHeight = windowInsetsCompat.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            if (imeHeight > 0) {
+                keyboardHeight = imeHeight;
+            }
+        }
 
         boolean keyboardVisible = keyboardHeight > 0;
         if (!keyboardVisible && !mHasKeyboardGeometryChangeFired) {
@@ -1540,6 +1565,10 @@ public class CompositorViewHolder extends FrameLayout
     private void disableClipToPaddingForCurrentTab() {
         if (mView == null) return;
         if (mResetClipToPaddingRunnable != null) resetClipToPadding();
+
+        // Skip for NTP as the scrollable MV tiles depend on padding clipping.
+        Tab tab = getCurrentTab();
+        if (tab != null && UrlUtilities.isNtpUrl(tab.getUrl())) return;
 
         Map<ViewGroup, Boolean> initialClipToPadding = new ArrayMap<>();
         Collection<View> descendants = new ArrayList<>();
@@ -1889,13 +1918,9 @@ public class CompositorViewHolder extends FrameLayout
                 bottomControlsOffsetSupplier);
 
         mTabModelSelector = tabModelSelector;
+        mTabModelSelector.getCurrentTabSupplier().addSyncObserver((tab) -> onContentChanged());
         tabModelSelector.addObserver(
                 new TabModelSelectorObserver() {
-                    @Override
-                    public void onChange() {
-                        onContentChanged();
-                    }
-
                     @Override
                     public void onNewTabCreated(Tab tab, @TabCreationState int creationState) {
                         initializeTab(tab);
@@ -2356,12 +2381,22 @@ public class CompositorViewHolder extends FrameLayout
         @Override
         protected int getVirtualViewAt(float x, float y) {
             if (mVirtualViews == null) return INVALID_ID;
+
+            int id = INVALID_ID;
+            @VirtualViewPriority int priority = VirtualViewPriority.INVALID;
             for (int i = 0; i < mVirtualViews.size(); i++) {
-                if (mVirtualViews.get(i).checkClickedOrHovered(x / mDpToPx, y / mDpToPx)) {
-                    return i;
+                final VirtualView view = mVirtualViews.get(i);
+                if (view.getVirtualViewPriority() > priority
+                        && view.checkClickedOrHovered(x / mDpToPx, y / mDpToPx)) {
+                    id = i;
+                    priority = view.getVirtualViewPriority();
+
+                    // If the maximum priority is found, we can stop iterating.
+                    if (priority == VirtualViewPriority.HIGH) break;
                 }
             }
-            return INVALID_ID;
+
+            return id;
         }
 
         @Override
@@ -2429,6 +2464,8 @@ public class CompositorViewHolder extends FrameLayout
 
             node.setBoundsInParent(rectToPx(mTouchTarget));
             node.setContentDescription(getAccessibilityDescription(view));
+            node.setEnabled(view.isEnabled());
+            node.setClassName(view.getAccessibilityClassName());
             if (view.hasClickAction()) {
                 node.addAction(AccessibilityNodeInfoCompat.ACTION_CLICK);
                 node.setClickable(true);

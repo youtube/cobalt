@@ -19,6 +19,7 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
+#include "net/base/ech_mode.h"
 #include "net/base/features.h"
 #include "net/base/host_port_pair.h"
 #include "net/base/ip_endpoint.h"
@@ -26,10 +27,13 @@
 #include "net/base/trace_constants.h"
 #include "net/dns/public/host_resolver_results.h"
 #include "net/dns/public/secure_dns_policy.h"
+#include "net/http/http_server_properties.h"
 #include "net/log/net_log_event_type.h"
+#include "net/nqe/network_quality_estimator.h"
 #include "net/socket/socket_tag.h"
 #include "net/socket/tcp_connect_job.h"
 #include "net/socket/transport_connect_sub_job.h"
+#include "net/ssl/ssl_config_service.h"
 #include "url/scheme_host_port.h"
 #include "url/url_constants.h"
 
@@ -409,10 +413,8 @@ int TransportConnectJob::DoTransportConnect() {
     if (result != ERR_IO_PENDING)
       return HandleSubJobComplete(result, ipv6_job_.get());
     if (ipv4_job_) {
-      base::TimeDelta fallback_time = kIPv6FallbackTime;
-      if (base::FeatureList::IsEnabled(features::kAdjustIPv6FallbackTime)) {
-        fallback_time = features::kIPv6FallbackTime.Get();
-      }
+      base::TimeDelta fallback_time = TcpConnectJob::GetIPv6FallbackTime(
+          common_connect_job_params(), params_.get());
       // This use of base::Unretained is safe because |fallback_timer_| is
       // owned by this object.
       fallback_timer_.Start(
@@ -546,8 +548,12 @@ bool TransportConnectJob::IsSvcbOptional(
     return true;  // This is not a SVCB-capable request at all.
   }
 
-  if (!common_connect_job_params()->ssl_client_context ||
-      !common_connect_job_params()->ssl_client_context->config().ech_enabled) {
+  SSLClientContext* ssl_client_context =
+      common_connect_job_params()->ssl_client_context;
+  if (!ssl_client_context || !ssl_client_context->config().ech_enabled ||
+      (ssl_client_context->ssl_config_service() &&
+       ssl_client_context->ssl_config_service()->GetEchMode(
+           scheme_host_port->host()) == EchMode::kDisabled)) {
     return true;  // ECH is not supported for this request.
   }
 

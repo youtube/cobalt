@@ -34,7 +34,7 @@
   padding-inline-start: var(--location-bar-page-info-icon-padding-left);
   padding-inline-end: var(--location-bar-page-info-icon-padding-right);
   background-color: var(--color-omnibox-icon-background);
-  color: var(--color-omnibox-security-chip-default, currentColor);
+  color: var(--color-omnibox-text, currentColor);
   cursor: default;
 
   /* Ensure the ::after overlay does not spill outside the rounded corners. */
@@ -180,4 +180,28 @@ icon-from-table {
      width of the chip to the width of 10 characters (10ch), allowing it to
      squash down when space is tight, but no smaller than 10 characters wide. */
   min-width: min(10ch, max-content);
+}
+
+#container.help-anchor-highlight {
+  background-color: transparent;
+}
+
+#container.help-anchor-highlight::before {
+  animation: pulse 1600ms infinite;
+  background-color: var(--color-button-feature-attention-highlight);
+  opacity: 1;
+}
+
+@keyframes pulse {
+  0% {
+    inset: 0;
+    animation-timing-function: cubic-bezier(0.333, 0.667, 0.667, 1);
+  }
+  50% {
+    inset: 3px;
+    animation-timing-function: cubic-bezier(0.333, 0.667, 0.667, 1);
+  }
+  100% {
+    inset: 0;
+  }
 }

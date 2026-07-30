@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">Tietosivun <ph name="ABOUT_PAGE" /> lataus epäonnistui.</translation>
 <translation id="424963718355121712">Sovelluksen näyttämiseen on käytettävä isäntää, johon sovellus vaikuttaa.</translation>
 <translation id="4306119971288449206">Sovellusten näyttämiseen tulee käyttää sisältötyyppiä <ph name="CONTENT_TYPE" />.</translation>
+<translation id="4349181963619779233">Laajennuksia ja sovelluksia ei voi lisätä tältä sivustolta</translation>
 <translation id="4625078469366263107">Ota sovellus käyttöön</translation>
 <translation id="4633003931260532286">Laajennus edellyttää sovellusliittymän <ph name="IMPORT_NAME" /> vähimmäisversiota <ph name="IMPORT_VERSION" />, mutta asennettuna on vain versio <ph name="INSTALLED_VERSION" />.</translation>
 <translation id="4660476621274971848">Versiota <ph name="EXPECTED_VERSION" /> odotettiin, mutta versio oli <ph name="NEW_ID" />.</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">Yksityisen avaimen syöttöarvon on oltava kelvollisessa muodossa (PEM-merkkijärjestelmää käyttävä PKCS#8-muotoinen RSA-avain).</translation>
-<translation id="765293928828334535">Sovelluksia, laajennuksia ja käyttäjien komentosarjoja ei voi lisätä tältä verkkosivustolta.</translation>
 <translation id="7658239707568436148">Peru</translation>
 <translation id="7766838926148951335">Hyväksy käyttöoikeudet</translation>
 <translation id="7876803335449432072">Tiedostoa <ph name="RELATIVE_PATH" /> ei voitu ladata sisältöskriptille. Sisältöskriptin tyylisivut voidaan ladata vain tuetuista tyylisivutiedostoista, kuten .css-tiedostoista.</translation>

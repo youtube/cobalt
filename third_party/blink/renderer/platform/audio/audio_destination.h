@@ -29,6 +29,7 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_AUDIO_AUDIO_DESTINATION_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_AUDIO_AUDIO_DESTINATION_H_
 
+#include <atomic>
 #include <memory>
 #include <optional>
 
@@ -183,7 +184,9 @@ class PLATFORM_EXPORT AudioDestination final
                          base::TimeDelta delay,
                          base::TimeTicks delay_timestamp,
                          const media::AudioGlitchInfo& glitch_info,
-                         base::TimeTicks request_timestamp);
+                         base::TimeTicks request_timestamp,
+                         uint32_t session_id,
+                         bool has_unexpected_fifo_underrun_occurred);
 
   // Returns true if it was able to provide audio, false otherwise (this would
   // happen if and only if rendering is stopping or stopped.
@@ -193,6 +196,8 @@ class PLATFORM_EXPORT AudioDestination final
                      base::TimeTicks delay_timestamp,
                      const media::AudioGlitchInfo& glitch_info,
                      base::TimeTicks request_timestamp,
+                     uint32_t session_id,
+                     bool has_unexpected_fifo_underrun_occurred = false,
                      bool has_fifo_underrun_occurred = false);
 
   // Provide input to the resampler (if used).
@@ -270,17 +275,23 @@ class PLATFORM_EXPORT AudioDestination final
   // flag enabled.
   base::WaitableEvent output_buffer_bypass_wait_event_;
 
-  // Signaled by Stop() to unblock any Render() callback already waiting on
-  // output_buffer_bypass_wait_event_ via WaitMany(). Uses manual reset so the
-  // stop wakeup cannot be lost to a concurrent Reset() of
-  // output_buffer_bypass_wait_event_. Reset at the end of Stop() after the
-  // device has been torn down.
+  // Signaled by Stop() and Pause() to unblock any Render() callback already
+  // waiting on output_buffer_bypass_wait_event_ via WaitMany(). Uses manual
+  // reset so the stop/pause wakeup cannot be lost to a concurrent Reset() of
+  // output_buffer_bypass_wait_event_. Reset during Start(), Resume(), and
+  // Stop() after the device has been torn down.
   base::WaitableEvent output_buffer_bypass_stop_event_{
       base::WaitableEvent::ResetPolicy::MANUAL,
       base::WaitableEvent::InitialState::NOT_SIGNALED};
 
   const bool is_output_buffer_bypassed_ = false;
-  bool state_change_underrun_in_bypass_mode_ = false;
+  std::atomic<bool> is_state_change_underrun_in_bypass_mode_ = false;
+  bool has_unexpected_fifo_underrun_occurred_ = false;
+
+  // Incremented on every Start() to identify tasks from the current session.
+  // uint32 is safe because overflow requires over 100,000 years of typical
+  // usage.
+  std::atomic<uint32_t> session_id_ = 0;
 };
 
 }  // namespace blink

@@ -28,6 +28,8 @@
 
 #include <utility>
 
+#include "base/feature_list.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/strings/grit/blink_strings.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_focus_options.h"
 #include "third_party/blink/renderer/core/css/style_change_reason.h"
@@ -43,6 +45,7 @@
 #include "third_party/blink/renderer/core/event_interface_names.h"
 #include "third_party/blink/renderer/core/events/before_text_inserted_event.h"
 #include "third_party/blink/renderer/core/events/drag_event.h"
+#include "third_party/blink/renderer/core/events/keyboard_event.h"
 #include "third_party/blink/renderer/core/events/mouse_event.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/frame/settings.h"
@@ -197,8 +200,8 @@ int HTMLTextAreaElement::scrollWidth() {
   auto* box = GetLayoutBox();
   if (!box || !editor_box)
     return TextControlElement::scrollWidth();
-  LayoutUnit width =
-      editor_box->ClientWidth() + box->PaddingOutsets().HorizontalSum();
+  const LayoutUnit width = editor_box->PhysicalPaddingBoxRect().Width() +
+                           box->PaddingOutsets().HorizontalSum();
   return AdjustForAbsoluteZoom::AdjustLayoutUnit(width, box->StyleRef())
       .Round();
 }
@@ -215,8 +218,8 @@ int HTMLTextAreaElement::scrollHeight() {
   auto* box = GetLayoutBox();
   if (!box || !editor_box)
     return TextControlElement::scrollHeight();
-  LayoutUnit height =
-      editor_box->ClientHeight() + box->PaddingOutsets().VerticalSum();
+  const LayoutUnit height = editor_box->PhysicalPaddingBoxRect().Height() +
+                            box->PaddingOutsets().VerticalSum();
   return AdjustForAbsoluteZoom::AdjustLayoutUnit(height, box->StyleRef())
       .Round();
 }
@@ -414,6 +417,19 @@ void HTMLTextAreaElement::UpdateSelectionOnFocus(
 }
 
 void HTMLTextAreaElement::DefaultEventHandler(Event& event) {
+  if (auto* keyboard_event = DynamicTo<KeyboardEvent>(event);
+      base::FeatureList::IsEnabled(
+          blink::features::kAutofillKeydownEditableElement) &&
+      keyboard_event && event.type() == event_type_names::kKeydown &&
+      IsFocused() && !IsDisabledOrReadOnly() && GetDocument().GetPage() &&
+      GetDocument()
+          .GetPage()
+          ->GetChromeClient()
+          .HandleKeyboardEventOnEditableElement(*this, *keyboard_event)) {
+    event.SetDefaultHandled();
+    return;
+  }
+
   if (GetLayoutObject() &&
       (IsA<MouseEvent>(event) || IsA<DragEvent>(event) ||
        event.HasInterface(event_interface_names::kWheelEvent) ||
@@ -552,9 +568,9 @@ void HTMLTextAreaElement::setValueForBinding(const String& value) {
            TextControlSetValueSelection::kSetSelectionToEnd,
            was_autofilled && !value_changed ? WebAutofillState::kAutofilled
                                             : WebAutofillState::kNotFilled);
-  if (Page* page = GetDocument().GetPage(); page && value_changed) {
-    page->GetChromeClient().JavaScriptChangedValue(*this, old_value,
-                                                   was_autofilled);
+  if (Page* page = GetDocument().GetPage(); page) {
+    page->GetChromeClient().JavaScriptSetValue(*this, old_value, was_autofilled,
+                                               value_changed);
   }
 }
 

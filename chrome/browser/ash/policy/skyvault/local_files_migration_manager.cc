@@ -33,6 +33,7 @@
 #include "chrome/browser/ash/policy/skyvault/migration_coordinator.h"
 #include "chrome/browser/ash/policy/skyvault/migration_notification_manager.h"
 #include "chrome/browser/ash/policy/skyvault/policy_utils.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/chromeos/extensions/login_screen/login/cleanup/cleanup_handler.h"
 #include "chrome/browser/chromeos/extensions/login_screen/login/cleanup/files_cleanup_handler.h"
 #include "chrome/browser/chromeos/upload_office_to_cloud/upload_office_to_cloud.h"
@@ -189,8 +190,10 @@ bool IsMigrationMisconfigured(Profile* profile, MigrationDestination provider) {
 }  // namespace
 
 LocalFilesMigrationManager::LocalFilesMigrationManager(
+    PrefService* local_state,
     content::BrowserContext* context)
-    : context_(context),
+    : LocalUserFilesPolicyObserver(local_state),
+      context_(context),
       coordinator_(std::make_unique<MigrationCoordinator>(
           Profile::FromBrowserContext(context))),
       scheduling_timer_(std::make_unique<base::WallClockTimer>()) {
@@ -925,8 +928,11 @@ LocalFilesMigrationManagerFactory::BuildServiceInstanceForBrowserContext(
     return nullptr;
   }
 
+  // NOTE: Allow g_browser_process here as this class is initialized lazily with
+  // base::NoDestructor.
   std::unique_ptr<LocalFilesMigrationManager> instance =
-      std::make_unique<LocalFilesMigrationManager>(context);
+      std::make_unique<LocalFilesMigrationManager>(
+          g_browser_process->local_state(), context);
   instance->Initialize();
   return instance;
 }

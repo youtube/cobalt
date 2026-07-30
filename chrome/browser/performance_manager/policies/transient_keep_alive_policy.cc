@@ -38,7 +38,7 @@ bool HasMainFrames(const ProcessNode* process_node) {
 void DecrementPendingReuseRefCountById(content::ChildProcessId rph_id) {
   DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
   content::RenderProcessHost* rph = content::RenderProcessHost::FromID(rph_id);
-  if (rph) {
+  if (rph && !rph->IsDeletingSoon() && !rph->AreRefCountsDisabled()) {
     rph->DecrementPendingReuseRefCount();
   }
 }
@@ -183,29 +183,18 @@ void TransientKeepAlivePolicy::OnProcessNodeRemoved(
     return;
   }
 
-  content::RenderProcessHost* rph =
-      process_node->GetRenderProcessHostProxy().Get();
-  CHECK(rph);
-
-  auto SafeDecrement = [](content::RenderProcessHost* rph) {
-    // If the RenderProcessHost is already destroying, the pending reuse ref
-    // count has already been forcibly cleared. Decrementing it again would be
-    // incorrect.
-    if (!rph->IsDeletingSoon()) {
-      rph->DecrementPendingReuseRefCount();
-    }
-  };
-
-  // Check if it's in the "active" set.
+  // We do not decrement the RenderProcessHost's pending reuse ref count here.
+  // The process node is only removed when the RenderProcessHost is being
+  // destroyed or the PerformanceManagerRegistry is tearing down. In both cases,
+  // the ref count is moot. Safely untrack the process node.
+  //
+  // Erase from the active set if present.
   if (tracked_processes_with_frames_.erase(process_node)) {
-    SafeDecrement(rph);
     return;
   }
 
-  // Check if it's in the "empty" map.
-  if (empty_kept_alive_processes_.erase(process_node)) {
-    SafeDecrement(rph);
-  }
+  // Otherwise, erase from the empty keep-alive map if present.
+  empty_kept_alive_processes_.erase(process_node);
 }
 
 // Evict the oldest processes until we are under the limit.

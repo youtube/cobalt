@@ -47,7 +47,7 @@ bool StructTraits<blink::mojom::RendererPreferencesDataView,
 
   out->use_custom_colors = data.use_custom_colors();
 
-#if BUILDFLAG(IS_CHROMEOS)
+#if BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
   out->use_overlay_scrollbar = data.use_overlay_scrollbar();
 #endif
 
@@ -117,6 +117,13 @@ bool StructTraits<blink::mojom::RendererPreferencesDataView,
 #if BUILDFLAG(IS_ANDROID)
   out->uses_platform_autofill = data.uses_platform_autofill();
 #endif  // BUILDFLAG(IS_ANDROID)
+
+  out->autofill_shortcut_key_code =
+      static_cast<ui::KeyboardCode>(data.autofill_shortcut_key_code());
+  out->autofill_shortcut_modifiers = data.autofill_shortcut_modifiers();
+  if (!data.ReadAutofillTriggerString(&out->autofill_trigger_string)) {
+    return false;
+  }
 
   if (!data.ReadExplicitlyAllowedNetworkPorts(
           &out->explicitly_allowed_network_ports)) {

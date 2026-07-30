@@ -198,11 +198,13 @@ enum DataType {
   // A theme object specifically for iOS devices.
   THEMES_IOS,
 
-
   // A theme object specifically for Android devices.
   THEMES_ANDROID,
 
-  LAST_USER_DATA_TYPE = THEMES_ANDROID,
+  // Encrypted tab context container.
+  ENCRYPTED_TAB_CONTEXT_CONTAINER,
+
+  LAST_USER_DATA_TYPE = ENCRYPTED_TAB_CONTEXT_CONTAINER,
 
   // ---- Control Types ----
   // An object representing a set of Nigori keys.
@@ -312,7 +314,8 @@ enum class DataTypeForHistograms {
   kThemesIos = 78,
   // kDeprecatedAccessibilityAnnotation = 79,
   kThemesAndroid = 80,
-  kMaxValue = kThemesAndroid,
+  kEncryptedTabContextContainer = 81,
+  kMaxValue = kEncryptedTabContextContainer,
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/sync/enums.xml:SyncDataTypes)
 
@@ -334,7 +337,23 @@ DataTypeSet ProtocolTypes();
 DataTypeSet UserTypes();
 
 // User types which are not user-controlled.
-DataTypeSet AlwaysPreferredUserTypes();
+inline constexpr DataTypeSet AlwaysPreferredUserTypes() {
+  // TODO(crbug.com/477624427): add SKILL to a corresponding UserSelectableType
+  // or another toggle.
+  return {ACCOUNT_SETTING,
+          DEVICE_INFO,
+          USER_CONSENTS,
+          PLUS_ADDRESS,
+          PLUS_ADDRESS_SETTING,
+          PRIORITY_PREFERENCES,
+          SECURITY_EVENTS,
+          SEND_TAB_TO_SELF,
+          SUPERVISED_USER_SETTINGS,
+          SHARING_MESSAGE,
+          SKILL,
+          AI_THREAD,
+          GEMINI_THREAD};
+}
 
 // User types which are always encrypted.
 DataTypeSet AlwaysEncryptedUserTypes();

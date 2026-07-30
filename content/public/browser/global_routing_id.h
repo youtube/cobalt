@@ -30,15 +30,15 @@ namespace content {
 struct CONTENT_EXPORT GlobalRoutingID {
   GlobalRoutingID() = default;
 
-  GlobalRoutingID(int child_id, int route_id)
+  GlobalRoutingID(ChildProcessId child_id, int route_id)
       : child_id(child_id), route_id(route_id) {}
 
   // The unique ID of the child process (this is different from OS's PID / this
-  // should come from RenderProcessHost::GetDeprecatedID()).
-  int child_id = kInvalidChildProcessUniqueId;
+  // should come from RenderProcessHost::GetID()).
+  ChildProcessId child_id;
 
   // The route ID.
-  int route_id = -1;
+  int route_id = IPC::mojom::kRoutingIdNone;
 
   constexpr friend auto operator<=>(const GlobalRoutingID&,
                                     const GlobalRoutingID&) = default;
@@ -47,7 +47,7 @@ struct CONTENT_EXPORT GlobalRoutingID {
 };
 
 inline std::ostream& operator<<(std::ostream& os, const GlobalRoutingID& id) {
-  os << "GlobalRoutingID(" << id.child_id << ", " << id.route_id << ")";
+  os << "GlobalRoutingID(" << id.child_id.value() << ", " << id.route_id << ")";
   return os;
 }
 
@@ -60,6 +60,7 @@ inline std::ostream& operator<<(std::ostream& os, const GlobalRoutingID& id) {
 struct CONTENT_EXPORT GlobalRenderFrameHostId {
   GlobalRenderFrameHostId() = default;
 
+  // TODO(crbug.com/379869738): Remove FromUnsafeValue.
   GlobalRenderFrameHostId(int child_id, int frame_routing_id)
       : GlobalRenderFrameHostId(ChildProcessId::FromUnsafeValue(child_id),
                                 frame_routing_id) {}
@@ -107,7 +108,7 @@ inline std::ostream& operator<<(std::ostream& os,
 
 struct GlobalRenderFrameHostIdHasher {
   std::size_t operator()(const GlobalRenderFrameHostId& id) const {
-    return base::HashInts(id.child_id.GetUnsafeValue(), id.frame_routing_id);
+    return base::HashInts(id.child_id.value(), id.frame_routing_id);
   }
 };
 
@@ -127,6 +128,11 @@ struct CONTENT_EXPORT GlobalRenderFrameHostToken {
   GlobalRenderFrameHostToken(int child_id,
                              const blink::LocalFrameToken& frame_token)
       : child_id(child_id), frame_token(frame_token) {}
+
+  // TODO(crbug.com/379869738): Remove GetUnsafeValue.
+  GlobalRenderFrameHostToken(ChildProcessId child_id,
+                             const blink::LocalFrameToken& frame_token)
+      : child_id(child_id.GetUnsafeValue()), frame_token(frame_token) {}
 
   // Helpers to convert to and from `base::Pickle` objects.
   base::Pickle ToPickle();

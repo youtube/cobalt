@@ -44,14 +44,30 @@ bool ShouldUpdateTextInputState(const ui::mojom::TextInputState& old_state,
 // We want to validate with the viewport's rect. However this lookup can be
 // invoked on a `RenderWidgetHostViewChildFrame` which has been disconnected
 // from the viewport. In such a case we return the requested size of the child
-// view
-gfx::Rect GetViewportRect(RenderWidgetHostViewBase* view) {
+// view.
+gfx::Rect GetRootOrFallbackViewportRect(RenderWidgetHostViewBase* view) {
   auto* root_view = view->GetRootView();
   if (root_view) {
     return gfx::Rect(root_view->GetVisibleViewportSize());
   } else {
     return gfx::Rect(view->GetRequestedRendererSize());
   }
+}
+
+// Transforms `rect` to the root view's coordinate space and clamps it to the
+// `viewport_rect`.
+gfx::Rect TransformAndClampBounds(RenderWidgetHostViewBase* view,
+                                  const gfx::Rect& rect,
+                                  const gfx::Rect& viewport_rect) {
+  gfx::Point origin_transformed =
+      view->TransformPointToRootCoordSpace(rect.origin());
+  gfx::Point bottom_left_transformed =
+      view->TransformPointToRootCoordSpace(rect.bottom_left());
+  gfx::Rect transformed_rect(
+      origin_transformed, gfx::Size(rect.width(), bottom_left_transformed.y() -
+                                                      origin_transformed.y()));
+  transformed_rect.AdjustToFit(viewport_rect);
+  return transformed_rect;
 }
 
 }  // namespace
@@ -127,7 +143,7 @@ std::optional<ui::GrammarFragment> TextInputManager::GetGrammarFragment(
 
 const TextInputManager::SelectionRegion* TextInputManager::GetSelectionRegion(
     RenderWidgetHostViewBase* view) const {
-  DCHECK(!view || IsRegistered(view));
+  CHECK(!view || IsRegistered(view), base::NotFatalUntil::M153);
   if (!view)
     view = active_view_;
   return view ? &selection_region_map_.at(view) : nullptr;
@@ -157,7 +173,7 @@ TextInputManager::GetProximateCharacterBoundsInfo(
 
 const TextInputManager::TextSelection* TextInputManager::GetTextSelection(
     RenderWidgetHostViewBase* view) const {
-  DCHECK(!view || IsRegistered(view));
+  CHECK(!view || IsRegistered(view), base::NotFatalUntil::M153);
   if (!view)
     view = active_view_;
   // A crash occurs when we end up here with an unregistered view.
@@ -175,7 +191,7 @@ const std::optional<gfx::Rect> TextInputManager::GetTextControlBounds() const {
   auto new_top_left =
       active_view_->TransformPointToRootCoordSpace(control_bounds.origin());
   control_bounds.set_origin(new_top_left);
-  control_bounds.AdjustToFit(GetViewportRect(active_view_));
+  control_bounds.AdjustToFit(GetRootOrFallbackViewportRect(active_view_));
   return control_bounds;
 }
 
@@ -189,14 +205,14 @@ const std::optional<gfx::Rect> TextInputManager::GetTextSelectionBounds()
   auto new_top_left =
       active_view_->TransformPointToRootCoordSpace(selection_bounds.origin());
   selection_bounds.set_origin(new_top_left);
-  selection_bounds.AdjustToFit(GetViewportRect(active_view_));
+  selection_bounds.AdjustToFit(GetRootOrFallbackViewportRect(active_view_));
   return selection_bounds;
 }
 
 void TextInputManager::UpdateTextInputState(
     RenderWidgetHostViewBase* view,
     const ui::mojom::TextInputState& text_input_state) {
-  DCHECK(IsRegistered(view));
+  CHECK(IsRegistered(view), base::NotFatalUntil::M153);
 
   if (text_input_state.type == ui::TEXT_INPUT_TYPE_NONE &&
       active_view_ != view) {
@@ -281,7 +297,7 @@ void TextInputManager::UpdateProximateCharacterBounds(
 #endif  // BUILDFLAG(IS_WIN)
 
 void TextInputManager::ImeCancelComposition(RenderWidgetHostViewBase* view) {
-  DCHECK(IsRegistered(view));
+  CHECK(IsRegistered(view), base::NotFatalUntil::M153);
   for (auto& observer : observer_list_)
     observer.OnImeCancelComposition(this, view);
 }
@@ -294,21 +310,21 @@ void TextInputManager::SelectionBoundsChanged(
     base::i18n::TextDirection focus_dir,
     const gfx::Rect& bounding_box,
     bool is_anchor_first) {
-  DCHECK(IsRegistered(view));
-  // Converting the anchor point to root's coordinate space (for child frame
-  // views).
-  gfx::Point anchor_origin_transformed =
-      view->TransformPointToRootCoordSpace(anchor_rect.origin());
+  CHECK(IsRegistered(view), base::NotFatalUntil::M153);
+
+  gfx::Rect viewport_rect = GetRootOrFallbackViewportRect(view);
+
+  gfx::Rect transformed_anchor_rect =
+      TransformAndClampBounds(view, anchor_rect, viewport_rect);
+  gfx::Rect transformed_focus_rect =
+      TransformAndClampBounds(view, focus_rect, viewport_rect);
 
   gfx::SelectionBound anchor_bound, focus_bound;
 
-  anchor_bound.SetEdge(gfx::PointF(anchor_origin_transformed),
-                       gfx::PointF(view->TransformPointToRootCoordSpace(
-                           anchor_rect.bottom_left())));
-  focus_bound.SetEdge(
-      gfx::PointF(view->TransformPointToRootCoordSpace(focus_rect.origin())),
-      gfx::PointF(
-          view->TransformPointToRootCoordSpace(focus_rect.bottom_left())));
+  anchor_bound.SetEdge(gfx::PointF(transformed_anchor_rect.origin()),
+                       gfx::PointF(transformed_anchor_rect.bottom_left()));
+  focus_bound.SetEdge(gfx::PointF(transformed_focus_rect.origin()),
+                      gfx::PointF(transformed_focus_rect.bottom_left()));
 
   if (anchor_rect == focus_rect) {
     anchor_bound.set_type(gfx::SelectionBound::CENTER);
@@ -369,13 +385,9 @@ void TextInputManager::SelectionBoundsChanged(
   selection_region_map_[view].bounding_box = bounding_box_transformed;
 
   if (anchor_rect == focus_rect) {
-    selection_region_map_[view].caret_rect.set_origin(
-        anchor_origin_transformed);
-    selection_region_map_[view].caret_rect.set_size(anchor_rect.size());
+    selection_region_map_[view].caret_rect = transformed_anchor_rect;
   }
-  selection_region_map_[view].first_selection_rect.set_origin(
-      anchor_origin_transformed);
-  selection_region_map_[view].first_selection_rect.set_size(anchor_rect.size());
+  selection_region_map_[view].first_selection_rect = transformed_anchor_rect;
 
   NotifySelectionBoundsChanged(view);
 }
@@ -393,12 +405,12 @@ void TextInputManager::ImeCompositionRangeChanged(
     RenderWidgetHostViewBase* view,
     const gfx::Range& range,
     const std::optional<std::vector<gfx::Rect>>& character_bounds) {
-  DCHECK(IsRegistered(view));
+  CHECK(IsRegistered(view), base::NotFatalUntil::M153);
 
   if (character_bounds.has_value()) {
     composition_range_info_map_[view].character_bounds.clear();
 
-    gfx::Rect viewport_rect = GetViewportRect(view);
+    gfx::Rect viewport_rect = GetRootOrFallbackViewportRect(view);
     // The values for the bounds should be converted to root view's coordinates
     // before being stored.
     for (auto& rect : character_bounds.value()) {
@@ -424,22 +436,34 @@ void TextInputManager::SelectionChanged(RenderWidgetHostViewBase* view,
                                         const std::u16string& text,
                                         size_t offset,
                                         const gfx::Range& range) {
-  DCHECK(IsRegistered(view));
+  CHECK(IsRegistered(view), base::NotFatalUntil::M153);
   text_selection_map_[view].SetSelection(text, offset, range);
   for (auto& observer : observer_list_)
     observer.OnTextSelectionChanged(this, view);
 }
 
 void TextInputManager::Register(RenderWidgetHostViewBase* view) {
-  DCHECK(!IsRegistered(view));
+  CHECK(!IsRegistered(view), base::NotFatalUntil::M153);
   text_input_state_map_[view] = ui::mojom::TextInputState::New();
   selection_region_map_[view] = SelectionRegion();
   composition_range_info_map_[view] = CompositionRangeInfo();
   text_selection_map_[view] = TextSelection();
 }
 
+void TextInputManager::DidEnterBackForwardCache(
+    RenderWidgetHostViewBase* view) {
+  if (!IsRegistered(view) || active_view_ != view) {
+    return;
+  }
+  // The view remains registered and its cached state is preserved across
+  // BFCache, but it is no longer the active text-input target while the page is
+  // frozen.
+  active_view_ = nullptr;
+  NotifyObserversAboutInputStateUpdate(view, true);
+}
+
 void TextInputManager::Unregister(RenderWidgetHostViewBase* view) {
-  DCHECK(IsRegistered(view));
+  CHECK(IsRegistered(view), base::NotFatalUntil::M153);
 
   text_input_state_map_.erase(view);
   selection_region_map_.erase(view);
@@ -478,7 +502,7 @@ size_t TextInputManager::GetRegisteredViewsCountForTesting() {
 
 ui::TextInputType TextInputManager::GetTextInputTypeForViewForTesting(
     RenderWidgetHostViewBase* view) {
-  DCHECK(IsRegistered(view));
+  CHECK(IsRegistered(view), base::NotFatalUntil::M153);
   return text_input_state_map_[view]->type;
 }
 

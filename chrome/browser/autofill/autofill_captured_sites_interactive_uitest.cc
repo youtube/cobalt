@@ -39,7 +39,6 @@
 #include "chrome/browser/ui/translate/translate_bubble_test_utils.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/field_types.h"
@@ -332,7 +331,7 @@ class AutofillCapturedSitesInteractiveTest
   }
 
   bool SetupAutofillProfile() override {
-    AddTestAutofillData(browser()->profile(), profile_controller_->profile(),
+    AddTestAutofillData(browser()->GetProfile(), profile_controller_->profile(),
                         profile_controller_->credit_card());
     // Disable the Password Manager to prevent password bubbles from occurring.
     // The password bubbles could overlap with the Autofill popups, in which
@@ -418,7 +417,7 @@ class AutofillCapturedSitesInteractiveTest
                "true"},
           }},
          {features::debug::kAutofillCapturedSiteTestsUseAutofillFlow, {}}},
-        /*disabled_features=*/{features::kAutofillSkipPreFilledFields});
+        /*disabled_features=*/{});
     command_line->AppendSwitchASCII(
         variations::switches::kVariationsOverrideCountry, "us");
     AutofillUiTest::SetUpCommandLine(command_line);

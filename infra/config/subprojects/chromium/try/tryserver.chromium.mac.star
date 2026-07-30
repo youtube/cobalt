@@ -216,7 +216,7 @@ try_.orchestrator_builder(
         # crbug/940930
         "chromium.enable_cleandead": 100,
         # go/rts-project-proposal
-        "chromium_rts.filter_file_analysis": 10,
+        "chromium_rts.filter_file_analysis": 100,
         "luci.buildbucket.run_in_turboci": 100,
     },
     main_list_view = "try",
@@ -267,7 +267,7 @@ try_.orchestrator_builder(
         # crbug.com/940930
         "chromium.enable_cleandead": 100,
         # go/rts-project-proposal
-        "chromium_rts.filter_file_analysis": 10,
+        "chromium_rts.filter_file_analysis": 100,
     },
     main_list_view = "try",
     use_clang_coverage = True,
@@ -467,6 +467,25 @@ try_.builder(
     mirrors = [
         "ci/Mac Builder",
         "ci/mac15-x64-rel-tests",
+    ],
+    gn_args = gn_args.config(
+        configs = [
+            "ci/Mac Builder",
+            "release_try_builder",
+            "remoteexec",
+        ],
+    ),
+    cpu = cpu.ARM64,
+    contact_team_email = "bling-engprod@google.com",
+)
+
+try_.builder(
+    name = "mac26-x64-rel-tests",
+    branch_selector = branches.selector.MAC_BRANCHES,
+    description_html = "Runs default MacOS 26 tests on try.",
+    mirrors = [
+        "ci/Mac Builder",
+        "ci/mac26-x64-rel-tests",
     ],
     gn_args = gn_args.config(
         configs = [
@@ -735,7 +754,7 @@ try_.orchestrator_builder(
         # go/nplus1shardsproposal
         "chromium.add_one_test_shard": 10,
         # go/rts-project-proposal
-        "chromium_rts.filter_file_analysis": 10,
+        "chromium_rts.filter_file_analysis": 100,
     },
     main_list_view = "try",
     use_clang_coverage = True,

@@ -362,9 +362,6 @@ TEST_F(FormFillerTest, FillTriggeredSection) {
 }
 
 TEST_F(FormFillerTest, SkipPreFilledFields) {
-  base::test::ScopedFeatureList placeholders_features(
-      features::kAutofillSkipPreFilledFields);
-
   AutofillProfile profile = test::GetFullProfile();
   const std::u16string kToBeFilledState =
       profile.GetInfo(ADDRESS_HOME_STATE, kAppLocale);
@@ -1623,9 +1620,6 @@ TEST_F(FormFillerTest, FillFirstPhoneNumber_MultipleSectionFilledCorrectly) {
 
 // Tests that a prefilled country calling code does not prevent an Autofill.
 TEST_F(FormFillerTest, FillPhoneNumber_OverwriteCountryCallingCode) {
-  base::test::ScopedFeatureList feature_list(
-      features::kAutofillOverwriteCountryCallingCodes);
-
   FormData form = test::GetFormData(
       {.fields = {{.role = NAME_FULL, .autocomplete_attribute = "name"},
                   {.role = PHONE_HOME_WHOLE_NUMBER,
@@ -1646,9 +1640,6 @@ TEST_F(FormFillerTest, FillPhoneNumber_OverwriteCountryCallingCode) {
 // Tests that a overwriting of country calling codes is limited to *valid* ones.
 TEST_F(FormFillerTest,
        FillPhoneNumber_DoNotOverwriteInvalidCountryCallingCode) {
-  base::test::ScopedFeatureList feature_list(
-      features::kAutofillOverwriteCountryCallingCodes);
-
   FormData form = test::GetFormData(
       {.fields = {{.role = NAME_FULL, .autocomplete_attribute = "name"},
                   {.role = PHONE_HOME_WHOLE_NUMBER,
@@ -2004,8 +1995,6 @@ TEST_F(FormFillerTest, Refill_UsesBlockedFields) {
 // Regression test that a field with an unrelated type doesn't cause a crash
 // (crbug.com/324811625).
 TEST_F(FormFillerTest, PreFilledCCFieldInAddressFormDoesNotCauseCrash) {
-  base::test::ScopedFeatureList feature_list(
-      features::kAutofillSkipPreFilledFields);
   FormData form = test::GetFormData(
       {.fields = {{.role = NAME_FULL,
                    .value = u"pre-filled",

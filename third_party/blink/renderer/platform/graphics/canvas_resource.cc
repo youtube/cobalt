@@ -64,6 +64,11 @@ namespace {
 // favor of the automatic SyncToken management in ClientSharedImage.
 BASE_FEATURE(kDeferWaitSyncTokenInExternalCanvasResource,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// We don't need to verify SyncTokens unless we send them cross process via ipc
+// channel that is different from the ones they were created on. Kill-switch for
+// safery.
+BASE_FEATURE(kDontVerifySyncTokenOnTransfer, base::FEATURE_ENABLED_BY_DEFAULT);
 }  // namespace
 
 CanvasResource::CanvasResource(
@@ -200,7 +205,8 @@ void CanvasResourceSharedImage::InitializeSoftware(
   auto* shared_image_interface =
       shared_image_interface_provider->SharedImageInterface();
   DCHECK(shared_image_interface);
-  gpu::SyncToken sync_token = shared_image_interface->GenVerifiedSyncToken();
+  gpu::SyncToken sync_token = GetSharedImage()->creation_sync_token();
+  shared_image_interface->VerifySyncToken(sync_token);
   SetReleaseSyncToken(sync_token);
   GetSharedImage()->UpdateDestructionSyncToken(sync_token);
 
@@ -311,10 +317,12 @@ void CanvasResourceSharedImage::Transfer() {
   if (is_cross_thread() || !ContextProviderWrapper())
     return;
 
-  // TODO(khushalsagar): This is for consistency with MailboxTextureHolder
-  // transfer path. It's unclear why the verification can not be deferred until
-  // the resource needs to be transferred cross-process.
-  VerifySyncToken();
+  if (!base::FeatureList::IsEnabled(kDontVerifySyncTokenOnTransfer)) {
+    // TODO(khushalsagar): This is for consistency with MailboxTextureHolder
+    // transfer path. It's unclear why the verification can not be deferred
+    // until the resource needs to be transferred cross-process.
+    VerifySyncToken();
+  }
 }
 
 scoped_refptr<StaticBitmapImage> CanvasResourceSharedImage::Bitmap() {
@@ -487,13 +495,6 @@ void CanvasResourceSharedImage::OnMemoryDump(
       static_cast<int>(gpu::TracingImportance::kClientOwner));
 }
 
-void CanvasResourceSharedImage::PrepareForWebGPUDummyMailbox() {
-  DCHECK(!is_cross_thread());
-  // In the dummy WebGPU mailbox case, we skip write operation to CanvasResource
-  // and therefore did not wait on `acquire_sync_token_`. Instead, the consumer
-  // needs to do it.
-  SetReleaseSyncToken(acquire_sync_token_);
-}
 
 // ExternalCanvasResource
 //==============================================================================

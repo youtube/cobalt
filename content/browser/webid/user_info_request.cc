@@ -15,11 +15,14 @@
 #include "content/public/browser/webid/federated_identity_api_permission_context_delegate.h"
 #include "content/public/browser/webid/federated_identity_permission_context_delegate.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "url/origin.h"
 #include "url/url_constants.h"
 
 namespace content::webid {
+
+using UserInfoRequestResult = UserInfoRequest::UserInfoRequestResult;
+
 namespace {
 
 std::string GetConsoleErrorMessage(UserInfoRequestResult error) {
@@ -168,7 +171,7 @@ void UserInfoRequest::SetCallbackAndStart(
   // registration API is not enabled since we only really need this for that
   // case.
   config_fetcher_->Start(
-      {{idp_config_url_, webid::IsIdPRegistrationEnabled()}},
+      {{idp_config_url_, IsIdPRegistrationEnabled()}},
       /*icon_ideal_size=*/0,
       /*icon_minimum_size=*/0,
       base::BindOnce(&UserInfoRequest::OnAllConfigAndWellKnownFetched,
@@ -243,7 +246,7 @@ void UserInfoRequest::OnAccountsResponseReceived(
 }
 
 void UserInfoRequest::MaybeReturnAccounts(
-    const std::vector<IdentityRequestAccountPtr>& accounts) {
+    const std::vector<scoped_refptr<IdentityRequestAccount>>& accounts) {
   DCHECK(!accounts.empty());
 
   bool has_returning_accounts = false;
@@ -254,11 +257,10 @@ void UserInfoRequest::MaybeReturnAccounts(
     }
   }
 
-  webid::Metrics::NumAccounts num_accounts = webid::Metrics::NumAccounts::kZero;
+  Metrics::NumAccounts num_accounts = Metrics::NumAccounts::kZero;
   if (has_returning_accounts) {
-    num_accounts = accounts.size() == 1u
-                       ? webid::Metrics::NumAccounts::kOne
-                       : webid::Metrics::NumAccounts::kMultiple;
+    num_accounts = accounts.size() == 1u ? Metrics::NumAccounts::kOne
+                                         : Metrics::NumAccounts::kMultiple;
   }
   base::UmaHistogramEnumeration("Blink.FedCm.UserInfo.NumAccounts",
                                 num_accounts);
@@ -346,10 +348,10 @@ void UserInfoRequest::AddDevToolsIssue(UserInfoRequestResult error) {
   DCHECK_NE(error, UserInfoRequestResult::kSuccess);
 
   auto details = blink::mojom::InspectorIssueDetails::New();
-  auto federated_auth_user_info_request_details =
+  auto user_info_request_details =
       blink::mojom::FederatedAuthUserInfoRequestIssueDetails::New(error);
   details->federated_auth_user_info_request_details =
-      std::move(federated_auth_user_info_request_details);
+      std::move(user_info_request_details);
   render_frame_host_->ReportInspectorIssue(
       blink::mojom::InspectorIssueInfo::New(
           blink::mojom::InspectorIssueCode::kFederatedAuthUserInfoRequestIssue,

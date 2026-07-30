@@ -2734,6 +2734,7 @@ Se la policy viene impostata su 2 - "Disattivata", l'integrazione del Google Dev
 <translation id="2707733461906745082">Separazione profilo</translation>
 <translation id="2707873794476722903">Navigazione sicura è attiva in modalità standard.</translation>
 <translation id="2709516037105925701">Compilazione automatica</translation>
+<translation id="2712089199157322391">Consenti l'utilizzo degli Strumenti per sviluppatori per la navigazione web standard, ma limitalo per le estensioni installate a livello aziendale e per le estensioni integrate per gli utenti gestiti (l'utilizzo è bloccato sulle pagine che incorporano queste estensioni a partire dalla versione M150, ad eccezione del visualizzatore PDF integrato).</translation>
 <translation id="2713913573196284609">Questo valore è obsoleto a partire dalla versione M121. Nella versione M121 e successive, i valori verranno trattati come EnabledBelowThreshold.</translation>
 <translation id="2713977837384407666">Invia sempre le metriche a Google</translation>
 <translation id="2714359695399346815">Se la policy viene impostata su Attivata o se non viene configurata, viene consentito l'utilizzo di server STUN, permettendo ai client remoti di rilevare e collegarsi a questo computer anche se sono separati da un firewall.
@@ -3196,6 +3197,11 @@ Questa policy non influisce sulla policy "<ph name="WEB_APP_INSTALL_FORCE_LIST_P
         La policy non ha effetto su quelle già pubblicati.</translation>
 <translation id="3002067315837777719">Non consentire l'attivazione delle notifiche Phone Hub</translation>
 <translation id="3003490107503207900">Forza il download dei documenti Office (ad esempio .docx) anziché aprirli in <ph name="BASIC_EDITOR_NAME" /></translation>
+<translation id="3003832749381802588">Controlla come <ph name="PRODUCT_OS_NAME" /> gestisce una mancata corrispondenza della password rilevata durante un accesso online. Questa policy determina cosa succede quando la password dell'utente, autenticata tramite un IdP online (ad es. IdP di terze parti, Gaia), non corrisponde alla password utilizzata per criptare i dati locali. Ciò accade solitamente quando un utente modifica la propria password esternamente.
+
+Impostando la policy su 0 (Procedura standard di modifica della password) o lasciandola non configurata, viene avviata la procedura standard di modifica della password. All'utente verrà chiesto di inserire la password precedente per aggiornare la crittografia dei dati locali oppure potrà utilizzare altri meccanismi di recupero dei dati locali, se disponibili.
+
+Impostando la policy su 1 (Cancellazione automatica dei dati locali), la procedura standard di modifica della password viene bypassata. Se viene rilevata una mancata corrispondenza della password, i dati locali dell'utente verranno cancellati automaticamente. In questo modo, l'utente può accedere senza problemi con la nuova password, ma ciò comporta la perdita di tutti i dati archiviati localmente nel profilo (ad es. download e impostazioni non sincronizzate). Questa opzione è pensata per ambienti in cui gli utenti archiviano i dati principalmente nel cloud o in cui si prevede che la password venga aggiornata spesso.</translation>
 <translation id="300673820739371513">Questa policy consente di stabilire se nelle pagine web vengono rilevate entità di testo normale, consentendo agli utenti di attivare azioni contestuali interagendo con loro.
 La policy ha più proprietà, una per ogni tipo di entità.
 I tipi di entità sono <ph name="DEFAULT_ENUM_VALUE" />, <ph name="ADDRESS_ENUM_VALUE" />…
@@ -4090,7 +4096,6 @@ Ricorda di non tenere questa policy sempre attiva, soprattutto nelle distribuzio
 <translation id="3591584750136265240">Configura il comportamento di autenticazione dell'accesso</translation>
 <translation id="3593905652755912452">Verrà utilizzato il comportamento precedente per l'esecuzione di eventi sui controlli dei moduli disattivati.</translation>
 <translation id="3596112486106491038">Attiva l'accesso alla riga di comando delle macchine virtuali</translation>
-<translation id="3600342552601917721">Consenti l'utilizzo degli Strumenti per sviluppatori per la navigazione web standard, ma limita l'utilizzo per le estensioni installate a livello aziendale e per le estensioni integrate per gli utenti gestiti. A partire dalla versione M150, sono bloccati anche su qualsiasi pagina che incorpora queste estensioni, con la sola eccezione del visualizzatore PDF integrato.</translation>
 <translation id="3603469950773500315">Consente di attivare le mitigazioni dei controlli <ph name="CORS" /> nella nuova implementazione <ph name="CORS" />, consentendo alle estensioni di mantenere un comportamento compatibile e a <ph name="PRODUCT_NAME" /> di inviare le intestazioni specificate senza controlli <ph name="CORS" />.
 
       Se questo elenco viene lasciato vuoto, <ph name="PRODUCT_NAME" /> prova a eseguire le estensioni in modalità compatibili e non introduce modifiche <ph name="API" /> per la versione 79 di <ph name="PRODUCT_NAME" />, come spiegato all'indirizzo <ph name="WEB_REQUEST_API_MANUAL" />.
@@ -6456,7 +6461,7 @@ Se questa policy viene impostata su Attivata o se non viene configurata, la prop
 
 Se viene impostata su Disattivata, la proprietà CSS "zoom" utilizzerà il comportamento precedente pre-standardizzato.
 
-Questa policy è una sospensione temporanea per consentire la migrazione dei contenuti web al nuovo comportamento. Esiste anche una prova dell'origine ("DisableStandardizedBrowserZoom") che corrisponde al comportamento quando questa policy è impostata su Disattivata. Questa policy verrà rimossa e il comportamento "Attivata" verrà reso permanente nella versione 134.</translation>
+Questa policy è una sospensione temporanea per consentire la migrazione dei contenuti web al nuovo comportamento. Esiste anche un origin trial ("DisableStandardizedBrowserZoom") che corrisponde al comportamento quando questa policy è impostata su Disattivata. Questa policy verrà rimossa e il comportamento "Attivata" verrà reso permanente nella versione 134.</translation>
 <translation id="5088303895040832480">Utilizza UsbDeviceId nel nuovo codice.</translation>
 <translation id="5090791951240382356">Consenti l'unione delle policy del dizionario provenienti da origini diverse</translation>
 <translation id="5091315650312105069">Consenti l'autenticazione <ph name="BASIC_AUTH" /> per HTTP</translation>
@@ -8989,6 +8994,7 @@ Le modifiche alla policy vengono applicate solo mentre ARC non è in esecuzione,
 
       Nota: usa questa policy insieme alla policy <ph name="REMOTE_ACCESS_HOST_TOKEN_URL_POLICY_NAME" />.</translation>
 <translation id="6625136649067113817">Un flag booleano che indica se la tastiera sullo schermo può offrire il controllo ortografico.</translation>
+<translation id="6625424971640741579">Procedura standard di modifica della password</translation>
 <translation id="6625716212597516929">Ripristina il comportamento precedente per l'ambito dei cookie</translation>
 <translation id="6626319579493977784">Impostazioni codice dinamico</translation>
 <translation id="66265932317331474">Segnala informazioni sulla CPU</translation>
@@ -9200,6 +9206,7 @@ la configurazione.</translation>
 <translation id="6763023079133439068">Consenti i certificati privi di un'estensione subjectAlternativeName se sono stati emessi da trust anchor locali</translation>
 <translation id="6766216162565713893">Consenti ai siti di chiedere all'utente di concedere l'accesso a un dispositivo Bluetooth nelle vicinanze.</translation>
 <translation id="6770454900105963262">Segnala informazioni sulle sessioni kiosk attive</translation>
+<translation id="6770703270685871935">Cancellazione automatica dei dati locali</translation>
 <translation id="6774132787348495175">Non consentire agli utenti di usare le macchine virtuali necessarie per supportare le app Linux</translation>
 <translation id="6782331708811245959">Attiva report sulla modalità di avvio dispositivo</translation>
 <translation id="6783578496154221347">Utilizza WeeklyTimeIntervalChecked nel nuovo codice.</translation>
@@ -9504,6 +9511,7 @@ Questa policy verrà rimossa in futuro, una volta completata l'implementazione d
       Se la policy non viene configurata, non ci saranno stampanti per i dispositivi e le altre policy <ph name="DEVICE_PRINTERS_POLICY_PATTERN" /> verranno ignorate.</translation>
 <translation id="69525503251220566">Parametro che fornisce la funzione di ricerca tramite immagine per il provider di ricerca predefinito</translation>
 <translation id="6953102253399571439">Attiva la stampa PIN per impostazione predefinita</translation>
+<translation id="6953246833109449226">Configura il comportamento per le mancate corrispondenze delle password online</translation>
 <translation id="695532899547292238">Abilita la raccolta di log a livello di applicazione kiosk</translation>
 <translation id="6956272732789158625">Non consentire a nessun sito di utilizzare la generazione di chiavi</translation>
 <translation id="6960996423652450945">Disattiva l'evidenziazione del cursore del testo nella schermata di accesso</translation>
@@ -12671,27 +12679,6 @@ Per maggiori dettagli, vai su https://support.google.com/chrome/a/answer/9301891
 <translation id="8931555638815157255">Se la policy viene impostata su Attivata o se non viene configurata, i dispositivi registrati segnalano periodicamente la versione dei relativi sistemi operativi e firmware.
 
       Se la policy viene impostata su Disattivata, i dispositivi registrati non segnalano le informazioni sulla versione.</translation>
-<translation id="8931984670731745012">Configurando questa policy, puoi specificare quali tipi di dati della compilazione automatica bloccare per determinati pattern URL.
-
-La policy è strutturata come un elenco di dizionari. Ogni dizionario deve contenere:
-* "url_pattern": un pattern URL delle impostazioni dei contenuti (ad es. "https://[*.]example.com").
-* "blocked_types": un elenco di stringhe che rappresentano le categorie di dati della compilazione automatica da bloccare.
-
-I valori supportati per "blocked_types" sono:
-* "contact_info": impedisce la compilazione e il salvataggio dei dati di contatto.
-* "payments": impedisce la compilazione e il salvataggio di carte di credito e metodi di pagamento.
-* "identity_docs": impedisce la compilazione e il salvataggio di documenti di identità (ad es. passaporto, patente di guida, documento di identità nazionale).
-* "travel": impedisce la compilazione e il salvataggio di informazioni di viaggio (ad es. prenotazioni di voli, immatricolazioni di veicoli).
-* "shopping": impedisce la compilazione e il salvataggio di informazioni sugli acquisti (ad es. ordini online, spedizioni).
-
-Se un tipo di dati è bloccato per un sito, su quel sito vengono disattivate sia la generazione di suggerimenti sia il prompt di salvataggio o importazione di nuovi dati di quel tipo.
-
-Se un URL corrisponde a più voci di pattern nell'elenco, i tipi bloccati di tutte le voci corrispondenti vengono combinati (unione tramite merge). I pattern URL non validi nell'elenco verranno ignorati.
-
-Se questa policy non viene configurata, nessun tipo di dati della compilazione automatica verrà bloccato per dominio.
-
-Per informazioni dettagliate sui pattern URL validi, consulta la pagina:
-https://chromeenterprise.google/policies/url-patterns. È supportato il carattere jolly *, questo pattern corrisponde a qualsiasi URL, con qualsiasi schema, porta e percorso.</translation>
 <translation id="8934296213794658971">Impostazioni per l'integrazione di Gemini</translation>
 <translation id="8937282917198525844"> A partire dalla versione M81, abbiamo rinnovato aspetto e design degli elementi di controllo modulo standard (ad esempio, &lt;select&gt;, &lt;button&gt;, &lt;input type=date&gt;), con una superiore accessibilità e una migliore uniformità della piattaforma. Questa policy ripristina i precedenti controlli modulo "legacy" fino alla versione M84.
 

@@ -74,7 +74,6 @@ Kai kurios funkcijos gali būti nepasiekiamos ir nuostatų pakeitimai nebus išs
 <translation id="1640672724030957280">Atsisiunčiama...</translation>
 <translation id="1651617469580841801">Kai naudojate „Google Lens“, puslapio pavadinimas, URL ir turinys, įskaitant PDF, siunčiami „Google“. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Apie „ChromeOS Flex“</translation>
-<translation id="1665867022636014702">Naudoti „Google“ rekomenduojamus naršyklės nustatymus</translation>
 <translation id="1674870198290878346">Atidaryti nuorodą „Chrome“ inko&amp;gnito lange</translation>
 <translation id="1682634494516646069">„Google Chrome“ negali skaityti ir rašyti į duomenų katalogą:
 
@@ -237,6 +236,7 @@ Jei šis puslapis neveikia taip, kaip tikimasi, pabandykite leisti naudoti optim
 <translation id="3242123554343253302">Pridėti „Chrome“ profilį</translation>
 <translation id="3242486428260808857">Išnaudokite daugiau apsipirkimo internetu galimybių su „Chrome“ programa įrenginyje „<ph name="DEVICE_TYPE" />“</translation>
 <translation id="3245429137663807393">Jei taip pat bendrinate „Chrome“ naudojimo ataskaitas, į tas ataskaitas įtraukiami URL, kuriais lankėtės</translation>
+<translation id="3249558306861350254">Spustelėkite <ph name="BEGIN_BOLD" />Nustatyti kaip numatytąją<ph name="END_BOLD" /> „Windows“ nustatymuose.</translation>
 <translation id="3259748324892322072">Gauti „Chrome“ programą</translation>
 <translation id="3282568296779691940">Prisijungti prie „Chrome“</translation>
 <translation id="3286538390144397061">Paleisti iš naujo dabar</translation>
@@ -256,7 +256,6 @@ Jei šis puslapis neveikia taip, kaip tikimasi, pabandykite leisti naudoti optim
 <translation id="345171907106878721">Pridėkite save prie „Chrome“</translation>
 <translation id="3453763134178591239">„Chrome“ OS sąlygos</translation>
 <translation id="3475778264501649775">Turėkite slaptažodžius, skirtukus ir kt. su savimi keliaudami, naudodami „Chrome“ programą telefone</translation>
-<translation id="3512495006767217696">Integruota į „Chrome“, kad galėtumėte kurti, išsaugoti ir automatiškai užpildyti sudėtingus slaptažodžius. Pridėkite šaukinį, kad galėtumėte lengvai pasiekti.</translation>
 <translation id="3539955434060988644">Atidaryti nuorodą „Chrome“ inko&amp;gnito lange</translation>
 <translation id="354621070532799440">Priminimas: geriausios „Google“ saugos funkcijos jūsų kišenėje</translation>
 <translation id="3547866758548131919">Spustelėkite mygtuką „Apibendrinti“, kad bendrintumėte šį dokumentą su „Gemini“ naršyklėje „Chrome“ ir gautumėte trumpą apžvalgą bei užduotumėte papildomų klausimų</translation>
@@ -309,6 +308,7 @@ Jei šis puslapis neveikia taip, kaip tikimasi, pabandykite leisti naudoti optim
 <translation id="4012899077942246412">Prisijungus galima naudoti slaptažodžius ir daugiau iš „Google“ paskyros „Chrome“ įrenginyje. Jei norite tai pakeisti, eikite į skiltį „Jūsų paskyra naršyklėje „Chrome“.</translation>
 <translation id="4022972681110646219">Išversti ekrano turinį</translation>
 <translation id="4023601594785368013">Originali kalba: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">Integruota į „Chrome“, kad galėtumėte kurti, išsaugoti ir automatiškai užpildyti sudėtingus slaptažodžius. Pridėkite šaukinį, kad galėtumėte lengvai pasiekti.</translation>
 <translation id="4035053306113201399">Kad būtų galima pritaikyti naujinį, „Chrome“ OS reikia paleisti iš naujo.</translation>
 <translation id="4050175100176540509">Naujausios versijos programoje įdiegti svarbūs saugos patobulinimai ir pasiekiamos naujos funkcijos.</translation>
 <translation id="4053720452172726777">Tinkinkite ir valdykite „Google Chrome“</translation>
@@ -549,7 +549,6 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="6438015621983209660">Sustiprinto saugaus naršymo išplėtimas naudojant „Chrome“ telefone</translation>
 <translation id="6442774133615368941">Apsipirkite, verskite ir nustatykite, ką matote, naudodami fotoaparatą „Chrome“ „iOS“ programoje</translation>
 <translation id="6448835208126432197">Jei norite pasirinkti ekrano dalį „Gemini“ naršyklėje „Chrome“, naudokite sparčiuosius klavišus.</translation>
-<translation id="6473659734176498825">Supaprastintas vaizdas, kuriame rodomas „Google“ slaptažodžių tvarkyklės pradžios taškas naršyklėje „Chrome“</translation>
 <translation id="6473905796280459355">Eiti į puslapį „Apie „Chrome“</translation>
 <translation id="6481963882741794338">Susiekite „Chrome“ ir kitas „Google“ paslaugas, kad būtų galima suasmeninti ir kitais tikslais</translation>
 <translation id="648319183876919572">Sustiprinto saugaus naršymo funkcija padeda apsaugoti jus nuo pavojingų svetainių ir atsisiuntimų</translation>
@@ -566,6 +565,7 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="6539493053177300926">Lengvai pasiekite ir naudokite „Gemini“ naršyklėje „Chrome“ įrenginyje, net jei „Chrome“ yra sumažinta.</translation>
 <translation id="6585124893636629274">Uždaryti „Gemini“ naršyklėje „Chrome“</translation>
 <translation id="659498884637196217">„Google“ slaptažodžių tvarkytuvė šiame įrenginyje</translation>
+<translation id="6613949864921837107">Užtikrinkite, kad slaptažodžiai, žymės ir istorija būtų tobulai sinchronizuojami įrenginiuose, nustatę „Chrome“ kaip numatytąją naršyklę.</translation>
 <translation id="6631524303639368205">Tęskite ten, kur baigėte: „Chrome“ atkūrė skirtukus iš paskutinio seanso. Tai galite išjungti skiltyje</translation>
 <translation id="6632473616050862500">„ChromeOS Flex“ pasiekiama naudojant papildomą <ph name="BEGIN_LINK_CROS_OSS" />atvirojo šaltinio programinę įrangą<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6634299872736643004">Šio nustatymo pakeitimai bus pritaikyti iš naujo paleidus „Chrome“.</translation>
@@ -691,7 +691,6 @@ Kai kurios funkcijos gali būti nepasiekiamos. Nurodykite kitą profilio katalog
 <translation id="7804364787702057554">Jūsų paskyra naršyklėje „Chrome“</translation>
 <translation id="7804947029129221742">Paieškos variklis buvo pakeistas ne naršyklėje „Chrome“. Kad jus apsaugotų, „Chrome“ jį nustatė iš naujo į pradinį numatytąjį nustatymą. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Pašalinti iš „Chrome“...</translation>
-<translation id="7812800388699096556">Iliustracija, kurioje rodoma, kaip galite naudoti „Google Lens“ norėdami peržiūrėti produktą</translation>
 <translation id="7827099906024714326">„Chrome“ turi patvirtinti jūsų tapatybę, kad kai kuriuos duomenis būtų galima išsaugoti „Google“ paskyroje ir naudoti visuose jūsų įrenginiuose. Jei dabar atsijungsite, šie duomenys bus ištrinti.</translation>
 <translation id="7832314606810669113">Jei norite pasiekti žymes ir kitas funkcijas visuose įrenginiuose, prisijunkite prie „Chrome“. Ši žymė bus išsaugota jūsų „Google“ paskyroje, kai prisijungsite.</translation>
 <translation id="7845233973568007926">Dėkojame už diegimą. Turite iš naujo paleisti kompiuterį, prieš naudodami „<ph name="BUNDLE_NAME" />“.</translation>
@@ -830,7 +829,6 @@ Naujų žymių negalima išsaugoti paskyroje, kol ištrinsite kai kurias žymes.
 <translation id="8999208279178790196">{0,plural, =0{Pasiekiamas „Chrome“ naujinys}=1{Pasiekiamas „Chrome“ naujinys}one{„Chrome“ naujinys pasiekiamas # dieną}few{„Chrome“ naujinys pasiekiamas # dienas}many{„Chrome“ naujinys pasiekiamas # dienos}other{„Chrome“ naujinys pasiekiamas # dienų}}</translation>
 <translation id="9014771989710951291">Kelios organizacijos tvarko „Chrome“</translation>
 <translation id="9018218886431812662">Diegimas baigtas</translation>
-<translation id="9024318700713112071">Nustatykite „Chrome“ kaip numatytąją naršyklę</translation>
 <translation id="9066987883552592250">Uždaryti „Gemini“ naršyklėje „Chrome Canary“</translation>
 <translation id="9074041031320636790">Pavyko! Dabar naršydami galite lengvai užduoti klausimų, naudodami „Google“ paieškos DI režimą</translation>
 <translation id="9090566250983691233">Sužinokite, kodėl „Chrome“ blokuoja kai kuriuos failus</translation>

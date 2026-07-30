@@ -619,6 +619,7 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="Default Browser Settings"/>
   <int value="3" label="Skipped Default Browser Settings For NTP"/>
   <int value="4" label="App Store Event For Gemini Promo"/>
+  <int value="5" label="Gemini AI Summarization"/>
 </enum>
 
 <enum name="IOSFilePickerDriveAccountSelection">
@@ -813,6 +814,26 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiCameraPickerResult) -->
 
+<!-- LINT.IfChange(IOSGeminiDormantReason) -->
+
+<enum name="IOSGeminiDormantReason">
+  <summary>
+    Reasons why the Gemini Live session transitioned to dormant.
+  </summary>
+  <int value="0" label="Unknown"/>
+  <int value="1" label="Interrupted By External Audio"/>
+  <int value="2" label="Low Volume In Background"/>
+  <int value="3" label="Low Volume In Foreground"/>
+  <int value="4" label="Inactivity Timeout"/>
+  <int value="5" label="Long Interaction Timeout"/>
+  <int value="6" label="Moved To Background When Mic Off"/>
+  <int value="7" label="User Stop"/>
+  <int value="8" label="User Pause"/>
+  <int value="9" label="Server Pause"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h:IOSGeminiDormantReason) -->
+
 <!-- LINT.IfChange(IOSGeminiEntryPoint) -->
 
 <enum name="IOSGeminiEntryPoint">
@@ -829,6 +850,7 @@ chromium-metrics-reviews@google.com.
   <int value="10" label="AI Hub Sign-in Sheet"/>
   <int value="11" label="External App Store Event"/>
   <int value="12" label="Toolbar"/>
+  <int value="13" label="App Switcher AI Summarization"/>
   <int value="100" label="Unknown"/>
 </enum>
 
@@ -1219,6 +1241,7 @@ chromium-metrics-reviews@google.com.
   <int value="21" label="ShopCard"/>
   <int value="22" label="App Bundle Promo"/>
   <int value="23" label="Default Browser"/>
+  <int value="24" label="Level Up"/>
 </enum>
 
 <enum name="IOSMiniMapConsentOutcome">
@@ -2817,6 +2840,19 @@ chromium-metrics-reviews@google.com.
   </int>
   <int value="3" label="Seed used">Seed is applied by variations service</int>
 </enum>
+
+<!-- LINT.IfChange(WebUIMojoActions) -->
+
+<enum name="WebUIMojoActions">
+  <int value="0" label="Success">
+    A Mojo message was processed successfully.
+  </int>
+  <int value="1" label="Failure">
+    An error occurred while processing a Mojo message.
+  </int>
+</enum>
+
+<!-- LINT.ThenChange(/ios/web/webui/web_ui_metrics.h:WebUIMojoActions) -->
 
 <!-- LINT.IfChange(WelcomeBackPromoRegistrationResult) -->
 

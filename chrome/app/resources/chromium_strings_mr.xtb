@@ -28,14 +28,12 @@
 <translation id="126567311906253476"><ph name="USER_EMAIL" /> वापरून Gmail किंवा YouTube सारख्या Google सेवांमध्ये साइन इन करताना, तुम्ही तेच खाते वापरून Chromium मध्ये आपोआप साइन इन करू शकता</translation>
 <translation id="1287534462498555020">तुमच्या फोनवर Chromium मिळवा</translation>
 <translation id="1290883685122687410">सेटअप एरर: <ph name="METAINSTALLER_EXIT_CODE" />. <ph name="WINDOWS_ERROR" /></translation>
-<translation id="1312200348844120300">तुम्ही उत्पादन शोधण्यासाठी इमेज शोध कसे वापरू शकता हे दाखवणारे इलस्ट्रेशन</translation>
 <translation id="1315551408014407711">तुमची नवीन Chromium प्रोफाइल सेट करा</translation>
 <translation id="132092532143527429">Chromium मधील Gemini वापरून पहा</translation>
 <translation id="1324107359134968521">ब्लूटूथ डिव्हाइस एक्सप्लोर करण्यासाठी Chromium ला 
  ब्लूटूथ चा ॲक्सेस हवा आहे. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1329040302064168406">तुमच्या फोनवर Chromium मध्ये साइन इन करा</translation>
 <translation id="1330562121671411446">भाषा डिटेक्ट करा</translation>
-<translation id="1330742950061766891">Chromium ची शिफारस केलेली ब्राउझर सेटिंग्ज वापरा</translation>
 <translation id="1342274909142618978">तसेच Chromium मधून डेटा हटवा (<ph name="URL" />)</translation>
 <translation id="1345251407431278948">पिन केले आहे! तुम्ही टूलबारवरील नवीन बटण वापरून इमेज शोध पुन्हा अ‍ॅक्सेस करू शकता</translation>
 <translation id="1356661055722410047">नवीन! तुम्ही तुमच्या स्क्रीनवरील मजकूर आणि इमेज दोन्हींचे भाषांतर करू शकता</translation>
@@ -98,6 +96,7 @@
 <translation id="2018879682492276940">इंस्टॉलेशन करता आले नाही. कृपया पुन्हा प्रयत्न करा.</translation>
 <translation id="2039417478970545937">सेटिंग्ज.</translation>
 <translation id="2049376729098081731">Google सेवांमध्ये आणखी पर्सनलाइझ केलेल्या अनुभवासाठी Chromium इतिहासाचा समावेश करायचा की नाही हे ठरवा</translation>
+<translation id="2050698962207788467">तुम्हाला क्लिष्ट पासवर्ड तयार करण्यात, सेव्ह करण्यात आणि ऑटोफिल करण्यात मदत करण्यासाठी Chromium मध्येच समाविष्ट आहे. सहज अ‍ॅक्सेससाठी शॉर्टकट जोडा.</translation>
 <translation id="2064856577282482477">Chromium ला नवीन लुक देण्यासाठी नवीन टॅब पेज वर Chromium कस्टमाइझ करा बटणावर क्लिक करा</translation>
 <translation id="2066690553719545730">AI मोड नेहमी दाखवा</translation>
 <translation id="2086476982681781442">फाइल फसवी असल्याने Chromium ने हे डाउनलोड ब्लॉक केले आहे आणि ती तुमच्या डिव्हाइसमध्ये अनपेक्षित बदल करू शकते</translation>
@@ -233,7 +232,6 @@
 <translation id="3387527074123400161">ChromiumOS</translation>
 <translation id="3406848076815591792">सध्याच्या Chromium प्रोफाइलवर स्विच करायचे आहे का?</translation>
 <translation id="3412460710772753638">या डिव्हाइसवरील पासवर्ड मॅनेजर मध्ये</translation>
-<translation id="3423442168617177595">तुम्हाला क्लिष्ट पासवर्ड तयार करण्यात, सेव्ह करण्यात आणि ऑटोफिल करण्यात मदत करण्यासाठी Chromium मध्येच समाविष्ट आहे. सहज अ‍ॅक्सेससाठी शॉर्टकट जोडा</translation>
 <translation id="3455907671758333080">तुमच्या फोनवर Chromium वापरून वर्धित सुरक्षित ब्राउझिंगचा विस्तार करा</translation>
 <translation id="3461644266919055473">Chromium ला तुमचे बनवत आहे...</translation>
 <translation id="3474745554856756813">हे या डिव्‍हाइसमधून <ph name="ITEMS_COUNT" /> आयटम हटवेल. नंतर तुमचा डेटा पुनर्प्राप्त करण्‍यासाठी, Chromium मध्ये <ph name="USER_EMAIL" /> म्हणून साइन इन करा.</translation>
@@ -427,6 +425,7 @@
 <translation id="5768371961535086509">Chromium इनॅक्टिव्ह टॅबमधील मेमरी मोकळी करते. हे अ‍ॅक्टिव्ह टॅब आणि इतर अ‍ॅप्सना आणखी काँप्युटर स्रोत देते व Chromium ला जलद ठेवते. तुम्ही तुमच्या इनॅक्टिव्ह टॅबवर परत गेल्यावर ते पुन्हा आपोआप अ‍ॅक्टिव्ह होतात. <ph name="BEGIN_LINK" />मेमरी सेव्हर बद्दल अधिक जाणून घ्या<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">तुम्ही तुमचा पासफ्रेझ विसरल्यास किंवा हे सेटिंग बदलायचे असल्यास, तुमच्या खात्यामधील Chromium डेटा <ph name="SETTINGS_LINK" /> हे करा</translation>
 <translation id="5800158606660203929">Chromium कस्टमाइझ करा आणि नियंत्रित करा. Chromium तुमचा डीफॉल्ट म्हणून सेट करा.</translation>
+<translation id="5802618941556161431">Chromium हा तुमचा डीफॉल्ट ब्राउझर म्हणून सेट करून तुमचे पासवर्ड, बुकमार्क आणि इतिहास या गोष्टी सर्व डिव्हाइसवर योग्यरीत्या सिंक केलेल्या ठेवा.</translation>
 <translation id="5809516625706423866">इंटरनेटशी कनेक्ट करता आले नाही. HTTP 401 प्रतिबंधित. कृपया तुमचे प्रॉक्सी कॉन्फिगरेशन तपासा.</translation>
 <translation id="5817952762723416573">Chromium चे V8 इंजीन साइटचा वेग वाढवते, पण त्यामुळे Chromium ची हल्ले रोखण्याची क्षमता किंचित कमी होते. हे सेटिंग बंद आहे.</translation>
 <translation id="5821520528363214608">तुमच्या Google खाते मध्ये Chromium डेटा वापरण्यासाठी आणि सेव्ह करण्यासाठी, Chromium अपडेट करा</translation>
@@ -496,7 +495,6 @@
 <translation id="6400112897226594999">कॉंप्युटर स्क्रीनवरील Chromium लोगो.</translation>
 <translation id="6403826409255603130">Chromium हे एक वेबब्राउझर असून ते वेबपेज आणि अ‍ॅप्स अतिशय वेगात चालवते. हे वापरण्यास जलद, स्थिर आणि सोपे आहे. Chromium मध्ये तयार करण्यासाठी मालवेअर आणि फिशिंग संरक्षणासह वेब अधिक सुरक्षितपणे ब्राउझ करा.</translation>
 <translation id="6414624068245092115">तुम्ही तुमच्या Google खात्यामध्ये Chromium डेटा नेहमी वापरू आणि सेव्ह करू शकाल याची खात्री करण्यासाठी, ही व्यक्ती तुम्हीच आहात याची पडताळणी करा</translation>
-<translation id="6417332166651156371">Chromium मध्ये Password Manager चा एंट्री पॉइंट दाखवणारी सुलभ केलेली इमेज</translation>
 <translation id="642132557830635295">Chromium अधिक जलद रन होते आणि JavaScript वापरणारी वैशिष्ट्ये डिझाइन केल्यानुसार काम करतात</translation>
 <translation id="6436260184216827876">इमेज शोध उपलब्ध नाही. नंतर पुन्हा प्रयत्न करा.</translation>
 <translation id="6442900851116057561">ChromiumOS रीस्टार्ट करा</translation>

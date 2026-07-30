@@ -5,10 +5,13 @@
 package org.chromium.chrome.browser.settings;
 
 import static org.chromium.build.NullUtil.assertNonNull;
+import static org.chromium.build.NullUtil.assumeNonNull;
 
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.text.TextUtils;
+import android.view.ContextThemeWrapper;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -31,6 +34,7 @@ import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.search.EmptyFragment;
 import org.chromium.chrome.browser.settings.search.SettingsSearchCoordinator;
@@ -101,16 +105,42 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat
 
     private @Nullable Profile mProfile;
 
+    private @Nullable Context mThemedContext;
+
+    @Override
+    public void onAttach(Context context) {
+        // Traditional settings has the theme applied at the activity level.
+        if (!ChromeFeatureList.sSettingsInTab.isEnabled()) {
+            super.onAttach(context);
+            return;
+        }
+        // Settings in a tab must apply the theme at a fragment level.
+        mThemedContext = new ContextThemeWrapper(context, R.style.Theme_Chromium_Settings);
+        super.onAttach(mThemedContext);
+    }
+
+    @Override
+    public Context getContext() {
+        return mThemedContext != null ? mThemedContext : assumeNonNull(super.getContext());
+    }
+
     @Override
     public PreferenceFragmentCompat onCreatePreferenceHeader() {
         // Main menu, which is the first page in one column mode (i.e. window is
         // small enough), or shown at left side pane in two column mode.
+        // Note that this method (and onCreateInitialDetailFragment) is not invoked when
+        // SettingsActivity restarts, since this method is typically used to define or
+        // inflate the initial hierarchy of headers (the left pane). During restoration,
+        // the FragmentManager automatically restores the existing child fragments (the
+        // left list pane and the right detail pane) from the saved state. Rerunning this
+        // method would overwrite or duplicate the restored fragment state.
         mMainSettings = new MainSettings();
+
         return mMainSettings;
     }
 
     public MainSettings getMainSettings() {
-        assertNonNull(mMainSettings);
+        if (mMainSettings == null) mMainSettings = new MainSettings();
         return mMainSettings;
     }
 
@@ -166,81 +196,97 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat
         return getSlidingPaneLayout().isOpen();
     }
 
+    /** Shows a fragment inside the detail pane (`preferences_detail`). */
+    public void showDetailFragment(
+            Fragment fragment, boolean addToBackStack, @Nullable String tag) {
+        if (!isAdded()) {
+            Intent intent = new Intent();
+            intent.putExtra(SettingsActivity.EXTRA_SHOW_FRAGMENT, fragment.getClass().getName());
+            if (fragment.getArguments() != null) {
+                intent.putExtra(
+                        SettingsActivity.EXTRA_SHOW_FRAGMENT_ARGUMENTS, fragment.getArguments());
+            }
+            intent.putExtra(SettingsActivity.EXTRA_ADD_TO_BACK_STACK, addToBackStack);
+            if (tag != null) {
+                intent.putExtra(SettingsActivity.EXTRA_FRAGMENT_TAG, tag);
+            }
+            setPendingFragmentIntent(intent);
+            return;
+        }
+
+        var fragmentManager = getChildFragmentManager();
+
+        // Opening a new page. If we already have back stack entries,
+        // and the intent does NOT says the fragment transaction should be added
+        // to the back stack (checked by processed.addToBackStack), clean it up for
+        // - back button behavior
+        // - detailed page title
+        if (!addToBackStack && fragmentManager.getBackStackEntryCount() > 0) {
+            var entry = fragmentManager.getBackStackEntryAt(0);
+            fragmentManager.popBackStack(entry.getId(), FragmentManager.POP_BACK_STACK_INCLUSIVE);
+        }
+
+        // Then, open the fragment.
+        var transaction = fragmentManager.beginTransaction();
+        transaction.setReorderingAllowed(true).replace(R.id.preferences_detail, fragment);
+        if (addToBackStack) {
+            transaction.addToBackStack(tag);
+        }
+        transaction.commit();
+        getSlidingPaneLayout().open();
+
+        // When navigating in Single Activity mode, the new fragment's view might not be
+        // laid out yet when it requests focus. If it requests focus while it has zero
+        // size, the keyboard might not show up. Wait for the layout pass and then
+        // ensure focus and keyboard are shown.
+        final Fragment finalFragment = fragment;
+        getSlidingPaneLayout()
+                .post(
+                        () -> {
+                            View detailView = finalFragment.getView();
+                            if (detailView == null) return;
+
+                            // Only proceed if the fragment contains an EditText that might
+                            // need the keyboard.
+                            if (findEditText(detailView) == null) return;
+
+                            // Check if it's already laid out. If so, act immediately.
+                            if (detailView.getWidth() > 0 && detailView.getHeight() > 0) {
+                                ensureFocusAndKeyboard(detailView);
+                                return;
+                            }
+
+                            // Otherwise, wait for the first layout pass.
+                            detailView.addOnLayoutChangeListener(
+                                    new View.OnLayoutChangeListener() {
+                                        @Override
+                                        public void onLayoutChange(
+                                                View v,
+                                                int l,
+                                                int t,
+                                                int r,
+                                                int b,
+                                                int ol,
+                                                int ot,
+                                                int or,
+                                                int ob) {
+                                            int width = r - l;
+                                            int height = b - t;
+                                            if (width > 0 && height > 0) {
+                                                detailView.removeOnLayoutChangeListener(this);
+                                                ensureFocusAndKeyboard(detailView);
+                                            }
+                                        }
+                                    });
+                        });
+    }
+
     @Override
     public void onResume() {
         // Update the detail pane, if the intent is specified.
         FragmentData processed = processPendingFragmentIntent();
         if (processed != null) {
-            var fragmentManager = getChildFragmentManager();
-
-            // Opening a new page. If we already have back stack entries,
-            // and the intent does NOT says the fragment transaction should be added
-            // to the back stack (checked by processed.addToBackStack), clean it up for
-            // - back button behavior
-            // - detailed page title
-            if (!processed.addToBackStack) {
-                if (fragmentManager.getBackStackEntryCount() > 0) {
-                    var entry = fragmentManager.getBackStackEntryAt(0);
-                    fragmentManager.popBackStack(
-                            entry.getId(), FragmentManager.POP_BACK_STACK_INCLUSIVE);
-                }
-            }
-
-            // Then, open the fragment.
-            var transaction = fragmentManager.beginTransaction();
-            transaction
-                    .setReorderingAllowed(true)
-                    .replace(R.id.preferences_detail, processed.fragment);
-            if (processed.addToBackStack) {
-                transaction.addToBackStack(processed.tag);
-            }
-            transaction.commit();
-            getSlidingPaneLayout().open();
-
-            // When navigating in Single Activity mode, the new fragment's view might not be
-            // laid out yet when it requests focus. If it requests focus while it has zero
-            // size, the keyboard might not show up. Wait for the layout pass and then
-            // ensure focus and keyboard are shown.
-            final Fragment fragment = processed.fragment;
-            getSlidingPaneLayout()
-                    .post(
-                            () -> {
-                                View detailView = fragment.getView();
-                                if (detailView == null) return;
-
-                                // Only proceed if the fragment contains an EditText that might
-                                // need the keyboard.
-                                if (findEditText(detailView) == null) return;
-
-                                // Check if it's already laid out. If so, act immediately.
-                                if (detailView.getWidth() > 0 && detailView.getHeight() > 0) {
-                                    ensureFocusAndKeyboard(detailView);
-                                    return;
-                                }
-
-                                // Otherwise, wait for the first layout pass.
-                                detailView.addOnLayoutChangeListener(
-                                        new View.OnLayoutChangeListener() {
-                                            @Override
-                                            public void onLayoutChange(
-                                                    View v,
-                                                    int l,
-                                                    int t,
-                                                    int r,
-                                                    int b,
-                                                    int ol,
-                                                    int ot,
-                                                    int or,
-                                                    int ob) {
-                                                int width = r - l;
-                                                int height = b - t;
-                                                if (width > 0 && height > 0) {
-                                                    detailView.removeOnLayoutChangeListener(this);
-                                                    ensureFocusAndKeyboard(detailView);
-                                                }
-                                            }
-                                        });
-                            });
+            showDetailFragment(processed.fragment, processed.addToBackStack, processed.tag);
         }
 
         super.onResume();
@@ -520,13 +566,14 @@ public class MultiColumnSettings extends PreferenceHeaderFragmentCompat
 
         void updateEnabledState() {
             // Trigger closePane() when
-            // - the first page was the main menu
+            // - the first page was the main menu, or main menu is not yet created
+            //   after activity restart.
             // - in one-column mode
             // - the detailed pane is open (i.e., not on the main menu)
             // - the fragment back stack is empty (i.e., with the above condition
             //   this means the subpage directly under the main menu).
             boolean enabled =
-                    mCanBeBackToMain
+                    (mCanBeBackToMain || mMainSettings == null)
                             && getSlidingPaneLayout().isSlideable()
                             && getSlidingPaneLayout().isOpen()
                             && (getChildFragmentManager().getBackStackEntryCount() == 0);

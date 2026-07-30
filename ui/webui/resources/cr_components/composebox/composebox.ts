@@ -28,7 +28,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 import type {AutocompleteResult, FileAttachment, PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote, SearchContext, TabAttachment, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 
-import {ComposeboxFile, GlifAnimationState, mapUploadErrorToProcessFilesError, ProcessFilesError, recordBoolean, recordContextAdditionMethod, recordUserAction, TabUploadOrigin} from './common.js';
+import {ComposeboxFile, getLoadTimeBoolean, GlifAnimationState, mapUploadErrorToProcessFilesError, ProcessFilesError, recordBoolean, recordContextAdditionMethod, recordUserAction, TabUploadOrigin} from './common.js';
 import type {TabUpload} from './common.js';
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
@@ -87,7 +87,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   static override get properties() {
     return {
       showLensButton: {type: Boolean},
-      suggestionActivityEnabled: {type: Boolean},
       lensButtonTriggersOverlay: {type: Boolean},
       isCollapsible: {
         reflect: true,
@@ -151,7 +150,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
   accessor isFollowupQuery: boolean = false;
   accessor enableFileHint: boolean = false;
   accessor inputPlaceholderOverride: string = '';
-  accessor suggestionActivityEnabled: boolean = true;
   accessor disableComposeboxAnimation: boolean = false;
   accessor observeResize: boolean = true;
   accessor enableCarouselScrolling: boolean = false;
@@ -238,6 +236,18 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
         null;
   }
 
+  // TODO(crbug.com/497887993): Temporary override to maintain NTP compatibility
+  // when `useNtpComposeboxFork` is disabled. Remove once `ComposeboxElement`
+  // is deleted.
+  override get keepMenuOpenOnTabSelect(): boolean {
+    return this.composeboxSource === 'NewTabPage' &&
+        getLoadTimeBoolean('keepMenuOpenOnTabSelectForRealbox', false);
+  }
+
+  override getLensButtonElement(): HTMLElement|null {
+    return this.shadowRoot?.querySelector('#lensIcon') || null;
+  }
+
   constructor() {
     super();
     this.pageHandler_ = ComposeboxProxyImpl.getInstance().handler;
@@ -252,7 +262,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     return this.$.composeboxInput;
   }
 
-  override async connectedCallback() {
+  override connectedCallback() {
     super.connectedCallback();
 
     // Set the initial expanded state based on the inputted property.
@@ -267,15 +277,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
 
     this.focusInput();
 
-    // TODO(crbug.com/497887993): Move to contextual tasks composebox when the
-    // lens composebox is removed.
-    if (this.smartTabSharingVisible) {
-      const {active} = await this.pageHandler_.getSmartTabSharingActive();
-      this.smartTabSharingActive = active;
-      if (active) {
-        this.clearContextForSmartTabSharingActive_();
-      }
-    }
     this.syncResizeObservers_();
   }
 
@@ -319,6 +320,10 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
 
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
+    if (changedProperties.has('smartTabSharingActive') &&
+        this.smartTabSharingActive) {
+      this.clearContextForSmartTabSharingActive_();
+    }
     if (changedProperties.has('entrypointName') ||
         changedProperties.has('searchboxLayoutMode')) {
       this.isOmniboxInCompactMode_ = this.entrypointName === 'Omnibox' &&
@@ -536,8 +541,10 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     // to keep the existing tab if we are returning from another tab.
     const hasTabMismatch = !!this.automaticActiveTab_ && !!tab &&
         this.automaticActiveTab_.url !== tab.url;
+    // TODO(crbug.com/486707842): Move `this.isSidePanel` check to the
+    // Contextual Tasks embedder.
     const shouldDeleteAutomaticActiveTab =
-        this.webUIOmniboxAskGAboutThisPageEnabled_ ?
+        (this.webUIOmniboxAskGAboutThisPageEnabled_ || this.isSidePanel) ?
         hasTabMismatch :
         this.automaticActiveTab_ && (!tab || hasTabMismatch);
 
@@ -784,8 +791,7 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     if (this.submitting) {
       return;
     }
-    if (this.lastQueriedInput === null ||
-        this.lastQueriedInput.trimStart() !== result.input) {
+    if (result.queryId !== this.activeQueryId) {
       return;
     }
 
@@ -926,13 +932,6 @@ export class ComposeboxElement extends ComposeboxEmbedderMixin
     this.updateAutoSuggestedTabContext_(tab);
   }
 
-  // TODO: crbug.com/486707842 - Move to the Contextual Tasks embedder
-  override onSmartTabSharingActiveChanged(e: CustomEvent<{active: boolean}>) {
-    super.onSmartTabSharingActiveChanged(e);
-    if (e.detail.active) {
-      this.clearContextForSmartTabSharingActive_();
-    }
-  }
 
   private clearContextForSmartTabSharingActive_() {
     this.clearManualTabs_();

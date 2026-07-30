@@ -11,7 +11,7 @@
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_delegate.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 
 namespace content {
 
@@ -24,7 +24,7 @@ FakeIdentityRequestDialogController::~FakeIdentityRequestDialogController() =
     default;
 
 bool FakeIdentityRequestDialogController::ShowAccountsDialog(
-    content::RelyingPartyData rp_data,
+    RelyingPartyData rp_data,
     const std::vector<IdentityProviderDataPtr>& idp_list,
     const std::vector<IdentityRequestAccountPtr>& accounts,
     const std::vector<IdentityRequestAccountPtr>& filtered_accounts,
@@ -69,7 +69,7 @@ bool FakeIdentityRequestDialogController::ShowAccountsDialog(
                                        *selected_account_,
                                        /* is_sign_in= */ true));
   }
-  did_show_ui_ = true;
+  std::move(accounts_displayed_callback).Run();
   return true;
 }
 
@@ -84,7 +84,6 @@ bool FakeIdentityRequestDialogController::ShowFailureDialog(
     LoginToIdPCallback login_callback) {
   title_ = "Confirm IDP Login";
   subtitle_ = "";
-  did_show_ui_ = true;
   return true;
 }
 
@@ -103,7 +102,6 @@ bool FakeIdentityRequestDialogController::ShowErrorDialog(
     std::move(dismiss_callback).Run(DismissReason::kOther);
     return false;
   }
-  did_show_ui_ = true;
   return true;
 }
 
@@ -119,17 +117,17 @@ bool FakeIdentityRequestDialogController::ShowLoadingDialog(
 }
 
 bool FakeIdentityRequestDialogController::ShowVerifyingDialog(
-    const content::RelyingPartyData& rp_data,
+    const RelyingPartyData& rp_data,
     const IdentityProviderDataPtr& idp_data,
     const IdentityRequestAccountPtr& account,
-    content::IdentityRequestAccount::SignInMode sign_in_mode,
+    IdentityRequestAccount::SignInMode sign_in_mode,
     blink::mojom::RpMode rp_mode,
     AccountsDisplayedCallback accounts_displayed_callback) {
-  title_ = sign_in_mode == content::IdentityRequestAccount::SignInMode::kAuto
+  title_ = sign_in_mode == IdentityRequestAccount::SignInMode::kAuto
                ? "Signing you in"
                : "Verifying";
   subtitle_ = "";
-  did_show_ui_ = true;
+  std::move(accounts_displayed_callback).Run();
   return true;
 }
 
@@ -151,14 +149,14 @@ void FakeIdentityRequestDialogController::ShowUrl(LinkType link_type,
     return;
   }
 
-  content::OpenURLParams params(
-      url, content::Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
+  OpenURLParams params(
+      url, Referrer(), WindowOpenDisposition::NEW_FOREGROUND_TAB,
       ui::PAGE_TRANSITION_AUTO_TOPLEVEL, /*is_renderer_initiated=*/false);
   web_contents_->GetDelegate()->OpenURLFromTab(
       web_contents_, params, /*navigation_handle_callback=*/{});
 }
 
-content::WebContents* FakeIdentityRequestDialogController::ShowModalDialog(
+WebContents* FakeIdentityRequestDialogController::ShowModalDialog(
     const GURL& url,
     blink::mojom::RpMode rp_mode,
     DismissCallback dismiss_callback,
@@ -169,13 +167,12 @@ content::WebContents* FakeIdentityRequestDialogController::ShowModalDialog(
 
   popup_dismiss_callback_ = std::move(dismiss_callback);
   // This follows the code in FedCmModalDialogView::ShowPopupWindow.
-  content::OpenURLParams params(
-      url, content::Referrer(), WindowOpenDisposition::NEW_POPUP,
-      ui::PAGE_TRANSITION_AUTO_TOPLEVEL, /*is_renderer_initiated=*/false);
+  OpenURLParams params(url, Referrer(), WindowOpenDisposition::NEW_POPUP,
+                       ui::PAGE_TRANSITION_AUTO_TOPLEVEL,
+                       /*is_renderer_initiated=*/false);
   popup_window_ = web_contents_->GetDelegate()->OpenURLFromTab(
       web_contents_, params, /*navigation_handle_callback=*/{});
   Observe(popup_window_);
-  did_show_ui_ = true;
   return popup_window_;
 }
 
@@ -205,10 +202,6 @@ void FakeIdentityRequestDialogController::RequestIdPRegistrationPermision(
   if (!is_interception_enabled_) {
     PostTask(FROM_HERE, base::BindOnce(std::move(callback), true));
   }
-}
-
-bool FakeIdentityRequestDialogController::DidShowUi() const {
-  return did_show_ui_;
 }
 
 void FakeIdentityRequestDialogController::PostTask(

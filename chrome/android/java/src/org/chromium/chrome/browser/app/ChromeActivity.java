@@ -79,6 +79,7 @@ import org.chromium.chrome.browser.ChromeApplicationImpl;
 import org.chromium.chrome.browser.ChromeKeyboardVisibilityDelegate;
 import org.chromium.chrome.browser.ChromeWindow;
 import org.chromium.chrome.browser.DeferredStartupHandler;
+import org.chromium.chrome.browser.GracefulShutdownService;
 import org.chromium.chrome.browser.IntentHandler;
 import org.chromium.chrome.browser.PlayServicesVersionInfo;
 import org.chromium.chrome.browser.TabStateThemeResourceProvider;
@@ -188,6 +189,7 @@ import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherIm
 import org.chromium.chrome.browser.stylus_handwriting.StylusWritingCoordinator;
 import org.chromium.chrome.browser.tab.RequestDesktopUtils;
 import org.chromium.chrome.browser.tab.Tab;
+import org.chromium.chrome.browser.tab.TabDestroyStatus;
 import org.chromium.chrome.browser.tab.TabHidingType;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
@@ -493,7 +495,7 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         mStartupMetricsTracker =
                 new StartupMetricsTracker(
                         mTabModelSelectorSupplier, this::wasPersistentStateRestored);
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA) {
             mStartupMetricsTracker.registerApplicationStartInfoListener();
         }
         CachedFlagsSafeMode.getInstance().onStartOrResumeCheckpoint();
@@ -705,7 +707,9 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
                             mBottomContainer,
                             windowAndroid,
                             mChromeActivitySnackbarHelper.getBottomMarginSupplier(),
-                            modalDialogManager);
+                            modalDialogManager,
+                            getFullscreenManager().getPersistentFullscreenModeSupplier());
+
             mSnackbarManagerSupplier.set(snackbarManager);
             mChromeActivitySnackbarHelper.setSnackbarManager(snackbarManager);
             getInsetObserver().addObserver(snackbarManager);
@@ -986,13 +990,18 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     /** Call the {@link TabModelOrchestrator} to initialize its members. */
     protected abstract void createTabModels();
 
-    /** Call the {@link TabModelOrchestrator} to destroy its members. */
-    protected abstract void destroyTabModels();
+    /**
+     * Call the {@link TabModelOrchestrator} to destroy its members.
+     *
+     * @return The {@link TabDestroyStatus} indicating how tabs were shut down (e.g. SLOW_SHUTDOWN
+     *     if any tab requires deferred destruction for graceful shutdown).
+     */
+    protected abstract @TabDestroyStatus int destroyTabModels();
 
     /**
-     * @return The {@link TabCreator}s owned
-     *         by this {@link ChromeActivity}.  The first item in the Pair is the normal model tab
-     *         creator, and the second is the tab creator for incognito tabs.
+     * @return The {@link TabCreator}s owned by this {@link ChromeActivity}. The first item in the
+     *     Pair is the normal model tab creator, and the second is the tab creator for incognito
+     *     tabs.
      */
     protected abstract Pair<? extends TabCreator, ? extends TabCreator> createTabCreators();
 
@@ -1454,7 +1463,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     public @Nullable ActorPictureInPictureController maybeCreateActorPipController() {
         if (getProfileProviderSupplier().get() == null
                 || !GlicEnabling.isProfileEligible(
-                        getProfileProviderSupplier().get().getOriginalProfile())) {
+                        getProfileProviderSupplier().get().getOriginalProfile())
+                || DeviceFormFactor.isNonMultiDisplayContextOnTablet(this)) {
             return null;
         }
 
@@ -2028,7 +2038,13 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
             mStartupMetricsTracker = null;
         }
 
-        destroyTabModels();
+        @TabDestroyStatus int status = destroyTabModels();
+        if (ChromeFeatureList.sTabAndroidGracefulShutdown.isEnabled()
+                && status == TabDestroyStatus.SLOW_SHUTDOWN
+                && GracefulShutdownService.isLastActivityDying()) {
+            GracefulShutdownService.maybeStartGracefulShutdown(
+                    ContextUtils.getApplicationContext());
+        }
 
         // set(null) rather than destroy() so that listeners can unlisten to BookmarkModel.
         mBookmarkModelSupplier.set(null);
@@ -2391,10 +2407,8 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
     }
 
     /**
-     * TODO: this method no longer needs to be public after InfoBar is deprecated.
-     *
-     * <p>Returns a supplier for the {@link EdgeToEdgeController} that supports drawing to the edge
-     * of the screen.
+     * Returns a supplier for the {@link EdgeToEdgeController} that supports drawing to the edge of
+     * the screen.
      */
     @Override
     public MonotonicObservableSupplier<EdgeToEdgeController> getEdgeToEdgeSupplier() {
@@ -2930,10 +2944,12 @@ public abstract class ChromeActivity extends AsyncInitializationActivity
         }
 
         if (id == R.id.toggle_bookmarks_bar_menu_id) {
-            BookmarkBarUtils.toggleUserPrefsShowBookmarksBar(
-                    currentTab.getProfile(), /* fromKeyboardShortcut= */ false);
-            RecordUserAction.record("MobileMenuToggleBookmarksBar");
-            return true;
+            if (BookmarkBarUtils.isActivityStateBookmarkBarCompatible(this)) {
+                BookmarkBarUtils.toggleShowBookmarksBar(
+                        currentTab.getProfile(), /* fromKeyboardShortcut= */ false);
+                RecordUserAction.record("MobileMenuToggleBookmarksBar");
+                return true;
+            }
         }
 
         if (id == R.id.back_menu_id) {

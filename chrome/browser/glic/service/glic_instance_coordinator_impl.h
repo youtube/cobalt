@@ -84,6 +84,7 @@ class GlicInstanceCoordinatorImpl
   GlicKeyedService* service() { return service_; }
 
   // GlicInstanceImpl::InstanceCoordinatorDelegate implementation
+  void OnInstanceWillAwaken() override;
   void OnInstanceVisibilityChanged(GlicInstanceImpl* instance,
                                    bool is_showing) override;
   void OnInstanceActivationChanged(GlicInstanceImpl* instance,
@@ -152,7 +153,7 @@ class GlicInstanceCoordinatorImpl
   void Toggle(BrowserWindowInterface* browser,
               bool prevent_close,
               mojom::InvocationSource source) override;
-  void EnsurePreload() override;
+  bool MaybeStartInitialWarming() override;
   // Shuts down all hosts. Only call it before destruction of the instance
   // coordinator.
   void Shutdown() override;
@@ -165,9 +166,6 @@ class GlicInstanceCoordinatorImpl
       InvokeWithAutoSubmitPasskey auto_submit_passkey,
       GlicInvokeOptions options,
       GlicInvokeWithAutoSubmitOptions auto_submit_options);
-  void GetExperimentalTriggeringUpdates(
-      mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> handler,
-      base::OnceCallback<void(bool)> success_status_callback) override;
 
   void CloseInstanceWithFrame(
       content::RenderFrameHost* render_frame_host) override;
@@ -247,15 +245,39 @@ class GlicInstanceCoordinatorImpl
                            const std::vector<tabs::TabInterface*>& tabs,
                            GlicPinTrigger pin_trigger);
 
-  void ToggleFloaty(bool prevent_close, glic::mojom::InvocationSource source);
-  void ToggleSidePanel(BrowserWindowInterface* browser,
-                       bool prevent_close,
-                       glic::mojom::InvocationSource source);
+  void ToggleFloaty(
+      bool prevent_close,
+      glic::mojom::InvocationSource source,
+      std::unique_ptr<GlicWindowInvocationTracker> invocation_tracker);
+  void ToggleSidePanel(
+      BrowserWindowInterface* browser,
+      bool prevent_close,
+      glic::mojom::InvocationSource source,
+      std::unique_ptr<GlicWindowInvocationTracker> invocation_tracker);
 
   void CloseFloaty(const CloseOptions& options = {});
 
   void OnMemoryPressure(base::MemoryPressureLevel level) override;
+
+  // Enforces the maximum awake instances limit (`kGlicMaxAwakeInstances`).
+  // If the current count of awake (non-hibernated) instances is at or above the
+  // limit, hibernates the oldest eligible candidate(s) to make room before an
+  // instance awakens. Note: If all awake instances are currently showing
+  // or actuating, they are ineligible for hibernation and the limit may be
+  // temporarily exceeded.
   void ApplyMaxAwakeInstancesLimit();
+
+  // Hibernates the oldest idle background instances until the total number of
+  // awake (non-hibernated) instances is less than or equal to
+  // `target_total_awake_count`. Instances that are currently showing or
+  // actuating are not eligible for hibernation, so if they exceed the target,
+  // the limit may be temporarily exceeded.
+  void TrimAwakeInstancesTo(size_t target_total_awake_count);
+
+  // Returns the current maximum number of awake instances allowed. When
+  // `base::kStatefulMemoryPressure` is enabled, this limit is dynamically
+  // scaled down based on the current system memory pressure level.
+  size_t GetCurrentMaxAwakeInstancesLimit() const;
 
   void NotifyActiveInstanceChanged();
   void ComputeContentAccessIndicator();

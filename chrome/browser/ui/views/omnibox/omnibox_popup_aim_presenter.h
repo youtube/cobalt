@@ -7,19 +7,24 @@
 
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
+#include "components/permissions/permission_request_manager.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_observer.h"
 
-class LocationBarView;
+class LocationBar;
 class OmniboxController;
+class OmniboxPopupPresenterDelegate;
 
 // Implements subclass of OmniboxPopupPresenterBase to present the AI-Mode
 // compose-plate into an Omnibox popup.
-class OmniboxPopupAimPresenter : public OmniboxPopupPresenterBase,
-                                 public views::WidgetObserver {
+class OmniboxPopupAimPresenter
+    : public OmniboxPopupPresenterBase,
+      public views::WidgetObserver,
+      public permissions::PermissionRequestManager::Observer {
  public:
-  OmniboxPopupAimPresenter(LocationBarView* location_bar_view,
-                           OmniboxController* controller);
+  OmniboxPopupAimPresenter(LocationBar* location_bar,
+                           OmniboxController* controller,
+                           OmniboxPopupPresenterDelegate& presenter_delegate);
   OmniboxPopupAimPresenter(const OmniboxPopupAimPresenter&) = delete;
   OmniboxPopupAimPresenter& operator=(const OmniboxPopupAimPresenter&) = delete;
   ~OmniboxPopupAimPresenter() override;
@@ -40,8 +45,21 @@ class OmniboxPopupAimPresenter : public OmniboxPopupPresenterBase,
   // views::WidgetObserver:
   void OnWidgetActivationChanged(views::Widget* widget, bool active) override;
 
+  // permissions::PermissionRequestManager::Observer:
+  // Called when a permission prompt is removed. Sets transition flag to prevent
+  // widget activation changes from hiding the popup during prompt dismissal.
+  void OnPromptRemoved() override;
+
   base::ScopedObservation<views::Widget, views::WidgetObserver>
       widget_observation_{this};
+
+  base::ScopedObservation<permissions::PermissionRequestManager,
+                          permissions::PermissionRequestManager::Observer>
+      permission_observation_{this};
+
+  // Set to true when a permission prompt is removed to prevent the omnibox
+  // popup from closing due to activation loss while focus is being restored.
+  bool is_handling_prompt_dismissal_ = false;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_OMNIBOX_OMNIBOX_POPUP_AIM_PRESENTER_H_

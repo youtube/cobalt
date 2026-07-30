@@ -81,6 +81,7 @@
 #include "content/browser/worker_host/shared_worker_connector_impl.h"
 #include "content/browser/worker_host/shared_worker_host.h"
 #include "content/browser/xr/service/vr_service_impl.h"
+#include "content/common/features.h"
 #include "content/common/input/input_injector.mojom.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/browser/content_browser_client.h"
@@ -206,7 +207,7 @@
 #include "third_party/blink/public/mojom/webaudio/audio_context_manager.mojom.h"
 #include "third_party/blink/public/mojom/webauthn/authenticator.mojom.h"
 #include "third_party/blink/public/mojom/webid/digital_identity_request.mojom.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "third_party/blink/public/mojom/webrtc/rtc_logging.mojom.h"
 #include "third_party/blink/public/mojom/websockets/websocket_connector.mojom.h"
 #include "third_party/blink/public/mojom/webtransport/web_transport_connector.mojom.h"
@@ -329,8 +330,7 @@ void BindWebNNContextProviderForRenderFrame(
 template <typename WorkerHost>
 bool IsWebNNPermissionsPolicyBlocked(WorkerHost* host) {
   if constexpr (std::is_same_v<WorkerHost, DedicatedWorkerHost>) {
-    auto* ancestor_render_frame_host =
-        RenderFrameHostImpl::FromID(host->GetAncestorRenderFrameHostId());
+    auto* ancestor_render_frame_host = host->GetAncestorRenderFrameHost();
     return !ancestor_render_frame_host ||
            !ancestor_render_frame_host->IsFeatureEnabled(
                network::mojom::PermissionsPolicyFeature::kWebNN);
@@ -934,9 +934,9 @@ void PopulateBinderMapWithContext(
       [](RenderFrameHost* host,
          mojo::PendingReceiver<blink::mojom::ContentSecurityNotifier>
              receiver) {
-        mojo::MakeSelfOwnedReceiver(
-            std::make_unique<ContentSecurityNotifier>(host->GetGlobalId()),
-            std::move(receiver));
+        mojo::MakeSelfOwnedReceiver(std::make_unique<ContentSecurityNotifier>(
+                                        host->GetWeakDocumentPtr()),
+                                    std::move(receiver));
       }));
 
   map->Add<blink::mojom::DedicatedWorkerHostFactory>(
@@ -960,8 +960,22 @@ void PopulateBinderMapWithContext(
         &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetFontAccessManager>);
   }
 
-  map->Add<device::mojom::GamepadHapticsManager>(
-      &device::GamepadHapticsManager::Create);
+  map->Add<device::mojom::GamepadHapticsManager>(base::BindRepeating(
+      [](RenderFrameHost* host,
+         mojo::PendingReceiver<device::mojom::GamepadHapticsManager> receiver) {
+        if (!host->IsFeatureEnabled(
+                network::mojom::PermissionsPolicyFeature::kGamepad)) {
+          if (base::FeatureList::IsEnabled(
+                  features::kEnforceGamepadPermissionsPolicy)) {
+            bad_message::ReceivedBadMessage(
+                host->GetProcess(),
+                bad_message::BadMessageReason::
+                    BIBI_BIND_GAMEPAD_HAPTICS_MANAGER_BLOCKED_BY_PERMISSIONS_POLICY);
+            return;
+          }
+        }
+        device::GamepadHapticsManager::Create(host, std::move(receiver));
+      }));
 
   map->Add<blink::mojom::GeolocationService>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetGeolocationService>);
@@ -1075,7 +1089,22 @@ void PopulateBinderMapWithContext(
       base::ThreadPool::CreateSequencedTaskRunner(
           {base::MayBlock(), base::TaskPriority::USER_VISIBLE}));
 
-  map->Add<device::mojom::GamepadMonitor>(&device::GamepadMonitor::Create);
+  map->Add<device::mojom::GamepadMonitor>(base::BindRepeating(
+      [](RenderFrameHost* host,
+         mojo::PendingReceiver<device::mojom::GamepadMonitor> receiver) {
+        if (!host->IsFeatureEnabled(
+                network::mojom::PermissionsPolicyFeature::kGamepad)) {
+          if (base::FeatureList::IsEnabled(
+                  features::kEnforceGamepadPermissionsPolicy)) {
+            bad_message::ReceivedBadMessage(
+                host->GetProcess(),
+                bad_message::BadMessageReason::
+                    BIBI_BIND_GAMEPAD_MONITOR_BLOCKED_BY_PERMISSIONS_POLICY);
+            return;
+          }
+        }
+        device::GamepadMonitor::Create(host, std::move(receiver));
+      }));
 
   map->Add<blink::mojom::WebSensorProvider>(
       &BindRenderFrameHostImpl<&RenderFrameHostImpl::GetSensorProvider>);

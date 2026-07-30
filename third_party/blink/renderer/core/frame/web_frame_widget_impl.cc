@@ -150,7 +150,6 @@
 #include "third_party/blink/renderer/core/page/validation_message_client.h"
 #include "third_party/blink/renderer/core/page/viewport_description.h"
 #include "third_party/blink/renderer/core/paint/timing/first_meaningful_paint_detector.h"
-#include "third_party/blink/renderer/core/paint/timing/paint_timing.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_detector.h"
 #include "third_party/blink/renderer/core/probe/core_probes.h"
 #include "third_party/blink/renderer/core/scroll/scroll_into_view_util.h"
@@ -949,7 +948,7 @@ viz::FrameSinkId WebFrameWidgetImpl::GetFrameSinkIdAtPoint(
     gfx::PointF local_point(result.LocalPoint());
     LayoutObject* object = result_node->GetLayoutObject();
     if (auto* box = DynamicTo<LayoutBox>(object))
-      local_point -= gfx::Vector2dF(box->PhysicalContentBoxOffset());
+      local_point -= gfx::Vector2dF(box->PhysicalContentBoxRect().offset);
 
     *local_point_in_dips = widget_base_->BlinkSpaceToDIPs(local_point);
     return remote_frame_sink_id;
@@ -1778,6 +1777,14 @@ AnimationFrameTimingInfo* WebFrameWidgetImpl::RecordRenderingUpdateEndTime(
       *local_root_frame->DomWindow(), rendering_update_time);
 }
 
+void WebFrameWidgetImpl::MarkConditional(const AtomicString& name,
+                                         base::TimeTicks start_time) {
+  if (!animation_frame_timing_monitor_) {
+    return;
+  }
+  animation_frame_timing_monitor_->MarkConditional(name, start_time);
+}
+
 void WebFrameWidgetImpl::DidBeginMainFrame() {
   LocalFrame* local_root_frame = LocalRootImpl()->GetFrame();
   CHECK(local_root_frame);
@@ -1993,7 +2000,7 @@ void WebFrameWidgetImpl::UpdateVisualProperties(
     // be leftover from when a widget was nested and was promoted to top level.
     widget_base_->LayerTreeHost()->SetExternalPageScaleFactor(
         1.f,
-        /*is_pinch_gesture_active=*/false);
+        /*is_external_pinch_gesture_active=*/false);
   }
 
   EventHandler& event_handler = local_root_->GetFrame()->GetEventHandler();
@@ -2463,10 +2470,14 @@ void WebFrameWidgetImpl::SetZoomInternal(double zoom_level,
 
   if (auto* local_frame = LocalRootImpl()->GetFrame()) {
     if (Document* document = local_frame->GetDocument()) {
+      const float device_scale_factor =
+          document->TextScaleMetaTagPresent()
+              ? View()->ZoomFactorForViewportLayoutWithoutTextScale()
+              : View()->ZoomFactorForViewportLayout();
       // Since `SetLayoutZoomFactor` receives a float, cast everything to floats
       // to avoid precision loss from calculations using doubles.
       float layout_zoom_factor =
-          View()->ZoomFactorForViewportLayout() *
+          device_scale_factor *
           static_cast<float>(View()->ZoomLevelToZoomFactor(zoom_level)) *
           static_cast<float>(css_zoom_factor);
       if (zoom_changed) {
@@ -3498,6 +3509,12 @@ void WebFrameWidgetImpl::MouseCaptureLost() {
   TRACE_EVENT_END("input", perfetto::NamedTrack::FromPointer(
                                "blink::WebFrameWidgetImpl", this));
   mouse_capture_element_ = nullptr;
+}
+
+void WebFrameWidgetImpl::SetPointerLocked(bool is_locked) {
+  if (auto* manager = widget_base_->widget_input_handler_manager()) {
+    manager->PostSetPointerLockedToInputThread(is_locked);
+  }
 }
 
 void WebFrameWidgetImpl::ApplyVisualProperties(
@@ -5259,7 +5276,8 @@ void WebFrameWidgetImpl::OrientationChanged() {
 void WebFrameWidgetImpl::DidUpdateSurfaceAndScreen(
     const display::ScreenInfos& previous_original_screen_infos) {
   display::ScreenInfo screen_info = widget_base_->GetScreenInfo();
-  View()->SetZoomFactorForDeviceScaleFactor(screen_info.device_scale_factor);
+  View()->SetZoomFactorForDeviceScaleFactor(screen_info.device_scale_factor,
+                                            screen_info.text_scale_multiplier);
 
   if (ShouldAutoDetermineCompositingToLCDTextSetting()) {
     // This causes compositing state to be modified which dirties the
@@ -5383,12 +5401,13 @@ void WebFrameWidgetImpl::NotifyInputObservers(
   if (!frame)
     return;
 
-  LocalFrameView* frame_view = frame->View();
-  if (!frame_view)
+  Document* document = frame->GetDocument();
+  if (!document) {
     return;
+  }
 
   const WebInputEvent& input_event = coalesced_event.Event();
-  frame_view->GetPaintTimingDetector().NotifyInputEvent(input_event.GetType());
+  PaintTimingDetector::From(*document).NotifyInputEvent(input_event.GetType());
 }
 
 Frame* WebFrameWidgetImpl::FocusedCoreFrame() const {

@@ -232,7 +232,6 @@ public interface AutocompleteEditTextModelBase {
     /**
      * @return Whether any autocomplete information is specified on the current text.
      */
-    @VisibleForTesting
     boolean hasAutocomplete();
 
     /**
@@ -245,4 +244,10 @@ public interface AutocompleteEditTextModelBase {
      * @return Whether accessibility event should be ignored.
      */
     boolean shouldIgnoreAccessibilityEvent();
+
+    /**
+     * Returns whether the given key event represents a delete-by-word gesture that should be
+     * intercepted and handled by the model.
+     */
+    boolean isDeleteByWord(KeyEvent event);
 }

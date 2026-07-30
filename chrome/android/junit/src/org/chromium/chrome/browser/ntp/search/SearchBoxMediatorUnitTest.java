@@ -13,6 +13,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.robolectric.Shadows.shadowOf;
 
 import android.content.Context;
 import android.content.res.ColorStateList;
@@ -61,11 +62,14 @@ import org.chromium.chrome.browser.omnibox.status.StatusProperties.StatusIconRes
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.search_engines.TemplateUrlServiceFactory;
 import org.chromium.components.omnibox.AutocompleteRequestType;
+import org.chromium.components.omnibox.OmniboxCapabilities;
 import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.search_engines.TemplateUrlService;
 import org.chromium.components.search_engines.TemplateUrlService.TemplateUrlServiceObserver;
+import org.chromium.content_public.browser.LoadUrlParams;
 import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.url.GURL;
 
 import java.util.function.Supplier;
 
@@ -77,6 +81,7 @@ public class SearchBoxMediatorUnitTest {
 
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private OnClickListener mLensClickListener;
+    @Mock private OnClickListener mAiChipClickListener;
     @Mock private OnClickListener mVoiceSearchClickListener;
     @Mock private OnClickListener mSearchBoxClickListener;
     @Mock private View.OnDragListener mSearchBoxDragListener;
@@ -91,6 +96,7 @@ public class SearchBoxMediatorUnitTest {
     @Mock private TemplateUrlService mTemplateUrlService;
     @Mock private ComposeboxQueryControllerBridge.Natives mComposeboxBridgeJni;
     @Captor private ArgumentCaptor<TemplateUrlServiceObserver> mTemplateUrlServiceObserverCaptor;
+    @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
 
     private Context mContext;
     private SearchBoxContainerView mView;
@@ -137,6 +143,7 @@ public class SearchBoxMediatorUnitTest {
         TemplateUrlServiceObserver observer = mTemplateUrlServiceObserverCaptor.getValue();
 
         mPropertyModel.set(SearchBoxProperties.LENS_CLICK_CALLBACK, mLensClickListener);
+        mPropertyModel.set(SearchBoxProperties.AI_CHIP_CLICK_CALLBACK, mAiChipClickListener);
         mPropertyModel.set(
                 SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK, mVoiceSearchClickListener);
         mPropertyModel.set(SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK, mSearchBoxClickListener);
@@ -145,6 +152,7 @@ public class SearchBoxMediatorUnitTest {
         mPropertyModel.set(SearchBoxProperties.DSE_ICON_DRAWABLE, new ColorDrawable(Color.RED));
 
         assertNotNull(mPropertyModel.get(SearchBoxProperties.LENS_CLICK_CALLBACK));
+        assertNotNull(mPropertyModel.get(SearchBoxProperties.AI_CHIP_CLICK_CALLBACK));
         assertNotNull(mPropertyModel.get(SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK));
         assertNotNull(mPropertyModel.get(SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK));
         assertNotNull(mPropertyModel.get(SearchBoxProperties.SEARCH_BOX_DRAG_CALLBACK));
@@ -156,6 +164,7 @@ public class SearchBoxMediatorUnitTest {
         verify(mActivityLifecycleDispatcher).unregister(mMediator);
         verify(mTemplateUrlService).removeObserver(observer);
         assertNull(mPropertyModel.get(SearchBoxProperties.LENS_CLICK_CALLBACK));
+        assertNull(mPropertyModel.get(SearchBoxProperties.AI_CHIP_CLICK_CALLBACK));
         assertNull(mPropertyModel.get(SearchBoxProperties.VOICE_SEARCH_CLICK_CALLBACK));
         assertNull(mPropertyModel.get(SearchBoxProperties.SEARCH_BOX_CLICK_CALLBACK));
         assertNull(mPropertyModel.get(SearchBoxProperties.SEARCH_BOX_DRAG_CALLBACK));
@@ -176,12 +185,46 @@ public class SearchBoxMediatorUnitTest {
         StatusIconResource googleIcon = new StatusIconResource(R.drawable.ic_logo_googleg_20dp, 0);
         mMediator.setSearchEngineIcon(googleIcon);
         assertNotNull(mPropertyModel.get(SearchBoxProperties.DSE_ICON_DRAWABLE));
+        assertNull(mPropertyModel.get(SearchBoxProperties.DSE_ICON_TINT));
+        assertEquals(
+                R.drawable.ic_logo_googleg_24dp,
+                shadowOf(mPropertyModel.get(SearchBoxProperties.DSE_ICON_DRAWABLE))
+                        .getCreatedFromResId());
     }
 
     @Test
     public void testSetSearchEngineIcon_Null() {
         mMediator.setSearchEngineIcon(null);
         assertNotNull(mPropertyModel.get(SearchBoxProperties.DSE_ICON_DRAWABLE));
+        assertNotNull(mPropertyModel.get(SearchBoxProperties.DSE_ICON_TINT));
+        assertEquals(
+                R.drawable.ic_search_24dp,
+                shadowOf(mPropertyModel.get(SearchBoxProperties.DSE_ICON_DRAWABLE))
+                        .getCreatedFromResId());
+    }
+
+    @Test
+    public void testSetSearchEngineIcon_onDesktop() {
+        OmniboxCapabilities.setIsDesktopPlatformForTesting(true);
+        StatusIconResource googleIcon = new StatusIconResource(R.drawable.ic_logo_googleg_20dp, 0);
+        mMediator.setSearchEngineIcon(googleIcon);
+        assertNotNull(mPropertyModel.get(SearchBoxProperties.DSE_ICON_DRAWABLE));
+        assertNotNull(mPropertyModel.get(SearchBoxProperties.DSE_ICON_TINT));
+        assertEquals(
+                R.drawable.ic_search_24dp,
+                shadowOf(mPropertyModel.get(SearchBoxProperties.DSE_ICON_DRAWABLE))
+                        .getCreatedFromResId());
+    }
+
+    @Test
+    public void testSetSearchEngineIcon_NonGoogle_onDesktop() {
+        when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(false);
+        OmniboxCapabilities.setIsDesktopPlatformForTesting(true);
+        Drawable drawable = new ColorDrawable(Color.RED);
+        StatusIconResource newIcon = new StatusIconResource(drawable);
+        mMediator.setSearchEngineIcon(newIcon);
+        assertEquals(drawable, mPropertyModel.get(SearchBoxProperties.DSE_ICON_DRAWABLE));
+        assertNull(mPropertyModel.get(SearchBoxProperties.DSE_ICON_TINT));
     }
 
     @Test
@@ -286,6 +329,7 @@ public class SearchBoxMediatorUnitTest {
         assertEquals(
                 colorStateList,
                 mPropertyModel.get(SearchBoxProperties.VOICE_SEARCH_COLOR_STATE_LIST));
+        assertEquals(colorStateList, mPropertyModel.get(SearchBoxProperties.DSE_ICON_TINT));
         verifyApplyBackground(mView);
 
         // Tests the case to remove the white background with shadow.
@@ -299,6 +343,7 @@ public class SearchBoxMediatorUnitTest {
         assertEquals(
                 colorStateList,
                 mPropertyModel.get(SearchBoxProperties.VOICE_SEARCH_COLOR_STATE_LIST));
+        assertEquals(colorStateList, mPropertyModel.get(SearchBoxProperties.DSE_ICON_TINT));
         verifyResetBackground(mView, defaultBackground);
     }
 
@@ -562,6 +607,59 @@ public class SearchBoxMediatorUnitTest {
         verify(mLensController).startLens(eq(mWindowAndroid), any(LensIntentParams.class));
         assertTrue(userActionTester.getActions().contains("NewTabPage.SearchBox.Lens"));
         userActionTester.tearDown();
+    }
+
+    @Test
+    public void testUpdateAiChip_Show() {
+        OmniboxCapabilities.setIsDesktopPlatformForTesting(true);
+        ComposeplateUtils.setIsEnabledForTesting(true);
+
+        verify(mTemplateUrlService).addObserver(mTemplateUrlServiceObserverCaptor.capture());
+        TemplateUrlServiceObserver observer = mTemplateUrlServiceObserverCaptor.getValue();
+
+        observer.onTemplateURLServiceChanged();
+
+        assertTrue(mPropertyModel.get(SearchBoxProperties.AI_CHIP_VISIBILITY));
+    }
+
+    @Test
+    public void testUpdateAiChip_Hide_NonDesktop() {
+        OmniboxCapabilities.setIsDesktopPlatformForTesting(false);
+        ComposeplateUtils.setIsEnabledForTesting(true);
+
+        verify(mTemplateUrlService).addObserver(mTemplateUrlServiceObserverCaptor.capture());
+        TemplateUrlServiceObserver observer = mTemplateUrlServiceObserverCaptor.getValue();
+
+        observer.onTemplateURLServiceChanged();
+
+        assertFalse(mPropertyModel.get(SearchBoxProperties.AI_CHIP_VISIBILITY));
+    }
+
+    @Test
+    public void testUpdateAiChip_Hide_ComposeplateDisabled() {
+        OmniboxCapabilities.setIsDesktopPlatformForTesting(true);
+        ComposeplateUtils.setIsEnabledForTesting(false);
+
+        verify(mTemplateUrlService).addObserver(mTemplateUrlServiceObserverCaptor.capture());
+        TemplateUrlServiceObserver observer = mTemplateUrlServiceObserverCaptor.getValue();
+
+        observer.onTemplateURLServiceChanged();
+
+        assertFalse(mPropertyModel.get(SearchBoxProperties.AI_CHIP_VISIBILITY));
+    }
+
+    @Test
+    public void testOnAiChipClick() {
+        GURL mockUrl = new GURL("https://google.com/ai");
+        when(mTemplateUrlService.getComposeplateUrl()).thenReturn(mockUrl);
+
+        OnClickListener listener = mPropertyModel.get(SearchBoxProperties.AI_CHIP_CLICK_CALLBACK);
+        assertNotNull(listener);
+
+        listener.onClick(mView);
+
+        verify(mNewTabPageManager).loadUrl(mLoadUrlParamsCaptor.capture(), eq(false));
+        assertEquals(mockUrl.getSpec(), mLoadUrlParamsCaptor.getValue().getUrl());
     }
 
     private void verifyApplyBackground(View view) {

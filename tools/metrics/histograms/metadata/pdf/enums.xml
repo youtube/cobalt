@@ -132,6 +132,8 @@ chromium-metrics-reviews@google.com.
   <int value="102" label="EnterInk2TextAnnotationMode"/>
   <int value="103" label="ExitInk2TextAnnotationModeFirst"/>
   <int value="104" label="ExitInk2TextAnnotationMode"/>
+  <int value="105" label="AddInk2TextAnnotationFirst"/>
+  <int value="106" label="AddInk2TextAnnotation"/>
 </enum>
 
 <enum name="ChromePDFViewerLoadStatus">
@@ -169,7 +171,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Error">The settings UI failed to open.</int>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/browser/ui/pdf/infobar/pdf_infobar_delegate.cc:PdfInfoBarSettingsResult) -->
+<!-- LINT.ThenChange(//chrome/browser/ui/pdf/infobar/pdf_infobar_controller.h:PdfInfoBarSettingsResult) -->
 
 <!-- LINT.IfChange(PDFInfoBarUserInteraction) -->
 
@@ -183,7 +185,7 @@ chromium-metrics-reviews@google.com.
   </int>
 </enum>
 
-<!-- LINT.ThenChange(//chrome/browser/ui/pdf/infobar/pdf_infobar_delegate.h:PdfInfoBarUserInteraction) -->
+<!-- LINT.ThenChange(//chrome/browser/ui/pdf/infobar/pdf_infobar_controller.h:PdfInfoBarUserInteraction) -->
 
 <!-- LINT.IfChange(PDFInk2StrokeBrushSize) -->
 

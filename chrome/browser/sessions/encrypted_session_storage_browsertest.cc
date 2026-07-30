@@ -15,6 +15,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "chrome/browser/collaboration/messaging/messaging_backend_service_factory.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/keep_alive/profile_keep_alive_types.h"
@@ -77,6 +78,10 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/ozone_buildflags.h"
 
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 namespace sessions {
 
 using SessionType = sessions::CommandStorageManager::SessionType;
@@ -119,12 +124,16 @@ class EncryptedSessionStorageBrowserTestBase : public InProcessBrowserTest {
   }
 
   void VerifyWindowBounds(gfx::Rect expected, gfx::Rect actual) {
-#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-    // On Linux Wayland, the client cannot set top-level window positions.
-    EXPECT_EQ(expected.size(), actual.size());
-#else
-    EXPECT_EQ(expected, actual);
+    bool is_wayland = false;
+#if BUILDFLAG(IS_OZONE)
+    is_wayland = ::ui::OzonePlatform::RunningOnWaylandForTest();
 #endif
+    if (is_wayland) {
+      // On Linux Wayland, the client cannot set top-level window positions.
+      EXPECT_EQ(expected.size(), actual.size());
+    } else {
+      EXPECT_EQ(expected, actual);
+    }
   }
 
   void AssertCommandStorageBackendFilesExist(SessionType session_type,
@@ -166,21 +175,36 @@ class EncryptedSessionStorageBrowserTestBase : public InProcessBrowserTest {
     sessions::CommandStorageBackend* encrypted_backend =
         test_helper.GetEncryptedBackend();
     if (test_helper.ShouldWriteEncryptedFiles()) {
+      // The encrypted backend isn't initialized unless it's used.
       ASSERT_TRUE(encrypted_backend);
-      const base::FilePath path = encrypted_backend->current_path_for_testing();
-      ASSERT_TRUE(base::PathExists(path));
+      ASSERT_TRUE(
+          base::PathExists(encrypted_backend->current_path_for_testing()));
     } else {
+      // When it's not initialized, the related directory should be deleted.
       ASSERT_FALSE(encrypted_backend);
+      ASSERT_FALSE(base::PathExists(
+          command_storage_manager->GetBackendDirectoryForTesting(
+              /*is_encrypted=*/true)));
     }
+    // The cleartext backend is always created.
+    ASSERT_TRUE(cleartext_backend);
     if (test_helper.ShouldWriteCleartextFiles()) {
-      ASSERT_TRUE(cleartext_backend);
-      const base::FilePath path = cleartext_backend->current_path_for_testing();
-      ASSERT_TRUE(base::PathExists(path));
+      // If it was used it should exist.
+      ASSERT_TRUE(
+          base::PathExists(cleartext_backend->current_path_for_testing()));
     } else {
-      // The cleartext backend is still created, in case we need to read
-      // cleartext files on recovery. But it shouldn't write any files.
-      const base::FilePath path = cleartext_backend->current_path_for_testing();
-      ASSERT_FALSE(base::PathExists(path));
+      // There's a special case for tests that go from phase 0 to 3, as they do
+      // end up keeping the cleartext files until the next relaunch. This is due
+      // to needing the data for the initial launch as a source of truth.
+      if (base::EndsWith(
+              testing::UnitTest::GetInstance()->current_test_info()->name(),
+              "clear_only_To_write_encrypted_read_prefer_encrypted")) {
+        return;
+      }
+      // Otherwise, it may or may not exist, but either way it should be empty.
+      ASSERT_TRUE(base::IsDirectoryEmpty(
+          command_storage_manager->GetBackendDirectoryForTesting(
+              /*is_encrypted=*/false)));
     }
   }
 
@@ -208,20 +232,25 @@ class EncryptedSessionStorageBrowserTestBase : public InProcessBrowserTest {
     content::SetupCrossSiteRedirector(embedded_test_server());
 
 #if BUILDFLAG(IS_CHROMEOS)
-    SessionServiceTestHelper helper(browser()->profile());
+    SessionServiceTestHelper helper(browser()->GetProfile());
     helper.SetForceBrowserNotAliveWithNoWindows(true);
 #endif
 
     if (browser()) {
       SessionStartupPref pref(SessionStartupPref::LAST);
-      SessionStartupPref::SetStartupPref(browser()->profile(), pref);
+      SessionStartupPref::SetStartupPref(browser()->GetProfile(), pref);
     }
   }
 
   GURL GetUrl(int index) {
+    CHECK_GE(index, 1);
+    // Only bot1.html, bot2.html, and bot3.html exist in session_history.
+    // Cycle through existing files rather than navigating to non-existent
+    // files that trigger error pages.
+    const int file_index = ((index - 1) % 3) + 1;
     return chrome_test_utils::GetTestUrl(
         base::FilePath().AppendASCII("session_history"),
-        base::FilePath().AppendASCII("bot" + base::NumberToString(index) +
+        base::FilePath().AppendASCII("bot" + base::NumberToString(file_index) +
                                      ".html"));
   }
 
@@ -233,7 +262,7 @@ class EncryptedSessionStorageBrowserTestBase : public InProcessBrowserTest {
       Browser* browser,
       const GURL& url = GURL(),
       bool no_memory_pressure = true) {
-    Profile* profile = browser->profile();
+    Profile* profile = browser->GetProfile();
 
     auto keep_alive = std::make_unique<ScopedKeepAlive>(
         KeepAliveOrigin::SESSION_RESTORE, KeepAliveRestartOption::DISABLED);
@@ -748,7 +777,7 @@ class SessionRestoreAcrossStagesTest : public RestoreAcrossStagesTestBase {
     browser()->tab_strip_model()->ActivateTabAt(0);
 
     // Window 2 on the right side of the screen
-    Browser* window2 = CreateBrowser(browser()->profile());
+    Browser* window2 = CreateBrowser(browser()->GetProfile());
     window2->GetWindow()->SetBounds(kWindowBounds2);
 
     // Window 2 Tab 1 should be pinned and shows GetUrl(1)
@@ -802,7 +831,7 @@ class SessionRestoreAcrossStagesTest : public RestoreAcrossStagesTestBase {
   }
 
   void AssertSessionState() {
-    if (SessionRestore::IsRestoring(browser()->profile())) {
+    if (SessionRestore::IsRestoring(browser()->GetProfile())) {
       SessionRestoreTestHelper helper;
       helper.Wait();
     }
@@ -900,6 +929,8 @@ IN_PROC_BROWSER_TEST_P(SessionRestoreAcrossStagesTest, PRE_Restore) {
 
 IN_PROC_BROWSER_TEST_P(SessionRestoreAcrossStagesTest, Restore) {
   AssertSessionState();
+  browser()->profile()->SaveSessionState();
+  AssertCommandStorageBackendFilesExist(SessionType::kSessionRestore);
 }
 
 // Tests tab restore behavior across browser restarts, where the encryption
@@ -931,7 +962,7 @@ class TabRestoreAcrossStagesTest : public RestoreAcrossStagesTestBase {
 
   // Asserts that the tabs from SetUpExpectedTabs() are present.
   void AssertExpectedTabs() {
-    if (SessionRestore::IsRestoring(browser()->profile())) {
+    if (SessionRestore::IsRestoring(browser()->GetProfile())) {
       SessionRestoreTestHelper helper;
       helper.Wait();
     }
@@ -962,6 +993,8 @@ IN_PROC_BROWSER_TEST_P(TabRestoreAcrossStagesTest, PRE_Restore) {
 
 IN_PROC_BROWSER_TEST_P(TabRestoreAcrossStagesTest, Restore) {
   AssertExpectedTabs();
+  browser()->profile()->SaveSessionState();
+  AssertCommandStorageBackendFilesExist(SessionType::kTabRestore);
 }
 
 const StageTransitionTestParams kStageTransitionTestParams[] = {

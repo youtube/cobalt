@@ -11,7 +11,10 @@ source_set("navigator") {
   ]
 
   if (!is_android) {
-    public += [ "browser_navigator.h" ]
+    public += [
+      "browser_navigator.h",
+      "browser_navigator_tab_modal.h",
+    ]
   }
 
   public_deps = [
@@ -79,7 +82,10 @@ source_set("impl") {
   }
 
   if (!is_android) {
-    sources += [ "browser_navigator.cc" ]
+    sources += [
+      "browser_navigator.cc",
+      "browser_navigator_tab_modal.cc",
+    ]
 
     deps += [
       "//chrome/browser/apps/app_service",
@@ -133,6 +139,7 @@ if (!is_android) {
       "//chrome/browser/picture_in_picture",
       "//chrome/browser/prefs",
       "//chrome/browser/renderer_host",
+      "//chrome/browser/ui:chrome_pages",
       "//chrome/browser/ui/page_info",
       "//chrome/browser/ui/search:test_support_ui",
       "//chrome/test:test_support",

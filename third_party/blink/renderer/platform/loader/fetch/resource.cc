@@ -33,6 +33,7 @@
 #include <variant>
 
 #include "base/feature_list.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_clock.h"
@@ -70,12 +71,20 @@
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
-// Feature that prevents an extension resource from being fetched across
-// isolated worlds.
+namespace blink {
+
+// TODO(crbug.com/507483993): Enable these behaviors by default and remove the
+// feature flags after monitoring for regressions.
+
+// Feature that prevents an extension resource (chrome-extension://...) from
+// being fetched across isolated worlds.
 BASE_FEATURE(kPreventExtensionResourceFetchAcrossIsolatedWorlds,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-namespace blink {
+// Feature that prevents resources fetched via a Service Worker from being
+// reused across different script worlds.
+BASE_FEATURE(kPreventCrossWorldServiceWorkerResourceReuse,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 String GetAsAttributeFromResourceType(ResourceType type) {
   switch (type) {
@@ -169,6 +178,22 @@ inline bool ShouldUpdateHeaderAfterRevalidation(const AtomicString& header) {
 
 const base::Clock* g_clock_for_testing = nullptr;
 
+constexpr base::MemoryConsumerTraits kResourceTraits(
+    // Encoded and decoded data size varies widely, can reach tens of MBs.
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kMedium,
+    // Pruning destroys decoded data without traversing complex structures.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kFreesPagesWithoutTraversal,
+    // Data can be re-decoded from the encoded payload.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Pruning runs synchronously on the renderer thread.
+    base::MemoryConsumerTraits::ExecutionType::kSynchronous,
+    // Holds references managed by Blink Oilpan GC.
+    base::MemoryConsumerTraits::ReleaseGCReferences::kYes,
+    // Does not maintain a lasting memory limit; performs one-time eviction.
+    base::MemoryConsumerTraits::IsStateful::kNo,
+    // Re-decoding from the encoded payload is computationally expensive.
+    base::MemoryConsumerTraits::RecreateMemoryCost::kExpensive);
+
 }  // namespace
 
 static inline base::Time Now() {
@@ -189,7 +214,7 @@ Resource::Resource(const ResourceRequestHead& request,
       overhead_size_(CalculateOverheadSize()),
       memory_consumer_registration_(
           "Resource",
-          /*traits=*/std::nullopt,  // TODO(crbug.com/489671163): Fill traits.
+          kResourceTraits,
           this,
           MemoryConsumerRegistration::CheckUnregister::kDisabled) {
   InstanceCounters::IncrementCounter(InstanceCounters::kResourceCounter);
@@ -849,13 +874,37 @@ Resource::MatchStatus Resource::CanReuse(const FetchParameters& params) const {
   // Use GetResourceRequest to get the const resource_request_.
   const ResourceRequestHead& current_request = GetResourceRequest();
 
-  // Extensions resources should not fetch across isolated worlds.
+  // We need two distinct checks here to prevent unexpected cross-world
+  // resource reuse.
+  //
+  // 1. The extension-specific check prevents sharing of extension
+  //    resources (chrome-extension://...) across different script worlds,
+  //    even for standard network loads.
+  //    For example, if a main world page preloads a web-accessible extension
+  //    resource, reusing that cached resource in the extension's isolated
+  //    world could bypass world-specific loader checks.
+  //    This behavior is tested in
+  //    `ResourceFetcherTest.CrossWorldExtensionResourceMismatch`.
   if (base::FeatureList::IsEnabled(
           kPreventExtensionResourceFetchAcrossIsolatedWorlds) &&
       CommonSchemeRegistry::IsExtensionScheme(
           current_request.Url().Protocol().Ascii()) &&
       options_.world_for_csp != new_options.world_for_csp) {
     return MatchStatus::kCrossWorldExtensionResourceMismatch;
+  }
+
+  // 2. The Service Worker check prevents sharing of any resource that was
+  //    fetched via a Service Worker across different script worlds. This is
+  //    necessary because a Service Worker in one world (e.g., the main world)
+  //    could modify the response of a resource that is later loaded by an
+  //    isolated world (e.g., an extension, DevTools, or a userscript), leading
+  //    to unexpected code execution in that world.
+  //    This behavior is tested in `ResourceTest.CanReuseServiceWorkerResource`.
+  if (base::FeatureList::IsEnabled(
+          kPreventCrossWorldServiceWorkerResourceReuse) &&
+      GetResponse().WasFetchedViaServiceWorker() &&
+      options_.world_for_csp != new_options.world_for_csp) {
+    return MatchStatus::kCrossWorldServiceWorkerResourceMismatch;
   }
 
   // If credentials mode is different from the the previous request, re-fetch

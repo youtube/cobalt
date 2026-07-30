@@ -2178,6 +2178,18 @@ String BuildProtocolDeviceBoundSessionFetchResult(
         kCrossOriginRegistrationSiteNotIncluded:
       return protocol::Network::DeviceBoundSessionFetchResultEnum::
           CrossOriginRegistrationSiteNotIncluded;
+    case net::device_bound_sessions::SessionError::ErrorType::
+        kInvalidPreProvisionedKeyInitiatorMissing:
+      return protocol::Network::DeviceBoundSessionFetchResultEnum::
+          InvalidPreProvisionedKeyInitiatorMissing;
+    case net::device_bound_sessions::SessionError::ErrorType::
+        kPreProvisionedKeyAccessNotGranted:
+      return protocol::Network::DeviceBoundSessionFetchResultEnum::
+          PreProvisionedKeyAccessNotGranted;
+    case net::device_bound_sessions::SessionError::ErrorType::
+        kPreProvisionedKeyNotFound:
+      return protocol::Network::DeviceBoundSessionFetchResultEnum::
+          PreProvisionedKeyNotFound;
   }
 }
 // LINT.ThenChange(//third_party/blink/public/devtools_protocol/domains/Network.pdl:DeviceBoundSessionFetchResult)
@@ -2200,9 +2212,6 @@ String BuildProtocolDeviceBoundSessionRefreshResult(
     case net::device_bound_sessions::RefreshResult::kServerError:
       return protocol::Network::RefreshEventDetails::RefreshResultEnum::
           ServerError;
-    case net::device_bound_sessions::RefreshResult::kRefreshQuotaExceeded:
-      return protocol::Network::RefreshEventDetails::RefreshResultEnum::
-          RefreshQuotaExceeded;
     case net::device_bound_sessions::RefreshResult::kFatalError:
       return protocol::Network::RefreshEventDetails::RefreshResultEnum::
           FatalError;
@@ -3391,9 +3400,9 @@ void NetworkHandler::NavigationRequestWillBeSent(
   const blink::mojom::CommitNavigationParams& commit_params =
       nav_request.commit_params();
   bool redirect_emitted_extra_info = false;
-  if (!commit_params.redirect_response.empty()) {
+  if (!commit_params.redirect_params.empty()) {
     const network::mojom::URLResponseHead& head =
-        *commit_params.redirect_response.back();
+        *commit_params.redirect_params.back()->response_head;
     network::mojom::URLResponseHeadDevToolsInfoPtr head_info =
         network::ExtractDevToolsInfo(head);
     redirect_response =

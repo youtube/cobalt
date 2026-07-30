@@ -166,7 +166,7 @@ class ExecutionEngineOriginGatingBrowserTestBase
       const std::string_view handle_dialog_js,
       const base::Location& location = FROM_HERE) {
     return InAnyContext(WithElement(
-        glic::test::kGlicContentsElementId,
+        glic::kGlicContentsElementId,
         [handle_dialog_js, location](::ui::TrackedElement* el) mutable {
           content::WebContents* glic_contents =
               AsInstrumentedWebContents(el)->web_contents();
@@ -227,7 +227,7 @@ class ExecutionEngineOriginGatingBrowserTestBase
       bool permission_granted,
       const base::Location& location = FROM_HERE) {
     return InAnyContext(WithElement(
-        glic::test::kGlicContentsElementId,
+        glic::kGlicContentsElementId,
         [permission_granted, location](::ui::TrackedElement* el) {
           content::WebContents* glic_contents =
               AsInstrumentedWebContents(el)->web_contents();
@@ -257,7 +257,7 @@ class ExecutionEngineOriginGatingBrowserTestBase
     return web_contents()->GetPrimaryMainFrame();
   }
   ActorKeyedService& actor_keyed_service() {
-    return *ActorKeyedService::Get(browser()->profile());
+    return *ActorKeyedService::Get(browser()->GetProfile());
   }
   ActorTask& actor_task() { return *actor_keyed_service().GetTask(task_id_); }
   tabs::TabInterface* active_tab() {
@@ -292,7 +292,7 @@ class ExecutionEngineOriginGatingBrowserTestBase
       const base::DictValue& expected_request,
       const base::Location& location) {
     return InAnyContext(WithElement(
-        glic::test::kGlicContentsElementId,
+        glic::kGlicContentsElementId,
         [&, get_request_js](::ui::TrackedElement* el) {
           content::WebContents* glic_contents =
               AsInstrumentedWebContents(el)->web_contents();

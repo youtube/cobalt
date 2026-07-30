@@ -96,7 +96,6 @@ import org.chromium.ui.modaldialog.ModalDialogManager.ModalDialogType;
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 /**
  * The Chrome settings activity.
@@ -282,11 +281,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         this, this::isTwoColumnSettingsVisible, MAIN_FRAGMENT_TAG),
                 /* recursive= */ true);
         fragmentManager.registerFragmentLifecycleCallbacks(
-                new SettingsMetricsReporter(), /* recursive= */ true);
+                new SettingsMetricsReporter(MAIN_FRAGMENT_TAG), /* recursive= */ true);
 
-        if (isContainmentEnabled()) {
-            mContainmentHelper.registerCallbacks(fragmentManager);
-        }
+        mContainmentHelper.registerCallbacks(fragmentManager);
 
         super.onCreate(savedInstanceState);
 
@@ -358,16 +355,12 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         getInsetObserver(),
                         /* occlusionTrackingAllowed= */ true));
 
-        if (isContainmentEnabled()) {
-            int backgroundColor = SemanticColorUtils.getSettingsBackgroundColor(this);
-            findViewById(R.id.content).setBackgroundColor(backgroundColor);
-            findViewById(R.id.app_bar_layout).setBackgroundColor(backgroundColor);
-        }
-        if (isContainmentEnabled() || isMultiColumnSettingEnabled()) {
-            AppBarLayout appBarLayout = findViewById(R.id.app_bar_layout);
-            appBarLayout.setElevation(0);
-            appBarLayout.setStateListAnimator(null);
-        }
+        int backgroundColor = SemanticColorUtils.getSettingsBackgroundColor(this);
+        findViewById(R.id.content).setBackgroundColor(backgroundColor);
+        findViewById(R.id.app_bar_layout).setBackgroundColor(backgroundColor);
+        AppBarLayout appBarLayout = findViewById(R.id.app_bar_layout);
+        appBarLayout.setElevation(0);
+        appBarLayout.setStateListAnimator(null);
 
         mStartTime = 0;
         if (savedInstanceState != null) {
@@ -500,9 +493,11 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 isMultiColumnSettingEnabled()
                         ? this::updateFirstVisibleTitle
                         : CallbackUtils.emptyCallback();
+        Toolbar actionBar = findViewById(R.id.action_bar);
         mSearchCoordinator =
                 new SettingsSearchCoordinator(
                         this,
+                        actionBar,
                         this::isTwoColumnSettingsVisible,
                         mMultiColumnSettings,
                         mContainmentHelper.getItemDecorations(),
@@ -513,7 +508,6 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             if (savedState != null) {
                 // Title text view gets temporarily hidden while restoring the
                 // search UI to avoid flickering. See https://crbug.com/482952320.
-                Toolbar actionBar = findViewById(R.id.action_bar);
                 assumeNonNull(ToolbarUtils.getTitleTextView(actionBar))
                         .setVisibility(View.INVISIBLE);
             }
@@ -531,11 +525,6 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     private void onTitleTapped(@Nullable String entryName) {
         if (mSearchCoordinator != null) mSearchCoordinator.onTitleTapped(entryName);
-    }
-
-    /** Returns true if the AndroidSettingsContainment feature is enabled. */
-    private static boolean isContainmentEnabled() {
-        return ChromeFeatureList.sAndroidSettingsContainment.isEnabled();
     }
 
     /** Returns true if the AndroidSettingsContainment feature is enabled. */
@@ -558,9 +547,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
 
     @Override
     public void applyThemeOverlays() {
-        if (isContainmentEnabled()) {
-            applySingleThemeOverlay(R.style.ThemeOverlay_Chromium_Settings_Containment);
-        }
+        applySingleThemeOverlay(R.style.ThemeOverlay_Chromium_Settings_Containment);
         super.applyThemeOverlays();
     }
 
@@ -622,7 +609,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         () -> sheetContainer,
                         () -> 0,
                         /* desktopWindowStateManager= */ null,
-                        getInsetObserver());
+                        getInsetObserver(),
+                        /* enableLargeFormFactorUi= */ ChromeFeatureList
+                                .sBottomSheetOnDesktopWindowing
+                                .isEnabled());
         mBottomSheetControllerSupplier.set(mManagedBottomSheetController);
     }
 
@@ -1118,43 +1108,6 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 mCurrentPageTitle = settingsFragment.getPageTitle();
                 mCurrentPageTitle.addSyncObserverAndCallIfNonNull(mSetTitleCallback);
             }
-        }
-    }
-
-    private static class SettingsMetricsReporter
-            extends FragmentManager.FragmentLifecycleCallbacks {
-        @Override
-        public void onFragmentAttached(
-                FragmentManager fragmentManager, Fragment fragment, Context context) {
-            if (!(fragment instanceof SettingsFragment)
-                    && !MAIN_FRAGMENT_TAG.equals(fragment.getTag())) {
-                return;
-            }
-
-            String className = fragment.getClass().getSimpleName();
-            RecordHistogram.recordSparseHistogram(
-                    "Settings.FragmentAttached", className.hashCode());
-            // Log hashCode to easily add new class names to enums.xml.
-            Log.d(
-                    TAG,
-                    String.format(
-                            Locale.ENGLISH,
-                            "Settings.FragmentAttached: <int value=\"%d\" label=\"%s\"/>",
-                            className.hashCode(),
-                            className));
-
-            if (!(fragment instanceof SettingsFragment)) {
-                RecordHistogram.recordSparseHistogram(
-                        "Settings.NonSettingsFragmentAttached", className.hashCode());
-                Log.e(
-                        TAG,
-                        String.format(
-                                Locale.ENGLISH,
-                                "%s does not implement SettingsFragment",
-                                className));
-            }
-            assert fragment instanceof SettingsFragment
-                    : className + "does not implement SettingsFragment";
         }
     }
 

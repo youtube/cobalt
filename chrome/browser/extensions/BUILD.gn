@@ -407,7 +407,6 @@ source_set("extensions") {
     "policy_handlers.h",
     "pref_mapping.cc",
     "pref_mapping.h",
-    "pref_transformer_interface.h",
     "preference/preference_helpers.cc",
     "preference/preference_helpers.h",
     "profile_util.cc",
@@ -1586,7 +1585,10 @@ source_set("extensions") {
   }
 
   if (!is_android) {
-    deps += [ "//chrome/browser/ui:browser_tab_strip_tracker" ]
+    deps += [
+      "//chrome/browser/ui:browser_tab_strip_tracker",
+      "//chrome/browser/ui:chrome_pages",
+    ]
   }
 }
 
@@ -1730,9 +1732,12 @@ static_library("test_support") {
     sources += [
       "api/document_scan/document_scan_test_utils.cc",
       "api/document_scan/document_scan_test_utils.h",
+      "policy_test_utils.cc",
+      "policy_test_utils.h",
     ]
 
     deps += [
+      "//chrome/browser/ash/app_mode",
       "//chrome/browser/ash/extensions",
       "//chrome/browser/ash/login/users",
       "//chrome/browser/ash/login/users:test_support",
@@ -2160,8 +2165,8 @@ source_set("unit_tests") {
       "chrome_app_sorting_unittest.cc",
       "extension_error_ui_default_unittest.cc",
       "manifest_v2_handler_unittest.cc",
+      "manifest_v2_util_unittest.cc",
       "menu_manager_unittest.cc",
-      "mv2_deprecation_impact_checker_unittest.cc",
       "safe_browsing_verdict_handler_unittest.cc",
       "update_install_gate_unittest.cc",
       "warning_badge_service_unittest.cc",
@@ -2373,6 +2378,8 @@ source_set("browser_tests") {
     "background_header_browsertest.cc",
     "background_script_executor_browsertest.cc",
     "browsertest_util_browsertest.cc",
+    "browsing_data_test_utils.cc",
+    "browsing_data_test_utils.h",
     "chrome_extension_host_delegate_browsertest.cc",
     "chrome_test_extension_loader_browsertest.cc",
     "commands/command_service_browsertest.cc",
@@ -2415,6 +2422,7 @@ source_set("browser_tests") {
     "extension_user_activation_service_browsertest.cc",
     "extension_user_script_loader_browsertest.cc",
     "extension_view_host_factory_browsertest.cc",
+    "extension_web_storage_durability_browsertest.cc",
     "extensions_disabled_browsertest.cc",
     "feature_provider_browsertest.cc",
     "google_docs_offline_ukm_browsertest.cc",
@@ -2583,7 +2591,9 @@ source_set("browser_tests") {
   }
 
   if (is_android) {
-    sources += [ "//chrome/browser/extensions/extension_keybinding_apitest.cc" ]
+    sources += [
+      "//chrome/browser/extensions/extension_keybinding_interactive_apitest.cc",
+    ]
     deps += [
       "//chrome/test:test_support_jni_headers",
       "//components/feed:feature_list",
@@ -3155,23 +3165,23 @@ source_set("interactive_ui_tests") {
 
   if (enable_extensions) {
     sources += [
-      "api/extension_action/browser_action_interactive_test.cc",
+      "api/extension_action/browser_action_interactive_uitest.cc",
       "api/extension_action/extension_action_api_interactive_uitest.cc",
-      "api/extension_action/page_action_interactive_test.cc",
-      "api/notifications/notifications_apitest.cc",
-      "api/omnibox/omnibox_api_interactive_test.cc",
+      "api/extension_action/page_action_interactive_uitest.cc",
+      "api/notifications/notifications_interactive_apitest.cc",
+      "api/omnibox/omnibox_api_interactive_uitest.cc",
       "api/permissions/permissions_api_interactive_uitest.cc",
       "api/runtime/runtime_interactive_apitest.cc",
-      "api/tabs/tabs_interactive_test.cc",
+      "api/tabs/tabs_interactive_uitest.cc",
       "api/tabs/window_open_interactive_apitest.cc",
       "app_window_uitest.cc",
       "extension_apitest.cc",
       "extension_browsertest.cc",
-      "extension_commands_global_registry_apitest.cc",
+      "extension_commands_global_registry_interactive_apitest.cc",
       "extension_crash_recovery_browsertest.cc",
       "extension_fullscreen_apitest.cc",
-      "extension_keybinding_apitest.cc",
-      "omnibox_focus_interactive_test.cc",
+      "extension_keybinding_interactive_apitest.cc",
+      "omnibox_focus_interactive_uitest.cc",
     ]
 
     deps += [

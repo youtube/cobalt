@@ -100,8 +100,8 @@ enum class Channel;
 }
 
 namespace personal_context {
-enum class PersonalContextEnablementState;
-class PersonalContextEnablementService;
+enum class PersonalContextEligibilityState;
+class PersonalContextEligibilityService;
 }
 
 namespace subscription_eligibility {
@@ -152,7 +152,7 @@ enum class SuggestionHidingReason;
 enum class SuggestionType;
 class SingleFieldFillRouter;
 class ValuablesDataManager;
-class PersonalContextAccessManager;
+class AutofillAiPersonalContextAccessManager;
 class VotesUploader;
 class PasswordManagerAutofillHelperDelegate;
 class WalletPassAccessManager;
@@ -179,6 +179,7 @@ class AutofillClient {
  public:
   // Categories of Autofill data that can be blocked or allowed on specific GURL
   // patterns by enterprise policies.
+  // LINT.IfChange(AutofillPolicyDataCategory)
   enum class AutofillPolicyDataCategory {
     // Address, name, email, phone, and profile configuration details.
     kContactInfo,
@@ -192,6 +193,7 @@ class AutofillClient {
     // Autofill AI shopping details (e.g. orders, shipments).
     kShopping,
   };
+  // LINT.ThenChange(//components/autofill/core/browser/permissions/autofill_policy_service.cc:AutofillPolicyDataCategory,//components/autofill/core/browser/permissions/autofill_policy_service_unittest.cc:AutofillPolicyDataCategory)
 
   // Represents the user's possible decisions or outcomes in response to a
   // prompt related to address saving, updating, or migrating.
@@ -465,10 +467,13 @@ class AutofillClient {
   // Autofill AI feature is unsupported.
   virtual AutofillAiManager* GetAutofillAiManager();
 
-  // Returns the `PersonalContextAccessManager` instance associated with the
-  // client. Returns `nullptr` if `kAutofillAmbientAutofill` is not enabled.
-  virtual PersonalContextAccessManager* GetPersonalContextAccessManager();
-  const PersonalContextAccessManager* GetPersonalContextAccessManager() const;
+  // Returns the `AutofillAiPersonalContextAccessManager` instance associated
+  // with the client. Returns `nullptr` if `kAutofillAmbientAutofill` is not
+  // enabled.
+  virtual AutofillAiPersonalContextAccessManager*
+  GetAutofillAiPersonalContextAccessManager();
+  const AutofillAiPersonalContextAccessManager*
+  GetAutofillAiPersonalContextAccessManager() const;
 
   // Returns the per-profile `AutofillAiModelCache`. Returns `nullptr` if the
   // `kAutofillAiServerModel` is not enabled.
@@ -500,12 +505,12 @@ class AutofillClient {
   // Returns the enablement state of the Accessibility Annotator.
   // TODO(crbug.com/524193567) Delete this method once all the invocations are
   // replaced by the calls to the central enablement util.
-  virtual personal_context::PersonalContextEnablementState
-  GetPersonalContextEnablementState() const;
+  virtual personal_context::PersonalContextEligibilityState
+  GetPersonalContextEligibilityState() const;
 
-  // Returns the Personal Context Enablement Service. May return nullptr.
-  virtual personal_context::PersonalContextEnablementService*
-  GetPersonalContextEnablementService() const;
+  // Returns the Personal Context Eligibility Service. May return nullptr.
+  virtual personal_context::PersonalContextEligibilityService*
+  GetPersonalContextEligibilityService() const;
 
   // Returns the `PasswordManagerDelegate` responsible to provide
   // password suggestions for the given `field_id`.
@@ -853,6 +858,10 @@ class AutofillClient {
 
   // Notifies the user that prefetching Autofill AI entities failed.
   virtual void ShowAutofillAiPreFetchFailureNotification();
+
+  // Notifies the user that the page content will now be processed privately by
+  // default.
+  virtual void ShowAutofillAiPrivateInferenceNotice();
 
   virtual void ShowEmailVerifiedToast(const GURL& issuer);
 

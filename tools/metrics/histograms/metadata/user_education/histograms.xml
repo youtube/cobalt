@@ -33,6 +33,8 @@ chromium-metrics-reviews@google.com.
                saved state to resume.."/>
   <variant name="ComposeProactiveNudge"
       summary="For Compose feature; shown on autofill popup."/>
+  <variant name="CrossDeviceSigninFromDesktop"
+      summary="Shown on the sign-in with your phone profile menu item."/>
   <variant name="Glic" summary="Glic toggle on settings page."/>
   <variant name="GlicAppMenuNewBadge"
       summary="Glic menu item in the three dot menu."/>
@@ -51,6 +53,9 @@ chromium-metrics-reviews@google.com.
   <variant name="PlusAddressFallbackFromContextMenu"
       summary="Plus address manual fallback entry point in the context menu."/>
   <variant name="SendTabToSelfEnhancedDesktopUI"
+      summary="Promotion for Send to Your Device in the tab and webpage
+               context menus."/>
+  <variant name="SendTabToSelfEnhancedDesktopUIv2"
       summary="Promotion for Send to Your Device in the tab and webpage
                context menus."/>
   <variant name="SideBySide"
@@ -414,7 +419,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="UserEducation.NtpPromos.ShowResult" enum="ShowNtpPromosResult"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>dfried@chromium.org</owner>
   <owner>cjgrant@chromium.org</owner>
   <owner>frizzle-team@google.com</owner>

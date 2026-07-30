@@ -8,7 +8,7 @@
 #include <optional>
 #include <string>
 
-#include "base/byte_count.h"
+#include "base/byte_size.h"
 #include "base/callback_list.h"
 #include "base/containers/flat_map.h"
 #include "base/containers/flat_set.h"
@@ -119,12 +119,12 @@ class TestManifestAssetManagerComponentState::DelegateImpl final
     state_->MaybeCompleteDownload(public_key_hex);
   }
 
-  void GetFreeDiskSpace(base::OnceCallback<void(std::optional<base::ByteCount>)>
+  void GetFreeDiskSpace(base::OnceCallback<void(std::optional<base::ByteSize>)>
                             callback) const override {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE,
         base::BindOnce(std::move(callback),
-                       state_ ? state_->free_disk_space_ : base::ByteCount(0)));
+                       state_ ? state_->free_disk_space_ : base::ByteSize(0)));
   }
 
  private:
@@ -301,9 +301,9 @@ void TestManifestAssetManagerComponentState::UpdateSafetyModel(
     std::unique_ptr<FakeSafetyModelAsset> asset) {
   InstallTarget target{
       public_key,
-      base::Version(base::NumberToString(asset->model_info().GetVersion()))};
+      base::Version(base::NumberToString(asset->model_info().version))};
   installable_components_[target] = {
-      target, asset->model_info().GetModelFilePath().DirName()};
+      target, asset->model_info().model_file_path.DirName()};
   safety_model_assets_.push_back(std::move(asset));
   MaybeCompleteDownload(public_key);
 }
@@ -313,9 +313,9 @@ void TestManifestAssetManagerComponentState::UpdateLanguageDetectionModel(
     std::unique_ptr<FakeLanguageModelAsset> asset) {
   InstallTarget target{
       public_key,
-      base::Version(base::NumberToString(asset->model_info().GetVersion()))};
+      base::Version(base::NumberToString(asset->model_info().version))};
   installable_components_[target] = {
-      target, asset->model_info().GetModelFilePath().DirName()};
+      target, asset->model_info().model_file_path.DirName()};
   language_model_assets_.push_back(std::move(asset));
   MaybeCompleteDownload(public_key);
 }

@@ -11,12 +11,18 @@
 #include "base/files/file_path.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/task/sequenced_task_runner.h"
+#include "base/time/time.h"
+#include "base/types/expected.h"
 #include "components/safe_browsing/core/browser/db/hash_prefix_list.h"
 #include "components/safe_browsing/core/browser/db/sb_store.h"
 #include "components/safe_browsing/core/browser/db/sb_store_file_format.h"
 #include "components/safe_browsing/core/common/proto/webui.pb.h"
 
 namespace safe_browsing {
+
+namespace V5 {
+class HashList;
+}
 
 // Enumerate different results of the migration attempt from v4 to v5.
 // These values are persisted to logs. Entries should not be renumbered and
@@ -100,6 +106,28 @@ enum class ConvertExtensionBlocklistV4ToV5Result {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:ConvertExtensionBlocklistV4ToV5Result)
 
+// Enumerate different failure events while writing the file to disk after
+// applying updates for histogramming purposes.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(V5StoreWriteResult)
+enum class V5StoreWriteResult {
+  // No errors.
+  kWriteSuccess = 0,
+
+  // An unexpected error occurred while writing the file.
+  kUnexpectedWriteFailure = 1,
+
+  // Number of bytes written to disk was different from the size of the proto.
+  kUnexpectedBytesWrittenFailure = 2,
+
+  // Renaming the temporary file to store file failed.
+  kUnableToRenameFailure = 3,
+
+  kMaxValue = kUnableToRenameFailure
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:SafeBrowsingV5StoreWriteResult)
+
 class V5Store : public SBStore {
  public:
   // The `task_runner` is used to ensure that the operations in this file are
@@ -131,7 +159,6 @@ class V5Store : public SBStore {
   // of the hash prefixes.
   void Initialize();
 
-  int64_t RecordAndReturnFileSize(const std::string& base_metric) override;
 
   void Reset() override;
 
@@ -199,6 +226,34 @@ class V5Store : public SBStore {
       const base::FilePath& v5_hash_file_path,
       std::string* checksum_sha256,
       uint64_t* file_size);
+
+  // Helper method to apply an update. It performs the update processing,
+  // writes the result to disk, and validates the written file.
+  //  - `v5_response` contains the V5 HashList update.
+  //  - `metric` is the base metric string to be used for histograms.
+  // Returns the new store pointer on success, or the update result error on
+  // failure.
+  base::expected<SBStorePtr, V5ApplyUpdateResult> ApplyUpdateInternal(
+      std::unique_ptr<V5::HashList> v5_response,
+      const std::string& metric);
+
+  // Common update processing logic for both full and partial updates.
+  //  - `response` contains the V5 HashList update.
+  //  - `metric` is the base metric string to be used for histograms.
+  //  - `is_full_update` is true if the update is a full update, false if it is
+  //    a partial update. This is used for metrics.
+  //  - `old_prefixes_list` contains the existing sorted hash prefixes in the
+  //    store (for partial updates).
+  // Returns `V5ApplyUpdateResult::kSuccess` if the update is successfully
+  // processed and merged. Returns other `V5ApplyUpdateResult` values on failure
+  // (e.g. decoding failure, checksum mismatch).
+  V5ApplyUpdateResult ProcessUpdate(std::unique_ptr<V5::HashList> response,
+                                    const std::string& metric,
+                                    bool is_full_update,
+                                    HashPrefixesView old_prefixes_list);
+
+  // Writes the `hash_prefix_list_` to disk as a V5StoreFileFormat proto.
+  V5StoreWriteResult WriteToDisk();
 
   std::unique_ptr<HashPrefixList> hash_prefix_list_;
 

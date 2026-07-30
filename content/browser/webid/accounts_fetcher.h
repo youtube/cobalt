@@ -28,6 +28,7 @@ class Metrics;
 // A class that fetches accounts from a set of IDPs.
 class AccountsFetcher {
  public:
+  using IdentityRequestAccountPtr = scoped_refptr<IdentityRequestAccount>;
   static constexpr char kWildcardDomainHint[] = "any";
 
   struct IdentityProviderGetInfo {
@@ -49,13 +50,14 @@ class AccountsFetcher {
     FedCmFetchingParams(blink::mojom::RpMode rp_mode,
                         int icon_ideal_size,
                         int icon_minimum_size,
-                        MediationRequirement mediation_requirement);
+                        ::password_manager::CredentialMediationRequirement
+                            mediation_requirement);
     ~FedCmFetchingParams();
 
     blink::mojom::RpMode rp_mode;
     int icon_ideal_size;
     int icon_minimum_size;
-    MediationRequirement mediation_requirement;
+    ::password_manager::CredentialMediationRequirement mediation_requirement;
   };
 
   struct Result {
@@ -68,8 +70,8 @@ class AccountsFetcher {
     std::unique_ptr<IdentityProviderInfo> idp_info;
     std::optional<IdpNetworkRequestManager::AccountsResponse> accounts;
     std::vector<IdentityRequestAccountPtr> filtered_accounts;
-    std::optional<blink::mojom::FederatedAuthRequestResult> error;
-    std::optional<webid::RequestIdTokenStatus> token_status;
+    std::optional<blink::mojom::FederatedRequestResult> error;
+    std::optional<RequestIdTokenStatus> token_status;
     // Whether the callback should be delayed for this result.
     // TODO(crbug.com/475277488): Remove this as callback delay should not be
     // per-result. Also consider removing `show_active_mode_modal_dialog` as
@@ -86,7 +88,7 @@ class AccountsFetcher {
   using FilterAccountsCallback = base::RepeatingCallback<void(
       const GURL&,
       const GURL&,
-      std::vector<scoped_refptr<content::IdentityRequestAccount>>&)>;
+      std::vector<scoped_refptr<IdentityRequestAccount>>&)>;
 
   AccountsFetcher(
       RenderFrameHost& render_frame_host,
@@ -110,7 +112,7 @@ class AccountsFetcher {
   // Notifies metrics endpoint that either the user did not select the IDP in
   // the prompt or that there was an error in fetching data for the IDP.
   void SendAllFailedTokenRequestMetrics(
-      blink::mojom::FederatedAuthRequestResult result,
+      blink::mojom::FederatedRequestResult result,
       bool did_show_ui);
   void SendSuccessfulTokenRequestMetrics(
       const GURL& idp_config_url,
@@ -174,8 +176,8 @@ class AccountsFetcher {
   void HandleAccountsFetchFailure(
       std::unique_ptr<IdentityProviderInfo> idp_info,
       std::optional<bool> old_idp_signin_status,
-      blink::mojom::FederatedAuthRequestResult result,
-      std::optional<webid::RequestIdTokenStatus> token_status,
+      blink::mojom::FederatedRequestResult result,
+      std::optional<RequestIdTokenStatus> token_status,
       const FetchStatus& status,
       std::vector<IdentityRequestAccountPtr> filtered_accounts,
       base::TimeTicks accounts_fetched_time);
@@ -185,16 +187,16 @@ class AccountsFetcher {
 
   void SendFailedTokenRequestMetrics(
       const GURL& metrics_endpoint,
-      blink::mojom::FederatedAuthRequestResult result,
+      blink::mojom::FederatedRequestResult result,
       bool did_show_ui);
 
   // Adds a fetch result to the end of the results_ vector and decrements
   // pending_requests_. If pending_requests_ reaches 0, runs the callback_.
   void AddResult(Result&& result);
 
-  base::flat_map<GURL,
-                 std::pair<blink::mojom::FederatedAuthRequestResult,
-                           content::webid::RequestIdTokenStatus>>
+  base::flat_map<
+      GURL,
+      std::pair<blink::mojom::FederatedRequestResult, RequestIdTokenStatus>>
       idp_config_url_to_result_;
 
   std::unique_ptr<ConfigFetcher> config_fetcher_;

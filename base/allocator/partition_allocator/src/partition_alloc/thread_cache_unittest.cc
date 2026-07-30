@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <vector>
 
@@ -27,7 +28,7 @@
 // cannot test the thread cache.
 //
 // Finally, the thread cache is not supported on all platforms.
-#if !defined(MEMORY_TOOL_REPLACES_ALLOCATOR) && \
+#if !PA_BUILDFLAG(MEMORY_TOOL_REPLACES_ALLOCATOR) && \
     PA_CONFIG(THREAD_CACHE_SUPPORTED)
 
 namespace partition_alloc::internal {
@@ -1213,7 +1214,7 @@ TEST_P(PartitionAllocThreadCacheTest, ClearFromTail) {
 }
 
 TEST_P(PartitionAllocThreadCacheTest, Bookkeeping) {
-  void* arr[kFillCountForMediumBucket] = {};
+  std::array<void*, kFillCountForMediumBucket> arr = {};
   auto* tcache = root()->thread_cache_for_testing();
 
   root()->PurgeMemory(PurgeFlags::kDecommitEmptySlotSpans |
@@ -1423,5 +1424,5 @@ TEST_P(PartitionAllocThreadCacheTest, AllocationRecordingRealloc) {
 
 }  // namespace partition_alloc::internal
 
-#endif  // !defined(MEMORY_TOOL_REPLACES_ALLOCATOR) &&
+#endif  // !PA_BUILDFLAG(MEMORY_TOOL_REPLACES_ALLOCATOR) &&
         // PA_CONFIG(THREAD_CACHE_SUPPORTED)

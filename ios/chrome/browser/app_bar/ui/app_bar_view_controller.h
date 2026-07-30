@@ -20,8 +20,8 @@
 // View controller for the App Bar.
 @interface AppBarViewController
     : UIViewController <AppBarConsumer,
-                        FullscreenUIElement,
-                        FullscreenBrowserAgentObserving>
+                        FullscreenBrowserAgentObserving,
+                        FullscreenUIElement>
 
 // The layout state.
 @property(nonatomic, weak) LayoutState* layoutState;
@@ -54,6 +54,10 @@
 
 // Hides the blue-ish background.
 - (void)hideIPHBackground;
+
+// Returns the current portrait height of the App Bar, taking into account
+// whether the Gemini floaty is currently invoked.
+- (CGFloat)currentAppBarHeightPortrait;
 
 @end
 

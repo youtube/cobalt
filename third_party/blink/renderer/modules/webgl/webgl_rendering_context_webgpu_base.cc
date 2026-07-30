@@ -1070,11 +1070,13 @@ void WebGLRenderingContextWebGPUBase::enableVertexAttribArray(GLuint index) {
 }
 
 void WebGLRenderingContextWebGPUBase::finish() {
-  NOTIMPLEMENTED();
+  // Intentionally a flush, not a finish, to prevent blocking the Blink main
+  // thread and triggering "Page Unresponsive" dialogs.
+  flush();
 }
 
 void WebGLRenderingContextWebGPUBase::flush() {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glFlushFn();
 }
 
 void WebGLRenderingContextWebGPUBase::framebufferRenderbuffer(
@@ -3333,7 +3335,7 @@ void WebGLRenderingContextWebGPUBase::vertexAttribIPointer(GLuint index,
 
 void WebGLRenderingContextWebGPUBase::vertexAttribDivisor(GLuint index,
                                                           GLuint divisor) {
-  NOTIMPLEMENTED();
+  driver_gl_.fn.glVertexAttribDivisorANGLEFn(index, divisor);
 }
 
 void WebGLRenderingContextWebGPUBase::drawArraysInstanced(

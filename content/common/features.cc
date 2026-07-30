@@ -219,6 +219,12 @@ BASE_FEATURE(kEnableDevToolsJsErrorReporting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 
+// When enabled, the browser process will terminate a renderer process if it
+// attempts to bind gamepad Mojo interfaces (GamepadMonitor or
+// GamepadHapticsManager) when the "gamepad" Permissions Policy is blocked.
+BASE_FEATURE(kEnforceGamepadPermissionsPolicy,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, enforces that same-document navigations must not change
 // the committed origin, insecure request policy, or insecure navigations set.
 // Any mismatch will result in a renderer kill via bad_message handling.
@@ -348,6 +354,10 @@ BASE_FEATURE_ENUM_PARAM(FontDataServiceTypefaceType,
                         &font_data_service_typeface);
 #endif  // BUILDFLAG(IS_LINUX)
 #endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+
+// When enabled, route CSS local() font lookups through FontDataService.
+BASE_FEATURE(kFontDataServiceForCSSLocalFonts,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
 bool IsFontDataServiceEnabled() {
@@ -552,6 +562,12 @@ BASE_FEATURE_PARAM(size_t,
                    "count",
                    1u);
 
+// When enabled, performs a dry run of the Navigation Fast Fetch feature.
+// It determines eligibility of navigations and records metrics to measure
+// the potential benefit of fetching document resources early, without
+// actually performing the fetching.
+BASE_FEATURE(kNavigationFastFetchDryRun, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, NavigationThrottleRunner2 is used instead of the original
 // NavigationThrottleRunner. See https://crbug.com/422003056.
 BASE_FEATURE(kNavigationThrottleRunner2, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -634,6 +650,11 @@ BASE_FEATURE(kProcessReuseOnPrerenderCOOPSwap,
 BASE_FEATURE(kProgressiveAccessibilityPhase2,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Minimizes Mojo URLLoaderFactory cloning overhead during navigation and worker
+// startup.
+BASE_FEATURE(kReduceMojoURLLoaderFactoryCloning,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Causes hidden tabs with crashed subframes to be marked for reload, meaning
 // that if a user later switches to that tab, the current page will be
 // reloaded.  This will hide crashed subframes from the user at the cost of
@@ -698,13 +719,13 @@ BASE_FEATURE(kScrollAfterOSKViewportShrinkFix,
 // to only include the origin when cross-origin to the final URL.
 // See https://crbug.com/495463654.
 BASE_FEATURE(kSanitizeLocationHeadersDuringNavigation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls whether the `original_url` contains the full URL or just the
 // sanitized origin when sent to the renderer on commit.
 // See https://crbug.com/495463654.
 BASE_FEATURE(kSanitizeOriginalUrlDuringNavigation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kServiceWorkerAvoidMainThreadForInitialization,
              base::FEATURE_ENABLED_BY_DEFAULT);

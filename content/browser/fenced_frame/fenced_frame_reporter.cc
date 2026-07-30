@@ -38,9 +38,6 @@
 #include "content/browser/devtools/protocol/network_handler.h"
 #include "content/browser/devtools/render_frame_devtools_agent_host.h"
 #include "content/browser/fenced_frame/fenced_frame_config.h"
-#include "content/browser/interest_group/interest_group_pa_report_util.h"
-#include "content/browser/private_aggregation/private_aggregation_budget_key.h"
-#include "content/browser/private_aggregation/private_aggregation_manager.h"
 #include "content/browser/renderer_host/frame_tree_node.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
@@ -156,58 +153,6 @@ std::string AutomaticBeaconTypeAsString(
   }
 }
 
-blink::FencedFrameBeaconReportingResult CreateBeaconReportingResultEnum(
-    const FencedFrameReporter::DestinationVariant& event_variant,
-    std::optional<int> http_response_code) {
-  // Unfortunately std::visit can't make this more compact, because each
-  // combination of results produces a unique output enum.
-  if (std::holds_alternative<DestinationEnumEvent>(event_variant)) {
-    if (!http_response_code.has_value()) {
-      return blink::FencedFrameBeaconReportingResult::kDestinationEnumInvalid;
-    }
-    if (*http_response_code != 200) {
-      return blink::FencedFrameBeaconReportingResult::kDestinationEnumFailure;
-    }
-    return blink::FencedFrameBeaconReportingResult::kDestinationEnumSuccess;
-  }
-
-  if (std::holds_alternative<DestinationURLEvent>(event_variant)) {
-    if (!http_response_code.has_value()) {
-      return blink::FencedFrameBeaconReportingResult::kDestinationUrlInvalid;
-    }
-    if (*http_response_code != 200) {
-      return blink::FencedFrameBeaconReportingResult::kDestinationUrlFailure;
-    }
-    return blink::FencedFrameBeaconReportingResult::kDestinationUrlSuccess;
-  }
-
-  if (std::holds_alternative<AutomaticBeaconEvent>(event_variant)) {
-    if (!http_response_code.has_value()) {
-      return blink::FencedFrameBeaconReportingResult::kAutomaticInvalid;
-    }
-    if (*http_response_code != 200) {
-      return blink::FencedFrameBeaconReportingResult::kAutomaticFailure;
-    }
-    return blink::FencedFrameBeaconReportingResult::kAutomaticSuccess;
-  }
-
-  return blink::FencedFrameBeaconReportingResult::kUnknownResult;
-}
-
-void RecordBeaconReportingResultHistogram(
-    const FencedFrameReporter::DestinationVariant& event_variant,
-    net::HttpResponseHeaders* headers) {
-  std::optional<int> http_response_code;
-
-  if (headers != nullptr) {
-    http_response_code = headers->response_code();
-  }
-
-  base::UmaHistogramEnumeration(
-      blink::kFencedFrameBeaconReportingHttpResultUMA,
-      CreateBeaconReportingResultEnum(event_variant, http_response_code));
-}
-
 }  // namespace
 
 FencedFrameReporter::PendingEvent::PendingEvent(
@@ -274,18 +219,14 @@ scoped_refptr<FencedFrameReporter> FencedFrameReporter::CreateForFledge(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     BrowserContext* browser_context,
     bool direct_seller_is_seller,
-    PrivateAggregationManager* private_aggregation_manager,
     const url::Origin& main_frame_origin,
-    const url::Origin& winner_origin,
-    const std::optional<url::Origin>& aggregation_coordinator_origin,
     const std::optional<std::vector<url::Origin>>& allowed_reporting_origins) {
   scoped_refptr<FencedFrameReporter> reporter =
       base::MakeRefCounted<FencedFrameReporter>(
           base::PassKey<FencedFrameReporter>(),
           PrivacySandboxInvokingAPI::kProtectedAudience,
           std::move(url_loader_factory), browser_context, main_frame_origin,
-          private_aggregation_manager, winner_origin,
-          aggregation_coordinator_origin, allowed_reporting_origins);
+          allowed_reporting_origins);
   reporter->direct_seller_is_seller_ = direct_seller_is_seller;
   reporter->reporting_metadata_.emplace(
       blink::FencedFrame::ReportingDestination::kBuyer,
@@ -305,28 +246,16 @@ FencedFrameReporter::FencedFrameReporter(
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     BrowserContext* browser_context,
     const url::Origin& main_frame_origin,
-    PrivateAggregationManager* private_aggregation_manager,
-    const std::optional<url::Origin>& winner_origin,
-    const std::optional<url::Origin>& winner_aggregation_coordinator_origin,
     const std::optional<std::vector<url::Origin>>& allowed_reporting_origins)
     : url_loader_factory_(std::move(url_loader_factory)),
       attribution_manager_(
           AttributionManager::FromBrowserContext(browser_context)),
       browser_context_(browser_context),
       main_frame_origin_(main_frame_origin),
-      private_aggregation_manager_(private_aggregation_manager),
-      winner_origin_(winner_origin),
-      winner_aggregation_coordinator_origin_(
-          winner_aggregation_coordinator_origin),
       allowed_reporting_origins_(allowed_reporting_origins),
       invoking_api_(invoking_api) {
   DCHECK(url_loader_factory_);
   DCHECK(browser_context_);
-
-  // `winner_origin` should have a value if and only if this a Protected
-  // Audience reporter.
-  DCHECK_EQ(invoking_api == PrivacySandboxInvokingAPI::kProtectedAudience,
-            winner_origin.has_value());
 }
 
 FencedFrameReporter::~FencedFrameReporter() {
@@ -340,10 +269,6 @@ FencedFrameReporter::~FencedFrameReporter() {
   base::UmaHistogramCustomCounts(blink::kFencedFrameBeaconReportingCountUMA,
                                  beacons_sent_same_origin_, /*min=*/1,
                                  /*exclusive_max=*/20, /*buckets=*/20);
-  base::UmaHistogramCustomCounts(
-      blink::kFencedFrameBeaconReportingCountCrossOriginUMA,
-      beacons_sent_cross_origin_, /*min=*/1, /*exclusive_max=*/20,
-      /*buckets=*/20);
 }
 
 void FencedFrameReporter::OnUrlMappingReady(
@@ -803,10 +728,6 @@ bool FencedFrameReporter::SendReportInternal(
               devtools_instrumentation::OnFencedFrameReportResponseReceived(
                   initiator_frame_tree_node_id, devtools_request_id,
                   loader->GetFinalURL(), headers);
-
-              // Record UMA metrics for the destination.
-              RecordBeaconReportingResultHistogram(event_variant,
-                                                   headers.get());
             },
             event_variant, attribution_data_host_manager->AsWeakPtr(),
             attribution_reporting_data->beacon_id, std::move(simple_url_loader),
@@ -825,10 +746,6 @@ bool FencedFrameReporter::SendReportInternal(
               devtools_instrumentation::OnFencedFrameReportResponseReceived(
                   initiator_frame_tree_node_id, devtools_request_id,
                   loader->GetFinalURL(), headers);
-
-              // Record UMA metrics for the destination.
-              RecordBeaconReportingResultHistogram(event_variant,
-                                                   headers.get());
             },
             event_variant, std::move(simple_url_loader),
             initiator_frame_tree_node_id, devtools_request_id));
@@ -841,9 +758,7 @@ bool FencedFrameReporter::SendReportInternal(
         using Event = std::decay_t<decltype(event)>;
         if constexpr (std::is_same_v<Event, DestinationEnumEvent> ||
                       std::is_same_v<Event, DestinationURLEvent>) {
-          if (event.cross_origin_exposed) {
-            beacons_sent_cross_origin_++;
-          } else {
+          if (!event.cross_origin_exposed) {
             beacons_sent_same_origin_++;
           }
         }
@@ -860,64 +775,6 @@ void FencedFrameReporter::AddObserverForTesting(ObserverForTesting* observer) {
 void FencedFrameReporter::RemoveObserverForTesting(
     const ObserverForTesting* observer) {
   observers_.RemoveObserver(observer);
-}
-
-void FencedFrameReporter::OnForEventPrivateAggregationRequestsReceived(
-    std::map<std::string, FinalizedPrivateAggregationRequests>
-        private_aggregation_event_map) {
-  for (auto& [event_type, requests] : private_aggregation_event_map) {
-    FinalizedPrivateAggregationRequests& destination_vector =
-        private_aggregation_event_map_[event_type];
-    destination_vector.insert(destination_vector.end(),
-                              std::move_iterator(requests.begin()),
-                              std::move_iterator(requests.end()));
-  }
-
-  for (const std::string& pa_event_type : received_pa_events_) {
-    SendPrivateAggregationRequestsForEventInternal(pa_event_type);
-  }
-}
-
-void FencedFrameReporter::SendPrivateAggregationRequestsForEvent(
-    const std::string& pa_event_type) {
-  if (!private_aggregation_manager_) {
-    // `private_aggregation_manager_` is nullptr when private aggregation
-    // feature flag is disabled, but a compromised renderer might still send
-    // events when it should not be able to. Simply ignores the events.
-    return;
-  }
-
-  // Always insert `pa_event_type` to `received_pa_events_`, since
-  // `private_aggregation_event_map_` might grow with more entries when
-  // reportWin() completes.
-  received_pa_events_.emplace(pa_event_type);
-
-  SendPrivateAggregationRequestsForEventInternal(pa_event_type);
-}
-
-void FencedFrameReporter::SendPrivateAggregationRequestsForEventInternal(
-    const std::string& pa_event_type) {
-  DCHECK(private_aggregation_manager_);
-  DCHECK(winner_origin_.has_value() &&
-         winner_origin_.value().scheme() == url::kHttpsScheme);
-  DCHECK(main_frame_origin_.scheme() == url::kHttpsScheme);
-
-  auto it = private_aggregation_event_map_.find(pa_event_type);
-  if (it == private_aggregation_event_map_.end()) {
-    return;
-  }
-
-  SplitContributionsIntoBatchesThenSendToHost(
-      /*requests=*/std::move(it->second), *private_aggregation_manager_,
-      /*reporting_origin=*/winner_origin_.value(),
-      /*aggregation_coordinator_origin=*/winner_aggregation_coordinator_origin_,
-      main_frame_origin_);
-
-  // Remove the entry of key `pa_event_type` from
-  // `private_aggregation_event_map_` to avoid possibly sending the same
-  // requests more than once. As a result, receiving the same event type
-  // multiple times only triggers sending the event's requests once.
-  private_aggregation_event_map_.erase(it);
 }
 
 const std::vector<blink::FencedFrame::ReportingDestination>
@@ -969,23 +826,6 @@ FencedFrameReporter::GetAdMacrosForTesting() {
     if (reporting_metadata.second.reporting_ad_macros) {
       out.emplace(reporting_metadata.first,
                   *reporting_metadata.second.reporting_ad_macros);
-    }
-  }
-  return out;
-}
-
-std::set<std::string> FencedFrameReporter::GetReceivedPaEventsForTesting()
-    const {
-  return received_pa_events_;
-}
-
-std::map<std::string, FencedFrameReporter::FinalizedPrivateAggregationRequests>
-FencedFrameReporter::GetPrivateAggregationEventMapForTesting() {
-  std::map<std::string, FinalizedPrivateAggregationRequests> out;
-  for (auto& [event_type, requests] : private_aggregation_event_map_) {
-    for (auction_worklet::mojom::FinalizedPrivateAggregationRequestPtr&
-             request : requests) {
-      out[event_type].emplace_back(request.Clone());
     }
   }
   return out;

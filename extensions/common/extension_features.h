@@ -37,9 +37,6 @@ namespace extensions_features {
 // NOTE(devlin): If there are consistently enough of these in flux, it might
 // make sense to have their own file.
 
-// Controls the availability of action.openPopup().
-BASE_DECLARE_FEATURE(kApiActionOpenPopup);
-
 // Controls the limit for alarms.create() API input.
 BASE_DECLARE_FEATURE(kApiAlarmsCreateLengthLimit);
 
@@ -56,18 +53,6 @@ BASE_DECLARE_FEATURE(kApiMimeHandler);
 // Controls the availability of the runtime.actionData API.
 // TODO(crbug.com/376354347): Remove this when the experiment is finished.
 BASE_DECLARE_FEATURE(kApiRuntimeActionData);
-
-// Controls the availability of adding and removing site access requests with
-// the permissions API.
-BASE_DECLARE_FEATURE(kApiPermissionsHostAccessRequests);
-
-// Controls the availability of executing user scripts programmatically using
-// the userScripts API.
-BASE_DECLARE_FEATURE(kApiUserScriptsExecute);
-
-// Controls the availability of specifying different world IDs in the
-// userScripts API.
-BASE_DECLARE_FEATURE(kApiUserScriptsMultipleWorlds);
 
 // Controls the availability of the odfsConfigPrivate API.
 BASE_DECLARE_FEATURE(kApiOdfsConfigPrivate);
@@ -208,17 +193,9 @@ BASE_DECLARE_FEATURE(kExperimentalOmniboxLabs);
 // out of the allowlist.
 BASE_DECLARE_FEATURE(kSafeBrowsingCrxAllowlistAutoDisable);
 
-// When enabled, cause extensions to use structured cloning (instead of JSON
-// serialization) for extension messaging, except when communicating with native
-// messaging hosts.
-BASE_DECLARE_FEATURE(kStructuredCloningForMessaging);
 
 // Controls whether the component webstore hosted app is loaded.
 BASE_DECLARE_FEATURE(kWebstoreHostedApp);
-
-// Used to control whether downloads initiated by `WebstoreInstaller` are marked
-// as having a corresponding user gesture or not.
-BASE_DECLARE_FEATURE(kWebstoreInstallerUserGestureKillSwitch);
 
 ///////////////////////////////////////////////////////////////////////////////
 // STOP!

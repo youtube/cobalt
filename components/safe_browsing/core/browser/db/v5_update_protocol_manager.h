@@ -61,8 +61,14 @@ class V5UpdateProtocolManager : public SBUpdateProtocolManager {
     kMismatchedPrefixLengthError = 4,
     // The provided wait duration for some list is negative.
     kNegativeDurationError = 5,
+    // The Rice-encoded parameters in the response are invalid.
+    kInvalidRiceFieldError = 6,
+    // The checksum in the response is missing when there are changes.
+    kChecksumMissingError = 7,
+    // The checksum in the response has an invalid size.
+    kChecksumSizeError = 8,
 
-    kMaxValue = kNegativeDurationError,
+    kMaxValue = kChecksumSizeError,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/safe_browsing/enums.xml:V5ParseResult)
 

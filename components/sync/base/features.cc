@@ -39,6 +39,9 @@ BASE_FEATURE(kSyncContextualTask, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncGeminiThread, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kSyncEncryptedTabContextContainer,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kSyncThemesIos, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kNewTabPageCustomizationThemeSync,
@@ -105,8 +108,6 @@ bool IsReplaceSyncPromosWithSignInPromosEnabled() {
              kReplaceSyncPromosWithSigninPromosNewSignin);
 }
 
-BASE_FEATURE(kSyncSupportAlwaysSyncingPriorityPreferences,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncWalletFlightReservations,
              IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
@@ -118,12 +119,6 @@ BASE_FEATURE(kSyncWalletVehicleRegistrations,
 
 BASE_FEATURE(kSpellcheckSeparateLocalAndAccountDictionaries,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableBookmarksSelectedTypeOnSigninForTesting,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSearchEngineAvoidFaviconOnlyCommits,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 BASE_FEATURE(kReadingListEnableSyncTransportModeUponSignIn,
@@ -231,5 +226,8 @@ BASE_FEATURE(kSyncSimplifyDeviceNaming, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncUseServerDeterminedDeviceName,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncCopyPreferencesToTransportModeOnServerForcedDisable,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace syncer

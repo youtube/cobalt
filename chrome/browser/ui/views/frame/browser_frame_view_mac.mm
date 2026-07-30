@@ -20,6 +20,7 @@
 #include "chrome/browser/themes/theme_properties.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/cocoa/fullscreen/fullscreen_menubar_tracker.h"
 #include "chrome/browser/ui/cocoa/fullscreen/fullscreen_toolbar_controller.h"
 #include "chrome/browser/ui/color/chrome_color_provider_utils.h"
@@ -34,6 +35,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/caption_button_placeholder_container.h"
+#include "chrome/browser/ui/views/frame/glass_frame_service.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
@@ -83,6 +85,20 @@ BrowserFrameViewMac::BrowserFrameViewMac(BrowserWidget* frame,
                                          BrowserView* browser_view)
     : BrowserFrameView(frame, browser_view),
       fullscreen_session_timer_(std::make_unique<base::OneShotTimer>()) {
+  // GlassFrameService is only available if glass frame is enabled.
+  if (auto* const glass_service = GlassFrameService::GetInstance()) {
+    SetPaintToLayer();
+    layer()->SetFillsBoundsOpaquely(false);
+    is_glass_frame_eligible_ =
+        glass_service->IsBrowserWindowEligible(browser_view->browser());
+    glass_frame_service_subscription_ =
+        glass_service->RegisterGlassFrameEligibilityChangedCallback(
+            browser_view->browser(),
+            base::BindRepeating(
+                &BrowserFrameViewMac::OnGlassFrameEligibilityChanged,
+                base::Unretained(this)));
+  }
+
   if (web_app::AppBrowserController::IsWebApp(browser_view->browser())) {
     auto* provider =
         web_app::WebAppProvider::GetForWebApps(browser_view->GetProfile());
@@ -109,11 +125,6 @@ BrowserFrameViewMac::BrowserFrameViewMac(BrowserWidget* frame,
       caption_button_placeholder_container_ =
           AddChildView(std::make_unique<CaptionButtonPlaceholderContainer>());
     }
-  }
-
-  if (features::IsGlassFrameEnabled()) {
-    SetPaintToLayer();
-    layer()->SetFillsBoundsOpaquely(false);
   }
 }
 
@@ -477,7 +488,7 @@ void BrowserFrameViewMac::OnPaint(gfx::Canvas* canvas) {
   }
 
   SkColor frame_color = GetFrameColor(BrowserFrameActiveState::kUseCurrent);
-  if (features::IsGlassFrameEnabled()) {
+  if (is_glass_frame_eligible_) {
     const SkAlpha frame_alpha = color_utils::IsDark(frame_color)
                                     ? kBrowserFrameAlphaDark
                                     : kBrowserFrameAlphaLight;
@@ -560,7 +571,7 @@ void BrowserFrameViewMac::UpdateCaptionButtonPlaceholderContainerBackground() {
   if (caption_button_placeholder_container_) {
     caption_button_placeholder_container_->SetBackground(
         views::CreateSolidBackground(
-            features::IsGlassFrameEnabled()
+            is_glass_frame_eligible_
                 ? SK_ColorTRANSPARENT
                 : GetFrameColor(BrowserFrameActiveState::kUseCurrent)));
   }
@@ -577,4 +588,12 @@ void BrowserFrameViewMac::EmitFullscreenSessionHistograms() {
   // Max duration of 1 day.
   UMA_HISTOGRAM_CUSTOM_TIMES("Session.BrowserFullscreen.DurationUpTo24H", delta,
                              base::Milliseconds(1), base::Days(1), 100);
+}
+
+void BrowserFrameViewMac::OnGlassFrameEligibilityChanged(bool is_eligible) {
+  if (is_eligible == is_glass_frame_eligible_) {
+    return;
+  }
+  is_glass_frame_eligible_ = is_eligible;
+  SchedulePaint();
 }

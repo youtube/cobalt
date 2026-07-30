@@ -5,6 +5,8 @@
 #ifndef COMPONENTS_ONE_TIME_TOKENS_CORE_BROWSER_EMAIL_ONE_TIME_TOKEN_FETCHER_H_
 #define COMPONENTS_ONE_TIME_TOKENS_CORE_BROWSER_EMAIL_ONE_TIME_TOKEN_FETCHER_H_
 
+#include <optional>
+
 #include "base/functional/callback.h"
 #include "base/types/expected.h"
 #include "components/one_time_tokens/core/browser/one_time_token.h"
@@ -69,9 +71,10 @@ class EmailOneTimeTokenFetcher {
       base::TimeTicks network_request_start_time,
       std::optional<std::string> response_body);
 
-  // Parses the response proto and extracts the OneTimeToken value from it.
-  base::expected<OneTimeToken, OneTimeTokenRetrievalError>
-  ExtractOneTimeTokenValueFromResponse(const std::string& response_body);
+
+  // Helper to extract the HTTP status code from the URL loader.
+  std::optional<int> GetHttpResponseCode() const;
+
 
   // Shared URL loader factory for the network request.
   scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;

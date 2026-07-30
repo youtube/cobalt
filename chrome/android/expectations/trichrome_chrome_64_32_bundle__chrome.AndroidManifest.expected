@@ -867,10 +867,6 @@
       </intent-filter>  # DIFF-ANCHOR: 5458f2a2
       <meta-data android:name="android.appwidget.provider" android:resource="@xml/search_widget_info"/>
     </receiver>  # DIFF-ANCHOR: a0d83ae5
-    <receiver  # DIFF-ANCHOR: 124ac9a1
-        android:name="org.chromium.chrome.browser.sharing.click_to_call.ClickToCallMessageHandler$TapReceiver"
-        android:exported="false">
-    </receiver>  # DIFF-ANCHOR: 124ac9a1
     <receiver  # DIFF-ANCHOR: 420d0678
         android:name="org.chromium.chrome.browser.sharing.sms_fetcher.SmsFetcherMessageHandler$NotificationReceiver"
         android:exported="false">
@@ -887,6 +883,11 @@
         android:exported="false">
     </receiver>  # DIFF-ANCHOR: 2553238b
     <service android:name="androidx.browser.customtabs.PostMessageService"/>
+    <service  # DIFF-ANCHOR: 70fcecc3
+        android:name="org.chromium.chrome.browser.GracefulShutdownService"
+        android:exported="false"
+        android:foregroundServiceType="shortService|dataSync">
+    </service>  # DIFF-ANCHOR: 70fcecc3
     <service  # DIFF-ANCHOR: 293d124f
         android:name="org.chromium.chrome.browser.actor.ActorForegroundService"
         android:exported="false"

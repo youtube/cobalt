@@ -101,6 +101,7 @@ class MockModelContextHost : public mojom::blink::ModelContextHost {
   }
 
   void ExecuteRemoteScriptTool(
+      const base::UnguessableToken& invocation_id,
       const ::blink::FrameToken& tool_owner_frame_token,
       const ::scoped_refptr<const ::blink::SecurityOrigin>&
           expected_target_origin,
@@ -136,11 +137,11 @@ class ModelContextTestBase : public SimTest {
   }
 
   int EvalJsInteger(const char* script) {
-    return MainFrame()
-        .ExecuteScriptAndReturnValue(
-            WebScriptSource(WebString::FromUtf8(script)))
-        .As<v8::Integer>()
-        ->Value();
+    return static_cast<int>(MainFrame()
+                                .ExecuteScriptAndReturnValue(WebScriptSource(
+                                    WebString::FromUtf8(script)))
+                                .As<v8::Integer>()
+                                ->Value());
   }
 
  protected:
@@ -181,7 +182,6 @@ class ModelContextTest : public ModelContextTestBase {
 
  private:
   ScopedWebMCPForTest scoped_webmcp_{true};
-  ScopedWebMCPTestingForTest scoped_webmcp_testing_{true};
 };
 
 TEST_F(ModelContextTest, ExecuteTool) {
@@ -195,7 +195,7 @@ TEST_F(ModelContextTest, ExecuteTool) {
       return obj.text;
     }
 
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: echo,
       name: "echo",
       description: "echo input",
@@ -220,7 +220,6 @@ TEST_F(ModelContextTest, ExecuteTool) {
 
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "echo", "{\"text\": \"hello\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             ASSERT_TRUE(res.has_value());
@@ -244,7 +243,7 @@ TEST_F(ModelContextTest, GetTools_InsecureOrigin) {
     <body>
     <script>
       window.test_error = "";
-      navigator.modelContext.getTools({ fromOrigins: ["http://insecure.com"] })
+      document.modelContext.getTools({ fromOrigins: ["http://insecure.com"] })
         .then(() => { window.test_error = "Success"; })
         .catch(err => { window.test_error = err.name; });
     </script>
@@ -264,7 +263,7 @@ TEST_F(ModelContextTest, ExecuteToolReturnsObject) {
     async function echo(obj) {
       return obj;
     }
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: echo,
       name: "echo",
       description: "echo input",
@@ -293,7 +292,6 @@ TEST_F(ModelContextTest, ExecuteToolReturnsObject) {
 
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "echo", "{\"text\": \"hello\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             ASSERT_TRUE(res.has_value());
@@ -324,7 +322,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_Navigation) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             EXPECT_TRUE(res.has_value());
@@ -352,7 +349,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_InvalidInput) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"nonexistent\": \"value\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             EXPECT_FALSE(res.has_value());
@@ -383,7 +379,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_InvalidSelectValue) {
   base::RunLoop run_loop;
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "select_tool", "{\"choice\": \"c\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             EXPECT_FALSE(res.has_value());
@@ -424,7 +419,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -467,7 +461,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_Reject) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -509,7 +502,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoRespondWith) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -547,7 +539,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_ValidationFailure) {
   bool got_result = false;
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool", "{\"query\": \"123\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -637,7 +628,6 @@ TEST_F(ModelContextValidationTest,
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "validation_tool",
       "{\"text_required\": \"\", \"number_min\": 5}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -686,7 +676,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoPreventDefault) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -760,7 +749,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_LateRespondWithThrows) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             ASSERT_TRUE(res.has_value());
@@ -820,7 +808,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_PseudoClasses) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             run_loop.Quit();
@@ -846,7 +833,6 @@ class ModelContextOriginTrialTest : public ModelContextTestBase {
 
  private:
   ScopedWebMCPForTest scoped_webmcp_{false};
-  ScopedWebMCPTestingForTest scoped_webmcp_testing_{false};
   ScopedWebMCPDeclarativeFileInputForTest scoped_webmcp_file_feature_{false};
   ScopedWebMCPFormAssociatedCustomElementsForTest scoped_webmcp_face_feature_{
       false};
@@ -881,7 +867,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoAutoSubmit) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -948,7 +933,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_FormPopulatedAtEvent) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             EXPECT_TRUE(res.has_value());
@@ -988,7 +972,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_PauseExecution) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             ADD_FAILURE() << "Callback should not be called";
@@ -1018,7 +1001,7 @@ TEST_F(ModelContextTest, CancelTool) {
       return obj.text;
     }
 
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: echo,
       name: "echo",
       description: "echo input",
@@ -1043,7 +1026,6 @@ TEST_F(ModelContextTest, CancelTool) {
   base::UnguessableToken invocation_id = base::UnguessableToken::Create();
   bool success = model_context->ExecuteTool(
       invocation_id, "echo", "{\"text\": \"hello\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             ASSERT_FALSE(res.has_value());
@@ -1070,7 +1052,7 @@ TEST_F(ModelContextTest, ToolEventsDispatched) {
       return "done";
     }
 
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: longRunning,
       name: "slow",
       description: "slow tool",
@@ -1089,7 +1071,7 @@ TEST_F(ModelContextTest, ToolEventsDispatched) {
   // Execute and Cancel
   base::UnguessableToken invocation_id = base::UnguessableToken::Create();
   bool success = model_context->ExecuteTool(
-      invocation_id, "slow", "{}", /* signal= */ nullptr,
+      invocation_id, "slow", "{}",
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             run_loop.Quit();
@@ -1128,7 +1110,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_Reset_Cancels) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_error = true;
@@ -1158,48 +1139,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_Reset_Cancels) {
   EXPECT_TRUE(got_error);
   EXPECT_FALSE(EvalJsBoolean(
       "document.querySelector('form').matches(':tool-form-active')"));
-}
-
-TEST_F(ModelContextTest, ToolSignalAborted) {
-  SimRequest main_resource("https://example.com/", "text/html");
-  LoadURL("https://example.com/");
-  v8::HandleScope handle_scope(Window().GetIsolate());
-  ScriptState* script_state = ToScriptStateForMainWorld(Window().GetFrame());
-  ScriptState::Scope script_scope(script_state);
-  main_resource.Complete(R"(
-<body>
-    <script>
-    async function longRunning(obj) {
-      await new Promise(r => setTimeout(r, 10000));
-      return "done";
-    }
-
-    navigator.modelContext.registerTool({
-      execute: longRunning,
-      name: "slow",
-      description: "slow tool",
-    });
-  </script>
-  </body>
-)");
-
-  auto* model_context = ModelContextSupplement::modelContext(GetDocument());
-
-  base::RunLoop run_loop;
-
-  auto* controller = AbortController::Create(script_state);
-  controller->abort(script_state);
-
-  // Execute with an aborted signal.
-  model_context->ExecuteTool(
-      base::UnguessableToken::Create(), "slow", "{}", controller->signal(),
-      base::BindLambdaForTesting(
-          [&](base::expected<String, ScriptToolError> res) {
-            ASSERT_FALSE(res.has_value());
-            EXPECT_EQ(res.error(), ScriptToolErrorCode::kToolInvocationFailed);
-            run_loop.Quit();
-          }));
-  run_loop.Run();
 }
 
 TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_FlexibleTypes) {
@@ -1246,7 +1185,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_FlexibleTypes) {
 
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "flexible_tool", json_string,
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             ASSERT_TRUE(res.has_value());
@@ -1270,7 +1208,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_FlexibleTypes) {
 
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "flexible_tool", json_string,
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             ASSERT_TRUE(res.has_value());
@@ -1289,7 +1226,7 @@ class ReentrantListener : public NativeEventListener {
   void Invoke(ExecutionContext*, Event*) override {
     // Trigger HashMap modification by adding a new execution.
     model_context_->ExecuteTool(base::UnguessableToken::Create(), "echo", "{}",
-                                nullptr, base::DoNothing());
+                                base::DoNothing());
   }
   void Trace(Visitor* visitor) const override {
     visitor->Trace(model_context_);
@@ -1314,14 +1251,14 @@ TEST_F(ModelContextTest, CancelToolReentrancy) {
       return new Promise(() => {});
     }
 
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: hang,
       name: "hang",
       description: "never resolves",
     });
 
     // We also need another tool that can be executed.
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: async () => "done",
       name: "echo",
       description: "echo",
@@ -1339,7 +1276,7 @@ TEST_F(ModelContextTest, CancelToolReentrancy) {
 
   base::UnguessableToken invocation_id = base::UnguessableToken::Create();
   bool success = model_context->ExecuteTool(
-      invocation_id, "hang", "{}", /* signal= */ nullptr,
+      invocation_id, "hang", "{}",
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             EXPECT_FALSE(res.has_value());
@@ -1418,17 +1355,17 @@ TEST_F(ModelContextTest, ListTools) {
 
   main_resource.Complete(R"(<!DOCTYPE html>
     <script>
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: () => "true",
       name: "delete",
       description: "Delete everything",
     });
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: () => "true",
       name: "squash",
       description: "Squash history",
     });
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: () => "true",
       name: "append",
       description: "Append something",
@@ -1452,12 +1389,12 @@ TEST_F(ModelContextTest, SourceLocation) {
 
   main_resource.Complete(R"(<!DOCTYPE html>
     <script>
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: () => "true",
       name: "append",
       description: "Append something",
     });
-    navigator.modelContext.registerTool({
+    document.modelContext.registerTool({
       execute: () => "true",
       name: "delete",
       description: "Delete everything",
@@ -1557,7 +1494,7 @@ TEST_F(ModelContextMetricsTest, RecordToolCountHistogram) {
       ToScriptStateForMainWorld(Window().GetFrame()));
 
   task_environment().FastForwardBy(base::Seconds(2));
-  EvalJsString(R"JS(navigator.modelContext.registerTool({
+  EvalJsString(R"JS(document.modelContext.registerTool({
       execute: () => "true",
       name: "tool1",
       description: "Tool1",
@@ -1566,7 +1503,7 @@ TEST_F(ModelContextMetricsTest, RecordToolCountHistogram) {
   task_environment().FastForwardBy(base::Seconds(2));
   for (int i = 2; i <= 4; i++) {
     // clang-format off
-    EvalJsString(String::Format(R"JS(navigator.modelContext.registerTool({
+    EvalJsString(String::Format(R"JS(document.modelContext.registerTool({
       execute: () => "true",
       name: "tool%d",
       description: "Tool%d",
@@ -1598,7 +1535,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_ToolChangeOnNameChange) {
       </form>
       <script>
         window.toolchangeCount = 0;
-        navigator.modelContextTesting.addEventListener('toolchange', () => {
+        document.modelContext.addEventListener('toolchange', () => {
           window.toolchangeCount++;
         });
 
@@ -1668,7 +1605,7 @@ TEST_F(ModelContextTest,
     </form>
     <script>
       window.toolchangeCount = 0;
-      navigator.modelContextTesting.addEventListener('toolchange', () => {
+      document.modelContext.addEventListener('toolchange', () => {
         window.toolchangeCount++;
       });
     </script>
@@ -1719,7 +1656,7 @@ TEST_F(ModelContextTest,
 
   MainFrame().ExecuteScript(WebScriptSource(
       "window.toolchangeCount = 0;"
-      "navigator.modelContextTesting.addEventListener('toolchange', () => {"
+      "document.modelContext.addEventListener('toolchange', () => {"
       "  window.toolchangeCount++;"
       "});"
       "document.getElementById('input1').setAttribute('data-unrelated', "
@@ -1747,7 +1684,7 @@ TEST_F(ModelContextTest,
 
   MainFrame().ExecuteScript(WebScriptSource(
       "window.toolchangeCount = 0;"
-      "navigator.modelContextTesting.addEventListener('toolchange', () => {"
+      "document.modelContext.addEventListener('toolchange', () => {"
       "  window.toolchangeCount++;"
       "});"
       "const input = document.getElementById('input1');"
@@ -1786,7 +1723,6 @@ TEST_F(ModelContextTest, ExecuteTool_RespondWith_And_RemoveForm) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -1830,7 +1766,6 @@ TEST_F(ModelContextTest, ExecuteTool_RespondWith_And_Navigate) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_result = true;
@@ -1878,7 +1813,6 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_UnrelatedSubmitAndRemove) {
   model_context->ExecuteTool(
       base::UnguessableToken::Create(), "search_tool",
       "{\"query\": \"testing\"}",
-      /* signal= */ nullptr,
       base::BindLambdaForTesting(
           [&](base::expected<String, ScriptToolError> res) {
             got_callback = true;

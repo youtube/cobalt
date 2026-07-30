@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">Kon nie meer-oor-bladsy "<ph name="ABOUT_PAGE" />" laai nie.</translation>
 <translation id="424963718355121712">Programme moet bedien word vanaf die gasheer wat hulle raak</translation>
 <translation id="4306119971288449206">Programme moet met inhoudtipe "<ph name="CONTENT_TYPE" />" bedien word</translation>
+<translation id="4349181963619779233">Uitbreidings en apps kan nie vanaf hierdie webwerf bygevoeg word nie</translation>
 <translation id="4625078469366263107">Aktiveer app</translation>
 <translation id="4633003931260532286">Uitbreiding vereis "<ph name="IMPORT_NAME" />" met minstens weergawe "<ph name="IMPORT_VERSION" />", maar net weergawe "<ph name="INSTALLED_VERSION" />" is geïnstalleer</translation>
 <translation id="4660476621274971848">Het weergawe "<ph name="EXPECTED_VERSION" />" verwag, maar weergawe was "<ph name="NEW_ID" />"</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">Invoerwaarde vir private sleutel moet 'n geldige formaat wees (PKCS#8-formaat- PEM-geënkodeerde RSA-sleutel).</translation>
-<translation id="765293928828334535">Programme, uitbreidings en gebruikerskripte kan nie van hierdie webwerf af bygevoeg word nie</translation>
 <translation id="7658239707568436148">Kanselleer</translation>
 <translation id="7766838926148951335">Aanvaar toestemmings</translation>
 <translation id="7876803335449432072">Kon nie die lêer “<ph name="RELATIVE_PATH" />” vir inhoudskrip laai nie – inhoudskripstylblaaie kan net gelaai word vanaf gesteunde stylbladlêers soos .css-lêers.</translation>

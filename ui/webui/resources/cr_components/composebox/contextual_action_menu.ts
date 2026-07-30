@@ -127,7 +127,11 @@ export class ContextualActionMenuElement extends
         type: Boolean,
         attribute: 'context-management-enabled',
       },
-      shareTabsFlyoutOpen: {type: Boolean},
+      shareTabsFlyoutOpen: {
+        reflect: true,
+        type: Boolean,
+        attribute: 'share-tabs-flyout-open',
+      },
       shareTabsFlyoutPosition_: {type: String},
       sharingTabsText_: {type: String},
       uploadButtonDisabled: {type: Boolean},
@@ -157,18 +161,6 @@ export class ContextualActionMenuElement extends
     }
     this.shareTabsFlyoutOpen = open;
     this.fire('share-tabs-flyout-open-changed', {open});
-    this.updateListeners_();
-  }
-
-  private updateListeners_() {
-    if (this.shareTabsFlyoutOpen) {
-      window.addEventListener('scroll', this.onScroll_, {
-        capture: true,
-        passive: true,
-      });
-    } else {
-      window.removeEventListener('scroll', this.onScroll_, {capture: true});
-    }
   }
 
   protected accessor enableMultiTabSelection_: boolean =
@@ -181,6 +173,8 @@ export class ContextualActionMenuElement extends
   private metricsSource_: string = loadTimeData.getString('composeboxSource');
   protected accessor showContextMenuHeaders_: boolean =
       loadTimeData.getBoolean('ShowContextMenuHeaders');
+  protected enableTabDeselection_: boolean =
+      getLoadTimeBoolean('composeboxContextMenuEnableTabDeselection', false);
   protected accessor shareTabsFlyoutPosition_: string = 'right';
   protected accessor sharingTabsText_: string = '';
   // Only close menu if the context management flag and the
@@ -196,21 +190,6 @@ export class ContextualActionMenuElement extends
   private firstTabBeingAdded_: boolean = false;
   private pendingTabAddId_: number|null = null;
   private anchor_: HTMLElement|null = null;
-
-  private onScroll_ = (e: Event) => {
-    if (!this.shareTabsFlyoutOpen) {
-      return;
-    }
-    const flyout =
-        this.shadowRoot?.querySelector<HTMLElement>('.share-tabs-flyout');
-    // Ignore scroll events originating from within the flyout's own content
-    // (e.g. scrolling a long list of tab suggestions).
-    if (flyout && e.target instanceof Node &&
-        (e.target === flyout || flyout.contains(e.target))) {
-      return;
-    }
-    this.updateFlyoutPosition_();
-  };
 
   protected get supportedTools_(): Map<ToolMode, {
     icon: string,
@@ -309,16 +288,17 @@ export class ContextualActionMenuElement extends
       this.manageShareTabsInitialFocus_(changedProperties);
     }
 
-    if (changedProperties.has('shareTabsFlyoutOpen')) {
-      this.updateListeners_();
-    }
-
     if (changedProperties.has('tabSuggestions') ||
         changedProperties.has('inputState')) {
       this.updateScrollable_();
 
       if (this.open && this.anchor_) {
-        this.showAt(this.anchor_);
+        if (changedProperties.has('tabSuggestions') &&
+            !this.shareTabsFlyoutOpen) {
+          this.showAt(this.anchor_);
+        } else {
+          this.reposition_();
+        }
       }
       if (this.shareTabsFlyoutOpen) {
         this.updateFlyoutPosition_();
@@ -334,7 +314,6 @@ export class ContextualActionMenuElement extends
   }
 
   private onWindowBlur_ = this.close.bind(this);
-  private boundReposition_?: () => void;
   private layoutResizeObserver_?: ResizeObserver|null = null;
   private lastConfig_?: unknown;
 
@@ -343,6 +322,10 @@ export class ContextualActionMenuElement extends
       return;
     }
     const rect = this.anchor_.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0 && rect.top === 0 &&
+        rect.left === 0) {
+      return;
+    }
     const height = rect.height;
 
     const doc = document.scrollingElement || document.documentElement;
@@ -351,10 +334,6 @@ export class ContextualActionMenuElement extends
 
     const config =
         Object.assign({}, this.lastConfig_ as Record<string, unknown>, {
-          minX: scrollLeft + VIEWPORT_BUFFER_PX,
-          minY: scrollTop + VIEWPORT_BUFFER_PX,
-          maxX: scrollLeft + doc.clientWidth - VIEWPORT_BUFFER_PX,
-          maxY: scrollTop + doc.clientHeight - VIEWPORT_BUFFER_PX,
           top: rect.top + scrollTop,
           left: rect.left + scrollLeft,
           height: height,
@@ -425,6 +404,12 @@ export class ContextualActionMenuElement extends
 
   showAt(anchor: HTMLElement) {
     this.anchor_ = anchor;
+    const rect = anchor.getBoundingClientRect();
+    if (rect.width === 0 && rect.height === 0 && rect.top === 0 &&
+        rect.left === 0) {
+      return;
+    }
+
     const menuWidth = this.computeMenuWidth_();
     // Clear any previous max height limit before measuring natural full height.
     this.$.menu.style.removeProperty('--contextual-menu-max-height');
@@ -436,8 +421,6 @@ export class ContextualActionMenuElement extends
       anchorAlignmentY: AnchorAlignment.AFTER_END,
       noOffset: true,
     });
-
-    const rect = anchor.getBoundingClientRect();
     const iconElement = anchor.querySelector('#entrypointIcon') || anchor;
     const iconRect = iconElement.getBoundingClientRect();
 
@@ -523,11 +506,6 @@ export class ContextualActionMenuElement extends
     this.$.menu.showAt(anchor, config);
     this.reposition_();
     window.addEventListener('blur', this.onWindowBlur_);
-
-    this.boundReposition_ =
-        this.boundReposition_ || this.reposition_.bind(this);
-    window.addEventListener(
-        'scroll', this.boundReposition_, {capture: true, passive: true});
 
     if (this.layoutResizeObserver_) {
       this.layoutResizeObserver_.disconnect();
@@ -635,8 +613,9 @@ export class ContextualActionMenuElement extends
 
   protected isTabSelected_(tabOrId: TabInfo|number): boolean {
     const tabId = typeof tabOrId === 'number' ? tabOrId : tabOrId.tabId;
-    const isAimThreadRestored = (this.aimThreadRestoredTabs || []).some(
-        restoredTab => restoredTab.tabId === tabId);
+    const isAimThreadRestored = this.contextManagementInComposeboxEnabled &&
+        (this.aimThreadRestoredTabs ||
+         []).some(restoredTab => restoredTab.tabId === tabId);
     return this.disabledTabIds.has(tabId) || isAimThreadRestored;
   }
 
@@ -746,10 +725,13 @@ export class ContextualActionMenuElement extends
 
   // Checks if a tab item in the context menu should be disabled.
   protected isTabDisabled_(tab: TabInfo): boolean {
-    const isRestored =
-        (this.aimThreadRestoredTabs)
-            .some(restoredTab => restoredTab.tabId === tab.tabId);
+    const isRestored = this.contextManagementInComposeboxEnabled &&
+        (this.aimThreadRestoredTabs ||
+         []).some(restoredTab => restoredTab.tabId === tab.tabId);
     if (isRestored) {
+      if (this.enableTabDeselection_ && this.isTabSelected_(tab)) {
+        return false;
+      }
       return true;
     }
 
@@ -769,7 +751,9 @@ export class ContextualActionMenuElement extends
         maxTotal = this.inputState.maxTotalInputs;
       }
       const totalSelected = this.nonTabFileNum + this.disabledTabIds.size +
-          (this.aimThreadRestoredTabs || []).length;
+          (this.contextManagementInComposeboxEnabled ?
+               (this.aimThreadRestoredTabs || []).length :
+               0);
       const limitReached = totalSelected >= maxTotal;
       // Disable unselected tabs only when the total selected count reaches the limit.
       return limitReached;
@@ -794,7 +778,9 @@ export class ContextualActionMenuElement extends
     const activeRestoredTabs = allSelectedIds.map(id => suggestionsMap.get(id))
                                    .filter((tab): tab is TabInfo => !!tab)
                                    .reverse();
-    const reversedRestored = [...(this.aimThreadRestoredTabs || [])].reverse();
+    const reversedRestored = this.contextManagementInComposeboxEnabled ?
+        [...(this.aimThreadRestoredTabs || [])].reverse() :
+        [];
 
     return activeRestoredTabs.concat(reversedRestored);
   }
@@ -803,20 +789,9 @@ export class ContextualActionMenuElement extends
     return this.recentTabId !== null && tabId === this.recentTabId;
   }
 
-  protected async onSmartTabSharingItemClick_(e: Event) {
-    const target = e.currentTarget as HTMLElement;
-    const isFlyout = target.id === 'smartTabSharingItemFlyout';
+  protected onSmartTabSharingItemClick_() {
     this.toggleSmartTabSharing_();
-    if (isFlyout) {
-      this.$.menu.close();
-    } else {
-      await this.updateComplete;
-      const trigger =
-          this.shadowRoot.querySelector<HTMLElement>('#shareTabsTrigger');
-      if (trigger) {
-        trigger.focus();
-      }
-    }
+    this.$.menu.close();
   }
 
   private toggleSmartTabSharing_() {
@@ -854,9 +829,18 @@ export class ContextualActionMenuElement extends
     }
 
 
-    if (this.enableMultiTabSelection_ && this.isTabSelected_(tabInfo.tabId)) {
-      this.deleteTabContext_(this.disabledTabIds.get(tabInfo.tabId)!);
-      return;
+    const isRestored = this.contextManagementInComposeboxEnabled &&
+        (this.aimThreadRestoredTabs ||
+         []).some(restoredTab => restoredTab.tabId === tabInfo.tabId);
+    if (this.isTabSelected_(tabInfo.tabId)) {
+      // Allow deselecting the tab if the explicit tab deselection feature is
+      // enabled. If disabled, we only allow deselecting newly-added tabs
+      // (non-restored) when multi-tab selection is enabled.
+      if (this.enableTabDeselection_ ||
+          (this.enableMultiTabSelection_ && !isRestored)) {
+        this.deleteTabContext_(tabInfo.tabId);
+        return;
+      }
     }
     this.addTabContext_(tabInfo);
     recordContextAdditionMethod(
@@ -871,8 +855,8 @@ export class ContextualActionMenuElement extends
     }
   }
 
-  protected deleteTabContext_(uuid: UnguessableToken) {
-    this.fire('delete-tab-context', {uuid: uuid, fromUserAction: true});
+  protected deleteTabContext_(tabId: number) {
+    this.fire('delete-tab-context', {tabId: tabId, fromUserAction: true});
     this.maybeCloseMenuBasedOnEntrypoint_();
   }
 
@@ -1013,31 +997,22 @@ export class ContextualActionMenuElement extends
       const flyoutWidth = flyout.offsetWidth || DEFAULT_FLYOUT_WIDTH_PX;
       const viewportWidth = window.innerWidth;
 
-      let flyoutTop: number;
       if (flyoutWidth + SHARE_TABS_FLYOUT_GAP_PX <=
           viewportWidth - triggerRect.right) {
         this.shareTabsFlyoutPosition_ = 'right';
-        flyout.style.left = `${triggerRect.right + SHARE_TABS_FLYOUT_GAP_PX}px`;
-        flyout.style.right = '';
-        flyoutTop = triggerRect.top;
+        flyout.setAttribute('data-position', 'right');
       } else if (triggerRect.left >= flyoutWidth + SHARE_TABS_FLYOUT_GAP_PX) {
         this.shareTabsFlyoutPosition_ = 'left';
-        flyout.style.left =
-            `${triggerRect.left - flyoutWidth - SHARE_TABS_FLYOUT_GAP_PX}px`;
-        flyout.style.right = '';
-        flyoutTop = triggerRect.top;
+        flyout.setAttribute('data-position', 'left');
       } else {
         this.shareTabsFlyoutPosition_ = 'bottom';
-        flyoutTop = triggerRect.bottom + SHARE_TABS_FLYOUT_GAP_PX;
-        const rtl = getComputedStyle(this).direction === 'rtl';
-        if (rtl) {
-          flyout.style.left = `${triggerRect.right - flyoutWidth}px`;
-        } else {
-          flyout.style.left = `${triggerRect.left}px`;
-        }
+        flyout.setAttribute('data-position', 'bottom');
       }
-      flyout.style.top = `${flyoutTop}px`;
 
+      let flyoutTop = triggerRect.top;
+      if (this.shareTabsFlyoutPosition_ === 'bottom') {
+        flyoutTop = triggerRect.bottom + SHARE_TABS_FLYOUT_GAP_PX;
+      }
       const spaceBelow = window.innerHeight - flyoutTop;
       const maxFlyoutHeight = Math.max(
           MIN_MENU_HEIGHT_PX,
@@ -1071,7 +1046,6 @@ export class ContextualActionMenuElement extends
     this.pointerOverTrigger_ = false;
     this.pointerOverFlyout_ = false;
     this.setShareTabsFlyoutOpen_(false);
-    window.removeEventListener('scroll', this.onScroll_, {capture: true});
 
     const flyout =
         this.shadowRoot.querySelector<HTMLElement>('.share-tabs-flyout');
@@ -1144,10 +1118,6 @@ export class ContextualActionMenuElement extends
 
   protected onMenuClose_() {
     window.removeEventListener('blur', this.onWindowBlur_);
-    if (this.boundReposition_) {
-      window.removeEventListener(
-          'scroll', this.boundReposition_, {capture: true});
-    }
     if (this.layoutResizeObserver_) {
       this.layoutResizeObserver_.disconnect();
       this.layoutResizeObserver_ = null;

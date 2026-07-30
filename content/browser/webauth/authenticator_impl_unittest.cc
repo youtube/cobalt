@@ -799,8 +799,7 @@ TEST_F(AuthenticatorImplTest, GetClientCapabilities) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
       /*enabled_features=*/{},
-      /*disabled_features=*/{device::kWebAuthnImmediateGet,
-                             device::kWebAuthnAmbientSignin});
+      /*disabled_features=*/{device::kWebAuthnAmbientSignin});
 
   NavigateAndCommit(GURL(kTestOrigin1));
 
@@ -821,6 +820,7 @@ TEST_F(AuthenticatorImplTest, GetClientCapabilities) {
       client_capabilities::kSignalAllAcceptedCredentials,
       client_capabilities::kSignalCurrentUserDetails,
       client_capabilities::kSignalUnknownCredential,
+      client_capabilities::kImmediateGet,
   };
 
   // Ensure no extra capabilities
@@ -868,17 +868,6 @@ TEST_F(AuthenticatorImplTest, GetClientCapabilities_ConditionalCreate) {
   NavigateAndCommit(GURL(kTestOrigin1));
   ClientCapabilitiesList capabilities = AuthenticatorGetClientCapabilities();
   ExpectCapability(capabilities, client_capabilities::kConditionalCreate, true);
-}
-
-TEST_F(AuthenticatorImplTest, GetClientCapabilities_ImmediateGet) {
-  for (const bool enabled : {false, true}) {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatureState(device::kWebAuthnImmediateGet, enabled);
-    NavigateAndCommit(GURL(kTestOrigin1));
-    ClientCapabilitiesList capabilities = AuthenticatorGetClientCapabilities();
-    ExpectCapability(capabilities, client_capabilities::kImmediateGet,
-                     enabled ? std::optional<bool>(true) : std::nullopt);
-  }
 }
 
 TEST_F(AuthenticatorImplTest, GetClientCapabilities_AmbientGet) {
@@ -9191,6 +9180,7 @@ class ICloudKeychainAuthenticatorImplTest : public AuthenticatorImplTest {
         device::FidoRequestType request_type,
         std::optional<device::ResidentKeyRequirement> resident_key_requirement,
         device::UserVerificationRequirement user_verification_requirement,
+        bool cmtg_key_requested,
         std::optional<std::string_view> user_name,
         bool is_enclave_authenticator_available,
         device::FidoDiscoveryFactory* fido_discovery_factory) override {
@@ -9398,13 +9388,7 @@ TEST_F(ICloudKeychainAuthenticatorImplTest, PRFOnGet) {
 TEST_F(ResidentKeyAuthenticatorImplTest,
        GetAssertionImmediateMediationTimeout_NoUI) {
   base::HistogramTester histogram_tester;
-  base::test::ScopedFeatureList feature_list;
-  base::FieldTrialParams feature_params;
-  constexpr base::TimeDelta kImmediateTimeout = base::Milliseconds(10);
-  feature_params["timeout_ms"] =
-      base::NumberToString(kImmediateTimeout.InMilliseconds());
-  feature_list.InitAndEnableFeatureWithParameters(device::kWebAuthnImmediateGet,
-                                                  feature_params);
+  constexpr base::TimeDelta kImmediateTimeout = base::Milliseconds(500);
 
   ReplaceDiscoveryFactory(std::make_unique<device::FidoDiscoveryFactory>());
 
@@ -9434,13 +9418,7 @@ TEST_F(ResidentKeyAuthenticatorImplTest,
        GetAssertionImmediateMediationTimeout_WithUiThenNoImmediateTimeout) {
   base::HistogramTester histogram_tester;
   test_client_.delegate_config.run_cancel_ui_timeout_callback = true;
-  base::test::ScopedFeatureList feature_list;
-  base::FieldTrialParams feature_params;
-  constexpr base::TimeDelta kImmediateTimeout = base::Milliseconds(10);
-  feature_params["timeout_ms"] =
-      base::NumberToString(kImmediateTimeout.InMilliseconds());
-  feature_list.InitAndEnableFeatureWithParameters(device::kWebAuthnImmediateGet,
-                                                  feature_params);
+  constexpr base::TimeDelta kImmediateTimeout = base::Milliseconds(500);
 
   ReplaceDiscoveryFactory(std::make_unique<device::FidoDiscoveryFactory>());
 
@@ -10736,6 +10714,54 @@ TEST_F(AuthenticatorImplTest, InactiveRenderFrameHost) {
   authenticator.set_disconnect_handler(run_loop.QuitClosure());
   run_loop.Run();
   EXPECT_FALSE(authenticator.is_connected());
+}
+
+TEST_F(AuthenticatorImplTest, CmtgKeyEndToEnd) {
+  NavigateAndCommit(GURL(kTestOrigin1));
+
+  // Configure device with CMTG support.
+  device::VirtualCtap2Device::Config config;
+  config.cmtg_key_support = true;
+  virtual_device_factory_->SetCtap2Config(config);
+
+  // Create credential with CMTG extension.
+  PublicKeyCredentialCreationOptionsPtr create_options =
+      GetTestPublicKeyCredentialCreationOptions();
+  create_options->cmtg_key = true;
+  MakeCredentialResult create_result =
+      AuthenticatorMakeCredential(std::move(create_options));
+  ASSERT_EQ(create_result.status, AuthenticatorStatus::SUCCESS);
+  ASSERT_TRUE(create_result.response->cmtg_key);
+  const std::vector<uint8_t> initial_cmtg_key =
+      create_result.response->cmtg_key->cmtg_key;
+  const std::vector<uint8_t> credential_id =
+      create_result.response->info->raw_id;
+
+  // Get an assertion with the same CMTG key.
+  PublicKeyCredentialRequestOptionsPtr get_options1 =
+      GetTestPublicKeyCredentialRequestOptions();
+  get_options1->allow_credentials[0].id = credential_id;
+  get_options1->extensions->cmtg_key = true;
+  GetAssertionResult get_result1 =
+      AuthenticatorGetAssertion(std::move(get_options1));
+  ASSERT_EQ(get_result1.status, AuthenticatorStatus::SUCCESS);
+  ASSERT_TRUE(get_result1.response->extensions->cmtg_key);
+  EXPECT_EQ(get_result1.response->extensions->cmtg_key->cmtg_key,
+            initial_cmtg_key);
+
+  // Trigger generation of a new CMTG key on next assertion.
+  virtual_device_factory_->mutable_state()
+      ->generate_new_cmtg_key_on_next_assertion = true;
+  PublicKeyCredentialRequestOptionsPtr get_options2 =
+      GetTestPublicKeyCredentialRequestOptions();
+  get_options2->allow_credentials[0].id = credential_id;
+  get_options2->extensions->cmtg_key = true;
+  GetAssertionResult get_result2 =
+      AuthenticatorGetAssertion(std::move(get_options2));
+  ASSERT_EQ(get_result2.status, AuthenticatorStatus::SUCCESS);
+  ASSERT_TRUE(get_result2.response->extensions->cmtg_key);
+  EXPECT_NE(get_result2.response->extensions->cmtg_key->cmtg_key,
+            initial_cmtg_key);
 }
 
 }  // namespace content

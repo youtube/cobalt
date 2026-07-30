@@ -43,6 +43,7 @@
 #include "build/build_config.h"
 #include "build/chromecast_buildflags.h"
 #include "components/vrp_flags/buildflags.h"
+#include "components/webrtc/features.h"
 #include "mojo/public/cpp/bindings/callback_helpers.h"
 #include "mojo/public/cpp/bindings/pending_receiver.h"
 #include "mojo/public/cpp/bindings/scoped_message_error_crash_key.h"
@@ -397,7 +398,7 @@ NetworkService::NetworkService(
   ContentDecodingInterceptor::SetIsNetworkServiceRunningInTheCurrentProcess(
       true, {});
 
-  // |registry_| is nullptr when a NetworkService is out-of-process.
+  // `registry` holds a valid instance when a NetworkService is out-of-process.
   if (registry_) {
     mojo::SetDefaultProcessErrorHandler(base::BindRepeating(&HandleBadMessage));
 #if BUILDFLAG(IS_LINUX)
@@ -673,13 +674,15 @@ void NetworkService::SetSystemDnsResolver(
 void NetworkService::StartNetLog(base::File file,
                                  uint64_t max_total_size,
                                  net::NetLogCaptureMode capture_mode,
+                                 net::NetLogFileFormat file_format,
                                  base::DictValue constants,
                                  std::optional<base::TimeDelta> duration) {
   if (max_total_size == net::FileNetLogObserver::kNoLimit) {
-    StartNetLogUnbounded(std::move(file), capture_mode, std::move(constants));
+    StartNetLogUnbounded(std::move(file), capture_mode, file_format,
+                         std::move(constants));
   } else {
     StartNetLogBounded(std::move(file), max_total_size, capture_mode,
-                       std::move(constants));
+                       file_format, std::move(constants));
   }
   if (duration.has_value() && !duration->is_zero()) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
@@ -923,6 +926,19 @@ void NetworkService::OnClientCertStoreChanged() {
 void NetworkService::OnPeerToPeerConnectionsCountChange(uint32_t count) {
   network_quality_estimator_manager_->GetNetworkQualityEstimator()
       ->OnPeerToPeerConnectionsCountChange(count);
+
+  // Only boost when running out of process (|registry_| is non-null); the
+  // in-process network thread has its own priority handling (see
+  // BoostNetworkThreadPriority in
+  // content/browser/network_service_instance_impl.cc).
+  if (registry_ && base::FeatureList::IsEnabled(
+                       webrtc::features::kWebRTCBoostMediaIOThreads)) {
+    if (count > 0 && !io_thread_type_lease_) {
+      io_thread_type_lease_.emplace(base::ThreadType::kAudioProcessing);
+    } else if (count == 0) {
+      io_thread_type_lease_.reset();
+    }
+  }
 }
 
 #if BUILDFLAG(IS_ANDROID)
@@ -1129,6 +1145,7 @@ void NetworkService::SetTLS13EarlyDataEnabled(bool enabled) {
 void NetworkService::StartNetLogBounded(base::File file,
                                         uint64_t max_total_size,
                                         net::NetLogCaptureMode capture_mode,
+                                        net::NetLogFileFormat file_format,
                                         base::DictValue client_constants) {
   base::DictValue constants = net::GetNetConstants();
   constants.Merge(std::move(client_constants));
@@ -1142,13 +1159,14 @@ void NetworkService::StartNetLogBounded(base::File file,
       base::BindOnce(
           &NetworkService::OnStartNetLogBoundedScratchDirectoryCreated,
           weak_factory_.GetWeakPtr(), std::move(file), max_total_size,
-          capture_mode, std::move(constants)));
+          capture_mode, file_format, std::move(constants)));
 }
 
 void NetworkService::OnStartNetLogBoundedScratchDirectoryCreated(
     base::File file,
     uint64_t max_total_size,
     net::NetLogCaptureMode capture_mode,
+    net::NetLogFileFormat file_format,
     base::DictValue constants,
     const base::FilePath& in_progress_dir_path) {
   if (in_progress_dir_path.empty()) {
@@ -1158,19 +1176,20 @@ void NetworkService::OnStartNetLogBoundedScratchDirectoryCreated(
 
   file_net_log_observer_ = net::FileNetLogObserver::CreateBoundedPreExisting(
       in_progress_dir_path, std::move(file), max_total_size, capture_mode,
-      std::make_unique<base::DictValue>(std::move(constants)));
+      std::make_unique<base::DictValue>(std::move(constants)), file_format);
   file_net_log_observer_->StartObserving(net_log_);
 }
 
 void NetworkService::StartNetLogUnbounded(base::File file,
                                           net::NetLogCaptureMode capture_mode,
+                                          net::NetLogFileFormat file_format,
                                           base::DictValue client_constants) {
   base::DictValue constants = net::GetNetConstants();
   constants.Merge(std::move(client_constants));
 
   file_net_log_observer_ = net::FileNetLogObserver::CreateUnboundedPreExisting(
       std::move(file), capture_mode,
-      std::make_unique<base::DictValue>(std::move(constants)));
+      std::make_unique<base::DictValue>(std::move(constants)), file_format);
   file_net_log_observer_->StartObserving(net_log_);
 }
 

@@ -10,6 +10,7 @@
 #include "base/i18n/tag_converters.h"
 #include "base/i18n/tags.h"
 #include "base/test/gmock_expected_support.h"
+#include "base/values.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -38,11 +39,40 @@ MATCHER_P(LanguageSubtagString, expected, "") {
       result_listener);
 }
 
+TEST(LanguageTagTest, CompileTimeTags) {
+  // Verifies that multi-subtag tags can be created at compile-time.
+  static_assert(GetKnownLanguageTag("ja-JP").tag_string() == "ja-JP");
+  static_assert(GetKnownLanguageTag("en-US").tag_string() == "en-US");
+
+  // Verifies GetKnownLanguageTag wrapper.
+  static_assert(GetKnownLanguageTag("en-US").tag_string() == "en-US");
+  constexpr LanguageTag ja_jp = GetKnownLanguageTag("ja-JP");
+  static_assert(ja_jp.tag_string() == "ja-JP");
+}
+
 TEST(LanguageTagTest, ParseAndToString) {
   EXPECT_THAT(GetKnownLanguageTag("en-US"), GetKnownLanguageTag("en-US"));
 
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString("EN-us"),
               OptionalToString("en-US"));
+}
+
+TEST(LanguageTagTest, ValueConversions) {
+  const LanguageTag en_tag = GetKnownLanguageTag("en-US");
+
+  // LanguageTagToValue
+  base::Value value = LanguageTagToValue(en_tag);
+  EXPECT_TRUE(value.is_string());
+  EXPECT_EQ(value.GetString(), "en-US");
+
+  // ValueToLanguageTag (valid)
+  EXPECT_THAT(ValueToLanguageTag(value), OptionalToString("en-US"));
+  EXPECT_THAT(ValueToLanguageTag(&value), OptionalToString("en-US"));
+
+  // ValueToLanguageTag (invalid & non-string inputs)
+  EXPECT_EQ(ValueToLanguageTag(nullptr), std::nullopt);
+  EXPECT_EQ(ValueToLanguageTag(base::Value(42)), std::nullopt);
+  EXPECT_EQ(ValueToLanguageTag(base::Value("invalid---tag")), std::nullopt);
 }
 
 TEST(LanguageTagTest, InvalidLocales) {
@@ -633,17 +663,25 @@ TEST_P(LanguageTagAllCodesTest, VerifyAllLangCodeFunctions) {
   EXPECT_THAT(LanguageTagConverter::GetInstance().FromString(param.tag),
               Optional(param.language_tag));
 }
-constexpr LanguageTestData kTestData[] = {
+
+namespace {
+
+auto GetTestData() {
+  static constexpr auto kTestData = std::to_array<LanguageTestData>({
 #define IMPL_LANGUAGECODE_TAG_NAME(tag, name) \
   {tag, #name, GetKnownLanguageTag(tag)},
 #include "base/i18n/internal/canonical_language_tags.inc"
-};
 #undef IMPL_LANGUAGECODE_TAG_NAME
+  });
+  return kTestData;
+}
+
+}  // namespace
 
 INSTANTIATE_TEST_SUITE_P(
     All,
     LanguageTagAllCodesTest,
-    testing::ValuesIn(kTestData),
+    testing::ValuesIn(GetTestData()),
     [](const testing::TestParamInfo<LanguageTestData>& info) {
       return std::string(info.param.name);
     });

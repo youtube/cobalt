@@ -41,7 +41,7 @@ class MockGlicInstanceCoordinator
               Toggle,
               (BrowserWindowInterface*, bool, mojom::InvocationSource),
               (override));
-  MOCK_METHOD(void, EnsurePreload, (), (override));
+  MOCK_METHOD(bool, MaybeStartInitialWarming, (), (override));
   MOCK_METHOD(base::WeakPtr<GlicInstance>,
               Invoke,
               (GlicInvokeOptions),
@@ -114,11 +114,6 @@ class MockGlicInstanceCoordinator
               (content::RenderFrameHost*),
               (override));
 
-  MOCK_METHOD(void,
-              GetExperimentalTriggeringUpdates,
-              (mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler>,
-               base::OnceCallback<void(bool)>),
-              (override));
 
  private:
   GlicDelegatingSharingManager dummy_sharing_manager_;

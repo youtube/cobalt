@@ -13,6 +13,7 @@
 #include "base/containers/span.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
+#include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/metrics/histogram_functions.h"
@@ -303,11 +304,6 @@ void Canvas2DResourceProvider::WillDrawUnaccelerated() {
   EnsureWriteAccess();
 }
 
-ScopedRasterTimer Canvas2DResourceProvider::CreateScopedRasterTimer() {
-  return ScopedRasterTimer(IsAccelerated() ? RasterInterface() : nullptr, *this,
-                           always_enable_raster_timers_for_testing_);
-}
-
 void Canvas2DResourceProvider::DisableLineDrawingAsPathsIfNecessary() {
   if (context_provider_wrapper_ &&
       context_provider_wrapper_->ContextProvider()
@@ -547,19 +543,18 @@ std::optional<cc::PaintRecord> Canvas2DResourceProvider::Flush(
   cc::PaintRecord recording;
   recording = Recorder().ReleaseMainRecording();
   RasterRecord(recording);
-  if (canvas_image_provider_) {
-    canvas_image_provider_->ReleaseLockedImages();
-    canvas_image_provider_->UnbindTextureBackedImages();
-  }
 
   last_recording_ =
       preserve_recording ? std::optional(recording) : std::nullopt;
 
-  if (delegate_) {
-    delegate_->DidFlush();
-  }
-
   return recording;
+}
+
+void Canvas2DResourceProvider::ReleaseImageProviderImages() {
+  if (canvas_image_provider_) {
+    canvas_image_provider_->ReleaseLockedImages();
+    canvas_image_provider_->UnbindTextureBackedImages();
+  }
 }
 
 const std::optional<cc::PaintRecord>&
@@ -635,7 +630,8 @@ Canvas2DResourceProvider::GetOrCreateCanvasImageProvider() {
 }
 
 void Canvas2DResourceProvider::RasterRecord(cc::PaintRecord last_recording) {
-  auto timer = CreateScopedRasterTimer();
+  ScopedRasterTimer timer(IsAccelerated() ? RasterInterface() : nullptr, *this,
+                          always_enable_raster_timers_for_testing_);
   if (!is_accelerated_) {
     WillDrawUnaccelerated();
     if (!skia_canvas_) {
@@ -714,9 +710,6 @@ void Canvas2DResourceProvider::RasterRecord(cc::PaintRecord last_recording) {
 
 void Canvas2DResourceProvider::OnFlushForImage(
     cc::PaintImage::ContentId content_id) {
-  if (Recorder().getRecordingCanvas().IsCachingImage(content_id)) {
-    Flush();
-  }
   if (cached_snapshot_ &&
       cached_snapshot_->PaintImageForCurrentFrame().GetContentIdForFrame(0) ==
           content_id) {
@@ -878,10 +871,10 @@ Canvas2DResourceProvider::CreateWithClear(
   }
 #endif
 
-  auto provider = std::make_unique<Canvas2DResourceProvider>(
+  auto provider = base::WrapUnique(new Canvas2DResourceProvider(
       size, format, alpha_type, color_space, hdr_metadata,
       context_provider_wrapper, is_accelerated, shared_image_usage_flags,
-      delegate);
+      delegate));
   if (!provider->IsValid()) {
     return nullptr;
   }
@@ -922,9 +915,9 @@ Canvas2DResourceProvider::CreateWithClearForSoftwareCompositor(
   CHECK(format == viz::SharedImageFormat::N32Format() ||
         format == viz::SinglePlaneFormat::kRGBA_F16);
 
-  auto provider = std::make_unique<Canvas2DResourceProvider>(
+  auto provider = base::WrapUnique(new Canvas2DResourceProvider(
       size, format, alpha_type, color_space, hdr_metadata,
-      shared_image_interface_provider, delegate);
+      shared_image_interface_provider, delegate));
   if (provider->IsValid()) {
     provider->ClearAtCreation();
     // The ClearAtCreation() call cannot turn a SW CRPSI invalid.
@@ -1042,7 +1035,6 @@ Canvas2DResourceProvider::Canvas2DResourceProvider(
   }
 
   resource_ = NewOrRecycledResource();
-  FlushForImageListener::Get()->AddObserver(this);
 
   if (resource_) {
     EnsureWriteAccess();
@@ -1138,10 +1130,6 @@ Canvas2DResourceProvider::~Canvas2DResourceProvider() {
   }
   if (shared_image_interface_provider_) {
     shared_image_interface_provider_->RemoveGpuChannelLostObserver(this);
-  }
-
-  if (!is_software_) {
-    FlushForImageListener::Get()->RemoveObserver(this);
   }
 
   // Last chance for outstanding GPU timers to record metrics.

@@ -368,8 +368,7 @@ class TestSBClient : public base::RefCountedThreadSafe<TestSBClient>,
 
   // Called when the result of checking a browse URL is known.
   void OnCheckBrowseUrlResult(const GURL& /* url */,
-                              SBThreatType threat_type,
-                              const ThreatMetadata& /* metadata */) override {
+                              SBThreatType threat_type) override {
     threat_type_ = threat_type;
     content::GetUIThreadTaskRunner({})->PostTask(
         FROM_HERE, base::BindOnce(&TestSBClient::CheckDone, this));
@@ -432,10 +431,8 @@ class V4SafeBrowsingServiceTest : public InProcessBrowserTest {
   }
 
   void MarkUrlForListIdUnexpired(const GURL& bad_url,
-                                 const ListIdentifier& list_id,
-                                 ThreatPatternType threat_pattern_type) {
+                                 const ListIdentifier& list_id) {
     ThreatMetadata metadata;
-    metadata.threat_pattern_type = threat_pattern_type;
     FullHashInfo full_hash_info =
         GetFullHashInfoWithMetadata(bad_url, list_id, metadata);
     while (!sb_db_factory_->IsReady()) {
@@ -447,37 +444,32 @@ class V4SafeBrowsingServiceTest : public InProcessBrowserTest {
 
   // Sets up the prefix database and the full hash cache to match one of the
   // prefixes for the given URL and metadata.
-  void MarkUrlForMalwareUnexpired(
-      const GURL& bad_url,
-      ThreatPatternType threat_pattern_type = ThreatPatternType::NONE) {
-    MarkUrlForListIdUnexpired(bad_url, GetUrlMalwareId(), threat_pattern_type);
+  void MarkUrlForMalwareUnexpired(const GURL& bad_url) {
+    MarkUrlForListIdUnexpired(bad_url, GetUrlMalwareId());
   }
 
   // Sets up the prefix database and the full hash cache to match one of the
   // prefixes for the given URL in the UwS store.
   void MarkUrlForUwsUnexpired(const GURL& bad_url) {
-    MarkUrlForListIdUnexpired(bad_url, GetUrlUwsId(), ThreatPatternType::NONE);
+    MarkUrlForListIdUnexpired(bad_url, GetUrlUwsId());
   }
 
   // Sets up the prefix database and the full hash cache to match one of the
   // prefixes for the given URL in the phishing store.
-  void MarkUrlForPhishingUnexpired(const GURL& bad_url,
-                                   ThreatPatternType threat_pattern_type) {
-    MarkUrlForListIdUnexpired(bad_url, GetUrlSocEngId(), threat_pattern_type);
+  void MarkUrlForPhishingUnexpired(const GURL& bad_url) {
+    MarkUrlForListIdUnexpired(bad_url, GetUrlSocEngId());
   }
 
   // Sets up the prefix database and the full hash cache to match one of the
   // prefixes for the given URL in the malware binary store.
   void MarkUrlForMalwareBinaryUnexpired(const GURL& bad_url) {
-    MarkUrlForListIdUnexpired(bad_url, GetUrlMalBinId(),
-                              ThreatPatternType::NONE);
+    MarkUrlForListIdUnexpired(bad_url, GetUrlMalBinId());
   }
 
   // Sets up the prefix database and the full hash cache to match one of the
   // prefixes for the given URL in the Billing store.
   void MarkUrlForBillingUnexpired(const GURL& bad_url) {
-    MarkUrlForListIdUnexpired(bad_url, GetUrlBillingId(),
-                              ThreatPatternType::NONE);
+    MarkUrlForListIdUnexpired(bad_url, GetUrlBillingId());
   }
 
   void SetUpCommandLine(base::CommandLine* command_line) override {
@@ -863,7 +855,7 @@ IN_PROC_BROWSER_TEST_F(V4SafeBrowsingServiceTest,
                        NotificationsAcceptedReportSentWithCorrectOrigins) {
   SetUpSendingNotificationsAcceptedCSBRR();
   network::TestURLLoaderFactory test_url_loader_factory;
-  ChromePingManagerFactory::GetForBrowserContext(browser()->profile())
+  ChromePingManagerFactory::GetForBrowserContext(browser()->GetProfile())
       ->SetURLLoaderFactoryForTesting(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
               &test_url_loader_factory));
@@ -903,7 +895,7 @@ IN_PROC_BROWSER_TEST_F(V4SafeBrowsingServiceTest,
   // render_frame_host should be nullptr as we're not testing referrer chain
   // here.
   bool result = safe_browsing_service()->MaybeSendNotificationsAcceptedReport(
-      /*render_frame_host=*/nullptr, browser()->profile(), kUrl, kPageUrl,
+      /*render_frame_host=*/nullptr, browser()->GetProfile(), kUrl, kPageUrl,
       kPermissionPromptOrigin, kDisplayDuration);
   EXPECT_TRUE(result)
       << "MaybeSendNotificationsAcceptedReport should return true";
@@ -915,7 +907,7 @@ IN_PROC_BROWSER_TEST_F(V4SafeBrowsingServiceTest,
                        NotificationsAcceptedReportSentWithReferrerChain) {
   SetUpSendingNotificationsAcceptedCSBRR();
   network::TestURLLoaderFactory test_url_loader_factory;
-  ChromePingManagerFactory::GetForBrowserContext(browser()->profile())
+  ChromePingManagerFactory::GetForBrowserContext(browser()->GetProfile())
       ->SetURLLoaderFactoryForTesting(
           base::MakeRefCounted<network::WeakWrapperSharedURLLoaderFactory>(
               &test_url_loader_factory));
@@ -981,7 +973,7 @@ IN_PROC_BROWSER_TEST_F(V4SafeBrowsingServiceTest,
 
   // Call the `MaybeSendNotificationsAcceptedReport` method.
   bool result = safe_browsing_service()->MaybeSendNotificationsAcceptedReport(
-      rfh, browser()->profile(), report_resource_url, landing_page_gurl,
+      rfh, browser()->GetProfile(), report_resource_url, landing_page_gurl,
       permission_prompt_origin_gurl, kDisplayDuration);
   EXPECT_TRUE(result)
       << "MaybeSendNotificationsAcceptedReport should return true.";
@@ -996,45 +988,5 @@ IN_PROC_BROWSER_TEST_F(V4SafeBrowsingServiceTest,
 
 // TODO(vakh): Add test for UnwantedMainFrame.
 
-class V4SafeBrowsingServiceMetadataTest
-    : public V4SafeBrowsingServiceTest,
-      public ::testing::WithParamInterface<ThreatPatternType> {
- public:
-  V4SafeBrowsingServiceMetadataTest() {
-    scoped_feature_list_.InitAndEnableFeature(
-        safe_browsing::kCreateWarningShownClientSafeBrowsingReports);
-  }
-
-  V4SafeBrowsingServiceMetadataTest(const V4SafeBrowsingServiceMetadataTest&) =
-      delete;
-  V4SafeBrowsingServiceMetadataTest& operator=(
-      const V4SafeBrowsingServiceMetadataTest&) = delete;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-// Irrespective of the threat_type classification, if the main frame URL is
-// marked as Malware, an interstitial should be shown.
-IN_PROC_BROWSER_TEST_P(V4SafeBrowsingServiceMetadataTest, MalwareMainFrame) {
-  GURL url = embedded_test_server()->GetURL(kEmptyPage);
-  MarkUrlForMalwareUnexpired(url, GetParam());
-
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), url));
-  // All types should show the interstitial.
-  EXPECT_TRUE(ShowingInterstitialPage());
-
-  EXPECT_TRUE(got_warning_shown_report());
-  EXPECT_EQ(url, report().url());
-  EXPECT_EQ(url, report().page_url());
-  EXPECT_EQ(GURL(), report().referrer_url());
-}
-
-INSTANTIATE_TEST_SUITE_P(
-    MaybeSetMetadata,
-    V4SafeBrowsingServiceMetadataTest,
-    testing::Values(ThreatPatternType::NONE,
-                    ThreatPatternType::MALWARE_LANDING,
-                    ThreatPatternType::MALWARE_DISTRIBUTION));
 
 }  // namespace safe_browsing

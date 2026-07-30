@@ -64,6 +64,7 @@
 
 class BackgroundContents;
 class BrowserActions;
+class BrowserInitState;
 class BrowserView;
 class BrowserWindow;
 class BrowserWindowFeatures;
@@ -288,10 +289,6 @@ class Browser : public TabStripModelObserver,
     // 2) undocked devtool windows.
     // 3) popup windows spawned from v1 applications.
     std::string app_name;
-
-    // When set to true, skip initializing |window_| and everything that depends
-    // on it.
-    bool skip_window_init_for_testing = false;
   };
 
   // Constructors, Creation, Showing //////////////////////////////////////////
@@ -306,8 +303,8 @@ class Browser : public TabStripModelObserver,
   // for the browser - the created BrowserWindow will take the ownership of the
   // created Browser instance.
   //
-  // If |params.window| or |params.skip_window_init_for_testing| are set, the
-  // caller is expected to take the ownership of the created Browser instance.
+  // If |params.window| is set, the caller is expected to take the ownership
+  // of the created Browser instance.
   static Browser* Create(const CreateParams& params);
 
   // WARNING: Use of this is DEPRECATED and exists only to support pre-existing
@@ -327,26 +324,16 @@ class Browser : public TabStripModelObserver,
   ~Browser() override;
 
   // Set overrides for the initial window bounds and maximized state.
-  void set_override_bounds(const gfx::Rect& bounds) {
-    override_bounds_ = bounds;
-  }
-  ui::mojom::WindowShowState initial_show_state() const {
-    return initial_show_state_;
-  }
-  void set_initial_show_state(ui::mojom::WindowShowState initial_show_state) {
-    initial_show_state_ = initial_show_state;
-  }
+  void set_override_bounds(const gfx::Rect& bounds);
+  ui::mojom::WindowShowState initial_show_state() const;
+  void set_initial_show_state(ui::mojom::WindowShowState initial_show_state);
   // Return true if the initial window bounds have been overridden.
-  bool bounds_overridden() const { return !override_bounds_.IsEmpty(); }
+  bool bounds_overridden() const;
   // Set indicator that this browser is being created via session restore.
   // This is used on the Mac (only) to determine animation style when the
   // browser window is shown.
-  void set_is_session_restore(bool is_session_restore) {
-    creation_source_ = CreationSource::kSessionRestore;
-  }
-  bool is_session_restore() const {
-    return creation_source_ == CreationSource::kSessionRestore;
-  }
+  void set_is_session_restore(bool is_session_restore);
+  bool is_session_restore() const;
 
   // Sets whether the UI should be immediately updated when scheduled on a
   // test.
@@ -356,50 +343,22 @@ class Browser : public TabStripModelObserver,
 
   // Accessors ////////////////////////////////////////////////////////////////
 
-  const CreateParams& create_params() const { return create_params_; }
+  const CreateParams& create_params() const;
   Type type() const { return type_; }
   const std::string& app_name() const { return app_name_; }
-  std::optional<bool> is_vertical_tabs_initially_collapsed() const {
-    return initial_vertical_tab_strip_collapsed_;
-  }
-  std::optional<int> get_vertical_tabs_initial_uncollapsed_width() const {
-    return initial_vertical_tab_strip_uncollapsed_width_;
-  }
+  std::optional<bool> is_vertical_tabs_initially_collapsed() const;
+  std::optional<int> get_vertical_tabs_initial_uncollapsed_width() const;
   Profile* profile() const { return profile_; }
-  gfx::Rect override_bounds() const { return override_bounds_; }
-  const std::string& initial_workspace() const { return initial_workspace_; }
-  bool initial_visible_on_all_workspaces_state() const {
-    return initial_visible_on_all_workspaces_state_;
-  }
-  CreationSource creation_source() const { return creation_source_; }
-
-  // |window()| will return NULL if called before |CreateBrowserWindow()|
-  // is done.
-  BrowserWindow* window() const { return window_.get(); }
+  gfx::Rect override_bounds() const;
+  const std::string& initial_workspace() const;
+  bool initial_visible_on_all_workspaces_state() const;
+  CreationSource creation_source() const;
 
   // In production code, each instance of Browser will always instantiate an
   // instance of BrowserView in the constructor. Some tests instantiate a
   // Browser without a BrowserView: this is an anti-pattern and should be
   // avoided.
   BrowserView& GetBrowserView();
-
-  // Never nullptr.
-  //
-  // When the last tab is removed, the browser attempts to close, see
-  // TabStripEmpty().
-  // TODO(https://crbug.com/331031753): Several existing Browser::Types never
-  // show a tab strip, yet are forced to work with the tab strip API to deal
-  // with the previous condition. This creates confusing control flow both for
-  // the tab strip and this class. One or both of the following should happen:
-  //  (1) tab_strip_model_ should become an optional member.
-  //  (2) Variations of Browser::Type that never show a tab strip should not use
-  //      this class.
-  TabStripModel* tab_strip_model() const { return tab_strip_model_.get(); }
-
-  // Never nullptr.
-  TabStripModelDelegate* tab_strip_model_delegate() const {
-    return tab_strip_model_delegate_.get();
-  }
 
   BrowserActions* browser_actions() { return GetActions(); }
 
@@ -409,10 +368,8 @@ class Browser : public TabStripModelObserver,
   }
 
   SessionID session_id() const { return session_id_; }
-  bool omit_from_session_restore() const { return omit_from_session_restore_; }
-  bool should_trigger_session_restore() const {
-    return should_trigger_session_restore_;
-  }
+  bool omit_from_session_restore() const;
+  bool should_trigger_session_restore() const;
 
   BrowserWindowFeatures* browser_window_features() const {
     return features_.get();
@@ -599,17 +556,15 @@ class Browser : public TabStripModelObserver,
   std::vector<tabs::TabInterface*> GetAllTabInterfaces() override;
   Browser* GetBrowserForMigrationOnly() override;
   const Browser* GetBrowserForMigrationOnly() const override;
-  bool IsTabModalPopupDeprecated() const override;
+  bool IsTabModalPopup() const override;
+  void SetIsTabModalPopup(
+      bool is_tab_modal_popup,
+      base::PassKey<internal::ScopedBrowserShower>) override;
   bool CreatedBySessionRestore() const override;
   ui::BaseWindow* GetWindow() override;
   const ui::BaseWindow* GetWindow() const override;
   DesktopBrowserWindowCapabilities* capabilities() override;
   const DesktopBrowserWindowCapabilities* capabilities() const override;
-
-  // Called by BrowserView.
-  void set_is_tab_modal_popup_deprecated(bool is_tab_modal_popup_deprecated) {
-    is_tab_modal_popup_deprecated_ = is_tab_modal_popup_deprecated;
-  }
 
   // Called by BrowserView on active change for the browser.
   void DidBecomeActive();
@@ -716,8 +671,7 @@ class Browser : public TabStripModelObserver,
       const content::StoragePartitionConfig& partition_config,
       content::SessionStorageNamespace* session_storage_namespace) override;
   void WebContentsCreated(content::WebContents* source_contents,
-                          int opener_render_process_id,
-                          int opener_render_frame_id,
+                          const content::GlobalRenderFrameHostId& opener_id,
                           const std::string& frame_name,
                           const GURL& target_url,
                           content::WebContents* new_contents) override;
@@ -948,9 +902,6 @@ class Browser : public TabStripModelObserver,
 
   PrefChangeRegistrar profile_pref_registrar_;
 
-  // This Browser's create params.
-  const CreateParams create_params_;
-
   // This Browser's type.
   const Type type_;
 
@@ -980,15 +931,6 @@ class Browser : public TabStripModelObserver,
   // across sessions.
   const SessionID session_id_;
 
-  // Whether this Browser should be omitted from being saved/restored by session
-  // restore.
-  bool omit_from_session_restore_ = false;
-
-  // If true, a new window opening should be treated like the start of a session
-  // (with potential session restore, startup URLs, etc.). Otherwise, don't
-  // restore the session.
-  const bool should_trigger_session_restore_;
-
   // UI update coalescing and handling ////////////////////////////////////////
 
   typedef std::map<const content::WebContents*, int> UpdateMap;
@@ -1003,24 +945,8 @@ class Browser : public TabStripModelObserver,
 
   /////////////////////////////////////////////////////////////////////////////
 
-  // Override values for the bounds of the window and its maximized or minimized
-  // state.
-  // These are supplied by callers that don't want to use the default values.
-  // The default values are typically loaded from local state (last session),
-  // obtained from the last window of the same type, or obtained from the
-  // shell shortcut's startup info.
-  gfx::Rect override_bounds_;
-  ui::mojom::WindowShowState initial_show_state_;
-  const std::string initial_workspace_;
-  bool initial_visible_on_all_workspaces_state_;
-
-  CreationSource creation_source_ = CreationSource::kUnknown;
-
   // True if the browser window has been shown at least once.
   bool window_has_shown_;
-
-  std::optional<bool> initial_vertical_tab_strip_collapsed_;
-  std::optional<int> initial_vertical_tab_strip_uncollapsed_width_;
 
   std::unique_ptr<ScopedKeepAlive> keep_alive_;
 
@@ -1039,11 +965,8 @@ class Browser : public TabStripModelObserver,
   // shortly (after a PostTask).
   bool is_delete_scheduled_ = false;
 
-  // Do not use this. Instead, create a views::Widget and use helpers like
-  // TabDialogManager.
-  // If true, the browser window was created as a tab modal pop-up. This is
-  // determined by the NavigateParams::is_tab_modal_popup_deprecated.
-  bool is_tab_modal_popup_deprecated_ = false;
+  // If true, the browser window was created as a tab modal pop-up.
+  bool is_tab_modal_popup_ = false;
 
   using BrowserDidCloseCallbackList =
       base::RepeatingCallbackList<void(BrowserWindowInterface*)>;
@@ -1067,6 +990,12 @@ class Browser : public TabStripModelObserver,
   DidBecomeInactiveCallbackList did_become_inactive_callback_list_;
 
   ui::UnownedUserDataHost unowned_user_data_host_;
+
+  // Creation and initial parameters of this browser window. Constructed early
+  // (before `features_` and the window) so downstream features and window setup
+  // can query it. Declared after `unowned_user_data_host_` so it is destroyed
+  // before the host it registers with.
+  std::unique_ptr<BrowserInitState> init_state_;
 
   std::unique_ptr<BrowserWindowFeatures> features_;
 

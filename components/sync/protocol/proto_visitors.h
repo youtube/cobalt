@@ -6,6 +6,7 @@
 #define COMPONENTS_SYNC_PROTOCOL_PROTO_VISITORS_H_
 
 #include "components/sync/base/data_type.h"
+#include "components/sync/protocol/agile_encryption_keys.pb.h"
 #include "components/sync/protocol/ai_thread_specifics.pb.h"
 #include "components/sync/protocol/app_list_specifics.pb.h"
 #include "components/sync/protocol/app_setting_specifics.pb.h"
@@ -25,6 +26,7 @@
 #include "components/sync/protocol/data_type_state.pb.h"
 #include "components/sync/protocol/deletion_origin.pb.h"
 #include "components/sync/protocol/dictionary_specifics.pb.h"
+#include "components/sync/protocol/encrypted_tab_context_container_specifics.pb.h"
 #include "components/sync/protocol/encryption.pb.h"
 #include "components/sync/protocol/entity_metadata.pb.h"
 #include "components/sync/protocol/entity_specifics.pb.h"
@@ -130,6 +132,31 @@
   void VisitProtoFields(V& visitor, proto)
 
 namespace syncer {
+
+VISIT_PROTO_FIELDS(const sync_pb::AgileSymmetricKey& proto) {
+  VISIT(legacy_nigori);
+  VISIT(aes_256_gcm);
+  VISIT(chacha20_poly1305);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::AgileSymmetricKey::Aes256GcmKey& proto) {
+  VISIT_SECRET(key);
+}
+
+VISIT_PROTO_FIELDS(
+    const sync_pb::AgileSymmetricKey::Chacha20Poly1305Key& proto) {
+  VISIT_SECRET(key);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::AgileSymmetricKeySet& proto) {
+  VISIT(primary_key_id);
+  VISIT_REP(key);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::AgileSymmetricKeySet::Key& proto) {
+  VISIT(key_data);
+  VISIT(key_id);
+}
 
 VISIT_PROTO_FIELDS(const sync_pb::AppListSpecifics& proto) {
   VISIT(item_id);
@@ -708,6 +735,14 @@ VISIT_PROTO_FIELDS(const sync_pb::DictionarySpecifics& proto) {
 VISIT_PROTO_FIELDS(const sync_pb::EncryptedData& proto) {
   VISIT(key_name);
   VISIT_BYTES(blob);
+  VISIT_BYTES(blob_v2);
+  VISIT(key_id_v2);
+}
+
+VISIT_PROTO_FIELDS(
+    const sync_pb::EncryptedTabContextContainerSpecifics& proto) {
+  VISIT(uuid);
+  VISIT(encryption_key);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::EntityMetadata& proto) {
@@ -740,7 +775,7 @@ VISIT_PROTO_FIELDS(
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
-  static_assert(63 == GetNumDataTypes(),
+  static_assert(64 == GetNumDataTypes(),
                 "When adding a new protocol type, you will likely need to add "
                 "it here as well.");
   VISIT(encrypted);
@@ -763,6 +798,7 @@ VISIT_PROTO_FIELDS(const sync_pb::EntitySpecifics& proto) {
   VISIT(cookie);
   VISIT(device_info);
   VISIT(dictionary);
+  VISIT(encrypted_tab_context_container);
   VISIT(extension);
   VISIT(extension_setting);
   VISIT(history);
@@ -973,6 +1009,13 @@ VISIT_PROTO_FIELDS(const sync_pb::CrossUserSharingPublicKey& proto) {
 VISIT_PROTO_FIELDS(const sync_pb::CrossUserSharingPrivateKey& proto) {
   VISIT(version);
   VISIT(x25519_private_key);
+}
+
+VISIT_PROTO_FIELDS(const sync_pb::NigoriKey& proto) {
+  VISIT(deprecated_name);
+  VISIT_SECRET(deprecated_user_key);
+  VISIT_SECRET(encryption_key);
+  VISIT_SECRET(mac_key);
 }
 
 VISIT_PROTO_FIELDS(const sync_pb::NigoriSpecifics& proto) {

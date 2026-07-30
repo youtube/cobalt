@@ -4,10 +4,10 @@
 
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_host_view.h"
 
-#include <algorithm>
 #include <memory>
 
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_result_handler.mojom.h"
 #include "chrome/browser/ui/webui/drive_picker_host/drive_picker_host_ui.h"
@@ -16,25 +16,25 @@
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/web_contents.h"
 #include "third_party/blink/public/common/input/web_input_event.h"
+#include "third_party/blink/public/mojom/window_features/window_features.mojom.h"
 #include "third_party/skia/include/core/SkColor.h"
-#include "ui/base/base_window.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
+#include "ui/base/window_open_disposition.h"
 #include "ui/compositor/layer.h"
 #include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/gfx/geometry/rounded_corners_f.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/controls/webview/webview.h"
 #include "ui/views/layout/fill_layout.h"
-#include "ui/views/layout/layout_provider.h"
 #include "ui/views/view_utils.h"
 #include "ui/views/widget/widget.h"
 
-
-
 DrivePickerHostView::DrivePickerHostView(
     Profile* profile,
-    BrowserWindowInterface* browser_window_interface)
-    : browser_window_interface_(browser_window_interface) {
+    BrowserWindowInterface* browser_window_interface,
+    drive_picker_host::DrivePickerHostRequest::RequestType initial_ui_type)
+    : browser_window_interface_(browser_window_interface),
+      current_ui_type_(initial_ui_type) {
   // Set the view to paint to a layer so that the view can be transparent over
   // the web contents. This allows the web contents to appear like a floating
   // dialog over the browser window.
@@ -60,7 +60,16 @@ DrivePickerHostView::DrivePickerHostView(
   AddAccelerator(ui::Accelerator(ui::VKEY_ESCAPE, ui::EF_NONE));
 }
 
-DrivePickerHostView::~DrivePickerHostView() = default;
+DrivePickerHostView::~DrivePickerHostView() {
+  content::WebContents* contents = GetWebContents();
+  if (contents && contents->GetWebUI()) {
+    auto* drive_picker_host_ui =
+        contents->GetWebUI()->GetController()->GetAs<DrivePickerHostUI>();
+    if (drive_picker_host_ui) {
+      drive_picker_host_ui->set_delegate(nullptr);
+    }
+  }
+}
 
 content::WebContents* DrivePickerHostView::GetWebContents() {
   if (!view_tracker_.view()) {
@@ -72,7 +81,25 @@ content::WebContents* DrivePickerHostView::GetWebContents() {
 
 gfx::Size DrivePickerHostView::CalculatePreferredSize(
     const views::SizeBounds& available_size) const {
-  return gfx::Size(830, 600);
+  gfx::Size size;
+  if (current_ui_type_ ==
+      drive_picker_host::DrivePickerHostRequest::RequestType::kConsentDialog) {
+    // Tight fit for the Google ConsentKit card
+    size = gfx::Size(520, 580);
+  } else {
+    // Standard size for the Google Drive Picker UI
+    size = gfx::Size(830, 600);
+  }
+  return size;
+}
+
+void DrivePickerHostView::OnTransitionToPicker() {
+  current_ui_type_ =
+      drive_picker_host::DrivePickerHostRequest::RequestType::kPickerUi;
+  PreferredSizeChanged();
+  if (GetWidget()) {
+    GetWidget()->CenterWindow(GetPreferredSize());
+  }
 }
 
 void DrivePickerHostView::RequestFocus() {
@@ -113,6 +140,12 @@ bool DrivePickerHostView::AcceleratorPressed(
 
 void DrivePickerHostView::TriggerDrivePickerHostUi(
     std::unique_ptr<drive_picker_host::DrivePickerHostRequest> request) {
+  current_ui_type_ = request->type();
+  PreferredSizeChanged();
+  if (GetWidget()) {
+    GetWidget()->CenterWindow(GetPreferredSize());
+  }
+
   if (!view_tracker_.view()) {
     mojo::PendingRemote<drive_picker_host::mojom::DrivePickerResultHandler>
         handler = request->TakeResultHandler();
@@ -140,6 +173,7 @@ void DrivePickerHostView::TriggerDrivePickerHostUi(
     auto* drive_picker_host_ui =
         contents->GetWebUI()->GetController()->GetAs<DrivePickerHostUI>();
     if (drive_picker_host_ui) {
+      drive_picker_host_ui->set_delegate(this);
       drive_picker_host_ui->TriggerDrivePickerHost(std::move(request));
       return;
     }
@@ -162,6 +196,48 @@ void DrivePickerHostView::SendErrorToRequest(
         request->TakeResultHandler())
         ->OnError(error);
   }
+}
+
+content::WebContents* DrivePickerHostView::OpenURLFromTab(
+    content::WebContents* source,
+    const content::OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
+  if (!browser_window_interface_) {
+    return nullptr;
+  }
+  content::OpenURLParams new_params(params);
+  if (new_params.disposition == WindowOpenDisposition::CURRENT_TAB ||
+      new_params.disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB) {
+    new_params.disposition = WindowOpenDisposition::NEW_WINDOW;
+  }
+  return browser_window_interface_->OpenURL(
+      new_params, std::move(navigation_handle_callback));
+}
+
+content::WebContents* DrivePickerHostView::AddNewContents(
+    content::WebContents* source,
+    std::unique_ptr<content::WebContents> new_contents,
+    const GURL& target_url,
+    WindowOpenDisposition disposition,
+    const blink::mojom::WindowFeatures& window_features,
+    bool user_gesture,
+    bool* was_blocked) {
+  if (!browser_window_interface_) {
+    if (was_blocked) {
+      *was_blocked = true;
+    }
+    return nullptr;
+  }
+  WindowOpenDisposition new_disposition = disposition;
+  if (new_disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB ||
+      new_disposition == WindowOpenDisposition::CURRENT_TAB) {
+    new_disposition = WindowOpenDisposition::NEW_WINDOW;
+  }
+  chrome::AddWebContents(browser_window_interface_, source,
+                         std::move(new_contents), target_url, new_disposition,
+                         window_features);
+  return nullptr;
 }
 
 content::KeyboardEventProcessingResult

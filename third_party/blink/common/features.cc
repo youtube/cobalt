@@ -51,6 +51,12 @@ BASE_FEATURE_PARAM(int,
                    "ad-auction-signals-max-size-bytes",
                    10000);
 
+// Controls whether JavaScript execution inside AudioWorkletProcessor::Process()
+// runs under strict IEEE-754 floating-point semantics (disabling FTZ/DAZ).
+// Enabled by default as a remote kill-switch.
+BASE_FEATURE(kAudioWorkletJSDenormalEnabler,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 #if BUILDFLAG(IS_ANDROID)
 // If enabled, then use desktop page webprefs for Android devices that have
 // large displays, specifically tablets and desktops.
@@ -147,13 +153,11 @@ BASE_FEATURE(kAudioWorkletThreadRealtimePeriodMac,
 // instances.
 BASE_FEATURE(kAudioWorkletThreadPool, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled, WebFormElement applies the same special case to nested forms
-// as it does for the outermost form. The fix is relevant only to Autofill.
-// For other callers of HTMLFormElement::ListedElements(), which don't traverse
-// shadow trees and flatten nested forms, are not affected by the feature at
-// all. This is a kill switch.
-BASE_FEATURE(kAutofillFixFieldsAssociatedWithNestedFormsByParser,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+// If enabled, Blink informs WebAutofillClient not only about keydown events on
+// text-type <input> but also on <textarea> and contenteditables, and
+// WebAutofillClient may default-handle any of these events.
+BASE_FEATURE(kAutofillKeydownEditableElement,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // https://crbug.com/1472970
 BASE_FEATURE(kAutoSpeculationRules, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -500,6 +504,8 @@ BASE_FEATURE_PARAM(bool,
                    true);
 
 BASE_FEATURE(kDataUrlWorkerOpaqueOrigin, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDecodeScriptsInBlink, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, HTMLTreeBuilder::Flush() will be throttled in kTextMode
 // to reduce O(n^2) string copies.
@@ -2008,6 +2014,11 @@ BASE_FEATURE_PARAM(bool,
 // out of process.  Has no effect when kCanvasOopRasterization is disabled.
 BASE_FEATURE(kPath2DPaintCache, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// TODO(mcnee): Required for merge safety to M151. Default enable and remove
+// after this release.
+BASE_FEATURE(kPopulateDOMNodeIdInFocusedNodeDetails,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kDedicatedWorkerAblationStudyEnabled,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2659,17 +2670,7 @@ BASE_FEATURE(kVisualRectMappingApplyLocalVisualViewportTransform,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebBluetoothCancelConnect,
-// TODO(382556910): Enable on Windows when DCHECK issue is resolved.
-// TODO(40502943): Enable on Android when connect callback can be called when
-// cancelled.
-// GATT connect on Windows/Android will timeout after a few seconds if the
-// device is unreachable, so it does not have hang issue like MacOS which
-// definitely needs cancel to get from the hang state.
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kWebRtcUseCaptureBeginTimestamp, base::FEATURE_ENABLED_BY_DEFAULT);
 

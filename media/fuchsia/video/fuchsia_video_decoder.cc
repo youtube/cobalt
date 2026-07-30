@@ -142,8 +142,9 @@ class FuchsiaVideoDecoder::OutputMailbox {
             std::move(gmb_handle));
     CHECK(shared_image_);
 
-    create_sync_token_ = raster_context_provider_->SharedImageInterface()
-                             ->GenVerifiedSyncToken();
+    create_sync_token_ = shared_image_->creation_sync_token();
+    raster_context_provider_->SharedImageInterface()->VerifySyncToken(
+        create_sync_token_);
   }
 
   OutputMailbox(const OutputMailbox&) = delete;
@@ -559,13 +560,14 @@ void FuchsiaVideoDecoder::OnStreamProcessorOutputPacket(
       pixel_format = PIXEL_FORMAT_NV12;
       si_format = viz::MultiPlaneFormat::kNV12;
       break;
-
     case fuchsia::images2::PixelFormat::I420:
-    case fuchsia::images2::PixelFormat::YV12:
       pixel_format = PIXEL_FORMAT_I420;
+      si_format = viz::MultiPlaneFormat::kI420;
+      break;
+    case fuchsia::images2::PixelFormat::YV12:
+      pixel_format = PIXEL_FORMAT_YV12;
       si_format = viz::MultiPlaneFormat::kYV12;
       break;
-
     default:
       DLOG(ERROR) << "Unsupported pixel format: "
                   << static_cast<int>(sysmem_pixel_format);

@@ -127,11 +127,26 @@ class MockToolbarUIDelegate
                ::toolbar_ui_api::mojom::ToolbarUIService::
                    ShowContentSettingsBubbleCallback callback),
               (override));
+  MOCK_METHOD(
+      void,
+      OnPageActionClick,
+      (::toolbar_ui_api::mojom::PageActionId action_id,
+       ::toolbar_ui_api::mojom::PageActionTrigger trigger,
+       ::toolbar_ui_api::mojom::ToolbarUIService::OnPageActionClickCallback
+           callback),
+      (override));
+  MOCK_METHOD(void,
+              OnPageActionChipShowingChanged,
+              (::toolbar_ui_api::mojom::PageActionId action_id,
+               ::toolbar_ui_api::mojom::ToolbarUIService::
+                   OnPageActionChipShowingChangedCallback callback),
+              (override));
   MOCK_METHOD(void, OnPageInitialized, (), (override));
   MOCK_METHOD(void,
               InvokePinnedToolbarAction,
               (toolbar_ui_api::mojom::PinnedToolbarAction),
               (override));
+  MOCK_METHOD(void, OnLocationBarFocusWithinChanged, (bool), (override));
   MOCK_METHOD(void,
               OnLhsChipMousePressed,
               (toolbar_ui_api::mojom::LhsChipIdentifier),
@@ -173,6 +188,21 @@ class MockToolbarUIDelegate
   MOCK_METHOD(void, SetAvatarButtonFocused, (bool));
   MOCK_METHOD(void, SetAvatarButtonIPHPromoShowing, (bool));
   MOCK_METHOD(void, OnAppMenuFocusChanged, (bool), (override));
+  MOCK_METHOD(void,
+              ExecuteExtensionAction,
+              (const std::string& extension_id),
+              (override));
+  MOCK_METHOD(void,
+              ShowExtensionContextMenu,
+              (const std::string& extension_id,
+               ui::mojom::MenuSourceType source),
+              (override));
+  MOCK_METHOD(
+      (base::expected<toolbar_ui_api::mojom::AdjustOmniboxTextForCopyResultPtr,
+                      mojo_base::mojom::ErrorPtr>),
+      AdjustOmniboxTextForCopy,
+      (const std::u16string&, int32_t),
+      (override));
 };
 
 // Test fixture for WebUIToolbarUI. These tests test the connectivity between

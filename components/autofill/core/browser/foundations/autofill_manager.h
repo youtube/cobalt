@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <variant>
 #include <vector>
 
@@ -36,12 +37,14 @@
 #include "build/build_config.h"
 #include "components/autofill/core/browser/crowdsourcing/autofill_crowdsourcing_manager.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/filling/field_filling_skip_reason.h"
 #include "components/autofill/core/browser/filling/form_filler.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "components/autofill/core/browser/heuristic_source.h"
 #include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/common/aliases.h"
+#include "components/autofill/core/common/dense_set.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/language_code.h"
 #include "components/autofill/core/common/mojom/autofill_types.mojom.h"
@@ -232,6 +235,8 @@ class AutofillManager
         FieldGlobalId trigger_field_id,
         mojom::ActionPersistence action_persistence,
         const base::flat_set<FieldGlobalId>& filled_field_ids,
+        const base::flat_map<FieldGlobalId, DenseSet<FieldFillingSkipReason>>&
+            skip_reasons,
         const FillingPayload& filling_payload) {}
 
     // Fired when a single field is previewed or filled.
@@ -270,6 +275,19 @@ class AutofillManager
         const FormData& form,
         const FieldGlobalId& field) {}
   };
+
+  template <bool IsConst>
+  struct FormAndFieldT {
+    STACK_ALLOCATED();
+
+   public:
+    std::conditional_t<IsConst, const FormStructure*, FormStructure*>
+        form_structure = nullptr;
+    std::conditional_t<IsConst, const AutofillField*, AutofillField*>
+        autofill_field = nullptr;
+  };
+  using FormAndField = FormAndFieldT<true>;
+  using MutableFormAndField = FormAndFieldT<false>;
 
   AutofillManager(const AutofillManager&) = delete;
   AutofillManager& operator=(const AutofillManager&) = delete;
@@ -334,6 +352,13 @@ class AutofillManager
       const FormData& form,
       const FieldGlobalId& field_id);
 
+  // Invoked when the renderer suspects a custom JavaScript autofill event has
+  // occurred.
+  virtual void OnDidDetectJavaScriptAutofill(
+      const FormData& form,
+      const FieldGlobalId& trigger_field_id,
+      const std::vector<FieldGlobalId>& field_ids);
+
   // Routes calls from external components to FormFiller::FillOrPreviewField.
   // Virtual for testing.
   virtual void FillOrPreviewField(mojom::ActionPersistence action_persistence,
@@ -378,6 +403,12 @@ class AutofillManager
   // Searches for any cached form that contains a field with `field_id`.
   // Runs in linear time.
   const FormStructure* FindCachedFormById(const FieldGlobalId& field_id) const;
+
+  // Returns the form and field corresponding to `form_id` and `field_id`. The
+  // returned `FormAndField` may not contain the form or field if the form is
+  // not autofillable or if either the form or the field cannot be found.
+  FormAndField FindFormAndField(const FormGlobalId& form_id,
+                                const FieldGlobalId& field_id) const;
 
   // Calls `fun` for each cached FormStructure.
   void ForEachCachedForm(
@@ -485,6 +516,10 @@ class AutofillManager
       const FormData& form,
       const FieldGlobalId& field_id,
       const std::u16string& old_value) = 0;
+  virtual void OnDidDetectJavaScriptAutofillImpl(
+      const FormData& form,
+      const FieldGlobalId& trigger_field_id,
+      const std::vector<FieldGlobalId>& field_ids) = 0;
   virtual void OnLoadedServerPredictionsImpl(
       base::span<const raw_ref<FormStructure>> forms) = 0;
 

@@ -135,10 +135,13 @@ import java.util.concurrent.TimeUnit;
     ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE,
     "disable-features=IPH_FeedHeaderMenu"
 })
+@EnableFeatures(
+        ChromeFeatureList.HOME_BUTTON_REMOVAL
+                + ":set_default_to_false_on_homepage_on_desktop/false")
 public class NewTabPageTest {
     private static final int ARTICLE_SECTION_HEADER_POSITION = 1;
 
-    private static final int RENDER_TEST_REVISION = 8;
+    private static final int RENDER_TEST_REVISION = 9;
 
     private static final String HISTOGRAM_NTP_MODULE_CLICK = "NewTabPage.Module.Click";
     private static final String HISTOGRAM_NTP_MODULE_LONGCLICK = "NewTabPage.Module.LongClick";
@@ -265,6 +268,7 @@ public class NewTabPageTest {
     @MediumTest
     @Restriction(DeviceFormFactor.PHONE)
     @Feature({"NewTabPage"})
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
     public void testToolBar_Phone() {
         ViewGroup toolBar = mActivityTestRule.getActivity().findViewById(R.id.toolbar);
         int[] toolbarContentIds =
@@ -833,6 +837,7 @@ public class NewTabPageTest {
     @Test
     @SmallTest
     @DisableIf.Build(sdk_equals = Build.VERSION_CODES.S_V2, message = "crbug.com/40901674")
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
     public void testRecordHistogramHomeButtonClick_Ntp() {
         HistogramWatcher histogramWatcher = expectHomeButtonRecordForNtpModuleClick();
         onView(withId(R.id.home_button)).perform(click());
@@ -902,6 +907,7 @@ public class NewTabPageTest {
      */
     @Test
     @SmallTest
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
     public void testRecordHistogramMenuButtonClick_Ntp() {
         HistogramWatcher histogramWatcher =
                 HistogramWatcher.newSingleRecordWatcher(

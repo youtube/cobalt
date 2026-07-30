@@ -7,7 +7,7 @@
 
 #import <UIKit/UIKit.h>
 
-#import <string>
+#import <string_view>
 
 #import "ios/chrome/browser/scoped_ui_blocker/ui_bundled/ui_blocker_target.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_activation_level.h"
@@ -18,11 +18,13 @@
 @protocol BrowserProviderInterface;
 @class IncognitoState;
 @class LayoutState;
+@class LensOverlayStateNotifier;
 @class ProfileState;
 @class SceneController;
 @class SceneState;
 @class SceneStatePrefs;
 class SigninInProgress;
+struct SceneStateOptions;
 @class SceneUIBlockerState;
 @class TabGridState;
 
@@ -91,11 +93,10 @@ class SigninInProgress;
 
 // The persistent identifier for the scene session. This should be used instead
 // of -[UISceneSession persistentIdentifier].
-@property(nonatomic, readonly) const std::string& sceneSessionID;
+@property(nonatomic, readonly) std::string_view sceneSessionID;
 
 // The controller for this scene.
 @property(nonatomic, weak) SceneController* controller;
-
 
 // When this is YES, the scene either resumed or started up in response to an
 // external intent.
@@ -135,6 +136,10 @@ class SigninInProgress;
 // Object containing the state of the layout.
 @property(nonatomic, strong, readonly) LayoutState* layoutState;
 
+// Object used to notify of changes to the LensOverlay state.
+@property(nonatomic, strong, readonly)
+    LensOverlayStateNotifier* lensOverlayStateNotifier;
+
 // Object allowing access to the SceneState scoped preferences.
 @property(nonatomic, readonly) SceneStatePrefs* prefs;
 
@@ -154,6 +159,9 @@ class SigninInProgress;
 // Records that an extra sign-in process started. When the returned value is
 // destructed, the sign-in ended.
 - (std::unique_ptr<SigninInProgress>)createSigninInProgress;
+
+// Connects the SceneState with the given `options`.
+- (void)connectWithOptions:(SceneStateOptions)options;
 
 @end
 

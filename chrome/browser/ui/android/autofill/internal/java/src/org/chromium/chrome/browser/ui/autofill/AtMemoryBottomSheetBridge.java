@@ -69,13 +69,15 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
             @JniType("std::u16string") String subLabel,
             int iconId,
             int suggestionType,
-            @JniType("std::vector") List<AutofillSuggestion> children) {
+            @JniType("std::vector") List<AutofillSuggestion> children,
+            boolean isAcceptable) {
         return new AutofillSuggestion.Builder()
                 .setLabel(label)
                 .setSubLabel(subLabel)
                 .setIconId(iconId)
                 .setSuggestionType(suggestionType)
                 .setChildren(children)
+                .setIsAcceptable(isAcceptable)
                 .build();
     }
 
@@ -114,10 +116,25 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
     }
 
     @Override
+    public void onSearchFocus(boolean hasFocus) {
+        if (hasFocus) {
+            mCoordinator.expandSheet();
+        }
+    }
+
+    @Override
     public void onSuggestionClicked(int position) {
         if (mNativeAtMemoryBottomSheetBridge != 0) {
             AtMemoryBottomSheetBridgeJni.get()
                     .onSuggestionSelected(mNativeAtMemoryBottomSheetBridge, position);
+        }
+    }
+
+    @Override
+    public void onChildSuggestionsShown(int parentPosition) {
+        if (mNativeAtMemoryBottomSheetBridge != 0) {
+            AtMemoryBottomSheetBridgeJni.get()
+                    .onChildSuggestionsShown(mNativeAtMemoryBottomSheetBridge, parentPosition);
         }
     }
 
@@ -147,6 +164,8 @@ public class AtMemoryBottomSheetBridge implements AtMemoryBottomSheetCoordinator
                 long nativeAtMemoryBottomSheetBridge, @JniType("std::u16string") String query);
 
         void onSuggestionSelected(long nativeAtMemoryBottomSheetBridge, int position);
+
+        void onChildSuggestionsShown(long nativeAtMemoryBottomSheetBridge, int parentPosition);
 
         void onChildSuggestionSelected(
                 long nativeAtMemoryBottomSheetBridge, int parentPosition, int childPosition);

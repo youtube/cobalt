@@ -6,10 +6,8 @@ import 'chrome://unexportable-keys-internals/app.js';
 
 import type {CrToastElement} from 'chrome://resources/cr_elements/cr_toast/cr_toast.js';
 import type {UnexportableKeysInternalsAppElement} from 'chrome://unexportable-keys-internals/app.js';
-import {UnexportableKeysInternalsBrowserProxyImpl} from 'chrome://unexportable-keys-internals/browser_proxy.js';
-import type {UnexportableKeysInternalsBrowserProxy} from 'chrome://unexportable-keys-internals/browser_proxy.js';
-import type {PageHandlerInterface, UnexportableKeyId, UnexportableKeyInfo} from 'chrome://unexportable-keys-internals/unexportable_keys_internals.mojom-webui.js';
-import {PageCallbackRouter} from 'chrome://unexportable-keys-internals/unexportable_keys_internals.mojom-webui.js';
+import {browserProxyFactory} from 'chrome://unexportable-keys-internals/unexportable_keys_internals.mojom-webui.js';
+import type {PageHandlerInterface, UnexportableKeyInfo, UnexportableSigningKeyId} from 'chrome://unexportable-keys-internals/unexportable_keys_internals.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
@@ -38,20 +36,9 @@ class TestPageHandler extends TestBrowserProxy implements PageHandlerInterface {
     this.deleteKeySuccess_ = success;
   }
 
-  deleteKey(keyId: UnexportableKeyId) {
+  deleteKey(keyId: UnexportableSigningKeyId) {
     this.methodCalled('deleteKey', keyId);
     return Promise.resolve({success: this.deleteKeySuccess_});
-  }
-}
-
-class TestUnexportableKeysInternalsBrowserProxy implements
-    UnexportableKeysInternalsBrowserProxy {
-  callbackRouter: PageCallbackRouter;
-  handler: TestPageHandler;
-
-  constructor(handler: TestPageHandler) {
-    this.callbackRouter = new PageCallbackRouter();
-    this.handler = handler;
   }
 }
 
@@ -83,8 +70,7 @@ suite('UnexportableKeysInternals', function() {
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     handler = new TestPageHandler();
     handler.setGetUnexportableKeysInfoResponse([sampleKey1, sampleKey2]);
-    UnexportableKeysInternalsBrowserProxyImpl.setInstance(
-        new TestUnexportableKeysInternalsBrowserProxy(handler));
+    browserProxyFactory.setInstance({handler});
 
     element = document.createElement('unexportable-keys-internals-app');
     document.body.appendChild(element);

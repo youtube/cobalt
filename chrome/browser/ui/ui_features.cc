@@ -41,9 +41,6 @@ BASE_FEATURE(kAllowEyeDropperWGCScreenCapture,
 #endif  // BUILDFLAG(IS_WIN)
 );
 
-// Updates the default dark neutrals for the theme palette.
-BASE_FEATURE(kChromeDarkNeutrals26, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kCompositorLoadingThrobber, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCreateNewTabGroupAppMenuTopLevel,
@@ -160,9 +157,6 @@ BASE_FEATURE_PARAM(int,
                    0);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
-// Enables the AI subscription level decorative ring around the user's avatar.
-BASE_FEATURE(kEnableAiSubscriptionAvatarRing,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Preloads a WebContents with a Top Chrome WebUI on BrowserView initialization,
 // so that it can be shown instantly at a later time when necessary.
@@ -338,6 +332,8 @@ BASE_FEATURE(kLensOverlayHomeworkPageActionFocusOptimization,
 
 BASE_FEATURE(kPageActionsMigration, base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kAiModePageActionOptimization, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationEnableAll,
                    &kPageActionsMigration,
@@ -363,21 +359,9 @@ BASE_FEATURE_PARAM(bool,
                    true);
 
 BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationCookieControls,
-                   &kPageActionsMigration,
-                   "cookie_controls",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationAutofillMandatoryReauth,
                    &kPageActionsMigration,
                    "mandatory_reauth",
-                   true);
-
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationAiMode,
-                   &kPageActionsMigration,
-                   "ai_mode",
                    true);
 
 BASE_FEATURE_PARAM(bool,
@@ -402,11 +386,6 @@ BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationSavePayments,
                    &kPageActionsMigration,
                    "save_payments",
-                   true);
-BASE_FEATURE_PARAM(bool,
-                   kPageActionsMigrationLensOverlayHomework,
-                   &kPageActionsMigration,
-                   "lens_overlay_homework",
                    true);
 BASE_FEATURE_PARAM(bool,
                    kPageActionsMigrationBookmarkStar,

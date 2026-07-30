@@ -75,6 +75,7 @@
 #include "third_party/blink/public/common/widget/device_emulation_params.h"
 #include "third_party/blink/public/mojom/blob/blob.mojom-blink.h"
 #include "third_party/blink/public/mojom/blob/data_element.mojom-blink.h"
+#include "third_party/blink/public/mojom/dom/dom_node_id.mojom-blink.h"
 #include "third_party/blink/public/mojom/fetch/fetch_api_request.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/find_in_page.mojom-blink.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-blink.h"
@@ -3597,7 +3598,7 @@ TEST_F(WebFrameTest, DivAutoZoomWideDivTest) {
       ConfigureAndroid);
   web_view_helper.Resize(gfx::Size(viewport_width, viewport_height));
   web_view_helper.GetWebView()->SetZoomFactorForDeviceScaleFactor(
-      kDeviceScaleFactor);
+      kDeviceScaleFactor, 1.0f);
   web_view_helper.GetWebView()->SetPageScaleFactor(1.0f);
   UpdateAllLifecyclePhases(web_view_helper.GetWebView());
 
@@ -3636,7 +3637,7 @@ TEST_F(WebFrameTest, DivAutoZoomVeryTallTest) {
                                     nullptr, ConfigureAndroid);
   web_view_helper.Resize(gfx::Size(viewport_width, viewport_height));
   web_view_helper.GetWebView()->SetZoomFactorForDeviceScaleFactor(
-      kDeviceScaleFactor);
+      kDeviceScaleFactor, 1.0f);
   web_view_helper.GetWebView()->SetPageScaleFactor(1.0f);
   UpdateAllLifecyclePhases(web_view_helper.GetWebView());
 
@@ -4429,7 +4430,7 @@ TEST_F(WebFrameTest, DivScrollIntoEditableTestWithDeviceScaleFactor) {
       nullptr, ConfigureAndroid);
   web_view_helper.Resize(gfx::Size(viewport_width, viewport_height));
   web_view_helper.GetWebView()->SetZoomFactorForDeviceScaleFactor(
-      kDeviceScaleFactor);
+      kDeviceScaleFactor, 1.0f);
   web_view_helper.GetWebView()->SetDefaultPageScaleLimits(0.25f, 4);
 
   web_view_helper.GetWebView()->EnableFakePageScaleAnimationForTesting(true);
@@ -13135,7 +13136,7 @@ TEST_F(WebFrameSimTest, ScrollFocusedEditableIntoViewNoLayoutObject) {
 
 TEST_F(WebFrameSimTest, ScrollEditContextIntoView) {
   WebView().MainFrameViewWidget()->Resize(gfx::Size(500, 600));
-  WebView().SetZoomFactorForDeviceScaleFactor(2.0f);
+  WebView().SetZoomFactorForDeviceScaleFactor(2.0f, 1.0f);
 
   SimRequest r("https://example.com/test.html", "text/html");
   LoadURL("https://example.com/test.html");
@@ -14230,7 +14231,8 @@ class TestFocusedElementChangedLocalFrameHost : public FakeLocalFrameHost {
   void FocusedElementChanged(bool is_editable_element,
                              bool is_richly_editable_element,
                              const gfx::Rect& bounds_in_frame_widget,
-                             blink::mojom::FocusType focus_type) override {
+                             blink::mojom::FocusType focus_type,
+                             mojom::blink::DOMNodeIdPtr dom_node_id) override {
     did_notify_ = true;
   }
 

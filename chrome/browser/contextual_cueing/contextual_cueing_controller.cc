@@ -87,7 +87,7 @@ namespace contextual_cueing {
 namespace {
 
 const char kHomepagePathRegex[] =
-    "(?i)(/(en\\/)?((index|default|home|homepage|main|welcome)(\\.[^/"
+    "(?i)(/((us/en|en)\\b/?)?((index|default|home|homepage|main|welcome)(\\.[^/"
     "?;]+)?)?)?";
 
 std::optional<CueTargetType> GetTargetType(
@@ -520,7 +520,7 @@ void ContextualCueingController::OnContentGenerated(
   if (!target) {
     return;
   }
-  ShowCue(type, *target, *cue);
+  ShowCue(type, *target, *cue, {});
 }
 
 void ContextualCueingController::InitiateModelExecutionRequest(
@@ -612,7 +612,10 @@ void ContextualCueingController::InitiateModelExecutionRequest(
       base::BindOnce(
           &ContextualCueingController::OnModelExecutionResponseReceived,
           weak_ptr_factory_.GetWeakPtr(),
-          GetTabProtoFromWebContents(active_web_contents)));
+          GetTabProtoFromWebContents(active_web_contents),
+          std::vector<optimization_guide::proto::Tab>(
+              request.background_tabs().begin(),
+              request.background_tabs().end())));
 }
 
 void ContextualCueingController::FetchFavicon(
@@ -631,6 +634,7 @@ void ContextualCueingController::FetchFavicon(
 
 void ContextualCueingController::OnModelExecutionResponseReceived(
     optimization_guide::proto::Tab active_tab,
+    std::vector<optimization_guide::proto::Tab> background_tabs,
     optimization_guide::OptimizationGuideModelExecutionResult result,
     std::unique_ptr<optimization_guide::ModelQualityLogEntry> log_entry) {
   tabs::TabInterface* current_active_tab = tab_list_interface_->GetActiveTab();
@@ -711,7 +715,7 @@ void ContextualCueingController::OnModelExecutionResponseReceived(
   }
 
   if (IsAllowedToShowCue() == ContextualCueingDecision::kUnspecified) {
-    ShowCue(*target_type, *target, cue);
+    ShowCue(*target_type, *target, cue, background_tabs);
   }
 }
 
@@ -918,7 +922,8 @@ ContextualCueingController::GetTabsToShow(
 void ContextualCueingController::ShowCue(
     CueTargetType cue_type,
     const CueTarget& target,
-    const optimization_guide::proto::ContextualCue& cue) {
+    const optimization_guide::proto::ContextualCue& cue,
+    const std::vector<optimization_guide::proto::Tab>& background_tabs) {
   auto [tabs_to_show, tab_metrics] = GetTabsToShow(cue);
   std::string cue_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
   CueActionData action_data =
@@ -941,7 +946,7 @@ void ContextualCueingController::ShowCue(
 
   RecordCueShownToPrivateInsights(browser_window_interface_->GetProfile(),
                                   cue_id, cue_type, cue, active_tab,
-                                  tabs_to_show);
+                                  tabs_to_show, background_tabs);
 
   cue_hidden_time_ = base::TimeTicks();
 #if BUILDFLAG(IS_ANDROID)
@@ -970,6 +975,7 @@ void ContextualCueingController::ShowCue(
   }
 
   ObserveSidePanel();
+  page_action_observer_->RegisterAsPageActionObserver(*page_action_controller);
 
   page_action_controller->Show(kActionAnchoredContextualCue);
   page_action_controller->SetAnchoredMessageIcon(
@@ -999,8 +1005,6 @@ void ContextualCueingController::ShowCue(
   CUEING_LOG(base::StringPrintf(
       "Showing cue for CUJ %s: %s [%s]", cue.suggested_cuj(),
       strings.anchored_message_text(), strings.action_text()));
-
-  page_action_observer_->RegisterAsPageActionObserver(*page_action_controller);
 
   contextual_cueing_service_->OnCueShown(
       active_tab->GetContents()->GetLastCommittedURL(), cue_type);

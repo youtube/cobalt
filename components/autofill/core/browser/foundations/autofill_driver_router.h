@@ -230,6 +230,14 @@ class AutofillDriverRouter {
       AutofillDriver& source,
       FormData form,
       const FieldGlobalId& field_id);
+  void DidDetectJavaScriptAutofill(
+      RoutedCallback<const FormData&,
+                     const FieldGlobalId&,
+                     const std::vector<FieldGlobalId>&> callback,
+      AutofillDriver& source,
+      FormData form,
+      FieldGlobalId trigger_field_id,
+      const std::vector<FieldGlobalId>& field_ids);
   void FocusOnFormField(
       RoutedCallback<const FormData&, const FieldGlobalId&> callback,
       AutofillDriver& source,
@@ -321,6 +329,10 @@ class AutofillDriverRouter {
                                   const std::string& email,
                                   const FieldGlobalId& token_field_id,
                                   const std::string& token);
+  void UpdateEmailVerificationState(
+      RoutedCallback<FieldRendererId, mojom::EmailVerificationState> callback,
+      const FieldGlobalId& email_field_id,
+      mojom::EmailVerificationState state);
   void ExposeDomNodeIdsInAllFrames(RoutedCallback<> callback);
   using BrowserFormHandler = AutofillDriver::BrowserFormHandler;
   using RendererFormHandler =

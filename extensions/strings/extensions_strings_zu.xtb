@@ -73,6 +73,7 @@ I-<ph name="EXTENSION_NAME" /></translation>
 <translation id="4233778200880751280">Ayikwazanga ukulayisha ikhasi elimayelana ne-'<ph name="ABOUT_PAGE" />'.</translation>
 <translation id="424963718355121712">Izinhlelo zokusebenza kumele zinikezwe kusukela kumsingathi ezingamthinta</translation>
 <translation id="4306119971288449206">Izinhlelo zokusebenza kumele zinikezwe ngohlobo lokuqukethwe kwe-"<ph name="CONTENT_TYPE" />"</translation>
+<translation id="4349181963619779233">Izandiso nama-app awakwazi ukufakwa kule webhusayithi</translation>
 <translation id="4625078469366263107">Nika amandla uhlelo lokusebenza</translation>
 <translation id="4633003931260532286">Kudingeka isandiso esingu-"<ph name="IMPORT_NAME" />" ngenguqulo encane engu-"<ph name="IMPORT_VERSION" />", kodwa inguqulo kuphela engu-"<ph name="INSTALLED_VERSION" />" efakiwe</translation>
 <translation id="4660476621274971848">Inguqulo elindelwe ngu-"<ph name="EXPECTED_VERSION" />", kodwa inguqulo ibikade ingu-"<ph name="NEW_ID" />"</translation>
@@ -123,7 +124,6 @@ I-<ph name="EXTENSION_NAME" /></translation>
 
 I-<ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">Inani lokufaka lokhiye wobumfihlo kumele libe ifomethi evumelekile (PKCS#8-ifomethi PEM-ukhiye we-RSA obetheliwe).</translation>
-<translation id="765293928828334535">Izinhlelo zokusebenza, izandiso, namaskripthi omsebenzisi awakwazi ukungezwa kusukela kule webhusayithi</translation>
 <translation id="7658239707568436148">Khansela</translation>
 <translation id="7766838926148951335">Yamukela izimvume</translation>
 <translation id="7876803335449432072">Ayikwazanga ukulayisha ifayela elithi '<ph name="RELATIVE_PATH" />' leskripthi sekhontenti, amashidi esitayela eskripthi sekhontenti singalayishwa kuphela ukusuka kumafayela eshidi lesitayela asekelwayo njengamafayela okuthi .css.</translation>

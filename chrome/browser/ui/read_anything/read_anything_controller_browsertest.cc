@@ -204,6 +204,12 @@ class ReadAnythingControllerBrowserTest : public InProcessBrowserTest {
     controller->ShowInPreferredUI(trigger);
   }
 
+  bool IsFocusOnMainPage() {
+    auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
+    return browser_view->GetFocusManager()->GetFocusedView() ==
+           browser_view->GetActiveContentsWebView();
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
@@ -361,7 +367,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   EXPECT_CALL(observer, OnDestroyed()).Times(0);
 
   // Detach the tab and attach it to a new browser.
-  Browser* new_browser = CreateBrowser(browser()->profile());
+  Browser* new_browser = CreateBrowser(browser()->GetProfile());
   std::unique_ptr<tabs::TabModel> detached_tab =
       browser()->tab_strip_model()->DetachTabAtForInsertion(0);
   new_browser->tab_strip_model()->AppendTab(std::move(detached_tab), true);
@@ -1375,7 +1381,7 @@ IN_PROC_BROWSER_TEST_F(
   ASSERT_TRUE(initial_web_contents);
 
   // 2. Create new window
-  Browser* new_browser = CreateBrowser(browser()->profile());
+  Browser* new_browser = CreateBrowser(browser()->GetProfile());
 
   // 3. Detach tab and attach to new window
   std::unique_ptr<tabs::TabModel> detached_tab =
@@ -1622,7 +1628,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
   base::HistogramTester histogram_tester;
   auto* service = static_cast<MockReadAnythingService*>(
       ReadAnythingServiceFactory::GetInstance()->SetTestingFactoryAndUse(
-          browser()->profile(),
+          browser()->GetProfile(),
           base::BindRepeating([](content::BrowserContext* context)
                                   -> std::unique_ptr<KeyedService> {
             return std::make_unique<MockReadAnythingService>(
@@ -1990,7 +1996,7 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
       browser()->tab_strip_model()->GetWebContentsAt(1);
 
   TemplateURLService* template_url_service =
-      TemplateURLServiceFactory::GetForProfile(browser()->profile());
+      TemplateURLServiceFactory::GetForProfile(browser()->GetProfile());
   const TemplateURL* default_provider =
       template_url_service->GetDefaultSearchProvider();
   ASSERT_TRUE(default_provider);
@@ -2538,7 +2544,7 @@ IN_PROC_BROWSER_TEST_F(
   // Discard the original, now backgrounded tab.
   std::unique_ptr<content::WebContents> new_contents =
       content::WebContents::Create(
-          content::WebContents::CreateParams(browser()->profile()));
+          content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* new_contents_ptr = new_contents.get();
 
   browser()->tab_strip_model()->DiscardWebContentsAt(0,
@@ -2578,7 +2584,7 @@ IN_PROC_BROWSER_TEST_F(
   // Discard the original, now backgrounded tab.
   std::unique_ptr<content::WebContents> new_contents =
       content::WebContents::Create(
-          content::WebContents::CreateParams(browser()->profile()));
+          content::WebContents::CreateParams(browser()->GetProfile()));
   content::WebContents* new_contents_ptr = new_contents.get();
 
   browser()->tab_strip_model()->DiscardWebContentsAt(0,
@@ -3026,4 +3032,37 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
       blocked_content::PopupBlockerTabHelper::FromWebContents(active_tab);
   ASSERT_TRUE(popup_blocker);
   EXPECT_EQ(1u, popup_blocker->GetBlockedPopupsCount());
+}
+
+IN_PROC_BROWSER_TEST_F(ReadAnythingControllerBrowserTest,
+                       ImmersiveModeCloseRestoresFocus) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("/select.html")));
+
+  tabs::TabInterface* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+  auto* controller = ReadAnythingController::From(tab);
+  ASSERT_TRUE(controller);
+
+  // Ensure the main page has focus initially.
+  tab->GetContents()->Focus();
+  ASSERT_TRUE(base::test::RunUntil([&]() { return IsFocusOnMainPage(); }));
+
+  // Open reading mode.
+  chrome::ExecuteCommand(browser(), IDC_SHOW_READING_MODE_KEYBOARD);
+  AwaitAndAssertOverlayVisibility(/*visible=*/true);
+
+  // Verify that presentation state is immersive.
+  EXPECT_EQ(controller->GetPresentationState(),
+            ReadAnythingController::PresentationState::kInImmersiveOverlay);
+
+  // Verify focus is not in the main page.
+  EXPECT_TRUE(base::test::RunUntil([&]() { return !IsFocusOnMainPage(); }));
+
+  // Close reading mode.
+  chrome::ExecuteCommand(browser(), IDC_SHOW_READING_MODE_KEYBOARD);
+  AwaitAndAssertOverlayVisibility(/*visible=*/false);
+
+  // Verify focus has return to the main page.
+  EXPECT_TRUE(base::test::RunUntil([&]() { return IsFocusOnMainPage(); }));
 }

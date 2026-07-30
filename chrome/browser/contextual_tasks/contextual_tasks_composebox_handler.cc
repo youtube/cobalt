@@ -52,6 +52,7 @@
 #include "components/omnibox/common/composebox_features.h"
 #include "components/omnibox/common/input_state.h"
 #include "components/sessions/content/session_tab_helper.h"
+#include "components/tabs/public/tab_handle_factory.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/url_deduplication/url_deduplication_helper.h"
 #include "mojo/public/cpp/base/big_buffer.h"
@@ -65,6 +66,7 @@
 #if !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #else
 #include "base/android/content_uri_utils.h"
 #endif
@@ -225,8 +227,9 @@ ContextualTasksComposeboxHandler::ContextualTasksComposeboxHandler(
               &ContextualSearchboxHandler::CreateImageEncodingOptions),
           contextual_tasks::ContextualTasksContextServiceFactory::GetForProfile(
               profile),
-          webui::GetBrowserWindowInterface(
-              web_ui_interface->GetWebUIWebContents()))),
+          base::BindRepeating(
+              &contextual_tasks::ContextualTasksUIInterface::GetBrowser,
+              base::Unretained(web_ui_interface)))),
       recontextualizer_(std::make_unique<contextual_tasks::QueryContextualizer>(
           contextual_tasks_service_,
           desktop_delegate_.get())) {
@@ -382,6 +385,7 @@ void ContextualTasksComposeboxHandler::CreateAndSendQueryMessage(
     return;
   }
 
+  // TODO(crbug.com/528416084): Move this recontextualization logic to a helper.
   std::vector<contextual_tasks::QueryContextualizer::TabId>
       tabs_to_recontextualize;
   // Get the active tab handle now, as recontextualization is an async process
@@ -395,7 +399,21 @@ void ContextualTasksComposeboxHandler::CreateAndSendQueryMessage(
     if (tab_list) {
       active_tab = tab_list->GetActiveTab();
       if (active_tab && !has_visual_selection) {
-        tabs_to_recontextualize.push_back(active_tab->GetHandle().raw_value());
+        bool should_block_recontextualize = false;
+        if (omnibox::IsTabDeselectionInComposeboxEnabled()) {
+          if (session_handle) {
+            SessionID session_id =
+                sessions::SessionTabHelper::IdForTab(active_tab->GetContents());
+            GURL current_url = active_tab->GetContents()->GetLastCommittedURL();
+            should_block_recontextualize = session_handle->IsTabDeselected(
+                session_id, current_url,
+                base::UTF16ToUTF8(active_tab->GetTitle()));
+          }
+        }
+        if (!should_block_recontextualize) {
+          tabs_to_recontextualize.push_back(
+              active_tab->GetHandle().raw_value());
+        }
       }
     }
 
@@ -468,6 +486,9 @@ void ContextualTasksComposeboxHandler::UpdateStateFromUrl(const GURL& url) {
 
 void ContextualTasksComposeboxHandler::OnTaskChanged() {
   ClearFiles(/*should_block_auto_suggested_tabs=*/false);
+  // Maybe trigger lens overlay when Side Panel is done with navigation
+  // which triggers OnTaskChanged().
+  MaybeTriggerLens();
   InitializeInputStateModel();
 }
 
@@ -541,9 +562,13 @@ void ContextualTasksComposeboxHandler::InitializeInputStateModel() {
              file_info.tab_title.has_value())) {
           searchbox::mojom::TabInfoPtr tab_info =
               searchbox::mojom::TabInfo::New();
-          tab_info->tab_id = file_info.tab_session_id.has_value()
-                                 ? file_info.tab_session_id.value().id()
-                                 : 0;
+          int32_t tab_id = 0;
+          if (file_info.tab_session_id.has_value()) {
+            tab_id = tabs::SessionMappedTabHandleFactory::GetInstance()
+                         .GetHandleForSessionId(
+                             file_info.tab_session_id.value().id());
+          }
+          tab_info->tab_id = tab_id;
           tab_info->title = file_info.tab_title.value_or("");
           tab_info->url = file_info.tab_url.value_or(GURL());
           submitted_tabs.push_back(std::move(tab_info));
@@ -1074,6 +1099,24 @@ void ContextualTasksComposeboxHandler::DeleteContext(
   } else if (deleted_tab_url.has_value()) {
     auto_suggestion_manager->OnTabContextRemoved(deleted_tab_url.value());
   }
+}
+
+void ContextualTasksComposeboxHandler::MaybeTriggerLens() {
+#if !BUILDFLAG(IS_ANDROID)
+  if (!omnibox::kAskGCoBrowseWithVisualSelection.Get()) {
+    return;
+  }
+  if (auto* controller = GetLensSearchController()) {
+    if (controller->invocation_source() ==
+            lens::LensOverlayInvocationSource::kOmniboxPageAction) {
+      DCHECK(controller->invocation_source().has_value());
+      controller->SetThumbnailCreatedCallback(base::BindRepeating(
+          &ContextualTasksComposeboxHandler::OnLensThumbnailCreated,
+          weak_factory_.GetWeakPtr()));
+      controller->OpenLensOverlay(controller->invocation_source().value());
+    }
+  }
+#endif
 }
 
 void ContextualTasksComposeboxHandler::UpdateSuggestedTabContext(

@@ -146,4 +146,9 @@ const char kRecoveryKeyStoreCertFileURL[] =
 const char kRecoveryKeyStoreSigFileURL[] =
     "https://www.gstatic.com/cryptauthvault/v0/cert.sig.xml";
 
+const char kRequestCmtgDeviceKey[] = "cmtg_device_key";
+const char kRequestCmtgDeviceKeys[] = "cmtg_device_keys";
+const char kResponseCmtgKey[] = "cmtgKey";
+const char kResponseCmtgSignature[] = "signature";
+
 }  // namespace device::enclave

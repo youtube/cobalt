@@ -70,6 +70,7 @@ import {SubmitButtonIconType} from '//resources/cr_components/composebox/compose
       <dialog id="composeboxDialog">
         ${this.useNtpComposeboxFork_ ? html`
           <ntp-composebox id="composebox"
+              entrypoint-name="Realbox"
               searchbox-layout-mode="Compact"
               searchbox-next-enabled
               ?disable-caret-color-animation="${!this.caretAnimationsEnabled_}"
@@ -238,6 +239,7 @@ ${this.voiceSearchCoherenceAnySearchboxExperimentEnabled_ &&
       <!-- Pass metricSource synchronously to avoid microtask race in unit tests. -->
       <cr-composebox-voice-search id="voiceSearch"
           in-voice-search-mode
+          @voice-permission-changed="${this.onVoicePermissionChanged_}"
           @voice-search-cancel="${this.onVoiceSearchCancel_}"
           @voice-search-final-result="${this.onVoiceSearchFinalResult_}"
           @voice-search-error="${this.onVoiceSearchError}"

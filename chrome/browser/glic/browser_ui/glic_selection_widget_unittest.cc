@@ -13,6 +13,7 @@
 #include "chrome/test/views/chrome_views_test_base.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/events/base_event_utils.h"
+#include "ui/gfx/animation/animation_test_api.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/button/md_text_button.h"
 #include "ui/views/test/button_test_api.h"
@@ -26,11 +27,25 @@ class GlicSelectionWidgetTest : public ChromeViewsTestBase {
   GlicSelectionWidgetTest() = default;
   ~GlicSelectionWidgetTest() override = default;
 
+  void SetUp() override {
+    ChromeViewsTestBase::SetUp();
+    animation_resetter_ = gfx::AnimationTestApi::SetRichAnimationRenderMode(
+        gfx::Animation::RichAnimationRenderMode::FORCE_DISABLED);
+  }
+
+  void TearDown() override {
+    animation_resetter_.reset();
+    ChromeViewsTestBase::TearDown();
+  }
+
  protected:
   void TriggerMenuCommand(GlicSelectionWidgetDelegate* delegate,
                           int command_id) {
     delegate->TriggerMenuCommandForTesting(command_id);
   }
+
+ private:
+  gfx::AnimationTestApi::RenderModeResetter animation_resetter_;
 };
 
 class TestWidgetObserver : public views::WidgetObserver {
@@ -94,11 +109,15 @@ TEST_F(GlicSelectionWidgetTest, CopyButtonsHiddenByDefault) {
   ASSERT_TRUE(contents_view);
 
   auto children = contents_view->children();
-  ASSERT_EQ(children.size(), 2u);
+  ASSERT_EQ(children.size(), 1u);
 
-  auto pill1_children = children[0]->children();
-  ASSERT_EQ(pill1_children.size(), 1u);
-  EXPECT_TRUE(views::AsViewClass<views::MdTextButton>(pill1_children[0]));
+  auto pill_children = children[0]->children();
+  ASSERT_EQ(pill_children.size(), 2u);
+  EXPECT_TRUE(views::AsViewClass<views::MdTextButton>(pill_children[0]));
+
+  auto control_children = pill_children[1]->children();
+  ASSERT_EQ(control_children.size(), 1u);
+  EXPECT_TRUE(views::AsViewClass<views::ImageButton>(control_children[0]));
 }
 
 TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
@@ -110,7 +129,6 @@ TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
   gfx::Rect anchor_rect(10, 10, 100, 100);
   std::u16string selected_text = u"selected text";
 
-
   auto test_delegate = std::make_unique<TestWidgetActionDelegate>();
   auto widget_delegate = std::make_unique<GlicSelectionWidgetDelegate>(
       *test_delegate, anchor_rect, gfx::Rect(), selected_text,
@@ -120,20 +138,21 @@ TEST_F(GlicSelectionWidgetTest, ButtonsTriggerCallbacks) {
   ASSERT_TRUE(contents_view);
 
   auto children = contents_view->children();
-  ASSERT_EQ(children.size(), 2u);
+  ASSERT_EQ(children.size(), 1u);
 
-  auto pill1_children = children[0]->children();
-  ASSERT_EQ(pill1_children.size(), 3u);
+  auto pill_children = children[0]->children();
+  ASSERT_EQ(pill_children.size(), 4u);
 
   auto* ask_gemini_btn =
-      views::AsViewClass<views::MdTextButton>(pill1_children[0]);
-  auto* copy_btn = views::AsViewClass<views::ImageButton>(pill1_children[1]);
+      views::AsViewClass<views::MdTextButton>(pill_children[0]);
+  auto* copy_btn = views::AsViewClass<views::ImageButton>(pill_children[1]);
   auto* copy_link_btn =
-      views::AsViewClass<views::ImageButton>(pill1_children[2]);
+      views::AsViewClass<views::ImageButton>(pill_children[2]);
 
-  auto pill2_children = children[1]->children();
-  ASSERT_EQ(pill2_children.size(), 1u);
-  auto* menu_btn = views::AsViewClass<views::ImageButton>(pill2_children[0]);
+  views::View* control_pill = pill_children[3];
+  auto control_children = control_pill->children();
+  ASSERT_EQ(control_children.size(), 1u);
+  auto* menu_btn = views::AsViewClass<views::ImageButton>(control_children[0]);
 
   ASSERT_TRUE(ask_gemini_btn);
   ASSERT_TRUE(copy_btn);
@@ -206,6 +225,7 @@ TEST_F(GlicSelectionWidgetTest, ShowAndCloseWidget) {
   widget_delegate->ShowWidget();
   views::Widget* widget = widget_delegate->GetWidget();
   ASSERT_TRUE(widget);
+  widget->Show();
   EXPECT_TRUE(widget->IsVisible());
 
   TestWidgetObserver observer(widget);

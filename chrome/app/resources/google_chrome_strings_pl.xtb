@@ -72,7 +72,6 @@
 <translation id="1640672724030957280">Pobieram...</translation>
 <translation id="1651617469580841801">Gdy używasz Obiektywu Google, tytuł, adres URL i zawartość strony, w tym pliki PDF, są wysyłane do Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Informacje o ChromeOS Flex</translation>
-<translation id="1665867022636014702">Użyj ustawień przeglądarki zalecanych przez Google</translation>
 <translation id="1674870198290878346">Otwórz link w oknie inco&amp;gnito Chrome</translation>
 <translation id="1682634494516646069">Google Chrome nie może odczytać ani zapisać danych w katalogu <ph name="USER_DATA_DIRECTORY" />.</translation>
 <translation id="1688214853608504530">Gdy piszesz na pasku adresu lub w polu wyszukiwania, Chrome wysyła wpisany tekst do narzędzi wyszukiwania, AI i agentów Twojej organizacji, aby uzyskać sugestie.</translation>
@@ -233,6 +232,7 @@ Jeśli ta strona nie działa zgodnie z oczekiwaniami, spróbuj zezwolić na opt
 <translation id="3242123554343253302">Dodaj profil Chrome</translation>
 <translation id="3242486428260808857">Wykorzystaj w pełni zakupy online dzięki aplikacji Chrome na urządzeniu <ph name="DEVICE_TYPE" /></translation>
 <translation id="3245429137663807393">Jeśli udostępnisz także raporty o użytkowaniu Chrome, będą one zawierały odwiedzane przez Ciebie adresy URL.</translation>
+<translation id="3249558306861350254">W ustawieniach systemu Windows kliknij <ph name="BEGIN_BOLD" />Ustaw jako domyślną<ph name="END_BOLD" />.</translation>
 <translation id="3259748324892322072">Pobierz aplikację Chrome</translation>
 <translation id="3282568296779691940">Zaloguj się w Chrome</translation>
 <translation id="3286538390144397061">Uruchom ponownie teraz</translation>
@@ -252,7 +252,6 @@ Jeśli ta strona nie działa zgodnie z oczekiwaniami, spróbuj zezwolić na opt
 <translation id="345171907106878721">Dodaj siebie do Chrome</translation>
 <translation id="3453763134178591239">Warunki korzystania z Chrome OS</translation>
 <translation id="3475778264501649775">Korzystaj z haseł, kart i innych funkcji w aplikacji Chrome na telefonie</translation>
-<translation id="3512495006767217696">Jest wbudowany w Chrome i ułatwi Ci tworzenie, zapisywanie oraz autouzupełnianie silnych haseł. Dodaj skrót, aby mieć łatwy dostęp.</translation>
 <translation id="3539955434060988644">Otwórz link w oknie inco&amp;gnito Chrome</translation>
 <translation id="354621070532799440">Przypomnienie: najlepsze funkcje bezpieczeństwa Google na wyciągnięcie ręki</translation>
 <translation id="3547866758548131919">Kliknij przycisk Podsumuj, aby udostępnić ten dokument Gemini w Chrome, uzyskać szybki przegląd i zadać dodatkowe pytania</translation>
@@ -304,6 +303,7 @@ Jeśli ta strona nie działa zgodnie z oczekiwaniami, spróbuj zezwolić na opt
 <translation id="4012899077942246412">Po zalogowaniu się w Chrome możesz używać haseł i innych danych z konta Google. Aby to zmienić, otwórz „Twoje konto w Chrome”.</translation>
 <translation id="4022972681110646219">Przetłumacz ekran</translation>
 <translation id="4023601594785368013">Język oryginału: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">Jest wbudowany w Chrome i ułatwi Ci tworzenie, zapisywanie oraz autouzupełnianie silnych haseł. Dodaj skrót, aby mieć łatwy dostęp.</translation>
 <translation id="4035053306113201399">Aby system operacyjny Chrome mógł zastosować aktualizacje, musisz go ponownie uruchomić.</translation>
 <translation id="4050175100176540509">W najnowszej wersji zostały wprowadzone ważne poprawki bezpieczeństwa i nowe funkcje.</translation>
 <translation id="4053720452172726777">Dostosowywanie i kontrolowanie Google Chrome</translation>
@@ -540,7 +540,6 @@ Jeśli ta strona nie działa zgodnie z oczekiwaniami, spróbuj zezwolić na opt
 <translation id="6438015621983209660">Korzystaj z Ulepszonego bezpiecznego przeglądania także na telefonie dzięki Chrome</translation>
 <translation id="6442774133615368941">Kupuj, tłumacz i rozpoznawaj to, co widzisz, za pomocą aparatu w aplikacji Chrome na iOS</translation>
 <translation id="6448835208126432197">Aby zaznaczyć część ekranu w Gemini w Chrome, użyj skrótu klawiszowego.</translation>
-<translation id="6473659734176498825">Uproszczony obraz przedstawiający Menedżera haseł Google w Chrome</translation>
 <translation id="6473905796280459355">Otwórz stronę Chrome – informacje</translation>
 <translation id="6481963882741794338">Połącz Chrome i inne usługi Google na potrzeby personalizacji oraz w innych celach</translation>
 <translation id="648319183876919572">Ulepszone Bezpieczne przeglądanie skuteczniej chroni Cię przed niebezpiecznymi stronami i pobieranymi plikami</translation>
@@ -557,6 +556,7 @@ Jeśli ta strona nie działa zgodnie z oczekiwaniami, spróbuj zezwolić na opt
 <translation id="6539493053177300926">Łatwy dostęp do Gemini w Chrome na całym urządzeniu, nawet wtedy, gdy przeglądarka Chrome jest zminimalizowana.</translation>
 <translation id="6585124893636629274">Zamknij Gemini w Chrome</translation>
 <translation id="659498884637196217">W menedżerze haseł Google w przypadku tego urządzenia</translation>
+<translation id="6613949864921837107">Ustaw Chrome jako domyślną przeglądarkę, aby synchronizować hasła, zakładki i historię na wszystkich swoich urządzeniach.</translation>
 <translation id="6631524303639368205">Wznawianie przeglądania od tego samego miejsca: przeglądarka Chrome przywróciła karty z Twojej ostatniej sesji. Aby wyłączyć tę funkcję, otwórz</translation>
 <translation id="6632473616050862500">Opracowanie ChromeOS Flex było możliwe dzięki dodatkowemu <ph name="BEGIN_LINK_CROS_OSS" />oprogramowaniu open source<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6634299872736643004">Zmiany tego ustawienia zostaną zastosowane po ponownym uruchomieniu Chrome.</translation>
@@ -682,7 +682,6 @@ Jeśli ta strona nie działa zgodnie z oczekiwaniami, spróbuj zezwolić na opt
 <translation id="7804364787702057554">Twoje konto w Chrome</translation>
 <translation id="7804947029129221742">Twoja wyszukiwarka została zmieniona poza Chrome. Aby Cię chronić, przeglądarka Chrome zresetowała to ustawienie do pierwotnej wartości domyślnej. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Usuń z Chrome...</translation>
-<translation id="7812800388699096556">Ilustracja przedstawiająca, jak można użyć Obiektywu Google do wyszukania produktu</translation>
 <translation id="7827099906024714326">Aby niektóre dane mogły być zapisywane na Twoim koncie Google i używane na wszystkich Twoich urządzeniach, Chrome musi zweryfikować Twoją tożsamość. Jeśli wylogujesz się teraz, te dane zostaną usunięte.</translation>
 <translation id="7832314606810669113">Aby mieć dostęp do zakładek oraz innych ustawień i danych na wszystkich swoich urządzeniach, zaloguj się w Chrome. Ta zakładka zostanie zapisana na Twoim koncie Google, gdy się zalogujesz.</translation>
 <translation id="7845233973568007926">Dziękujemy za instalację. Przed rozpoczęciem korzystania z programu <ph name="BUNDLE_NAME" /> musisz ponownie uruchomić komputer.</translation>
@@ -821,7 +820,6 @@ Dopóki nie usuniesz niektórych zakładek, nie będzie można zapisywać nowych
 <translation id="8999208279178790196">{0,plural, =0{Dostępna jest aktualizacja Chrome}=1{Dostępna jest aktualizacja Chrome}few{Aktualizacja Chrome jest dostępna od # dni}many{Aktualizacja Chrome jest dostępna od # dni}other{Aktualizacja Chrome jest dostępna od # dnia}}</translation>
 <translation id="9014771989710951291">Przeglądarką Chrome zarządza kilka organizacji</translation>
 <translation id="9018218886431812662">Instalacja ukończona</translation>
-<translation id="9024318700713112071">Ustaw Chrome jako przeglądarkę domyślną</translation>
 <translation id="9066987883552592250">Zamknij Gemini w Chrome Canary</translation>
 <translation id="9074041031320636790">Gotowe! Teraz możesz łatwo zadawać pytania podczas przeglądania dzięki trybowi AI w wyszukiwarce Google</translation>
 <translation id="9090566250983691233">Dlaczego Chrome blokuje niektóre pliki</translation>

@@ -122,8 +122,8 @@ source_set("signin") {
       "cross_device_signin_qr_bubble_ui.h",
       "dice_web_signin_intercept_handler.h",
       "dice_web_signin_intercept_ui.h",
-      "signin_qrcode_bar_ui.h",
     ]
+    public_deps += [ "cross_device_signin_qr_bubble:mojo_bindings" ]
   }
 
   if (!is_chromeos) {
@@ -204,9 +204,13 @@ source_set("signin_impl") {
       "cross_device_signin_qr_bubble_ui.cc",
       "dice_web_signin_intercept_handler.cc",
       "dice_web_signin_intercept_ui.cc",
-      "signin_qrcode_bar_ui.cc",
     ]
-    deps += [ "//chrome/browser/ui/webui" ]
+    deps += [
+      "cross_device_signin_qr_bubble:mojo_bindings",
+      "//chrome/browser/ui/webui",
+      "//chrome/browser/ui/webui/util",
+      "//components/qr_code_generator:bitmap_generator",
+    ]
   }
 
   if (!is_chromeos) {
@@ -226,6 +230,7 @@ source_set("signin_impl") {
     deps += [
       ":login_ui_service",
       "//chrome/browser/new_tab_page/chrome_colors:selected_colors_info",
+      "//chrome/browser/ui:chrome_pages",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/sync",
       "//chrome/browser/ui/tabs:tab_strip",

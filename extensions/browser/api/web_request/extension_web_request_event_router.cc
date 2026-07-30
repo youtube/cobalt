@@ -18,6 +18,7 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
 #include "base/no_destructor.h"
+#include "base/notreached.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/trace_event/trace_event.h"
@@ -1733,6 +1734,36 @@ void WebRequestEventRouter::OnEventHandled(
   }
 }
 
+void WebRequestEventRouter::OnEventHandledForTarget(
+    content::BrowserContext* browser_context,
+    const ExtensionId& extension_id,
+    const std::string& event_name,
+    uint64_t request_id,
+    int render_process_id,
+    int web_view_instance_id,
+    int worker_thread_id,
+    int64_t service_worker_version_id,
+    int extra_info_spec,
+    std::unique_ptr<EventResponse> response) {
+  // TODO(crbug.com/494684626): per-context dispatch is not wired up yet;
+  // drop the report. The browser-side dispatch target tracking will land in
+  // a follow-up.
+}
+
+void WebRequestEventRouter::OnEventHandlingDone(
+    content::BrowserContext* browser_context,
+    const ExtensionId& extension_id,
+    const std::string& event_name,
+    uint64_t request_id,
+    int render_process_id,
+    int web_view_instance_id,
+    int worker_thread_id,
+    int64_t service_worker_version_id) {
+  // TODO(crbug.com/494684626): per-context dispatch is not wired up yet;
+  // drop the signal. The browser-side dispatch target tracking will land in
+  // a follow-up.
+}
+
 bool WebRequestEventRouter::AddEventListener(
     content::BrowserContext* browser_context,
     const ExtensionId& extension_id,
@@ -1913,15 +1944,6 @@ WebRequestEventRouter::RemoveMatchingListeners(
         (!extra_info_spec || listener->extra_info_spec == *extra_info_spec) &&
         (!filter_value || listener->filter.ToValue() == *filter_value);
     if (!listener_matches) {
-      ++iter;
-      continue;
-    }
-
-    if (id.web_view_instance_id != 0) {
-      // WebView listeners are managed by RemoveWebViewEventListeners, not here.
-      // There is not enough information here to know if the matching listener
-      // is for a WebView that is being destroyed, or an existing WebView that
-      // still needs its listener to be active.
       ++iter;
       continue;
     }
@@ -2450,6 +2472,8 @@ bool WebRequestEventRouter::ListenerMatchesRequest(
     return false;
   }
 
+  // NOTE: keep the following filter matching logic in sync with the renderer
+  // side in `WebRequestNatives::GetMatchingListeners()`.
   if (!listener.filter.urls.is_empty() &&
       !listener.filter.urls.MatchesURL(request.url)) {
     return false;
@@ -2457,10 +2481,12 @@ bool WebRequestEventRouter::ListenerMatchesRequest(
 
   // Check if the tab id and window id match, if they were set in the
   // listener params.
-  if ((listener.filter.tab_id != -1 &&
-       request.frame_data.tab_id != listener.filter.tab_id) ||
-      (listener.filter.window_id != -1 &&
-       request.frame_data.window_id != listener.filter.window_id)) {
+  if (listener.filter.tab_id != -1 &&
+      request.frame_data.tab_id != listener.filter.tab_id) {
+    return false;
+  }
+  if (listener.filter.window_id != -1 &&
+      request.frame_data.window_id != listener.filter.window_id) {
     return false;
   }
 

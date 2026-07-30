@@ -111,6 +111,9 @@ declare namespace chrome {
     // Whether the Improved Read Aloud feature flag is enabled.
     let isImprovedReadAloudEnabled: boolean;
 
+    // Whether the Read Anything Translate Entry Point feature flag is enabled.
+    let isReadAnythingTranslateEntryPointEnabled: boolean;
+
     // Whether Read Anything is pinned to the toolbar.
     let isReadAnythingPinned: boolean;
 
@@ -246,6 +249,12 @@ declare namespace chrome {
     // Returns true if the element is a leaf node.
     function isLeafNode(nodeId: number): boolean;
 
+    // Returns true if the original page has a section with key points.
+    function maybeHasKeyPointsSection(): boolean;
+
+    // Returns a regex string of keywords used to identify a key points section.
+    function getKeyPointsRegex(): string;
+
     // Connects to the browser process. Called by ts when the read anything
     // element is added to the document.
     function onConnected(): void;
@@ -277,6 +286,9 @@ declare namespace chrome {
 
     // Called when a user toggles links via the webui toolbar.
     function onLinksEnabledToggled(): void;
+
+    // Called when a user requests translation via the webui toolbar.
+    function onTranslationRequested(): void;
 
     // Called when a user toggles images via the webui toolbar.
     function onImagesEnabledToggled(): void;

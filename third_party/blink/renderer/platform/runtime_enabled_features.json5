@@ -37,7 +37,7 @@
     // shipped stable can have its runtime flag removed soon after.
     status: {
       valid_values: ["stable", "experimental", "test"],
-      valid_keys: ["Android", "Win", "ChromeOS", "Mac", "Linux", "iOS"]
+      valid_keys: ["Android", "Win", "ChromeOS", "Mac", "Linux", "iOS", "Fuchsia"]
     },
 
     // "implied_by" or "depends_on" specifies relationship to other features:
@@ -229,7 +229,11 @@
       name: "AcceleratedSmallCanvases",
       status: "stable",
     },
-
+    {
+      // crbug.com/409809747
+      name: "AccessibilityCheckIfcInPreviousTextOnLine",
+      status: "stable",
+    },
     {
       name: "AccessibilityCustomElementRoleNone",
       public: true,
@@ -636,7 +640,7 @@
     {
       // crbug.com/445727139
       name: "AnnotationSpaceOnStart",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "AnonymousIframe",
@@ -790,6 +794,12 @@
       status: "stable",
     },
     {
+      // Makes form control elements have a hard coded font when they are in
+      // their autofill previewed state.
+      name: "AutofillPreviewIgnoreAuthorFont",
+      status: "stable",
+    },
+    {
       name: "AutomationControlled",
       base_feature: "none",
       public: true,
@@ -813,6 +823,12 @@
       // there is no need to collapse the whitespace between them.
       // https://crbug.com/406053617
       name: "AvoidNormalizingVisiblePositionsWhenStartEqualsEnd",
+      status: "stable",
+    },
+    {
+      // Disables the synchronous focus blur behavior when a focused form control
+      // is disabled.
+      name: "AvoidSynchronousBlurOnDisabledAttributeChange",
       status: "stable",
     },
     // When enabled, enforces new interoperable semantics for 3D transforms.
@@ -1285,7 +1301,13 @@
     {
       name: "CompositedSelectionUpdate",
       public: true,
-      status: {"Android": "stable"},
+      status: {
+        "Android": "stable",
+        "ChromeOS": "stable",
+        "Fuchsia": "stable",
+        "Linux": "stable",
+        "Win": "stable",
+      },
       base_feature: "none",
     },
     {
@@ -1321,10 +1343,6 @@
       status: "experimental",
     },
     {
-      name: "ComputeInlineContentsSafeRetarget",
-      status: "stable",
-    },
-    {
       name: "ComputePressure",
       status: {
         "Android": "",
@@ -1335,6 +1353,10 @@
       // If enabled, allow concurrent animations via native paint worklets to
       // run on the compositor thread.
       name: "ConcurrentNativePaintWorklets",
+      status: "experimental",
+    },
+    {
+      name: "ConditionalTracingLoAF",
       status: "experimental",
     },
     {
@@ -1469,7 +1491,7 @@
       status: "stable",
     },
     {
-      name: "CreateInlineContentsExcludeOutOfFlow",
+      name: "CreateInlineContentsAnonymousBlock",
       status: "stable",
     },
     {
@@ -2138,6 +2160,10 @@
       status: "experimental",
     },
     {
+      name: "CSSWindowDrag",
+      status: "stable",
+    },
+    {
       // CSSWG resolution to make the `zoom` property continuously
       // interpolatable. https://github.com/w3c/csswg-drafts/issues/10872
       // Ship in M150, should be removed in M152.
@@ -2415,6 +2441,9 @@
       name: "DisplayCutoutAPI",
       base_feature: "none",
       public: true,
+      // There is an override later to ensure this is only enabled for
+      // Android P+.
+      status: { "Android": "stable" },
     },
     {
       // https://chromestatus.com/feature/5067126381215744
@@ -2505,6 +2534,10 @@
     // Enables Document Policy for DedicatedWorkers.
     {
       name: "DocumentPolicyInDedicatedWorker",
+      status: "experimental",
+    },
+    {
+      name: "DocumentPolicyJSProfilingMode",
       status: "experimental",
     },
     {
@@ -2689,6 +2722,10 @@
       // Added in M144, can be removed in M146.
       name: "EventTimingInteractionCount",
       status: "stable",
+    },
+    {
+      name: "EventTimingMatchingHTML",
+      status: "experimental",
     },
     {
       name: "EventTimingTargetSelector",
@@ -3198,10 +3235,10 @@
       status: {"Android": "", "default": "stable"},
     },
     {
-      name: "FontDataService",
+      name: "FontDataServiceForCSSLocalFonts",
       base_feature: "none",
       // No status, as the web platform runtime enabled feature is controlled by
-      // a Chromium level feature (kFontDataServiceAllWebContents).
+      // a Chromium level feature (kFontDataServiceForCSSLocalFonts).
     },
     {
       name: "FontFallbackForTabSize",
@@ -3489,13 +3526,6 @@
     {
       name: "HTMLElementScrollParent",
       status: "experimental",
-    },
-    // Return a natural width/height of zero from
-    // HTMLImageElement.naturalWidth/Height for SVG images that don't have a
-    // natural width/height set.
-    {
-      name: "HTMLImageElementActualNaturalSize",
-      status: "test",
     },
     // Remove support for `::-webkit-clear-button`.
     // This shipped in M149 and the flag can be removed in M151.,
@@ -4000,6 +4030,7 @@
       name: "MediaControlsExpandGesture",
       base_feature: "none",
       public: true,
+      status: { "Android": "stable" },
     },
     {
       name: "MediaControlsOverlayPlayButton",
@@ -4303,10 +4334,6 @@
       status: "stable",
     },
     {
-      name: "OffMainThreadCSSPaint",
-      status: "stable",
-    },
-    {
       name: "OffscreenCanvasGetContextAttributes",
       status: "stable",
     },
@@ -4537,10 +4564,6 @@
       status: "stable",
     },
     {
-      name: "PaintTimingMixin",
-      status: "stable",
-    },
-    {
       name: "PaintUnderInvalidationChecking",
       settable_from_internals: true,
     },
@@ -4653,6 +4676,13 @@
     {
       // https://crbug.com/404479704
       name: "PointerRawUpdateOnlyInSecureContext",
+      status: "stable",
+    },
+    {
+      // Makes showPopover() throw an exception instead of just logging a console
+      // message when calling showPopover() within another popover hide/show
+      // operation. https://crbug.com/527495812
+      name: "PopoverHintNestedShowException",
       status: "stable",
     },
     {
@@ -5088,8 +5118,9 @@
     {
       // Kill switch for painting non-SVG replaced normal-flow stacking
       // contexts inline with their siblings.
+      // This was set to experimental due to crbug.com/532229489.
       name: "ReplacedNormalFlowStackingInlinePaint",
-      status: "stable",
+      status: "experimental",
     },
     {
       name: "ReportFirstFrameTimeAsRenderTime",
@@ -5546,8 +5577,9 @@
       // dispatched mousedown event on WebView, as opposed to a real user
       // click.
       // https://issues.chromium.org/issues/41273490
+      // Enabled in M152, safe to remove in M154
       name: "SelectWebViewUntrustedEventRemoval",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SendBeaconThrowForBlobWithNonSimpleType",
@@ -5970,7 +6002,7 @@
       // Performs sanitization while parsing instead of post-processing a parsed
       // fragment. https://crbug.com/498272014
       name: "StreamingSanitizer",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "StrictMimeTypesForWorkers",
@@ -6097,17 +6129,6 @@
       status: "experimental",
     },
     {
-      // This is used for emoji variation selectors support in system
-      // fallback matching. This is a workaround solution that helps to
-      // avoid incorrect font matching due to lack of cmap format 14
-      // subtable in system emoji fonts on various platforms.
-      // This should be eventually removed when the custom emoji font
-      // is shipped with Chrome or when system emoji fonts will have
-      // cmap format 14 subtable.
-      name: "SystemFallbackEmojiVSSupport",
-      status: "stable",
-    },
-    {
       name: "SystemWakeLock",
       status: "experimental",
     },
@@ -6134,6 +6155,10 @@
     },
     {
       name: "TabSizeAncestor",
+      status: "stable",
+    },
+    {
+      name: "TabSizeInRubyBase",
       status: "stable",
     },
     {
@@ -6372,7 +6397,7 @@
     // This feature enables drag and drop using touch input devices. Replaces
     // the old "--enable-touch-drag-drop" and "--disable-touch-drag-drop"
     // switches.
-    // Enabled by default in Android, ChromeOS and Windows.
+    // Enabled by default in Android, ChromeOS, Windows, and Linux.
     {
       name: "TouchDragAndDrop",
       base_feature: "none",
@@ -6460,7 +6485,7 @@
     {
       // crbug.com/451651633
       name: "TreeRubyPlacement",
-      status: "experimental",
+      status: "stable",
     },
     {
       // When enabled, trusted types can be used to enforce sanitization &
@@ -6876,12 +6901,6 @@
     // and `get()` requests with `uiMode: 'immediate'`.
     // See https://github.com/w3c/webauthn/issues/2228.
     {
-      name: "WebAuthenticationImmediateGet",
-      status: "experimental",
-      base_feature: "none",
-      public: true,
-    },
-    {
       name: "WebAuthenticationRemoteDesktopSupport",
       base_feature: "none",
       public: true,
@@ -7021,6 +7040,13 @@
       depends_on: ["WebHID"],
       base_feature: "none",
       public: true,
+    },
+    {
+      // Restricts the sharing of HIDDevice instances across different V8
+      // worlds (e.g., main world and isolated worlds) to prevent cross-world
+      // leaks.
+      name: "WebHIDWorldIsolatedCache",
+      status: "stable",
     },
     {
       name: "WebIdentityDigitalCredentials",
@@ -7362,7 +7388,7 @@
       // with its responseXML document.
       // https://crbug.com/466303347
       name: "XMLRustForNonXslt",
-      status: "stable",
+      status: "experimental",
     },
     {
       name: "XMLSerializerConsistentDefaultNsDeclMatching",

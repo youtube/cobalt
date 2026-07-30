@@ -2,22 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-source_set("lens_overlay_availability") {
-  sources = [
-    "lens_overlay_availability.h",
-    "lens_overlay_availability.mm",
-  ]
-  deps = [
-    "//base",
-    "//components/lens:enterprise_policy",
-    "//components/prefs",
-    "//ios/chrome/browser/shared/model/application_context",
-    "//ios/chrome/browser/shared/model/prefs:pref_names",
-    "//ios/chrome/browser/shared/public/features",
-    "//ui/base",
-  ]
-}
-
 source_set("coordinator") {
   sources = [
     "lens_omnibox_client.h",
@@ -38,7 +22,6 @@ source_set("coordinator") {
     "lens_web_provider.h",
   ]
   deps = [
-    ":lens_overlay_availability",
     "//base",
     "//components/favicon/ios",
     "//components/feature_engagement/public",
@@ -66,6 +49,8 @@ source_set("coordinator") {
     "//ios/chrome/browser/lens/ui_bundled:lens_availability",
     "//ios/chrome/browser/lens/ui_bundled:lens_entrypoint",
     "//ios/chrome/browser/lens_overlay/model",
+    "//ios/chrome/browser/lens_overlay/public",
+    "//ios/chrome/browser/lens_overlay/public:lens_overlay_availability",
     "//ios/chrome/browser/lens_overlay/ui",
     "//ios/chrome/browser/menu/ui_bundled",
     "//ios/chrome/browser/omnibox/coordinator",
@@ -80,7 +65,9 @@ source_set("coordinator") {
     "//ios/chrome/browser/search_engines/model:search_engines_util",
     "//ios/chrome/browser/search_engines/model:template_url_service_factory",
     "//ios/chrome/browser/shared/coordinator/chrome_coordinator",
+    "//ios/chrome/browser/shared/coordinator/layout_guide",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/coordinator/scene/state",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
@@ -95,6 +82,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/shared/ui/util:omnibox_util",
+    "//ios/chrome/browser/shared/ui/util:util_swift",
     "//ios/chrome/browser/snapshots/model",
     "//ios/chrome/browser/tabs/model",
     "//ios/chrome/browser/tips_manager/model:factory",
@@ -147,6 +135,7 @@ source_set("unit_tests") {
     "//ios/chrome/browser/omnibox/ui:omnibox_internal",
     "//ios/chrome/browser/search_engines/model:template_url_service_factory",
     "//ios/chrome/browser/shared/coordinator/scene:scene_state_header",
+    "//ios/chrome/browser/shared/coordinator/scene/state",
     "//ios/chrome/browser/shared/model/application_context",
     "//ios/chrome/browser/shared/model/browser/test:test_support",
     "//ios/chrome/browser/shared/model/prefs:pref_names",

@@ -39,7 +39,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/intelligence/page_action_menu/ui",
     "//ios/chrome/browser/intelligence/page_action_menu/utils",
     "//ios/chrome/browser/intelligence/proto_wrappers",
-    "//ios/chrome/browser/lens_overlay/coordinator:lens_overlay_availability",
+    "//ios/chrome/browser/lens_overlay/public:lens_overlay_availability",
     "//ios/chrome/browser/overlays/model",
     "//ios/chrome/browser/overlays/model/public/default",
     "//ios/chrome/browser/overlays/model/public/infobar_modal",
@@ -64,7 +64,7 @@ source_set("coordinator") {
     "//ios/chrome/browser/signin/model:authentication_service_factory",
     "//ios/chrome/browser/translate/model",
     "//ios/chrome/browser/web/model",
-    "//ios/public/provider/chrome/browser/bwg:bwg_api",
+    "//ios/public/provider/chrome/browser/bwg:gemini_api",
     "//ios/web/public",
     "//ios/web/public/permissions",
   ]

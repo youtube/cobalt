@@ -6,6 +6,8 @@ import("//build/config/android/rules.gni")
 
 source_set("public") {
   sources = [
+    "touch_to_fill_autofill_controller.h",
+    "touch_to_fill_autofill_view.h",
     "touch_to_fill_controller_base.h",
     "touch_to_fill_payment_method_controller.h",
     "touch_to_fill_payment_method_view.h",
@@ -17,6 +19,8 @@ source_set("public") {
 
 source_set("android") {
   sources = [
+    "touch_to_fill_autofill_view_impl.cc",
+    "touch_to_fill_autofill_view_impl.h",
     "touch_to_fill_payment_method_view_impl.cc",
     "touch_to_fill_payment_method_view_impl.h",
   ]
@@ -41,6 +45,10 @@ source_set("android") {
 
 source_set("impl") {
   sources = [
+    "touch_to_fill_autofill_controller_impl.cc",
+    "touch_to_fill_autofill_controller_impl.h",
+    "touch_to_fill_autofill_delegate_android_impl.cc",
+    "touch_to_fill_autofill_delegate_android_impl.h",
     "touch_to_fill_controller_base.cc",
     "touch_to_fill_payment_method_controller_impl.cc",
     "touch_to_fill_payment_method_controller_impl.h",
@@ -75,6 +83,7 @@ source_set("unit_tests") {
   testonly = true
 
   sources = [
+    "touch_to_fill_autofill_controller_impl_unittest.cc",
     "touch_to_fill_payment_method_controller_impl_unittest.cc",
     "touch_to_fill_payment_method_delegate_android_impl_unittest.cc",
     "touch_to_fill_payment_method_quality_metrics_unittest.cc",

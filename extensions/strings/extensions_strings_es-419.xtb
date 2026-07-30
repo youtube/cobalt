@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">No se pudo cargar la página de información "<ph name="ABOUT_PAGE" />".</translation>
 <translation id="424963718355121712">Las apps deben proceder del host al que afecten</translation>
 <translation id="4306119971288449206">Las apps deben incluir el encabezado content-type "<ph name="CONTENT_TYPE" />"</translation>
+<translation id="4349181963619779233">No se pueden agregar extensiones ni apps desde este sitio web</translation>
 <translation id="4625078469366263107">Habilitar app</translation>
 <translation id="4633003931260532286">La extensión requiere "<ph name="IMPORT_NAME" />" con la versión "<ph name="IMPORT_VERSION" />" como mínimo, pero solo está instalada la versión "<ph name="INSTALLED_VERSION" />"</translation>
 <translation id="4660476621274971848">Se esperaba la versión "<ph name="EXPECTED_VERSION" />", pero la versión fue "<ph name="NEW_ID" />"</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">El valor de entrada de la clave privada debe tener un formato válido (clave RSA con encriptación PEM y formato PKCS#8).</translation>
-<translation id="765293928828334535">Las apps, extensiones y secuencias de comandos de usuario no se pueden agregar desde este sitio web</translation>
 <translation id="7658239707568436148">Cancelar</translation>
 <translation id="7766838926148951335">Aceptar permisos</translation>
 <translation id="7876803335449432072">No se pudo cargar el archivo "<ph name="RELATIVE_PATH" />" para la secuencia de comandos del contenido. Las hojas de estilos de la secuencia de comandos del contenido solo se pueden cargar desde archivos de hoja de estilos admitidos, como archivos .css.</translation>

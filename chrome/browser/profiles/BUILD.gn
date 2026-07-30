@@ -208,7 +208,10 @@ source_set("misc") {
       "profile_list_desktop.cc",
       "profile_list_desktop.h",
     ]
-    deps += [ "//chrome/browser/metrics/desktop_session_duration" ]
+    deps += [
+      "//chrome/browser/metrics/desktop_session_duration",
+      "//chrome/browser/ui:chrome_pages",
+    ]
   }
 
   if (is_win) {
@@ -627,6 +630,7 @@ source_set("profiles_extra_parts_impl") {
     "//chrome/browser/bluetooth",
     "//chrome/browser/bookmarks",
     "//chrome/browser/breadcrumbs",
+    "//chrome/browser/browser_actuator",
     "//chrome/browser/browsing_data",
     "//chrome/browser/browsing_topics",
     "//chrome/browser/btm",
@@ -840,6 +844,7 @@ source_set("profiles_extra_parts_impl") {
       "//chrome/browser/ui/webui/signin",
       "//chrome/browser/ui/webui/signin:login_ui_service",
       "//chrome/browser/user_education",
+      "//chrome/browser/web_applications/isolated_web_apps",
       "//chrome/browser/web_applications/isolated_web_apps/window_management",
     ]
   }
@@ -1077,6 +1082,17 @@ source_set("unit_tests") {
     sources += [ "guest_mode_policy_handler_unittest.cc" ]
   }
 
+  if (!is_android) {
+    sources += [
+      "profile_avatar_icon_util_unittest.cc",
+      "profile_destroyer_unittest.cc",
+    ]
+    deps += [
+      "//chrome/app/theme:theme_resources",
+      "//ui/gfx:test_support",
+    ]
+  }
+
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and
   # enable the diagnostic by removing this line.
   configs += [ "//build/config/compiler:no_exit_time_destructors" ]
@@ -1108,6 +1124,7 @@ if (!is_android) {
       "//chrome/browser/profiles:profile",
       "//chrome/browser/search_engines",
       "//chrome/browser/ui",
+      "//chrome/browser/ui:chrome_pages",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/find_bar",
       "//chrome/browser/ui/startup",

@@ -31,9 +31,6 @@ class FilterUiControllerTestApi {
     return controller_->suggestion_state_;
   }
 
-  void set_service(MultistepFilterService* service) {
-    controller_->service_ = service;
-  }
 
   void set_page_action_controller(
       page_actions::PageActionController* controller) {
@@ -45,6 +42,10 @@ class FilterUiControllerTestApi {
 
   void set_pref_service(PrefService* service) {
     controller_->pref_service_ = service;
+  }
+
+  void set_favicon_service(favicon::FaviconService* service) {
+    controller_->favicon_service_ = service;
   }
 
   // Exposes private SimpleMenuModel::Delegate overrides for verification.

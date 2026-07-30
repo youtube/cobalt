@@ -59,9 +59,8 @@ public class NtpBackgroundDataManager {
                     getBackgroundDataGroupFromSharedPreference(platformType);
 
             if (currentGroup.isEmpty()) {
-                JSONArray newList = new JSONArray();
-                newList.put(backgroundData.toJson());
-                writeToSharedPreference(newList, platformType);
+                currentGroup.add(backgroundData);
+                writeToSharedPreference(currentGroup.toJsonArray(), platformType);
                 return;
             }
 
@@ -103,9 +102,8 @@ public class NtpBackgroundDataManager {
                     getBackgroundDataGroupFromSharedPreference(platformTypeToSave);
 
             if (currentGroup.isEmpty()) {
-                JSONArray newList = new JSONArray();
-                newList.put(backgroundData.toJson());
-                writeToSharedPreference(newList, platformTypeToSave);
+                currentGroup.add(backgroundData);
+                writeToSharedPreference(currentGroup.toJsonArray(), platformTypeToSave);
                 return;
             }
 
@@ -143,10 +141,10 @@ public class NtpBackgroundDataManager {
 
     /** Removes the image file for the backgroundData. */
     private void cleanUpForBackgroundData(NtpBackgroundDataBase backgroundData) {
-        if (backgroundData instanceof NtpBackgroundDataUploadImage uploadImage) {
+        if (backgroundData instanceof NtpBackgroundDataImageBase imageBaseData) {
             NtpCustomizationUtils.maybeDeleteFile(
                     NtpCustomizationUtils.getBackgroundImageFileFromPath(
-                            uploadImage.getLastUploadImageFilePath()));
+                            imageBaseData.getLastUploadImageFilePath()));
         }
     }
 

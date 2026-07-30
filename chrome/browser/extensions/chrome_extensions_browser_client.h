@@ -12,6 +12,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/lazy_instance.h"
 #include "base/memory/scoped_refptr.h"
+#include "base/types/expected.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "build/chromeos_buildflags.h"
@@ -113,8 +114,6 @@ class ChromeExtensionsBrowserClient : public ExtensionsBrowserClient {
       content::BrowserContext* context) override;
 #if BUILDFLAG(IS_CHROMEOS)
   bool IsActiveContext(content::BrowserContext* browser_context) const override;
-  std::string GetUserIdHashFromContext(
-      content::BrowserContext* context) override;
 #endif
   bool IsGuestSession(content::BrowserContext* context) const override;
   bool IsExtensionIncognitoEnabled(
@@ -136,7 +135,8 @@ class ChromeExtensionsBrowserClient : public ExtensionsBrowserClient {
       const base::FilePath& resource_relative_path,
       int resource_id,
       scoped_refptr<net::HttpResponseHeaders> headers,
-      mojo::PendingRemote<network::mojom::URLLoaderClient> client) override;
+      mojo::PendingRemote<network::mojom::URLLoaderClient> client,
+      content::BrowserContext* browser_context) override;
   bool AllowCrossRendererResourceLoad(
       const network::ResourceRequest& request,
       network::mojom::RequestDestination destination,
@@ -222,8 +222,8 @@ class ChromeExtensionsBrowserClient : public ExtensionsBrowserClient {
                            const base::FilePath& path) override;
   bool HasIsolatedStorage(const ExtensionId& extension_id,
                           content::BrowserContext* context) override;
-  bool IsScreenshotRestricted(
-      content::WebContents* web_contents) const override;
+  base::expected<void, extensions::ScreenshotAccessError>
+  IsScreenshotRestricted(content::WebContents* web_contents) const override;
   bool IsValidTabId(content::BrowserContext* context,
                     int tab_id,
                     bool include_incognito,
@@ -332,6 +332,9 @@ class ChromeExtensionsBrowserClient : public ExtensionsBrowserClient {
       const ExtensionId& extension_id,
       const base::Version& extension_version,
       base::OnceCallback<void(bool, std::u16string)> callback) override;
+  std::unique_ptr<ExtensionInstallPromptClient> CreateInstallPrompt(
+      content::WebContents* web_contents,
+      std::unique_ptr<InstallPromptData> prompt) override;
 
   void SetAPIClientForTest(std::unique_ptr<ExtensionsAPIClient> client);
 

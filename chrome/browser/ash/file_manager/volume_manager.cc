@@ -241,13 +241,15 @@ bool IsSkyVaultV2Enabled() {
 int VolumeManager::counter_ = 0;
 
 VolumeManager::VolumeManager(
+    PrefService* local_state,
     Profile* profile,
     drive::DriveIntegrationService* drive_integration_service,
     chromeos::PowerManagerClient* power_manager_client,
     ash::disks::DiskMountManager* disk_mount_manager,
     ash::file_system_provider::Service* file_system_provider_service,
     GetMtpStorageInfoCallback get_mtp_storage_info_callback)
-    : profile_(profile),
+    : LocalUserFilesPolicyObserver(local_state),
+      profile_(profile),
       drive_integration_service_(drive_integration_service),
       disk_mount_manager_(disk_mount_manager),
       file_system_provider_service_(file_system_provider_service),

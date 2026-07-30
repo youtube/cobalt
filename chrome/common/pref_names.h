@@ -654,10 +654,6 @@ inline constexpr char kSplitViewDragAndDropNudgeUsedCount[] =
 // recently used tabs.
 inline constexpr char kCtrlTabMru[] = "browser.ctrl_tab_mru";
 
-// A boolean pref set to true if Gemini integration be enabled. This is managed
-// by enterprise policy.
-inline constexpr char kGeminiSettings[] = "browser.gemini_settings";
-
 // An int pref that controls the voice typing feature. This is managed by
 // enterprise policy.
 inline constexpr char kVoiceTypingSettings[] = "browser.voice_typing_settings";
@@ -1588,6 +1584,12 @@ static_assert(std::string_view(kWasRestarted) ==
 inline constexpr char kPreSmartRestartSessionState[] =
     "session.pre_smart_restart_session_state";
 
+#if BUILDFLAG(IS_MAC)
+// Boolean preference controlling zero window relaunch per enterprise policy.
+inline constexpr char kUpdateOnZeroWindowEnabled[] =
+    "policy.update_on_zero_window_enabled";
+#endif  //  BUILDFLAG(IS_MAC)
+
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Whether Extensions are enabled.
@@ -2323,6 +2325,9 @@ inline constexpr char kRelaunchHeadsUpPeriod[] =
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_MAC)
+// Boolean determining whether the glass frame is enabled.
+inline constexpr char kGlassFrameEnabled[] = "glass_frame.enabled";
+
 // Counts how many times prominent call-to-actions have occurred as part of the
 // Mac restore permissions experiment. https://crbug.com/1211052
 inline constexpr char kMacRestoreLocationPermissionsExperimentCount[] =

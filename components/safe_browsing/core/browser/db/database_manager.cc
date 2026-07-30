@@ -42,18 +42,18 @@ SafeBrowsingDatabaseManager::~SafeBrowsingDatabaseManager() {
   DCHECK(!v4_get_hash_protocol_manager_);
 }
 
-bool SafeBrowsingDatabaseManager::CancelApiCheck(Client* client) {
+bool SafeBrowsingDatabaseManager::CancelNotificationAbuseCheck(Client* client) {
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
-  auto it = FindClientApiCheck(client);
-  if (it != api_checks_.end()) {
-    api_checks_.erase(it);
+  auto it = FindClientNotificationAbuseCheck(client);
+  if (it != notification_abuse_checks_.end()) {
+    notification_abuse_checks_.erase(it);
     return true;
   }
   NOTREACHED();
 }
 
-bool SafeBrowsingDatabaseManager::CheckApiBlocklistUrl(const GURL& url,
-                                                       Client* client) {
+bool SafeBrowsingDatabaseManager::CheckNotificationAbuseUrl(const GURL& url,
+                                                            Client* client) {
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
 
   // Make sure we can check this url and that the service is enabled.
@@ -63,17 +63,18 @@ bool SafeBrowsingDatabaseManager::CheckApiBlocklistUrl(const GURL& url,
   }
 
   // There can only be one in-progress check for the same client at a time.
-  DCHECK(FindClientApiCheck(client) == api_checks_.end());
+  DCHECK(FindClientNotificationAbuseCheck(client) ==
+         notification_abuse_checks_.end());
 
-  std::unique_ptr<SafeBrowsingApiCheck> check(
-      new SafeBrowsingApiCheck(url, client));
-  api_checks_.insert(check.get());
+  std::unique_ptr<NotificationAbuseCheck> check(
+      new NotificationAbuseCheck(url, client));
+  notification_abuse_checks_.insert(check.get());
 
   std::vector<std::string> list_client_states;
   SBProtocolManagerUtil::GetListClientStatesFromStoreStateMap(
       GetStoreStateMap(), &list_client_states);
 
-  v4_get_hash_protocol_manager_->GetFullHashesWithApis(
+  v4_get_hash_protocol_manager_->GetFullHashesForNotificationAbuse(
       url, list_client_states,
       base::BindOnce(&SafeBrowsingDatabaseManager::OnThreatMetadataResponse,
                      base::Unretained(this), std::move(check)));
@@ -81,15 +82,16 @@ bool SafeBrowsingDatabaseManager::CheckApiBlocklistUrl(const GURL& url,
   return false;
 }
 
-SafeBrowsingDatabaseManager::ApiCheckSet::iterator
-SafeBrowsingDatabaseManager::FindClientApiCheck(Client* client) {
+SafeBrowsingDatabaseManager::NotificationAbuseCheckSet::iterator
+SafeBrowsingDatabaseManager::FindClientNotificationAbuseCheck(Client* client) {
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
-  for (auto it = api_checks_.begin(); it != api_checks_.end(); ++it) {
+  for (auto it = notification_abuse_checks_.begin();
+       it != notification_abuse_checks_.end(); ++it) {
     if ((*it)->client() == client) {
       return it;
     }
   }
-  return api_checks_.end();
+  return notification_abuse_checks_.end();
 }
 
 // Keep the list returned here in sync with GetStoreStateMap()
@@ -109,19 +111,20 @@ std::unique_ptr<StoreStateMap> SafeBrowsingDatabaseManager::GetStoreStateMap() {
 }
 
 void SafeBrowsingDatabaseManager::OnThreatMetadataResponse(
-    std::unique_ptr<SafeBrowsingApiCheck> check,
-    const ThreatMetadata& md) {
+    std::unique_ptr<NotificationAbuseCheck> check,
+    bool is_abusive) {
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
   DCHECK(check);
 
-  // If the check is not in |api_checks_| then the request was cancelled by the
-  // client.
-  auto it = api_checks_.find(check.get());
-  if (it == api_checks_.end())
+  // If the check is not in |notification_abuse_checks_| then the request was
+  // cancelled by the client.
+  auto it = notification_abuse_checks_.find(check.get());
+  if (it == notification_abuse_checks_.end()) {
     return;
+  }
 
-  check->client()->OnCheckApiBlocklistUrlResult(check->url(), md);
-  api_checks_.erase(it);
+  check->client()->OnCheckNotificationAbuseUrlResult(is_abusive);
+  notification_abuse_checks_.erase(it);
 }
 
 void SafeBrowsingDatabaseManager::StartOnUIThread(
@@ -129,8 +132,11 @@ void SafeBrowsingDatabaseManager::StartOnUIThread(
     const V4ProtocolConfig& config) {
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
 
-  v4_get_hash_protocol_manager_ = V4GetHashProtocolManager::Create(
-      url_loader_factory, GetStoresForFullHashRequests(), config);
+  // TODO(crbug.com/362791941): support v5
+  if (!base::FeatureList::IsEnabled(kLocalListsUseSBv5)) {
+    v4_get_hash_protocol_manager_ = V4GetHashProtocolManager::Create(
+        url_loader_factory, GetStoresForFullHashRequests(), config);
+  }
 }
 
 // |shutdown| not used. Destroys the v4 protocol managers. This may be called
@@ -139,10 +145,9 @@ void SafeBrowsingDatabaseManager::StopOnUIThread(bool shutdown) {
   DCHECK(ui_task_runner()->RunsTasksInCurrentSequence());
 
   // Delete pending checks, calling back any clients with empty metadata.
-  for (const SafeBrowsingApiCheck* check : api_checks_) {
+  for (const NotificationAbuseCheck* check : notification_abuse_checks_) {
     if (check->client()) {
-      check->client()->OnCheckApiBlocklistUrlResult(check->url(),
-                                                    ThreatMetadata());
+      check->client()->OnCheckNotificationAbuseUrlResult(/*is_abusive=*/false);
     }
   }
 
@@ -161,7 +166,7 @@ void SafeBrowsingDatabaseManager::NotifyDatabaseUpdateFinished() {
   update_complete_callback_list_.Notify();
 }
 
-SafeBrowsingDatabaseManager::SafeBrowsingApiCheck::SafeBrowsingApiCheck(
+SafeBrowsingDatabaseManager::NotificationAbuseCheck::NotificationAbuseCheck(
     const GURL& url,
     Client* client)
     : url_(url), client_(client) {}

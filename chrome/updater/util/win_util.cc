@@ -53,7 +53,6 @@
 #include "base/strings/strcat.h"
 #include "base/strings/string_split.h"
 #include "base/strings/string_util.h"
-#include "base/strings/stringprintf.h"
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/to_string.h"
 #include "base/strings/utf_string_conversions.h"
@@ -392,8 +391,7 @@ std::optional<std::wstring> AddCurrentUserAllowedAce(
     UINT8 required_ace_flags) {
   auto token = base::win::AccessToken::FromEffective();
   if (!token) {
-    VLOG(2) << "Failed to get effective token: " << std::hex
-            << HRESULTFromLastError();
+    VPLOG(2) << "Failed to get effective token";
     return {};
   }
 
@@ -410,7 +408,7 @@ std::optional<std::wstring> AddCurrentUserAllowedAce(
   // ACE ordering.
   if (!sd->SetDaclEntry(*token, base::win::SecurityAccessMode::kGrant,
                         required_permissions, required_ace_flags)) {
-    VLOG(2) << "Failed to add ACE: " << std::hex << HRESULTFromLastError();
+    VPLOG(2) << "Failed to add ACE";
     return {};
   }
 
@@ -530,7 +528,7 @@ HResultOr<bool> IsCOMCallerAdmin() {
           /*open_as_self=*/true, TOKEN_QUERY);
   if (!token) {
     HRESULT hr = HRESULTFromLastError();
-    LOG(ERROR) << "AccessToken::FromCurrentThread failed: " << std::hex << hr;
+    PLOG(ERROR) << "AccessToken::FromCurrentThread failed";
     return base::unexpected(hr);
   }
 
@@ -551,20 +549,21 @@ bool IsElevatedWithUACOn() {
 std::string GetUACState() {
   std::string s;
 
-  base::StringAppendF(&s, "IsUserAdmin: %d, ", ::IsUserAnAdmin());
+  absl::StrAppendFormat(&s, "IsUserAdmin: %d, ", ::IsUserAnAdmin());
 
   std::optional<base::win::AccessToken> token =
       base::win::AccessToken::FromCurrentProcess();
   if (token) {
     bool is_non_elevated_admin = token->IsSplitToken() && !token->IsElevated();
-    base::StringAppendF(&s, "IsUserNonElevatedAdmin: %d, ",
-                        is_non_elevated_admin);
+    absl::StrAppendFormat(&s, "IsUserNonElevatedAdmin: %d, ",
+                          is_non_elevated_admin);
   }
 
-  base::StringAppendF(&s, "IsUACOn: %d, IsElevatedWithUACOn: %d, ", IsUACOn(),
-                      IsElevatedWithUACOn());
+  absl::StrAppendFormat(&s, "IsUACOn: %d, IsElevatedWithUACOn: %d, ", IsUACOn(),
+                        IsElevatedWithUACOn());
 
-  base::StringAppendF(&s, "LUA: %d", base::win::UserAccountControlIsEnabled());
+  absl::StrAppendFormat(&s, "LUA: %d",
+                        base::win::UserAccountControlIsEnabled());
   return s;
 }
 
@@ -585,7 +584,7 @@ void EnsureEnoughMemory() {
   MEMORYSTATUSEX memory_status = {};
   memory_status.dwLength = sizeof(memory_status);
   if (!::GlobalMemoryStatusEx(&memory_status)) {
-    VLOG(1) << "Can't memory stat: " << std::hex << ::GetLastError();
+    VPLOG(1) << "Can't memory stat";
     return;
   }
   constexpr SIZE_T kMinMemoryNeeded = 10'000'000;  // 10MB.
@@ -618,8 +617,7 @@ void EnsureEnoughMemory() {
       alloc) {
     ::VirtualFree(alloc, 0, MEM_RELEASE);
   } else {
-    VLOG(1) << "Allocation failed: " << kMinMemoryNeeded / 1024 << "K, "
-            << std::hex << ::GetLastError();
+    VPLOG(1) << "Allocation failed: " << kMinMemoryNeeded / 1024 << "K";
   }
 
   VLOG(1) << MemoryStatus();
@@ -682,7 +680,7 @@ HResultOr<DWORD> ShellExecuteAndWait(const base::FilePath& file_path,
 
   if (!::ShellExecuteEx(&shell_execute_info)) {
     const HRESULT hr = HRESULTFromLastError();
-    VLOG(1) << __func__ << ": ::ShellExecuteEx failed: " << std::hex << hr;
+    VPLOG(1) << __func__ << ": ::ShellExecuteEx failed";
     return base::unexpected(hr);
   }
 
@@ -697,8 +695,7 @@ HResultOr<DWORD> ShellExecuteAndWait(const base::FilePath& file_path,
 
   // Allow the spawned process to show windows in the foreground.
   if (!::AllowSetForegroundWindow(pid)) {
-    VLOG(1) << __func__
-            << ": ::AllowSetForegroundWindow failed: " << ::GetLastError();
+    VPLOG(1) << __func__ << ": ::AllowSetForegroundWindow failed";
   }
 
   int ret_val = 0;
@@ -817,23 +814,21 @@ std::wstring BuildExeCommandLine(
 bool IsServiceRunning(const std::wstring& service_name) {
   ScopedScHandle scm(::OpenSCManager(nullptr, nullptr, SC_MANAGER_CONNECT));
   if (!scm.is_valid()) {
-    LOG(ERROR) << "::OpenSCManager failed. service_name: " << service_name
-               << ", error: " << std::hex << HRESULTFromLastError();
+    PLOG(ERROR) << "::OpenSCManager failed. service_name: " << service_name;
     return false;
   }
 
   ScopedScHandle service(
       ::OpenService(scm.get(), service_name.c_str(), SERVICE_QUERY_STATUS));
   if (!service.is_valid()) {
-    LOG(ERROR) << "::OpenService failed. service_name: " << service_name
-               << ", error: " << std::hex << HRESULTFromLastError();
+    PLOG(ERROR) << "::OpenService failed. service_name: " << service_name;
     return false;
   }
 
   SERVICE_STATUS status = {0};
   if (!::QueryServiceStatus(service.get(), &status)) {
-    LOG(ERROR) << "::QueryServiceStatus failed. service_name: " << service_name
-               << ", error: " << std::hex << HRESULTFromLastError();
+    PLOG(ERROR) << "::QueryServiceStatus failed. service_name: "
+                << service_name;
     return false;
   }
 
@@ -888,9 +883,7 @@ bool EnableSecureDllLoading() {
 bool EnableProcessHeapMetadataProtection() {
   if (!::HeapSetInformation(NULL, HeapEnableTerminationOnCorruption, nullptr,
                             0)) {
-    LOG(ERROR) << __func__
-               << ": Failed to enable heap metadata protection: " << std::hex
-               << HRESULTFromLastError();
+    PLOG(ERROR) << __func__ << ": Failed to enable heap metadata protection";
     return false;
   }
 
@@ -933,8 +926,7 @@ base::ScopedClosureRunner SignalShutdownEvent(UpdaterScope scope) {
   base::win::ScopedHandle shutdown_event_handle(
       ::CreateEvent(&attr.sa, true, false, attr.name.c_str()));
   if (!shutdown_event_handle.is_valid()) {
-    VLOG(1) << __func__ << "Could not create the shutdown event: " << std::hex
-            << HRESULTFromLastError();
+    VPLOG(1) << __func__ << "Could not create the shutdown event";
     return {};
   }
 

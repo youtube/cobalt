@@ -37,6 +37,7 @@ class GlicInstanceMetricsBackwardsCompatibility;
 
 class GlicPinCandidateProvider;
 class GlicSkillsManager;
+class GlicExperimentalTriggeringManager;
 
 // The host owns the WebUI that contains the main glic UI and the web client.
 // TODO(crbug.com/409332639): Better encapsulate details here.
@@ -91,7 +92,8 @@ class Host : public GlicSharingManagerProvider {
         const ::GURL& url,
         bool open_in_background,
         const std::optional<int32_t>& window_id,
-        glic::mojom::WebClientHandler::CreateTabCallback callback) = 0;
+        glic::mojom::WebClientHandler::CreateTabCallback callback,
+        bool show_side_panel = true) = 0;
 
     virtual void FetchZeroStateSuggestions(
         bool is_first_run,
@@ -120,14 +122,10 @@ class Host : public GlicSharingManagerProvider {
 
     virtual GlicSkillsManager& skills_manager() = 0;
 
-    virtual bool IsActive() = 0;
-
     virtual std::unique_ptr<WebUIContentsContainer>
     CreateWebUIContentsContainer() = 0;
-
-    virtual void CreateActorHandler(
-        mojo::PendingReceiver<mojom::ActorHandler> receiver,
-        mojo::PendingRemote<mojom::ActorClient> client) = 0;
+    virtual GlicExperimentalTriggeringManager*
+    GetExperimentalTriggeringManager() = 0;
   };
 
   class Observer : public base::CheckedObserver {
@@ -165,6 +163,7 @@ class Host : public GlicSharingManagerProvider {
   Host& operator=(const Host&) = delete;
 
   Profile* profile() const { return profile_; }
+  GlicInstance* glic_instance() const { return glic_instance_; }
 
   void SetDelegate(EmbedderDelegate* delegate);
 
@@ -202,10 +201,6 @@ class Host : public GlicSharingManagerProvider {
       glic::mojom::ConversationInfoPtr info,
       mojom::WebClientHandler::SwitchConversationCallback callback);
 
-  void RegisterConversation(
-      glic::mojom::ConversationInfoPtr info,
-      mojom::WebClientHandler::RegisterConversationCallback callback);
-
   // Delete the owned web contents and prepare for destruction.
   void Shutdown();
 
@@ -231,9 +226,9 @@ class Host : public GlicSharingManagerProvider {
 
   GlicPinCandidateProvider& pin_candidate_provider() override;
 
-  GlicSkillsManager& skills_manager();
-
   Host::InstanceDelegate& instance_delegate();
+
+  GlicInstance& instance() { return *glic_instance_; }
 
   GlicInstanceMetrics& instance_metrics() {
     return instance_delegate().instance_metrics();
@@ -294,9 +289,6 @@ class Host : public GlicSharingManagerProvider {
 
   void AddObserver(Observer* observer);
   void RemoveObserver(Observer* observer);
-
-  void AddPanelStateObserver(PanelStateObserver* observer);
-  void RemovePanelStateObserver(PanelStateObserver* observer);
 
   // Returns the current WebUI state, or kUninitialized if there is no active
   // glic WebUI.
@@ -375,8 +367,6 @@ class Host : public GlicSharingManagerProvider {
 
   // Returns true if the widget is visible.
   bool IsWidgetShowing(GlicWebClientAccess* client) const;
-  // Returns the current panel state.
-  mojom::PanelState GetPanelState() const;
 
   base::WeakPtr<Host> GetWeakPtr() { return weak_ptr_factory_.GetWeakPtr(); }
 
@@ -387,12 +377,6 @@ class Host : public GlicSharingManagerProvider {
   bool IsWebContentPresentAndMatches(content::RenderFrameHost* rfh);
 
   void NotifyActorTaskListRowClicked(int32_t task_id);
-
-  // Register a handler to observe experimental triggering related updates.
-  // The callback informs if the registration operations was successful or not.
-  virtual void GetExperimentalTriggeringUpdates(
-      mojo::PendingRemote<mojom::ExperimentalTriggeringUpdatesHandler> handler,
-      base::OnceCallback<void(bool)> success_status_callback);
 
 
   virtual void Invoke(mojom::InvokeOptionsPtr options,

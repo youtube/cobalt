@@ -159,6 +159,8 @@ const AcceleratorMapping kAcceleratorMap[] = {
     {ui::VKEY_F11, ui::EF_NONE, IDC_FULLSCREEN},
     {ui::VKEY_M, ui::EF_SHIFT_DOWN | ui::EF_PLATFORM_ACCELERATOR,
      IDC_SHOW_AVATAR_MENU},
+    {ui::VKEY_L, ui::EF_SHIFT_DOWN | ui::EF_PLATFORM_ACCELERATOR,
+     IDC_TOGGLE_VERTICAL_TABS_COLLAPSE},
 
 // Platform-specific key maps.
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
@@ -290,6 +292,8 @@ constexpr AcceleratorMapping kUIDebugAcceleratorMap[] = {
     {ui::VKEY_T, kDebugModifier, IDC_DEBUG_TOGGLE_TABLET_MODE},
     {ui::VKEY_V, kDebugModifier, IDC_DEBUG_PRINT_VIEW_TREE},
     {ui::VKEY_M, kDebugModifier, IDC_DEBUG_PRINT_VIEW_TREE_DETAILS},
+    {ui::VKEY_W, kDebugModifier, IDC_DEBUG_PRINT_WINDOW_HIERARCHY},
+    {ui::VKEY_L, kDebugModifier, IDC_DEBUG_PRINT_LAYER_HIERARCHY},
 };
 
 const int kRepeatableCommandIds[] = {

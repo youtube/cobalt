@@ -36,7 +36,8 @@ namespace {
 const char kTestVersion[] = "1.0.0.0";
 
 constexpr optimization_guide::proto::OptimizationTarget kTestTarget =
-    optimization_guide::proto::OPTIMIZATION_TARGET_MODEL_VALIDATION;
+    optimization_guide::proto::
+        OPTIMIZATION_TARGET_GEOLOCATION_PERMISSION_PREDICTIONS;
 
 class PredictionModelMockComponentUpdateService
     : public MockComponentUpdateService {
@@ -192,7 +193,7 @@ TEST_F(PredictionModelComponentInstallerTest, ComponentReadyNotifiesListener) {
   EXPECT_EQ(observer.call_count(), 1);
   EXPECT_EQ(observer.last_target(), kTestTarget);
   ASSERT_TRUE(observer.last_model_info());
-  EXPECT_EQ(observer.last_model_info()->GetVersion(), 123);
+  EXPECT_EQ(observer.last_model_info()->version, 123);
 
   listener_.RemoveObserverForOptimizationTargetModel(kTestTarget, &observer);
 }
@@ -200,7 +201,7 @@ TEST_F(PredictionModelComponentInstallerTest, ComponentReadyNotifiesListener) {
 TEST_F(PredictionModelComponentInstallerTest, GetRelativeInstallDir) {
   base::FilePath expected_dir =
       base::FilePath(FILE_PATH_LITERAL("OptGuidePredictionModels"))
-          .AppendASCII("ModelValidation");
+          .AppendASCII("GeolocationPermissions");
   EXPECT_EQ(policy_->GetRelativeInstallDir(), expected_dir);
 }
 
@@ -301,12 +302,12 @@ TEST_F(PredictionModelComponentInstallerTest,
   EXPECT_EQ(observer1.call_count(), 1);
   EXPECT_EQ(observer1.last_target(), kTestTarget);
   ASSERT_TRUE(observer1.last_model_info());
-  EXPECT_EQ(observer1.last_model_info()->GetVersion(), 123);
+  EXPECT_EQ(observer1.last_model_info()->version, 123);
 
   EXPECT_EQ(observer2.call_count(), 1);
   EXPECT_EQ(observer2.last_target(), kTestTarget);
   ASSERT_TRUE(observer2.last_model_info());
-  EXPECT_EQ(observer2.last_model_info()->GetVersion(), 123);
+  EXPECT_EQ(observer2.last_model_info()->version, 123);
 
   listener_.RemoveObserverForOptimizationTargetModel(kTestTarget, &observer1);
   listener_.RemoveObserverForOptimizationTargetModel(kTestTarget, &observer2);

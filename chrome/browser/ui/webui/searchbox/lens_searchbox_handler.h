@@ -31,14 +31,18 @@ class LensSearchboxHandler : public SearchboxHandler {
 
   // searchbox::mojom::PageHandler:
   void OnFocusChanged(bool focused) override;
-  void QueryAutocomplete(const std::u16string& input,
+  void QueryAutocomplete(int32_t query_id,
+                         const std::u16string& input,
                          bool prevent_inline_autocomplete,
-                         uint32_t cursor_position) override;
+                         uint32_t cursor_position,
+                         bool is_on_focus) override;
   void QueryAutocompleteWithSuggestInventory(
+      int32_t query_id,
       const std::u16string& input,
       bool prevent_inline_autocomplete,
       uint32_t cursor_position,
-      omnibox::SuggestInventory suggest_inventory) override;
+      omnibox::SuggestInventory suggest_inventory,
+      bool is_on_focus) override;
   void DeleteAutocompleteMatch(uint8_t line, const GURL& url) override {}
   void ExecuteAction(uint8_t line,
                      uint8_t action_index,

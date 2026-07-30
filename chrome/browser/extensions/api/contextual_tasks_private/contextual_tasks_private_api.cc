@@ -218,16 +218,21 @@ ContextualTasksPrivateLaunchPanelInNewTabFunction::Run() {
   content::NavigationController::LoadURLParams load_params(target_url);
   load_params.initiator_origin = rfh->GetLastCommittedOrigin();
   load_params.initiator_frame_token = rfh->GetFrameToken();
-  load_params.initiator_process_id =
-      rfh->GetProcess()->GetID().GetUnsafeValue();
+  load_params.initiator_process_id = rfh->GetProcess()->GetID();
   load_params.source_site_instance = rfh->GetSiteInstance();
   load_params.is_renderer_initiated = true;
   load_params.has_user_gesture = user_gesture();
   target_tab->GetContents()->GetController().LoadURLWithParams(load_params);
 
-  ui_service->StartTaskUiInSidePanel(browser, target_tab, aim_url,
-                                     /*session_handle=*/nullptr,
-                                     /*associate_web_contents=*/false);
+  bool use_no_animation =
+      contextual_tasks::ShouldContextualTasksPrivateApiUseNoAnimation();
+
+  ui_service->StartTaskUiInSidePanel(
+      browser, target_tab, aim_url,
+      /*session_handle=*/nullptr,
+      /*associate_web_contents=*/false,
+      omnibox::ChromeAimEntryPoint::UNKNOWN_AIM_ENTRY_POINT,
+      /*use_mstk_for_task_association=*/true, use_no_animation);
 
   return RespondNow(NoArguments());
 }

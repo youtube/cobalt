@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">정보 페이지 '<ph name="ABOUT_PAGE" />'을(를) 로드할 수 없습니다.</translation>
 <translation id="424963718355121712">앱은 영향을 미치는 호스트에서 제공되어야 합니다</translation>
 <translation id="4306119971288449206">앱은 '<ph name="CONTENT_TYPE" />' 콘텐츠 유형으로 제공되어야 합니다</translation>
+<translation id="4349181963619779233">이 웹사이트의 확장 프로그램 및 앱을 추가할 수 없습니다.</translation>
 <translation id="4625078469366263107">앱 사용</translation>
 <translation id="4633003931260532286">확장 프로그램은 최소 버전 '<ph name="IMPORT_VERSION" />'의 '<ph name="IMPORT_NAME" />'을(를) 요구하지만 '<ph name="INSTALLED_VERSION" />' 버전만 설치되었습니다</translation>
 <translation id="4660476621274971848">'<ph name="EXPECTED_VERSION" />' 버전을 예상했으나 '<ph name="NEW_ID" />' 버전이 표시되었습니다</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">비공개 키 입력 값이 유효한 형식이어야 합니다(PKCS#8 형식 PEM 인코딩된 RSA 키).</translation>
-<translation id="765293928828334535">이 웹사이트에서 앱, 확장 프로그램, 사용자 스크립트 등을 추가할 수 없습니다</translation>
 <translation id="7658239707568436148">취소</translation>
 <translation id="7766838926148951335">권한 수락</translation>
 <translation id="7876803335449432072">콘텐츠 스크립트용 파일('<ph name="RELATIVE_PATH" />')을 로드할 수 없습니다. 콘텐츠 스크립트 스타일 시트는 .css 파일과 같이 지원되는 스타일 시트 파일에서만 로드할 수 있습니다.</translation>

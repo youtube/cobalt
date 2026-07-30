@@ -146,7 +146,7 @@ class WindowOcclusionTrackerTest : public test::AuraTestBase {
     window->SetType(client::WINDOW_TYPE_NORMAL);
     window->Init(layer_type);
     if (layer_type == ui::LAYER_SOLID_COLOR)
-      window->layer()->SetColor(SK_ColorBLACK);
+      window->layer()->AsSolidColor()->SetColor(SK_ColorBLACK);
     window->SetTransparent(transparent);
     window->SetBounds(bounds);
     window->Show();
@@ -174,7 +174,7 @@ class WindowOcclusionTrackerTest : public test::AuraTestBase {
     Window* window = new Window(nullptr);
     window->SetType(client::WINDOW_TYPE_NORMAL);
     window->Init(ui::LAYER_SOLID_COLOR);
-    window->layer()->SetColor(SK_ColorBLACK);
+    window->layer()->AsSolidColor()->SetColor(SK_ColorBLACK);
     window->SetBounds(bounds);
     root_window()->AddChild(window);
     window->Show();
@@ -490,7 +490,8 @@ class WindowOcclusionTrackerOpacityTest
 
   void SetOpacity(aura::Window* window, float opacity) {
     if (use_solid_color_layer_)
-      window->layer()->SetColor(SkColorSetARGB(255 * opacity, 255, 255, 255));
+      window->layer()->AsSolidColor()->SetColor(
+          SkColorSetARGB(255 * opacity, 255, 255, 255));
     else
       window->layer()->SetOpacity(opacity);
   }
@@ -3095,7 +3096,8 @@ TEST_F(WindowOcclusionTrackerTest,
 
   // Semi-opaque color on the window_b should make window a visible.
   delegate_a->set_expectation(Window::OcclusionState::VISIBLE, SkRegion());
-  window_b->layer()->SetColor(SkColorSetARGB(127, 255, 255, 255));
+  window_b->layer()->AsSolidColor()->SetColor(
+      SkColorSetARGB(127, 255, 255, 255));
   EXPECT_FALSE(delegate_a->is_expecting_call());
 
   // Creating opaque layer on top of a half-opaque solid_color layer
@@ -3230,6 +3232,119 @@ TEST_F(WindowOcclusionTrackerTest, DoNotCountTwice) {
       },
       "DCHECK failed.*num_tracked_windows.*");
 #endif
+}
+
+TEST_F(WindowOcclusionTrackerTest,
+       ChildWithUnmanagedLayerAndIntermediateLayer) {
+  // Window Hierarchy:
+  // RootWindow
+  //   ├── Parent (0,0 100x100)
+  //   │     └── Child (10,10 50x50, layer unmanaged)
+  //   └── Sibling (0,0 50x50)
+  //
+  // Layer Hierarchy:
+  // RootWindow (layer)
+  //   ├── Parent (layer, 0,0 100x100)
+  //   │     └── IntermediateLayer (10,10 80x80)
+  //   │           └── Child (layer, 0,0 50x50)
+  //   └── Sibling (layer, 0,0 50x50)
+
+  // The child window was considered hidden before fix because child's layer
+  // bounds is (0, 0, 50, 50)
+
+  // Create a parent window.
+  MockWindowDelegate* delegate_parent = new MockWindowDelegate();
+  delegate_parent->set_expectation(Window::OcclusionState::VISIBLE, SkRegion());
+  std::unique_ptr<Window> parent = test::TestWindowBuilder()
+                                       .SetDelegate(delegate_parent)
+                                       .SetBounds({100, 100})
+                                       .Build();
+  parent->SetName("Parent");
+  delegate_parent->set_window(parent.get());
+  root_window()->AddChild(parent.get());
+  parent->TrackOcclusionState();
+  EXPECT_FALSE(delegate_parent->is_expecting_call());
+
+  // Create a child window, but do not track it yet.
+  MockWindowDelegate* delegate_child = new MockWindowDelegate();
+  std::unique_ptr<Window> child_owner = test::TestWindowBuilder()
+                                            .SetDelegate(delegate_child)
+                                            .SetShow(false)
+                                            .Build();
+  Window* child = child_owner.get();
+  child->SetName("Child");
+  delegate_child->set_window(child);
+  child->SetTransparent(false);
+
+  // Set layer not managed by parent.
+  child->SetLayerManagedByParent(false);
+
+  // Add child to parent window.
+  parent->AddChild(child_owner.release());
+
+  // Set bounds on child window. This represents logical bounds in parent.
+  child->SetBounds({10, 10, 50, 50});
+
+  // Create intermediate layer.
+  auto intermediate_layer = std::make_unique<ui::LayerNotDrawn>();
+  parent->layer()->Add(intermediate_layer.get());
+
+  // Add child's layer to intermediate layer.
+  intermediate_layer->Add(child->layer());
+
+  // Set bounds on intermediate layer and child layer.
+  intermediate_layer->SetBounds({10, 10, 80, 80});
+  child->layer()->SetBounds({50, 50});
+
+  // Now show and track the child window.
+  delegate_child->set_expectation(Window::OcclusionState::VISIBLE, SkRegion());
+  child->Show();
+  child->TrackOcclusionState();
+  EXPECT_FALSE(delegate_child->is_expecting_call());
+
+  // Sibling window that would completely overlap child if child were at (0,0),
+  // but should only partially overlap since child is at (10,10).
+  MockWindowDelegate* delegate_sibling = new MockWindowDelegate();
+  delegate_sibling->set_expectation(Window::OcclusionState::VISIBLE,
+                                    SkRegion());
+  std::unique_ptr<Window> sibling = test::TestWindowBuilder()
+                                        .SetDelegate(delegate_sibling)
+                                        .SetBounds({50, 50})
+                                        .Build();
+  sibling->SetName("Sibling");
+  delegate_sibling->set_window(sibling.get());
+
+  // Expect parent to be occluded by sibling.
+  delegate_parent->set_expectation(Window::OcclusionState::VISIBLE,
+                                   SkRegion(SkIRect::MakeWH(50, 50)));
+
+  // Expect child to be partially occluded by sibling.
+  // Overlap of Child(10,10,50,50) and Sibling(0,0,50,50) is (10,10,40,40).
+  delegate_child->set_expectation_with_clipped_region(
+      Window::OcclusionState::VISIBLE,
+      SkRegion(SkIRect::MakeXYWH(10, 10, 40, 40)));
+
+  root_window()->AddChild(sibling.get());
+  sibling->TrackOcclusionState();
+
+  EXPECT_FALSE(delegate_child->is_expecting_call());
+  EXPECT_FALSE(delegate_sibling->is_expecting_call());
+  EXPECT_FALSE(delegate_parent->is_expecting_call());
+
+  // Clean up.
+  delegate_sibling->set_expectation(Window::OcclusionState::UNKNOWN,
+                                    SkRegion());
+  sibling->UntrackOcclusionState();
+  delegate_child->set_expectation(Window::OcclusionState::UNKNOWN, SkRegion());
+  child->UntrackOcclusionState();
+  delegate_parent->set_expectation(Window::OcclusionState::UNKNOWN, SkRegion());
+  parent->UntrackOcclusionState();
+
+  // Sibling and parent must be destroyed while intermediate_layer is still
+  // alive, because child destruction (triggered by parent destruction) accesses
+  // the layer hierarchy.
+  sibling.reset();
+  parent.reset();
 }
 
 // Run tests with LAYER_TEXTURE_LAYER type or LAYER_SOLID_COLOR type.

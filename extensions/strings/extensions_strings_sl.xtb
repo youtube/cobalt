@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">Ni bilo mogoče naložiti Vizitke »<ph name="ABOUT_PAGE" />«.</translation>
 <translation id="424963718355121712">Aplikacije morajo biti izvedene pri gostitelju, na katerega vplivajo</translation>
 <translation id="4306119971288449206">Aplikacije morajo biti opremljene z vrsto vsebine »<ph name="CONTENT_TYPE" />«</translation>
+<translation id="4349181963619779233">Razširitev in aplikacij ni mogoče dodati s tega spletnega mesta.</translation>
 <translation id="4625078469366263107">Omogoči aplikacijo</translation>
 <translation id="4633003931260532286">Razširitev zahteva »<ph name="IMPORT_NAME" />« z najmanjšo številko različice »<ph name="IMPORT_VERSION" />«, vendar je nameščena samo različica »<ph name="INSTALLED_VERSION" />«</translation>
 <translation id="4660476621274971848">Pričakovana različica je »<ph name="EXPECTED_VERSION" />«, toda različica je bila »<ph name="NEW_ID" />«</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">Vrednost vnosa za zasebni ključ mora biti veljavne oblike (ključ RSA s kodiranjem PEM v obliki PKCS#8).</translation>
-<translation id="765293928828334535">Aplikacij, razširitev in uporabniških skriptov ni mogoče dodati s tega spletnega mesta</translation>
 <translation id="7658239707568436148">Prekliči</translation>
 <translation id="7766838926148951335">Sprejmi dovoljenja</translation>
 <translation id="7876803335449432072">Datoteke »<ph name="RELATIVE_PATH" />« ni bilo mogoče naložiti za skript vsebine. Datoteke s slogi skripta vsebine je mogoče naložiti samo iz podprtih datotek s slogi, kot so datoteke .css.</translation>

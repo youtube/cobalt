@@ -153,10 +153,10 @@
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/page_action_menu/coordinator/page_action_menu_coordinator.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
-#import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_coordinator.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_view_finder_coordinator.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
+#import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/level_up/coordinator/level_up_coordinator.h"
 #import "ios/chrome/browser/main/coordinator/browser_layout_coordinator.h"
 #import "ios/chrome/browser/main/ui/browser_layout_view_controller.h"
@@ -431,9 +431,9 @@ const char kChromeAppStoreUrl[] =
     DockingPromoCommands,
     DownloadListCommands,
     DriveFilePickerCommands,
+    EditMenuBuilder,
     EnhancedCalendarCommands,
     EnterpriseCommands,
-    EditMenuBuilder,
     EnterprisePromptCoordinatorDelegate,
     FileUploadPanelCommands,
     FindInPageCommands,
@@ -451,8 +451,8 @@ const char kChromeAppStoreUrl[] =
     PageInfoCommands,
     PageInfoPresentation,
     ParentAccessCommands,
-    PasswordBreachCommands,
     PasskeyWelcomeScreenCoordinatorDelegate,
+    PasswordBreachCommands,
     PasswordControllerDelegate,
     PasswordProtectionCommands,
     PasswordProtectionCoordinatorDelegate,
@@ -460,14 +460,10 @@ const char kChromeAppStoreUrl[] =
     PasswordSuggestionCommands,
     PasswordSuggestionCoordinatorDelegate,
     PictureInPictureCommands,
+    PolicyChangeCommands,
+    PrerenderBrowserAgentDelegate,
     PriceTrackedItemsCommands,
     PromosManagerCommands,
-    PolicyChangeCommands,
-    SendTabToSelfCoordinatorDelegate,
-    SharedTabGroupLastTabAlertCommands,
-    SyncedSetUpCoordinatorDelegate,
-    SyncedSetUpCommands,
-    PrerenderBrowserAgentDelegate,
     QuickDeleteCommands,
     ReaderModeBrowserAgentDelegate,
     ReaderModeCommands,
@@ -483,10 +479,14 @@ const char kChromeAppStoreUrl[] =
     SaveToPhotosCommands,
     SearchEngineChoiceCommands,
     SearchEngineChoiceCoordinatorDelegate,
+    SendTabToSelfCoordinatorDelegate,
+    SharedTabGroupLastTabAlertCommands,
     SigninPresenter,
-    SnapshotGeneratorDelegate,
     SnackbarCoordinatorDelegate,
+    SnapshotGeneratorDelegate,
     StoreKitCoordinatorDelegate,
+    SyncedSetUpCommands,
+    SyncedSetUpCoordinatorDelegate,
     SyncPresenterCommands,
     TabPickerCommands,
     TextZoomCommands,
@@ -1604,6 +1604,8 @@ const char kChromeAppStoreUrl[] =
   [_dispatcher startDispatchingToTarget:viewController
                             forProtocol:@protocol(BrowserCommands)];
   viewController.layoutState = self.browser->GetSceneState().layoutState;
+  viewController.lensOverlayStateNotifier =
+      self.browser->GetSceneState().lensOverlayStateNotifier;
   _browserLayoutCoordinator.browserViewController = viewController;
 }
 
@@ -5038,20 +5040,12 @@ const char kChromeAppStoreUrl[] =
 
   NSMutableArray<UIView*>* overlays = [NSMutableArray array];
 
-  PrefService* prefs = browser->GetProfile()->GetPrefs();
   LensOverlayTabHelper* lensOverlayTabHelper =
       LensOverlayTabHelper::FromWebState(webState);
 
   if (lensOverlayTabHelper) {
-    BOOL isLensOverlayCurrentlyInvoked;
-
-    if (IsLensOverlaySameTabNavigationEnabled(prefs)) {
-      isLensOverlayCurrentlyInvoked =
-          lensOverlayTabHelper->IsLensOverlayInvokedOnCurrentNavigationItem();
-    } else {
-      isLensOverlayCurrentlyInvoked =
-          lensOverlayTabHelper->IsLensOverlayUIAttachedAndAlive();
-    }
+    BOOL isLensOverlayCurrentlyInvoked =
+        lensOverlayTabHelper->IsLensOverlayInvokedOnCurrentNavigationItem();
 
     // A lens overlay is invoked in the given web state.
     if (isLensOverlayCurrentlyInvoked) {
@@ -5785,6 +5779,11 @@ const char kChromeAppStoreUrl[] =
               organizationDomain:organizationDomain
                         callback:std::move(callback)];
   [_enterpriseDialogCoordinator start];
+}
+
+- (void)dismissEnterpriseWarningDialog {
+  [_enterpriseDialogCoordinator stop];
+  _enterpriseDialogCoordinator = nil;
 }
 
 @end

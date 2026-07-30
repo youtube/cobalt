@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">לא ניתן לטעון את דף המידע '<ph name="ABOUT_PAGE" />'.</translation>
 <translation id="424963718355121712">הפעלת אפליקציות חייבת להתבצע מהמארח שעליו הן משפיעות</translation>
 <translation id="4306119971288449206">הפעלת אפליקציות חייבת להתבצע עם סוג תוכן "<ph name="CONTENT_TYPE" />"</translation>
+<translation id="4349181963619779233">אי אפשר להוסיף תוספים ואפליקציות מהאתר הזה</translation>
 <translation id="4625078469366263107">הפעלת האפליקציה</translation>
 <translation id="4633003931260532286">כדי להשתמש בתוסף יש צורך ב-"<ph name="IMPORT_NAME" />" בגרסה "<ph name="IMPORT_VERSION" />" לפחות, אך הגרסה המותקנת היא רק "<ph name="INSTALLED_VERSION" />"</translation>
 <translation id="4660476621274971848">הגרסה הצפויה היא "<ph name="EXPECTED_VERSION" />", אבל הגרסה הייתה "<ph name="NEW_ID" />"</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">‏ערך הקלט של המפתח הפרטי חייב להיות בפורמט חוקי (מפתח RSA בפורמט PKCS#8 עם קידוד PEM).</translation>
-<translation id="765293928828334535">לא ניתן להוסיף אפליקציות, תוספים וסקריפטים של משתמש מהאתר הזה</translation>
 <translation id="7658239707568436148">ביטול</translation>
 <translation id="7766838926148951335">אישור הרשאות</translation>
 <translation id="7876803335449432072">‏אי אפשר לטעון את הקובץ "<ph name="RELATIVE_PATH" />" לסקריפט התוכן. אפשר לטעון גיליונות סגנונות של סקריפטים של תוכן רק מקובצי גיליון סגנונות נתמכים, כמו קובצי css.</translation>

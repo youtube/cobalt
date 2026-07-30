@@ -68,24 +68,6 @@
     "dependencies": ["manifest:action"],
     "contexts": ["privileged_extension"]
   },
-  "action.openPopup": [{
-    "channel": "stable",
-    // TODO(https://crbug.com/40057101): Remove this guard after the feature
-    // has been in stable for a milestone or two.
-    "feature_flag": "ApiActionOpenPopup"
-  }, {
-    "channel": "stable",
-    "location": "policy"
-  }],
-  "action.isEnabled": {
-    "channel": "stable"
-  },
-  "action.getBadgeTextColor": {
-    "channel": "stable"
-  },
-  "action.setBadgeTextColor": {
-    "channel": "stable"
-  },
   "activityLogPrivate": [{
     "dependencies": ["permission:activityLogPrivate"],
     "contexts": ["privileged_extension"]
@@ -842,12 +824,10 @@
     "contexts": ["privileged_extension"]
   },
   "permissions.addHostAccessRequest": {
-    "min_manifest_version": 3,
-    "feature_flag": "ApiPermissionsHostAccessRequests"
+    "min_manifest_version": 3
   },
   "permissions.removeHostAccessRequest": {
-    "min_manifest_version": 3,
-    "feature_flag": "ApiPermissionsHostAccessRequests"
+    "min_manifest_version": 3
   },
   "platformKeys": {
     "dependencies": ["permission:platformKeys"],

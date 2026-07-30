@@ -29,7 +29,6 @@
 #include "third_party/blink/public/common/input/web_mouse_event.h"
 #include "third_party/blink/public/platform/web_input_event_result.h"
 #include "third_party/blink/public/web/web_element.h"
-#include "third_party/blink/public/web/web_form_control_element.h"
 #include "third_party/blink/public/web/web_frame_widget.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "third_party/blink/public/web/web_node.h"
@@ -40,7 +39,6 @@ namespace actor {
 
 using ::blink::WebCoalescedInputEvent;
 using ::blink::WebElement;
-using ::blink::WebFormControlElement;
 using ::blink::WebFrameWidget;
 using ::blink::WebInputEvent;
 using ::blink::WebInputEventResult;
@@ -186,26 +184,24 @@ ToolBase::ResolveResult ClickTool::ResolveValidatedClickTarget(
   // Perform click validation on the resolved node. This is shared by initial
   // validation and the final direct-activation check so last-moment state
   // changes do not skip normal click preconditions.
-  const WebNode& node = resolved_target->node;
-  if (!node.IsNull()) {
-    WebElement element = node.DynamicTo<WebElement>();
-    WebFormControlElement form_element =
-        node.DynamicTo<WebFormControlElement>();
-    if (!form_element.IsNull() && !form_element.IsEnabled()) {
-      return base::unexpected(MakeResult(
-          mojom::ActionResultCode::kElementDisabled,
-          /*requires_page_stabilization=*/false,
-          absl::StrFormat("[Element %s]", base::ToString(form_element))));
-    }
-    if (occlusion_mode ==
-            TargetOcclusionMode::kAllowOccludedForDirectActivation &&
-        !element.IsNull() && element.IsEffectivelyDisabledOrInert()) {
-      return base::unexpected(
-          MakeResult(mojom::ActionResultCode::kElementDisabled,
-                     /*requires_page_stabilization=*/false,
-                     "The target element is disabled, inert, or otherwise "
-                     "unavailable."));
-    }
+  // Direct activation uses accessibility-style clicks, so ARIA can block it.
+  const bool check_aria =
+      action_->type == mojom::ClickType::kLeftOnOccludedTarget;
+  const bool reject_non_disabled_reasons =
+      occlusion_mode ==
+          TargetOcclusionMode::kAllowOccludedForDirectActivation ||
+      base::FeatureList::IsEnabled(
+          features::kGlicActorRejectInteractionDisallowedTargets);
+  std::optional<blink::WebElementInteractionDisallowedReason>
+      disallowed_reason = GetInteractionDisallowedReason(
+          *resolved_target, check_aria, reject_non_disabled_reasons);
+  if (disallowed_reason.has_value()) {
+    return base::unexpected(MakeResult(
+        mojom::ActionResultCode::kElementDisabled,
+        /*requires_page_stabilization=*/false,
+        absl::StrFormat("The target element is unavailable because it is %s.",
+                        WebElementInteractionDisallowedReasonToString(
+                            *disallowed_reason))));
   }
 
   return resolved_target;

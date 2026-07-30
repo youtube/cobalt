@@ -33,10 +33,6 @@ class TravelInfoMediatorTest : public PlatformTest {
  protected:
   void SetUp() override {
     PlatformTest::SetUp();
-    scoped_feature_list_.InitWithFeatures(
-        {autofill::features::kAutofillAiWithDataSchema,
-         autofill::features::kAutofillAiCreateEntityDataManager},
-        {});
 
     TestProfileIOS::Builder builder;
     builder.AddTestingFactory(ios::WebDataServiceFactory::GetInstance(),
@@ -60,7 +56,8 @@ class TravelInfoMediatorTest : public PlatformTest {
   }
 
   web::WebTaskEnvironment task_environment_;
-  base::test::ScopedFeatureList scoped_feature_list_;
+  base::test::ScopedFeatureList scoped_feature_list_{
+      autofill::features::kAutofillAiWithDataSchema};
   std::unique_ptr<TestProfileIOS> profile_;
   TravelInfoMediator* mediator_;
   id consumer_;
@@ -274,6 +271,10 @@ TEST_F(TravelInfoMediatorTest, PrefChangeUpdatesConsumer) {
 // Tests that a preference change for address autofill updates the consumer
 // toggle enabled state.
 TEST_F(TravelInfoMediatorTest, AutofillProfilePrefChangeUpdatesConsumer) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(
+      autofill::features::kAutofillEnableAutofillSettingsEnterprisePolicy);
+
   profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
                                    true);
   profile_->GetPrefs()->SetBoolean(
@@ -288,6 +289,25 @@ TEST_F(TravelInfoMediatorTest, AutofillProfilePrefChangeUpdatesConsumer) {
   OCMExpect([consumer_ setTravelInfoToggleState:YES enabled:YES managed:NO]);
   profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
                                    true);
+  [consumer_ verify];
+}
+
+// Tests that a preference change for address autofill does not affect the
+// consumer toggle enabled state when the enterprise policy feature is enabled.
+TEST_F(TravelInfoMediatorTest,
+       AutofillProfilePrefChangeUpdatesConsumer_EnterprisePolicy) {
+  base::test::ScopedFeatureList scoped_feature_list(
+      autofill::features::kAutofillEnableAutofillSettingsEnterprisePolicy);
+
+  profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
+                                   true);
+  profile_->GetPrefs()->SetBoolean(
+      autofill::prefs::kAutofillAiTravelEntitiesEnabled, true);
+  mediator_.consumer = consumer_;
+
+  OCMExpect([consumer_ setTravelInfoToggleState:YES enabled:YES managed:NO]);
+  profile_->GetPrefs()->SetBoolean(autofill::prefs::kAutofillProfileEnabled,
+                                   false);
   [consumer_ verify];
 }
 

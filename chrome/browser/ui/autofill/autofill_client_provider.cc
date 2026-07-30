@@ -5,8 +5,7 @@
 #include "chrome/browser/ui/autofill/autofill_client_provider.h"
 
 #include "base/check_deref.h"
-#include "base/memory/ptr_util.h"
-#include "chrome/browser/password_manager/chrome_password_manager_client.h"
+#include "base/metrics/histogram_functions.h"
 #include "chrome/browser/ui/autofill/chrome_autofill_client.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
@@ -42,26 +41,11 @@ void RecordWhetherAndroidPrefResets(PrefService& prefs,
                             will_reset_pref);
 }
 
-// Sets a ahread pref that allows to learn whether deep-links into Chrome's
-// settings are available to use.
-void SetSharedPrefForDeepLink() {
-  Java_AutofillClientProviderUtils_setAutofillOptionsDeepLinkPref(
-      base::android::AttachCurrentThread(),
-
-      base::FeatureList::IsEnabled(features::kAutofillDeepLinkAutofillOptions));
-}
-
 // Sets a shared pref that allows external apps to use a ContentResolver to
 // figure out whether Chrome is using platform autofill over the default.
 void SetSharedPrefForSettingsContentProvider(bool uses_platform_autofill) {
-  if (base::FeatureList::IsEnabled(
-          features::kAutofillThirdPartyModeContentProvider)) {
-    Java_AutofillClientProviderUtils_setThirdPartyModePref(
-        base::android::AttachCurrentThread(), uses_platform_autofill);
-  } else {
-    Java_AutofillClientProviderUtils_unsetThirdPartyModePref(
-        base::android::AttachCurrentThread());
-  }
+  Java_AutofillClientProviderUtils_setThirdPartyModePref(
+      base::android::AttachCurrentThread(), uses_platform_autofill);
 }
 
 AndroidAutofillAvailabilityStatus GetAndroidAutofillAvailabilityStatus(
@@ -101,7 +85,6 @@ AutofillClientProvider::AutofillClientProvider(PrefService* prefs)
         base::android::AttachCurrentThread(), prefs, uses_platform_autofill_);
   }
   SetSharedPrefForSettingsContentProvider(uses_platform_autofill_);
-  SetSharedPrefForDeepLink();
 #endif  // BUILDFLAG(IS_ANDROID)
 }
 

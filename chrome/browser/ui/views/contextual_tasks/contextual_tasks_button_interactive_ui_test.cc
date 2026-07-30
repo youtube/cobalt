@@ -2,7 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/strings/string_number_conversions.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/autocomplete/chrome_aim_eligibility_service.h"
@@ -31,7 +30,6 @@
 #include "chrome/browser/ui/views/contextual_tasks/contextual_tasks_close_tab_button.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_tester.h"
-#include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/interaction/interactive_browser_test.h"
@@ -39,7 +37,6 @@
 #include "components/contextual_tasks/public/contextual_tasks_service.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
-#include "components/omnibox/browser/omnibox_pref_names.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/session_id.h"
@@ -49,7 +46,6 @@
 #include "content/public/test/browser_test.h"
 #include "net/base/url_util.h"
 #include "net/dns/mock_host_resolver.h"
-#include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 
 namespace {
 DEFINE_LOCAL_ELEMENT_IDENTIFIER_VALUE(kFirstTab);
@@ -218,7 +214,7 @@ class ContextualTasksButtonInteractiveTestBase : public InteractiveBrowserTest {
     InteractiveBrowserTest::SetUpOnMainThread();
     identity_test_env_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
-            browser()->profile());
+            browser()->GetProfile());
   }
 
   void TearDownOnMainThread() override {
@@ -235,7 +231,7 @@ class ContextualTasksButtonInteractiveTestBase : public InteractiveBrowserTest {
   TestingContextualTasksUiService* GetTestingService() {
     return static_cast<TestingContextualTasksUiService*>(
         contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
-            browser()->profile()));
+            browser()->GetProfile()));
   }
 
   auto SignIntoEligibleAccount() {
@@ -269,13 +265,13 @@ class ContextualTasksButtonInteractiveTestBase : public InteractiveBrowserTest {
 
   contextual_tasks::ContextualTasksUiService* GetUiService() {
     return contextual_tasks::ContextualTasksUiServiceFactory::
-        GetForBrowserContext(browser()->profile());
+        GetForBrowserContext(browser()->GetProfile());
   }
 
   auto SetIsCobrowseEligible(bool eligible) {
     return Do([&, eligible]() {
       auto* service = static_cast<TestingAimEligibilityService*>(
-          AimEligibilityServiceFactory::GetForProfile(browser()->profile()));
+          AimEligibilityServiceFactory::GetForProfile(browser()->GetProfile()));
       service->SetIsCobrowseEligible(eligible);
       GetTestingService()->GetFakeEligibilityManager()->SetIsEligible(eligible);
     });
@@ -294,8 +290,9 @@ class ContextualTasksEphemeralButtonInteractiveTest
   void SetUp() override {
     scoped_feature_list_.InitWithFeaturesAndParameters(
         {{contextual_tasks::kContextualTasks,
-          {{"ContextualTasksEntryPoint", "toolbar-ephemeral-branded"},
-           {"ContextualTasksExpandButtonOptions", "toolbar-close-button"}}},
+          {{"ContextualTasksExpandButtonOptions", "toolbar-close-button"}}},
+         {contextual_tasks::kContextualTasksEphemeralBrandedEntryPoint,
+          {{"ContextualTasksEntryPoint", "toolbar-ephemeral-branded"}}},
          {contextual_tasks::kContextualTasksHideCloseButtonInVerticalTabs, {}},
          {tabs::kVerticalTabs, {}}},
         {});
@@ -318,7 +315,7 @@ class ContextualTasksEphemeralButtonInteractiveTest
 
   contextual_tasks::ContextualTasksService* GetContextualTasksService() {
     return contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
-        browser()->profile());
+        browser()->GetProfile());
   }
 
   auto CreateTaskForTab(int tab_index) {
@@ -524,13 +521,11 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksEphemeralButtonInteractiveTest,
       SignIntoEligibleAccount(), InstrumentTab(kFirstTab),
       AddInstrumentedTab(kSecondTab, GetTestURL()),
       SelectTab(kTabStripElementId, 0),
-      EnsureNotPresent(
-          kContextualTasksEphemeralToolbarButtonElementId),
+      EnsureNotPresent(kContextualTasksEphemeralToolbarButtonElementId),
       CreateTaskForTab(0), SimulateOpeningContextualTaskSidePanel(),
       SimulateClosingContextualTaskSidePanel(),
-      WaitForShow(kContextualTasksEphemeralToolbarButtonElementId),
-      Do([&]() {
-        PinnedToolbarActionsModel::Get(browser()->profile())
+      WaitForShow(kContextualTasksEphemeralToolbarButtonElementId), Do([&]() {
+        PinnedToolbarActionsModel::Get(browser()->GetProfile())
             ->UpdatePinnedState(kActionSidePanelShowContextualTasks, true);
       }),
       WaitForHide(kContextualTasksEphemeralToolbarButtonElementId));
@@ -561,7 +556,8 @@ class ContextualTasksEphemeralBrandedButtonInteractiveTest
  public:
   void SetUp() override {
     scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{contextual_tasks::kContextualTasks,
+        {{contextual_tasks::kContextualTasks, {}},
+         {contextual_tasks::kContextualTasksEphemeralBrandedEntryPoint,
           {{"ContextualTasksEntryPoint", "toolbar-ephemeral-branded"}}}},
         {});
     InteractiveBrowserTest::SetUp();

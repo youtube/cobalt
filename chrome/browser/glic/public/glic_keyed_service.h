@@ -26,6 +26,7 @@
 #include "chrome/browser/glic/public/glic_instance.h"
 #include "chrome/browser/glic/public/glic_invoke_options.h"
 #include "chrome/browser/glic/public/glic_passkeys.h"
+#include "chrome/browser/glic/public/glic_window_invocation_tracker.h"
 #include "chrome/common/actor.mojom-forward.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
 #include "components/autofill/core/browser/integrators/actor/actor_form_filling_types.h"
@@ -91,7 +92,7 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
   bool IsGlicShortcutActive();
   bool IsBottomBarEnabled();
 
-  class GlicNudgeControllerAndroid* GetOrCreateNudgeController(
+  class GlicNudgeController* GetOrCreateNudgeController(
       BrowserWindowInterface* browser);
 #endif  // BUILDFLAG(IS_ANDROID)
 
@@ -299,7 +300,7 @@ class GlicKeyedService : public KeyedService, public base::SupportsUserData {
   void OnBrowserWindowClosed(BrowserWindowInterface* browser);
 
   base::flat_map<BrowserWindowInterface*,
-                 std::unique_ptr<class GlicNudgeControllerAndroid>>
+                 std::unique_ptr<class GlicNudgeController>>
       nudge_controllers_;
   base::flat_map<BrowserWindowInterface*, base::CallbackListSubscription>
       window_close_subscriptions_;

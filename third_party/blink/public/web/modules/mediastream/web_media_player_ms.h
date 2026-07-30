@@ -30,10 +30,6 @@ class MappableSharedImageVideoFramePool;
 class MediaLog;
 }  // namespace media
 
-namespace cc {
-class VideoLayer;
-}
-
 namespace blink {
 
 using CreateSurfaceLayerBridgeCB =
@@ -91,8 +87,7 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
       media::GpuVideoAcceleratorFactories* gpu_factories,
       const WebString& sink_id,
       CreateSurfaceLayerBridgeCB create_bridge_callback,
-      std::unique_ptr<WebVideoFrameSubmitter> submitter_,
-      bool use_surface_layer);
+      std::unique_ptr<WebVideoFrameSubmitter> submitter_);
 
   WebMediaPlayerMS(const WebMediaPlayerMS&) = delete;
   WebMediaPlayerMS& operator=(const WebMediaPlayerMS&) = delete;
@@ -148,6 +143,7 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   // True if the loaded media has a playable video/audio track.
   bool HasVideo() const override;
   bool HasAudio() const override;
+  bool IsVideoBeingCaptured() const override;
 
   // Dimensions of the video.
   gfx::Size NaturalSize() const override;
@@ -199,7 +195,6 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   void OnFirstFrameReceived(media::VideoTransformation video_transform,
                             bool is_opaque);
   void OnOpacityChanged(bool is_opaque);
-  void OnTransformChanged(media::VideoTransformation video_transform);
 
   // WebMediaStreamObserver implementation
   void TrackAdded(const WebString& track_id) override;
@@ -312,8 +307,6 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
 
   scoped_refptr<MediaStreamVideoRenderer> video_frame_provider_;  // Weak
 
-  scoped_refptr<cc::VideoLayer> video_layer_;
-
   scoped_refptr<MediaStreamAudioRenderer> audio_renderer_;  // Weak
   media::PaintCanvasVideoRenderer video_renderer_;
   std::unique_ptr<media::VideoFrameSharedImageCache> rgb_shared_image_cache_;
@@ -375,9 +368,6 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
 
   std::unique_ptr<WebVideoFrameSubmitter> submitter_;
 
-  // Whether the use of a surface layer instead of a video layer is enabled.
-  bool use_surface_layer_ = false;
-
   // Owns the weblayer and obtains/maintains SurfaceIds for
   // kUseSurfaceLayerForVideo feature.
   std::unique_ptr<WebSurfaceLayerBridge> bridge_;
@@ -393,6 +383,8 @@ class BLINK_MODULES_EXPORT WebMediaPlayerMS
   base::TimeDelta compositor_last_time_;
   base::TimeDelta audio_initial_time_;
   base::TimeDelta audio_last_time_;
+
+  base::TimeTicks last_frame_request_time_;
 
   base::WeakPtr<WebMediaPlayerMS> weak_this_;
   base::WeakPtrFactory<WebMediaPlayerMS> weak_factory_{this};

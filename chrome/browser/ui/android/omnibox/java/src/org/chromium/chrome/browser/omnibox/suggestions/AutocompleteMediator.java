@@ -171,6 +171,8 @@ class AutocompleteMediator
     private final Callback<Integer> mOnFuseboxStateChanged = this::onFuseboxStateChanged;
     private final Callback<String> mOnUserTextChanged = text -> onInputChanged();
     private final Callback<Boolean> mOnShouldAutocompleteChanged = state -> onInputChanged();
+    private final Callback<@AutocompleteState Integer> mOnAutocompleteStateChanged =
+            this::onAutocompleteStateChanged;
 
     private @Nullable AutocompleteController mAutocomplete;
     private @Nullable AutocompleteResult mAutocompleteResult;
@@ -637,6 +639,9 @@ class AutocompleteMediator
             mAutocompleteInput
                     .getShouldAllowUserTextAutocompletionSupplier()
                     .removeObserver(mOnShouldAutocompleteChanged);
+            mAutocompleteInput
+                    .getAutocompleteStateSupplier()
+                    .removeObserver(mOnAutocompleteStateChanged);
         }
         mAutocompleteInput = input;
         if (mAutocompleteInput != null) {
@@ -651,6 +656,9 @@ class AutocompleteMediator
                     .getShouldAllowUserTextAutocompletionSupplier()
                     .addSyncObserver(mOnShouldAutocompleteChanged);
             mAutocompleteInput.getUserTextSupplier().addSyncObserver(mOnUserTextChanged);
+            mAutocompleteInput
+                    .getAutocompleteStateSupplier()
+                    .addSyncObserver(mOnAutocompleteStateChanged);
         }
     }
 
@@ -1025,7 +1033,9 @@ class AutocompleteMediator
         if (!maybeEnterKeywordMode(suggestion)) {
             // Clear keyword mode only if it was a temporary preview triggered by highlighting
             // a starter pack. hasPreviewText() prevents clearing explicitly typed keyword modes.
-            if (mAutocompleteInput != null && mAutocompleteInput.hasPreviewText()) {
+            if (mAutocompleteInput != null
+                    && mAutocompleteInput.getSiteSearchData() != null
+                    && mAutocompleteInput.hasPreviewText()) {
                 onKeywordModeEntered(null);
             }
             setOmniboxEditingText(suggestion.getFillIntoEdit());
@@ -1067,8 +1077,6 @@ class AutocompleteMediator
      * retrieved even if the Omnibox content is not empty. This is relevant to Desktop mode Chrome,
      * where, if both physical keyboard and pointer device is attached, the Page URL should not be
      * cleared.
-     *
-     * @param isOnFocusContext whether Omnibox is currently gaining focus
      */
     public void onInputChanged() {
         if (!isInInputSession()) return;
@@ -1167,6 +1175,11 @@ class AutocompleteMediator
 
         String userText = input.getUserText();
         mUrlTextAfterSuggestionsReceived = userText + inlineAutocompleteText;
+        if (!TextUtils.isEmpty(inlineAutocompleteText)) {
+            input.setPreviewText(userText + inlineAutocompleteText);
+        } else {
+            input.resetPreviewText();
+        }
 
         if (!(mAutocompleteResult != null && mAutocompleteResult.equals(autocompleteResult))) {
             mAutocompleteResult = autocompleteResult;
@@ -1318,6 +1331,14 @@ class AutocompleteMediator
             if (!wasPreview) {
                 onInputChanged();
             }
+        }
+    }
+
+    private void onAutocompleteStateChanged(@AutocompleteState int state) {
+        if (state == AutocompleteState.ENABLED) {
+            onInputChanged();
+        } else if (state == AutocompleteState.STANDBY) {
+            stopAutocomplete(AutocompleteStopReason.CLOBBERED);
         }
     }
 

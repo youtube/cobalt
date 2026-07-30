@@ -2799,6 +2799,7 @@ Si estableces la política en 2 - "Inhabilitada", no se permitirá la integraci�
 <translation id="2707733461906745082">Separación de perfiles</translation>
 <translation id="2707873794476722903">Se activó la Navegación segura en el modo estándar.</translation>
 <translation id="2709516037105925701">Autocompletar</translation>
+<translation id="2712089199157322391">Permitir las Herramientas para desarrolladores para la navegación web estándar, pero restringirlas para las extensiones instaladas por la empresa y las extensiones integradas del usuario administrado (bloqueadas en las páginas que incorporan estas extensiones desde la versión M150, excepto para el lector de PDF integrado).</translation>
 <translation id="2713913573196284609">Este valor deja de estar disponible a partir de M121. A partir de M121, los valores se tratarán como EnabledBelowThreshold.</translation>
 <translation id="2713977837384407666">Enviar siempre las métricas a Google</translation>
 <translation id="2714359695399346815">Si habilitas la política o no la estableces, se permitirá el uso de servidores STUN, lo que posibilitará que los clientes remotos descubran este equipo y se conecten con él aunque haya un firewall.
@@ -3261,6 +3262,11 @@ Esta política no afecta la política "<ph name="WEB_APP_INSTALL_FORCE_LIST_POLI
         Esta política no prevalecerá sobre las políticas ya publicadas.</translation>
 <translation id="3002067315837777719">No permitir que se habiliten las notificaciones de Phone Hub</translation>
 <translation id="3003490107503207900">Forzar la descarga de documentos de Office (p. ej., .docx) en lugar de abrirlos en <ph name="BASIC_EDITOR_NAME" /></translation>
+<translation id="3003832749381802588">Controla cómo <ph name="PRODUCT_OS_NAME" /> maneja una falta de coincidencia de contraseñas detectada durante un acceso en línea. Esta política determina qué sucede cuando la contraseña del usuario, autenticada a través de un IdP en línea (p. ej., IdP de terceros, Gaia), no coincide con la contraseña que se usa para encriptar sus datos locales. Esto suele ocurrir después de que un usuario cambia su contraseña de forma externa.
+
+Si estableces la política en 0 (flujo de cambio de contraseña estándar) o no la estableces, se iniciará el flujo de cambio de contraseña estándar. Se le pedirá al usuario que ingrese su contraseña anterior para actualizar la encriptación de datos locales o puede usar otros mecanismos de recuperación de datos locales si están disponibles.
+
+Si estableces la política con el valor 1 (Borrado automático de datos locales), se omitirá el flujo estándar de cambio de contraseña. Cuando se detecte que las contraseñas no coinciden, los datos locales del usuario se borrarán automáticamente. Esto permite que el usuario acceda sin problemas con su nueva contraseña, pero provoca la pérdida de todos los datos almacenados localmente en su perfil (p. ej., descargas, configuración no sincronizada). Esta opción está pensada para entornos en los que los usuarios almacenan principalmente datos en la nube o se espera que la contraseña se actualice con frecuencia.</translation>
 <translation id="300673820739371513">Esta política decide si se detectan entidades de texto sin formato en las páginas web, lo que permite a los usuarios interactuar con ellas para activar acciones contextuales.
 La política tiene varias propiedades, una para cada tipo de entidad.
 Los tipos de entidades son <ph name="DEFAULT_ENUM_VALUE" />, <ph name="ADDRESS_ENUM_VALUE" />, etcétera.
@@ -4161,7 +4167,6 @@ Recuerda que no debes mantener habilitada esta política todo el tiempo, especia
 <translation id="3591584750136265240">Configurar el comportamiento de autenticación en el acceso</translation>
 <translation id="3593905652755912452">Usar el comportamiento anterior de envío de eventos en los controles de formularios inhabilitados</translation>
 <translation id="3596112486106491038">Habilitar el acceso a la línea de comandos de la máquina virtual</translation>
-<translation id="3600342552601917721">Permitir el uso de las Herramientas para desarrolladores para la navegación web estándar, pero restringir el uso para las extensiones instaladas por la empresa y las extensiones integradas del usuario administrado. A partir de la versión M150, también se bloquean en cualquier página que incorpore estas extensiones, con la única excepción del lector de PDF integrado.</translation>
 <translation id="3603469950773500315">Habilita las mitigaciones de comprobación de <ph name="CORS" /> en la nueva implementación de <ph name="CORS" />, lo que permite que las extensiones mantengan su compatibilidad y que <ph name="PRODUCT_NAME" /> envíe encabezados específicos sin las comprobaciones de <ph name="CORS" />.
 
       Si esta lista se deja vacía, <ph name="PRODUCT_NAME" /> intentará ejecutar las extensiones de forma compatible y no introducirá cambios de <ph name="API" /> para <ph name="PRODUCT_NAME" /> 79, como se explica en el <ph name="WEB_REQUEST_API_MANUAL" />.
@@ -9216,6 +9221,7 @@ Los cambios que se realicen en la política solo se aplicarán cuando ARC no se 
 
       Nota: Utiliza la política con <ph name="REMOTE_ACCESS_HOST_TOKEN_URL_POLICY_NAME" />.</translation>
 <translation id="6625136649067113817">Función experimental booleana que indica si el teclado en pantalla puede proporcionar el corrector ortográfico.</translation>
+<translation id="6625424971640741579">Flujo estándar de cambio de contraseña</translation>
 <translation id="6625716212597516929">Volver al comportamiento heredado del alcance de las cookies</translation>
 <translation id="6626319579493977784">Configuración de código dinámico</translation>
 <translation id="66265932317331474">Envía información de la CPU</translation>
@@ -9427,6 +9433,7 @@ las configuren.</translation>
 <translation id="6763023079133439068">Permitir los certificados que carezcan de una extensión subjectAlternativeName cuando son emitidos por anclas de confianza locales</translation>
 <translation id="6766216162565713893">Permitir que los sitios soliciten permiso al usuario para acceder a un dispositivo Bluetooth cercano</translation>
 <translation id="6770454900105963262">Informar datos sobre las sesiones de kiosco activas</translation>
+<translation id="6770703270685871935">Limpieza automática de datos locales</translation>
 <translation id="6774132787348495175">No permitir que los usuarios usen las máquinas virtuales necesarias para admitir apps de Linux</translation>
 <translation id="6782331708811245959">Habilitar los informes del modo de inicio del dispositivo</translation>
 <translation id="6783578496154221347">Usa WeeklyTimeIntervalChecked en el código nuevo.</translation>
@@ -9740,6 +9747,7 @@ Esta política se quitará en el futuro, cuando se lance por completo la funció
       Si no la estableces, no habrá impresoras asociadas a dispositivos y se ignorarán las demás políticas <ph name="DEVICE_PRINTERS_POLICY_PATTERN" />.</translation>
 <translation id="69525503251220566">Parámetro que proporciona una función de búsqueda por imagen para el proveedor de búsquedas predeterminado</translation>
 <translation id="6953102253399571439">Habilita la impresión con PIN de forma predeterminada</translation>
+<translation id="6953246833109449226">Configurar el comportamiento para los errores de coincidencia de contraseñas en línea</translation>
 <translation id="695532899547292238">Habilitar la recopilación de registros de la aplicación de kiosco</translation>
 <translation id="6956272732789158625">No permitir que los sitios utilicen la generación de claves</translation>
 <translation id="6960996423652450945">Inhabilitar la función para resaltar el signo de intercalación en la pantalla de acceso</translation>
@@ -13020,27 +13028,6 @@ Para obtener más información, consulta https://support.google.com/chrome/a/ans
 <translation id="8931555638815157255">Si habilitas la política o no la estableces, los dispositivos inscritos informarán de forma periódica su versión de SO y firmware.
 
       Si inhabilitas la política, los dispositivos inscritos no informarán la versión.</translation>
-<translation id="8931984670731745012">Si estableces esta política, podrás especificar qué tipos de datos de Autocompletar se bloquean en patrones de URL específicos.
-
-La política se estructura como una lista de diccionarios. Cada diccionario debe contener lo siguiente:
-* "url_pattern": Un patrón de URL de configuración de contenido (p. ej., "https://[*.]example.com").
-* "blocked_types": Una lista de cadenas que representan las categorías de datos de Autocompletar que se bloquearán.
-
-Los valores admitidos para "blocked_types" son los siguientes:
-* "contact_info": Bloquea el guardado y la completación de la información de contacto.
-* "payments": Bloquea el guardado y la completación de tarjetas de crédito y formas de pago.
-* "identity_docs": Bloquea el guardado y la completación de documentos de identidad (p. ej., pasaporte, licencia de conducir, documento nacional de identidad).
-* "travel": Bloquea el guardado y la completación de información de viajes (p. ej., reservas de vuelos, registro de vehículos).
-* "shopping": Bloquea el guardado y la completación de información de compras (p. ej., pedidos en línea, envíos).
-
-Si se bloquea un tipo de datos para un sitio, se inhabilitan tanto la generación de sugerencias como la instrucción para guardar o importar datos nuevos de ese tipo en el sitio.
-
-Si una URL coincide con varias entradas de patrones en la lista, se combinan los tipos bloqueados de todas las entradas coincidentes (unión combinada). Se ignorarán los patrones de URL no válidos de la lista.
-
-Si no estableces esta política, no se bloqueará ningún tipo de datos de Autocompletar por dominio.
-
-Para obtener información detallada sobre los patrones de URL válidos, consulta:
-https://chromeenterprise.google/policies/url-patterns. Se admite el comodín *, este patrón busca coincidencias entre una URL y cualquier esquema, puerto y ruta de acceso.</translation>
 <translation id="8934296213794658971">Configuración de la integración con Gemini</translation>
 <translation id="8937282917198525844"> A partir de la versión M81, se actualizaron la apariencia y el estilo de los elementos estándar de los controles de formulario (p. ej., &lt;select&gt;, &lt;button&gt;, &lt;input type=date&gt;), con mejoras en la accesibilidad y la uniformidad de la plataforma. Esta política restablece los elementos antiguos de los controles de formulario "heredados" hasta la versión M84.
 

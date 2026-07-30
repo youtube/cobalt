@@ -791,15 +791,6 @@ void LocalFrameMojoHandler::DidUpdateFramePolicy(
   To<RemoteFrameOwner>(frame_->Owner())->SetFramePolicy(frame_policy);
 }
 
-void LocalFrameMojoHandler::OnFrameVisibilityChanged(
-    mojom::blink::FrameVisibility visibility) {
-  if (frame_->Client() && frame_->Client()->GetWebFrame() &&
-      frame_->Client()->GetWebFrame()->Client()) {
-    frame_->Client()->GetWebFrame()->Client()->OnFrameVisibilityChanged(
-        visibility);
-  }
-}
-
 void LocalFrameMojoHandler::OnPostureChanged(
     mojom::blink::DevicePostureType posture) {
   if (!RuntimeEnabledFeatures::DevicePostureEnabled(
@@ -996,8 +987,7 @@ void LocalFrameMojoHandler::InvokeScriptToolForInspector(
               FROM_HERE,
               blink::BindOnce(base::IgnoreResult(&ModelContext::ExecuteTool),
                               WrapPersistent(model_context), invocation_id,
-                              tool_name, input_arguments,
-                              /*signal=*/nullptr, base::DoNothing()));
+                              tool_name, input_arguments, base::DoNothing()));
       std::move(callback).Run(true);
       return;
     }

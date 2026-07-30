@@ -4,6 +4,7 @@
 
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <tuple>
 
 #include "base/test/scoped_feature_list.h"
@@ -38,13 +39,19 @@ namespace {
 // UI tests in the chrome/browser/glic/host/ directory.
 class ActorTypeToolBrowserTest : public ActorToolsTest {
  public:
-  ActorTypeToolBrowserTest() = default;
+  ActorTypeToolBrowserTest() {
+    feature_list_.InitAndEnableFeature(
+        features::kGlicActorRejectInteractionDisallowedTargets);
+  }
   ~ActorTypeToolBrowserTest() override = default;
 
   void SetUpOnMainThread() override {
     ActorToolsTest::SetUpOnMainThread();
     ASSERT_TRUE(embedded_test_server()->Start());
   }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
 };
 
 // Basic test of the TypeTool - ensure typed string containing composition
@@ -109,6 +116,9 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
 IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_TextInput) {
   const GURL url = embedded_test_server()->GetURL("/actor/input.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  ASSERT_TRUE(ExecJs(web_contents(),
+                     "document.getElementById('input').ariaDisabled = true"));
 
   std::string typed_string = "test";
   std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
@@ -239,7 +249,7 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest, TypeTool_DisabledInput) {
                         /*follow_by_enter=*/true);
     ActResultFuture result;
     actor_task().Act(ToRequestList(action), result.GetCallback());
-    ExpectErrorResult(result, mojom::ActionResultCode::kElementDisabled);
+    ExpectElementDisabledResultWithReason(result, "disabled");
     EXPECT_EQ("",
               EvalJs(web_contents(), "document.getElementById('input').value"));
   }
@@ -532,8 +542,11 @@ IN_PROC_BROWSER_TEST_F(ActorTypeToolBrowserTest,
       embedded_test_server()->GetURL("/actor/type_input_coordinate.html");
   ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
 
+  ASSERT_TRUE(ExecJs(web_contents(),
+                     "document.getElementById('input').ariaDisabled = true"));
+
   std::string typed_string = "test";
-  // Type into coordinate of input box.
+  // Coordinate type targets skip ARIA checks on the normal DOM-event path.
   {
     gfx::Point type_point = gfx::ToFlooredPoint(
         GetCenterCoordinatesOfElementWithId(web_contents(), "input"));

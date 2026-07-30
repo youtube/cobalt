@@ -29,8 +29,11 @@ import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider.ControlsPosition;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
+import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
+import org.chromium.chrome.browser.fullscreen.BrowserControlsManagerSupplier;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.proto.SendTabToSelfPersistedTabData.SendTabToSelfPersistedTabDataProto;
@@ -162,7 +165,19 @@ public class SendTabToSelfReceiverTest {
     @Test
     @LargeTest
     @Feature({"Sync"})
-    public void testSendTabToSelfMessageBannerClickOpensTabSwitcher() throws Exception {
+    public void testSendTabToSelfMessageBanner_BottomControls() throws Exception {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    BrowserControlsManager browserControlsManager =
+                            BrowserControlsManagerSupplier.getValueOrNullFrom(
+                                    mSyncTestRule.getActivity().getWindowAndroid());
+                    Assert.assertNotNull(browserControlsManager);
+                    int controlsHeight = browserControlsManager.getTopControlsHeight();
+                    int controlsMinHeight = browserControlsManager.getTopControlsMinHeight();
+                    browserControlsManager.setControlsPosition(
+                            ControlsPosition.BOTTOM, 0, 0, 0, controlsHeight, controlsMinHeight, 0);
+                });
+
         long now = getCurrentTimeSinceWindowsEpochMicros();
         injectSendTabToSelfEntity(
                 "stts_test_guid", "https://www.example.com", "Example", "Example Phone", now);
@@ -170,14 +185,86 @@ public class SendTabToSelfReceiverTest {
 
         TabUiTestHelper.verifyTabModelTabCount(mSyncTestRule.getActivity(), 2, 0);
 
+        // Verify that the message banner is displayed with bottom controls.
+        onView(withId(R.id.message_primary_button)).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @LargeTest
+    @Feature({"Sync"})
+    public void testSendTabToSelfMessageBannerClickOpensSingleTab() throws Exception {
+        long now = getCurrentTimeSinceWindowsEpochMicros();
+        injectSendTabToSelfEntity(
+                "stts_test_guid", "https://www.example.com", "Example", "Example Phone", now);
+        SyncTestUtil.triggerSyncAndWaitForCompletion();
+
+        TabUiTestHelper.verifyTabModelTabCount(mSyncTestRule.getActivity(), 2, 0);
+
+        TabModel tabModel = mSyncTestRule.getActivity().getTabModelSelector().getModel(false);
+        // Verify index is 0 initially (background tab is index 1).
+        Assert.assertEquals(
+                0, ThreadUtils.runOnUiThreadBlocking(() -> tabModel.index()).intValue());
+
         // Verify that the message banner is displayed.
         onView(withId(R.id.message_primary_button)).check(matches(isDisplayed()));
 
         // Click on the message banner primary button.
         onView(withId(R.id.message_primary_button)).perform(click());
 
-        // Verify that the tab switcher is opened.
-        waitForLayout(mSyncTestRule.getActivity().getLayoutManager(), LayoutType.HUB);
+        // Verify that the browsing layout remains active (no navigation to the Hub).
+        Assert.assertEquals(
+                LayoutType.BROWSING,
+                mSyncTestRule.getActivity().getLayoutManager().getActiveLayoutType());
+
+        // Verify that the new tab (index 1) is selected and focused.
+        Assert.assertEquals(
+                1, ThreadUtils.runOnUiThreadBlocking(() -> tabModel.index()).intValue());
+
+        // Verify that the message banner goes away.
+        onView(withId(R.id.message_primary_button)).check(doesNotExist());
+    }
+
+    @Test
+    @LargeTest
+    @Feature({"Sync"})
+    public void testSendTabToSelfMessageBannerClickOpensNewestTabForMultipleTabs()
+            throws Exception {
+        long now = getCurrentTimeSinceWindowsEpochMicros();
+        injectSendTabToSelfEntity(
+                "stts_test_guid_1",
+                "https://www.example1.com",
+                "Example 1",
+                "Example Phone 1",
+                now);
+        injectSendTabToSelfEntity(
+                "stts_test_guid_2",
+                "https://www.example2.com",
+                "Example 2",
+                "Example Phone 2",
+                now + 1000);
+        SyncTestUtil.triggerSyncAndWaitForCompletion();
+
+        TabUiTestHelper.verifyTabModelTabCount(mSyncTestRule.getActivity(), 3, 0);
+
+        TabModel tabModel = mSyncTestRule.getActivity().getTabModelSelector().getModel(false);
+        // Verify index is 0 initially.
+        Assert.assertEquals(
+                0, ThreadUtils.runOnUiThreadBlocking(() -> tabModel.index()).intValue());
+
+        // Verify that the message banner is displayed.
+        onView(withId(R.id.message_primary_button)).check(matches(isDisplayed()));
+
+        // Click on the message banner primary button.
+        onView(withId(R.id.message_primary_button)).perform(click());
+
+        // Verify that the browsing layout remains active (no navigation to the Hub).
+        Assert.assertEquals(
+                LayoutType.BROWSING,
+                mSyncTestRule.getActivity().getLayoutManager().getActiveLayoutType());
+
+        // Verify that the newest tab (index 2, which corresponds to stts_test_guid_2) is selected.
+        Assert.assertEquals(
+                2, ThreadUtils.runOnUiThreadBlocking(() -> tabModel.index()).intValue());
 
         // Verify that the message banner goes away.
         onView(withId(R.id.message_primary_button)).check(doesNotExist());
@@ -331,7 +418,7 @@ public class SendTabToSelfReceiverTest {
                 ThreadUtils.runOnUiThreadBlocking(() -> data.getSenderDeviceNameForTesting()));
 
         long additionTimestamp =
-                ThreadUtils.runOnUiThreadBlocking(() -> data.getAdditionTimestampMsForTesting());
+                ThreadUtils.runOnUiThreadBlocking(() -> data.getAdditionTimestampMs());
         Assert.assertTrue(
                 "Addition timestamp should be after test start", additionTimestamp >= startTime);
         Assert.assertTrue(

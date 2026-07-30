@@ -365,7 +365,7 @@ void MaybeSetLockedFullscreenState(const api::windows::Update::Params& params,
   // the JS side, and in that case we don't want to change the locked state.
   Browser* const target_browser = browser->GetBrowserForMigrationOnly();
   if (target_browser) {
-    Profile* const browser_profile = target_browser->profile();
+    Profile* const browser_profile = target_browser->GetProfile();
     if (is_locked_fullscreen &&
         params.update_info.state != windows::WindowState::kLockedFullscreen &&
         params.update_info.state != windows::WindowState::kNone) {
@@ -3593,20 +3593,10 @@ bool TabsCaptureVisibleTabFunction::disable_throttling_for_test_ = false;
 TabsCaptureVisibleTabFunction::TabsCaptureVisibleTabFunction()
     : chrome_details_(this) {}
 
-WebContentsCaptureClient::ScreenshotAccess
+base::expected<void, extensions::ScreenshotAccessError>
 TabsCaptureVisibleTabFunction::GetScreenshotAccess(
     content::WebContents* web_contents) const {
-  PrefService* service =
-      Profile::FromBrowserContext(browser_context())->GetPrefs();
-  if (service->GetBoolean(prefs::kDisableScreenshots)) {
-    return ScreenshotAccess::kDisabledByPreferences;
-  }
-
-  if (ExtensionsBrowserClient::Get()->IsScreenshotRestricted(web_contents)) {
-    return ScreenshotAccess::kDisabledByDlp;
-  }
-
-  return ScreenshotAccess::kEnabled;
+  return ExtensionsBrowserClient::Get()->IsScreenshotRestricted(web_contents);
 }
 
 bool TabsCaptureVisibleTabFunction::ClientAllowsTransparency() {

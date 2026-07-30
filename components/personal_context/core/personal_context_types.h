@@ -34,13 +34,13 @@ enum class PersonalContextNonEligibilityReason {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/autofill/enums.xml:PersonalContextNonEligibilityReason)
 
-// Tracks the global enablement state of the feature for the current profile.
+// Tracks the global eligibility state of the feature for the current profile.
 // Used by consuming features to determine both feature execution and UI
 // entrypoint visibility.
-enum class PersonalContextEnablementState {
-  kDisabledNotEligible = 0,  // Not available, user not eligible.
-  kDisabledNeedsOptIn = 1,   // Not available, requires account opt-in.
-  kEnabled = 2               // Available.
+enum class PersonalContextEligibilityState {
+  kDisabledNotEligible = 0,  // Not eligible.
+  kDisabledNeedsOptIn = 1,   // Not eligible, requires account opt-in.
+  kEligible = 2              // Eligible.
 };
 
 // Defines the result of a PersonalContextService::FetchContext operation.
@@ -48,7 +48,8 @@ struct FetchContextResult {
   FetchContextResult();
   explicit FetchContextResult(
       base::expected<const proto::Any /*response_metadata*/, ContextMemoryError>
-          response);
+          response,
+      std::string server_request_id = "");
   FetchContextResult(FetchContextResult&& other);
   ~FetchContextResult();
 
@@ -56,6 +57,9 @@ struct FetchContextResult {
   // (originally packed in an Any proto) or a ContextMemoryError.
   base::expected<const proto::Any /*response_metadata*/, ContextMemoryError>
       response;
+
+  // The server request ID, used to identify the request in the logs.
+  std::string server_request_id;
 };
 
 // Callback for receiving the result of a FetchContext call.

@@ -22,9 +22,24 @@ class AttemptOtpFillingToolRequest : public TabToolRequest {
  public:
   static constexpr char kName[] = "AttemptOtpFilling";
 
-  AttemptOtpFillingToolRequest(tabs::TabHandle tab_handle,
-                               std::vector<PageTarget> trigger_fields,
-                               bool for_signin);
+  // These values are persisted to logs. Entries should not be renumbered and
+  // numeric values should never be reused.
+  //
+  // LINT.IfChange(AttemptOtpFillingPredictedOtpType)
+  enum class OtpType {
+    kUnknown = 0,
+    kSms = 1,
+    kEmail = 2,
+    kAuthenticatorApp = 3,
+    kMaxValue = kAuthenticatorApp,
+  };
+  // LINT.ThenChange(//tools/metrics/histograms/metadata/one_time_tokens/enums.xml:AttemptOtpFillingPredictedOtpType)
+
+  AttemptOtpFillingToolRequest(
+      tabs::TabHandle tab_handle,
+      std::vector<PageTarget> trigger_fields,
+      bool for_signin,
+      OtpType predicted_otp_type = OtpType::kUnknown);
   AttemptOtpFillingToolRequest(const AttemptOtpFillingToolRequest&);
   AttemptOtpFillingToolRequest& operator=(const AttemptOtpFillingToolRequest&);
 
@@ -44,9 +59,12 @@ class AttemptOtpFillingToolRequest : public TabToolRequest {
     return trigger_fields_;
   }
 
+  OtpType GetPredictedOtpTypeForTesting() const { return predicted_otp_type_; }
+
  private:
   std::vector<PageTarget> trigger_fields_;
   bool for_signin_;
+  OtpType predicted_otp_type_;
 };
 
 }  // namespace actor

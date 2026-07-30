@@ -189,6 +189,7 @@
 <translation id="1807709131360304325">បើក​វិនដូ​ថ្មី</translation>
 <translation id="1812027881030482584"><ph name="SITE_ETLD_PLUS_ONE" /> មិនអាច​បន្តប្រើ <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> បានទេ</translation>
 <translation id="1815975907734103433"><ph name="TAB_TITLE" />, ផ្ទាំង​ដែលកំពុង​ថត</translation>
+<translation id="1819443852740954262">បើកទាំងអស់​នៅក្នុង​ផ្ទាំងឯកជន</translation>
 <translation id="1820408774134375111">សន្លឹក​ខាងក្រោម​សម្រាប់​ចូលគណនី</translation>
 <translation id="1823492026305965829">ចូលគណនី​ជា <ph name="USER_FULL_NAME" /></translation>
 <translation id="1824902652744048041">ចុច "លុប​ទិន្នន័យរុករក"</translation>
@@ -302,7 +303,6 @@
 <translation id="2297822946037605517">ចែករំលែកទំព័រនេះ</translation>
 <translation id="230115972905494466">រកមិន​ឃើញ​ឧបករណ៍​ដែល​ត្រូវគ្នាទេ</translation>
 <translation id="2316129865977710310">ទេ អរគុណ</translation>
-<translation id="2318045970523081853">ចុច​ដើម្បី​ហៅទូរសព្ទ</translation>
 <translation id="232137538351753795">អូសពីគែម​ខាងឆ្វេង ដើម្បី​ថយក្រោយ</translation>
 <translation id="2323763861024343754">ទំហំផ្ទុកទិន្នន័យ</translation>
 <translation id="2327445548174191329">ពី <ph name="DEVICE_NAME" /></translation>
@@ -436,7 +436,6 @@
 <translation id="2841216154655874070">{NUM_DAYS,plural, =1{បានពិនិត្យមើល​កាលពី 1 ថ្ងៃមុន}other{បានពិនិត្យមើល​កាលពី # ថ្ងៃមុន}}</translation>
 <translation id="2842985007712546952">ថតឯកសារមេ</translation>
 <translation id="2854916915045135148">ចុចឱ្យ​ជាប់ ដើម្បី​ប្ដូរទៅ​មុខងារ​ឯកជន</translation>
-<translation id="2860954141821109167">សូមប្រាកដថា កម្មវិធី​ទូរសព្ទត្រូវបានបើក​នៅលើឧបករណ៍នេះ</translation>
 <translation id="286473047976978798">ប្រើ​ចំណូលចិត្ត​រូបរាង​របស់អ្នក​ឬ?</translation>
 <translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> និង 1 ផ្ទាំង​ផ្សេងទៀត}other{<ph name="URL" /> និង <ph name="TAB_COUNT_MANY" /> ផ្ទាំង​ផ្សេង​ទៀត}}</translation>
 <translation id="2869430948265924908">ដើម្បីការពារ​ខ្លឹមសារ​រសើប​របស់អ្នក​នៅ​ក្នុង​រថយន្ដ អ្នក​ត្រូវ​តែ​បង្កើត​ការចាក់​សោកម្រងព័ត៌មាន​រថយន្ដ។  អ្នក​អាច​ធ្វើ​បែបនេះ​បាន​ដោយប្រើ​កូដ pin, លេខកូដ ឬ​ពាក្យសម្ងាត់។</translation>
@@ -551,7 +550,6 @@
 <translation id="3301936297336370235">ការបញ្ជាក់​ការណែនាំ​ពាក្យ​សម្ងាត់</translation>
 <translation id="3302615849591357577">ស្ដារ​ក្រុម​ផ្ទាំង <ph name="TITLE_OF_GROUP" />, ពណ៌<ph name="COLOR_NAME" />, ជាក្រុមផ្ទាំង​ផ្ទៃខាងក្រោយ​ថ្មី។</translation>
 <translation id="3303855915957856445">រកមិនឃើញលទ្ធផលស្វែងរកទេ</translation>
-<translation id="3305130791745726624">បញ្ជូនទៅ​ឧបករណ៍</translation>
 <translation id="3305795716056605962">បកប្រែ​ទំព័រ​ពី​ប៊ូតុង​ "ជម្រើស​ច្រើន​ទៀត"</translation>
 <translation id="3307355280394823921">បើក​ប្រវត្តិ</translation>
 <translation id="3309978850836730073">អាចប្រើ​មុខងារអាន​នៅទីនេះ​បានជានិច្ច</translation>
@@ -773,7 +771,6 @@
 <translation id="4256782883801055595">អាជ្ញាប័ណ្ណប្រភពបើកចំហ</translation>
 <translation id="426652736638196239">IBAN នេះ​នឹងត្រូវបាន​រក្សាទុក​ទៅក្នុង​ឧបករណ៍នេះ​តែប៉ុណ្ណោះ</translation>
 <translation id="4269820728363426813">ចម្លងអាសយដ្ឋានតំណ</translation>
-<translation id="4270730597186910506">តាមដាន ឬឈប់តាមដានផលិតផល។</translation>
 <translation id="4277529130885813215">ប្រើ​ឧបករណ៍​ផ្សេងទៀត</translation>
 <translation id="427987768447457592">ក្រុមផ្ទាំងថ្មី</translation>
 <translation id="4282440837784183472">ស្ថាប័ន​របស់អ្នក <ph name="MANAGED_DOMAIN" /> គ្រប់គ្រង​គណនី​ដែលអ្នក​កំពុងចូល និង​របៀបដែល Chrome អាចត្រូវបានប្រើ។ អ្នកគ្រប់គ្រង​របស់អ្នក​អាចរៀបចំ ឬ​ដាក់កំហិត​លើមុខងារ​ជាក់លាក់បាន។</translation>
@@ -1272,6 +1269,7 @@
 <translation id="6315386555979018699">លុប និង​បន្ត</translation>
 <translation id="6316139424528454185">មិន​អាច​ប្រើកំណែ Android បានទេ</translation>
 <translation id="631839948975905034">ចាក់សោ​ផ្ទាំងឯកជន នៅពេលអ្នក​ចាកចេញពី Chrome</translation>
+<translation id="6321592572353357376">កម្មវិធី​បន្ថែម "<ph name="EXTENSION_NAME" />" ចង់ឱ្យ​អ្នកចូលគណនី Chrome</translation>
 <translation id="6324916366299863871">កែសម្រួលផ្លូវកាត់</translation>
 <translation id="6324977638108296054">មិនអាចបង្កើតតំណ​ទៅកាន់អត្ថបទ​ដែលបានរំលេចបានទេ</translation>
 <translation id="6333140779060797560">ចែករំលែកតាមរយៈ <ph name="APPLICATION" /></translation>
@@ -1439,6 +1437,7 @@
 <translation id="6885933993535178919">{NUM_SITES,plural, =1{បានឈប់​ជាវពីគេហទំព័រ 1}other{បានឈប់​ជាវពីគេហទំព័រ #}}</translation>
 <translation id="6886500155621657325">{ITEMS_COUNT,plural, =1{ពាក្យសម្ងាត់ 1}other{ពាក្យសម្ងាត់ #}}</translation>
 <translation id="688730033107341407">បន្ទាប់ពីអ្នក​ចេញពីគណនី ចំណាំ ពាក្យ​សម្ងាត់របស់អ្នក និង​អ្វីៗជាច្រើនទៀត​នៅក្នុង​គណនី Google របស់អ្នក​នឹងត្រូវបាន​ដកចេញ​ពីឧបករណ៍នេះ។</translation>
+<translation id="6892009074348518725">ដើម្បីប្រើកម្មវិធីបន្ថែម​នេះ សូមចូលគណនី Chrome។ អ្នកក៏នឹង​អាចប្រើ និង​រក្សាទុក​ពាក្យ​សម្ងាត់​របស់អ្នក និង​អ្វីៗជាច្រើនទៀត​ពីគណនី Google របស់អ្នក​បានផងដែរ។</translation>
 <translation id="6896758677409633944">ចម្លង</translation>
 <translation id="6898797562238201317">ប្រើឃ្លាសម្ងាត់របស់អ្នកផ្ទាល់ ដើម្បីអ៊ីនគ្រីបទិន្នន័យ Chrome ទាំងអស់នៅក្នុងគណនី Google របស់អ្នក</translation>
 <translation id="6900532703269623216">ការការពារ​ដែលប្រសើរជាងមុន</translation>
@@ -1450,6 +1449,7 @@
 <translation id="6910211073230771657">បានលុប</translation>
 <translation id="6916590542764765824">គ្រប់គ្រងកម្មវិធីបន្ថែម</translation>
 <translation id="6918398787259831832">ប្រសិនបើ​បញ្ហានេះនៅតែកើតមានទៀត សូម<ph name="BEGIN_LINK" />ទទួល​ព័ត៌មាន​បន្ថែម<ph name="END_LINK" />ពី <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />។</translation>
+<translation id="6920262510368602827">បង្កើត​កូដ QR សម្រាប់​ទំព័រនេះ</translation>
 <translation id="6922812712751566567"><ph name="PERMISSION" /> <ph name="SEPARATOR" /> Chrome បានដក​ការអនុញ្ញាត​ទាំងនេះ​ចេញ ដោយសារ​អ្នកមិនបាន​ចូលមើល​នាពេល​ថ្មីៗនេះ</translation>
 <translation id="6927821422725196292">{TABS_COUNT,plural, =1{1 ផ្ទាំង}other{<ph name="NUMBER_OF_TABS" /> ផ្ទាំង}}</translation>
 <translation id="6929224077895306814">លេខកូដ​សុវត្ថិភាព​ទាំងអស់​ដែលបានរក្សាទុក​នៅលើ​ឧបករណ៍​របស់អ្នក និង​នៅក្នុង​គណនី Google របស់អ្នក​នឹងត្រូវបានលុប</translation>
@@ -1475,6 +1475,7 @@
 <translation id="6983306615164277634">អ្នកក៏​អាចចុច​របារអាសយដ្ឋាន​ឱ្យជាប់ ដើម្បី​ប្ដូរទីតាំង​បានផងដែរ។</translation>
 <translation id="6987047470128880212">មិនអាចប្រើមុខងារឯកជន​នៅលើឧបករណ៍​នេះបានទេ</translation>
 <translation id="6996145122199359148">ទាញយកទំព័រនេះ</translation>
+<translation id="7007648447224463482">បើក​ទាំងអស់​នៅក្នុង​វិនដូថ្មី</translation>
 <translation id="7013762323294215682">កូដសម្ងាត់នេះ​នឹងត្រូវបាន​រក្សាទុក​ទៅក្នុង​កម្មវិធីគ្រប់គ្រង​ពាក្យសម្ងាត់​របស់អ្នក។ អ្នកដែលមាន​សិទ្ធិចូលប្រើ​កម្មវិធីនេះ​នឹងអាចប្រើ​កូដសម្ងាត់​នេះបាន។</translation>
 <translation id="7020741890149022655">បញ្ចូលទៅក្នុងបញ្ជីអាន<ph name="BEGIN_NEW" />ថ្មី<ph name="END_NEW" /></translation>
 <translation id="7022756207310403729">បើកនៅក្នុងកម្មវិធីរុករក</translation>
@@ -1841,6 +1842,7 @@
 <translation id="8445448999790540984">មិន​អាច​នាំ​ពាក្យសម្ងាត់​ចេញ​បាន​ទេ</translation>
 <translation id="8446884382197647889">ស្វែងយល់បន្ថែម</translation>
 <translation id="8449781591250785734">{NUM_SITES,plural, =1{បានដក​ការអនុញ្ញាត​ចេញពី​គេហទំព័រ​ចំនួន 1}other{បានដក​ការអនុញ្ញាត​ចេញពី​គេហទំព័រ​ចំនួន #}}</translation>
+<translation id="8449836157089738489">បើកទាំងអស់នៅក្នុងក្រុមផ្ទាំងថ្មី</translation>
 <translation id="8453310803815879010">ចាប់ផ្ដើមហ្គេមដាយណូស័រ</translation>
 <translation id="8455675988389029454">ទទួលបានចំណាំ ពាក្យ​សម្ងាត់ និងអ្វីៗជាច្រើនទៀតនៅលើឧបករណ៍ទាំងអស់របស់អ្នក</translation>
 <translation id="8458341576712814616">ផ្លូវកាត់</translation>
@@ -1862,6 +1864,7 @@
 <translation id="8506357771923193001">អ្នកនឹងឃើញ​ការទាញយក​របស់អ្នក​នៅទីនេះ</translation>
 <translation id="8512053371384421952">អ្នកនឹងលែង​ទទួលបាន​ការជូនដំណឹងពី <ph name="DOMAIN" /> ទៀតហើយ។</translation>
 <translation id="8516012719330875537">កម្មវិធីកែ​រូបភាព</translation>
+<translation id="8517759303731677493">កែ…</translation>
 <translation id="8533670235862049797">ការរុករក​ដោយសុវត្ថិភាព​បានបើក</translation>
 <translation id="8538291624121505885"><ph name="TAB_TITLE" />, ផ្ទាំង​រូបក្នុងរូប​ដែលបាន​ខ្ទាស់ និង​បានជ្រើសរើស​ច្រើន</translation>
 <translation id="8540136935098276800">សូមបញ្ចូល URL ដែលមាន​ទម្រង់ត្រឹមត្រូវ</translation>
@@ -2033,7 +2036,6 @@
 <translation id="9204836675896933765">នៅសល់ឯកសារចំនួន 1</translation>
 <translation id="9205933215779845960">រកមិនឃើញទំព័រនោះទេ។ សូមពិនិត្យមើលអក្ខរាវិរុទ្ធរបស់អ្នក ឬសាកល្បងស្វែងរកនៅលើ <ph name="SEARCH_ENGINE" />។</translation>
 <translation id="9206873250291191720">A</translation>
-<translation id="9209888181064652401">មិនអាច​ហៅទូរសព្ទ​បានទេ</translation>
 <translation id="9212845824145208577">មិនអាចរំកិលទៅក្រោមជាងនេះទៀតបានទេ។ សូមសាកល្បងចាប់ផ្ដើមពីផ្នែកខាងក្រោមជាងនេះនៅលើទំព័រ។</translation>
 <translation id="9218430445555521422">កំណត់ជាលំនាំដើម</translation>
 <translation id="9219103736887031265">រូបភាព</translation>

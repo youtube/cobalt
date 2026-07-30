@@ -295,6 +295,8 @@ chromium-metrics-reviews@google.com.
     <variant name="" summary="Any reason"/>
     <variant name=".DownloadAuthenticationFactorsRegistrationState"
         summary="Downloading of auth factor registrations"/>
+    <variant name=".DownloadGaiaPasswordPublicKey"
+        summary="Downloading of Gaia password public key"/>
     <variant name=".DownloadIsRecoverabilityDegraded"
         summary="Downloading of the recoverability-degraded state"/>
     <variant name=".DownloadKeys" summary="Downloading of keys"/>
@@ -308,6 +310,7 @@ chromium-metrics-reviews@google.com.
                  local password)"/>
     <variant name=".RegisterUnspecifiedAuthenticationFactor"
         summary="Registration of an authentication factor of unspecified type"/>
+    <variant name=".RotateSharedKey" summary="Rotation of the shared key"/>
   </token>
 </histogram>
 

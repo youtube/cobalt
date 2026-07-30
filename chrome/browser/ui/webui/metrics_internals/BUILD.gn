@@ -14,6 +14,8 @@ source_set("metrics_internals") {
     "metrics_internals_handler.h",
     "metrics_internals_ui.cc",
     "metrics_internals_ui.h",
+    "runtime_mutable_features_handler.cc",
+    "runtime_mutable_features_handler.h",
   ]
   public_deps = [ "//content/public/browser" ]
   deps = [
@@ -26,7 +28,6 @@ source_set("metrics_internals") {
     "//components/metrics",
     "//components/metrics/debug",
     "//components/metrics/debug:resources",
-    "//components/metrics/private_metrics",
     "//components/metrics/structured/buildflags",
     "//components/metrics_services_manager",
     "//components/signin/public/identity_manager",
@@ -34,8 +35,6 @@ source_set("metrics_internals") {
     "//components/variations/service",
     "//content/public/common",
     "//google_apis",
-    "//third_party/abseil-cpp:absl",
-    "//third_party/federated_compute:confidential_compute",
     "//ui/webui",
   ]
 

@@ -77,11 +77,6 @@ class ContextualTasksWindowTrackerManager;
 // thread. Events like tab switching and Intercepted navigations from both the
 // sidepanel and omnibox will be routed here.
 class ContextualTasksUiService : public KeyedService {
-  FRIEND_TEST_ALL_PREFIXES(ContextualTasksUiServiceTest,
-                           IsAllowedHost_WithOverride);
-  FRIEND_TEST_ALL_PREFIXES(ContextualTasksUiServiceTest,
-                           IsAllowedHost_LensDebugNotAllowed);
-
  public:
   class Observer : public base::CheckedObserver {
    public:
@@ -281,7 +276,9 @@ class ContextualTasksUiService : public KeyedService {
           session_handle,
       bool associate_web_contents,
       omnibox::ChromeAimEntryPoint entry_point =
-          omnibox::ChromeAimEntryPoint::UNKNOWN_AIM_ENTRY_POINT);
+          omnibox::ChromeAimEntryPoint::UNKNOWN_AIM_ENTRY_POINT,
+      bool use_mstk_for_task_association = false,
+      bool use_no_animation = false);
 
   // Opens the contextual tasks side panel showing a ghost loader while waiting
   // for the initial thread URL to be provided for that task. This creates an
@@ -333,6 +330,9 @@ class ContextualTasksUiService : public KeyedService {
   // the embedded page in the WebUI) search results page that contains the
   // correct params and isn't a shopping query.
   bool IsValidSearchResultsPage(const GURL& url);
+
+  // Returns whether the provided URL is a Google CAPTCHA ("sorry") page.
+  virtual bool IsGoogleCaptchaUrl(const GURL& url);
 
   // Returns a copy of base_url with the URL params from webui_url applied to
   // it. This will exclude chrome webui-specific params, specifically "task".
@@ -571,7 +571,7 @@ class ContextualTasksUiService : public KeyedService {
                                            const GURL& url);
 
   // Checks if the provided URL matches any of the allowed hosts.
-  static bool IsAllowedHost(const GURL& url);
+  bool IsAllowedHost(const GURL& url);
 
   // Returns the host override for a given task if it differs from the default.
   std::string GetHostForTask(const base::Uuid& task_id);
@@ -627,6 +627,11 @@ class ContextualTasksUiService : public KeyedService {
   // intercepting a query from some other surface like the omnibox. The entry
   // in this map is removed once the UI is loaded with the correct thread.
   std::map<base::Uuid, GURL> task_id_to_creation_url_;
+
+  // Map a task's ID to the initial Magi State Token (mstk) used to create it.
+  // This is used to identify and reuse tasks when launched again with the same
+  // initial token, even after the task's active thread turn ID has changed.
+  std::map<base::Uuid, std::string> task_id_to_initial_mstk_;
 
   // Map a task's ID to the entry point that was used to open it. This is used
   // to populate the aep param for GetInitialUrlForTask.

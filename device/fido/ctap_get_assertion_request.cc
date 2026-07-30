@@ -139,6 +139,11 @@ std::optional<CtapGetAssertionRequest> CtapGetAssertionRequest::Parse(
           return std::nullopt;
         }
         request.get_cred_blob = true;
+      } else if (extension_id == kExtensionCmtgKey) {
+        if (!extension.second.is_bool() || !extension.second.GetBool()) {
+          return std::nullopt;
+        }
+        request.cmtg_key = true;
       } else if (extension_id == kExtensionPRF) {
         if (!extension.second.is_map()) {
           return std::nullopt;
@@ -357,6 +362,10 @@ AsCTAPRequestValuePair(const CtapGetAssertionRequest& request) {
       prf.emplace(kExtensionPRFEvalByCredential, std::move(by_cred));
     }
     extensions.emplace(kExtensionPRF, std::move(prf));
+  }
+
+  if (request.cmtg_key) {
+    extensions.emplace(kExtensionCmtgKey, true);
   }
 
   if (!extensions.empty()) {

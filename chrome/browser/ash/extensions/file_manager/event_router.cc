@@ -592,8 +592,9 @@ fmp::MountError MountErrorToMountCompletedStatus(ash::MountError error) {
   }
 }
 
-EventRouter::EventRouter(Profile* profile)
-    : pref_change_registrar_(std::make_unique<PrefChangeRegistrar>()),
+EventRouter::EventRouter(PrefService* local_state, Profile* profile)
+    : LocalUserFilesPolicyObserver(local_state),
+      pref_change_registrar_(std::make_unique<PrefChangeRegistrar>()),
       profile_(profile),
       notification_manager_(
           std::make_unique<SystemNotificationManager>(profile)),

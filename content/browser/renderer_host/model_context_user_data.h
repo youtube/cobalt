@@ -112,7 +112,7 @@ class CONTENT_EXPORT ModelContextPageUserData
 
 // `ModelContextUserData` tracks registered tools and handles communication with
 // `blink::ModelContext` It is created on-demand when the renderer first
-// accesses `navigator.modelContext`. If it does not exist for a frame, it means
+// accesses `document.modelContext`. If it does not exist for a frame, it means
 // that frame has not used the API yet and does not need to receive broadcasts
 // like `toolchange`.
 class CONTENT_EXPORT ModelContextUserData
@@ -135,6 +135,7 @@ class CONTENT_EXPORT ModelContextUserData
   void GetScriptTools(const std::vector<url::Origin>& from_origins,
                       GetScriptToolsCallback callback) override;
   void ExecuteRemoteScriptTool(
+      const base::UnguessableToken& invocation_id,
       const blink::FrameToken& tool_owner_frame_token,
       const url::Origin& expected_target_origin,
       const std::string& name,

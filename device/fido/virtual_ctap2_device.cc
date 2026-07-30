@@ -45,8 +45,6 @@
 #include "device/fido/virtual_u2f_device.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/boringssl/src/include/openssl/aes.h"
-#include "third_party/boringssl/src/include/openssl/ec.h"
-#include "third_party/boringssl/src/include/openssl/ec_key.h"
 #include "third_party/boringssl/src/include/openssl/evp.h"
 #include "third_party/boringssl/src/include/openssl/mem.h"
 #include "third_party/boringssl/src/include/openssl/rand.h"
@@ -145,6 +143,41 @@ void ReturnCtap2Response(
                                        data.value_or(std::vector<uint8_t>{}))));
 }
 
+// Returns a PrivateKey corresponding to the COSE algorithm identifier. Returns
+// nullptr if an unknown algorithm is passed.
+std::unique_ptr<VirtualFidoDevice::PrivateKey> FreshKeyForCoseAlg(
+    int32_t algorithm) {
+  if (algorithm == static_cast<int32_t>(CoseAlgorithmIdentifier::kEs256)) {
+    return VirtualFidoDevice::PrivateKey::FreshP256Key();
+  } else if (algorithm ==
+             static_cast<int32_t>(CoseAlgorithmIdentifier::kRs256)) {
+    return VirtualFidoDevice::PrivateKey::FreshRSAKey();
+  } else if (algorithm ==
+             static_cast<int32_t>(CoseAlgorithmIdentifier::kEdDSA)) {
+    return VirtualFidoDevice::PrivateKey::FreshEd25519Key();
+  } else if (algorithm == static_cast<int32_t>(
+                              CoseAlgorithmIdentifier::kInvalidForTesting)) {
+    return VirtualFidoDevice::PrivateKey::FreshInvalidForTestingKey();
+  }
+  return nullptr;
+}
+
+CmtgKeyResponse MakeCmtgKeyResponse(
+    VirtualFidoDevice::PrivateKey& cmtg_key,
+    base::span<const uint8_t> signature_buffer) {
+  std::vector<uint8_t> cmtg_sig = cmtg_key.Sign(signature_buffer);
+  std::unique_ptr<PublicKey> cmtg_pub_key = cmtg_key.GetPublicKey();
+  return CmtgKeyResponse(cmtg_pub_key->cose_key_bytes, std::move(cmtg_sig));
+}
+
+void AttachCmtgKeyToAuthenticatorDataExtensions(
+    const VirtualFidoDevice::PrivateKey& cmtg_key,
+    cbor::Value::MapValue& extensions_map) {
+  auto cmtg_pub_key = cmtg_key.GetPublicKey();
+  extensions_map.emplace(cbor::Value(device::kExtensionCmtgKey),
+                         cbor::Value(cmtg_pub_key->cose_key_bytes));
+}
+
 std::vector<uint8_t> ConstructSignatureBuffer(
     const AuthenticatorData& authenticator_data,
     base::span<const uint8_t, kClientDataHashLength> client_data_hash) {
@@ -162,7 +195,8 @@ std::vector<uint8_t> ConstructMakeCredentialResponse(
     bool enterprise_attestation_requested,
     std::optional<LargeBlobSupportType> large_blob_type,
     bool prf_enabled,
-    std::optional<std::vector<uint8_t>> prf_results) {
+    std::optional<std::vector<uint8_t>> prf_results,
+    std::optional<CmtgKeyResponse> cmtg_key) {
   std::unique_ptr<OpaqueAttestationStatement> attestation_statement;
   if (!signature.empty()) {
     cbor::Value::MapValue attestation_map;
@@ -191,6 +225,7 @@ std::vector<uint8_t> ConstructMakeCredentialResponse(
   make_credential_response.large_blob_type = large_blob_type;
   make_credential_response.prf_enabled = prf_enabled;
   make_credential_response.prf_results = std::move(prf_results);
+  make_credential_response.cmtg_key = std::move(cmtg_key);
   return AsCTAPStyleCBORBytes(make_credential_response);
 }
 
@@ -204,7 +239,7 @@ std::optional<std::vector<uint8_t>> GetPINBytestring(
   return it->second.GetBytestring();
 }
 
-std::optional<bssl::UniquePtr<EC_POINT>> GetPINKey(
+std::optional<crypto::keypair::PublicKey> GetPINKey(
     const cbor::Value::MapValue& request,
     pin::RequestKey map_key) {
   const auto it = request.find(cbor::Value(static_cast<int>(map_key)));
@@ -217,9 +252,7 @@ std::optional<bssl::UniquePtr<EC_POINT>> GetPINKey(
     return std::nullopt;
   }
 
-  bssl::UniquePtr<EC_GROUP> group(
-      EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
-  return pin::PointFromKeyAgreementResponse(group.get(), *response).value();
+  return crypto::keypair::PublicKey::FromEcP256Point(response->X962());
 }
 
 // ConfirmPresentedPIN checks whether |encrypted_pin_hash| is a valid proof-of-
@@ -485,6 +518,11 @@ std::vector<uint8_t> EncodeGetAssertionResponse(
     unsigned_extension_outputs.emplace(kExtensionLargeBlob,
                                        std::move(large_blob_ext));
   }
+  if (response.cmtg_key) {
+    unsigned_extension_outputs.emplace(
+        cbor::Value(device::kExtensionCmtgKey),
+        cbor::Value(response.cmtg_key->signature));
+  }
   if (!unsigned_extension_outputs.empty()) {
     response_map.emplace(8, cbor::Value(std::move(unsigned_extension_outputs)));
   }
@@ -688,6 +726,10 @@ VirtualCtap2Device::VirtualCtap2Device(scoped_refptr<State> state,
 
   if (config.min_pin_length_extension_support) {
     extensions.emplace_back(device::kExtensionMinPINLength);
+  }
+
+  if (config.cmtg_key_support) {
+    extensions.emplace_back(device::kExtensionCmtgKey);
   }
 
   if (!extensions.empty()) {
@@ -1165,26 +1207,17 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnMakeCredential(
       continue;
     }
 
-    switch (param.algorithm) {
-      case static_cast<int32_t>(CoseAlgorithmIdentifier::kEs256):
-        private_key = PrivateKey::FreshP256Key();
-        break;
-      case static_cast<int32_t>(CoseAlgorithmIdentifier::kRs256):
-        private_key = PrivateKey::FreshRSAKey();
-        break;
-      case static_cast<int32_t>(CoseAlgorithmIdentifier::kEdDSA):
-        private_key = PrivateKey::FreshEd25519Key();
-        break;
-      case static_cast<int32_t>(CoseAlgorithmIdentifier::kInvalidForTesting):
-        if (!advertised) {
-          // Uniquely, the kInvalidForTesting algorithm has to be explicitly
-          // enabled. Setting an empty |advertised_algorithms| doesn't do it.
-          continue;
-        }
-        private_key = PrivateKey::FreshInvalidForTestingKey();
-        break;
+    if (param.algorithm ==
+            static_cast<int32_t>(CoseAlgorithmIdentifier::kInvalidForTesting) &&
+        !advertised) {
+      // Uniquely, the kInvalidForTesting algorithm has to be explicitly
+      // enabled. Setting an empty |advertised_algorithms| doesn't do it.
+      continue;
     }
-    break;
+    private_key = FreshKeyForCoseAlg(param.algorithm);
+    if (private_key) {
+      break;
+    }
   }
 
   if (!private_key) {
@@ -1224,6 +1257,21 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnMakeCredential(
     }
     extensions_map.emplace(cbor::Value(kExtensionHmacSecret),
                            cbor::Value(true));
+  }
+
+  std::unique_ptr<PrivateKey> cmtg_key;
+  if (request.cmtg_key) {
+    if (!config_.cmtg_key_support) {
+      DLOG(ERROR)
+          << "Rejecting makeCredential due to unexpected cmtgKey extension";
+      return CtapDeviceResponseCode::kCtap2ErrUnsupportedExtension;
+    }
+    if (!mutable_state()->simulate_cmtg_key_failure) {
+      // CMTG keys must use the same algorithm as the WebAuthn credential.
+      auto cred_pub_key = private_key->GetPublicKey();
+      cmtg_key = FreshKeyForCoseAlg(cred_pub_key->algorithm);
+      AttachCmtgKeyToAuthenticatorDataExtensions(*cmtg_key, extensions_map);
+    }
   }
 
   const bool prf_enabled = request.prf;
@@ -1465,12 +1513,18 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnMakeCredential(
                registration.large_blob_key->size());
   }
 
+  std::optional<CmtgKeyResponse> cmtg_key_response;
+  if (cmtg_key) {
+    cmtg_key_response = MakeCmtgKeyResponse(*cmtg_key, sign_buffer);
+    registration.cmtg_keys.emplace_back(std::move(cmtg_key));
+  }
+
   StoreNewKey(key_handle, std::move(registration));
 
   *response = ConstructMakeCredentialResponse(
       std::move(attestation_cert), sig, std::move(authenticator_data),
       enterprise_attestation_requested, supports_large_blob, prf_enabled,
-      std::move(prf_results));
+      std::move(prf_results), std::move(cmtg_key_response));
   return CtapDeviceResponseCode::kSuccess;
 }
 
@@ -1667,6 +1721,39 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnGetAssertion(
           registration.second->cred_blob.value_or(std::vector<uint8_t>()));
     }
 
+    PrivateKey* selected_cmtg_key = nullptr;
+    if (request.cmtg_key) {
+      if (!config_.cmtg_key_support) {
+        return CtapDeviceResponseCode::kCtap2ErrUnsupportedExtension;
+      }
+      if (registration.second->selected_cmtg_key_index >=
+          registration.second->cmtg_keys.size()) {
+        // Default to the first key if the CMTG key index is out of bounds.
+        registration.second->selected_cmtg_key_index = 0;
+      }
+      if (!mutable_state()->simulate_cmtg_key_failure) {
+        if (mutable_state()->generate_new_cmtg_key_on_next_assertion ||
+            registration.second->cmtg_keys.empty()) {
+          // Create a new CMTG key.
+          auto cred_pub_key = registration.second->private_key->GetPublicKey();
+          std::unique_ptr<PrivateKey> new_cmtg_key =
+              FreshKeyForCoseAlg(cred_pub_key->algorithm);
+          registration.second->cmtg_keys.emplace_back(std::move(new_cmtg_key));
+          mutable_state()->generate_new_cmtg_key_on_next_assertion = false;
+          registration.second->selected_cmtg_key_index =
+              registration.second->cmtg_keys.size() - 1;
+        }
+        if (!registration.second->cmtg_keys.empty()) {
+          selected_cmtg_key =
+              registration.second->cmtg_keys
+                  .at(registration.second->selected_cmtg_key_index)
+                  .get();
+          AttachCmtgKeyToAuthenticatorDataExtensions(*selected_cmtg_key,
+                                                     extensions_map);
+        }
+      }
+    }
+
     std::optional<cbor::Value> extensions;
     if (!extensions_map.empty()) {
       extensions.emplace(std::move(extensions_map));
@@ -1699,6 +1786,11 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnGetAssertion(
     AuthenticatorGetAssertionResponse assertion(
         std::move(authenticator_data), signature,
         FidoTransportProtocol::kUsbHumanInterfaceDevice);
+
+    if (selected_cmtg_key) {
+      assertion.cmtg_key =
+          MakeCmtgKeyResponse(*selected_cmtg_key, signature_buffer);
+    }
 
     bool include_credential;
     switch (config_.include_credential_in_assertion_response) {
@@ -1867,16 +1959,11 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnPINCommand(
       break;
 
     case static_cast<int>(device::pin::Subcommand::kGetKeyAgreement): {
-      std::array<uint8_t, kP256X962Length> x962;
-      CHECK_EQ(x962.size(),
-               EC_POINT_point2oct(
-                   EC_KEY_get0_group(mutable_state()->ecdh_key.get()),
-                   EC_KEY_get0_public_key(mutable_state()->ecdh_key.get()),
-                   POINT_CONVERSION_UNCOMPRESSED, x962.data(), x962.size(),
-                   nullptr /* BN_CTX */));
-
+      const std::vector<uint8_t> x962 =
+          mutable_state()->ecdh_key->ToUncompressedX962Point();
+      const auto x962_span = base::span<const uint8_t, kP256X962Length>(x962);
       response_map.emplace(static_cast<int>(pin::ResponseKey::kKeyAgreement),
-                           pin::EncodeCOSEPublicKey(x962));
+                           pin::EncodeCOSEPublicKey(x962_span));
       break;
     }
 
@@ -1902,8 +1989,7 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnPINCommand(
       }
       std::vector<uint8_t> shared_key =
           pin::ProtocolVersion(*pin_protocol)
-              .CalculateSharedKey(mutable_state()->ecdh_key.get(),
-                                  peer_key->get());
+              .CalculateSharedKey(*mutable_state()->ecdh_key, *peer_key);
 
       CtapDeviceResponseCode err =
           SetPIN(*pin_protocol, mutable_state(), shared_key, *encrypted_pin,
@@ -1940,8 +2026,7 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnPINCommand(
       }
       std::vector<uint8_t> shared_key =
           pin::ProtocolVersion(*pin_protocol)
-              .CalculateSharedKey(mutable_state()->ecdh_key.get(),
-                                  peer_key->get());
+              .CalculateSharedKey(*mutable_state()->ecdh_key, *peer_key);
 
       CtapDeviceResponseCode err = ConfirmPresentedPIN(
           *pin_protocol, mutable_state(), shared_key, *encrypted_pin_hash);
@@ -2008,8 +2093,7 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnPINCommand(
       }
       std::vector<uint8_t> shared_key =
           pin::ProtocolVersion(*pin_protocol)
-              .CalculateSharedKey(mutable_state()->ecdh_key.get(),
-                                  peer_key->get());
+              .CalculateSharedKey(*mutable_state()->ecdh_key, *peer_key);
 
       CtapDeviceResponseCode err = ConfirmPresentedPIN(
           *pin_protocol, mutable_state(), shared_key, *encrypted_pin_hash);
@@ -2066,8 +2150,7 @@ std::optional<CtapDeviceResponseCode> VirtualCtap2Device::OnPINCommand(
       }
       std::vector<uint8_t> shared_key =
           pin::ProtocolVersion(*pin_protocol)
-              .CalculateSharedKey(mutable_state()->ecdh_key.get(),
-                                  peer_key->get());
+              .CalculateSharedKey(*mutable_state()->ecdh_key, *peer_key);
 
       --mutable_state()->uv_retries;
 
@@ -2811,9 +2894,7 @@ void VirtualCtap2Device::InitPendingRegistrations(
 }
 
 void VirtualCtap2Device::RegenerateKeyAgreementKey() {
-  bssl::UniquePtr<EC_KEY> key(EC_KEY_new_by_curve_name(NID_X9_62_prime256v1));
-  CHECK(EC_KEY_generate_key(key.get()));
-  mutable_state()->ecdh_key = std::move(key);
+  mutable_state()->ecdh_key = crypto::keypair::PrivateKey::GenerateEcP256();
 }
 
 void VirtualCtap2Device::GetNextRP(cbor::Value::MapValue* response_map) {
@@ -2906,17 +2987,15 @@ VirtualCtap2Device::DecryptRequestHMACSecret(
   const pin::Protocol& pin_protocol =
       pin::ProtocolVersion(*request_pin_protocol);
 
-  const auto& x962 = request_hmac_secret.public_key_x962;
-  bssl::UniquePtr<EC_GROUP> p256(
-      EC_GROUP_new_by_curve_name(NID_X9_62_prime256v1));
-  bssl::UniquePtr<EC_POINT> platform_point(EC_POINT_new(p256.get()));
-  if (!EC_POINT_oct2point(p256.get(), platform_point.get(), x962.data(),
-                          x962.size(), /*ctx=*/nullptr)) {
+  std::optional<crypto::keypair::PublicKey> platform_pubkey =
+      crypto::keypair::PublicKey::FromEcP256Point(
+          request_hmac_secret.public_key_x962);
+  if (!platform_pubkey) {
     NOTREACHED();
   }
 
   std::vector<uint8_t> shared_key = pin_protocol.CalculateSharedKey(
-      mutable_state()->ecdh_key.get(), platform_point.get());
+      *mutable_state()->ecdh_key, *platform_pubkey);
 
   const auto& encrypted_salts = request_hmac_secret.encrypted_salts;
   std::vector<uint8_t> salts =

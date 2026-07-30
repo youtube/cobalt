@@ -139,7 +139,6 @@
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
-#include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/webapps/browser/features.h"
@@ -179,9 +178,9 @@
 #include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/test/button_test_api.h"
 #include "ui/views/test/dialog_test.h"
+#include "ui/views/test/views_test_utils.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
-#include "ui/views/widget/widget_interactive_uitest_utils.h"
 #include "ui/webui/resources/cr_components/app_management/app_management.mojom-forward.h"
 #include "url/gurl.h"
 
@@ -1041,7 +1040,7 @@ void WebAppIntegrationTestDriver::SetUpOnMainThread() {
   // Add chrome://webapps_integration_tests/ date source.
   auto root_path = base::PathService::CheckedGet(chrome::DIR_TEST_DATA);
   content::WebUIDataSource* data_source =
-      content::WebUIDataSource::CreateAndAdd(browser()->profile(),
+      content::WebUIDataSource::CreateAndAdd(browser()->GetProfile(),
                                              "webapps_integration_tests");
   valid_chrome_url_for_webapps_registration_ =
       webapps::AddValidChromeUrlHostForTesting("webapps_integration_tests");
@@ -1057,7 +1056,7 @@ void WebAppIntegrationTestDriver::SetUpOnMainThread() {
       base::BindRepeating(LoadResponseFromDisk, root_path));
 
   web_app::test::WaitUntilReady(
-      web_app::WebAppProvider::GetForTest(browser()->profile()));
+      web_app::WebAppProvider::GetForTest(browser()->GetProfile()));
 }
 
 void WebAppIntegrationTestDriver::TearDownOnMainThread() {
@@ -2451,7 +2450,7 @@ void WebAppIntegrationTestDriver::NavigateAppHome() {
   GURL app_home_url = GURL(chrome::kChromeUIAppsURL);
   WindowOpenDisposition win_disposition;
   content::TestNavigationObserver url_observer(app_home_url);
-  if (IsOffTheRecordBrowserInUse(browser()->profile())) {
+  if (IsOffTheRecordBrowserInUse(browser()->GetProfile())) {
     win_disposition = WindowOpenDisposition::OFF_THE_RECORD;
     url_observer.StartWatchingNewWebContents();
   } else {

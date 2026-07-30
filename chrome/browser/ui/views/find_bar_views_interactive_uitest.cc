@@ -66,6 +66,10 @@
 #include "ui/views/view.h"
 #include "ui/views/view_class_properties.h"
 
+#if BUILDFLAG(IS_OZONE)
+#include "ui/ozone/public/ozone_platform.h"
+#endif
+
 using base::ASCIIToUTF16;
 using content::WebContents;
 using ui_test_utils::IsViewFocused;
@@ -1058,7 +1062,7 @@ INSTANTIATE_TEST_SUITE_P(, FindBarViewsUiTest, ::testing::Bool());
 IN_PROC_BROWSER_TEST_P(FindBarViewsUiTest, SelectionDuringFindPolicy) {
   const bool clipboard_restricted_by_policy = GetParam();
   if (clipboard_restricted_by_policy) {
-    data_controls::SetDataControls(browser()->profile()->GetPrefs(), {R"({
+    data_controls::SetDataControls(browser()->GetProfile()->GetPrefs(), {R"({
                                    "name": "rule_name",
                                    "rule_id": "rule_id",
                                    "destinations": {
@@ -1164,15 +1168,14 @@ IN_PROC_BROWSER_TEST_F(FindBarViewsUiTest, FindBarWidgetIsNotActivatable) {
 //
 // Disabled on Linux Wayland: Linux Wayland doesn't support window activation.
 // See crbug.com/40863331.
-#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
-#define MAYBE_FindBarTextfieldActivatesBrowserOnClick \
-  DISABLED_FindBarTextfieldActivatesBrowserOnClick
-#else
-#define MAYBE_FindBarTextfieldActivatesBrowserOnClick \
-  FindBarTextfieldActivatesBrowserOnClick
-#endif
+// Ensure FindBarTextfieldActivatesBrowserOnClick.
 IN_PROC_BROWSER_TEST_F(FindBarViewsUiTest,
-                       MAYBE_FindBarTextfieldActivatesBrowserOnClick) {
+                       FindBarTextfieldActivatesBrowserOnClick) {
+#if BUILDFLAG(IS_OZONE)
+  if (::ui::OzonePlatform::RunningOnWaylandForTest()) {
+    GTEST_SKIP() << "Linux Wayland doesn't support window activation";
+  }
+#endif
   // Browser A: The browser window that comes with the test fixture.
   Browser* browser_a = browser();
   ASSERT_TRUE(ui_test_utils::BringBrowserWindowToFront(browser_a));
@@ -1192,7 +1195,7 @@ IN_PROC_BROWSER_TEST_F(FindBarViewsUiTest,
   ASSERT_TRUE(textfield->GetText().empty());
 
   // Create browser B and make it active with focus in the omnibox.
-  Browser* browser_b = CreateBrowser(browser_a->profile());
+  Browser* browser_b = CreateBrowser(browser_a->GetProfile());
   ASSERT_NE(nullptr, browser_b);
 
   views::Widget* browser_a_widget =
@@ -1247,7 +1250,7 @@ IN_PROC_BROWSER_TEST_F(FindBarViewsUiTest, BookmarkShortcutWithFindBarFocus) {
   const GURL page_a = embedded_test_server()->GetURL("/a.html");
 
   bookmarks::BookmarkModel* bookmark_model =
-      BookmarkModelFactory::GetForBrowserContext(browser()->profile());
+      BookmarkModelFactory::GetForBrowserContext(browser()->GetProfile());
   bookmarks::test::WaitForBookmarkModelToLoad(bookmark_model);
 
   RunTestSequence(
@@ -1285,7 +1288,7 @@ IN_PROC_BROWSER_TEST_F(FindBarViewsUiTest, BookmarkShortcutWithFindBarFocus) {
 IN_PROC_BROWSER_TEST_P(FindBarViewsUiTest, DISABLED_CopyBlockedByPolicy) {
   const bool clipboard_restricted_by_policy = GetParam();
   if (clipboard_restricted_by_policy) {
-    data_controls::SetDataControls(browser()->profile()->GetPrefs(), {R"({
+    data_controls::SetDataControls(browser()->GetProfile()->GetPrefs(), {R"({
                                    "name": "rule_name",
                                    "rule_id": "rule_id",
                                    "destinations": {

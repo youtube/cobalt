@@ -59,6 +59,10 @@ class UnownedUserDataHost;
 class Profile;
 class SessionID;
 
+namespace internal {
+class ScopedBrowserShower;
+}
+
 class BrowserWindowInterface : public content::PageNavigator {
  public:
   // TODO(crbug.com/421758609): Hoist other enums above method declarations.
@@ -229,8 +233,26 @@ class BrowserWindowInterface : public content::PageNavigator {
   virtual void OpenGURL(const GURL& gurl,
                         WindowOpenDisposition disposition) = 0;
 
+  // Never nullptr.
+  //
+  // When the last tab is removed, the browser attempts to close, see
+  // TabStripEmpty(). TODO(crbug.com/331031753): Several existing Browser::Types
+  // never show a tab strip, yet are forced to work with the tab strip API to
+  // deal with the previous condition. This creates confusing control flow both
+  // for the tab strip and this class. One or both of the following should
+  // happen:
+  //  (1) tab_strip_model_ should become an optional member.
+  //  (2) Variations of Browser::Type that never show a tab strip should not use
+  //      this class.
   virtual TabStripModel* GetTabStripModel() = 0;
   virtual const TabStripModel* GetTabStripModel() const = 0;
+
+  // WARNING: Do not use these accessors, please use the `GetTabStripModel()`
+  // accessors above.
+  // TODO(crbug.com/532254684): Migrate remaining clients of `tab_strip_model()`
+  // to `GetTabStripModel()` and remove these.
+  TabStripModel* tab_strip_model() { return GetTabStripModel(); }
+  const TabStripModel* tab_strip_model() const { return GetTabStripModel(); }
 
   // Returns true if the tab strip is currently visible for this browser window.
   // Will return false on browser initialization before the tab strip is
@@ -313,7 +335,10 @@ class BrowserWindowInterface : public content::PageNavigator {
   virtual const Browser* GetBrowserForMigrationOnly() const = 0;
 
   // Checks if the browser popup is tab modal dialog.
-  virtual bool IsTabModalPopupDeprecated() const = 0;
+  virtual bool IsTabModalPopup() const = 0;
+  virtual void SetIsTabModalPopup(
+      bool is_tab_modal_popup,
+      base::PassKey<internal::ScopedBrowserShower>) = 0;
 
   // Checks if the browser was created by session restore.
   virtual bool CreatedBySessionRestore() const = 0;

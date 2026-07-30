@@ -309,9 +309,11 @@ public class NtpCustomizationConfigManagerUnitTest {
                 .saveUserSelectedBackgroundTypeToSharedPreference(
                         any(NtpBackgroundDataUploadImage.class));
         if (primaryColor == null) {
-            assertTrue(NtpCustomizationUtils.createUploadImageFileInDir(FILE_ID_HASH).exists());
+            assertTrue(
+                    NtpCustomizationUtils.createUploadImageFileInDirForTesting(FILE_ID_HASH)
+                            .exists());
             assertEquals(
-                    NtpCustomizationUtils.createUploadImageFileInDir(FILE_ID_HASH)
+                    NtpCustomizationUtils.createUploadImageFileInDirForTesting(FILE_ID_HASH)
                             .getAbsolutePath(),
                     NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference());
         } else {
@@ -432,7 +434,8 @@ public class NtpCustomizationConfigManagerUnitTest {
 
         // Triggers a change that would normally notify the listener.
         clearInvocations(mListener);
-        mNtpCustomizationConfigManager.onBackgroundReset();
+        mNtpCustomizationConfigManager.onBackgroundDataChanged(
+                mContext, /* backgroundData= */ null);
 
         // Verifies the listener is removed.
         verify(mListener, never()).onBackgroundReset(anyInt());
@@ -520,7 +523,8 @@ public class NtpCustomizationConfigManagerUnitTest {
         clearInvocations(mListener);
 
         // Test case for resetting to the default color.
-        mNtpCustomizationConfigManager.onBackgroundReset();
+        mNtpCustomizationConfigManager.onBackgroundDataChanged(
+                mContext, /* backgroundData= */ null);
         assertEquals(defaultColor, mNtpCustomizationConfigManager.getBackgroundColor(mContext));
         assertNull(mNtpCustomizationConfigManager.getNtpThemeColorInfo());
 
@@ -624,11 +628,12 @@ public class NtpCustomizationConfigManagerUnitTest {
                 NtpBackgroundType.IMAGE_FROM_DISK,
                 mNtpCustomizationConfigManager.getBackgroundType());
 
-        File imageFile = NtpCustomizationUtils.createUploadImageFileInDir(FILE_ID_HASH);
+        File imageFile = NtpCustomizationUtils.createUploadImageFileInDirForTesting(FILE_ID_HASH);
         assertTrue(imageFile.exists());
 
         // Test case for resetting to the default color.
-        mNtpCustomizationConfigManager.onBackgroundReset();
+        mNtpCustomizationConfigManager.onBackgroundDataChanged(
+                mContext, /* backgroundData= */ null);
         RobolectricUtil.runAllBackgroundAndUi();
 
         assertEquals(NtpBackgroundType.DEFAULT, mNtpCustomizationConfigManager.getBackgroundType());
@@ -801,10 +806,12 @@ public class NtpCustomizationConfigManagerUnitTest {
             verify(mNtpBackgroundDataManager, never())
                     .saveUserSelectedBackgroundTypeToSharedPreference(any());
             assertTrue(
-                    NtpCustomizationUtils.createThemeCollectionImageFileInDir(FILE_ID_HASH)
+                    NtpCustomizationUtils.createThemeCollectionImageFileInDirForTesting(
+                                    FILE_ID_HASH)
                             .exists());
             assertEquals(
-                    NtpCustomizationUtils.createThemeCollectionImageFileInDir(FILE_ID_HASH)
+                    NtpCustomizationUtils.createThemeCollectionImageFileInDirForTesting(
+                                    FILE_ID_HASH)
                             .getAbsolutePath(),
                     NtpCustomizationUtils.getBackgroundImageFilePathFromSharedPreference());
         } else {
@@ -958,7 +965,8 @@ public class NtpCustomizationConfigManagerUnitTest {
                 NtpBackgroundType.IMAGE_FROM_DISK);
 
         if (isSyncEnabled) {
-            File customImageFile = NtpCustomizationUtils.createUploadImageFileInDir(FILE_ID_HASH);
+            File customImageFile =
+                    NtpCustomizationUtils.createUploadImageFileInDirForTesting(FILE_ID_HASH);
             NtpCustomizationUtils.saveBitmapImageToFile(mBitmap, customImageFile);
             NtpCustomizationUtils.setBackgroundImageFilePathToSharedPreference(
                     customImageFile.getAbsolutePath());

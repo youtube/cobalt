@@ -8,7 +8,6 @@ import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
-import android.content.Intent;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -41,8 +40,8 @@ import org.chromium.chrome.browser.autofill.PersonalDataManager;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.CreditCard;
 import org.chromium.chrome.browser.autofill.PersonalDataManager.Iban;
 import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
-import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
-import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment.AutofillOptionsReferrer;
+import org.chromium.chrome.browser.autofill.settings.options.AutofillOptionsFragment;
+import org.chromium.chrome.browser.autofill.settings.options.AutofillOptionsFragment.AutofillOptionsReferrer;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.device_reauth.BiometricStatus;
 import org.chromium.chrome.browser.device_reauth.DeviceAuthSource;
@@ -413,14 +412,12 @@ public class AutofillPaymentMethodsFragment extends ChromeBaseSettingsFragment
                             .getString(R.string.autofill_create_first_credit_card_button_text));
             addFirstCardPref.setOnButtonClick(
                     () -> {
-                        Intent intent =
-                                SettingsNavigationFactory.createSettingsNavigation()
-                                        .createSettingsIntent(
-                                                getActivity(),
-                                                AutofillLocalCardEditor.class,
-                                                /* fragmentArgs= */ null,
-                                                /* addToBackStack= */ true);
-                        startActivity(intent);
+                        SettingsNavigationFactory.createSettingsNavigation()
+                                .startSettings(
+                                        getActivity(),
+                                        AutofillLocalCardEditor.class,
+                                        /* fragmentArgs= */ null,
+                                        /* addToBackStack= */ true);
                     });
             getPreferenceScreen().addPreference(addFirstCardPref);
             RecordHistogram.recordBooleanHistogram(

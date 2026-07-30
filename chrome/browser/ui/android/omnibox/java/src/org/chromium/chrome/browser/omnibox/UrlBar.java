@@ -118,6 +118,7 @@ public class UrlBar extends AutocompleteEditText {
     private @Nullable Runnable mManageSearchEnginesCallback;
     private boolean mShowAiMode;
     private @Nullable Callback<Boolean> mShowAiModeCallback;
+    private @Nullable UrlBarContextMenuHelper mContextMenuHelper;
 
     private final Rect mClipBounds = new Rect();
 
@@ -349,6 +350,10 @@ public class UrlBar extends AutocompleteEditText {
     }
 
     public void destroy() {
+        if (mContextMenuHelper != null) {
+            mContextMenuHelper.destroy();
+            mContextMenuHelper = null;
+        }
         setAllowFocus(false);
         mUrlBarDelegate = null;
         setOnFocusChangeListener(null);
@@ -479,6 +484,21 @@ public class UrlBar extends AutocompleteEditText {
     @Override
     public void onFinishInflate() {
         super.onFinishInflate();
+        mContextMenuHelper =
+                new UrlBarContextMenuHelper(
+                        this,
+                        new UrlBarContextMenuHelper.Delegate() {
+                            @Override
+                            public void onTextContextMenuItem(int id) {
+                                UrlBar.this.onTextContextMenuItem(id);
+                            }
+
+                            @Override
+                            public @Nullable Runnable getManageSearchEnginesCallback() {
+                                return mManageSearchEnginesCallback;
+                            }
+                        });
+        setOnCreateContextMenuListener(mContextMenuHelper);
         enforceMaxTextHeight();
         setPrivateImeOptions(IME_OPTION_RESTRICT_STYLUS_WRITING_AREA);
     }
@@ -648,6 +668,10 @@ public class UrlBar extends AutocompleteEditText {
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getActionMasked();
         if (action == MotionEvent.ACTION_DOWN) {
+            if ((event.getButtonState() & MotionEvent.BUTTON_SECONDARY) != 0 && !isFocused()) {
+                performClick();
+            }
+
             mLongPressPerformed = false;
             // Reveal the full URL when an unfocused bar is pressed with desktop experience.
             mPointerDragActive =
@@ -655,7 +679,7 @@ public class UrlBar extends AutocompleteEditText {
             if (mPointerDragActive) {
                 Editable text = getText();
                 if (text != null) {
-                    text.removeSpan(EllipsisSpan.INSTANCE);
+                    text.removeSpan(BoundsEllipsisSpan.INSTANCE);
                     // Re-hide very long URLs to prevent crashes.
                     limitDisplayableLength();
                 }
@@ -924,7 +948,16 @@ public class UrlBar extends AutocompleteEditText {
 
     @Override
     protected void onCreateContextMenu(ContextMenu menu) {
+        int start = getSelectionStart();
+        int end = getSelectionEnd();
+
+        // Android's Editor collapses backwards selections during context menu creation.
+        // Temporarily force a forward selection during context menu creation.
+        if (start > end) setSelection(end, start);
         super.onCreateContextMenu(menu);
+        // Restore backwards selection if necessary.
+        if (start > end) setSelection(start, end);
+
         if (mShowAiModeCallback != null) {
             if (menu.findItem(R.id.url_bar_always_show_ai_mode) == null) {
                 MenuItem alwaysShowItem =
@@ -966,7 +999,8 @@ public class UrlBar extends AutocompleteEditText {
         }
 
         if (mManageSearchEnginesCallback == null
-                || !OmniboxFeatures.sOmniboxSiteSearch.isEnabled()) {
+                || !OmniboxFeatures.sOmniboxSiteSearch.isEnabled()
+                || OmniboxFeatures.sOmniboxListMenuContextMenu.isEnabled()) {
             return;
         }
 
@@ -1035,7 +1069,7 @@ public class UrlBar extends AutocompleteEditText {
         if (truncationIndex < text.length()) {
             SpannableStringBuilder builder = new SpannableStringBuilder(text);
             builder.setSpan(
-                    EllipsisSpan.INSTANCE,
+                    BoundsEllipsisSpan.INSTANCE,
                     truncationIndex,
                     text.length(),
                     Editable.SPAN_INCLUSIVE_EXCLUSIVE);
@@ -1125,7 +1159,9 @@ public class UrlBar extends AutocompleteEditText {
         if (TextUtils.isEmpty(text)) scrollType = ScrollType.SCROLL_TO_BEGINNING;
 
         // Ensure any selection from the focus state is cleared.
-        setSelection(0);
+        if (getSelectionStart() != 0 || getSelectionEnd() != 0) {
+            setSelection(0);
+        }
 
         float currentTextSize = getTextSize();
         boolean currentIsRtl = getLayoutDirection() == LAYOUT_DIRECTION_RTL;
@@ -1683,7 +1719,27 @@ public class UrlBar extends AutocompleteEditText {
         mVisibleTextPrefixHint = hintForTesting;
     }
 
-    /* package */ @Nullable Runnable getManageSearchEnginesCallbackForTesting() {
+    /* package */ @Nullable Runnable getManageSearchEnginesCallback() {
         return mManageSearchEnginesCallback;
+    }
+
+    @Override
+    public boolean showContextMenu(float x, float y) {
+        if (mContextMenuHelper != null) {
+            mContextMenuHelper.setTouchCoordinates(x, y);
+        }
+        return super.showContextMenu(x, y);
+    }
+
+    @Override
+    public boolean showContextMenu() {
+        if (mContextMenuHelper != null) {
+            mContextMenuHelper.clearTouchCoordinates();
+        }
+        return super.showContextMenu();
+    }
+
+    @Nullable UrlBarContextMenuHelper getContextMenuHelperForTesting() {
+        return mContextMenuHelper;
     }
 }

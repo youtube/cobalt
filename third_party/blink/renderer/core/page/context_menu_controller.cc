@@ -37,6 +37,7 @@
 #include "components/shared_highlighting/core/common/shared_highlighting_features.h"
 #include "third_party/blink/public/common/context_menu_data/context_menu_data.h"
 #include "third_party/blink/public/common/context_menu_data/edit_flags.h"
+#include "third_party/blink/public/common/dom/dom_node_id.h"
 #include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/navigation/impression.h"
 #include "third_party/blink/public/mojom/context_menu/context_menu.mojom-blink.h"
@@ -90,6 +91,7 @@
 #include "third_party/blink/renderer/core/input_type_names.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
+#include "third_party/blink/renderer/core/mathml/mathml_anchor_element.h"
 #include "third_party/blink/renderer/core/page/context_menu_provider.h"
 #include "third_party/blink/renderer/core/page/focus_controller.h"
 #include "third_party/blink/renderer/core/page/page.h"
@@ -110,11 +112,11 @@ namespace {
 void SetAutofillData(Node* node, ContextMenuData& data) {
   if (auto* form_control = DynamicTo<HTMLFormControlElement>(node)) {
     data.form_control_type = form_control->FormControlType();
-    data.field_renderer_id = form_control->GetDomNodeId();
+    data.field_renderer_id = DOMNodeIdType(form_control->GetDomNodeId());
     if (auto* form = form_control->GetOwningFormForAutofill()) {
-      data.form_renderer_id = form->GetDomNodeId();
+      data.form_renderer_id = DOMNodeIdType(form->GetDomNodeId());
     } else {
-      data.form_renderer_id = 0;
+      data.form_renderer_id = DOMNodeIdType();
     }
     // If a field has been a password field then it should be treated as a
     // password field for the purposes of autofill. (If needed in the future,
@@ -135,8 +137,8 @@ void SetAutofillData(Node* node, ContextMenuData& data) {
         !DynamicTo<HTMLFormElement>(node) &&
         !DynamicTo<HTMLFormControlElement>(node);
     if (data.is_content_editable_for_autofill) {
-      data.field_renderer_id = html_element->GetDomNodeId();
-      data.form_renderer_id = html_element->GetDomNodeId();
+      data.field_renderer_id = DOMNodeIdType(html_element->GetDomNodeId());
+      data.form_renderer_id = DOMNodeIdType(html_element->GetDomNodeId());
     }
   }
 }
@@ -173,8 +175,8 @@ uint32_t EnumToBitmask(enumType outcome) {
 }
 
 // Populates context menu data common to all anchor element types (HTML <a>,
-// SVG <a>, etc.): suggested download filename, referrer policy suppression,
-// and link text.
+// SVG <a>, MathML <a> etc.): suggested download filename, referrer policy
+// suppression, and link text.
 template <typename AnchorType>
 void PopulateAnchorContextMenuData(AnchorType* anchor,
                                    const QualifiedName& download_attr,
@@ -828,6 +830,10 @@ bool ContextMenuController::ShowContextMenu(
                                   selected_frame, data);
   } else if (auto* svg_anchor = DynamicTo<SVGAElement>(result.URLElement())) {
     PopulateAnchorContextMenuData(svg_anchor, svg_names::kDownloadAttr,
+                                  selected_frame, data);
+  } else if (auto* mathml_anchor =
+                 DynamicTo<MathMLAnchorElement>(result.URLElement())) {
+    PopulateAnchorContextMenuData(mathml_anchor, html_names::kDownloadAttr,
                                   selected_frame, data);
   }
 

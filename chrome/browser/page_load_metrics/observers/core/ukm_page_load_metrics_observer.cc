@@ -531,8 +531,9 @@ void UkmPageLoadMetricsObserver::OnResourceDataUseObserved(
       continue;
     if (blink::IsSupportedJavascriptMimeType(resource->mime_type)) {
       js_decoded_bytes_ += resource->decoded_body_length;
-      if (resource->decoded_body_length > js_max_decoded_bytes_)
+      if (resource->decoded_body_length > js_max_decoded_bytes_) {
         js_max_decoded_bytes_ = resource->decoded_body_length;
+      }
     }
     if (resource->cache_type !=
         page_load_metrics::mojom::CacheType::kNotCached) {

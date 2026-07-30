@@ -145,7 +145,8 @@ export function getHtml(this: ReadAnythingToolbarElement) {
       .isSpeechActive="${this.isSpeechActive}"
       @close-submenu-requested="${this.onCloseSubmenuRequested_}"
       @close-all-menus="${this.onCloseAllMenus_}"
-      @open-settings-submenu="${this.onOpenSettingsSubmenu_}">
+      @open-settings-submenu="${this.onOpenSettingsSubmenu_}"
+      @translation-requested="${this.onTranslationRequested_}">
     </settings-menu>
     <presentation-menu id="presentationMenu"
       class="settings-submenu"
@@ -260,6 +261,14 @@ export function getHtml(this: ReadAnythingToolbarElement) {
       .lineFocusMovement="${this.lineFocusMovement}"
       @close-all-menus="${this.onCloseAllMenus_}">
   </line-focus-menu>
+  <appearance-menu
+      id="appearanceMenu"
+      class="settings-submenu"
+      non-modal
+      .settingsPrefs="${this.settingsPrefs}"
+      .presentationState="${this.presentationState}"
+      @close-all-menus="${this.onCloseAllMenus_}">
+  </appearance-menu>
   <voice-selection-menu id="voiceSelectionMenu"
       class="${this.isImmersiveEnabled_ ? 'settings-submenu' : ''}"
       .nonModal="${this.isImmersiveEnabled_}"

@@ -4,6 +4,8 @@
 
 #import "ios/chrome/browser/app_bar/ui/app_bar_view_controller.h"
 
+#import "base/test/metrics/user_action_tester.h"
+#import "base/test/scoped_feature_list.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_background_view.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_consumer.h"
@@ -539,6 +541,32 @@ TEST_F(AppBarViewControllerTest, TestAssistantButtonAccessibilityLabel) {
               l10n_util::GetNSString(IDS_IOS_APP_BAR_ASK_GEMINI));
 }
 
+// Tests that when kAppBarHideLabels is enabled, viewWillLayoutSubviews does not
+// cause infinite re-entrancy or crashes due to title updaters repeatedly
+// modifying button configurations.
+TEST_F(AppBarViewControllerTest, TestIdempotentTitleUpdatesWithHiddenLabels) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(kAppBarHideLabels);
+
+  [view_controller_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
+                                highlighted:NO
+                                    enabled:YES
+                                     avatar:nil
+                                   signedIn:NO];
+  // Trigger multiple layout passes to verify idempotency and absence of
+  // infinite recursion.
+  [view_controller_.view setNeedsLayout];
+  [view_controller_.view layoutIfNeeded];
+
+  UIButton* assistantButton = [view_controller_ valueForKey:@"assistantButton"];
+  EXPECT_EQ(assistantButton.configuration.title, nil);
+
+  [view_controller_.view setNeedsLayout];
+  [view_controller_.view layoutIfNeeded];
+
+  EXPECT_EQ(assistantButton.configuration.title, nil);
+}
+
 using AppBarViewControllerTestManual = PlatformTest;
 
 // Tests that setting incognito before the view is loaded correctly applies
@@ -558,6 +586,40 @@ TEST_F(AppBarViewControllerTestManual, TestIncognitoInitially) {
   EXPECT_FALSE(assistantButton.enabled);
   EXPECT_TRUE(assistantButton.accessibilityTraits &
               UIAccessibilityTraitNotEnabled);
+}
+
+// Tests that the open new tab button only logs shortcut user action metrics
+// when the tab grid is not visible, and logs the NTP variant when the NTP is
+// visible.
+TEST_F(AppBarViewControllerTest, TestNewTabButtonMetrics) {
+  base::UserActionTester user_action_tester;
+
+  // Set tab grid not visible (browsing mode) and NTP visible.
+  [view_controller_ setTabGridVisible:NO];
+  [view_controller_ setNTPVisible:YES isStartSurface:NO];
+
+  // Trigger tap.
+  UIButton* button = openNewTabButton();
+  [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+
+  EXPECT_EQ(user_action_tester.GetActionCount("MobileToolbarNewTabShortcut"),
+            1);
+  EXPECT_EQ(
+      user_action_tester.GetActionCount("MobileToolbarNewTabShortcutOnNTP"), 1);
+  EXPECT_EQ(user_action_tester.GetActionCount("MobileTabNewTab"), 1);
+
+  // Set tab grid visible.
+  [view_controller_ setTabGridVisible:YES];
+
+  // Trigger tap again.
+  [button sendActionsForControlEvents:UIControlEventTouchUpInside];
+
+  // The metrics should NOT increment because tab grid is visible.
+  EXPECT_EQ(user_action_tester.GetActionCount("MobileToolbarNewTabShortcut"),
+            1);
+  EXPECT_EQ(
+      user_action_tester.GetActionCount("MobileToolbarNewTabShortcutOnNTP"), 1);
+  EXPECT_EQ(user_action_tester.GetActionCount("MobileTabNewTab"), 1);
 }
 
 }  // namespace

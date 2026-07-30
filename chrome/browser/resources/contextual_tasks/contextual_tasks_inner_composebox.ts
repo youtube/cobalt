@@ -6,6 +6,8 @@ import '//resources/cr_components/composebox/composebox_dropdown.js';
 import '//resources/cr_components/composebox/composebox_file_inputs.js';
 import '//resources/cr_components/composebox/composebox_input.js';
 import '//resources/cr_components/composebox/composebox_submit.js';
+import '//resources/cr_components/composebox/composebox_tool_chip.js';
+import '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import '//resources/cr_components/composebox/error_scrim.js';
 import '//resources/cr_components/composebox/file_carousel.js';
 
@@ -17,6 +19,7 @@ import type {ComposeboxFileInputsElement} from '//resources/cr_components/compos
 import type {ComposeboxInputElement} from '//resources/cr_components/composebox/composebox_input.js';
 import {ComposeboxEmbedderMixin} from '//resources/cr_components/composebox/composebox_mixin.js';
 import {ComposeboxProxyImpl} from '//resources/cr_components/composebox/composebox_proxy.js';
+import {ToolMode} from '//resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {ContextualEntrypointAndMenuElement} from '//resources/cr_components/composebox/contextual_entrypoint_and_menu.js';
 import type {ErrorScrimElement} from '//resources/cr_components/composebox/error_scrim.js';
 import type {ComposeboxFileCarouselElement} from '//resources/cr_components/composebox/file_carousel.js';
@@ -59,10 +62,10 @@ export interface ContextualTasksInnerComposeboxInterface {
   isZeroState: boolean;
   lensButtonDisabled: boolean;
   lensButtonTriggersOverlay: boolean;
+  queryZpsOnLoad: boolean;
   searchboxLayoutMode: string;
   showLensButton: boolean;
   showVoiceSearch: boolean;
-  suggestionActivityEnabled: boolean;
   readonly updateComplete: Promise<boolean>;
   usePecApi: boolean;
 
@@ -126,7 +129,6 @@ export class
       lensButtonDisabled: {type: Boolean},
       lensButtonTriggersOverlay: {type: Boolean},
       showLensButton: {type: Boolean},
-      suggestionActivityEnabled: {type: Boolean},
     };
   }
 
@@ -144,7 +146,6 @@ export class
   accessor lensButtonDisabled: boolean = false;
   accessor lensButtonTriggersOverlay: boolean = false;
   accessor showLensButton: boolean = true;
-  accessor suggestionActivityEnabled: boolean = true;
 
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -194,13 +195,20 @@ export class
         new DragAndDropHandler(this, this.dragAndDropEnabled);
   }
 
-  override connectedCallback() {
+  override async connectedCallback() {
     super.connectedCallback();
     this.focusInput();
-    // firstUpdated() runs only once, so restore the observers on reconnnect (
+    // firstUpdated() runs only once, so restore the observers on reconnect (
     // the shadow DOM persists); the initial setup happens in firstUpdated().
     if (this.hasUpdated) {
       this.syncResizeObservers_();
+    }
+    if (this.smartTabSharingVisible) {
+      const {active} = await this.pageHandler_.getSmartTabSharingActive();
+      this.smartTabSharingActive = active;
+      if (active) {
+        this.clearContextForSmartTabSharingActive_();
+      }
     }
   }
 
@@ -288,6 +296,28 @@ export class
     }
   }
 
+  override onSmartTabSharingActiveChanged(e: CustomEvent<{active: boolean}>) {
+    super.onSmartTabSharingActiveChanged(e);
+    if (e.detail.active) {
+      this.clearContextForSmartTabSharingActive_();
+    }
+  }
+
+  private clearContextForSmartTabSharingActive_() {
+    // TODO(crbug.com/486707842): Also clear the automatic active tab once it
+    // is migrated into this fork.
+    this.clearManualTabs_();
+  }
+
+  private clearManualTabs_() {
+    const fileMap = new Map(this.files);
+    for (const [uuid, file] of fileMap.entries()) {
+      if (file.type === 'tab') {
+        this.deleteFile(uuid, /*fromUserAction=*/ false);
+      }
+    }
+  }
+
   /* Used by drag/drop host interface so the
   drag and drop handler can access addDroppedFiles(). */
   getDropTarget() {
@@ -318,6 +348,16 @@ export class
       return;
     }
     super.updateInputPlaceholder();
+  }
+
+  override hasValidQuery(): boolean {
+    // TODO(crbug.com/485648942): Update to drive Deep Search behavior from the
+    // PEC API's ToolSubstateConfig.
+    // Allow an empty query for Deep Search follow-ups; super handles files,
+    // selected matches, and non-empty text.
+    return super.hasValidQuery() ||
+        (this.inputState?.activeTool === ToolMode.kDeepSearch &&
+         this.isFollowupQuery);
   }
 
   getAutomaticActiveTabChipElement(): HTMLElement|null {

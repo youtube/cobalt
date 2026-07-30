@@ -15,6 +15,8 @@
 #include "base/test/test_future.h"
 #include "build/build_config.h"
 #include "chrome/browser/component_updater/indigo_component_installer.h"
+#include "chrome/browser/contextual_cueing/features.h"
+#include "chrome/browser/contextual_cueing/prefs.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/indigo/indigo_prefs.h"
@@ -22,6 +24,8 @@
 #include "chrome/browser/indigo/proto/indigo_prompts.pb.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/optimization_guide/core/optimization_guide_prefs.h"
 #include "components/policy/core/common/management/scoped_management_service_override_for_testing.h"
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/testing_pref_service.h"
@@ -48,13 +52,25 @@ namespace indigo {
 class IndigoServiceTest : public testing::Test {
  public:
   IndigoServiceTest() {
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        features::kIndigo,
-        {{features::kIndigoAllowForEnterprise.name, "true"}});
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kIndigo,
+          {{features::kIndigoSkipEnterpriseCheck.name, "true"}}},
+         {contextual_cueing::kContextualCueingV2, {}}},
+        {});
   }
 
   void SetUp() override {
     ::indigo::prefs::RegisterProfilePrefs(prefs_.registry());
+    prefs_.registry()->RegisterIntegerPref(
+        optimization_guide::prefs::GetSettingEnabledPrefName(
+            optimization_guide::UserVisibleFeatureKey::kContextualCueing),
+        static_cast<int>(
+            optimization_guide::prefs::FeatureOptInState::kNotInitialized));
+    prefs_.registry()->RegisterIntegerPref(
+        optimization_guide::prefs::kChromeSuggestionsSettings,
+        static_cast<int>(
+            contextual_cueing::ChromeSuggestionsSettingsValue::kEnabled));
+
     if (set_script_switch_in_setup_) {
       scoped_command_line_.GetProcessCommandLine()->AppendSwitchASCII(
           "indigo-script", "/dummy/path");
@@ -168,6 +184,20 @@ TEST_F(IndigoServiceTest, SignIn) {
   EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
 }
 
+TEST_F(IndigoServiceTest, IsModelImprovementAllowed) {
+  CreateService();
+  EXPECT_TRUE(service_->IsModelImprovementAllowed());
+
+  SetPolicySettings(prefs::Policy::kAllowedWithoutModelImprovement);
+  EXPECT_FALSE(service_->IsModelImprovementAllowed());
+
+  SetPolicySettings(prefs::Policy::kDisallowed);
+  EXPECT_FALSE(service_->IsModelImprovementAllowed());
+
+  SetPolicySettings(prefs::Policy::kAllowed);
+  EXPECT_TRUE(service_->IsModelImprovementAllowed());
+}
+
 TEST_F(IndigoServiceTest, CapabilitiesDisable) {
   CreateService();
 
@@ -208,7 +238,7 @@ TEST_F(IndigoServiceTest, GlicRequirementEnabledAndDisabled) {
   scoped_feature_list_.Reset();
   scoped_feature_list_.InitAndEnableFeatureWithParameters(
       features::kIndigo, {{features::kIndigoRequireGlicEnabling.name, "true"},
-                          {features::kIndigoAllowForEnterprise.name, "true"}});
+                          {features::kIndigoSkipEnterpriseCheck.name, "true"}});
 
   CreateService();
   MakeAccountAvailableAndCapable();
@@ -243,13 +273,38 @@ TEST_F(IndigoServiceTest, AnchoredMessageTrigger) {
 #endif
   CreateService();
 
-  EXPECT_TRUE(service_->CanShowAnchoredMessage());
-  service_->AnchoredMessageShown();
-  EXPECT_FALSE(service_->CanShowAnchoredMessage());
+  EXPECT_TRUE(service_->CanShowContextualCue());
+  service_->ContextualCueShown();
+  EXPECT_FALSE(service_->CanShowContextualCue());
 
   task_environment_.FastForwardBy(
       features::kIndigoAnchoredMessageResetDuration.Get());
-  EXPECT_TRUE(service_->CanShowAnchoredMessage());
+  EXPECT_TRUE(service_->CanShowContextualCue());
+}
+
+TEST_F(IndigoServiceTest, CanShowContextualCueDisabledByUserOptIn) {
+  CreateService();
+
+  // Explicitly opt-out the user.
+  prefs_.SetInteger(
+      optimization_guide::prefs::GetSettingEnabledPrefName(
+          optimization_guide::UserVisibleFeatureKey::kContextualCueing),
+      static_cast<int>(
+          optimization_guide::prefs::FeatureOptInState::kDisabled));
+
+  EXPECT_FALSE(service_->CanShowContextualCue());
+}
+
+TEST_F(IndigoServiceTest, CanShowContextualCueDisabledByEnterprisePolicy) {
+  CreateService();
+
+  // Disable via enterprise policy.
+  prefs_.SetInteger(
+      optimization_guide::prefs::kChromeSuggestionsSettings,
+      static_cast<int>(
+          contextual_cueing::ChromeSuggestionsSettingsValue::kDisabled));
+
+  EXPECT_FALSE(service_->CanShowContextualCue());
 }
 
 TEST_F(IndigoServiceTest, RemoteEligibilityUnsupported) {
@@ -596,10 +651,12 @@ class IndigoServiceManagementPolicyDefaultEnabledTest
  public:
   IndigoServiceManagementPolicyDefaultEnabledTest() {
     scoped_feature_list_.Reset();
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        features::kIndigo,
-        {{features::kIndigoAllowForEnterprise.name,
-          IsIndigoAllowedForEnterprise() ? "true" : "false"}});
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        {{features::kIndigo,
+          {{features::kIndigoAllowForEnterprise.name,
+            IsIndigoAllowedForEnterprise() ? "true" : "false"}}},
+         {contextual_cueing::kContextualCueingV2, {}}},
+        {});
   }
 
   bool IsIndigoAllowedForEnterprise() const { return GetParam(); }
@@ -614,9 +671,10 @@ TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
           policy::ManagementServiceFactory::GetForProfile(&profile_),
           policy::EnterpriseManagementAuthority::CLOUD);
   MakeAccountAvailableAndCapable();
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kDisabledByPolicy
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kDisabledByPolicy
+                                  : LocalEligibility::kEnterpriseDisallowed));
 }
 
 TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
@@ -627,20 +685,38 @@ TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
           policy::ManagementServiceFactory::GetForProfile(&profile_),
           policy::EnterpriseManagementAuthority::CLOUD);
   MakeAccountAvailableAndCapable();
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kEligible
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kEligible
+                                  : LocalEligibility::kEnterpriseDisallowed));
 
   SetPolicySettings(prefs::Policy::kDisallowed);
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kDisabledByPolicy
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kDisabledByPolicy
+                                  : LocalEligibility::kEnterpriseDisallowed));
 }
 
 TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest, ManagedDomain) {
   CreateService();
   MakeAccountAvailableAndCapable("test@example.com", "example.com");
   EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kManagedDomain));
+}
+
+TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
+       SkipEnterpriseCheckKillswitch) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kIndigo, {{features::kIndigoSkipEnterpriseCheck.name, "true"}});
+
+  CreateService();
+  policy::ScopedManagementServiceOverrideForTesting
+      scoped_management_service_override(
+          policy::ManagementServiceFactory::GetForProfile(&profile_),
+          policy::EnterpriseManagementAuthority::CLOUD);
+  MakeAccountAvailableAndCapable();
+
+  EXPECT_TRUE(LocalEligibilityBecomes(LocalEligibility::kEligible));
 }
 
 TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
@@ -662,9 +738,10 @@ TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest, ManagedProfileCloud) {
           policy::ManagementServiceFactory::GetForProfile(&profile_),
           policy::EnterpriseManagementAuthority::CLOUD);
   MakeAccountAvailableAndCapable();
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kEligible
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kEligible
+                                  : LocalEligibility::kEnterpriseDisallowed));
 }
 
 TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
@@ -675,9 +752,10 @@ TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
           policy::ManagementServiceFactory::GetForProfile(&profile_),
           policy::EnterpriseManagementAuthority::COMPUTER_LOCAL);
   MakeAccountAvailableAndCapable();
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kEligible
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kEligible
+                                  : LocalEligibility::kEnterpriseDisallowed));
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -685,14 +763,16 @@ TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest, EnterpriseDeviceWin) {
   CreateService();
   auto scoped_device_override = base::SetIsEnterpriseDeviceForTesting(true);
   MakeAccountAvailableAndCapable();
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kEligible
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kEligible
+                                  : LocalEligibility::kEnterpriseDisallowed));
 
   SetPolicySettings(prefs::Policy::kDisallowed);
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kDisabledByPolicy
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kDisabledByPolicy
+                                  : LocalEligibility::kEnterpriseDisallowed));
 }
 #endif
 
@@ -703,14 +783,16 @@ TEST_P(IndigoServiceManagementPolicyDefaultEnabledTest,
   profile_.ScopedCrosSettingsTestHelper()->InstallAttributes()->SetCloudManaged(
       "example.com", "device_id");
   MakeAccountAvailableAndCapable();
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kEligible
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kEligible
+                                  : LocalEligibility::kEnterpriseDisallowed));
 
   SetPolicySettings(prefs::Policy::kDisallowed);
-  EXPECT_TRUE(LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
-                                          ? LocalEligibility::kDisabledByPolicy
-                                          : LocalEligibility::kManagedDomain));
+  EXPECT_TRUE(
+      LocalEligibilityBecomes(IsIndigoAllowedForEnterprise()
+                                  ? LocalEligibility::kDisabledByPolicy
+                                  : LocalEligibility::kEnterpriseDisallowed));
 }
 #endif
 

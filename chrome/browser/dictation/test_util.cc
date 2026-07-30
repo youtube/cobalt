@@ -20,21 +20,26 @@
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/browser/browsertest_util.h"
 #include "extensions/browser/extension_registry_test_helper.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace dictation {
 
-TargetId EmptyTargetId() {
-  return TargetId();
+content::GlobalDOMNodeId EmptyTargetId() {
+  return content::GlobalDOMNodeId();
 }
 
-TargetId DefaultInPageTargetId(content::WebContents* web_contents) {
-  return TargetId{web_contents->GetPrimaryMainFrame()->GetWeakDocumentPtr()};
+content::GlobalDOMNodeId DefaultInPageTargetId(
+    content::WebContents* web_contents) {
+  return content::GlobalDOMNodeId{
+      web_contents->GetPrimaryMainFrame()->GetWeakDocumentPtr()};
 }
 
 base::test::ScopedFeatureList CreateEnablingFeatureList() {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      kDictation, {{"use_component_extension", "false"}});
+  feature_list.InitWithFeaturesAndParameters(
+      {{kDictation, {{"use_component_extension", "false"}}},
+       {blink::features::kPopulateDOMNodeIdInFocusedNodeDetails, {}}},
+      {});
   return feature_list;
 }
 

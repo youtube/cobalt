@@ -555,9 +555,7 @@ bool DualLayerUserPrefStore::ShouldGetValueFromAccountStore(
   // Priority pref type is always active. This adds check to avoid syncing them
   // if the user toggle is off. This however skips all the allowlisted priority
   // prefs.
-  if (base::FeatureList::IsEnabled(
-          syncer::kSyncSupportAlwaysSyncingPriorityPreferences) &&
-      metadata->data_type() == syncer::PRIORITY_PREFERENCES &&
+  if (metadata->data_type() == syncer::PRIORITY_PREFERENCES &&
       !GetInterestingUserSelectedTypes().Has(
           syncer::UserSelectableType::kPreferences) &&
       !pref_model_associator_client_->GetSyncablePrefsDatabase()
@@ -778,16 +776,20 @@ std::pair<base::Value, base::Value> DualLayerUserPrefStore::UnmergeValue(
     if (value.is_dict()) {
       base::DictValue local_dict;
       if (const base::Value* local_dict_value = nullptr;
-          local_pref_store_->GetValue(pref_name, &local_dict_value)) {
-        // It is assumed that the local store cannot contain value of incorrect
-        // type.
+          local_pref_store_->GetValue(pref_name, &local_dict_value) &&
+          // Very unlikely, but if the value is of incorrect type, ignore it
+          // since the new value will overwrite it anyway (if the new value is
+          // different from the account value).
+          local_dict_value->is_dict()) {
         local_dict = local_dict_value->GetDict().Clone();
       }
       base::DictValue account_dict;
       if (const base::Value* account_dict_value = nullptr;
-          account_pref_store_->GetValue(pref_name, &account_dict_value)) {
-        // It is assumed that the account store cannot contain value of
-        // incorrect type.
+          account_pref_store_->GetValue(pref_name, &account_dict_value) &&
+          // Very unlikely, but if the value is of incorrect type, ignore it
+          // since the new value will overwrite it anyway (if the new value is
+          // different from the local value).
+          account_dict_value->is_dict()) {
         account_dict = account_dict_value->GetDict().Clone();
       }
       auto [new_local_dict, new_account_dict] = helper::UnmergeDictionaryValues(

@@ -13,9 +13,11 @@
 #include "content/public/browser/page.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/webid/federated_embedder_login_request.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 
 namespace content::webid {
+
+using MediationRequirement = ::password_manager::CredentialMediationRequirement;
 
 DOCUMENT_USER_DATA_KEY_IMPL(IdentityCredentialSourceImpl);
 
@@ -51,9 +53,9 @@ void IdentityCredentialSourceImpl::GetIdentityCredentialSuggestions(
     // These are the accounts that would be displayed in the UI, so filters such
     // as login hint have been applied already. But they may be in the accounts
     // in edge cases where they will be shown in the UI.
-    const std::vector<IdentityRequestAccountPtr>& request_accounts =
+    const std::vector<scoped_refptr<IdentityRequestAccount>>& request_accounts =
         request->GetAccounts();
-    std::vector<IdentityRequestAccountPtr> signin_accounts;
+    std::vector<scoped_refptr<IdentityRequestAccount>> signin_accounts;
     for (const auto& account : request_accounts) {
       const GURL& idp_config_url =
           account->identity_provider->idp_metadata.config_url;

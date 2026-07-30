@@ -6,6 +6,7 @@ package org.chromium.chrome.browser.ui.signin;
 
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
+import static androidx.test.espresso.assertion.ViewAssertions.doesNotExist;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
 import static androidx.test.espresso.matcher.RootMatchers.isDialog;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
@@ -87,38 +88,11 @@ public class SignOutCoordinatorTest {
     public void testSnackbarShownAfterSignOut() {
         setUpMocks();
         @SignoutReason int signOutReason = SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS;
-        doReturn(true).when(mSigninManagerMock).isSignOutAllowed();
-        doAnswer(
-                        args -> {
-                            args.getArgument(0, Runnable.class).run();
-                            return null;
-                        })
-                .when(mSigninManagerMock)
-                .runAfterOperationInProgress(any(Runnable.class));
-        doAnswer(
-                        args -> {
-                            Runnable signOutCallback = args.getArgument(1);
-                            signOutCallback.run();
-                            return null;
-                        })
-                .when(mSigninManagerMock)
-                .signOut(eq(signOutReason), any(Runnable.class));
+        mockSignOutSuccess(signOutReason);
 
         startSignOutFlow(signOutReason, mOnSignOut, false);
 
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    Assert.assertTrue(mSnackbarManager.isShowing());
-                    Snackbar currentSnackbar = mSnackbarManager.getCurrentSnackbarForTesting();
-                    Assert.assertEquals(
-                            Snackbar.UMA_SIGN_OUT, currentSnackbar.getIdentifierForTesting());
-                    Assert.assertEquals(
-                            currentSnackbar.getTextForTesting(),
-                            mActivityTestRule
-                                    .getActivity()
-                                    .getString(R.string.sign_out_snackbar_message));
-                });
-        verify(mOnSignOut).run();
+        verifySignOutAndSnackbar();
     }
 
     /**
@@ -131,22 +105,7 @@ public class SignOutCoordinatorTest {
     public void testSnackbarSuppressedByParameter() {
         setUpMocks();
         @SignoutReason int signOutReason = SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS;
-        doReturn(true).when(mSigninManagerMock).isSignOutAllowed();
-        doAnswer(
-                        args -> {
-                            args.getArgument(0, Runnable.class).run();
-                            return null;
-                        })
-                .when(mSigninManagerMock)
-                .runAfterOperationInProgress(any(Runnable.class));
-        doAnswer(
-                        args -> {
-                            Runnable signOutCallback = args.getArgument(1);
-                            signOutCallback.run();
-                            return null;
-                        })
-                .when(mSigninManagerMock)
-                .signOut(eq(signOutReason), any(Runnable.class));
+        mockSignOutSuccess(signOutReason);
 
         startSignOutFlow(signOutReason, mOnSignOut, false, /* suppressSnackbar= */ true);
 
@@ -207,21 +166,8 @@ public class SignOutCoordinatorTest {
         setUpMocks();
         mUnsyncedDataTypes.add(DataType.BOOKMARKS);
         @SignoutReason int signOutReason = SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS;
-        doReturn(true).when(mSigninManagerMock).isSignOutAllowed();
-        doAnswer(
-                        args -> {
-                            args.getArgument(0, Runnable.class).run();
-                            return null;
-                        })
-                .when(mSigninManagerMock)
-                .runAfterOperationInProgress(any(Runnable.class));
-        doAnswer(
-                        args -> {
-                            args.getArgument(1, Runnable.class).run();
-                            return null;
-                        })
-                .when(mSigninManagerMock)
-                .signOut(eq(signOutReason), any(Runnable.class));
+        mockSignOutSuccess(signOutReason);
+        doReturn(false).when(mSigninManagerMock).hasSignedInAccountExtensions();
         startSignOutFlow(signOutReason, mOnSignOut, false);
         onView(withText(R.string.sign_out_unsaved_data_title))
                 .inRoot(isDialog())
@@ -231,6 +177,52 @@ public class SignOutCoordinatorTest {
                 .inRoot(isDialog())
                 .perform(click());
 
+        verify(mSigninManagerMock).setUninstallAccountExtensionsOnSignout(false);
+        verify(mOnSignOut).run();
+    }
+
+    @Test
+    @MediumTest
+    public void testUnsavedDataDialogPrimaryButtonClick_withExtensions_checkboxChecked() {
+        setUpMocks();
+        mUnsyncedDataTypes.add(DataType.BOOKMARKS);
+        @SignoutReason int signOutReason = SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS;
+        mockSignOutSuccess(signOutReason);
+        doReturn(true).when(mSigninManagerMock).hasSignedInAccountExtensions();
+        startSignOutFlow(signOutReason, mOnSignOut, false);
+
+        onView(withText(R.string.sign_out_unsaved_data_title))
+                .inRoot(isDialog())
+                .check(matches(isDisplayed()));
+        onView(withText(R.string.sign_out_unsaved_data_remove_extensions_message))
+                .inRoot(isDialog())
+                .perform(click());
+        onView(withText(R.string.sign_out_unsaved_data_primary_button))
+                .inRoot(isDialog())
+                .perform(click());
+
+        verify(mSigninManagerMock).setUninstallAccountExtensionsOnSignout(true);
+        verify(mOnSignOut).run();
+    }
+
+    @Test
+    @MediumTest
+    public void testUnsavedDataDialogPrimaryButtonClick_withExtensions_checkboxUnchecked() {
+        setUpMocks();
+        mUnsyncedDataTypes.add(DataType.BOOKMARKS);
+        @SignoutReason int signOutReason = SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS;
+        mockSignOutSuccess(signOutReason);
+        doReturn(true).when(mSigninManagerMock).hasSignedInAccountExtensions();
+        startSignOutFlow(signOutReason, mOnSignOut, false);
+
+        onView(withText(R.string.sign_out_unsaved_data_title))
+                .inRoot(isDialog())
+                .check(matches(isDisplayed()));
+        onView(withText(R.string.sign_out_unsaved_data_primary_button))
+                .inRoot(isDialog())
+                .perform(click());
+
+        verify(mSigninManagerMock).setUninstallAccountExtensionsOnSignout(false);
         verify(mOnSignOut).run();
     }
 
@@ -254,14 +246,31 @@ public class SignOutCoordinatorTest {
     @MediumTest
     public void testSignOutConfirmDialog() {
         setUpMocks();
+        doReturn(false).when(mSigninManagerMock).hasSignedInAccountExtensions();
 
         startSignOutFlow(SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS, mOnSignOut, true);
         onView(withText(R.string.sign_out_title)).inRoot(isDialog()).check(matches(isDisplayed()));
         onView(withText(R.string.sign_out_message))
                 .inRoot(isDialog())
                 .check(matches(isDisplayed()));
+        onView(withText(R.string.sign_out_remove_extensions_message))
+                .inRoot(isDialog())
+                .check(doesNotExist());
         onView(withText(R.string.sign_out)).inRoot(isDialog()).check(matches(isDisplayed()));
         onView(withText(R.string.cancel)).inRoot(isDialog()).check(matches(isDisplayed()));
+    }
+
+    @Test
+    @MediumTest
+    public void testSignOutConfirmDialog_withExtensions_showConfirmDialogFalse() {
+        setUpMocks();
+        doReturn(true).when(mSigninManagerMock).hasSignedInAccountExtensions();
+
+        startSignOutFlow(SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS, mOnSignOut, false);
+        onView(withText(R.string.sign_out_title)).inRoot(isDialog()).check(matches(isDisplayed()));
+        onView(withText(R.string.sign_out_remove_extensions_message))
+                .inRoot(isDialog())
+                .check(matches(isDisplayed()));
     }
 
     @Test
@@ -269,39 +278,50 @@ public class SignOutCoordinatorTest {
     public void testSignOutConfirmDialogPrimaryButtonClick() {
         setUpMocks();
         @SignoutReason int signOutReason = SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS;
-        doReturn(true).when(mSigninManagerMock).isSignOutAllowed();
-        doAnswer(
-                        args -> {
-                            args.getArgument(0, Runnable.class).run();
-                            return null;
-                        })
-                .when(mSigninManagerMock)
-                .runAfterOperationInProgress(any(Runnable.class));
-        doAnswer(
-                        args -> {
-                            args.getArgument(1, Runnable.class).run();
-                            return null;
-                        })
-                .when(mSigninManagerMock)
-                .signOut(eq(signOutReason), any(Runnable.class));
+        mockSignOutSuccess(signOutReason);
+        doReturn(false).when(mSigninManagerMock).hasSignedInAccountExtensions();
         startSignOutFlow(signOutReason, mOnSignOut, true);
-        onView(withText(R.string.sign_out_title)).inRoot(isDialog()).check(matches(isDisplayed()));
 
+        onView(withText(R.string.sign_out_title)).inRoot(isDialog()).check(matches(isDisplayed()));
         onView(withText(R.string.sign_out)).inRoot(isDialog()).perform(click());
 
-        ThreadUtils.runOnUiThreadBlocking(
-                () -> {
-                    Assert.assertTrue(mSnackbarManager.isShowing());
-                    Snackbar currentSnackbar = mSnackbarManager.getCurrentSnackbarForTesting();
-                    Assert.assertEquals(
-                            Snackbar.UMA_SIGN_OUT, currentSnackbar.getIdentifierForTesting());
-                    Assert.assertEquals(
-                            currentSnackbar.getTextForTesting(),
-                            mActivityTestRule
-                                    .getActivity()
-                                    .getString(R.string.sign_out_snackbar_message));
-                });
-        verify(mOnSignOut).run();
+        verify(mSigninManagerMock).setUninstallAccountExtensionsOnSignout(false);
+        verifySignOutAndSnackbar();
+    }
+
+    @Test
+    @MediumTest
+    public void testSignOutConfirmDialogPrimaryButtonClick_withExtensions_checkboxChecked() {
+        setUpMocks();
+        @SignoutReason int signOutReason = SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS;
+        mockSignOutSuccess(signOutReason);
+        doReturn(true).when(mSigninManagerMock).hasSignedInAccountExtensions();
+        startSignOutFlow(signOutReason, mOnSignOut, true);
+
+        onView(withText(R.string.sign_out_title)).inRoot(isDialog()).check(matches(isDisplayed()));
+        onView(withText(R.string.sign_out_remove_extensions_message))
+                .inRoot(isDialog())
+                .perform(click());
+        onView(withText(R.string.sign_out)).inRoot(isDialog()).perform(click());
+
+        verify(mSigninManagerMock).setUninstallAccountExtensionsOnSignout(true);
+        verifySignOutAndSnackbar();
+    }
+
+    @Test
+    @MediumTest
+    public void testSignOutConfirmDialogPrimaryButtonClick_withExtensions_checkboxUnchecked() {
+        setUpMocks();
+        @SignoutReason int signOutReason = SignoutReason.USER_CLICKED_SIGNOUT_SETTINGS;
+        mockSignOutSuccess(signOutReason);
+        doReturn(true).when(mSigninManagerMock).hasSignedInAccountExtensions();
+        startSignOutFlow(signOutReason, mOnSignOut, true);
+
+        onView(withText(R.string.sign_out_title)).inRoot(isDialog()).check(matches(isDisplayed()));
+        onView(withText(R.string.sign_out)).inRoot(isDialog()).perform(click());
+
+        verify(mSigninManagerMock).setUninstallAccountExtensionsOnSignout(false);
+        verifySignOutAndSnackbar();
     }
 
     @Test
@@ -383,6 +403,40 @@ public class SignOutCoordinatorTest {
                                             mOnSignOut));
                 });
         verify(mOnSignOut, never()).run();
+    }
+
+    private void mockSignOutSuccess(@SignoutReason int reason) {
+        doReturn(true).when(mSigninManagerMock).isSignOutAllowed();
+        doAnswer(
+                        args -> {
+                            args.getArgument(0, Runnable.class).run();
+                            return null;
+                        })
+                .when(mSigninManagerMock)
+                .runAfterOperationInProgress(any(Runnable.class));
+        doAnswer(
+                        args -> {
+                            args.getArgument(1, Runnable.class).run();
+                            return null;
+                        })
+                .when(mSigninManagerMock)
+                .signOut(eq(reason), any(Runnable.class));
+    }
+
+    private void verifySignOutAndSnackbar() {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    Assert.assertTrue(mSnackbarManager.isShowing());
+                    Snackbar currentSnackbar = mSnackbarManager.getCurrentSnackbarForTesting();
+                    Assert.assertEquals(
+                            Snackbar.UMA_SIGN_OUT, currentSnackbar.getIdentifierForTesting());
+                    Assert.assertEquals(
+                            currentSnackbar.getTextForTesting(),
+                            mActivityTestRule
+                                    .getActivity()
+                                    .getString(R.string.sign_out_snackbar_message));
+                });
+        verify(mOnSignOut).run();
     }
 
     private void setUpMocks() {

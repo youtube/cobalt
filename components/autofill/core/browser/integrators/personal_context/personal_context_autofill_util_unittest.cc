@@ -11,7 +11,8 @@
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service_test_helper.h"
 #include "components/autofill/core/common/autofill_features.h"
-#include "components/personal_context/core/personal_context_enablement_service.h"
+#include "components/optimization_guide/core/feature_registry/feature_registration.h"
+#include "components/personal_context/core/personal_context_eligibility_service.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/subscription_eligibility/subscription_eligibility_prefs.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -21,18 +22,18 @@ namespace autofill {
 
 namespace {
 
-using personal_context::PersonalContextEnablementService;
-using personal_context::PersonalContextEnablementState;
+using personal_context::PersonalContextEligibilityService;
+using personal_context::PersonalContextEligibilityState;
 using ::testing::NiceMock;
 using ::testing::Return;
 
-class MockPersonalContextEnablementService
-    : public PersonalContextEnablementService {
+class MockPersonalContextEligibilityService
+    : public PersonalContextEligibilityService {
  public:
   MOCK_METHOD(void, AddObserver, (Observer*), (override));
   MOCK_METHOD(void, RemoveObserver, (Observer*), (override));
-  MOCK_METHOD(PersonalContextEnablementState,
-              GetEnablementState,
+  MOCK_METHOD(PersonalContextEligibilityState,
+              GetEligibilityState,
               (),
               (override));
 };
@@ -52,6 +53,8 @@ class PersonalContextAutofillUtilTest : public testing::Test {
         /*disabled_features=*/{});
     client_.GetPrefs()->SetInteger(
         subscription_eligibility::prefs::kAiSubscriptionTier, 1);
+    client_.GetPrefs()->registry()->RegisterIntegerPref(
+        optimization_guide::prefs::kGeminiSettings, 0);
     client_.SetUpPrefsAndIdentityForAutofillAi();
     client_.set_entity_data_manager(std::make_unique<EntityDataManager>(
         client_.GetPrefs(), client_.GetIdentityManager(),
@@ -74,27 +77,27 @@ class PersonalContextAutofillUtilTest : public testing::Test {
 
 TEST_F(PersonalContextAutofillUtilTest,
        ShouldShowPersonalContextAutofillSetting) {
-  using enum PersonalContextEnablementState;
-  NiceMock<MockPersonalContextEnablementService> service;
+  using enum PersonalContextEligibilityState;
+  NiceMock<MockPersonalContextEligibilityService> service;
 
-  auto check_state = [&](PersonalContextEnablementState state) {
-    ON_CALL(service, GetEnablementState()).WillByDefault(Return(state));
+  auto check_state = [&](PersonalContextEligibilityState state) {
+    ON_CALL(service, GetEligibilityState()).WillByDefault(Return(state));
     return ShouldShowPersonalContextAutofillSetting(client_, &service);
   };
 
   EXPECT_FALSE(check_state(kDisabledNotEligible));
   EXPECT_FALSE(check_state(kDisabledNeedsOptIn));
-  EXPECT_TRUE(check_state(kEnabled));
+  EXPECT_TRUE(check_state(kEligible));
 
   EXPECT_FALSE(ShouldShowPersonalContextAutofillSetting(
-      client_, /*enablement_service=*/nullptr));
+      client_, /*eligibility_service=*/nullptr));
 }
 
 TEST_F(PersonalContextAutofillUtilTest,
        ShouldShowPersonalContextAutofillSetting_BothDisabled) {
-  NiceMock<MockPersonalContextEnablementService> service;
-  ON_CALL(service, GetEnablementState())
-      .WillByDefault(Return(PersonalContextEnablementState::kEnabled));
+  NiceMock<MockPersonalContextEligibilityService> service;
+  ON_CALL(service, GetEligibilityState())
+      .WillByDefault(Return(PersonalContextEligibilityState::kEligible));
 
   base::test::ScopedFeatureList feature_list;
   feature_list.InitWithFeatures(
@@ -106,9 +109,9 @@ TEST_F(PersonalContextAutofillUtilTest,
 
 TEST_F(PersonalContextAutofillUtilTest,
        ShouldShowPersonalContextAutofillSetting_AmbientAutofillEnabled) {
-  NiceMock<MockPersonalContextEnablementService> service;
-  ON_CALL(service, GetEnablementState())
-      .WillByDefault(Return(PersonalContextEnablementState::kEnabled));
+  NiceMock<MockPersonalContextEligibilityService> service;
+  ON_CALL(service, GetEligibilityState())
+      .WillByDefault(Return(PersonalContextEligibilityState::kEligible));
 
   EXPECT_TRUE(ShouldShowPersonalContextAutofillSetting(client_, &service));
 }

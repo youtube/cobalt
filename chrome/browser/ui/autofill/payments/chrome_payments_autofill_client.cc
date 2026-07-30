@@ -55,6 +55,7 @@
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/single_field_fillers/payments/merchant_promo_code_manager.h"
 #include "components/autofill/core/browser/suggestions/suggestion.h"
+#include "components/autofill/core/browser/suggestions/suggestion_hiding_reason.h"
 #include "components/autofill/core/browser/ui/payments/autofill_error_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller_impl.h"
 #include "components/autofill/core/browser/ui/payments/autofill_progress_ui_type.h"
@@ -1222,12 +1223,12 @@ void ChromePaymentsAutofillClient::HideCreditCardSaveAndFillDialog() {
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
-bool ChromePaymentsAutofillClient::IsTabModalPopupDeprecated() const {
+bool ChromePaymentsAutofillClient::IsTabModalPopup() const {
 #if !BUILDFLAG(IS_ANDROID)
   tabs::TabInterface* const tab_interface =
       tabs::TabInterface::MaybeGetFromContents(web_contents());
-  return tab_interface && tab_interface->GetBrowserWindowInterface()
-                              ->IsTabModalPopupDeprecated();
+  return tab_interface &&
+         tab_interface->GetBrowserWindowInterface()->IsTabModalPopup();
 #else
   return false;
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -1265,6 +1266,7 @@ void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip(
     std::vector<Suggestion> suggestions,
     base::RepeatingCallback<void(base::span<const Suggestion>)>
         on_suggestions_shown,
+    base::RepeatingCallback<void(SuggestionHidingReason)> on_suggestions_hidden,
     base::RepeatingCallback<void(const Suggestion&)> did_select_suggestion,
     base::RepeatingCallback<
         void(const Suggestion&,
@@ -1279,7 +1281,8 @@ void ChromePaymentsAutofillClient::ShowOmniboxAutofillChip(
           OmniboxAutofillBubbleController::From(*tab_interface)) {
     bubble_controller->Initialize(
         std::move(suggestions), std::move(on_suggestions_shown),
-        std::move(did_select_suggestion), std::move(did_accept_suggestion));
+        std::move(on_suggestions_hidden), std::move(did_select_suggestion),
+        std::move(did_accept_suggestion));
   }
   if (OmniboxAutofillPageActionController* page_action_controller =
           OmniboxAutofillPageActionController::From(*tab_interface)) {

@@ -145,13 +145,14 @@ AtMemoryQueryService* AutofillClient::GetAtMemoryQueryService() {
   return nullptr;
 }
 
-personal_context::PersonalContextEnablementState
-AutofillClient::GetPersonalContextEnablementState() const {
-  return personal_context::PersonalContextEnablementState::kDisabledNotEligible;
+personal_context::PersonalContextEligibilityState
+AutofillClient::GetPersonalContextEligibilityState() const {
+  return personal_context::PersonalContextEligibilityState::
+      kDisabledNotEligible;
 }
 
-personal_context::PersonalContextEnablementService*
-AutofillClient::GetPersonalContextEnablementService() const {
+personal_context::PersonalContextEligibilityService*
+AutofillClient::GetPersonalContextEligibilityService() const {
   return nullptr;
 }
 
@@ -174,14 +175,15 @@ AutofillAiManager* AutofillClient::GetAutofillAiManager() {
   return nullptr;
 }
 
-PersonalContextAccessManager*
-AutofillClient::GetPersonalContextAccessManager() {
+AutofillAiPersonalContextAccessManager*
+AutofillClient::GetAutofillAiPersonalContextAccessManager() {
   return nullptr;
 }
 
-const PersonalContextAccessManager*
-AutofillClient::GetPersonalContextAccessManager() const {
-  return const_cast<AutofillClient*>(this)->GetPersonalContextAccessManager();
+const AutofillAiPersonalContextAccessManager*
+AutofillClient::GetAutofillAiPersonalContextAccessManager() const {
+  return const_cast<AutofillClient*>(this)
+      ->GetAutofillAiPersonalContextAccessManager();
 }
 
 AutofillAiModelCache* AutofillClient::GetAutofillAiModelCache() {
@@ -408,6 +410,10 @@ void AutofillClient::ShowAutofillAiFetchFromWalletFailureNotification() {
 }
 
 void AutofillClient::ShowAutofillAiPreFetchFailureNotification() {
+  NOTIMPLEMENTED();
+}
+
+void AutofillClient::ShowAutofillAiPrivateInferenceNotice() {
   NOTIMPLEMENTED();
 }
 

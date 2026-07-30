@@ -34,8 +34,6 @@ BASE_FEATURE(kGlicSelectionPrompt, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kGlicSelectionPromptUpdatesOnly{
     &kGlicSelectionPrompt, "updates_only", false};
-const base::FeatureParam<bool> kGlicSelectionPromptUseWidget{
-    &kGlicSelectionPrompt, "use_widget", true};
 const base::FeatureParam<bool> kGlicSelectionPromptEnablePinning{
     &kGlicSelectionPrompt, "enable_pinning", false};
 const base::FeatureParam<std::string> kGlicSelectionTopCueOnlyList{
@@ -44,6 +42,10 @@ const base::FeatureParam<bool> kGlicSelectionEnableSiteSettings{
     &kGlicSelectionPrompt, "enable_site_settings", false};
 const base::FeatureParam<bool> kGlicSelectionShowCopyButtons{
     &kGlicSelectionPrompt, "show_copy_buttons", false};
+const base::FeatureParam<bool> kGlicSelectionAutoSendPrompt{
+    &kGlicSelectionPrompt, "auto_send_prompt", false};
+const base::FeatureParam<std::string> kGlicSelectionPromptCta{
+    &kGlicSelectionPrompt, "cta", ""};
 
 BASE_FEATURE(kGlicClearTurnIdOnPanelWillOpen,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -145,6 +147,8 @@ BASE_FEATURE(kGlicGetTabFaviconById, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicSkipCookieSyncOnOpen, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kGlicCookieSyncOnTokenChange, base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<base::TimeDelta> kGlicCookieSyncOnTokenChangeDelay{
+    &kGlicCookieSyncOnTokenChange, "delay", base::Seconds(10)};
 BASE_FEATURE(kGlicCookieSyncOnError, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<base::TimeDelta> kGlicCookieSyncOnErrorMinInterval{
     &kGlicCookieSyncOnError, "min_interval", base::Minutes(5)};
@@ -164,7 +168,7 @@ const base::FeatureParam<int> kGlicReloadMaxLoadingTimeMs{
 BASE_FEATURE(kGlicContextualCueingV2AutoSubmit,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kGlicWebDragAndDropFileUpload, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kGlicWebDragAndDropFileUpload, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kGlicOptInImpressionMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
 

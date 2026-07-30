@@ -485,6 +485,7 @@ void ChromeAuthenticatorRequestDelegate::ConfigureDiscoveries(
     device::FidoRequestType request_type,
     std::optional<device::ResidentKeyRequirement> resident_key_requirement,
     device::UserVerificationRequirement user_verification_requirement,
+    bool cmtg_key_requested,
     std::optional<std::string_view> user_name,
     bool browser_provided_passkeys_available,
     device::FidoDiscoveryFactory* discovery_factory) {
@@ -523,7 +524,8 @@ void ChromeAuthenticatorRequestDelegate::ConfigureDiscoveries(
       // PasskeyUpgradeRequestController will handle enclave transactions in
       // place of the "regular" GPMEnclaveController.
       CHECK(!enclave_controller_);
-      dialog_controller_->InitializeEnclaveRequestCallback(discovery_factory);
+      dialog_controller_->ConfigureEnclaveForUpgrade(discovery_factory,
+                                                     cmtg_key_requested);
       discovery_factory->set_network_context_factory(base::BindRepeating([]() {
         return SystemNetworkContextManager::GetInstance()->GetContext();
       }));
@@ -543,7 +545,7 @@ void ChromeAuthenticatorRequestDelegate::ConfigureDiscoveries(
         } else {
           enclave_controller_ = std::make_unique<GPMEnclaveController>(
               GetRenderFrameHost(), dialog_model_.get(), rp_id, request_type,
-              user_verification_requirement);
+              user_verification_requirement, cmtg_key_requested);
         }
       }
     } else {

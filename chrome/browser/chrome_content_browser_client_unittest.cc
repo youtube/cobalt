@@ -110,6 +110,7 @@
 #include "third_party/blink/public/common/storage_key/storage_key.h"
 #include "third_party/blink/public/common/switches.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
+#include "ui/base/ui_base_features.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -1677,6 +1678,32 @@ TEST_F(ChromeContentBrowserClientSwitchTest, LegacyTechReportEnabled) {
       result.HasSwitch(blink::switches::kLegacyTechReportPolicyEnabled));
 }
 
+TEST_F(ChromeContentBrowserClientSwitchTest,
+       AllowBackForwardCacheForWebSocketsDefault) {
+  base::CommandLine result = FetchCommandLineSwitchesForRendererProcess();
+  EXPECT_FALSE(result.HasSwitch(
+      blink::switches::kDisableBackForwardCacheForWebSockets));
+}
+
+TEST_F(ChromeContentBrowserClientSwitchTest,
+       AllowBackForwardCacheForWebSocketsDisabled) {
+  profile()->GetPrefs()->SetBoolean(
+      policy::policy_prefs::kBackForwardCacheForWebSocketsAllowed, false);
+  base::CommandLine result = FetchCommandLineSwitchesForRendererProcess();
+  EXPECT_TRUE(result.HasSwitch(
+      blink::switches::kDisableBackForwardCacheForWebSockets));
+}
+
+TEST_F(ChromeContentBrowserClientSwitchTest,
+       AllowBackForwardCacheForWebSocketsEnabled) {
+  profile()->GetPrefs()->SetBoolean(
+      policy::policy_prefs::kBackForwardCacheForWebSocketsAllowed,
+                                     true);
+  base::CommandLine result = FetchCommandLineSwitchesForRendererProcess();
+  EXPECT_FALSE(result.HasSwitch(
+      blink::switches::kDisableBackForwardCacheForWebSockets));
+}
+
 #if BUILDFLAG(IS_CHROMEOS)
 TEST_F(ChromeContentBrowserClientSwitchTest,
        ShouldSetForceAppModeSwitchInRendererProcessIfItIsSetInCurrentProcess) {
@@ -2257,6 +2284,31 @@ class ChromeContentBrowserClientAIPrefsTest
   ChromeContentBrowserClient client_;
   base::test::ScopedFeatureList feature_list_;
 };
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+class ChromeContentBrowserClientTouchDragDropTest
+    : public ChromeRenderViewHostTestHarness {
+ protected:
+  ChromeContentBrowserClient client_;
+  base::test::ScopedFeatureList feature_list_;
+};
+
+TEST_F(ChromeContentBrowserClientTouchDragDropTest,
+       TouchDragEndContextMenuFollowsTouchDragDrop) {
+  feature_list_.InitAndEnableFeature(features::kTouchDragAndDrop);
+
+  auto web_contents = CreateTestWebContents();
+  content::WebContentsTester::For(web_contents.get())
+      ->NavigateAndCommit(GURL("https://www.example.com"));
+
+  blink::web_pref::WebPreferences web_preferences;
+  client_.OverrideWebPreferences(
+      web_contents.get(), *web_contents->GetSiteInstance(), &web_preferences);
+
+  EXPECT_TRUE(web_preferences.touch_drag_drop_enabled);
+  EXPECT_TRUE(web_preferences.touch_dragend_context_menu);
+}
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
 // Verifies the web preference is enabled in DevTools when
 // kDevToolsAiOriginTrialsApis is enabled.

@@ -46,6 +46,7 @@ source_set("omnibox") {
       "//chrome/browser/bitmap_fetcher",
       "//chrome/browser/page_content_annotations:extraction_service",
       "//chrome/browser/ui/color:color_headers",
+      "//chrome/browser/ui/page_action",
       "//chrome/browser/ui/webui/top_chrome",
       "//chrome/common",
       "//components/infobars/core",
@@ -266,9 +267,11 @@ if (!is_android) {
       "//base/test:test_support",
       "//chrome/browser/autocomplete:aim_eligibility_service",
       "//chrome/browser/contextual_search",
+      "//chrome/browser/optimization_guide:test_support",
       "//chrome/browser/search_engines",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/views:layout_provider",
+      "//chrome/browser/ui/webui:webui_util",
       "//chrome/browser/ui/webui/cr_components/searchbox",
       "//chrome/test:test_support",
       "//components/bookmarks/test",
@@ -397,7 +400,7 @@ if (!is_android) {
         sources += [
           # TODO(crbug.com/40659953): Re-enable this test when history backend
           # failures are addressed.
-          "omnibox_view_browsertest.cc",
+          "omnibox_view_interactive_uitest.cc",
         ]
         deps += [
           ":omnibox",

@@ -33,14 +33,16 @@ std::string_view CallSiteToString(CallTimerState::CallSite call_site) {
       return "GetSubmittedForm";
     case kHandleCaretMovedInFormField:
       return "HandleCaretMovedInFormField";
-    case kJavaScriptChangedValue:
-      return "JavaScriptChangedValue";
+    case kJavaScriptSetValue:
+      return "JavaScriptSetValue";
     case kNotifyPasswordManagerAboutClearedForm:
       return "NotifyPasswordManagerAboutClearedForm";
     case kOnDevToolsSessionConnectionChanged:
       return "OnDevToolsSessionConnectionChanged";
     case kOnProvisionallySaveForm:
       return "OnProvisionallySaveForm";
+    case kOnJavaScriptAutofillDetected:
+      return "OnJavaScriptAutofillDetected";
     case kOnTextFieldValueChanged:
       return "OnTextFieldValueChanged";
     case kQueryAutofillSuggestions:

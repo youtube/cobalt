@@ -53,6 +53,7 @@
 #include "components/omnibox/common/logger.h"
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/session_id.h"
+#include "components/tabs/public/tab_handle_factory.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
@@ -93,7 +94,11 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
     return {};
   }
   std::vector<contextual_tasks::mojom::ContextInfoPtr> context_items;
-  for (const auto& attachment : context->GetUniqueUrlAttachments()) {
+  const std::vector<contextual_tasks::UrlAttachment>& attachments =
+      base::FeatureList::IsEnabled(omnibox::kContextManagementInComposebox)
+          ? context->GetUrlAttachments()
+          : context->GetUniqueUrlAttachments();
+  for (const auto& attachment : attachments) {
     const GURL url = attachment.GetURL();
     const std::string title = base::UTF16ToUTF8(attachment.GetTitle());
 
@@ -580,6 +585,15 @@ void ContextualTasksPageHandler::OnboardingTooltipDismissed() {
 #endif  // !BUILDFLAG(IS_ANDROID)
 }
 
+void ContextualTasksPageHandler::LensSearchTooltipDismissed() {
+  PrefService* prefs = web_ui_controller_->GetProfile()->GetPrefs();
+  int count = prefs->GetInteger(
+      contextual_tasks::kContextualTasksLensSearchTooltipDismissedCount);
+  prefs->SetInteger(
+      contextual_tasks::kContextualTasksLensSearchTooltipDismissedCount,
+      count + 1);
+}
+
 void ContextualTasksPageHandler::ReopenTabs() {
   // TODO(crbug.com/489832161): Implement tab restoration logic.
 }
@@ -705,8 +719,12 @@ void ContextualTasksPageHandler::OnReceivedUpdatedThreadContextLibrary(
                 for (const auto& item : context_items) {
                   if (item->is_tab() && item->get_tab()->has_chrome_tab_data) {
                     auto tab_info = searchbox::mojom::TabInfo::New();
+                    tab_info->tab_id = item->get_tab()->tab_id;
                     tab_info->url = item->get_tab()->url;
                     tab_info->title = item->get_tab()->title;
+                    tab_info->tab_id =
+                        tabs::SessionMappedTabHandleFactory::GetInstance()
+                            .GetHandleForSessionId(item->get_tab()->tab_id);
                     tabs.push_back(std::move(tab_info));
                   }
                 }

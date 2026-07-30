@@ -8,6 +8,7 @@
 #include "chrome/browser/ui/webui/metrics_internals/field_trials_handler.h"
 #include "chrome/browser/ui/webui/metrics_internals/metrics_internals_features.h"
 #include "chrome/browser/ui/webui/metrics_internals/metrics_internals_handler.h"
+#include "chrome/browser/ui/webui/metrics_internals/runtime_mutable_features_handler.h"
 #include "chrome/common/webui_url_constants.h"
 #include "components/grit/metrics_internals_resources.h"
 #include "components/grit/metrics_internals_resources_map.h"
@@ -22,6 +23,8 @@
 #include "chrome/browser/ui/webui/metrics_internals/structured_metrics_internals_handler.h"
 #endif
 
+// LINT.IfChange(metrics_internals_ui)
+
 MetricsInternalsUI::MetricsInternalsUI(content::WebUI* web_ui)
     : WebUIController(web_ui) {
   // Set up the chrome://metrics-internals source.
@@ -34,6 +37,7 @@ MetricsInternalsUI::MetricsInternalsUI(content::WebUI* web_ui)
                               IDR_METRICS_INTERNALS_METRICS_INTERNALS_HTML);
 
   web_ui->AddMessageHandler(std::make_unique<MetricsInternalsHandler>());
+  web_ui->AddMessageHandler(std::make_unique<RuntimeMutableFeaturesHandler>());
 
   web_ui->AddMessageHandler(
       std::make_unique<FieldTrialsHandler>(Profile::FromBrowserContext(
@@ -55,3 +59,5 @@ MetricsInternalsUI::MetricsInternalsUI(content::WebUI* web_ui)
       "enablePrivateMetricsTab",
       base::FeatureList::IsEnabled(features::kPrivateMetricsWebUI));
 }
+
+// LINT.ThenChange(//ios/chrome/browser/webui/ui_bundled/metrics_internals/metrics_internals_ui.mm)

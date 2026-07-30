@@ -2750,6 +2750,7 @@ Politika, 2 - "Devre Dışı" değerine ayarlanırsa Google Developer Program'ı
 <translation id="2707733461906745082">Profil Ayırma</translation>
 <translation id="2707873794476722903">Güvenli Tarama standart modda etkin.</translation>
 <translation id="2709516037105925701">Otomatik doldurma</translation>
+<translation id="2712089199157322391">Standart web'de gezinme için Geliştirici Araçları'na izin ver ancak kurumsal olarak yüklenen ve yönetilen kullanıcı hesaplarının yerleşik uzantıları için kısıtla (M150 sürümünden itibaren, yerleşik PDF görüntüleyici hariç bu uzantıları yerleştiren sayfalarda engellenir).</translation>
 <translation id="2713913573196284609">Bu değerin desteği, M121 sürümünden itibaren sonlandırılmıştır. Değerler, M121 ve sonraki sürümlerde EnabledBelowThreshold olarak kabul edilir.</translation>
 <translation id="2713977837384407666">Google'a metrikleri her zaman gönderme</translation>
 <translation id="2714359695399346815">Politika, Etkin değerine ayarlanır veya ayarlanmadan bırakılırsa STUN sunucularının kullanılmasına izin verilir. Uzak istemciler, bir güvenlik duvarıyla ayrılmış olsa bile bu makineyi keşfedip bağlanabilir.
@@ -3210,6 +3211,11 @@ Bu politika, "<ph name="WEB_APP_INSTALL_FORCE_LIST_POLICY_NAME" />" politikasın
         Bu politikanın önceden yayınlanmış politikalar üzerinde bir etkisi yoktur.</translation>
 <translation id="3002067315837777719">Telefon Merkezi bildirimlerinin etkinleştirilmesine izin verme</translation>
 <translation id="3003490107503207900">Office dokümanlarını (ör. .docx) <ph name="BASIC_EDITOR_NAME" /> içinde açmak yerine indirmeye zorla</translation>
+<translation id="3003832749381802588">Çevrimiçi oturum açma sırasında algılanan şifre uyuşmazlığının <ph name="PRODUCT_OS_NAME" /> tarafından nasıl ele alacağını kontrol eder. Bu politika, kullanıcının çevrimiçi IdP (ör.3. taraf IdP, Gaia) aracılığıyla doğrulanan şifresinin, yerel verilerini şifrelemek için kullanılan şifreyle eşleşmemesi durumunda sergilenecek davranışı belirler. Bu durum genellikle kullanıcı, şifresini harici olarak değiştirdiğinde meydana gelir.
+
+Politika, 0 (Standart şifre değiştirme akışı) değerine ayarlanırsa veya ayarlanmadan bırakılırsa standart şifre değiştirme akışı başlatılır. Kullanıcıdan yerel veri şifrelemesini güncellemek için eski şifresini girmesi istenir. Kullanıcı, varsa diğer yerel veri kurtarma mekanizmalarını da kullanabilir.
+
+Politika, 1 (Otomatik yerel veri temizleme) değerine ayarlanırsa standart şifre değiştirme akışı atlanır. Şifre uyuşmazlığı algılandığında kullanıcının yerel verileri otomatik olarak silinir. Bu işlem, kullanıcının yeni şifresiyle sorunsuz bir şekilde oturum açmasına olanak tanır ancak kullanıcının profilinde yerel olarak depolanan tüm verilerin (ör. indirilenler, senkronize edilmemiş ayarlar) kaybolmasına neden olur. Bu seçenek, kullanıcıların verileri ağırlıklı olarak bulutta depoladığı veya şifrenin sık sık güncellenmesinin beklendiği ortamlar için tasarlanmıştır.</translation>
 <translation id="300673820739371513">Bu politika, web sayfalarında düz metin öğelerinin algılanıp algılanmayacağını belirleyip kullanıcıların, etkileşimde bulunarak bağlamsal işlemleri tetiklemesine olanak tanır.
 Politikanın her öğe türü için bir tane olmak üzere birden fazla özelliği vardır.
 Öğe türleri şunlardır: <ph name="DEFAULT_ENUM_VALUE" />, <ph name="ADDRESS_ENUM_VALUE" /> ... .
@@ -4105,7 +4111,6 @@ Bu politikayı her zaman (özellikle de üretim dağıtımı zamanlarında) etki
 <translation id="3591584750136265240">Giriş için kimlik doğrulama yöntemini yapılandır</translation>
 <translation id="3593905652755912452">Devre dışı bırakılan form kontrollerinde eski etkinlik gönderme davranışı kullanılacak.</translation>
 <translation id="3596112486106491038">Sanal makine komut satırı erişimini etkinleştir</translation>
-<translation id="3600342552601917721">Standart web'de gezinme için Geliştirici Araçları'nın kullanımına izin ver ancak kurumsal olarak yüklenen uzantılar ve yönetilen kullanıcıların yerleşik uzantıları için kullanımı kısıtla. M150 sürümünden itibaren, yerleşik PDF görüntüleyici dışında bu uzantıları yerleştiren tüm sayfalarda da engellenirler.</translation>
 <translation id="3603469950773500315">Yeni <ph name="CORS" /> uygulamasındaki çözümlerin <ph name="CORS" /> tarafından kontrol edilmesini sağlayarak Uzantıların uyumlu davranışı sürdürmesine ve belirtilen üstbilgilerin <ph name="PRODUCT_NAME" /> tarafından <ph name="CORS" /> kontrolleri olmadan gönderilmesine olanak tanıyın.
 
       Bu liste boş değere ayarlanırsa <ph name="PRODUCT_NAME" />, Uzantıları uyumlu şekillerde çalıştırmayı dener ve <ph name="WEB_REQUEST_API_MANUAL" /> içinde açıklanan <ph name="PRODUCT_NAME" /> 79 için <ph name="API" /> değişikliklerini uygulamaz.
@@ -9012,6 +9017,7 @@ Politikada yapılacak değişiklikler yalnızca ARC çalışmıyorken (ör. Chro
 
       Not: Bu politikayı, <ph name="REMOTE_ACCESS_HOST_TOKEN_URL_POLICY_NAME" /> politikası ile birlikte kullanın.</translation>
 <translation id="6625136649067113817">Dokunmatik klavyede yazım denetimi özelliği sunulup sunulamayacağını gösteren bir boole flag'i.</translation>
+<translation id="6625424971640741579">Standart şifre değiştirme akışı</translation>
 <translation id="6625716212597516929">Eski çerez kapsamı davranışına geri dön</translation>
 <translation id="6626319579493977784">Dinamik Kod Ayarları</translation>
 <translation id="66265932317331474">CPU bilgisi raporlama</translation>
@@ -9223,6 +9229,7 @@ kısayolları yapılandırmasına olanak tanır.</translation>
 <translation id="6763023079133439068">subjectAlternativeName uzantısı olmayıp yerel güven çapaları tarafından verilmiş olan sertifikalara izin ver</translation>
 <translation id="6766216162565713893">Sitelerin, yakınlardaki bir Bluetooth cihazına erişmek için kullanıcıdan izin istemesine izin ver</translation>
 <translation id="6770454900105963262">Aktif kiosk oturumlarıyla ilgili bilgileri raporla</translation>
+<translation id="6770703270685871935">Yerel verileri otomatik silme</translation>
 <translation id="6774132787348495175">Kullanıcıların, Linux uygulamalarını desteklemek için gerekli olan sanal makineleri kullanmasına izin verme</translation>
 <translation id="6782331708811245959">Cihaz başlatma modu raporlamasını etkinleştir</translation>
 <translation id="6783578496154221347">Yeni kodda WeeklyTimeIntervalChecked kullanın.</translation>
@@ -9531,6 +9538,7 @@ Bu politika, gelecekte işlem dışı yazıcı sürücüleri özelliği tamamen 
       Ayarlanmazsa cihaz yazıcısı olmaz ve diğer <ph name="DEVICE_PRINTERS_POLICY_PATTERN" /> politikaları dikkate alınmaz.</translation>
 <translation id="69525503251220566">Varsayılan arama sağlayıcısı için resme göre arama özelliği sağlayan parametre</translation>
 <translation id="6953102253399571439">Varsayılan olarak PIN ile yazdırmayı etkinleştir</translation>
+<translation id="6953246833109449226">Çevrimiçi şifre uyuşmazlıkları durumunda sergilenecek davranışı yapılandırma</translation>
 <translation id="695532899547292238">Kiosk uygulaması günlük toplama özelliğini etkinleştir</translation>
 <translation id="6956272732789158625">Hiçbir sitenin anahtar oluşturma işlevini kullanmasına izin verme</translation>
 <translation id="6960996423652450945">Giriş ekranında imleç vurgulamayı devre dışı bırak</translation>
@@ -12711,26 +12719,6 @@ Ayrıntıları https://support.google.com/chrome/a/answer/9301891 adresinde bula
 <translation id="8931555638815157255">Politika Etkin değerine ayarlanır veya ayarlanmadan bırakılırsa kayıtlı cihazlar düzenli olarak işletim sistemi ve donanım yazılımı sürümlerini bildirir.
 
       Politika Devre Dışı değerine ayarlanırsa kayıtlı cihazlar sürüm bilgisi vermez.</translation>
-<translation id="8931984670731745012">Bu politika ayarlandığında belirli URL kalıplarında hangi otomatik doldurma veri türlerinin engelleneceğini belirleyebilirsiniz.
-
-Politika, sözlük listesi olarak yapılandırılmıştır. Her sözlük şu öğeleri içermelidir:
-* "url_pattern": İçerik ayarı URL kalıbı (ör. "https://[*.]example.com").
-* "blocked_types": Engellenecek otomatik doldurma verisi kategorilerini temsil eden dize listesi.
-
-"blocked_types" için desteklenen değerler:
-* "contact_info": İletişim bilgilerinin doldurulmasını ve kaydedilmesini engeller.
-* "payments": Kredi kartlarının ve ödeme yöntemlerinin doldurulmasını ve kaydedilmesini engeller.
-* "identity_docs": Kimlik belgelerinin (ör. pasaport, sürücü belgesi, nüfus cüzdanı) doldurulmasını ve kaydedilmesini engeller.
-* "travel": Seyahat bilgilerinin (ör. uçuş rezervasyonu, araç kaydı) doldurulmasını ve kaydedilmesini engeller.
-* "shopping": Alışveriş bilgilerinin (ör. online siparişler, kargolar) doldurulmasını ve kaydedilmesini engeller.
-
-Bir veri türü belirli bir site için engellenirse bu sitede hem önerilerin oluşturulması hem de bu türdeki yeni verilerin kaydedilmesi/içe aktarılması istemi devre dışı bırakılır.
-
-Bir URL, listedeki birden fazla kalıp girişiyle eşleşirse, eşleşen tüm girişlerdeki engellenen türler birleştirilir (birleştirme-tekilleştirme). Listedeki geçersiz URL kalıpları yoksayılır.
-
-Bu politika ayarlanmazsa hiçbir otomatik doldurma veri türü alan adına göre engellenmez.
-
-Geçerli URL kalıpları hakkında ayrıntılı bilgi için https://chromeenterprise.google/policies/url-patterns adresine bakabilirsiniz. Joker karakter * desteklenir. Bu kalıp; şeması, bağlantı noktası ve yolu ne olursa olsun tüm URL'lerle eşleşir.</translation>
 <translation id="8934296213794658971">Gemini entegrasyonu ayarları</translation>
 <translation id="8937282917198525844"> M81'den başlayarak, standart form kontrol öğelerine (ör. &lt;select&gt;, &lt;button&gt;, &lt;input type=date&gt;) iyileştirilmiş erişilebilirlik ve daha iyi platform bütünlüğü ile yenilenmiş bir görünüm ve tarz sağlandı. Bu politika, M84'e kadar "eski" form kontrol öğelerini geri yükler.
 

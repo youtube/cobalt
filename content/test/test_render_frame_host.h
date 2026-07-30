@@ -38,6 +38,8 @@
 
 namespace content {
 
+class PrefetchedSignedExchangeCache;
+
 class TestRenderFrameHostCreationObserver : public WebContentsObserver {
  public:
   explicit TestRenderFrameHostCreationObserver(WebContents* web_contents);
@@ -117,10 +119,8 @@ class TestRenderFrameHost : public RenderFrameHostImpl,
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) override;
   void ResetLocalFrame() override;
 
-#if !BUILDFLAG(IS_ANDROID)
   void CreateHidServiceForTesting(
       mojo::PendingReceiver<blink::mojom::HidService> receiver) override;
-#endif  // !BUILDFLAG(IS_ANDROID)
 
   void SendNavigate(int nav_entry_id,
                     bool did_create_new_entry,
@@ -159,16 +159,16 @@ class TestRenderFrameHost : public RenderFrameHostImpl,
   void DidEnforceInsecureRequestPolicy(
       blink::mojom::InsecureRequestPolicy policy);
 
-  // Returns the number of FedCM issues of FederatedAuthRequestResult type
+  // Returns the number of FedCM issues of FederatedRequestResult type
   // `status_type` sent to DevTools. If `status_type` is std::nullopt, returns
   // the total number of FedCM issues of any type sent to DevTools.
-  int GetFederatedAuthRequestIssueCount(
-      std::optional<blink::mojom::FederatedAuthRequestResult> status_type);
+  int GetFederatedRequestIssueCount(
+      std::optional<blink::mojom::FederatedRequestResult> status_type);
 
   // Returns the number of FedCM issues of FederatedAuthUserInfoRequestResult
   // type `status_type` sent to DevTools. If `status_type` is std::nullopt,
   // returns the total number of FedCM issues of any type sent to DevTools.
-  int GetFederatedAuthUserInfoRequestIssueCount(
+  int GetFederatedUserInfoRequestIssueCount(
       std::optional<blink::mojom::FederatedAuthUserInfoRequestResult>
           status_type);
 
@@ -240,6 +240,14 @@ class TestRenderFrameHost : public RenderFrameHostImpl,
   navigation_requests() {
     return navigation_requests_;
   }
+
+  void SimulateOnSameDocumentCommitProcessed(
+      const base::UnguessableToken& navigation_token,
+      bool should_replace_current_entry,
+      blink::mojom::CommitResult result);
+
+  void SetPrefetchedSignedExchangeCacheForTesting(
+      scoped_refptr<PrefetchedSignedExchangeCache> cache);
 
   enum class LoadingScenario {
     NewDocumentNavigation,
@@ -329,7 +337,7 @@ class TestRenderFrameHost : public RenderFrameHostImpl,
 
   // Keeps a count of federated authentication request issues sent to
   // ReportInspectorIssue.
-  std::unordered_map<blink::mojom::FederatedAuthRequestResult, int>
+  std::unordered_map<blink::mojom::FederatedRequestResult, int>
       federated_auth_counts_;
 
   // Keeps a count of getUserInfo() issues sent to ReportInspectorIssue.

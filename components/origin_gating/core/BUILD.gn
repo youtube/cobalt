@@ -6,17 +6,23 @@ import("//testing/test.gni")
 
 source_set("core") {
   sources = [
+    "actor_container_config.cc",
+    "actor_container_config.h",
+    "actor_container_config_slot.cc",
+    "actor_container_config_slot.h",
     "origin_gating_cache.cc",
     "origin_gating_cache.h",
     "origin_gating_checker.cc",
     "origin_gating_checker.h",
     "origin_gating_configuration.cc",
     "origin_gating_configuration.h",
+    "types.cc",
     "types.h",
   ]
 
   deps = [
     "//base",
+    "//components/optimization_guide/proto:optimization_guide_proto",
     "//net",
     "//url",
   ]
@@ -25,6 +31,8 @@ source_set("core") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "actor_container_config_slot_unittest.cc",
+    "actor_container_config_unittest.cc",
     "origin_gating_cache_unittest.cc",
     "origin_gating_checker_unittest.cc",
     "origin_gating_configuration_unittest.cc",
@@ -34,8 +42,13 @@ source_set("unit_tests") {
     ":core",
     "//base",
     "//base/test:test_support",
+    "//components/optimization_guide/proto:optimization_guide_proto",
     "//testing/gmock",
     "//testing/gtest",
     "//url",
   ]
+
+  if (use_fuzzing_engine) {
+    deps += [ "//third_party/fuzztest" ]
+  }
 }

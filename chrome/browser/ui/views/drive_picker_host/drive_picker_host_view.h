@@ -7,12 +7,16 @@
 
 #include "base/gtest_prod_util.h"
 #include "chrome/browser/ui/webui/drive_picker_host/drive_picker_host_request.h"
+#include "chrome/browser/ui/webui/drive_picker_host/drive_picker_host_ui.h"
 #include "content/public/browser/keyboard_event_processing_result.h"
 #include "content/public/browser/web_contents_delegate.h"
+#include "third_party/blink/public/mojom/window_features/window_features.mojom-forward.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/base/window_open_disposition.h"
 #include "ui/views/controls/webview/unhandled_keyboard_event_handler.h"
 #include "ui/views/view.h"
 #include "ui/views/view_tracker.h"
+#include "url/gurl.h"
 
 class Profile;
 class BrowserWindowInterface;
@@ -43,13 +47,15 @@ struct NativeWebKeyboardEvent;
 // `DrivePickerHostController`, which tracks its existence to relay results
 // back to the AI Mode/Compose components.
 class DrivePickerHostView : public views::View,
-                            public content::WebContentsDelegate {
+                            public content::WebContentsDelegate,
+                            public DrivePickerHostUI::Delegate {
   METADATA_HEADER(DrivePickerHostView, views::View)
 
  public:
   explicit DrivePickerHostView(
       Profile* profile,
-      BrowserWindowInterface* browser_window_interface);
+      BrowserWindowInterface* browser_window_interface,
+      drive_picker_host::DrivePickerHostRequest::RequestType initial_ui_type);
   DrivePickerHostView(const DrivePickerHostView&) = delete;
   DrivePickerHostView& operator=(const DrivePickerHostView&) = delete;
   ~DrivePickerHostView() override;
@@ -69,7 +75,23 @@ class DrivePickerHostView : public views::View,
   void AddedToWidget() override;
   bool AcceleratorPressed(const ui::Accelerator& accelerator) override;
 
+  // DrivePickerHostUI::Delegate:
+  void OnTransitionToPicker() override;
+
   // `content::WebContentsDelegate`:
+  content::WebContents* OpenURLFromTab(
+      content::WebContents* source,
+      const content::OpenURLParams& params,
+      base::OnceCallback<void(content::NavigationHandle&)>
+          navigation_handle_callback) override;
+  content::WebContents* AddNewContents(
+      content::WebContents* source,
+      std::unique_ptr<content::WebContents> new_contents,
+      const GURL& target_url,
+      WindowOpenDisposition disposition,
+      const blink::mojom::WindowFeatures& window_features,
+      bool user_gesture,
+      bool* was_blocked) override;
   content::KeyboardEventProcessingResult PreHandleKeyboardEvent(
       content::WebContents* source,
       const input::NativeWebKeyboardEvent& event) override;
@@ -110,6 +132,8 @@ class DrivePickerHostView : public views::View,
   views::ViewTracker view_tracker_;
   raw_ptr<BrowserWindowInterface> browser_window_interface_;
   views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
+  drive_picker_host::DrivePickerHostRequest::RequestType current_ui_type_ =
+      drive_picker_host::DrivePickerHostRequest::RequestType::kPickerUi;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_DRIVE_PICKER_HOST_DRIVE_PICKER_HOST_VIEW_H_

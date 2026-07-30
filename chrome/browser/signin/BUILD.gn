@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//build/config/chromeos/args.gni")
 import("//components/signin/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//third_party/protobuf/proto_library.gni")
@@ -342,6 +343,7 @@ source_set("impl") {
     deps += [
       ":signin_promo",
       "//chrome/browser/feature_engagement",
+      "//chrome/browser/ui:chrome_pages",
       "//chrome/browser/ui:ui_features",
       "//chrome/browser/ui/navigator",
       "//device/bluetooth",
@@ -365,6 +367,7 @@ source_set("impl") {
       "//chrome/browser/ash/account_manager",
       "//chrome/browser/ash/net",
       "//chrome/browser/ash/profiles",
+      "//chrome/browser/ui/ash/account_manager",
       "//chromeos/ash/components/account_manager",
       "//chromeos/ash/components/install_attributes",
       "//chromeos/ash/components/network",
@@ -493,5 +496,355 @@ if (enable_bound_session_credentials) {
       "bound_session_credentials/bound_session_params.proto",
       "bound_session_credentials/rotation_debug_info.proto",
     ]
+  }
+}
+
+source_set("unit_tests") {
+  testonly = true
+
+  # signin_util_unittest.cc has a file-scope static with a non-trivial
+  # destructor, which -Wexit-time-destructors rejects.
+  configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+
+  sources = [
+    "account_consistency_mode_manager_unittest.cc",
+    "account_id_from_account_info_unittest.cc",
+    "account_preview_data_service_factory_unittest.cc",
+    "chrome_device_id_helper_unittest.cc",
+    "chrome_signin_client_unittest.cc",
+    "chrome_signin_helper_unittest.cc",
+    "chrome_signin_proxying_url_loader_factory_unittest.cc",
+    "chrome_signin_url_loader_throttle_unittest.cc",
+    "header_modification_delegate_impl_unittest.cc",
+    "signin_policy_service_unittest.cc",
+    "signin_profile_attributes_updater_unittest.cc",
+  ]
+  deps = [
+    ":signin",
+    ":test_support",
+    "//chrome/browser/prefs",
+    "//chrome/browser/profiles:profile_util",
+    "//chrome/common:constants",
+    "//chrome/test:test_support",
+    "//chrome/test:test_support_unit",
+    "//components/signin/public/base",
+    "//components/signin/public/identity_manager",
+    "//components/signin/public/identity_manager:test_support",
+    "//components/sync_preferences:test_support",
+    "//content/test:test_support",
+    "//google_apis",
+    "//testing/gmock",
+    "//testing/gtest",
+  ]
+
+  if (!is_chromeos) {
+    sources += [ "wait_for_network_callback_helper_chrome_unittest.cc" ]
+  }
+
+  if (is_android) {
+    sources += [ "signin_ui_delegate_impl_android_unittest.cc" ]
+    deps += [
+      "//chrome/browser/content_settings:content_settings_factory",
+      "//chrome/browser/ui/android/tab_model:test_support",
+      "//components/contextual_tasks/public:feature_list",
+    ]
+  }
+
+  if (!is_android) {
+    sources += [ "signin_promo_unittest.cc" ]
+    deps += [
+      "//chrome/browser/autofill",
+      "//chrome/browser/profiles/batch_upload:test_support",
+      "//components/sync/base",
+      "//components/sync_bookmarks",
+      "//device/bluetooth:mocks",
+    ]
+  }
+
+  if (!is_android && !is_chromeos) {
+    sources += [
+      "chrome_signin_and_sync_status_metrics_provider_unittest.cc",
+      "force_signin_verifier_unittest.cc",
+      "signin_ui_util_unittest.cc",
+      "signin_util_unittest.cc",
+    ]
+    deps += [
+      "//chrome/browser/sync",
+      "//components/sync:test_support",
+      "//components/sync/base",
+      "//components/sync/service",
+    ]
+  }
+
+  if (is_linux || is_mac || is_win) {
+    sources += [ "accounts_policy_manager_unittest.cc" ]
+  }
+
+  if (enable_dice_support) {
+    sources += [
+      "cross_device_signin_promo_manager_unittest.cc",
+      "dice_response_handler_factory_unittest.cc",
+      "dice_response_handler_unittest.cc",
+      "dice_signed_in_profile_creator_unittest.cc",
+      "dice_tab_helper_unittest.cc",
+      "dice_web_signin_interceptor_unittest.cc",
+      "logout_tab_helper_unittest.cc",
+      "process_dice_header_delegate_impl_unittest.cc",
+    ]
+    deps += [
+      ":signin",
+      ":test_support",
+      "//chrome/browser/profiles:profile_util",
+      "//chrome/browser/search_engines",
+      "//chrome/browser/sync",
+      "//chrome/browser/ui:ui_features",
+      "//chrome/browser/ui/webui/signin:signin_ui_error",
+      "//chrome/test:test_support",
+      "//components/metrics",
+      "//components/signin/public/base",
+      "//components/signin/public/identity_manager",
+      "//components/signin/public/identity_manager:test_support",
+      "//components/sync_device_info:test_support",
+      "//components/unexportable_keys",
+      "//components/unexportable_keys:test_support",
+      "//content/test:test_support",
+      "//google_apis",
+      "//testing/gmock",
+      "//testing/gtest",
+
+      # For -Wno-sign-compare (crbug.com/527094632).
+      "//third_party/fuzztest",
+    ]
+  }
+
+  if (enable_bound_session_credentials) {
+    sources += [
+      "bound_session_credentials/bound_session_cookie_controller_impl_unittest.cc",
+      "bound_session_credentials/bound_session_cookie_observer_unittest.cc",
+      "bound_session_credentials/bound_session_cookie_refresh_service_factory_unittest.cc",
+      "bound_session_credentials/bound_session_cookie_refresh_service_impl_unittest.cc",
+      "bound_session_credentials/bound_session_params_storage_unittest.cc",
+      "bound_session_credentials/bound_session_params_util_unittest.cc",
+      "bound_session_credentials/bound_session_refresh_cookie_debug_report_fetcher_unittest.cc",
+      "bound_session_credentials/bound_session_refresh_cookie_fetcher_impl_unittest.cc",
+      "bound_session_credentials/bound_session_registration_fetcher_impl_unittest.cc",
+      "bound_session_credentials/bound_session_registration_fetcher_param_unittest.cc",
+      "bound_session_credentials/bound_session_request_throttled_handler_browser_impl_unittest.cc",
+      "bound_session_credentials/session_binding_helper_unittest.cc",
+      "bound_session_credentials/throttled_gaia_auth_fetcher_unittest.cc",
+      "bound_session_credentials/unexportable_key_provider_config_unittest.cc",
+      "bound_session_credentials/unexportable_key_service_factory_unittest.cc",
+    ]
+    deps += [
+      "//chrome/browser/profiles:profile",
+      "//chrome/common:mojo_bindings",
+      "//components/prefs:test_support",
+      "//components/signin/public/base",
+      "//components/signin/public/base:test_support",
+      "//components/sync_preferences:test_support",
+      "//components/unexportable_keys",
+      "//components/unexportable_keys:test_support",
+      "//components/variations:test_support",
+      "//content/test:test_support",
+      "//crypto:test_support",
+      "//services/network:test_support",
+      "//services/network/public/cpp",
+      "//services/network/public/mojom",
+    ]
+
+    if (enable_dice_support) {
+      sources += [
+        "bound_session_credentials/bound_session_oauth_multilogin_delegate_impl_unittest.cc",
+        "bound_session_credentials/dice_bound_session_cookie_service_unittest.cc",
+      ]
+    }
+
+    if (is_mac) {
+      sources += [
+        "bound_session_credentials/unexportable_key_obsolete_profile_garbage_collector_mac_unittest.cc",
+        "bound_session_credentials/unexportable_key_profile_garbage_collection_service_factory_mac_unittest.cc",
+      ]
+    }
+  }
+}
+
+if (!is_android) {
+  source_set("browser_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = [ "remove_local_account_browsertest.cc" ]
+    deps = [
+      ":signin",
+      ":test_support",
+      "//chrome/browser/ui",
+      "//chrome/test:test_support",
+      "//chrome/test:test_support_ui",
+      "//components/signin/public/identity_manager",
+      "//components/signin/public/identity_manager:test_support",
+      "//content/test:test_support",
+      "//google_apis",
+      "//testing/gmock",
+      "//testing/gtest",
+    ]
+
+    if (is_mac || is_win || is_linux) {
+      sources += [ "signin_hats_util_browsertest.cc" ]
+      deps += [ "//chrome/browser/ui/hats:test_support" ]
+    }
+
+    if (enable_dice_support) {
+      sources += [
+        "account_metrics_id_allocator_browsertest.cc",
+        "account_preview_data_service_browsertest.cc",
+        "accounts_policy_manager_browsertest.cc",
+        "chrome_signin_client_browsertest.cc",
+        "dice_browsertest.cc",
+        "dice_mtls_browsertest.cc",
+        "dice_web_signin_interceptor_browsertest.cc",
+        "signin_ui_util_browsertest.cc",
+        "signin_ui_util_extensions_browsertest.cc",
+      ]
+      deps += [
+        ":signin",
+        ":test_support",
+        "//chrome/browser/autofill",
+        "//chrome/browser/enterprise",
+        "//chrome/browser/profiles:profile",
+        "//chrome/browser/search_engines",
+        "//chrome/browser/sync",
+        "//chrome/browser/ui",
+        "//chrome/browser/ui:simple_message_box_internal",
+        "//chrome/browser/ui:ui_features",
+        "//chrome/browser/ui/hats:test_support",
+        "//chrome/browser/ui/signin",
+        "//chrome/browser/ui/webui/signin",
+        "//chrome/browser/ui/webui/signin:login_ui_service",
+        "//chrome/browser/ui/webui/signin:signin_ui_error",
+        "//chrome/browser/ui/webui/signin:test_support_ui",
+        "//chrome/browser/web_applications:web_applications_test_support",
+        "//chrome/test:test_support",
+        "//chrome/test:test_support_ui",
+        "//chrome/test/user_education",
+        "//components/embedder_support:user_agent",
+        "//components/signin/public/base",
+        "//components/signin/public/identity_manager",
+        "//components/signin/public/identity_manager:test_support",
+        "//components/sync/base",
+        "//components/sync/service",
+        "//components/user_education/views",
+        "//content/test:test_support",
+        "//crypto:test_support",
+        "//google_apis",
+        "//testing/gmock",
+        "//testing/gtest",
+      ]
+
+      if (is_win) {
+        sources += [ "signin_util_win_browsertest.cc" ]
+        deps += [ "//chrome/browser/ui/startup" ]
+      }
+    }
+
+    if (!enable_dice_support) {
+      sources += [ "mirror_browsertest.cc" ]
+      deps += [
+        "//chrome/browser:browser_process",
+        "//chrome/browser:chrome_content_browser_client",
+        "//chrome/common",
+        "//components/google/core/common",
+        "//components/prefs",
+        "//components/signin/core/browser",
+        "//components/signin/public/base",
+        "//services/network/public/cpp",
+      ]
+    }
+
+    if (enable_bound_session_credentials) {
+      sources += [
+        "bound_session_credentials/bound_session_cookie_refresh_service_impl_browsertest.cc",
+        "bound_session_oauth_multilogin_browsertest.cc",
+      ]
+      deps += [
+        "//chrome/browser:chrome_browser_main",
+        "//chrome/common",
+        "//components/content_settings/core/browser",
+        "//components/content_settings/core/common",
+        "//components/signin/core/browser:test_support",
+        "//components/unexportable_keys",
+        "//components/unexportable_keys:test_support",
+        "//services/network/public/cpp",
+        "//services/network/public/mojom",
+      ]
+    }
+
+    if (is_chromeos) {
+      sources += [
+        "chromeos_mirror_account_consistency_browsertest.cc",
+        "signin_ui_util_chromeos_browsertest.cc",
+      ]
+      deps += [
+        "//chrome/browser/ash/login:test_support",
+        "//chrome/browser/prefs",
+        "//chrome/browser/ui/ash/account_manager:test_support",
+        "//chromeos/ash/components/account_manager",
+        "//components/account_id",
+        "//components/account_manager_core",
+        "//components/account_manager_core:test_support",
+        "//components/policy/core/common:common_constants",
+        "//components/signin/core/browser",
+        "//components/supervised_user/core/browser",
+        "//components/user_manager",
+      ]
+    }
+
+    # bound_session_cookie_refresh_service_impl_browsertest.cc:198 has a
+    # file-scope static with a non-trivial destructor.
+    configs += [ "//build/config/compiler:no_exit_time_destructors" ]
+  }
+}
+
+if (!is_android && !is_chromeos_device) {
+  source_set("interactive_ui_tests") {
+    testonly = true
+    defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+    sources = []
+    deps = []
+
+    if (enable_dice_support) {
+      sources += [ "history_sync_optin_screen_interactive_uitest.cc" ]
+      deps += [
+        ":signin",
+        "//chrome/browser/enterprise",
+        "//chrome/browser/sync",
+        "//chrome/browser/ui",
+        "//chrome/browser/ui/signin",
+        "//chrome/test:test_support",
+        "//chrome/test:test_support_ui",
+        "//components/signin/public/base",
+        "//components/signin/public/identity_manager",
+        "//components/signin/public/identity_manager:test_support",
+        "//components/sync/base",
+        "//content/test:test_support",
+      ]
+    }
+
+    if (is_chromeos) {
+      sources += [ "mirror_interactive_uitest.cc" ]
+      deps += [
+        ":signin",
+        "//chrome/browser/ash/system_web_apps",
+        "//chrome/browser/ui",
+        "//chrome/browser/ui/ash/account_manager:test_support",
+        "//chrome/browser/ui/ash/system_web_apps",
+        "//chrome/browser/ui/tabs:tab_strip",
+        "//chrome/test:test_support",
+        "//chrome/test:test_support_ui",
+        "//components/account_manager_core",
+        "//components/account_manager_core:test_support",
+        "//content/test:test_support",
+      ]
+    }
   }
 }

@@ -97,7 +97,11 @@ export class LineFocusController implements MoveModeDelegate {
   }
 
   onAllMenusClose() {
-    this.notifyMove();
+    // TODO(b/533169480): When line focus is enabled, ensure voice playback
+    // works seamlessly after onAllMenusClose is called.
+    if (this.isEnabled()) {
+      this.notifyMove();
+    }
   }
 
   onWordBoundary(segments: Segment[]) {
@@ -140,8 +144,10 @@ export class LineFocusController implements MoveModeDelegate {
       style: LineFocusStyle, movement: LineFocusMovement,
       container: HTMLElement, height: number) {
     this.updateStrategies_(style, movement);
-    this.propagateLineFocus_(style, movement);
     this.model_.getCurrentMoveMode().onActivated(container, height);
+    // Propagating line focus should be last so it captures the newly activated
+    // move mode above.
+    this.propagateLineFocus_(style, movement);
   }
 
   private updateStrategies_(

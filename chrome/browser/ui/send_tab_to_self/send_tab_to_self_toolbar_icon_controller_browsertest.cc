@@ -24,7 +24,6 @@
 #include "chrome/browser/web_applications/test/web_app_install_test_utils.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #include "components/send_tab_to_self/features.h"
@@ -64,7 +63,8 @@ class SendTabToSelfToolbarIconControllerTest : public InProcessBrowserTest {
 
   SendTabToSelfToolbarIconController* controller() {
     return static_cast<SendTabToSelfToolbarIconController*>(
-        SendTabToSelfClientServiceFactory::GetForProfile(browser()->profile())
+        SendTabToSelfClientServiceFactory::GetForProfile(
+            browser()->GetProfile())
             ->GetReceivingUiHandler());
   }
 
@@ -156,10 +156,10 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerDisabledAutoOpenTest,
   ASSERT_TRUE(browser()->IsActive());
   auto web_app_info = web_app::WebAppInstallInfo::CreateWithStartUrlForTesting(
       GURL("https://example.org/"));
-  webapps::AppId app_id = web_app::test::InstallWebApp(browser()->profile(),
+  webapps::AppId app_id = web_app::test::InstallWebApp(browser()->GetProfile(),
                                                        std::move(web_app_info));
   Browser* app_browser =
-      web_app::LaunchWebAppBrowser(browser()->profile(), app_id);
+      web_app::LaunchWebAppBrowser(browser()->GetProfile(), app_id);
   app_browser->GetBrowserView().Activate();
   WaitUntilBrowserBecomeActiveOrLastActive(app_browser);
 
@@ -232,7 +232,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
   GURL url_2("https://www.example-b.com");
 
   const int original_tab_count = browser()->tab_strip_model()->count();
-  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  FakeSendTabToSelfModel* model = GetModel(browser()->GetProfile());
   model->SetLocalCacheGuid("device_b");
 
   base::Time now = base::Time::Now();
@@ -302,7 +302,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
   GURL url_2("https://www.example-b.com");
 
   const int original_tab_count = browser()->tab_strip_model()->count();
-  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  FakeSendTabToSelfModel* model = GetModel(browser()->GetProfile());
   model->SetLocalCacheGuid("device_b");
 
   base::Time now = base::Time::Now();
@@ -384,7 +384,7 @@ IN_PROC_BROWSER_TEST_F(
   GURL url_2("https://www.example-b.com");
 
   const int original_tab_count = browser()->tab_strip_model()->count();
-  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  FakeSendTabToSelfModel* model = GetModel(browser()->GetProfile());
   model->SetLocalCacheGuid("device_b");
 
   base::Time now = base::Time::Now();
@@ -461,7 +461,7 @@ IN_PROC_BROWSER_TEST_F(
   GURL url_3("https://www.example-c.com");
 
   const int original_tab_count = browser()->tab_strip_model()->count();
-  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  FakeSendTabToSelfModel* model = GetModel(browser()->GetProfile());
   model->SetLocalCacheGuid("device_b");
 
   base::Time now = base::Time::Now();
@@ -539,7 +539,7 @@ IN_PROC_BROWSER_TEST_F(
   GURL url_2("https://www.example-b.com");
 
   const int original_tab_count = browser()->tab_strip_model()->count();
-  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  FakeSendTabToSelfModel* model = GetModel(browser()->GetProfile());
   model->SetLocalCacheGuid("device_b");
 
   base::Time now = base::Time::Now();
@@ -611,7 +611,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
   GURL url_1("https://www.example-a.com");
   GURL url_2("https://www.example-b.com");
 
-  FakeSendTabToSelfModel* model = GetModel(browser()->profile());
+  FakeSendTabToSelfModel* model = GetModel(browser()->GetProfile());
   model->SetLocalCacheGuid("device_b");
   base::Time now = base::Time::Now();
   model->AddEntriesRemotely({{.url = url_1,
@@ -630,7 +630,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
                                      AutoOpenOutcome::kUnopenedImmediately, 2);
 
   // Open a new browser with the same profile.
-  Browser* new_browser = CreateBrowser(browser()->profile());
+  Browser* new_browser = CreateBrowser(browser()->GetProfile());
   WaitUntilBrowserBecomeActiveOrLastActive(new_browser);
 
   // The pending entries should open automatically in the new browser.

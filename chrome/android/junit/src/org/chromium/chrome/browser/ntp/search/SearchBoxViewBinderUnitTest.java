@@ -16,6 +16,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 
 import android.content.Context;
+import android.content.res.ColorStateList;
 import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
@@ -29,6 +30,7 @@ import android.view.View.OnClickListener;
 import androidx.annotation.ColorInt;
 import androidx.annotation.Px;
 import androidx.annotation.StyleRes;
+import androidx.core.widget.ImageViewCompat;
 import androidx.test.core.app.ApplicationProvider;
 
 import org.junit.Before;
@@ -120,6 +122,13 @@ public class SearchBoxViewBinderUnitTest {
     }
 
     @Test
+    public void testSetDseIconTint() {
+        ColorStateList tint = ColorStateList.valueOf(Color.RED);
+        mPropertyModel.set(SearchBoxProperties.DSE_ICON_TINT, tint);
+        assertEquals(tint, ImageViewCompat.getImageTintList(mSearchBoxLayout.mDseIconView));
+    }
+
+    @Test
     public void testSetTextWatcher() {
         mPropertyModel.set(SearchBoxProperties.SEARCH_BOX_TEXT_WATCHER, mTextWatcher);
 
@@ -150,5 +159,21 @@ public class SearchBoxViewBinderUnitTest {
         mPropertyModel.set(SearchBoxProperties.PLUS_BUTTON_CLICK_CALLBACK, mOnClickListener);
         mSearchBoxLayout.mPlusButton.performClick();
         verify(mOnClickListener).onClick(mSearchBoxLayout.mPlusButton);
+    }
+
+    @Test
+    public void testSetAiChipVisibility() {
+        mPropertyModel.set(SearchBoxProperties.AI_CHIP_VISIBILITY, true);
+        assertEquals(View.VISIBLE, mSearchBoxLayout.mAiChip.getVisibility());
+
+        mPropertyModel.set(SearchBoxProperties.AI_CHIP_VISIBILITY, false);
+        assertEquals(View.GONE, mSearchBoxLayout.mAiChip.getVisibility());
+    }
+
+    @Test
+    public void testSetAiChipClickListener() {
+        mPropertyModel.set(SearchBoxProperties.AI_CHIP_CLICK_CALLBACK, mOnClickListener);
+        mSearchBoxLayout.mAiChip.performClick();
+        verify(mOnClickListener).onClick(mSearchBoxLayout.mAiChip);
     }
 }

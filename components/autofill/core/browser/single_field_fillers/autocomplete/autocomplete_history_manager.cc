@@ -15,6 +15,7 @@
 #include "base/check.h"
 #include "base/check_deref.h"
 #include "base/check_op.h"
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
@@ -24,6 +25,7 @@
 #include "components/autofill/core/browser/at_memory/at_memory_enablement_utils.h"
 #include "components/autofill/core/browser/data_quality/validation.h"
 #include "components/autofill/core/browser/field_types.h"
+#include "components/autofill/core/browser/filling/filling_product.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
@@ -36,6 +38,7 @@
 #include "components/autofill/core/browser/webdata/autocomplete/autocomplete_entry.h"
 #include "components/autofill/core/browser/webdata/autofill_webdata_service.h"
 #include "components/autofill/core/common/autofill_clock.h"
+#include "components/autofill/core/common/autofill_features.h"
 #include "components/autofill/core/common/autofill_prefs.h"
 #include "components/autofill/core/common/autofill_regexes.h"
 #include "components/autofill/core/common/credit_card_number_validation.h"
@@ -222,10 +225,15 @@ void AutocompleteHistoryManager::OnGetSingleFieldSuggestions(
     std::move(on_suggestions_returned).Run(trigger_field.global_id(), {});
     return;
   }
-  suggestion_generator_ = std::make_unique<AutocompleteSuggestionGenerator>(
-      profile_database_,
+  const GURL& main_frame_url = client.GetLastCommittedPrimaryMainFrameURL();
+  const GURL& field_url = trigger_field.origin().GetURL();
+  const bool is_enabled =
       MayPerformAtMemoryAction(AtMemoryAction::kShowAutocompleteAtMemoryButton,
-                               client));
+                               client, main_frame_url) &&
+      MayPerformAtMemoryAction(AtMemoryAction::kShowAutocompleteAtMemoryButton,
+                               client, field_url);
+  suggestion_generator_ = std::make_unique<AutocompleteSuggestionGenerator>(
+      profile_database_, is_enabled);
 
   auto on_suggestions_generated = base::BindOnce(
       [](SingleFieldFillRouter::OnSuggestionsReturnedCallback callback,
@@ -283,6 +291,18 @@ void AutocompleteHistoryManager::OnSingleFieldSuggestionSelected(
   // The AutocompleteEntry was found, use it to log the DaysSinceLastUsed.
   base::TimeDelta time_delta = base::Time::Now() - entry.date_last_used();
   AutofillMetrics::LogAutocompleteDaysSinceLastUse(time_delta.InDays());
+
+  if (profile_database_ &&
+      base::FeatureList::IsEnabled(
+          features::kAutofillPreventAutofillFromSavingToAutocomplete)) {
+    // When the feature is enabled, form submission will skip saving any fields
+    // that were autofilled. Therefore, we must update the autocomplete entry's
+    // metadata immediately when the suggestion is selected.
+    FormFieldData field;
+    field.set_name(entry.key().name());
+    field.set_value(entry.key().value());
+    profile_database_->AddFormFields({field});
+  }
 }
 
 void AutocompleteHistoryManager::Init(
@@ -335,6 +355,9 @@ void AutocompleteHistoryManager::OnAutofillCleanupReturned(
     std::unique_ptr<WDTypedResult> result) {
   DCHECK(result);
   DCHECK_EQ(AUTOFILL_CLEANUP_RESULT, result->GetType());
+  if (!static_cast<const WDResult<bool>*>(result.get())->GetValue()) {
+    DLOG(WARNING) << "Autofill cleanup returned false. This should not happen.";
+  }
 
   // Cleanup was successful, update the latest run milestone.
   pref_service_->SetInteger(prefs::kAutocompleteLastVersionRetentionPolicy,
@@ -385,6 +408,25 @@ bool AutocompleteHistoryManager::IsFieldValueSaveable(
   // credit card numbers, CVCs, IBANs, promo codes, or autofilled loyalty cards.
   if (!IsFieldTypeSaveable(form, field.global_id())) {
     return false;
+  }
+
+  if (base::FeatureList::IsEnabled(
+          features::kAutofillPreventAutofillFromSavingToAutocomplete)) {
+    const AutofillField* autofill_field =
+        form ? form->GetFieldById(field.global_id()) : nullptr;
+    if (autofill_field &&
+        autofill_field->all_modifiers().contains(FieldModifier::kAutofill) &&
+        (autofill_field->last_modifier() != FieldModifier::kUser ||
+         autofill_field->filling_product() != FillingProduct::kAutocomplete)) {
+      // If a field has been autofilled by a structured product (e.g. Address,
+      // Payments, Autofill AI), we avoid saving the submitted value to
+      // Autocomplete, even if the user edited it.
+      //
+      // However, if the field was filled by Autocomplete and then edited by
+      // the user, we should save the edited value as it represents a new
+      // user-edited autocomplete value.
+      return false;
+    }
   }
 
   // Do not save sensitive values like credit card numbers, IBANs, or Social

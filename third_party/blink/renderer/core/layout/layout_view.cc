@@ -234,6 +234,7 @@ LayoutUnit LayoutView::ComputeMinimumWidth() {
   WritingMode mode = style.GetWritingMode();
   ConstraintSpaceBuilder builder(mode, style.GetWritingDirection(),
                                  /* is_new_fc */ true);
+  builder.SetContainsAnnotations(contains_annotations_);
   return BlockNode(this)
       .ComputeMinMaxSizes(mode, SizeType::kIntrinsic,
                           builder.ToConstraintSpace())
@@ -333,7 +334,7 @@ void LayoutView::MapLocalToAncestor(const LayoutBoxModelObject* ancestor,
     auto* parent_doc_layout_object = GetFrame()->OwnerLayoutObject();
     if (parent_doc_layout_object) {
       transform_state.Move(
-          parent_doc_layout_object->PhysicalContentBoxOffset());
+          parent_doc_layout_object->PhysicalContentBoxRect().offset);
       parent_doc_layout_object->MapLocalToAncestor(ancestor, transform_state,
                                                    mode);
     } else {
@@ -359,7 +360,7 @@ void LayoutView::MapAncestorToLocal(const LayoutBoxModelObject* ancestor,
                                                    mode);
 
       transform_state.Move(
-          parent_doc_layout_object->PhysicalContentBoxOffset());
+          parent_doc_layout_object->PhysicalContentBoxRect().offset);
     } else {
       DCHECK(!ancestor);
       // Note that MapLocalToRemoteMainFrame is correct here because
@@ -510,7 +511,7 @@ bool LayoutView::MapToVisualRectInAncestorSpaceInternal(
     rect.ExpandEdgesToPixelBoundaries();
 
     // Adjust for frame border.
-    rect.Move(obj->PhysicalContentBoxOffset());
+    rect.Move(obj->PhysicalContentBoxRect().offset);
     transform_state.SetQuad(gfx::QuadF(gfx::RectF(rect)));
 
     return obj->MapToVisualRectInAncestorSpaceInternal(
@@ -879,6 +880,7 @@ void LayoutView::LayoutRoot() {
                                    /* is_new_fc */ true);
     builder.SetAvailableSize({kIndefiniteSize, original_size.block_size});
     builder.SetIsFixedBlockSize(true);
+    builder.SetContainsAnnotations(contains_annotations_);
     min_size = BlockNode(this)
                    .ComputeMinMaxSizes(writing_mode, SizeType::kIntrinsic,
                                        builder.ToConstraintSpace())
@@ -903,6 +905,7 @@ void LayoutView::LayoutRoot() {
   builder.SetAvailableSize(initial_size);
   builder.SetIsFixedInlineSize(true);
   builder.SetIsFixedBlockSize(true);
+  builder.SetContainsAnnotations(contains_annotations_);
 
   BlockNode(this).Layout(builder.ToConstraintSpace());
   initial_containing_block_resize_handled_list_ = nullptr;
@@ -1143,6 +1146,15 @@ bool LayoutView::SetScrollbarSizesForViewportUnits(const gfx::Size& size) {
     changed = true;
   }
   return changed;
+}
+
+void LayoutView::SetContainsAnnotations() {
+  NOT_DESTROYED();
+  if (contains_annotations_) {
+    return;
+  }
+  contains_annotations_ = true;
+  SetNeedsLayout(layout_invalidation_reason::kStyleChange);
 }
 
 }  // namespace blink

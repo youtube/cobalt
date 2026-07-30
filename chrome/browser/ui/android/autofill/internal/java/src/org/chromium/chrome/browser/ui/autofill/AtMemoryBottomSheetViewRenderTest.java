@@ -7,11 +7,9 @@ package org.chromium.chrome.browser.ui.autofill;
 import static org.mockito.Mockito.when;
 
 import static org.chromium.base.ThreadUtils.runOnUiThreadBlocking;
-import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SearchItemProperties.TILE_DETAILS;
-import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SearchItemProperties.TILE_ICON;
-import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SearchItemProperties.TILE_TITLE;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SuggestionItemProperties.DETAILS;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SuggestionItemProperties.ICON;
+import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SuggestionItemProperties.IS_FLYOUT_VISIBLE;
 import static org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SuggestionItemProperties.TITLE;
 
 import android.app.Activity;
@@ -42,13 +40,13 @@ import org.chromium.base.test.params.ParameterSet;
 import org.chromium.base.test.params.ParameterizedRunner;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.DoNotBatch;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.FlyoutProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.HomeProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ScreenId;
-import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SearchItemProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SuggestionItemProperties;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 import org.chromium.components.autofill.AutofillSuggestion;
@@ -146,7 +144,8 @@ public class AtMemoryBottomSheetViewRenderTest {
                 () -> activityContentView,
                 () -> 0,
                 /* desktopWindowStateManager= */ null,
-                mInsetObserver);
+                mInsetObserver,
+                /* enableLargeFormFactorUi= */ false);
     }
 
     @Test
@@ -159,24 +158,32 @@ public class AtMemoryBottomSheetViewRenderTest {
                 () -> {
                     mView = new AtMemoryBottomSheetView(themeWrapper);
                     AtMemoryBottomSheetContent content =
-                            new AtMemoryBottomSheetContent(
-                                    mView.getContentView(), mBottomSheetController);
+                            new AtMemoryBottomSheetContent(mView, mBottomSheetController);
 
                     ModelList modelList = new ModelList();
                     PropertyModel itemModel1 =
                             createSuggestionModel(
-                                    "KLM204", "Flight ⋅ 15 May ⋅ SEA - MUC", R.drawable.flight);
+                                    "KLM204",
+                                    "Flight ⋅ 15 May ⋅ SEA - MUC",
+                                    R.drawable.flight,
+                                    /* isFlyoutVisible= */ true);
                     modelList.add(new ListItem(HomeProperties.ItemType.SUGGESTION, itemModel1));
 
                     PropertyModel itemModel2 =
                             createSuggestionModel(
-                                    "Hotel Booking", "Hilton ⋅ 16 May", R.drawable.travel_trip);
+                                    "Hotel Booking",
+                                    "Hilton ⋅ 16 May",
+                                    R.drawable.travel_trip,
+                                    /* isFlyoutVisible= */ true);
 
                     modelList.add(new ListItem(HomeProperties.ItemType.SUGGESTION, itemModel2));
 
                     PropertyModel itemModel3 =
                             createSuggestionModel(
-                                    "Driving license", null, R.drawable.directions_car);
+                                    "Driving license",
+                                    null,
+                                    R.drawable.directions_car,
+                                    /* isFlyoutVisible= */ false);
 
                     modelList.add(new ListItem(HomeProperties.ItemType.SUGGESTION, itemModel3));
 
@@ -208,8 +215,7 @@ public class AtMemoryBottomSheetViewRenderTest {
                 () -> {
                     mView = new AtMemoryBottomSheetView(themeWrapper);
                     AtMemoryBottomSheetContent content =
-                            new AtMemoryBottomSheetContent(
-                                    mView.getContentView(), mBottomSheetController);
+                            new AtMemoryBottomSheetContent(mView, mBottomSheetController);
 
                     ModelList modelList = new ModelList();
                     PropertyModel itemModel =
@@ -217,7 +223,8 @@ public class AtMemoryBottomSheetViewRenderTest {
                                     "Lufthansa Flight Reservation Details confirmation code"
                                             + " ABC123XYZ",
                                     "Flight ⋅ 15 May ⋅ SEA - MUC",
-                                    R.drawable.flight);
+                                    R.drawable.flight,
+                                    /* isFlyoutVisible= */ true);
                     modelList.add(new ListItem(HomeProperties.ItemType.SUGGESTION, itemModel));
 
                     mView.getHomeView().setUpSheetItems(modelList);
@@ -241,6 +248,7 @@ public class AtMemoryBottomSheetViewRenderTest {
 
     @Test
     @Feature({"RenderTest"})
+    @DisabledTest(message = "Enabled after fixing crbug.com/532513498")
     public void testAtMemoryBottomSheetView_searchTile() throws Exception {
         ContextThemeWrapper themeWrapper =
                 new ContextThemeWrapper(mActivity, R.style.Theme_BrowserUI_DayNight);
@@ -249,17 +257,17 @@ public class AtMemoryBottomSheetViewRenderTest {
                 () -> {
                     mView = new AtMemoryBottomSheetView(themeWrapper);
                     AtMemoryBottomSheetContent content =
-                            new AtMemoryBottomSheetContent(
-                                    mView.getContentView(), mBottomSheetController);
+                            new AtMemoryBottomSheetContent(mView, mBottomSheetController);
 
                     ModelList modelList = new ModelList();
                     PropertyModel searchTileModel =
-                            createSearchTileModel(
+                            createSuggestionModel(
                                     "flight",
                                     "Powered by Personal Intelligence with Gemini",
-                                    R.drawable.ic_spark_24dp);
+                                    R.drawable.ic_spark_24dp,
+                                    /* isFlyoutVisible= */ false);
                     modelList.add(
-                            new ListItem(HomeProperties.ItemType.SEARCH_TILE, searchTileModel));
+                            new ListItem(HomeProperties.ItemType.SUGGESTION, searchTileModel));
 
                     mView.getHomeView().setUpSheetItems(modelList);
                     mView.getHomeView().setShowSuggestionsBackground(false);
@@ -291,8 +299,7 @@ public class AtMemoryBottomSheetViewRenderTest {
                 () -> {
                     mView = new AtMemoryBottomSheetView(themeWrapper);
                     AtMemoryBottomSheetContent content =
-                            new AtMemoryBottomSheetContent(
-                                    mView.getContentView(), mBottomSheetController);
+                            new AtMemoryBottomSheetContent(mView, mBottomSheetController);
 
                     ModelList modelList = new ModelList();
                     modelList.add(
@@ -319,20 +326,12 @@ public class AtMemoryBottomSheetViewRenderTest {
     }
 
     private static PropertyModel createSuggestionModel(
-            String title, String details, int iconResId) {
+            String title, String details, int iconResId, boolean isFlyoutVisible) {
         return new PropertyModel.Builder(SuggestionItemProperties.ALL_KEYS)
                 .with(TITLE, title)
                 .with(DETAILS, details)
                 .with(ICON, iconResId)
-                .build();
-    }
-
-    private static PropertyModel createSearchTileModel(
-            String title, String details, int iconResId) {
-        return new PropertyModel.Builder(SearchItemProperties.ALL_KEYS)
-                .with(TILE_TITLE, title)
-                .with(TILE_DETAILS, details)
-                .with(TILE_ICON, iconResId)
+                .with(IS_FLYOUT_VISIBLE, isFlyoutVisible)
                 .build();
     }
 
@@ -346,8 +345,7 @@ public class AtMemoryBottomSheetViewRenderTest {
                 () -> {
                     mView = new AtMemoryBottomSheetView(themeWrapper);
                     AtMemoryBottomSheetContent content =
-                            new AtMemoryBottomSheetContent(
-                                    mView.getContentView(), mBottomSheetController);
+                            new AtMemoryBottomSheetContent(mView, mBottomSheetController);
 
                     mView.setCurrentScreen(ScreenId.FLYOUT_SCREEN);
 

@@ -17,7 +17,6 @@
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "chrome/browser/actor/actor_container_config_slot.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_proto_conversion.h"
@@ -49,6 +48,7 @@
 #include "components/actor/core/task_id.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
+#include "components/origin_gating/core/actor_container_config_slot.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/download_item_utils.h"
 #include "content/public/browser/navigation_handle.h"
@@ -595,8 +595,21 @@ void ActorKeyedService::PerformActions(
 
   task->GetExecutionEngine().AddWritableMainframeOrigins(
       task_metadata.added_writable_mainframe_origins());
-  task->GetExecutionEngine().actor_container_config_slot().Assign(
-      task_metadata.agent_container_config());
+  if (task_metadata.agent_container_config().has_value()) {
+    JournalDetailsBuilder builder;
+    if (task->GetExecutionEngine().actor_container_config_slot().Assign(
+            task_metadata.agent_container_config().value())) {
+      builder.Add("status", "assigned")
+          .Add("active config", task->GetExecutionEngine()
+                                    .actor_container_config_slot()
+                                    .value()
+                                    .ToDebugValue());
+    } else {
+      builder.Add("status", "ignored config");
+    }
+    GetJournal().Log(GURL(), task_id, "ActorContainerConfigSlot::Assign",
+                     std::move(builder).Build());
+  }
 
   task->Act(
       std::move(actions),
@@ -698,5 +711,17 @@ void ActorKeyedService::OnDownloadCreated(content::DownloadManager* manager,
     }
   }
 }
+
+#if BUILDFLAG(IS_ANDROID)
+base::CallbackListSubscription
+ActorKeyedService::AddForegroundServiceStartedCallback(
+    EnsureForegroundServiceStartedCallback callback) {
+  return ensure_foreground_service_started_callbacks_.Add(std::move(callback));
+}
+
+void ActorKeyedService::EnsureForegroundServiceStarted() {
+  ensure_foreground_service_started_callbacks_.Notify();
+}
+#endif
 
 }  // namespace actor

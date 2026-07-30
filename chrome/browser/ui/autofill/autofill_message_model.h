@@ -12,6 +12,10 @@
 #include "base/types/pass_key.h"
 #include "components/messages/android/message_wrapper.h"
 
+namespace content {
+class WebContents;
+}
+
 namespace autofill {
 
 class AutofillMessageControllerImpl;
@@ -36,6 +40,9 @@ class AutofillMessageModel {
     // Used to notify the user that fetching data for personal context
     // suggestions has failed.
     kPersonalContextFetchingFailure = 5,
+    // Used to notify the user that page content will now be processed privately
+    // by default.
+    kPrivateInferenceNotice = 6,
   };
 
   AutofillMessageModel(std::unique_ptr<messages::MessageWrapper> message,
@@ -58,6 +65,8 @@ class AutofillMessageModel {
   CreateForVirtualCardEnrollFailure(std::u16string card_label);
   static std::unique_ptr<AutofillMessageModel>
   CreateForPersonalContextFetchingFailure();
+  static std::unique_ptr<AutofillMessageModel> CreateForPrivateInferenceNotice(
+      content::WebContents* web_contents);
 
   // Converts a message model type to a string for debugging and metrics.
   static std::string_view TypeToString(Type message_type);

@@ -19,6 +19,8 @@
 #include "third_party/blink/renderer/core/frame/frame_test_helpers.h"
 #include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
+#include "third_party/blink/renderer/core/html/html_slot_element.h"
+#include "third_party/blink/renderer/core/html/shadow/shadow_element_names.h"
 #include "third_party/blink/renderer/core/testing/mock_function_scope.h"
 #include "third_party/blink/renderer/core/view_transition/dom_view_transition.h"
 #include "third_party/blink/renderer/core/view_transition/view_transition.h"
@@ -954,5 +956,55 @@ TEST_F(AccessibilityTest,
   EXPECT_FALSE(serialized_node_ids.Contains(target_id));
 }
 #endif  // AX_FAIL_FAST_BUILD()
+
+// Test that `PreviousLayoutObjectTextOnLine` handles `LayoutText` objects where
+// `IsInLayoutNGInlineFormattingContext()` is false without crashing on DCHECK.
+TEST_F(AccessibilityTest, ComputeNodesOnLineWithNonIfcText) {
+  SetBodyInnerHTML(R"HTML(
+    <div id="container">
+      <span id="target">Visible text</span>
+    </div>
+  )HTML");
+
+  AXObjectCacheImpl& cache = GetAXObjectCache();
+  cache.SetAXMode(ui::kAXModeComplete);
+
+  Element* container = GetElementById("container");
+  Text* new_text = GetDocument().createTextNode("Unlaid out text ");
+  container->insertBefore(new_text, GetElementById("target"));
+  GetDocument().UpdateStyleAndLayout(DocumentUpdateReason::kTest);
+  new_text->GetLayoutObject()->SetIsInLayoutNGInlineFormattingContext(false);
+
+  AXObject* target = GetAXObjectByElementId("target");
+  ASSERT_TRUE(target);
+  ASSERT_TRUE(target->GetLayoutObject());
+
+  cache.ComputeNodesOnLine(target->GetLayoutObject());
+}
+
+TEST_F(AccessibilityTest, IsRelevantSlotElement) {
+  SetBodyInnerHTML(R"HTML(
+    <select id="sel"><option>one</option></select>
+    <select id="empty_sel"></select>
+  )HTML");
+
+  auto* select = To<HTMLSelectElement>(GetElementById("sel"));
+  ASSERT_NE(select, nullptr);
+  ShadowRoot* shadow_root = select->UserAgentShadowRoot();
+  ASSERT_NE(shadow_root, nullptr);
+  auto* slot = To<HTMLSlotElement>(
+      shadow_root->getElementById(shadow_element_names::kSelectOptions));
+  ASSERT_NE(slot, nullptr);
+  EXPECT_TRUE(AXObjectCacheImpl::IsRelevantSlotElement(*slot));
+
+  auto* empty_select = To<HTMLSelectElement>(GetElementById("empty_sel"));
+  ASSERT_NE(empty_select, nullptr);
+  ShadowRoot* empty_shadow_root = empty_select->UserAgentShadowRoot();
+  ASSERT_NE(empty_shadow_root, nullptr);
+  auto* empty_slot = To<HTMLSlotElement>(
+      empty_shadow_root->getElementById(shadow_element_names::kSelectOptions));
+  ASSERT_NE(empty_slot, nullptr);
+  EXPECT_TRUE(AXObjectCacheImpl::IsRelevantSlotElement(*empty_slot));
+}
 
 }  // namespace blink

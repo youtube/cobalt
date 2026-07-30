@@ -8,7 +8,6 @@
 #include <memory>
 #include <numeric>
 
-#include "base/byte_count.h"
 #include "base/byte_size.h"
 #include "base/check.h"
 #include "base/check_op.h"
@@ -25,6 +24,7 @@
 #include "base/memory/ptr_util.h"
 #include "base/memory/raw_ptr.h"
 #include "base/memory_coordinator/memory_coordinator_features.h"
+#include "base/memory_coordinator/traits.h"
 #include "base/memory_coordinator/utils.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/numerics/safe_conversions.h"
@@ -96,7 +96,7 @@ BlobStorageLimits CalculateBlobStorageLimitsImpl(
   if (memory_size > 0) {
 #if !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_ANDROID) && \
     defined(ARCH_CPU_64_BITS)
-    limits.max_blob_in_memory_space = base::GiB(2).InBytesUnsigned();
+    limits.max_blob_in_memory_space = base::GiBU(2).InBytes();
 #elif BUILDFLAG(IS_ANDROID)
     limits.max_blob_in_memory_space = static_cast<size_t>(memory_size / 100);
 #else
@@ -298,6 +298,20 @@ uint64_t GetTotalSizeAndFileSizes(
       << "Illegal builder configuration, temporary files must be totally used.";
   return total_size_output;
 }
+
+constexpr base::MemoryConsumerTraits kBlobMemoryControllerTraits(
+    // Can hold up to ~2GB of blob data in memory (platform-dependent).
+    base::MemoryConsumerTraits::EstimatedMemoryUsage::kLarge,
+    // Eviction requires traversing LRU cache and paging items to disk.
+    base::MemoryConsumerTraits::ReleaseMemoryCost::kRequiresTraversal,
+    // Paged items can be read back from disk.
+    base::MemoryConsumerTraits::InformationRetention::kLossless,
+    // Eviction is asynchronous, and it uses AsyncMemoryConsumerRegistration.
+    base::MemoryConsumerTraits::ExecutionType::kAsynchronous,
+    // Blob data lives in-process.
+    base::MemoryConsumerTraits::InProcess::kYes,
+    // Reading paged data back from disk.
+    base::MemoryConsumerTraits::RecreateMemoryCost::kCheap);
 
 }  // namespace
 
@@ -554,7 +568,7 @@ BlobMemoryController::BlobMemoryController(
           base::LRUCache<uint64_t, ShareableBlobDataItem*>::NO_AUTO_EVICT),
       memory_consumer_registration_(
           "BlobMemoryController",
-          std::nullopt,  // TODO(crbug.com/489671163): Add traits.
+          kBlobMemoryControllerTraits,
           this,
           base::AsyncMemoryConsumerRegistration::CheckUnregister::kDisabled) {}
 

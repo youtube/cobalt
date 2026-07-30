@@ -96,11 +96,10 @@ class CORE_EXPORT ImageLoader : public GarbageCollected<ImageLoader>,
   // available.
   bool ImageIsPotentiallyAvailable() const;
 
-  // Returns the natural size (with any image orientation applied) of the
-  // loaded image content. Should only be used when returning the natural size
-  // from a JS property like HTMLImageElement.naturalWidth, since it has
-  // side-effects in the form of a use-counter.
-  gfx::Size AccessNaturalSize() const;
+  // Returns the density corrected natural size (with any image orientation
+  // applied) of the loaded image content.
+  // https://html.spec.whatwg.org/#density-corrected-intrinsic-width-and-height
+  gfx::Size DensityCorrectedNaturalSize(float inverse_density) const;
 
   // Cancels pending load events, and doesn't dispatch new ones.
   // Note: ClearImage/SetImage.*() are not a simple setter.

@@ -47,6 +47,9 @@ BASE_DECLARE_FEATURE(kSyncContextualTask);
 // Enables syncing of Gemini threads across devices.
 BASE_DECLARE_FEATURE(kSyncGeminiThread);
 
+// Enables syncing of Encrypted Tab Context Containers across devices.
+BASE_DECLARE_FEATURE(kSyncEncryptedTabContextContainer);
+
 // Enables syncing of themes across iOS devices.
 BASE_DECLARE_FEATURE(kSyncThemesIos);
 
@@ -97,11 +100,6 @@ BASE_DECLARE_FEATURE(kReplaceSyncPromosWithSigninPromosNewSignin);
 // prefer using this function over checking the feature flags directly.
 bool IsReplaceSyncPromosWithSignInPromosEnabled();
 
-// If enabled, allowlisted priority preferences will be synced even if the
-// preferences user toggle is off. Note that this flag is only meaningful if
-// kEnablePreferencesAccountStorage is enabled.
-BASE_DECLARE_FEATURE(kSyncSupportAlwaysSyncingPriorityPreferences);
-
 // Enables syncing of flight reservations coming from Google Wallet.
 BASE_DECLARE_FEATURE(kSyncWalletFlightReservations);
 
@@ -113,15 +111,6 @@ BASE_DECLARE_FEATURE(kSyncWalletVehicleRegistrations);
 // TODO(crbug.com/443954137): This feature doesn't yet do anything. Implement
 // the local and account data separation behind this feature flag.
 BASE_DECLARE_FEATURE(kSpellcheckSeparateLocalAndAccountDictionaries);
-
-// Normally, if kReplaceSyncPromosWithSignInPromos is disabled,
-// UserSelectableType::kBookmarks is disabled by default upon sign-in. This
-// flag makes the type enabled by default, for manual testing.
-BASE_DECLARE_FEATURE(kEnableBookmarksSelectedTypeOnSigninForTesting);
-
-// If enabled, avoids committing changes containing only favicon URL related
-// change.
-BASE_DECLARE_FEATURE(kSearchEngineAvoidFaviconOnlyCommits);
 
 // Feature flag used for enabling sync (transport mode) for signed-in users that
 // haven't turned on full sync.
@@ -264,6 +253,11 @@ BASE_DECLARE_FEATURE(kSyncSimplifyDeviceNaming);
 // preferred name (and fallback name) if available. This provides a more
 // recognizable name for the user.
 BASE_DECLARE_FEATURE(kSyncUseServerDeterminedDeviceName);
+
+// If enabled, copies selected types preferences from global profile preferences
+// to account-keyed preferences upon a DISABLE_SYNC_ON_CLIENT protocol error
+// before entering transport mode.
+BASE_DECLARE_FEATURE(kSyncCopyPreferencesToTransportModeOnServerForcedDisable);
 
 }  // namespace syncer
 

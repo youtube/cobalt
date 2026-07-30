@@ -68,6 +68,10 @@ class OmniboxPopupViewViewsTest : public InProcessBrowserTest {
         location_bar()->GetOmniboxPopupView());
   }
 
+  base::WeakPtr<OmniboxPopupViewViews> GetMetricsWeakPtr() {
+    return popup_view()->metrics_weak_factory_.GetWeakPtr();
+  }
+
   SkColor GetSelectedColor(Browser* browser) {
     return BrowserView::GetBrowserViewForBrowser(browser)
         ->GetColorProvider()
@@ -81,12 +85,12 @@ class OmniboxPopupViewViewsTest : public InProcessBrowserTest {
   }
 
   void SetIsGrayscale(bool is_grayscale) {
-    ThemeServiceFactory::GetForProfile(browser()->profile())
+    ThemeServiceFactory::GetForProfile(browser()->GetProfile())
         ->SetIsGrayscale(is_grayscale);
   }
 
   void SetUseDeviceTheme(bool use_device_theme) {
-    ThemeServiceFactory::GetForProfile(browser()->profile())
+    ThemeServiceFactory::GetForProfile(browser()->GetProfile())
         ->UseDeviceTheme(use_device_theme);
   }
 

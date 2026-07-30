@@ -20,7 +20,7 @@
 #include "chrome/browser/autofill/mock_autofill_agent.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
-#include "chrome/browser/personal_context/personal_context_enablement_service_factory.h"
+#include "chrome/browser/personal_context/personal_context_eligibility_service_factory.h"
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
 #include "chrome/browser/ui/autofill/autofill_popup_controller_impl.h"
 #include "chrome/browser/ui/autofill/edit_address_profile_dialog_controller_impl.h"
@@ -59,7 +59,7 @@
 #include "components/autofill/core/common/autofill_test_utils.h"
 #include "components/autofill/core/common/form_field_data.h"
 #include "components/feature_engagement/public/feature_constants.h"
-#include "components/personal_context/core/personal_context_enablement_service.h"
+#include "components/personal_context/core/personal_context_eligibility_service.h"
 #include "components/personal_context/core/personal_context_prefs.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/prefs/pref_service.h"
@@ -133,16 +133,16 @@ using ::testing::Return;
 using ::testing::ReturnRef;
 using ::testing::UnorderedElementsAre;
 
-class MockPersonalContextEnablementService
-    : public personal_context::PersonalContextEnablementService {
+class MockPersonalContextEligibilityService
+    : public personal_context::PersonalContextEligibilityService {
  public:
-  MockPersonalContextEnablementService() = default;
-  ~MockPersonalContextEnablementService() override = default;
+  MockPersonalContextEligibilityService() = default;
+  ~MockPersonalContextEligibilityService() override = default;
 
   MOCK_METHOD(void, AddObserver, (Observer*), (override));
   MOCK_METHOD(void, RemoveObserver, (Observer*), (override));
-  MOCK_METHOD(personal_context::PersonalContextEnablementState,
-              GetEnablementState,
+  MOCK_METHOD(personal_context::PersonalContextEligibilityState,
+              GetEligibilityState,
               (),
               (override));
 };
@@ -212,16 +212,16 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
 #endif  // !BUILDFLAG(IS_ANDROID)
   }
 
-  void InitializePersonalContextEnablementService() {
-    personal_context_enablement_service_ =
-        static_cast<MockPersonalContextEnablementService*>(
-            PersonalContextEnablementServiceFactory::GetInstance()
+  void InitializePersonalContextEligibilityService() {
+    personal_context_eligibility_service_ =
+        static_cast<MockPersonalContextEligibilityService*>(
+            PersonalContextEligibilityServiceFactory::GetInstance()
                 ->SetTestingFactoryAndUse(
                     profile(),
                     base::BindRepeating([](content::BrowserContext* context)
                                             -> std::unique_ptr<KeyedService> {
                       return std::make_unique<
-                          MockPersonalContextEnablementService>();
+                          MockPersonalContextEligibilityService>();
                     })));
   }
 
@@ -244,7 +244,7 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
 #if !BUILDFLAG(IS_ANDROID)
     autofill_field_promo_controller_ = nullptr;
 #endif  // !BUILDFLAG(IS_ANDROID)
-    personal_context_enablement_service_ = nullptr;
+    personal_context_eligibility_service_ = nullptr;
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
@@ -261,8 +261,9 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
     return ContentAutofillDriver::GetForRenderFrameHost(rfh);
   }
 
-  MockPersonalContextEnablementService* personal_context_enablement_service() {
-    return personal_context_enablement_service_;
+  MockPersonalContextEligibilityService*
+  personal_context_eligibility_service() {
+    return personal_context_eligibility_service_;
   }
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -300,8 +301,8 @@ class ChromeAutofillClientTest : public ChromeRenderViewHostTestHarness {
 #if !BUILDFLAG(IS_ANDROID)
   raw_ptr<MockAutofillFieldPromoController> autofill_field_promo_controller_;
 #endif  // !BUILDFLAG(IS_ANDROID)
-  raw_ptr<MockPersonalContextEnablementService>
-      personal_context_enablement_service_;
+  raw_ptr<MockPersonalContextEligibilityService>
+      personal_context_eligibility_service_;
   TestAutofillClientInjector<TestChromeAutofillClient>
       test_autofill_client_injector_;
   base::OnceCallback<void()> setup_flags_;
@@ -882,10 +883,10 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
 TEST_F(ChromeAutofillClientTestWithMockWindow,
        ShowAutofillAtMemoryPromo_Enabled) {
   base::test::ScopedFeatureList feature_list(features::kAutofillAtMemory);
-  InitializePersonalContextEnablementService();
-  EXPECT_CALL(*personal_context_enablement_service(), GetEnablementState())
+  InitializePersonalContextEligibilityService();
+  EXPECT_CALL(*personal_context_eligibility_service(), GetEligibilityState())
       .WillRepeatedly(
-          Return(personal_context::PersonalContextEnablementState::kEnabled));
+          Return(personal_context::PersonalContextEligibilityState::kEligible));
 
   MockBrowserUserEducationInterface mock_user_education(
       &mock_browser_window_interface());
@@ -905,9 +906,9 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
 TEST_F(ChromeAutofillClientTestWithMockWindow,
        ShowAutofillAtMemoryPromo_ServiceDisabled) {
   base::test::ScopedFeatureList feature_list(features::kAutofillAtMemory);
-  InitializePersonalContextEnablementService();
-  EXPECT_CALL(*personal_context_enablement_service(), GetEnablementState())
-      .WillRepeatedly(Return(personal_context::PersonalContextEnablementState::
+  InitializePersonalContextEligibilityService();
+  EXPECT_CALL(*personal_context_eligibility_service(), GetEligibilityState())
+      .WillRepeatedly(Return(personal_context::PersonalContextEligibilityState::
                                  kDisabledNotEligible));
 
   MockBrowserUserEducationInterface mock_user_education(
@@ -923,10 +924,10 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
        ShowAutofillAtMemoryPromo_FeatureDisabled) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(features::kAutofillAtMemory);
-  InitializePersonalContextEnablementService();
-  EXPECT_CALL(*personal_context_enablement_service(), GetEnablementState())
+  InitializePersonalContextEligibilityService();
+  EXPECT_CALL(*personal_context_eligibility_service(), GetEligibilityState())
       .WillRepeatedly(
-          Return(personal_context::PersonalContextEnablementState::kEnabled));
+          Return(personal_context::PersonalContextEligibilityState::kEligible));
 
   MockBrowserUserEducationInterface mock_user_education(
       &mock_browser_window_interface());
@@ -940,10 +941,10 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
 TEST_F(ChromeAutofillClientTestWithMockWindow,
        ShowAutofillAtMemoryPromo_PersonalContextToggleOff) {
   base::test::ScopedFeatureList feature_list(features::kAutofillAtMemory);
-  InitializePersonalContextEnablementService();
-  EXPECT_CALL(*personal_context_enablement_service(), GetEnablementState())
+  InitializePersonalContextEligibilityService();
+  EXPECT_CALL(*personal_context_eligibility_service(), GetEligibilityState())
       .WillRepeatedly(
-          Return(personal_context::PersonalContextEnablementState::kEnabled));
+          Return(personal_context::PersonalContextEligibilityState::kEligible));
   profile()->GetPrefs()->SetBoolean(
       personal_context::prefs::kPersonalContextInAutofillSettingsToggleStatus,
       false);
@@ -1036,10 +1037,10 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
 TEST_F(ChromeAutofillClientTestWithMockWindow,
        AtMemoryCopyPasteObserver_RegularProfileTracking) {
   base::test::ScopedFeatureList feature_list(features::kAutofillAtMemory);
-  InitializePersonalContextEnablementService();
-  EXPECT_CALL(*personal_context_enablement_service(), GetEnablementState())
+  InitializePersonalContextEligibilityService();
+  EXPECT_CALL(*personal_context_eligibility_service(), GetEligibilityState())
       .WillRepeatedly(
-          Return(personal_context::PersonalContextEnablementState::kEnabled));
+          Return(personal_context::PersonalContextEligibilityState::kEligible));
 
   // Setup a secondary `WebContents` for pasting (so the copy and paste are in
   // different tabs).
@@ -1098,10 +1099,10 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
 TEST_F(ChromeAutofillClientTestWithMockWindow,
        ShowAutofillAtMemoryPromo_NonBrandedBuild) {
   base::test::ScopedFeatureList feature_list(features::kAutofillAtMemory);
-  InitializePersonalContextEnablementService();
-  EXPECT_CALL(*personal_context_enablement_service(), GetEnablementState())
+  InitializePersonalContextEligibilityService();
+  EXPECT_CALL(*personal_context_eligibility_service(), GetEligibilityState())
       .WillRepeatedly(
-          Return(personal_context::PersonalContextEnablementState::kEnabled));
+          Return(personal_context::PersonalContextEligibilityState::kEligible));
 
   MockBrowserUserEducationInterface mock_user_education(
       &mock_browser_window_interface());
@@ -1114,21 +1115,21 @@ TEST_F(ChromeAutofillClientTestWithMockWindow,
 
 // Tests that if there is no enablement service available to the profile, client
 // defaults to kDisabledNotEligible state.
-TEST_F(ChromeAutofillClientTest, GetPersonalContextEnablementState_NoService) {
+TEST_F(ChromeAutofillClientTest, GetPersonalContextEligibilityState_NoService) {
   EXPECT_EQ(
-      client()->GetPersonalContextEnablementState(),
-      personal_context::PersonalContextEnablementState::kDisabledNotEligible);
+      client()->GetPersonalContextEligibilityState(),
+      personal_context::PersonalContextEligibilityState::kDisabledNotEligible);
 }
 
 // Tests that the client correctly pipes the state from the enablement service.
-TEST_F(ChromeAutofillClientTest, GetPersonalContextEnablementState_HappyPath) {
-  InitializePersonalContextEnablementService();
+TEST_F(ChromeAutofillClientTest, GetPersonalContextEligibilityState_HappyPath) {
+  InitializePersonalContextEligibilityService();
 
-  EXPECT_CALL(*personal_context_enablement_service(), GetEnablementState())
+  EXPECT_CALL(*personal_context_eligibility_service(), GetEligibilityState())
       .WillRepeatedly(
-          Return(personal_context::PersonalContextEnablementState::kEnabled));
-  EXPECT_EQ(client()->GetPersonalContextEnablementState(),
-            personal_context::PersonalContextEnablementState::kEnabled);
+          Return(personal_context::PersonalContextEligibilityState::kEligible));
+  EXPECT_EQ(client()->GetPersonalContextEligibilityState(),
+            personal_context::PersonalContextEligibilityState::kEligible);
 }
 
 #if !BUILDFLAG(IS_ANDROID)

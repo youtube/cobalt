@@ -96,12 +96,30 @@ found in the LICENSE file.
     <dimen name="compositor_tab_title_favicon_bubble_outer_size">10dp</dimen>
     <dimen name="compositor_tab_title_favicon_bubble_offset">6dp</dimen>
 
-    <!-- Tab strip button alpha values -->
+    <!-- Tab strip buttons -->
+    <!-- y-offset for folio = lowered tab container + (tab container size - bg size)/2 -
+         folio tab title y-offset = 2 + (38 - 32)/2 - 2 = 3dp -->
+    <dimen name="tab_strip_button_y_offset">3dp</dimen>
+    <dimen name="tab_strip_button_bg_size">32dp</dimen>
     <item name="tab_strip_button_bg_hover_alpha" format="float" type="dimen">0.08</item>
     <item name="tab_strip_button_bg_peripheral_pressed_alpha" format="float" type="dimen">0.12</item>
     <item name="tab_strip_button_bg_pressed_alpha" format="float" type="dimen">0.2</item>
 
-    <!-- Glic button alpha values -->
+    <!-- Tab strip Glic buttons -->
+    <!-- vertical margin = tab strip height - glic background height = 40 - 32 = 8dp. -->
+    <dimen name="tab_strip_glic_button_margin_height">8dp</dimen>
+    <dimen name="tab_strip_glic_button_bg_width">42dp</dimen>
+    <dimen name="tab_strip_glic_button_start_padding">6dp</dimen>
+    <dimen name="tab_strip_glic_icon_width">16dp</dimen>
+    <dimen name="tab_strip_glic_icon_text_padding">4dp</dimen>
+    <dimen name="tab_strip_glic_button_standard_end_padding">10dp</dimen>
+    <dimen name="tab_strip_glic_button_shortened_end_padding">4dp</dimen>
+    <dimen name="tab_strip_glic_dismiss_icon_width">24dp</dimen>
+    <dimen name="tab_strip_glic_dismiss_button_y_offset">7dp</dimen>
+    <dimen name="tab_strip_glic_button_corner_radius">10dp</dimen>
+    <dimen name="tab_strip_glic_button_inner_corner_radius">2dp</dimen>
+    <dimen name="tab_strip_glic_actor_button_gap">2dp</dimen>
+    <dimen name="tab_strip_window_controls_divider_width">2dp</dimen>
     <item name="tab_strip_glic_button_bg_hover_alpha" format="float" type="dimen">0.20</item>
     <item name="tab_strip_glic_button_bg_pressed_alpha" format="float" type="dimen">0.30</item>
     <item name="tab_strip_glic_button_icon_unfocused_alpha" format="float" type="dimen">0.65</item>
@@ -136,6 +154,7 @@ found in the LICENSE file.
     <dimen name="ntp_search_box_transition_start_offset">16dp</dimen>
     <dimen name="ntp_search_box_transition_end_offset">4dp</dimen>
     <dimen name="ntp_search_box_max_width">680dp</dimen>
+    <dimen name="ntp_search_box_action_button_margin">8dp</dimen>
     <dimen name="composeplate_view_margin_top">4dp</dimen>
     <dimen name="mvt_container_top_padding">17dp</dimen>
     <dimen name="mvt_container_bottom_padding">22dp</dimen>
@@ -213,12 +232,15 @@ found in the LICENSE file.
     <dimen name="bookmark_bar_item_max_width">124dp</dimen>
     <dimen name="bookmark_bar_item_spacing">4dp</dimen>
     <dimen name="bookmark_bar_padding">8dp</dimen>
+    <dimen name="bookmark_bar_padding_top">2dp</dimen>
     <dimen name="bookmark_bar_overflow_button_margin_start">4dp</dimen>
     <dimen name="bookmark_bar_overflow_button_height_total">32dp</dimen>
-    <!-- bookmark_bar_overflow_button_height_total(32) + bookmark_bar_padding(8) -->
-    <dimen name="bookmark_bar_min_height">40dp</dimen>
+    <!-- bookmark_bar_overflow_button_height_total(32) + bookmark_bar_padding_top(2) + bookmark_bar_padding(8) -->
+    <dimen name="bookmark_bar_min_height">42dp</dimen>
 
     <!-- Custom Tabs dimensions -->
+    <dimen name="custom_tabs_screenshot_width">300dp</dimen>
+    <dimen name="custom_tabs_screenshot_height">190dp</dimen>
     <dimen name="custom_tabs_drag_handle_padding_top">12dp</dimen>
     <dimen name="custom_tabs_drag_handle_padding_bottom">32dp</dimen>
     <dimen name="custom_tabs_drag_handle_padding_side">4dp</dimen>
@@ -527,6 +549,5 @@ found in the LICENSE file.
     <dimen name="background_tab_toast_y_margin">16dp</dimen>
 
     <!-- Immersive Playback Confirmation Dialog dimens -->
-    <dimen name="immersive_playback_confirmation_dialog_padding">24dp</dimen>
     <dimen name="immersive_playback_confirmation_dialog_width">256dp</dimen>
 </resources>

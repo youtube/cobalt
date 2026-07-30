@@ -16,6 +16,7 @@ import {CaptureScreenshotErrorReason, ClientCapabilities, ResponseStopCause} fro
 import type {CaptureRegionParams, ClientErrorDialogType, ConversationInfo, CounterAbuseVerdict, ExperimentalTriggeringUpdate, GetPinCandidatesOptions, MicrophoneStatus, OnResponseStoppedDetails, OpenSettingsOptions, PinTabsOptions, Screenshot, TabContextOptions, UnpinTabsOptions, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../../glic_api/glic_api.js';
 import {replaceProperties} from '../conversions.js';
 import {enumFromClient, enumToClient} from '../enum_conversions.js';
+import type {ExperimentalTriggeringClient} from '../experimental_triggering/experimental_triggering_types.js';
 import type {ActorClient, ActorHost, AnnotationHost, GlicException, ImageBytesResultPrivate, RgbaImage, SkillsClient, SkillsHost, TabContextResultPrivate, WebClientHost, WebClientInitialStatePrivate, WebClientPinCandidatesObserver, WebClientRegionCapture, WebClientTabDataObserver, WebClientTabFaviconObserver} from '../request_types.js';
 import {ErrorWithReasonImpl, exceptionFromTransferable, SubscriberObservationType} from '../request_types.js';
 import {ResponseExtras} from '../transport/messaging.js';
@@ -60,6 +61,8 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
     actorReceiver?: PendingReceiver<ActorClient>,
     skillsRemote?: PendingRemote<SkillsHost>,
     skillsReceiver?: PendingReceiver<SkillsClient>,
+    experimentalTriggeringReceiver?: PendingReceiver<
+                                      ExperimentalTriggeringClient>,
   }> {
     if (this.receiver) {
       throw new Error('web client already created');
@@ -113,6 +116,8 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
       actorReceiver: initialPipes.actorReceiver,
       skillsRemote: initialPipes.skillsRemote,
       skillsReceiver: initialPipes.skillsReceiver,
+      experimentalTriggeringReceiver:
+          initialPipes.experimentalTriggeringReceiver,
     };
   }
 
@@ -167,12 +172,10 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
     url: string,
     options: {openInBackground?: boolean, windowId?: string},
   }) {
-    const response = await this.handler.createTab(
-        urlFromClient(request.url),
-        request.options.openInBackground !== undefined ?
-            request.options.openInBackground :
-            false,
-        idFromClient(request.options.windowId));
+    const response = await this.handler.createTab(urlFromClient(request.url), {
+      openInBackground: request.options.openInBackground === true,
+      windowId: idFromClient(request.options.windowId),
+    });
     const tabData = response.tabData;
     if (tabData) {
       return {
@@ -345,7 +348,6 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
         await this.handler.setMaximumNumberOfPinnedTabs(requestedMax);
     return {effectiveMax};
   }
-
 
   activateTab(request: {tabId: string}): void {
     this.handler.activateTab(idFromClient(request.tabId));
@@ -621,7 +623,7 @@ export class HostMessageHandler implements PostMessageHandler<WebClientHost> {
       return {
         suggestions: {
           tabId: idToClient(zeroStateData.tabId),
-          url: urlToClient(zeroStateData.tabUrl),
+          url: urlToClient(zeroStateData.url),
           suggestions: zeroStateData.suggestions,
         },
       };

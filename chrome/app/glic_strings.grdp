@@ -159,7 +159,10 @@
   <message name="IDS_SETTINGS_GLIC_BUTTON_TOGGLE" desc="Name of the toggle that controls whether the Gemini icon is shown in the tabstrip.">
     Show Gemini at the top of the browser
   </message>
-  <message name="IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT" desc="Name of the keyboard shortcut setting.">
+  <message name="IDS_SETTINGS_GLIC_LAUNCHER_ENABLED_TITLE" desc="Label for toggle to turn on/off the keyboard shortcut to launch Glic." formatter_data="android_java">
+    Turn on keyboard shortcut
+  </message>
+  <message name="IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT" desc="Name of the keyboard shortcut setting." formatter_data="android_java">
     Keyboard shortcut
   </message>
   <message name="IDS_SETTINGS_GLIC_KEYBOARD_SHORTCUT_EDIT_LABEL" desc="Label of the edit keyboard shortcut setting button.">
@@ -180,7 +183,7 @@
   <message name="IDS_SETTINGS_GLIC_SELECTION_SHORTCUT_LEARN_MORE_ARIA_LABEL" desc="Aria label for the 'Learn more' link for the selection shortcut setting in Gemini in Chrome settings.">
     Learn more about the selection shortcut
   </message>
-  <message name="IDS_SETTINGS_GLIC_NAVIGATION_SHORTCUT" desc="Title for the navigation shortcut setting to leave and return to Gemini in Chrome.">
+  <message name="IDS_SETTINGS_GLIC_NAVIGATION_SHORTCUT" desc="Title for the navigation shortcut setting to leave and return to Gemini in Chrome." formatter_data="android_java">
     Navigation shortcut
   </message>
   <message name="IDS_SETTINGS_GLIC_NAVIGATION_SHORTCUT_EDIT_LABEL" desc="Label of the edit navigation shortcut setting button.">
@@ -462,8 +465,20 @@
   <message name="IDS_GLIC_BUTTON_ENTRYPOINT_ASK_GEMINI_LABEL" desc="Label on the button used to open Gemini in Chrome." formatter_data="android_java">
     Ask Gemini
   </message>
+  <message name="IDS_GLIC_SELECTION_CTA_TELL_ME" desc="Experimental CTA label on selection button.">
+    Tell me about this
+  </message>
+  <message name="IDS_GLIC_SELECTION_CTA_EXPLAIN" desc="Experimental CTA label on selection button.">
+    Explain
+  </message>
   <message name="IDS_GLIC_BUTTON_ENTRYPOINT_ASK_ABOUT_THIS_PAGE_LABEL" desc="Label on the button used to open Gemini in Chrome.">
     Ask about this page?
+  </message>
+  <message name="IDS_GLIC_SELECTION_AUTO_SEND_PROMPT_TELL_ME" desc="Default prompt text sent to Gemini when auto-send prompt is enabled on text selection.">
+    Tell me about this selection
+  </message>
+  <message name="IDS_GLIC_SELECTION_AUTO_SEND_PROMPT_EXPLAIN" desc="Prompt text sent to Gemini when auto-send prompt is enabled on text selection with the Explain CTA arm.">
+    Explain this selection
   </message>
 
   <!-- Content area context menu. -->
@@ -509,6 +524,9 @@
   </message>
   <message name="IDS_GLIC_SELECTION_MENU_HIDE_FOR_SITE" desc="Label for the menu item to hide the selection widget on the current website.">
     Hide for this site
+  </message>
+  <message name="IDS_GLIC_SELECTION_HIDDEN_FOR_SITE_TOAST_BODY" desc="Body text for the toast notification when the selection widget is hidden for a specific site.">
+    Hidden from this site
   </message>
 
   <!-- Educational Tip -->
@@ -564,7 +582,10 @@
   <message name="IDS_GLIC_TASK_PAUSED_DESCRIPTION" desc="Subtitle description of the snackbar message shown when a Glic task is paused due to window resizing.">
     Increase window size to resume task
   </message>
-  <message name="IDS_GLIC_BOTTOM_SHEET_CLOSED_A11Y_LABEL" desc="Accessibility announcement when the Gemini Bottom Sheet is closed." formatter_data="android_java" is_accessibility_with_no_ui="true">
+  <message name="IDS_GLIC_BOTTOM_SHEET_CLOSED_A11Y_LABEL" desc="Accessibility announcement when the Gemini Bottom Sheet is collapsed." formatter_data="android_java" is_accessibility_with_no_ui="true">
+    Gemini Bottom Sheet collapsed.
+  </message>
+  <message name="IDS_GLIC_BOTTOM_SHEET_HIDDEN_A11Y_LABEL" desc="Accessibility announcement when the Gemini Bottom Sheet is closed." formatter_data="android_java" is_accessibility_with_no_ui="true">
     Gemini Bottom Sheet closed.
   </message>
   <message name="IDS_GLIC_BOTTOM_SHEET_HALF_HEIGHT_A11Y_LABEL" desc="Accessibility announcement when the Gemini Bottom Sheet is opened to half height." formatter_data="android_java" is_accessibility_with_no_ui="true">
@@ -572,5 +593,14 @@
   </message>
   <message name="IDS_GLIC_BOTTOM_SHEET_FULL_HEIGHT_A11Y_LABEL" desc="Accessibility announcement when the Gemini Bottom Sheet is opened to full height." formatter_data="android_java" is_accessibility_with_no_ui="true">
     Gemini Bottom Sheet at full height
+  </message>
+  <message name="IDS_GLIC_HOTKEY_ALT" desc="Alt key text" translateable="false" formatter_data="android_java">
+    Alt
+  </message>
+  <message name="IDS_GLIC_HOTKEY_SHIFT" desc="Shift key text" translateable="false" formatter_data="android_java">
+    Shift
+  </message>
+  <message name="IDS_GLIC_HOTKEY_G" desc="G key text" translateable="false" formatter_data="android_java">
+    G
   </message>
 </grit-part>

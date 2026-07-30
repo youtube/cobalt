@@ -6,10 +6,12 @@ import 'chrome://contextual-tasks/app.js';
 
 import type {ContextualTasksAppElement} from 'chrome://contextual-tasks/app.js';
 import {BrowserProxyImpl} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
+import {GlifAnimationState, TabUploadOrigin} from 'chrome://resources/cr_components/composebox/common.js';
 import {PageCallbackRouter as ComposeboxPageCallbackRouter, PageHandlerRemote as ComposeboxPageHandlerRemote} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
 import {ComposeboxProxyImpl} from 'chrome://resources/cr_components/composebox/composebox_proxy.js';
 import {InputType, ToolMode} from 'chrome://resources/cr_components/composebox/composebox_query.mojom-webui.js';
 import type {ComposeboxToolChipElement} from 'chrome://resources/cr_components/composebox/composebox_tool_chip.js';
+import type {ContextualActionMenuElement} from 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
 import {WindowProxy} from 'chrome://resources/cr_components/composebox/window_proxy.js';
 import {createAutocompleteMatch, createAutocompleteResultForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
@@ -635,8 +637,8 @@ suite('ContextualTasksComposeboxTest', () => {
     const calls = mockSearchboxPageHandler.getArgs(
         'queryAutocompleteWithSuggestInventory');
     const lastCall = calls[calls.length - 1];
-    assertEquals('new query', lastCall[0]);
-    assertEquals(SuggestInventory.kDefault, lastCall[3]);
+    assertEquals('new query', lastCall[1]);
+    assertEquals(SuggestInventory.kDefault, lastCall[4]);
   });
 
   test('inputEnabled attribute reflected on composebox', async () => {
@@ -726,6 +728,30 @@ suite('ContextualTasksComposeboxTest', () => {
     assertEquals(
         null, innerComposebox.getDropdownElement().result,
         'Matches should be cleared after submit');
+  });
+
+  test('OnInputStateUpdateSetsStateAndCallsMojo', async () => {
+    const contextualComposebox = contextualTasksApp.$.composebox;
+
+    mockSearchboxPageHandler.reset();
+
+    // Call onInputStateUpdate with ToolMode = 1 and ModelMode = 2.
+    contextualComposebox.onInputStateUpdate(1, 2);
+
+    const toolMode =
+        await mockSearchboxPageHandler.whenCalled('setActiveToolMode');
+    assertEquals(1, toolMode);
+
+    const modelMode =
+        await mockSearchboxPageHandler.whenCalled('setActiveModelMode');
+    assertEquals(2, modelMode);
+    // Verify that it is in tool mode.
+    assertTrue(contextualComposebox.inToolModeForTesting);
+
+    // Reset tool mode with `ToolMode.kUnspecified` (0),
+    // and verify that it is reset.
+    contextualComposebox.onInputStateUpdate(0, 0);
+    assertFalse(contextualComposebox.inToolModeForTesting);
   });
 
   test('OfflineStatusReconsideredOnReload', async () => {
@@ -1017,50 +1043,6 @@ suite('ContextualTasksComposeboxTest', () => {
     assertEquals(1, files.length);
     // Reference should be exactly the same (no re-allocation or modification)
     assertEquals(updatedFile, files[0]);
-  });
-
-  test('SmartTabSharingActiveChangedFiresMojo', async () => {
-    const contextualComposebox = contextualTasksApp.$.composebox;
-    const crComposebox = $$(contextualComposebox, '#composebox');
-    assertTrue(!!crComposebox);
-    const entrypointAndMenu =
-        $$(crComposebox, 'cr-composebox-contextual-entrypoint-and-menu');
-    assertTrue(!!entrypointAndMenu);
-
-    mockComposeboxPageHandler.reset();
-
-    entrypointAndMenu.dispatchEvent(
-        new CustomEvent('smart-tab-sharing-active-changed', {
-          detail: {active: true},
-          bubbles: true,
-          composed: true,
-        }));
-
-    const activeArg =
-        await mockComposeboxPageHandler.whenCalled('setSmartTabSharingActive');
-    assertEquals(
-        1, mockComposeboxPageHandler.getCallCount('setSmartTabSharingActive'));
-    assertEquals(true, activeArg);
-  });
-
-  test('ContextMenuOpenedFiresMojo', async () => {
-    const contextualComposebox = contextualTasksApp.$.composebox;
-    const crComposebox = $$(contextualComposebox, '#composebox');
-    assertTrue(!!crComposebox);
-    const entrypointAndMenu =
-        $$(crComposebox, 'cr-composebox-contextual-entrypoint-and-menu');
-    assertTrue(!!entrypointAndMenu);
-
-    mockComposeboxPageHandler.reset();
-
-    entrypointAndMenu.dispatchEvent(new CustomEvent('context-menu-opened', {
-      bubbles: true,
-      composed: true,
-    }));
-
-    await mockComposeboxPageHandler.whenCalled('onContextMenuOpened');
-    assertEquals(
-        1, mockComposeboxPageHandler.getCallCount('onContextMenuOpened'));
   });
 
   test('VoiceSearchErrorDetailsLinkIsClickable', async () => {
@@ -1537,8 +1519,9 @@ suite('ContextualTasksComposeboxTest', () => {
 // Fork DUAL-PATH SMOKE SUITE
 // Infrastructure-only coverage: verifies the wrapper's
 // `useContextualTasksComposeboxFork` ternary picks the right inner element
-// on both paths. The fork is a smoke skeleton, so nothing here may depend on
-// inner composebox behavior.
+// and that wrapper-teplate bindings reach the inner element at mount, on both
+// paths. The fork is a smoke skeleton, so nothing here may depend on
+// fork-specific inner composebox behavior.
 // =============================================================================
 [true, false].forEach(useFork => {
   suite(
@@ -1621,6 +1604,17 @@ suite('ContextualTasksComposeboxTest', () => {
             wrapper.shadowRoot.querySelector('#composebox'));
         });
 
+        test('inner composebox does not query zps on initial mount', () => {
+          const {innerComposebox} = parts;
+          // The wrapper template binds `.queryZpsOnLoad="${false}"`, so the
+          // mount in setup() must not blindly query zps in connectedCallback.
+          assertFalse(innerComposebox.queryZpsOnLoad);
+          assertEquals(
+              0,
+              mockSearchboxPageHandler.getCallCount(
+                  'queryAutocompleteWithSuggestInventory'));
+        });
+
         test('wrapper tracks focus state from inner composebox events',
              async () => {
                const {wrapper, innerComposebox} = parts;
@@ -1648,8 +1642,8 @@ suite('ContextualTasksComposeboxTest', () => {
 // =============================================================================
 [true, false].forEach(useFork => {
   suite(
-      `ContextualTasksComposeboxForkSmokeTest (useContextualTasksComposeboxFork =
-        ${useFork})`,
+      `ContextualTasksComposeboxForkBasicInputTest ` +
+          `(useContextualTasksComposeboxFork = ${useFork})`,
       () => {
         let testProxy: TestContextualTasksBrowserProxy;
         let mockComposeboxPageHandler: TestMock<ComposeboxPageHandlerRemote>&
@@ -2038,6 +2032,7 @@ suite('ContextualTasksComposeboxTest', () => {
                       'result-changed', innerComposebox);
               searchboxCallbackRouterRemote.autocompleteResultChanged(
                   createAutocompleteResultForTesting({
+                    queryId: parts.innerComposebox.activeQueryId,
                     input: testQuery,
                     matches: [createAutocompleteMatch({fillIntoEdit: 'm1'})],
                   }));
@@ -2067,6 +2062,7 @@ suite('ContextualTasksComposeboxTest', () => {
               // The response input does not match the last queried input.
               searchboxCallbackRouterRemote.autocompleteResultChanged(
                   createAutocompleteResultForTesting({
+                    queryId: parts.innerComposebox.activeQueryId + 1,
                     input: 'stale',
                     matches: [createAutocompleteMatch()],
                   }));
@@ -2091,6 +2087,7 @@ suite('ContextualTasksComposeboxTest', () => {
               // shown; one match is a noncanned AIM suggestion.
               searchboxCallbackRouterRemote.autocompleteResultChanged(
                   createAutocompleteResultForTesting({
+                    queryId: parts.innerComposebox.activeQueryId,
                     input: '',
                     matches: [
                       createAutocompleteMatch({isNoncannedAimSuggestion: true}),
@@ -2116,6 +2113,7 @@ suite('ContextualTasksComposeboxTest', () => {
               // A noncanned AIM suggestion first surfaces the link.
               searchboxCallbackRouterRemote.autocompleteResultChanged(
                   createAutocompleteResultForTesting({
+                    queryId: parts.innerComposebox.activeQueryId,
                     input: '',
                     matches: [
                       createAutocompleteMatch({isNoncannedAimSuggestion: true}),
@@ -2129,6 +2127,7 @@ suite('ContextualTasksComposeboxTest', () => {
               // Ordinary results clear it; the wrapper keeps no residual link.
               searchboxCallbackRouterRemote.autocompleteResultChanged(
                   createAutocompleteResultForTesting({
+                    queryId: parts.innerComposebox.activeQueryId,
                     input: '',
                     matches: [
                       createAutocompleteMatch(),
@@ -2157,6 +2156,7 @@ suite('ContextualTasksComposeboxTest', () => {
           simulateUserInput(inputElement, testQuery);
           searchboxCallbackRouterRemote.autocompleteResultChanged(
               createAutocompleteResultForTesting({
+                queryId: parts.innerComposebox.activeQueryId,
                 input: testQuery,
                 matches: [
                   createAutocompleteMatch({fillIntoEdit: 'match 1'}),
@@ -2196,7 +2196,8 @@ suite('ContextualTasksComposeboxTest', () => {
                   'queryAutocompleteWithSuggestInventory');
 
               await setupAutocompleteResults(
-                  searchboxCallbackRouterRemote, TEST_QUERY, mockTimer);
+                  searchboxCallbackRouterRemote, innerComposebox.activeQueryId,
+                  TEST_QUERY, mockTimer);
               while (!innerComposebox.getDropdownElement().result) {
                 mockTimer.tick(10);
                 await Promise.resolve();
@@ -2230,6 +2231,328 @@ suite('ContextualTasksComposeboxTest', () => {
                   0,
                   mockSearchboxPageHandler.getCallCount(
                       'openAutocompleteMatch'));
+            });
+      });
+});
+
+// =============================================================================
+// Fork DUAL-PATH CONTEXT MENU / SMART TAB SHARING SUITE
+// The fork renders the contextual entrypoint-and-menu and mirrors the legacy
+// <cr-composebox>'s Smart Tab Sharing behavior (initial-active fetch on
+// connect, clearing shared tab context when sharing turns active), so these
+// tests run on both paths. The app's help-bubble wiring and the onboarding
+// tooltip resolve the menu through the element chain asserted here.
+// =============================================================================
+[true, false].forEach(useFork => {
+  suite(
+      `ContextualTasksComposeboxForkContextMenuTest ` +
+          `(useContextualTasksComposeboxFork = ${useFork})`,
+      () => {
+        let testProxy: TestContextualTasksBrowserProxy;
+        let mockComposeboxPageHandler: TestMock<ComposeboxPageHandlerRemote>&
+            ComposeboxPageHandlerRemote;
+        let mockSearchboxPageHandler: TestMock<SearchboxPageHandlerRemote>&
+            SearchboxPageHandlerRemote;
+        let parts: CtComposeboxAppParts;
+
+        // Both inner elements read `smartTabSharingVisible` in
+        // connectedCallback, so the override must be applied before the mount.
+        async function mountApp(smartTabSharingVisible: boolean) {
+          loadTimeData.overrideValues(
+              {composeboxSmartTabSharingVisible: smartTabSharingVisible});
+          parts = await createCtComposeboxApp(useFork);
+        }
+
+        function getEntrypointAndMenu() {
+          const entrypoint = parts.innerComposebox.shadowRoot.querySelector(
+              'cr-composebox-contextual-entrypoint-and-menu');
+          assertTrue(!!entrypoint);
+          return entrypoint;
+        }
+
+        setup(() => {
+          if (!window.chrome) {
+            Object.assign(window, {chrome: {}});
+          }
+          if (!window.chrome.histograms) {
+            Object.assign(window.chrome, {
+              histograms: {
+                recordEnumerationValue: () => {},
+                recordUserAction: () => {},
+                recordBoolean: () => {},
+              },
+            });
+          }
+          document.body.innerHTML = window.trustedTypes!.emptyHTML;
+
+          loadTimeData.overrideValues({
+            contextualMenuUsePecApi: false,
+            composeboxSmartTabSharingVisible: false,
+            contextManagementInComposeboxEnabled: false,
+            enableComposeboxJumpFix: false,
+            composeboxShowTypedSuggest: true,
+            composeboxShowZps: true,
+            enableBasicModeZOrder: true,
+            composeboxShowContextMenu: true,
+            forcedEmbeddedPageHost: '',
+            tabFaviconChipsToCoinsEnabled: false,
+          });
+
+          testProxy = new TestContextualTasksBrowserProxy(fixtureUrl);
+          BrowserProxyImpl.setInstance(testProxy);
+
+          mockComposeboxPageHandler =
+              TestMock.fromClass(ComposeboxPageHandlerRemote);
+          mockComposeboxPageHandler.setResultFor(
+              'getSmartTabSharingActive', Promise.resolve({active: false}));
+          mockComposeboxPageHandler.setResultFor(
+              'canShowNextboxAnimation', Promise.resolve({canShow: true}));
+          mockSearchboxPageHandler =
+              TestMock.fromClass(SearchboxPageHandlerRemote);
+          mockSearchboxPageHandler.setResultFor(
+              'getRecentTabs', Promise.resolve({tabs: []}));
+          mockSearchboxPageHandler.setResultFor(
+              'getPageClassification',
+              Promise.resolve({metricSource: 'CO_BROWSING_COMPOSEBOX'}));
+          mockSearchboxPageHandler.setResultFor(
+              'addTabContext',
+              Promise.resolve({high: BigInt(1), low: BigInt(2)}));
+          mockSearchboxPageHandler.setResultFor(
+              'getInputState', Promise.resolve({state: new MockInputState()}));
+          const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
+          searchboxCallbackRouter.$.bindNewPipeAndPassRemote();
+          ComposeboxProxyImpl.setInstance(new ComposeboxProxyImpl(
+              mockComposeboxPageHandler, new ComposeboxPageCallbackRouter(),
+              mockSearchboxPageHandler, searchboxCallbackRouter));
+        });
+
+        test('renders the contextual entrypoint and exposes it', async () => {
+          await mountApp(/*smartTabSharingVisible=*/ false);
+          const entrypoint = getEntrypointAndMenu();
+          assertEquals('contextEntrypoint', entrypoint.id);
+          assertEquals(
+              entrypoint, parts.innerComposebox.getContextEntrypointElement());
+        });
+
+        test('app query chain reaches the contextual action menu', async () => {
+          await mountApp(/*smartTabSharingVisible=*/ false);
+          // Mirrors the app's help-bubble lookup:
+          // wrapper -> #composebox -> #contextEntrypoint -> #menu.
+          const wrapper =
+              parts.app.shadowRoot.querySelector('contextual-tasks-composebox');
+          assertTrue(!!wrapper);
+          const innerComposebox =
+              wrapper.shadowRoot.querySelector('#composebox');
+          assertTrue(!!innerComposebox);
+          const innerShadowRoot = innerComposebox.shadowRoot;
+          assertTrue(!!innerShadowRoot);
+          const entrypoint =
+              innerShadowRoot.querySelector('#contextEntrypoint');
+          assertTrue(!!entrypoint);
+          const entrypointShadowRoot = entrypoint.shadowRoot;
+          assertTrue(!!entrypointShadowRoot);
+          const menu = entrypointShadowRoot.querySelector('#menu');
+          assertTrue(!!menu);
+          assertEquals('CR-COMPOSEBOX-CONTEXTUAL-ACTION-MENU', menu.tagName);
+        });
+
+        test(
+            'forwards contextManagementInComposeboxEnabled to the menu',
+            async () => {
+              loadTimeData.overrideValues(
+                  {contextManagementInComposeboxEnabled: true});
+              await mountApp(/*smartTabSharingVisible=*/ false);
+              const entrypointAndMenu = getEntrypointAndMenu();
+              await entrypointAndMenu.updateComplete;
+              assertTrue(
+                  entrypointAndMenu.contextManagementInComposeboxEnabled);
+
+              const menu =
+                  entrypointAndMenu.shadowRoot
+                      .querySelector<ContextualActionMenuElement>('#menu');
+              assertTrue(!!menu);
+              await menu.updateComplete;
+              assertTrue(menu.contextManagementInComposeboxEnabled);
+            });
+
+        test(
+            'zero state drives glif animation into the entrypoint button',
+            async () => {
+              // Deterministic animation-limiting path: the wrapper must consult
+              // canShowNextboxAnimation() before starting the glif animation
+              // on a zero-state transition.
+              loadTimeData.overrideValues(
+                  {contextMenuAnimationLimitingEnabled: true});
+              mockComposeboxPageHandler.setResultFor(
+                  'canShowNextboxAnimation', Promise.resolve({canShow: true}));
+              await mountApp(/*smartTabSharingVisible=*/ false);
+              const {app, wrapper, innerComposebox} = parts;
+              const entrypointAndMenu = getEntrypointAndMenu();
+              const button = entrypointAndMenu.shadowRoot.querySelector(
+                  'cr-composebox-contextual-entrypoint-button');
+              assertTrue(!!button);
+              const entrypointButton = button;
+
+              async function settleChain() {
+                await microtasksFinished();
+                await app.updateComplete;
+                await wrapper.updateComplete;
+                await innerComposebox.updateComplete;
+                await entrypointAndMenu.updateComplete;
+                await entrypointButton.updateComplete;
+              }
+
+              // Baseline: leaving zero state marks the animation ineligible.
+              testProxy.callbackRouterRemote.onZeroStateChange(false);
+              await testProxy.callbackRouterRemote.$.flushForTesting();
+              await settleChain();
+              assertEquals(
+                  GlifAnimationState.INELIGIBLE,
+                  entrypointButton.glifAnimationState);
+              assertEquals(
+                  null,
+                  entrypointButton.shadowRoot.querySelector('#glowWrapper'));
+
+              // Entering zero state drives the wrapper's glifAnimationState_
+              // through the real chain: app -> wrapper -> innerComposebox ->
+              // entrypointAndMenu -> entrypointButton.
+              mockComposeboxPageHandler.resetResolver(
+                  'canShowNextboxAnimation');
+              mockComposeboxPageHandler.setResultFor(
+                  'canShowNextboxAnimation', Promise.resolve({canShow: true}));
+              testProxy.callbackRouterRemote.onZeroStateChange(true);
+              await testProxy.callbackRouterRemote.$.flushForTesting();
+              await settleChain();
+              assertEquals(
+                  1,
+                  mockComposeboxPageHandler.getCallCount(
+                      'canShowNextboxAnimation'));
+              assertEquals(
+                  GlifAnimationState.STARTED,
+                  entrypointButton.glifAnimationState);
+              assertEquals(
+                  'started',
+                  entrypointButton.getAttribute('glif-animation-state'));
+              const glowWrapper =
+                  entrypointButton.shadowRoot.querySelector('#glowWrapper');
+              assertTrue(!!glowWrapper);
+              assertTrue(glowWrapper.classList.contains('glow-container'));
+
+              // Leaving zero state retracts the glow render contract.
+              testProxy.callbackRouterRemote.onZeroStateChange(false);
+              await testProxy.callbackRouterRemote.$.flushForTesting();
+              await settleChain();
+              assertEquals(
+                  GlifAnimationState.INELIGIBLE,
+                  entrypointButton.glifAnimationState);
+              assertEquals(
+                  'ineligible',
+                  entrypointButton.getAttribute('glif-animation-state'));
+              assertEquals(
+                  null,
+                  entrypointButton.shadowRoot.querySelector('#glowWrapper'));
+              assertEquals(
+                  null,
+                  entrypointButton.shadowRoot.querySelector('.glow-container'));
+            });
+
+        test(
+            'fetches Smart Tab Sharing active state on connect when visible',
+            async () => {
+              mockComposeboxPageHandler.setResultFor(
+                  'getSmartTabSharingActive', Promise.resolve({active: true}));
+              await mountApp(/*smartTabSharingVisible=*/ true);
+              assertEquals(
+                  1,
+                  mockComposeboxPageHandler.getCallCount(
+                      'getSmartTabSharingActive'));
+              await microtasksFinished();
+              assertTrue(parts.innerComposebox.smartTabSharingActive);
+            });
+
+        test(
+            'does not fetch Smart Tab Sharing active state when not visible',
+            async () => {
+              await mountApp(/*smartTabSharingVisible=*/ false);
+              assertEquals(
+                  0,
+                  mockComposeboxPageHandler.getCallCount(
+                      'getSmartTabSharingActive'));
+            });
+
+        test('SmartTabSharingActiveChangedFiresMojo', async () => {
+          await mountApp(/*smartTabSharingVisible=*/ false);
+          const entrypointAndMenu = getEntrypointAndMenu();
+
+          mockComposeboxPageHandler.reset();
+
+          entrypointAndMenu.dispatchEvent(
+              new CustomEvent('smart-tab-sharing-active-changed', {
+                detail: {active: true},
+                bubbles: true,
+                composed: true,
+              }));
+
+          const activeArg = await mockComposeboxPageHandler.whenCalled(
+              'setSmartTabSharingActive');
+          assertEquals(
+              1,
+              mockComposeboxPageHandler.getCallCount(
+                  'setSmartTabSharingActive'));
+          assertEquals(true, activeArg);
+        });
+
+        test('ContextMenuOpenedFiresMojo', async () => {
+          await mountApp(/*smartTabSharingVisible=*/ false);
+          const entrypointAndMenu = getEntrypointAndMenu();
+
+          mockComposeboxPageHandler.reset();
+
+          entrypointAndMenu.dispatchEvent(
+              new CustomEvent('context-menu-opened', {
+                bubbles: true,
+                composed: true,
+              }));
+
+          await mockComposeboxPageHandler.whenCalled('onContextMenuOpened');
+          assertEquals(
+              1, mockComposeboxPageHandler.getCallCount('onContextMenuOpened'));
+        });
+
+        test(
+            'clears shared tab context when sharing becomes active',
+            async () => {
+              await mountApp(/*smartTabSharingVisible=*/ false);
+              const {innerComposebox} = parts;
+              const entrypointAndMenu = getEntrypointAndMenu();
+
+              entrypointAndMenu.dispatchEvent(
+                  new CustomEvent('add-tab-context', {
+                    detail: {
+                      id: 1,
+                      title: 'Shared tab',
+                      url: {url: 'https://example.com/'},
+                      delayUpload: false,
+                      origin: TabUploadOrigin.RECENT_TAB_CHIP,
+                    },
+                    bubbles: true,
+                    composed: true,
+                  }));
+              await mockSearchboxPageHandler.whenCalled('addTabContext');
+              await microtasksFinished();
+              assertEquals(1, innerComposebox.files.size);
+
+              entrypointAndMenu.dispatchEvent(
+                  new CustomEvent('smart-tab-sharing-active-changed', {
+                    detail: {active: true},
+                    bubbles: true,
+                    composed: true,
+                  }));
+              const activeArg = await mockComposeboxPageHandler.whenCalled(
+                  'setSmartTabSharingActive');
+              assertEquals(true, activeArg);
+              await microtasksFinished();
+              assertEquals(0, innerComposebox.files.size);
             });
       });
 });

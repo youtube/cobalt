@@ -115,6 +115,22 @@ TrustedVaultThrottlingConnectionImpl::DownloadIsRecoverabilityDegraded(
 }
 
 std::unique_ptr<TrustedVaultConnection::Request>
+TrustedVaultThrottlingConnectionImpl::DownloadGaiaPasswordPublicKey(
+    const CoreAccountInfo& account_info,
+    DownloadGaiaPasswordPublicKeyCallback callback) {
+  return delegate_->DownloadGaiaPasswordPublicKey(account_info,
+                                                  std::move(callback));
+}
+
+std::unique_ptr<TrustedVaultConnection::Request>
+TrustedVaultThrottlingConnectionImpl::RotateSharedKey(
+    const CoreAccountInfo& account_info,
+    const trusted_vault_pb::RotateSharedKeyRequest& request,
+    RotateSharedKeyCallback callback) {
+  return delegate_->RotateSharedKey(account_info, request, std::move(callback));
+}
+
+std::unique_ptr<TrustedVaultConnection::Request>
 TrustedVaultThrottlingConnectionImpl::
     DownloadAuthenticationFactorsRegistrationState(
         const CoreAccountInfo& account_info,

@@ -7,8 +7,10 @@
 #include <algorithm>
 #include <string_view>
 
+#include "ash/constants/ash_features.h"
 #include "ash/constants/ash_login_pref_names.h"
 #include "ash/constants/ash_pref_names.h"
+#include "ash/login/resources/grit/ash_login_strings.h"
 #include "base/check_deref.h"
 #include "base/command_line.h"
 #include "base/containers/fixed_flat_set.h"
@@ -27,7 +29,6 @@
 #include "chrome/browser/ash/login/wizard_controller.h"
 #include "chrome/browser/ash/system/timezone_util.h"
 #include "chrome/browser/ui/webui/ash/login/update_screen_handler.h"
-#include "chrome/grit/generated_resources.h"
 #include "chromeos/ash/components/network/network_state.h"
 #include "components/prefs/pref_service.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -107,8 +108,19 @@ void RecordUpdateCheckTimeout(bool timeout) {
   base::UmaHistogramBoolean("OOBE.UpdateScreen.CheckTimeout", timeout);
 }
 
-// Determines if the device is in EU zone to show info about opt out.
+// Determines whether to show the opt out notice to the user.
+// Returns false if the device is outside the EU zone or the opt out is
+// explicitly skipped via the OOBE configuration (e.g. during automated flows).
 bool CheckIfOptOutIsEnabled(PrefService& local_state) {
+  if (ash::features::IsDeviceMoveConfigSaveEnabled()) {
+    const base::DictValue& configuration =
+        OobeConfiguration::Get()->configuration();
+    if (configuration.FindBool(configuration::kSkipUpdateOptOutScreen)
+            .value_or(false)) {
+      return false;
+    }
+  }
+
   auto country = system::GetCountryCodeFromTimezoneIfAvailable(
       local_state.GetString(ash::prefs::kSigninScreenTimezone));
   if (!country.has_value()) {

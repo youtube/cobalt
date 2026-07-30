@@ -16,6 +16,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
 #include "chrome/browser/devtools/devtools_infobar_delegate.h"
 #include "chrome/browser/extensions/api/debugger/extension_dev_tools_infobar_delegate.h"
@@ -23,6 +24,7 @@
 #include "chrome/browser/extensions/extension_install_prompt.h"
 #include "chrome/browser/extensions/extension_service.h"
 #include "chrome/browser/extensions/theme_installed_infobar_delegate.h"
+#include "chrome/browser/infobars/browser_infobar_manager.h"
 #include "chrome/browser/infobars/infobar_features.h"
 #include "chrome/browser/infobars/test_support/infobar_observer.h"
 #include "chrome/browser/profiles/profile.h"
@@ -52,6 +54,7 @@
 #include "components/crx_file/crx_verifier.h"
 #include "components/infobars/content/content_infobar_manager.h"
 #include "components/infobars/core/infobar.h"
+#include "components/infobars/core/infobar_delegate.h"
 #include "content/public/common/buildflags.h"
 #include "content/public/test/browser_test.h"
 #include "extensions/browser/crx_installer.h"
@@ -91,12 +94,12 @@ class InfoBarsTest : public InProcessBrowserTest {
         base::FilePath().AppendASCII("extensions"),
         base::FilePath().AppendASCII(filename));
     extensions::TestExtensionRegistryObserver observer(
-        extensions::ExtensionRegistry::Get(browser()->profile()));
+        extensions::ExtensionRegistry::Get(browser()->GetProfile()));
 
     std::unique_ptr<ExtensionInstallPrompt> client(new ExtensionInstallPrompt(
         browser()->tab_strip_model()->GetActiveWebContents()));
     scoped_refptr<extensions::CrxInstaller> installer(
-        extensions::CrxInstaller::Create(browser()->profile(),
+        extensions::CrxInstaller::Create(browser()->GetProfile(),
                                          std::move(client)));
     installer->InstallCrx(path);
 
@@ -151,7 +154,8 @@ IN_PROC_BROWSER_TEST_F(InfoBarsTest, TestInfoBarsCloseOnNewTheme) {
   {
     InfoBarObserver observer(infobar_manager2,
                              InfoBarObserver::Type::kInfoBarRemoved);
-    ThemeServiceFactory::GetForProfile(browser()->profile())->UseDefaultTheme();
+    ThemeServiceFactory::GetForProfile(browser()->GetProfile())
+        ->UseDefaultTheme();
     observer.Wait();
     EXPECT_EQ(0u, infobar_manager2->infobars().size());
   }
@@ -162,7 +166,7 @@ class InfoBarUiTest : public TestInfoBar {
   InfoBarUiTest() {
     feature_list_.InitAndEnableFeatureWithParameters(
         infobars::kCentralizedInfoBarFramework,
-        {{"Migrated", "collected_cookies"}});
+        {{"Migrated", "collected_cookies,page_info"}});
   }
 
   InfoBarUiTest(const InfoBarUiTest&) = delete;
@@ -247,10 +251,10 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
     case IBD::THEME_INSTALLED_INFOBAR_DELEGATE:
       ThemeInstalledInfoBarDelegate::Create(
           GetInfoBarManager(),
-          ThemeServiceFactory::GetForProfile(browser()->profile()), "New Theme",
-          "id",
+          ThemeServiceFactory::GetForProfile(browser()->GetProfile()),
+          "New Theme", "id",
           std::make_unique<ThemeService::ThemeReinstaller>(
-              browser()->profile(), base::OnceClosure()));
+              browser()->GetProfile(), base::OnceClosure()));
       break;
 
 #if BUILDFLAG(ENABLE_PLUGINS)
@@ -325,7 +329,18 @@ void InfoBarUiTest::ShowUi(const std::string& name) {
       break;
 
     case IBD::PAGE_INFO_INFOBAR_DELEGATE:
-      PageInfoInfoBarDelegate::Create(GetInfoBarManager());
+      if (infobars::IsInfoBarMigrated(
+              infobars::InfoBarDelegate::PAGE_INFO_INFOBAR_DELEGATE)) {
+        auto* browser_infobar_manager =
+            infobars::BrowserInfoBarManager::From(g_browser_process);
+        if (browser_infobar_manager) {
+          browser_infobar_manager->Show(
+              GetWebContents(),
+              infobars::InfoBarDelegate::PAGE_INFO_INFOBAR_DELEGATE);
+        }
+      } else {
+        PageInfoInfoBarDelegate::Create(GetInfoBarManager());
+      }
       break;
 
     case IBD::TRANSLATE_INFOBAR_DELEGATE_NON_AURA: {

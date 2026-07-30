@@ -10,11 +10,13 @@
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/scoped_feature_list.h"
 #import "components/application_locale_storage/application_locale_storage.h"
+#import "components/omnibox/browser/mock_aim_eligibility_service.h"
 #import "components/omnibox/browser/omnibox_prefs.h"
 #import "components/open_from_clipboard/fake_clipboard_recent_content.h"
 #import "components/policy/core/common/policy_pref_names.h"
 #import "components/search_engines/search_engines_test_environment.h"
 #import "components/signin/public/base/consent_level.h"
+#import "components/signin/public/base/signin_pref_names.h"
 #import "components/signin/public/identity_manager/account_capabilities_test_mutator.h"
 #import "components/sync_preferences/testing_pref_service_syncable.h"
 #import "components/tab_groups/tab_group_id.h"
@@ -35,12 +37,15 @@
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
+#import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
+#import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/menu/ui_bundled/browser_action_factory.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_tab_helper.h"
 #import "ios/chrome/browser/optimization_guide/model/optimization_guide_service_factory.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_lock_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
+#import "ios/chrome/browser/shared/coordinator/scene/state/lens_overlay_state_notifier.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
@@ -79,6 +84,8 @@
 #import "ios/chrome/test/ios_chrome_scoped_testing_local_state.h"
 #import "ios/chrome/test/ios_chrome_scoped_testing_variations_service.h"
 #import "ios/chrome/test/testing_application_context.h"
+#import "ios/web/public/navigation/navigation_item.h"
+#import "ios/web/public/test/fakes/fake_navigation_manager.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
 #import "ios/web/public/test/web_task_environment.h"
 #import "testing/platform_test.h"
@@ -194,6 +201,7 @@ class AppBarMediatorTest : public PlatformTest {
 
     tab_grid_state_ = [[TabGridState alloc] init];
     incognito_state_ = [[IncognitoState alloc] initWithSceneState:nil];
+    lens_overlay_state_ = [[LensOverlayStateNotifier alloc] init];
     regular_web_state_list_ = regular_browser_->GetWebStateList();
     incognito_web_state_list_ = incognito_browser_->GetWebStateList();
 
@@ -211,6 +219,14 @@ class AppBarMediatorTest : public PlatformTest {
         std::make_unique<FakeClipboardRecentContent>());
 
     GeminiBrowserAgent::CreateForBrowser(regular_browser_.get());
+
+    aim_eligibility_service_ = std::make_unique<MockAimEligibilityService>(
+        *regular_profile_->GetTestingPrefService(),
+        search_engines_test_environment_.template_url_service(),
+        regular_profile_->GetSharedURLLoaderFactory(),
+        IdentityManagerFactory::GetForProfile(regular_profile_.get()));
+    ON_CALL(*aim_eligibility_service_, IsAimEligible())
+        .WillByDefault(testing::Return(false));
 
     mediator_ = [[AppBarMediator alloc]
             initWithRegularWebStateList:regular_web_state_list_.get()
@@ -235,9 +251,11 @@ class AppBarMediatorTest : public PlatformTest {
                           geminiService:gemini_service_ptr_.get()
                      geminiBrowserAgent:GeminiBrowserAgent::FromBrowser(
                                             regular_browser_.get())
+                  aimEligibilityService:aim_eligibility_service_.get()
                               URLLoader:url_loader_
                            tabGridState:tab_grid_state_
-                         incognitoState:incognito_state_];
+                         incognitoState:incognito_state_
+               lensOverlayStateNotifier:lens_overlay_state_];
 
     consumer_ = OCMProtocolMock(@protocol(TestAppBarConsumer));
     mediator_.consumer = consumer_;
@@ -262,6 +280,7 @@ class AppBarMediatorTest : public PlatformTest {
   ~AppBarMediatorTest() override {
     [mediator_ disconnect];
     mediator_ = nil;
+    aim_eligibility_service_.reset();
   }
 
   void SignInAndSetCapability(bool capability) {
@@ -314,6 +333,7 @@ class AppBarMediatorTest : public PlatformTest {
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
   IOSChromeScopedTestingVariationsService scoped_variations_service_;
   base::HistogramTester histogram_tester_;
+  std::unique_ptr<MockAimEligibilityService> aim_eligibility_service_;
   std::unique_ptr<TestProfileIOS> regular_profile_;
   std::unique_ptr<TestProfileIOS> incognito_profile_;
   std::unique_ptr<TestBrowser> regular_browser_;
@@ -325,6 +345,7 @@ class AppBarMediatorTest : public PlatformTest {
   raw_ptr<WebStateList> incognito_web_state_list_;
   TabGridState* tab_grid_state_;
   IncognitoState* incognito_state_;
+  LensOverlayStateNotifier* lens_overlay_state_;
   raw_ptr<AuthenticationService> auth_service_;
   std::unique_ptr<GeminiService> gemini_service_ptr_;
   raw_ptr<ChromeAccountManagerService> account_manager_service_;
@@ -848,9 +869,7 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonTappedEligible) {
 // by enterprise policy and Lens is available.
 TEST_F(AppBarMediatorTest, TestAssistantButtonStateAIM_DisabledByPolicyLens) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      {kAssistantContainer, kAimCobrowse, kGeminiKillSwitch},
-      {kPageActionMenu});
+  feature_list.InitWithFeatures({kGeminiKillSwitch}, {kPageActionMenu});
 
   regular_profile_->GetTestingPrefService()->SetInteger(
       omnibox::kAIModeSettings, 1);
@@ -870,9 +889,7 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateAIM_DisabledByPolicyLens) {
 TEST_F(AppBarMediatorTest,
        TestAssistantButtonStateAIM_DisabledByPolicyAccount) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      {kAssistantContainer, kAimCobrowse, kGeminiKillSwitch},
-      {kPageActionMenu});
+  feature_list.InitWithFeatures({kGeminiKillSwitch}, {kPageActionMenu});
 
   regular_profile_->GetTestingPrefService()->SetInteger(
       omnibox::kAIModeSettings, 1);
@@ -889,11 +906,13 @@ TEST_F(AppBarMediatorTest,
   EXPECT_OCMOCK_VERIFY(consumer_);
 }
 
-TEST_F(AppBarMediatorTest, TestAssistantButtonStateAIM) {
+// TODO(crbug.com/532071605): Re-enable when AIM button on App Bar is enabled.
+TEST_F(AppBarMediatorTest, DISABLED_TestAssistantButtonStateAIM) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      {kAssistantContainer, kAimCobrowse, kGeminiKillSwitch},
-      {kPageActionMenu});
+  feature_list.InitWithFeatures({kGeminiKillSwitch}, {kPageActionMenu});
+
+  EXPECT_CALL(*aim_eligibility_service_, IsAimEligible())
+      .WillRepeatedly(testing::Return(true));
 
   OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAIM
                                    highlighted:NO
@@ -906,7 +925,8 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateAIM) {
 
 // Tests that tapping the assistant button in the kAIM state dispatches
 // the show assistant command.
-TEST_F(AppBarMediatorTest, TestAssistantButtonTappedAIM) {
+// TODO(crbug.com/532071605): Re-enable when AIM button on App Bar is enabled.
+TEST_F(AppBarMediatorTest, DISABLED_TestAssistantButtonTappedAIM) {
   OCMExpect([mock_scene_handler_ showAssistant]);
   [mediator_ assistantButtonTappedWithState:AppBarAssistantButtonState::kAIM
                                    fromView:nil];
@@ -1044,9 +1064,11 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateLensWhenIneligibleSignedIn) {
                         geminiService:gemini_service_ptr_.get()
                    geminiBrowserAgent:GeminiBrowserAgent::FromBrowser(
                                           regular_browser_.get())
+                aimEligibilityService:aim_eligibility_service_.get()
                             URLLoader:url_loader_
                          tabGridState:tab_grid_state_
-                       incognitoState:incognito_state_];
+                       incognitoState:incognito_state_
+             lensOverlayStateNotifier:lens_overlay_state_];
   mediator_.consumer = consumer_;
   mediator_.sceneHandler = mock_scene_handler_;
   mediator_.settingsHandler = mock_settings_handler_;
@@ -1087,6 +1109,23 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateAccountDefault) {
       setAssistantButtonState:AppBarAssistantButtonState::kAccount
                   highlighted:NO
                       enabled:YES
+                       avatar:nil
+                     signedIn:NO]);
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button is disabled in the kAccount state when
+// sign-in is disabled.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStateAccount_SigninDisabled) {
+  SetLocationEligible(false);
+  GetApplicationContext()->GetLocalState()->SetBoolean(
+      prefs::kSigninAllowedOnDevice, false);
+
+  OCMExpect([consumer_
+      setAssistantButtonState:AppBarAssistantButtonState::kAccount
+                  highlighted:NO
+                      enabled:NO
                        avatar:nil
                      signedIn:NO]);
   [mediator_ updateAssistantButton];
@@ -1265,9 +1304,11 @@ TEST_F(AppBarMediatorTest, TestGeminiEligibilityChangeUpdatesAssistantButton) {
                         geminiService:&fake_gemini_service
                    geminiBrowserAgent:GeminiBrowserAgent::FromBrowser(
                                           regular_browser_.get())
+                aimEligibilityService:aim_eligibility_service_.get()
                             URLLoader:url_loader_
                          tabGridState:tab_grid_state_
-                       incognitoState:incognito_state_];
+                       incognitoState:incognito_state_
+             lensOverlayStateNotifier:lens_overlay_state_];
 
   id consumer = OCMProtocolMock(@protocol(TestAppBarConsumer));
   mediator.consumer = consumer;
@@ -1379,12 +1420,14 @@ TEST_F(AppBarMediatorTest,
 
 // Tests that the assistant button state is kAIM when Gemini is disabled
 // by GeminiSettings policy, but AIM features are allowed.
+// TODO(crbug.com/532071605): Re-enable when AIM button on App Bar is enabled.
 TEST_F(AppBarMediatorTest,
-       TestAssistantButtonStateAIM_WhenGeminiDisabledByPolicy) {
+       DISABLED_TestAssistantButtonStateAIM_WhenGeminiDisabledByPolicy) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      {kPageActionMenu, kAssistantContainer, kAimCobrowse},
-      {kGeminiKillSwitch});
+  feature_list.InitWithFeatures({kPageActionMenu}, {kGeminiKillSwitch});
+
+  EXPECT_CALL(*aim_eligibility_service_, IsAimEligible())
+      .WillRepeatedly(testing::Return(true));
 
   SetLocationEligible(true);
 
@@ -1405,12 +1448,14 @@ TEST_F(AppBarMediatorTest,
 
 // Tests that the assistant button state is kAIM when Gemini is disabled
 // by GenAiDefaultSettings policy, but AIM features are allowed.
+// TODO(crbug.com/532071605): Re-enable when AIM button on App Bar is enabled.
 TEST_F(AppBarMediatorTest,
-       TestAssistantButtonStateAIM_WhenGenAiDisabledByPolicy) {
+       DISABLED_TestAssistantButtonStateAIM_WhenGenAiDisabledByPolicy) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      {kPageActionMenu, kAssistantContainer, kAimCobrowse},
-      {kGeminiKillSwitch});
+  feature_list.InitWithFeatures({kPageActionMenu}, {kGeminiKillSwitch});
+
+  EXPECT_CALL(*aim_eligibility_service_, IsAimEligible())
+      .WillRepeatedly(testing::Return(true));
 
   SetLocationEligible(true);
 
@@ -1475,9 +1520,11 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateOnLoadMetric_Lens) {
                         geminiService:gemini_service_ptr_.get()
                    geminiBrowserAgent:GeminiBrowserAgent::FromBrowser(
                                           regular_browser_.get())
+                aimEligibilityService:aim_eligibility_service_.get()
                             URLLoader:url_loader_
                          tabGridState:tab_grid_state_
-                       incognitoState:incognito_state_];
+                       incognitoState:incognito_state_
+             lensOverlayStateNotifier:lens_overlay_state_];
 
   local_mediator.overrideLensAvailabilityForTesting = YES;
 
@@ -1538,9 +1585,11 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateOnLoadMetric_Account) {
                         geminiService:gemini_service_ptr_.get()
                    geminiBrowserAgent:GeminiBrowserAgent::FromBrowser(
                                           regular_browser_.get())
+                aimEligibilityService:aim_eligibility_service_.get()
                             URLLoader:url_loader_
                          tabGridState:tab_grid_state_
-                       incognitoState:incognito_state_];
+                       incognitoState:incognito_state_
+             lensOverlayStateNotifier:lens_overlay_state_];
 
   local_mediator.overrideLensAvailabilityForTesting = NO;
   SetLocationEligible(false);
@@ -1564,19 +1613,27 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateOnLoadMetric_Account) {
 }
 
 // Tests the AIM state on-load metric.
-TEST_F(AppBarMediatorTest, TestAssistantButtonStateOnLoadMetric_AIM) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitWithFeatures(
-      {kAssistantContainer, kAimCobrowse, kGeminiKillSwitch},
-      {kPageActionMenu});
+// TODO(crbug.com/532071605): Re-enable when AIM button on App Bar is enabled.
+TEST_F(AppBarMediatorTest, DISABLED_TestAssistantButtonStateOnLoadMetric_AIM) {
+  // Disable Gemini via policy.
+  regular_profile_->GetTestingPrefService()->SetInteger(
+      prefs::kGeminiEnabledByPolicy,
+      static_cast<int>(gemini::SettingsPolicy::kNotAllowed));
 
-  // Recreate the mediator.
+  // Enable AIM features.
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({}, {});
+
+  // Recreate the mediator to test the initial on-load recording.
   BrowserActionFactory* regular_action_factory =
       [[BrowserActionFactory alloc] initWithBrowser:regular_browser_.get()
                                            scenario:kTestMenuScenario];
   BrowserActionFactory* incognito_action_factory =
       [[BrowserActionFactory alloc] initWithBrowser:incognito_browser_.get()
                                            scenario:kTestMenuScenario];
+
+  EXPECT_CALL(*aim_eligibility_service_, IsAimEligible())
+      .WillRepeatedly(testing::Return(true));
 
   base::HistogramTester local_histogram_tester;
   AppBarMediator* local_mediator = [[AppBarMediator alloc]
@@ -1601,10 +1658,13 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateOnLoadMetric_AIM) {
                         geminiService:gemini_service_ptr_.get()
                    geminiBrowserAgent:GeminiBrowserAgent::FromBrowser(
                                           regular_browser_.get())
+                aimEligibilityService:aim_eligibility_service_.get()
                             URLLoader:url_loader_
                          tabGridState:tab_grid_state_
-                       incognitoState:incognito_state_];
+                       incognitoState:incognito_state_
+             lensOverlayStateNotifier:lens_overlay_state_];
 
+  // We expect the consumer to be updated with kAIM.
   id local_consumer = OCMProtocolMock(@protocol(TestAppBarConsumer));
   OCMExpect([local_consumer
       setAssistantButtonState:AppBarAssistantButtonState::kAIM
@@ -1613,7 +1673,10 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateOnLoadMetric_AIM) {
                        avatar:nil
                      signedIn:NO]);
 
+  // Setting the consumer triggers updateAssistantButton and should record the
+  // metric.
   local_mediator.consumer = local_consumer;
+
   EXPECT_OCMOCK_VERIFY(local_consumer);
 
   local_histogram_tester.ExpectUniqueSample(
@@ -1621,4 +1684,126 @@ TEST_F(AppBarMediatorTest, TestAssistantButtonStateOnLoadMetric_AIM) {
       AppBarAssistantButtonState::kAIM, 1);
 
   [local_mediator disconnect];
+}
+
+// Tests the priority chain: Gemini (kAsk) has priority over AIM (kAIM) and Lens
+// (kLens).
+TEST_F(AppBarMediatorTest, TestAssistantButtonStatePriority_GeminiOverAll) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({}, {});
+
+  SetLocationEligible(true);
+  mediator_.overrideLensAvailabilityForTesting = YES;
+
+  // Gemini is eligible, AIM is eligible, Lens is eligible.
+  // Gemini (kAsk) should be chosen (disabled because no active web state).
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAsk
+                                   highlighted:NO
+                                       enabled:NO
+                                        avatar:nil
+                                      signedIn:NO]);
+
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests the priority chain: AIM (kAIM) has priority over Lens (kLens) when
+// Gemini is ineligible.
+// TODO(crbug.com/532071605): Re-enable when AIM button on App Bar is enabled.
+TEST_F(AppBarMediatorTest,
+       DISABLED_TestAssistantButtonStatePriority_AIMOverLens) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatures({}, {});
+
+  EXPECT_CALL(*aim_eligibility_service_, IsAimEligible())
+      .WillRepeatedly(testing::Return(true));
+
+  // Keep location eligible for AIM, but disable Gemini via policy.
+  SetLocationEligible(true);
+  regular_profile_->GetTestingPrefService()->SetInteger(
+      prefs::kGeminiEnabledByPolicy,
+      static_cast<int>(gemini::SettingsPolicy::kNotAllowed));
+
+  mediator_.overrideLensAvailabilityForTesting = YES;
+
+  // Gemini is ineligible, AIM is eligible, Lens is eligible.
+  // AIM (kAIM) should be chosen.
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kAIM
+                                   highlighted:NO
+                                       enabled:YES
+                                        avatar:nil
+                                      signedIn:NO]);
+
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests the priority chain: Lens (kLens) has priority over Account (kAccount)
+// when Gemini and AIM are ineligible.
+TEST_F(AppBarMediatorTest, TestAssistantButtonStatePriority_LensOverAccount) {
+  // Make Gemini ineligible via country gating.
+  SetLocationEligible(false);
+  mediator_.overrideLensAvailabilityForTesting = YES;
+
+  // Gemini is ineligible, AIM is ineligible (disabled by default), Lens is
+  // eligible. Lens (kLens) should be chosen.
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kLens
+                                   highlighted:NO
+                                       enabled:YES
+                                        avatar:nil
+                                      signedIn:NO]);
+
+  [mediator_ updateAssistantButton];
+  EXPECT_OCMOCK_VERIFY(consumer_);
+}
+
+// Tests that the assistant button is disabled when Lens Overlay is visible.
+TEST_F(AppBarMediatorTest, TestAssistantButtonDisabledWhenLensOverlayVisible) {
+  SetLocationEligible(false);
+  mediator_.overrideLensAvailabilityForTesting = YES;
+
+  std::unique_ptr<web::FakeWebState> web_state =
+      std::make_unique<web::FakeWebState>();
+  web_state->SetBrowserState(regular_profile_.get());
+
+  auto fake_navigation_manager = std::make_unique<web::FakeNavigationManager>();
+  fake_navigation_manager->AddItem(GURL("https://example.com"),
+                                   ui::PAGE_TRANSITION_LINK);
+  fake_navigation_manager->SetVisibleItem(
+      fake_navigation_manager->GetItemAtIndex(0));
+  web_state->SetNavigationManager(std::move(fake_navigation_manager));
+
+  LensOverlayTabHelper::CreateForWebState(web_state.get());
+  LensOverlayTabHelper* helper =
+      LensOverlayTabHelper::FromWebState(web_state.get());
+
+  regular_web_state_list_->InsertWebState(
+      std::move(web_state),
+      WebStateList::InsertionParams::AtIndex(0).Activate());
+
+  helper->SetLensOverlayUIAttachedAndAlive(true);
+
+  OCMExpect([consumer_ setAssistantButtonState:AppBarAssistantButtonState::kLens
+                                   highlighted:NO
+                                       enabled:NO
+                                        avatar:[OCMArg any]
+                                      signedIn:NO])
+      .ignoringNonObjectArgs()
+      .andDo(^(NSInvocation* invocation) {
+        BOOL highlighted;
+        [invocation getArgument:&highlighted atIndex:3];
+        BOOL enabled;
+        [invocation getArgument:&enabled atIndex:4];
+        UIImage* avatar;
+        [invocation getArgument:&avatar atIndex:5];
+        BOOL signedIn;
+        [invocation getArgument:&signedIn atIndex:6];
+
+        EXPECT_FALSE(highlighted);
+        EXPECT_FALSE(enabled);
+        EXPECT_EQ(nil, avatar);
+        EXPECT_FALSE(signedIn);
+      });
+  [lens_overlay_state_ lensOverlayDidPrepare];
+  EXPECT_OCMOCK_VERIFY(consumer_);
 }

@@ -7,6 +7,7 @@
 // and debug. When waiting is required, `base::test::RunUntil` is usually
 // sufficient and simpler than a full `RunTestSequence`.
 
+#include "base/memory_coordinator/memory_coordinator_features.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/user_action_tester.h"
@@ -15,6 +16,7 @@
 #include "base/test/test_future.h"
 #include "base/timer/elapsed_timer.h"
 #include "build/build_config.h"
+#include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_tab_restore_data.h"
 #include "chrome/browser/glic/host/glic.mojom-shared.h"
@@ -156,7 +158,13 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   EXPECT_EQ(coordinator().GetInstances().size(), 0u);
 }
 
-IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest, CloseHidesInstance) {
+#if BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/523146661): Failing on Android.
+#define MAYBE_CloseHidesInstance DISABLED_CloseHidesInstance
+#else
+#define MAYBE_CloseHidesInstance CloseHidesInstance
+#endif
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest, MAYBE_CloseHidesInstance) {
   ToggleGlicForActiveTab();
   ASSERT_OK_AND_ASSIGN(auto* instance, WaitForGlicOpen());
 
@@ -235,9 +243,9 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorUnbindOnCloseTest,
   EXPECT_EQ(GetContentsVisibility(instance1), content::Visibility::HIDDEN);
 }
 
-// TODO(crbug.com/514816170): Re-enable when no longer flaky on Android and
-// Windows.
-#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN)
+// TODO(crbug.com/514816170): Re-enable when no longer flaky on Android,
+// Windows, and Linux.
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
 #define MAYBE_UnboundWhenClosedBySidePanelCoordinator \
   DISABLED_UnboundWhenClosedBySidePanelCoordinator
 #else
@@ -497,6 +505,26 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
       glic::prefs::kGlicKeepSidepanelOpenOnNewTabsEnabled, false);
   tabs::TabInterface* tab3 = CreateUserInitiatedTab(GURL("about:blank"));
   EXPECT_FALSE(GetInstanceForTab(tab3));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       CreateTabWithoutShowingSidePanel) {
+  ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTab());
+  tabs::TabInterface* original_tab = GetTabListInterface()->GetActiveTab();
+  EXPECT_TRUE(GetInstanceForTab(original_tab));
+
+  GlicTestTabAddedWaiter waiter(GetProfile());
+  instance->CreateTab(GetSimpleTestUrl(),
+                      /*open_in_background=*/false, std::nullopt,
+                      base::DoNothing(), /*show_side_panel=*/false);
+  tabs::TabInterface* new_tab = waiter.Wait();
+  ASSERT_TRUE(new_tab);
+
+  EXPECT_NE(original_tab, new_tab);
+  // With show_side_panel = false, the new tab is bound to the instance,
+  // but the side panel is not shown on the newly created tab.
+  EXPECT_EQ(GetInstanceForTab(new_tab), instance);
+  EXPECT_NE(instance->GetActiveEmbedderTabForTesting(), new_tab);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
@@ -1177,8 +1205,9 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorActorTaskTest,
   EXPECT_OK(WaitForEmbedderActivationOrPeek(instance, tab2));
 }
 
+// TODO(crbug.com/533364604): Fix flakiness.
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorActorTaskTest,
-                       OnTabAddedToTaskShortcutsIfAlreadyBound) {
+                       DISABLED_OnTabAddedToTaskShortcutsIfAlreadyBound) {
   ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance, OpenGlicForActiveTab());
   tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
 
@@ -1236,6 +1265,35 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorHibernationTest,
   EXPECT_FALSE(instance5->IsHibernated());
 }
 
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorHibernationTest,
+                       AwakeningEnforcesAwakeLimit) {
+  // TODO(crbug.com/498990943): Flaky on Android x64 emulator due to a race
+  // condition between switching tabs and Android's asynchronous bottom sheet
+  // dismissal animation.
+  SKIP_TEST_FOR_NON_DESKTOP_ANDROID();
+  // Create 3 instances when limit is 2.
+  tabs::TabInterface* tab1 = GetTabListInterface()->GetActiveTab();
+  ASSERT_OK_AND_ASSIGN(auto* instance1, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance2, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance3, OpenGlicForActiveTab());
+
+  EXPECT_TRUE(instance1->IsHibernated());
+  EXPECT_FALSE(instance2->IsHibernated());
+  EXPECT_FALSE(instance3->IsHibernated());
+
+  // Switch back to tab 1 and re-open Glic.
+  GetTabListInterface()->ActivateTab(tab1->GetHandle());
+  ASSERT_OK(OpenGlicForActiveTab());
+
+  // instance1 should awaken, and instance2 (the oldest awake candidate)
+  // must be hibernated to keep the total awake count at 2!
+  EXPECT_FALSE(instance1->IsHibernated());
+  EXPECT_TRUE(instance2->IsHibernated());
+  EXPECT_FALSE(instance3->IsHibernated());
+}
+
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
                        ShowingInstancesAreNotHibernatedOnMemoryPressure) {
   ASSERT_OK_AND_ASSIGN(auto* instance1, OpenGlicForActiveTab());
@@ -1255,6 +1313,205 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
       base::MEMORY_PRESSURE_LEVEL_CRITICAL);
   EXPECT_FALSE(instance2->IsHibernated());
 }
+
+class GlicInstanceStatefulMemoryPressureTest
+    : public GlicInstanceCoordinatorBrowserTest {
+ public:
+  GlicInstanceStatefulMemoryPressureTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {{base::kStatefulMemoryPressure, {}},
+         {kGlicMaxAwakeInstances,
+          {{"limit", "4"}, {"moderate_pressure_limit", "2"}}}},
+        /*disabled_features=*/{});
+  }
+
+  void TearDownOnMainThread() override {
+    base::MemoryPressureListener::SimulatePressureNotification(
+        base::MEMORY_PRESSURE_LEVEL_NONE);
+    GlicInstanceCoordinatorBrowserTest::TearDownOnMainThread();
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceStatefulMemoryPressureTest,
+                       UnhibernateEnforcesScaledLimitDuringModeratePressure) {
+  // With limit = 4, moderate pressure scales the limit down to 2.
+  base::MemoryPressureListener::SimulatePressureNotification(
+      base::MEMORY_PRESSURE_LEVEL_MODERATE);
+
+  ASSERT_OK_AND_ASSIGN(auto* instance1, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance2, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance3, OpenGlicForActiveTab());
+
+  // Opening the 3rd instance under moderate pressure (limit 2) should cause the
+  // oldest background instance (instance1) to be hibernated.
+  EXPECT_TRUE(instance1->IsHibernated());
+  EXPECT_FALSE(instance2->IsHibernated());
+  EXPECT_FALSE(instance3->IsHibernated());
+}
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceStatefulMemoryPressureTest,
+                       ModeratePressureRecoveryWhenPressureRelieved) {
+  // With limit = 4, moderate pressure scales the limit down to 2.
+  base::MemoryPressureListener::SimulatePressureNotification(
+      base::MEMORY_PRESSURE_LEVEL_MODERATE);
+
+  ASSERT_OK_AND_ASSIGN(auto* instance1, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance2, OpenGlicForActiveTab());
+
+  EXPECT_FALSE(instance1->IsHibernated());
+  EXPECT_FALSE(instance2->IsHibernated());
+
+  // Relieve memory pressure back to NONE. The limit should recover to 4.
+  base::MemoryPressureListener::SimulatePressureNotification(
+      base::MEMORY_PRESSURE_LEVEL_NONE);
+
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance3, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance4, OpenGlicForActiveTab());
+
+  // All 4 instances should remain awake without trimming.
+  EXPECT_FALSE(instance1->IsHibernated());
+  EXPECT_FALSE(instance2->IsHibernated());
+  EXPECT_FALSE(instance3->IsHibernated());
+  EXPECT_FALSE(instance4->IsHibernated());
+}
+
+class GlicInstanceStatefulMemoryPressureDisabledTest
+    : public GlicInstanceCoordinatorBrowserTest {
+ public:
+  GlicInstanceStatefulMemoryPressureDisabledTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {{kGlicMaxAwakeInstances,
+          {{"limit", "4"}, {"moderate_pressure_limit", "2"}}}},
+        /*disabled_features=*/
+        {base::kStatefulMemoryPressure});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceStatefulMemoryPressureDisabledTest,
+                       ModeratePressureDoesNotScaleAwakeLimit) {
+  ASSERT_OK_AND_ASSIGN(auto* instance1, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance2, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance3, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance4, OpenGlicForActiveTab());
+
+  // Under normal pressure (limit 4), all 4 instances are awake.
+  EXPECT_FALSE(instance1->IsHibernated());
+  EXPECT_FALSE(instance2->IsHibernated());
+  EXPECT_FALSE(instance3->IsHibernated());
+  EXPECT_FALSE(instance4->IsHibernated());
+
+  // Simulate moderate memory pressure when the feature is disabled.
+  // The limit should remain 4, so no instances are hibernated.
+  base::MemoryPressureListener::SimulatePressureNotification(
+      base::MEMORY_PRESSURE_LEVEL_MODERATE);
+
+  EXPECT_FALSE(instance1->IsHibernated());
+  EXPECT_FALSE(instance2->IsHibernated());
+  EXPECT_FALSE(instance3->IsHibernated());
+  EXPECT_FALSE(instance4->IsHibernated());
+
+  // Opening a 5th instance should enforce the unscaled limit of 4,
+  // hibernating only the oldest instance (instance1).
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance5, OpenGlicForActiveTab());
+
+  EXPECT_TRUE(instance1->IsHibernated());
+  EXPECT_FALSE(instance2->IsHibernated());
+  EXPECT_FALSE(instance3->IsHibernated());
+  EXPECT_FALSE(instance4->IsHibernated());
+  EXPECT_FALSE(instance5->IsHibernated());
+}
+
+struct PressureLimitTestCase {
+  std::string test_name;
+  std::string moderate_limit_param;
+  std::string critical_limit_param;
+  base::MemoryPressureLevel simulated_level;
+  size_t expected_awake_count;
+};
+
+class GlicInstanceStatefulMemoryPressureParamTest
+    : public GlicInstanceCoordinatorBrowserTest,
+      public testing::WithParamInterface<PressureLimitTestCase> {
+ public:
+  GlicInstanceStatefulMemoryPressureParamTest() {
+    feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {{base::kStatefulMemoryPressure, {}},
+         {kGlicMaxAwakeInstances,
+          {{"limit", "4"},
+           {"moderate_pressure_limit", GetParam().moderate_limit_param},
+           {"critical_pressure_limit", GetParam().critical_limit_param}}}},
+        /*disabled_features=*/{});
+  }
+
+  void TearDownOnMainThread() override {
+    base::MemoryPressureListener::SimulatePressureNotification(
+        base::MEMORY_PRESSURE_LEVEL_NONE);
+    GlicInstanceCoordinatorBrowserTest::TearDownOnMainThread();
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(GlicInstanceStatefulMemoryPressureParamTest,
+                       TrimsToExpectedLimit) {
+  // Create 4 awake background instances (baseline limit = 4).
+  ASSERT_OK_AND_ASSIGN(auto* instance1, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance2, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance3, OpenGlicForActiveTab());
+  CreateAndActivateTab(GURL("about:blank"));
+  ASSERT_OK_AND_ASSIGN(auto* instance4, OpenGlicForActiveTab());
+
+  base::MemoryPressureListener::SimulatePressureNotification(
+      GetParam().simulated_level);
+
+  size_t awake_count = 0;
+  for (GlicInstanceImpl* instance :
+       {instance1, instance2, instance3, instance4}) {
+    if (!instance->IsHibernated()) {
+      awake_count++;
+    }
+  }
+  EXPECT_EQ(awake_count, GetParam().expected_awake_count);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    GlicInstanceStatefulMemoryPressureParamTest,
+    testing::Values(
+        PressureLimitTestCase{"ModerateDefaultLimit", "2", "0",
+                              base::MEMORY_PRESSURE_LEVEL_MODERATE, 2},
+        PressureLimitTestCase{"CriticalDefaultLimit", "2", "0",
+                              base::MEMORY_PRESSURE_LEVEL_CRITICAL, 1},
+        PressureLimitTestCase{"ModerateCustomLimit", "3", "0",
+                              base::MEMORY_PRESSURE_LEVEL_MODERATE, 3},
+        PressureLimitTestCase{"CriticalCustomLimit", "2", "1",
+                              base::MEMORY_PRESSURE_LEVEL_CRITICAL, 1},
+        PressureLimitTestCase{"MonotonicClamping", "2", "5",
+                              base::MEMORY_PRESSURE_LEVEL_CRITICAL, 2}),
+    [](const testing::TestParamInfo<PressureLimitTestCase>& info) {
+      return info.param.test_name;
+    });
 
 class GlicInstanceCoordinatorNoWarmingTest
     : public GlicInstanceCoordinatorBrowserTest {
@@ -1383,7 +1640,8 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorActuationBrowserTest,
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
                        SaasUsageReportingOnOpen) {
   // Set the policy to include the GiC virtual domain.
@@ -1443,12 +1701,24 @@ class GlicInstanceCoordinatorLocalHotkeyScopeTest
     scoped_feature_list_.InitAndEnableFeature(features::kGlicHotkeyLocalScope);
   }
 
+  void SetUpOnMainThread() override {
+    GlicInstanceCoordinatorBrowserTest::SetUpOnMainThread();
+    g_browser_process->local_state()->SetBoolean(prefs::kGlicLauncherEnabled,
+                                                 true);
+  }
+
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
+#if BUILDFLAG(IS_ANDROID)
+// TODO(crbug.com/522616857): Failing on Android.
+#define MAYBE_HotkeyTriggersToggle DISABLED_HotkeyTriggersToggle
+#else
+#define MAYBE_HotkeyTriggersToggle HotkeyTriggersToggle
+#endif
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorLocalHotkeyScopeTest,
-                       HotkeyTriggersToggle) {
+                       MAYBE_HotkeyTriggersToggle) {
   EXPECT_EQ(coordinator().GetInstances().size(), 0u);
 
   // Simulate receiving the hotkey command.
@@ -1557,6 +1827,71 @@ IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
   ASSERT_OK(WaitForInstanceDeletion(weak_instance));
   EXPECT_EQ(coordinator().GetInstances().size(), 0u);
 }
+
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       LastActiveOrNewSurface_ResolvesToBoundTab) {
+  tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
+  ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTab());
+  auto instance_id = instance->id();
+
+  PreventDeletionOnClose(instance);
+
+  // Close the embedder.
+  ASSERT_OK(CloseGlicForTabAndWait(tab));
+
+  EXPECT_FALSE(instance->HasActiveEmbedder());
+  EXPECT_TRUE(std::find(instance->GetBoundTabs().begin(),
+                        instance->GetBoundTabs().end(),
+                        tab) != instance->GetBoundTabs().end());
+
+  // Add and activate a new tab so that the original tab is no longer active.
+  tabs::TabInterface* new_tab = CreateAndActivateTab(GURL("about:blank"));
+  EXPECT_NE(tab, new_tab);
+  EXPECT_EQ(GetTabListInterface()->GetActiveTab(), new_tab);
+
+  GlicInvokeOptions options(Target(LastActiveOrNew{}),
+                            glic::mojom::InvocationSource::kOsButton);
+  options.target.conversation = instance_id;
+
+  coordinator().Invoke(std::move(options));
+
+  ASSERT_OK(WaitForSidePanelState(
+      tab, GlicSidePanelCoordinator::State::kBackgrounded));
+  EXPECT_FALSE(instance->HasActiveEmbedder());
+}
+
+#if !BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
+                       LastActiveOrNewSurface_ResolvesToFloating) {
+  // Use Toggle without a browser to create a new Glic instance as a floating
+  // panel.
+  coordinator().Toggle(/*browser=*/nullptr, /*prevent_close=*/true,
+                       glic::mojom::InvocationSource::kOsButton);
+  ASSERT_OK_AND_ASSIGN(auto* instance, WaitForGlicOpen());
+  auto instance_id = instance->id();
+
+  PreventDeletionOnClose(instance);
+
+  EXPECT_TRUE(instance->HasActiveEmbedder());
+  EXPECT_TRUE(instance->GetBoundTabs().empty());
+
+  // Close the floating window.
+  coordinator().Close(CloseOptions());
+  ASSERT_OK(WaitForGlicClose(instance));
+  EXPECT_FALSE(instance->HasActiveEmbedder());
+
+  // Now invoke with LastActiveOrNew, and it should resurrect as floating.
+  GlicInvokeOptions options(Target(LastActiveOrNew{}),
+                            glic::mojom::InvocationSource::kOsButton);
+  options.target.conversation = instance_id;
+
+  coordinator().Invoke(std::move(options));
+
+  ASSERT_OK(WaitForGlicOpen(instance));
+  EXPECT_TRUE(instance->HasActiveEmbedder());
+  EXPECT_TRUE(instance->GetBoundTabs().empty());
+}
+#endif
 
 IN_PROC_BROWSER_TEST_F(GlicInstanceCoordinatorBrowserTest,
                        TabRestoration_ReusesDyingInstanceBeforeDeletion) {

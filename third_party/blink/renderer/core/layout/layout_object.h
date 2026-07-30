@@ -96,6 +96,8 @@ struct PaintInvalidatorContext;
 struct SVGLayoutInfo;
 struct SVGLayoutResult;
 
+enum class PhysicalAxis : uint8_t;
+
 enum CursorDirective { kSetCursorBasedOnStyle, kSetCursor, kDoNotSetCursor };
 
 enum MarkingBehavior {
@@ -2263,8 +2265,14 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
 
   LayoutBlock* InclusiveContainingBlock(AncestorSkipInfo* = nullptr);
 
+  // Returns the nearest ancestor scroll container.
   const LayoutBox* ContainingScrollContainer(
       bool ignore_layout_view_for_fixed_pos = false) const;
+
+  // Returns the nearest ancestor scroll container with a scrollable overflow
+  // value in the given axis.
+  const LayoutBox* ContainingScrollContainer(PhysicalAxis axis) const;
+
   const PaintLayer* ContainingScrollContainerLayer(
       bool ignore_layout_view_for_fixed_pos = false) const;
 
@@ -2489,9 +2497,7 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   /* The following methods are inlined in LayoutObjectInlines.h */
   // If first line style is requested and there is no applicable first line
   // style, the functions will return the style of this object.
-  inline const ComputedStyle* FirstLineStyle() const;
   inline const ComputedStyle& FirstLineStyleRef() const;
-  inline const ComputedStyle* Style(bool first_line) const;
   inline const ComputedStyle& StyleRef(bool first_line) const;
 
   const ComputedStyle& EffectiveStyle(StyleVariant style_variant) const {
@@ -2509,19 +2515,6 @@ class CORE_EXPORT LayoutObject : public GarbageCollected<LayoutObject>,
   inline Color ResolveColor(const Longhand& color_property) const {
     NOT_DESTROYED();
     return StyleRef().VisitedDependentColor(color_property);
-  }
-
-  // See ComputedStyle::VisitedDependentColorFast().
-  template <class Property>
-  static inline Color ResolveColorFast(const ComputedStyle& style_to_use,
-                                       const Property& color_property) {
-    return style_to_use.VisitedDependentColorFast(color_property);
-  }
-
-  template <class Property>
-  inline Color ResolveColorFast(const Property& color_property) const {
-    NOT_DESTROYED();
-    return StyleRef().VisitedDependentColorFast(color_property);
   }
 
   virtual CursorDirective GetCursor(const PhysicalOffset&, ui::Cursor&) const;

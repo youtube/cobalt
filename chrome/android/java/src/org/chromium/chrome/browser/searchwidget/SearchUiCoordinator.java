@@ -14,6 +14,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.view.View;
 
 import androidx.annotation.ColorRes;
+import androidx.annotation.DrawableRes;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
@@ -169,6 +170,12 @@ public class SearchUiCoordinator {
         mLocationBarCoordinator.setUrlBarFocusable(true);
         mLocationBarCoordinator.setShouldShowMicButtonWhenUnfocused(true);
         setColorScheme(mLocationBarDataProvider.isIncognitoBranded());
+
+        // The native initialization may have already finished before this coordinator was
+        // initialized. Finish native initialization for the LocationBarCoordinator in that case.
+        if (lifecycleDispatcher.isNativeInitializationFinished()) {
+            mLocationBarCoordinator.onFinishNativeInitialization();
+        }
     }
 
     /** Destroys the coordinator and its associated underlying components. */
@@ -212,6 +219,17 @@ public class SearchUiCoordinator {
      */
     public LocationBarEmbedderUiOverrides getLocationBarUiOverrides() {
         return mLocationBarUiOverrides;
+    }
+
+    /**
+     * Sets an icon override resource ID to replace the default status icon. See {@link
+     * StatusCoordinator#setDefaultStatusIconOverrideResId(int)} for more details.
+     *
+     * @param iconOverrideResId The resource ID of the override icon, or {@link Resources#ID_NULL}
+     *     to clear.
+     */
+    public void setDefaultStatusIconOverrideResId(@DrawableRes int iconOverrideResId) {
+        assertNonNull(mLocationBarCoordinator).setDefaultStatusIconOverrideResId(iconOverrideResId);
     }
 
     @VisibleForTesting

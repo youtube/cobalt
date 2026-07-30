@@ -5,18 +5,27 @@
 #include "components/safe_browsing/core/browser/db/v5_store.h"
 
 #include <optional>
+#include <set>
 #include <utility>
 
+#include "base/containers/span.h"
+#include "base/files/file_enumerator.h"
+#include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
+#include "base/strings/string_view_util.h"
 #include "base/timer/elapsed_timer.h"
+#include "base/types/expected.h"
 #include "components/crx_file/id_util.h"
 #include "components/safe_browsing/core/browser/db/hash_prefix_container.h"
 #include "components/safe_browsing/core/browser/db/sb_protocol_manager_util.h"
 #include "components/safe_browsing/core/browser/db/v4_store.pb.h"
+#include "components/safe_browsing/core/browser/db/v5_hash_list_rice_decoder.h"
+#include "components/safe_browsing/core/common/proto/safebrowsingv5.pb.h"
 #include "components/safe_browsing/core/common/proto/v5_store.pb.h"
 #include "crypto/hash.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
@@ -50,12 +59,106 @@ void RecordApplyUpdateResult(const std::string& base_metric,
   RecordEnumWithAndWithoutSuffix(base_metric + kApplyUpdate, result, file_path);
 }
 
+void RecordApplyUpdateDuration(const std::string& base_metric,
+                               base::TimeDelta elapsed) {
+  base::UmaHistogramTimes(base_metric + ".ApplyUpdateDuration", elapsed);
+}
+
+void RecordDecodeRemovalsResult(const std::string& base_metric,
+                                V5DecodeResult result,
+                                const base::FilePath& file_path) {
+  RecordEnumWithAndWithoutSuffix(base_metric + ".DecodeRemovals", result,
+                                 file_path);
+}
+
+void RecordRemovalsHashesCount(const std::string& base_metric,
+                               size_t count,
+                               const base::FilePath& file_path) {
+  std::string metric = base_metric + ".RemovalsHashesCount";
+  base::UmaHistogramCounts10000(metric, count);
+  std::string suffix = GetUmaSuffixForStore(file_path);
+  base::UmaHistogramCounts10000(metric + suffix, count);
+}
+
+void RecordDecodeAdditionsResult(const std::string& base_metric,
+                                 V5DecodeResult result,
+                                 const base::FilePath& file_path) {
+  RecordEnumWithAndWithoutSuffix(base_metric + ".DecodeAdditions", result,
+                                 file_path);
+}
+
+void RecordAdditionsHashesCount(const std::string& base_metric,
+                                bool is_full_update,
+                                size_t count,
+                                const base::FilePath& file_path) {
+  std::string metric = base_metric + ".AdditionsHashesCount";
+  std::string suffix = GetUmaSuffixForStore(file_path);
+  int exclusive_max = is_full_update ? 5000000 : 100000;
+  base::UmaHistogramCustomCounts(metric, count, /*min=*/1, exclusive_max,
+                                 /*buckets=*/50);
+  base::UmaHistogramCustomCounts(metric + suffix, count, /*min=*/1,
+                                 exclusive_max, /*buckets=*/50);
+}
+
 void RecordMigrationTime(base::TimeDelta elapsed,
                          const base::FilePath& store_path) {
   std::string suffix = GetUmaSuffixForStore(store_path);
-  if (!suffix.empty()) {
-    base::UmaHistogramTimes(
-        "SafeBrowsing.V5Store.V4ToV5Migration.TimeTaken" + suffix, elapsed);
+  base::UmaHistogramTimes(
+      "SafeBrowsing.V5Store.V4ToV5Migration.TimeTaken" + suffix, elapsed);
+}
+
+void RecordStoreWriteResult(V5StoreWriteResult result) {
+  base::UmaHistogramEnumeration("SafeBrowsing.V5StoreWrite.Result", result);
+}
+
+// Cleans up files that are no longer needed after a successful write.
+// TODO(crbug.com/362791941): This implementation is copied over from the v4
+// implementation, but it has a bug where if there are mmap-ed files, they are
+// not able to be deleted on Windows until the subsequent update. This cleanup
+// should be moved to after the mmap-ed files are released.
+void CleanupExtraFiles(const base::FilePath& store_path,
+                       const V5StoreFileFormat& file_format) {
+  std::set<base::FilePath> paths_in_use{store_path};
+  if (file_format.list_details().has_hash_file()) {
+    paths_in_use.insert(HashPrefixContainer::GetPath(
+        store_path, file_format.list_details().hash_file().extension()));
+  }
+
+  // Iterate through all files that start with the store path name. All hash
+  // files will be the store path plus an extension.
+  base::FileEnumerator e(
+      store_path.DirName(), false, base::FileEnumerator::FILES,
+      store_path.BaseName().value() + FILE_PATH_LITERAL(".*"));
+  for (base::FilePath name = e.Next(); !name.empty(); name = e.Next()) {
+    if (paths_in_use.find(name) == paths_in_use.end()) {
+      base::DeleteFile(name);
+    }
+  }
+}
+
+// Used for displaying on debugging page.
+std::string V5ApplyUpdateResultToDebuggingString(V5ApplyUpdateResult result) {
+  switch (result) {
+    case V5ApplyUpdateResult::kUnknown:
+      return "kUnknown";
+    case V5ApplyUpdateResult::kSuccess:
+      return "kSuccess";
+    case V5ApplyUpdateResult::kMmapFailure:
+      return "kMmapFailure";
+    case V5ApplyUpdateResult::kFileSizeNotMultipleOfPrefixSize:
+      return "kFileSizeNotMultipleOfPrefixSize";
+    case V5ApplyUpdateResult::kChecksumMismatchFailure:
+      return "kChecksumMismatchFailure";
+    case V5ApplyUpdateResult::kRiceDecodingAdditionsFailure:
+      return "kRiceDecodingAdditionsFailure";
+    case V5ApplyUpdateResult::kRiceDecodingRemovalsFailure:
+      return "kRiceDecodingRemovalsFailure";
+    case V5ApplyUpdateResult::kAdditionsHasExistingPrefixFailure:
+      return "kAdditionsHasExistingPrefixFailure";
+    case V5ApplyUpdateResult::kRemovalsIndexTooLargeFailure:
+      return "kRemovalsIndexTooLargeFailure";
+    case V5ApplyUpdateResult::kWriteFailure:
+      return "kWriteFailure";
   }
 }
 
@@ -398,14 +501,12 @@ V5Store::ConvertExtensionsBlocklistFromV4ToV5(
   return ConvertExtensionBlocklistV4ToV5Result::kSuccess;
 }
 
-int64_t V5Store::RecordAndReturnFileSize(const std::string& base_metric) {
-  // TODO(crbug.com/362791941): implement
-  NOTREACHED();
-}
-
 void V5Store::Reset() {
-  // TODO(crbug.com/362791941): implement
-  NOTREACHED();
+  expected_checksum_.clear();
+  hash_prefix_list_->Clear();
+  version_.clear();
+  has_valid_data_ = false;
+  file_size_ = 0;
 }
 
 bool V5Store::VerifyChecksum() {
@@ -417,6 +518,9 @@ bool V5Store::VerifyChecksum() {
     return true;
   }
   bool checksum_matches = VerifyChecksumInternal();
+  if (!checksum_matches) {
+    last_apply_update_result_ = V5ApplyUpdateResult::kChecksumMismatchFailure;
+  }
   RecordApplyUpdateResult("SafeBrowsing.V5ReadFromDisk",
                           checksum_matches
                               ? V5ApplyUpdateResult::kSuccess
@@ -444,8 +548,11 @@ bool V5Store::VerifyChecksumInternal() {
 
 void V5Store::CollectStoreInfo(
     DatabaseManagerInfo::DatabaseInfo::StoreInfo* store_info) {
-  // TODO(crbug.com/362791941): implement
-  NOTREACHED();
+  SBStore::CollectStoreInfo(store_info);
+  store_info->set_v5_update_status(
+      V5ApplyUpdateResultToDebuggingString(last_apply_update_result_));
+  // TODO(crbug.com/362791941): report back checks_attempted_ once added.
+  hash_prefix_list_->GetPrefixInfo(store_info->mutable_prefix_sets());
 }
 
 HashPrefixStr V5Store::GetMatchingHashPrefix(const FullHashStr& full_hash) {
@@ -457,12 +564,194 @@ void V5Store::ApplyUpdate(
     std::unique_ptr<SBUpdateResponse> response,
     const scoped_refptr<base::SequencedTaskRunner>& runner,
     UpdatedStoreReadyCallback callback) {
-  // TODO(crbug.com/362791941): implement
-  NOTREACHED();
+  CHECK(task_runner_->RunsTasksInCurrentSequence());
+  CHECK(response->v5_response);
+
+  std::unique_ptr<V5::HashList> v5_response = std::move(response->v5_response);
+  base::ElapsedThreadTimer thread_timer;
+
+  bool is_full_update = !v5_response->partial_update();
+  std::string metric = is_full_update ? "SafeBrowsing.V5ProcessFullUpdate"
+                                      : "SafeBrowsing.V5ProcessPartialUpdate";
+
+  base::expected<SBStorePtr, V5ApplyUpdateResult> update_result =
+      ApplyUpdateInternal(std::move(v5_response), metric);
+
+  V5ApplyUpdateResult result_code = update_result.has_value()
+                                        ? V5ApplyUpdateResult::kSuccess
+                                        : update_result.error();
+  SBStorePtr new_store =
+      update_result.has_value()
+          ? std::move(update_result.value())
+          : SBStorePtr(nullptr, SBStoreDeleter(task_runner_));
+
+  // Record the state of the update to be shown in the Safe Browsing page.
+  last_apply_update_result_ = result_code;
+
+  RecordApplyUpdateResult(metric, result_code, store_path_);
+  RecordApplyUpdateDuration(metric, thread_timer.Elapsed());
+
+  // Posting the task should be the last thing to do in this function.
+  // Otherwise, the posted task can end up running in parallel. If that
+  // happens, the old store will get destroyed and can lead to use-after-free
+  // in this function.
+  runner->PostTask(FROM_HERE,
+                   base::BindOnce(std::move(callback), std::move(new_store)));
+}
+
+base::expected<SBStorePtr, V5ApplyUpdateResult> V5Store::ApplyUpdateInternal(
+    std::unique_ptr<V5::HashList> v5_response,
+    const std::string& metric) {
+  V5StorePtr new_store(new V5Store(task_runner_, store_path_, prefix_size_,
+                                   v4_store_path_, is_eligible_for_migration_,
+                                   is_extensions_blocklist_, file_size_),
+                       SBStoreDeleter(task_runner_));
+  new_store->expected_checksum_ = expected_checksum_;
+
+  bool is_full_update = !v5_response->partial_update();
+  HashPrefixesView old_prefixes =
+      is_full_update ? HashPrefixesView() : hash_prefix_list_->GetRawView();
+  V5ApplyUpdateResult apply_update_result = new_store->ProcessUpdate(
+      std::move(v5_response), metric, is_full_update, old_prefixes);
+
+  if (apply_update_result != V5ApplyUpdateResult::kSuccess) {
+    return base::unexpected(apply_update_result);
+  }
+
+  V5StoreWriteResult write_result = new_store->WriteToDisk();
+  RecordStoreWriteResult(write_result);
+  if (write_result != V5StoreWriteResult::kWriteSuccess) {
+    return base::unexpected(V5ApplyUpdateResult::kWriteFailure);
+  }
+
+  apply_update_result = new_store->hash_prefix_list_->IsValid();
+  if (apply_update_result != V5ApplyUpdateResult::kSuccess) {
+    return base::unexpected(apply_update_result);
+  }
+
+  new_store->has_valid_data_ = true;
+  new_store->last_apply_update_result_ = apply_update_result;
+  new_store->last_apply_update_time_millis_ = base::Time::Now();
+
+  return std::move(new_store);
+}
+
+V5ApplyUpdateResult V5Store::ProcessUpdate(
+    std::unique_ptr<V5::HashList> response,
+    const std::string& metric,
+    bool is_full_update,
+    HashPrefixesView old_prefixes_list) {
+  // Decode removals.
+  std::vector<uint32_t> removals;
+  V5DecodeResult decode_removals_result =
+      v5_hash_list_rice_decoder::DecodeRemovals(*response, removals);
+  RecordDecodeRemovalsResult(metric, decode_removals_result, store_path_);
+  if (decode_removals_result != V5DecodeResult::kSuccess) {
+    return V5ApplyUpdateResult::kRiceDecodingRemovalsFailure;
+  }
+  RecordRemovalsHashesCount(metric, removals.size(), store_path_);
+
+  // Decode additions.
+  std::string additions;
+  V5DecodeResult decode_additions_result =
+      v5_hash_list_rice_decoder::DecodeAdditions(*response, additions);
+  RecordDecodeAdditionsResult(metric, decode_additions_result, store_path_);
+  if (decode_additions_result != V5DecodeResult::kSuccess) {
+    return V5ApplyUpdateResult::kRiceDecodingAdditionsFailure;
+  }
+  RecordAdditionsHashesCount(metric, is_full_update,
+                             additions.size() / prefix_size_, store_path_);
+
+  // Merge the additions and removals into the existing list.
+  base::span<const uint8_t> old_prefixes =
+      base::as_byte_span(old_prefixes_list);
+  base::span<const uint8_t> new_prefixes = base::as_byte_span(additions);
+  CHECK_EQ(new_prefixes.size() % prefix_size_, 0u);
+
+  if (!response->sha256_checksum().empty()) {
+    expected_checksum_ = response->sha256_checksum();
+  }
+  // TODO(crbug.com/372395685): This can move into merging updates once v4
+  // implementation is deprecated.
+  if (expected_checksum_.empty()) {
+    return V5ApplyUpdateResult::kChecksumMismatchFailure;
+  }
+
+  SBStoreUpdateResult result =
+      MergeUpdateLoop(prefix_size_, old_prefixes, new_prefixes, &removals,
+                      expected_checksum_, hash_prefix_list_.get());
+
+  switch (result) {
+    case SBStoreUpdateResult::kSuccess:
+      version_ = response->version();
+      return V5ApplyUpdateResult::kSuccess;
+    case SBStoreUpdateResult::kAdditionsHasExistingPrefixFailure:
+      return V5ApplyUpdateResult::kAdditionsHasExistingPrefixFailure;
+    case SBStoreUpdateResult::kRemovalsIndexTooLargeFailure:
+      return V5ApplyUpdateResult::kRemovalsIndexTooLargeFailure;
+    case SBStoreUpdateResult::kChecksumMismatchFailure:
+      return V5ApplyUpdateResult::kChecksumMismatchFailure;
+  }
 }
 
 const std::string& V5Store::GetStoreState() const {
   return version_;
+}
+
+V5StoreWriteResult V5Store::WriteToDisk() {
+  V5StoreFileFormat file_format;
+
+  base::expected<int64_t, SBStoreWriteResult> file_size_or_error =
+      WriteToDiskLoop(
+          store_path_, &file_format, hash_prefix_list_.get(),
+          /*set_file_metadata=*/
+          [this, &file_format] {
+            file_format.set_magic_number(kFileMagic);
+            file_format.set_file_version(kV5FileVersion);
+            ListDetails* list_details = file_format.mutable_list_details();
+            list_details->set_version(version_);
+            if (!expected_checksum_.empty()) {
+              list_details->mutable_checksum()->set_sha256(expected_checksum_);
+            }
+          },
+          /*cleanup_on_error=*/
+          [this, &file_format](const base::FilePath& temp_file) {
+            // Clear the list to release any memory-mapped files. This is
+            // required to allow the files to be deleted on Windows, where open
+            // or mapped mapped files cannot be deleted.
+            hash_prefix_list_->Clear();
+            base::DeleteFile(temp_file);
+            if (file_format.list_details().has_hash_file()) {
+              base::DeleteFile(HashPrefixContainer::GetPath(
+                  store_path_,
+                  file_format.list_details().hash_file().extension()));
+            }
+          },
+          /*get_hash_files_size=*/
+          [&file_format]() -> int64_t {
+            return file_format.list_details().has_hash_file()
+                       ? file_format.list_details().hash_file().file_size()
+                       : 0;
+          },
+          /*cleanup_extra_files=*/
+          [this, &file_format] {
+            CleanupExtraFiles(store_path_, file_format);
+          });
+
+  if (file_size_or_error.has_value()) {
+    // Update file_size_ now because we wrote the file correctly.
+    file_size_ = file_size_or_error.value();
+    return V5StoreWriteResult::kWriteSuccess;
+  }
+
+  switch (file_size_or_error.error()) {
+    case SBStoreWriteResult::kUnexpectedBytesWrittenFailure:
+      return V5StoreWriteResult::kUnexpectedBytesWrittenFailure;
+    case SBStoreWriteResult::kUnexpectedWriteFailure:
+      return V5StoreWriteResult::kUnexpectedWriteFailure;
+    case SBStoreWriteResult::kUnableToRenameFailure:
+      return V5StoreWriteResult::kUnableToRenameFailure;
+  }
 }
 
 SBStorePtr V5StoreFactory::CreateStore(

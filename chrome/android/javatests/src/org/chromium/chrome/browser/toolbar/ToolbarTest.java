@@ -7,6 +7,7 @@ package org.chromium.chrome.browser.toolbar;
 import static androidx.test.espresso.Espresso.onView;
 import static androidx.test.espresso.action.ViewActions.click;
 import static androidx.test.espresso.assertion.ViewAssertions.matches;
+import static androidx.test.espresso.matcher.ViewMatchers.isDescendantOfA;
 import static androidx.test.espresso.matcher.ViewMatchers.isDisplayed;
 import static androidx.test.espresso.matcher.ViewMatchers.withId;
 
@@ -650,7 +651,9 @@ public class ToolbarTest {
 
     @Test
     @LargeTest
-    @DisableFeatures(ChromeFeatureList.HOME_BUTTON_REMOVAL)
+    @EnableFeatures(
+            ChromeFeatureList.HOME_BUTTON_REMOVAL
+                    + ":set_default_to_false_on_homepage_on_desktop/false")
     @ImportantFormFactors(DeviceFormFactor.TABLET_OR_DESKTOP)
     public void testHomeButton_loadsNtpOnSameTab() {
         WebPageStation webPage = mPage;
@@ -678,6 +681,7 @@ public class ToolbarTest {
 
     @Test
     @LargeTest
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
     @EnableFeatures({ChromeFeatureList.HOME_BUTTON_REMOVAL + ":keep_home_button_on_ntp/true"})
     public void testHomeButtonVisibility_KeepOnNtp() {
         ThreadUtils.runOnUiThreadBlocking(
@@ -687,36 +691,45 @@ public class ToolbarTest {
                 });
 
         // Verify that the home button is NOT visible on a regular web page.
-        onView(withId(R.id.home_button)).check(matches(Matchers.not(isDisplayed())));
+        onView(allOf(withId(R.id.home_button), isDescendantOfA(withId(R.id.toolbar))))
+                .check(matches(Matchers.not(isDisplayed())));
 
         // Navigate to NTP.
         RegularNewTabPageStation ntp = mPage.openNewTabFast();
 
         // Verify that the home button IS visible on NTP.
-        onView(withId(R.id.home_button)).check(matches(isDisplayed()));
+        onView(allOf(withId(R.id.home_button), isDescendantOfA(withId(R.id.toolbar))))
+                .check(matches(isDisplayed()));
     }
 
     @Test
     @LargeTest
-    @EnableFeatures({ChromeFeatureList.HOME_BUTTON_REMOVAL + ":keep_home_button_on_ntp/true"})
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    @EnableFeatures({
+        ChromeFeatureList.HOME_BUTTON_REMOVAL
+                + ":keep_home_button_on_ntp/true/set_default_to_false_on_homepage_on_desktop/false"
+    })
     public void testHomeButtonVisibility_KeepOnNtp_Toggle() {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     HomepageManager.getInstance().setPrefHomepageEnabled(false);
                 });
 
-        onView(withId(R.id.home_button)).check(matches(Matchers.not(isDisplayed())));
+        onView(allOf(withId(R.id.home_button), isDescendantOfA(withId(R.id.toolbar))))
+                .check(matches(Matchers.not(isDisplayed())));
 
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     HomepageManager.getInstance().setPrefHomepageEnabled(true);
                 });
 
-        onView(withId(R.id.home_button)).check(matches(Matchers.not(isDisplayed())));
+        onView(allOf(withId(R.id.home_button), isDescendantOfA(withId(R.id.toolbar))))
+                .check(matches(Matchers.not(isDisplayed())));
 
         RegularNewTabPageStation ntp = mPage.openNewTabFast();
 
-        onView(withId(R.id.home_button)).check(matches(isDisplayed()));
+        onView(allOf(withId(R.id.home_button), isDescendantOfA(withId(R.id.toolbar))))
+                .check(matches(isDisplayed()));
     }
 
     @Test

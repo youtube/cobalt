@@ -327,9 +327,15 @@ ParseGetAssertionResponse(cbor::Value response_value,
       CredentialType::kPublicKey,
       fido_parsing_utils::Materialize(credential_id));
   response->hmac_secret = std::move(prf_results);
+
+  const std::vector<uint8_t>* updated_encrypted_passkey =
+      cborFindBytestring(*last_response, kEncryptedKey);
+  if (updated_encrypted_passkey) {
+    response->updated_encrypted_passkey = *updated_encrypted_passkey;
+  }
+
   const cbor::Value::MapValue* large_blob_map =
       cborFindMap(*last_response, kLargeBlobKey);
-
   if (large_blob_map) {
     const auto* data = cborFindBytestring(*large_blob_map, kLargeBlobDataKey);
     auto size_it = large_blob_map->find(cbor::Value(kLargeBlobSizeKey));
@@ -369,9 +375,23 @@ ParseGetAssertionResponse(cbor::Value response_value,
     if (it_written != large_blob_map->end()) {
       response->large_blob_written = it_written->second.GetBool();
       if (response->large_blob_written) {
+        // TODO(crbug.com/485889513): Remove this once the enclave binary is
+        // updated to unconditionally return the encrypted key at the top level.
         response->updated_encrypted_passkey =
             *cborFindBytestring(*large_blob_map, kEncryptedKey);
       }
+    }
+  }
+
+  auto cmtg_it = last_response->find(cbor::Value(kResponseCmtgKey));
+  if (cmtg_it != last_response->end() && cmtg_it->second.is_map()) {
+    const auto& cmtg_map = cmtg_it->second.GetMap();
+    auto key_it = cmtg_map.find(cbor::Value(kResponseCmtgKey));
+    auto sig_it = cmtg_map.find(cbor::Value(kResponseCmtgSignature));
+    if (key_it != cmtg_map.end() && key_it->second.is_bytestring() &&
+        sig_it != cmtg_map.end() && sig_it->second.is_bytestring()) {
+      response->cmtg_key.emplace(key_it->second.GetBytestring(),
+                                 sig_it->second.GetBytestring());
     }
   }
 
@@ -545,6 +565,18 @@ ParseMakeCredentialResponse(cbor::Value response_value,
   response.prf_enabled = prf_enabled;
   response.prf_results = std::move(prf_results);
 
+  auto cmtg_it = last_response->find(cbor::Value(kResponseCmtgKey));
+  if (cmtg_it != last_response->end() && cmtg_it->second.is_map()) {
+    const auto& cmtg_map = cmtg_it->second.GetMap();
+    auto key_it = cmtg_map.find(cbor::Value(kResponseCmtgKey));
+    auto sig_it = cmtg_map.find(cbor::Value(kResponseCmtgSignature));
+    if (key_it != cmtg_map.end() && key_it->second.is_bytestring() &&
+        sig_it != cmtg_map.end() && sig_it->second.is_bytestring()) {
+      response.cmtg_key.emplace(key_it->second.GetBytestring(),
+                                sig_it->second.GetBytestring());
+    }
+  }
+
   return std::make_pair(std::move(response), std::move(entity));
 }
 
@@ -554,7 +586,8 @@ cbor::Value BuildGetAssertionCommand(
     std::string client_data_json,
     std::unique_ptr<ClaimedPIN> claimed_pin,
     std::optional<std::vector<uint8_t>> wrapped_secret,
-    std::optional<std::vector<uint8_t>> secret) {
+    std::optional<std::vector<uint8_t>> secret,
+    std::optional<std::vector<std::vector<uint8_t>>> cmtg_device_keys) {
   CHECK(wrapped_secret.has_value() ^ secret.has_value());
   cbor::Value::MapValue entry_map;
 
@@ -593,6 +626,15 @@ cbor::Value BuildGetAssertionCommand(
   entry_map.emplace(cbor::Value(kRequestClientDataJSONHashKey),
                     cbor::Value(crypto::hash::Sha256(client_data_json)));
 
+  if (cmtg_device_keys.has_value()) {
+    cbor::Value::ArrayValue array_val;
+    for (auto& key : *cmtg_device_keys) {
+      array_val.emplace_back(std::move(key));
+    }
+    entry_map.emplace(cbor::Value(kRequestCmtgDeviceKeys),
+                      cbor::Value(std::move(array_val)));
+  }
+
   if (claimed_pin) {
     entry_map.emplace(kRequestClaimedPINKey, std::move(claimed_pin->pin_claim));
     entry_map.emplace(kRequestWrappedPINDataKey,
@@ -607,7 +649,9 @@ cbor::Value BuildMakeCredentialCommand(
     std::unique_ptr<ClaimedPIN> claimed_pin,
     std::optional<std::vector<uint8_t>> wrapped_secret,
     std::optional<std::vector<uint8_t>> secret,
-    UserPresentAndVerifiedBits up_and_uv_bits) {
+    UserPresentAndVerifiedBits up_and_uv_bits,
+    base::span<const uint8_t> client_data_json,
+    std::optional<std::vector<uint8_t>> cmtg_device_key) {
   CHECK(wrapped_secret.has_value() ^ secret.has_value());
   cbor::Value::MapValue entry_map;
 
@@ -654,6 +698,16 @@ cbor::Value BuildMakeCredentialCommand(
     entry_map.emplace(kRequestClaimedPINKey, std::move(claimed_pin->pin_claim));
     entry_map.emplace(kRequestWrappedPINDataKey,
                       std::move(claimed_pin->wrapped_pin));
+  }
+
+  if (!client_data_json.empty()) {
+    entry_map.emplace(cbor::Value(kRequestClientDataJSONHashKey),
+                      cbor::Value(crypto::hash::Sha256(client_data_json)));
+  }
+
+  if (cmtg_device_key.has_value()) {
+    entry_map.emplace(cbor::Value(kRequestCmtgDeviceKey),
+                      cbor::Value(std::move(*cmtg_device_key)));
   }
 
   return cbor::Value(entry_map);
@@ -738,16 +792,20 @@ void BuildCommandRequestBody(
 
 cbor::Value RedactEnclaveRequest(const cbor::Value& cbor) {
   return fido_parsing_utils::RedactCbor(
-      cbor, std::array{fido_parsing_utils::ToCborVector(kRequestSecretKey),
-                       fido_parsing_utils::ToCborVector(kWrappingKeyToWrap),
-                       fido_parsing_utils::ToCborVector(kClaimKey)});
+      cbor,
+      std::array{fido_parsing_utils::ToCborVector(kRequestSecretKey),
+                 fido_parsing_utils::ToCborVector(kWrappingKeyToWrap),
+                 fido_parsing_utils::ToCborVector(kClaimKey),
+                 fido_parsing_utils::ToCborVector(kRequestCmtgDeviceKeys),
+                 fido_parsing_utils::ToCborVector(kRequestCmtgDeviceKey)});
 }
 
 cbor::Value RedactEnclaveResponse(const cbor::Value& cbor) {
   return fido_parsing_utils::RedactCbor(
       cbor,
       std::array{fido_parsing_utils::ToCborVector("ok", "ok", "largeBlob"),
-                 fido_parsing_utils::ToCborVector("ok", "ok", "prf")});
+                 fido_parsing_utils::ToCborVector("ok", "ok", "prf"),
+                 fido_parsing_utils::ToCborVector("ok", "ok", "wrapped", "certs_in_path")});
 }
 
 }  // namespace device::enclave

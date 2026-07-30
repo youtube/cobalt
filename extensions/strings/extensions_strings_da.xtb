@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">Siden "<ph name="ABOUT_PAGE" />" kunne ikke indlæses.</translation>
 <translation id="424963718355121712">Apps, der styrer et website, kan kun downloades fra det pågældende website</translation>
 <translation id="4306119971288449206">Apps skal downloades med indholdstypen "<ph name="CONTENT_TYPE" />"</translation>
+<translation id="4349181963619779233">Udvidelser og apps kan ikke tilføjes fra dette website</translation>
 <translation id="4625078469366263107">Aktivér app</translation>
 <translation id="4633003931260532286">Udvidelsen skal bruge "<ph name="IMPORT_NAME" />" med minimumversionen "<ph name="IMPORT_VERSION" />", men kun versionen "<ph name="INSTALLED_VERSION" />" er installeret</translation>
 <translation id="4660476621274971848">Den forventede version var "<ph name="EXPECTED_VERSION" />", men versionen viste sig at være "<ph name="NEW_ID" />"</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">Den indtastede værdi for den private nøgle skal være et gyldigt format (PEM-kodet RSA-nøgle i PKCS#8-format).</translation>
-<translation id="765293928828334535">Apps, udvidelser og brugerscripts kan ikke tilføjes fra dette website</translation>
 <translation id="7658239707568436148">Annuller</translation>
 <translation id="7766838926148951335">Acceptér tilladelser</translation>
 <translation id="7876803335449432072">Filen "<ph name="RELATIVE_PATH" />" til indholdsscript kunne ikke indlæses. Indholdsscripts med stylesheets kan kun indlæses fra understøttede stylesheetfiler, f.eks. .css-filer.</translation>

@@ -24,7 +24,6 @@ import android.view.ViewStub;
 import android.widget.FrameLayout;
 
 import androidx.annotation.ColorInt;
-import androidx.annotation.NonNull;
 import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.DefaultItemAnimator;
@@ -263,7 +262,7 @@ public class BookmarkBarCoordinator
                         mBookmarkBarItemsLayoutManager,
                         mModel,
                         profileSupplier,
-                        currentTab,
+                        currentTabSupplier,
                         bookmarkOpener,
                         bookmarkManagerOpenerSupplier,
                         mItemsContainer,
@@ -638,7 +637,8 @@ public class BookmarkBarCoordinator
         // When fullscreen mode is entered, we need to hide the scene layer and Android widgets.
         // However, if LockTopControls is enabled, we never remove the bookmark bar.
 
-        boolean isLockTopControlsEnabled = BrowserControlsUtils.doSyncMinHeightWithTotalHeightV2(mContext);
+        boolean isLockTopControlsEnabled =
+                BrowserControlsUtils.doSyncMinHeightWithTotalHeightV2(mContext);
         if (!isLockTopControlsEnabled) {
             mIsInFullscreenMode = true;
             updateSceneLayerVisibility();
@@ -826,7 +826,7 @@ public class BookmarkBarCoordinator
         }
 
         @Override
-        public void onAnimationFinished(@NonNull RecyclerView.ViewHolder viewHolder) {
+        public void onAnimationFinished(RecyclerView.ViewHolder viewHolder) {
             super.onAnimationFinished(viewHolder);
             if (!mIsDestroyed) {
                 mPostAnimationRunnable.run();

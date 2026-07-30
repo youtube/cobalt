@@ -605,7 +605,7 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
             }
         } catch (Exception e) {
             // Catch generic exception to prevent a corrupted state from crashing app.
-            Log.d(TAG, "mergeState exception: " + e.toString(), e);
+            Log.d(TAG, "mergeState exception: %s", e.toString(), e);
         }
 
         // Restore the tabs from the second activity asynchronously.
@@ -619,8 +619,10 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
             // If the active tab can't be restored, restore and select another tab. Otherwise, the
             // tab model won't have a valid index and the UI will break. http://crbug.com/41026812
             while (!mTabsToRestore.isEmpty()
-                    && assumeNonNull(mNormalTabsRestored).size() == 0
-                    && assumeNonNull(mIncognitoTabsRestored).size() == 0) {
+                    && mNormalTabsRestored != null
+                    && mIncognitoTabsRestored != null
+                    && mNormalTabsRestored.size() == 0
+                    && mIncognitoTabsRestored.size() == 0) {
                 try (TraceEvent e = TraceEvent.scoped("LoadFirstTabState")) {
                     TabRestoreDetails tabToRestore = mTabsToRestore.removeFirst();
                     restoreTab(tabToRestore, true);
@@ -753,18 +755,17 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                             + model.isIncognito());
         }
         SparseIntArray restoredTabs = isIncognito ? mIncognitoTabsRestored : mNormalTabsRestored;
-        assumeNonNull(restoredTabs);
         int restoredIndex = 0;
         if (tabToRestore.fromMerge) {
             // Put any tabs being merged into this list at the end.
             // TODO(ltian): need to figure out a way to add merged tabs before Browser Actions tabs
             // when tab restore and Browser Actions tab merging happen at the same time.
             restoredIndex = model.getCount();
-        } else if (restoredTabs.size() > 0
+        } else if (restoredTabs != null && restoredTabs.size() > 0
                 && tabToRestore.originalIndex > restoredTabs.keyAt(restoredTabs.size() - 1)) {
             // If the tab's index is too large, restore it at the end of the list.
             restoredIndex = Math.min(model.getCount(), restoredTabs.size());
-        } else {
+        } else if (restoredTabs != null) {
             // Otherwise try to find the tab we should restore before, if any.
             for (int i = 0; i < restoredTabs.size(); i++) {
                 if (restoredTabs.keyAt(i) > tabToRestore.originalIndex) {
@@ -882,7 +883,9 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
                 mTabModelSelector.selectModel(wasIncognitoTabModelSelected);
             }
         }
-        restoredTabs.put(tabToRestore.originalIndex, tabId);
+        if (restoredTabs != null) {
+            restoredTabs.put(tabToRestore.originalIndex, tabId);
+        }
     }
 
     @Override
@@ -1490,10 +1493,9 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
             onStateLoaded();
             Log.d(
                     TAG,
-                    "Loaded tab lists; counts: "
-                            + mTabModelSelector.getModel(false).getCount()
-                            + ","
-                            + mTabModelSelector.getModel(true).getCount());
+                    "Loaded tab lists; counts: %d,%d",
+                    mTabModelSelector.getModel(false).getCount(),
+                    mTabModelSelector.getModel(true).getCount());
 
             // If there were any duplicate tab ids seen, then force a write to overwrite tab ids.
             if (ChromeFeatureList.sAndroidTabDeclutterDedupeTabIdsKillSwitch.isEnabled()
@@ -1794,7 +1796,7 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
         return new BackgroundOnlyAsyncTask<@Nullable DataInputStream>() {
             @Override
             protected @Nullable DataInputStream doInBackground() {
-                Log.d(TAG, "Starting to fetch tab list for " + stateFileName);
+                Log.d(TAG, "Starting to fetch tab list for %s", stateFileName);
                 File stateFile = new File(getStateDirectory(), stateFileName);
                 if (!stateFile.exists()) {
                     Log.d(TAG, "State file does not exist.");
@@ -1915,10 +1917,9 @@ public class TabPersistentStoreImpl implements TabPersistentStore {
 
         Log.d(
                 TAG,
-                "Recording tab lists; counts: "
-                        + normalInfo.ids.size()
-                        + ", "
-                        + incognitoInfo.ids.size());
+                "Recording tab lists; counts: %d, %d",
+                normalInfo.ids.size(),
+                incognitoInfo.ids.size());
 
         // TODO(https://crbug.com/445197903): This is a modification to shared prefs that may not be
         // correct if this store isn't authoritative. Move this into an observer.

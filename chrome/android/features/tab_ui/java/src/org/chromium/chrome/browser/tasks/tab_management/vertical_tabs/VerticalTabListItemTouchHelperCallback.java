@@ -52,6 +52,7 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
     private final int mMouseDragThresholdSquared;
     private final Set<Integer> mDraggedChildTabIds = new HashSet<>();
     private final List<Integer> mSelectedGroupTabIds = new ArrayList<>();
+    private final List<RecyclerView.ViewHolder> mDraggedChildViewHolders = new ArrayList<>();
     private RecyclerView.@Nullable ViewHolder mSelectedViewHolder;
 
     /**
@@ -275,6 +276,16 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
         return winner;
     }
 
+    @Override
+    protected boolean shouldBlockOutOfBoundsScroll() {
+        return false;
+    }
+
+    @Override
+    protected boolean shouldBlockOnMoved() {
+        return false;
+    }
+
     /**
      * Called when a tab is moved. Updates the underlying {@link TabModel} to reflect the
      * reordering.
@@ -327,43 +338,52 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
             if (destGroupId != null) {
                 boolean isDestGroupHeader =
                         toViewHolder.getItemViewType() == TabProperties.UiType.TAB_GROUP;
-                boolean isDraggingDown = distance > 0;
+                boolean isDestGroupCollapsed =
+                        isDestGroupHeader
+                                && assumeNonNull(((ViewHolder) toViewHolder).model)
+                                        .get(TabProperties.IS_COLLAPSED);
 
-                Tab currentTab = tabModel.getTabById(currentTabId);
-                Tab destinationTab = tabModel.getTabById(destinationTabId);
+                if (!isDestGroupCollapsed) {
+                    boolean isDraggingDown = distance > 0;
 
-                if (currentTab != null && destinationTab != null) {
-                    // Handle grouping when a standalone tab intersects any part of a group.
-                    Integer indexInGroup = 0;
-                    if (!isDestGroupHeader) {
-                        List<Tab> destRelatedTabs = getRelatedTabsForId(destinationTabId);
-                        if (destRelatedTabs != null) {
-                            boolean isDraggingUp = distance < 0;
-                            boolean isTargetLowestTab =
-                                    destRelatedTabs.get(destRelatedTabs.size() - 1).getId()
-                                            == destinationTabId;
-                            if (isDraggingUp && isTargetLowestTab) {
-                                indexInGroup = null;
-                            } else {
-                                indexInGroup = destRelatedTabs.indexOf(destinationTab);
-                                if (isDraggingDown) {
-                                    indexInGroup++;
+                    Tab currentTab = tabModel.getTabById(currentTabId);
+                    Tab destinationTab = tabModel.getTabById(destinationTabId);
+
+                    if (currentTab != null && destinationTab != null) {
+                        // Handle grouping when a standalone tab intersects any part of a group.
+                        Integer indexInGroup = 0;
+                        if (!isDestGroupHeader) {
+                            List<Tab> destRelatedTabs = getRelatedTabsForId(destinationTabId);
+                            if (destRelatedTabs != null) {
+                                boolean isDraggingUp = distance < 0;
+                                boolean isTargetLowestTab =
+                                        destRelatedTabs.get(destRelatedTabs.size() - 1).getId()
+                                                == destinationTabId;
+                                if (isDraggingUp && isTargetLowestTab) {
+                                    indexInGroup = null;
+                                } else {
+                                    indexInGroup = destRelatedTabs.indexOf(destinationTab);
+                                    if (isDraggingDown) {
+                                        indexInGroup++;
+                                    }
                                 }
                             }
                         }
+                        tabModel.mergeListOfTabsToGroup(
+                                List.of(currentTab),
+                                destinationTab,
+                                indexInGroup,
+                                TabGroupMergeNotificationType.NOTIFY_ALWAYS);
+                        return true;
                     }
-                    tabModel.mergeListOfTabsToGroup(
-                            List.of(currentTab),
-                            destinationTab,
-                            indexInGroup,
-                            TabGroupMergeNotificationType.NOTIFY_ALWAYS);
-                    return true;
                 }
             }
         }
 
         int destinationIndex;
-        if (isGroup) {
+        boolean isTraversingGroup =
+                isGroup || (isStandaloneTab && getTabGroupId(toViewHolder) != null);
+        if (isTraversingGroup) {
             // Tab groups should maintain the boundaries of target tab groups
             // so they do not split other groups during drags.
             List<Tab> destinationTabGroup = getRelatedTabsForId(destinationTabId);
@@ -453,8 +473,6 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
             if (viewHolder.getItemViewType() == TabProperties.UiType.TAB_GROUP) {
                 // Select the group header, which ensures a tab within the group is active.
                 selectTabForGroup(viewHolder);
-
-                // TODO(crbug.com/518307037): Collapsed groups should not be expanded when dragged.
 
                 int currentSelectedTabId = getCurrentSelectedTabId();
 
@@ -558,10 +576,14 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
                         int childTabId = getTabId(childViewHolder);
                         currentChildIds.add(childTabId);
 
-                        // Copy the translation/elevation from the dragged group header
-                        // to the children.
                         if (recyclerView.getItemAnimator() != null) {
                             recyclerView.getItemAnimator().endAnimation(childViewHolder);
+                        }
+
+                        if (isCurrentlyActive
+                                && !mDraggedChildViewHolders.contains(childViewHolder)) {
+                            childViewHolder.setIsRecyclable(false);
+                            mDraggedChildViewHolders.add(childViewHolder);
                         }
                         childView.setTranslationY(dY);
                         childView.setTranslationX(dX);
@@ -573,6 +595,21 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
                             // Reset translation of non-active children after release.
                             childView.setTranslationZ(0f);
                         }
+                    }
+                }
+            }
+
+            for (RecyclerView.ViewHolder childViewHolder : mDraggedChildViewHolders) {
+                View childView = childViewHolder.itemView;
+                if (childView.getParent() != recyclerView) {
+                    // Ensure it is in the overlay when explicitly detached
+                    recyclerView.getOverlay().add(childView);
+                    childView.setTranslationY(dY);
+                    childView.setTranslationX(dX);
+                    if (isCurrentlyActive) {
+                        childView.setTranslationZ(viewHolder.itemView.getElevation());
+                    } else {
+                        childView.setTranslationZ(0f);
                     }
                 }
             }
@@ -595,6 +632,26 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
                             break;
                         }
                     }
+
+                    Iterator<RecyclerView.ViewHolder> holderIt =
+                            mDraggedChildViewHolders.iterator();
+                    while (holderIt.hasNext()) {
+                        RecyclerView.ViewHolder trackedHolder = holderIt.next();
+                        if (hasTabPropertiesModel(trackedHolder)
+                                && getTabId(trackedHolder) == savedTabId) {
+                            trackedHolder.setIsRecyclable(true);
+                            recyclerView.getOverlay().remove(trackedHolder.itemView);
+
+                            // Because it was in the overlay, it might have structural translations
+                            // persisting.
+                            trackedHolder.itemView.setTranslationZ(0f);
+                            trackedHolder.itemView.setTranslationY(0f);
+                            trackedHolder.itemView.setTranslationX(0f);
+                            holderIt.remove();
+                            break;
+                        }
+                    }
+
                     it.remove();
                 }
             }
@@ -604,6 +661,12 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
     @Override
     public void clearView(RecyclerView recyclerView, RecyclerView.ViewHolder viewHolder) {
         super.clearView(recyclerView, viewHolder);
+        for (RecyclerView.ViewHolder childViewHolder : mDraggedChildViewHolders) {
+            childViewHolder.setIsRecyclable(true);
+            recyclerView.getOverlay().remove(childViewHolder.itemView);
+        }
+        mDraggedChildViewHolders.clear();
+
         // Safeguard finger lift: explicitly wipe out any running timer threads.
         if (mTabGridItemLongPressOrchestrator != null) {
             mTabGridItemLongPressOrchestrator.cancel();
@@ -633,6 +696,11 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
             }
         }
         mDraggedChildTabIds.clear();
+    }
+
+    @Override
+    public boolean shouldAllowDragPastLayout() {
+        return true;
     }
 
     /**
@@ -667,6 +735,7 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
         List<Tab> relatedTabs = getRelatedTabsForId(currentTabId);
         // This implicitly covers the isSolitaryChild check as well!
         if (relatedTabs == null || relatedTabs.size() <= 1) return false;
+        RecyclerView.LayoutManager layoutManager = recyclerView.getLayoutManager();
 
         boolean isFirstInGroup = currentTab.getId() == relatedTabs.get(0).getId();
         boolean isLastInGroup =
@@ -677,14 +746,65 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
             // threshold.
             int downThreshold = viewHolder.itemView.getHeight() / 4;
             if (y > viewHolder.itemView.getTop() + downThreshold) {
+                // Check if the dragged tab is at the bottom of the RecyclerView viewport.
+                // Since this early return skips ItemTouchHelper's bounds scrolling logic,
+                // we manually track this to prevent list layout shifts later.
+                boolean isChildAtBottom = false;
+                if (layoutManager != null) {
+                    int maxBottom = layoutManager.getDecoratedBottom(viewHolder.itemView);
+                    if (maxBottom >= recyclerView.getHeight() - recyclerView.getPaddingBottom()) {
+                        isChildAtBottom = true;
+                    }
+                }
+
                 tabModel.getTabUngrouper().ungroupTabs(List.of(currentTab), true, false);
+
+                // If ungrouping pushes the new standalone tab off-screen at the bottom,
+                // instruct RecyclerView to scroll to it, keeping it pinned under the user's finger.
+                if (isChildAtBottom && layoutManager != null) {
+                    int childIndex = mModel.indexFromTabId(currentTab.getId());
+                    if (childIndex != TabModel.INVALID_TAB_INDEX) {
+                        layoutManager.scrollToPosition(childIndex);
+                    }
+                }
                 return true;
             }
         } else if (dy < 0 && isFirstInGroup) {
             // Dragging up requires crossing the group header which sits above the first tab.
             int upThreshold = viewHolder.itemView.getHeight() / 2;
             if (y < viewHolder.itemView.getTop() - upThreshold) {
+                // Check if the group header is abutting the top of the RecyclerView padding.
+                // Since this early return skips ItemTouchHelper's bounds scrolling logic,
+                // we manually track this so we can anchor the scroll to the new tab position.
+                boolean isHeaderAtTop = false;
+                if (layoutManager != null) {
+                    for (int i = 0; i < recyclerView.getChildCount(); i++) {
+                        View child = recyclerView.getChildAt(i);
+                        // TODO(crbug.com/518307037): Use the TabModel directly instead.
+                        RecyclerView.ViewHolder childViewHolder =
+                                recyclerView.getChildViewHolder(child);
+                        if (childViewHolder.getItemViewType() == TabProperties.UiType.TAB_GROUP
+                                && groupId.equals(getTabGroupId(childViewHolder))) {
+                            if (layoutManager.getDecoratedTop(child)
+                                    <= recyclerView.getPaddingTop()) {
+                                isHeaderAtTop = true;
+                            }
+                            break;
+                        }
+                    }
+                }
+
                 tabModel.getTabUngrouper().ungroupTabs(List.of(currentTab), false, false);
+
+                // If ungrouping prepends the new tab natively off-screen at the top,
+                // manually scroll to the new tab. This forces the group header to visually shift
+                // down, rather than overlapping the new tab and causing an immediate re-grouping.
+                if (isHeaderAtTop && layoutManager != null) {
+                    int childIndex = mModel.indexFromTabId(currentTab.getId());
+                    if (childIndex != TabModel.INVALID_TAB_INDEX) {
+                        layoutManager.scrollToPosition(childIndex);
+                    }
+                }
                 return true;
             }
         }
@@ -743,7 +863,7 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
 
         int tabId = getTabId(viewHolder);
         Tab tab = tabModel.getTabById(tabId);
-        selectTabInternal(tabModel, tab);
+        selectTabInternal(tabModel, tab, TabSelectionType.FROM_USER);
     }
 
     /**
@@ -770,15 +890,16 @@ public class VerticalTabListItemTouchHelperCallback extends TabListItemTouchHelp
             }
         }
 
-        selectTabInternal(tabModel, tabToSelect);
+        selectTabInternal(tabModel, tabToSelect, TabSelectionType.FROM_DRAG);
     }
 
-    private void selectTabInternal(TabModel tabModel, @Nullable Tab tab) {
+    private void selectTabInternal(
+            TabModel tabModel, @Nullable Tab tab, @TabSelectionType int type) {
         if (tab == null) return;
 
         int index = tabModel.indexOf(tab);
         if (index != TabModel.INVALID_TAB_INDEX && index != tabModel.index()) {
-            tabModel.setIndex(index, TabSelectionType.FROM_USER);
+            tabModel.setIndex(index, type);
         }
     }
 

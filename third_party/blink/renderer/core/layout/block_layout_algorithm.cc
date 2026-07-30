@@ -350,15 +350,21 @@ void BlockLayoutAlgorithm::SetupRelayoutData(
     line_clamp_data_.data.lines_until_clamp =
         line_clamp_data_.initial_lines_until_clamp =
             previous.line_clamp_data_.data.lines_until_clamp;
+    line_clamp_data_.data.block_ellipsis =
+        previous.line_clamp_data_.data.block_ellipsis;
   } else if (relayout_type == kRelayoutClampingAfterLayoutObject) {
     line_clamp_data_.data.state = LineClampData::kClampAfterLayoutObject;
     line_clamp_data_.data.clamp_after_layout_object =
         previous.line_clamp_data_.last_layout_object;
+    line_clamp_data_.data.block_ellipsis =
+        previous.line_clamp_data_.data.block_ellipsis;
   } else if (previous.line_clamp_data_.data.IsClampByLines()) {
     line_clamp_data_.data.state = LineClampData::kClampByLines;
     line_clamp_data_.data.lines_until_clamp =
         line_clamp_data_.initial_lines_until_clamp =
             previous.line_clamp_data_.initial_lines_until_clamp;
+    line_clamp_data_.data.block_ellipsis =
+        previous.line_clamp_data_.data.block_ellipsis;
   }
 
   if (relayout_type == kRelayoutForTextBoxTrim) {
@@ -664,7 +670,7 @@ BlockLayoutAlgorithm::HandleNonsuccessfulLayoutResult(
 const LayoutResult* BlockLayoutAlgorithm::LayoutInlineChild(
     const InlineNode& node) {
   ParagraphScale paragraph_scale;
-  if (RuntimeEnabledFeatures::CssTextFitEnabled()) {
+  if (!is_measuring_text_fit_ && RuntimeEnabledFeatures::CssTextFitEnabled()) {
     const TextFit& text_fit = Style().GetTextFit();
     const bool grow_consistent =
         text_fit.Type() == TextFitType::kGrow &&
@@ -708,6 +714,7 @@ const LayoutResult* BlockLayoutAlgorithm::LayoutInlineChild(
           is_relayout_for_margin_end_trim_;
       cloned_algorithm.pending_margin_end_trim_child_ =
           pending_margin_end_trim_child_;
+      cloned_algorithm.is_measuring_text_fit_ = true;
       const LayoutResult* result =
           cloned_algorithm.LayoutInlineChild(node, nullptr);
       // The layout might abort with non-success status. For example, it may
@@ -4100,7 +4107,8 @@ NOINLINE void BlockLayoutAlgorithm::SetupLineClamp() {
   if (Style().HasLineClamp() && !Node().IsMulticolContainer()) {
     if (!line_clamp_data_.data.IsLineClampContext()) {
       LayoutUnit clamp_bfc_offset = kIndefiniteSize;
-      if (Style().MaxLines().HasAutoKeyword()) {
+      if (RuntimeEnabledFeatures::CSSLineClampEnabled() &&
+          Style().MaxLines().HasAutoKeyword()) {
         clamp_bfc_offset = ChildAvailableSize().block_size;
         if (clamp_bfc_offset == kIndefiniteSize) {
           const MinMaxSizes sizes = ComputeInitialMinMaxBlockSizes(

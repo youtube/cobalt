@@ -15,7 +15,7 @@
 #include "mojo/public/cpp/bindings/remote.h"
 #include "net/http/structured_headers.h"
 #include "services/data_decoder/public/cpp/data_decoder.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "url/gurl.h"
 
 namespace content {
@@ -44,18 +44,18 @@ class CONTENT_EXPORT NavigationInterceptor
   class ResponseBuilder {
    public:
     ResponseBuilder() = default;
-    CONTENT_EXPORT std::optional<content::NavigationController::LoadURLParams>
-    Build(const base::Value& response);
+    CONTENT_EXPORT std::optional<NavigationController::LoadURLParams> Build(
+        const base::Value& response);
   };
 
   using RequestInitiator = base::RepeatingCallback<bool(
-      content::RenderFrameHost* rfh,
+      RenderFrameHost* rfh,
       std::vector<blink::mojom::IdentityProviderGetParametersPtr>
           idp_get_params,
-      MediationRequirement requirement,
+      ::password_manager::CredentialMediationRequirement requirement,
       NavigationHandle* navigation_handle,
       const GURL& intercepted_url,
-      RequestTokenCallback callback)>;
+      Request::RequestTokenCallback callback)>;
 
   explicit NavigationInterceptor(NavigationThrottleRegistry& registry);
   NavigationInterceptor(NavigationThrottleRegistry& registry,
@@ -65,7 +65,7 @@ class CONTENT_EXPORT NavigationInterceptor
   NavigationInterceptor(const NavigationInterceptor&) = delete;
   NavigationInterceptor& operator=(const NavigationInterceptor&) = delete;
 
-  // content::NavigationThrottle overrides:
+  // NavigationThrottle overrides:
   ThrottleCheckResult WillStartRequest() override;
   ThrottleCheckResult WillRedirectRequest() override;
   ThrottleCheckResult WillProcessResponse() override;

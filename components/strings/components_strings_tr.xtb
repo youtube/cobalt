@@ -350,6 +350,7 @@ Aksi halde bu işlem gizlilik ayarlarınız tarafından engellenecek. Buna izin 
 <translation id="1542105669288201090">İşletme Eğitimi</translation>
 <translation id="1542830386724426410">Ödeme sırasında kullanılabilen kart avantajlarını ve ödülleri gösterin. Kart sağlayıcının şartları geçerlidir. <ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />Daha fazla bilgi edinin<ph name="CARD_BENEFIT_HELP_LINK_END" />.</translation>
 <translation id="1545757265410828525">Fiyat geçmişi</translation>
+<translation id="1546286808622193216">Gemini'ı kullanarak kart avantajlarını karşılaştırın</translation>
 <translation id="1549470594296187301">Bu özelliğin kullanılabilmesi için JavaScript etkinleştirilmelidir.</translation>
 <translation id="1553152622374372421">Kış Sporları</translation>
 <translation id="1553358976309200471">Chrome'u güncelle</translation>
@@ -504,6 +505,7 @@ Aksi halde bu işlem gizlilik ayarlarınız tarafından engellenecek. Buna izin 
 <translation id="175656076281618225">Sihir</translation>
 <translation id="1757773103848038814">Sabit Aralıklı Yazı Tipi</translation>
 <translation id="1757935267918149452">Google şifresini değiştir düğmesi, Google Hesabınızın şifresini değiştirmek için etkinleştirin</translation>
+<translation id="1759776526873274358">Sitelerin güvenliğinizi artırmak için kullandığı doğrulama kodlarını otomatik doldurur. Chrome, bu kodları Gmail'inizden alabilir. <ph name="BEGIN_LINK" />Bu özellik hakkında daha fazla bilgi edinin<ph name="LINK_END" />.</translation>
 <translation id="1763864636252898013">Bu sunucu <ph name="DOMAIN" /> olduğunu kanıtlayamadı. cihazınızın işletim sistemi, sunucunun güvenlik sertifikasına güvenmiyor. Bu durum, bir yanlış yapılandırmadan veya bağlantıya müdahale eden bir saldırgandan kaynaklanıyor olabilir.</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Windows Ağ Teşhislerini çalıştırmayı deneyin<ph name="END_LINK" />.</translation>
 <translation id="1777422078676229054">Fotoğraf (Arşiv)</translation>
@@ -1424,6 +1426,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="3202497928925179914"><ph name="MANAGE_SYNC_FOCUSED_FRIENDLY_MATCH_TEXT" />, Chrome ayarlarında hangi bilgileri senkronize ettiğinizi yönetmek için Sekme'ye, ardından Enter'a basın</translation>
 <translation id="3203025201812691413">URL boş olamaz</translation>
 <translation id="320323717674993345">Ödemeyi iptal et</translation>
+<translation id="3204534477198689393">Önerileri iyileştirmek ve formları daha hızlı doldurmak için, ziyaret ettiğiniz sayfaların içeriği ve URL'leri buluttaki özel bir alanda işlenebilir.</translation>
 <translation id="3207830513221832868"><ph name="BLOCKED_URL" /> adresinde erişkinlere uygun içerik olabilir</translation>
 <translation id="3207960819495026254">Yer işareti koyuldu</translation>
 <translation id="3208701679386778924">ChromeOS güncellemelerini daha iyi hale getirebilmemiz için lütfen rapor gönderin.</translation>
@@ -1479,6 +1482,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="3272643614306383237">1 MB'tan az. Sonraki ziyaretinizde bazı siteler daha yavaş yüklenebilir.</translation>
 <translation id="3273738040255912340">Yöneticiniz profilinizde ve tarayıcınızda uzaktan değişiklik yapabilir, raporlama aracılığıyla tarayıcı hakkındaki bilgileri analiz edebilir ve diğer gerekli görevleri yerine getirebilir. Bu cihazdaki etkinlikler Chromium dışında da yönetilebilir. <ph name="BEGIN_LINK" />Daha fazla bilgi<ph name="END_LINK" /></translation>
 <translation id="3273757719652748628">IBAN'ı kaydet alt sayfası tam ekranda açıldı.</translation>
+<translation id="327455571215090823">Gizliliği korunan, daha akıllı otomatik doldurma özelliği</translation>
 <translation id="3281350579597955952">{0,plural, =1{Yönetici politikası bu dosyayı <ph name="DESTINATION_NAME" /> hedefinde açmanızı önermiyor}other{Yönetici politikası bu dosyaları <ph name="DESTINATION_NAME" /> hedefinde açmanızı önermiyor}}</translation>
 <translation id="3282085321714087552">Kuruluşunuz (<ph name="ENROLLMENT_DOMAIN" />), aşağıdaki web sitelerine ayarlar ve politikalar gibi bazı bilgiler gönderdi.</translation>
 <translation id="3286372614333682499">dikey</translation>
@@ -2155,6 +2159,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="4304049446746819918">{0,plural, =1{Yönetici politikası bu dosyayı <ph name="DESTINATION_NAME" /> hedefine taşımanızı önermiyor}other{Yönetici politikası bu dosyaları <ph name="DESTINATION_NAME" /> hedefine taşımanızı önermiyor}}</translation>
 <translation id="4304485328308299773">Kararlarınızı şekillendirmenize yardımcı olacak yorumlar için ürün, hizmet veya deneyimlerle ilgili müşteri değerlendirmelerini okuyun.</translation>
 <translation id="4305666528087210886">Dosyanıza erişilemedi</translation>
+<translation id="4306349443295056740">OCSP İmzalama</translation>
 <translation id="4306529830550717874">Adres kaydedilsin mi?</translation>
 <translation id="4306812610847412719">pano</translation>
 <translation id="4308567447483056043">Kullanıcı bağlı olmadığından bu politika yoksayılır. Bu politikanın uygulanması için Chrome tarayıcıyı ve profilini, Yönetici Konsolu üzerinden aynı kuruluş yönetmelidir.</translation>
@@ -2324,6 +2329,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="4607608436550361748">Chrome ipuçlarını göster</translation>
 <translation id="460848736049414407">Yönetici tarafından engellendi</translation>
 <translation id="4610279718074907952">Bu site, <ph name="SET_OWNER" /> tarafından tanımlanmış, etkinliğinizi görebilen bir grupta bulunuyor</translation>
+<translation id="4612631413844865947"><ph name="MERCHANT_ORIGIN" /> tarihinde <ph name="PAYMENT_APP_ORIGIN" /> üzerinden verdiğiniz sipariş işlenirken bir hata oluştu.</translation>
 <translation id="46128681529823442">Futbol Gereçleri</translation>
 <translation id="4612904677925722054">Bu sitede erişkinlere uygun içerikler bulunabilir. Annenizin/babanızın veya velinizin, bu web sitesini ziyaret etmenizin uygun olduğunu belirtmesi gerekir.</translation>
 <translation id="4619564267100705184">Kimliğinizi doğrulayın</translation>
@@ -2413,6 +2419,8 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="4744603770635761495">Çalıştırılabilir Yol</translation>
 <translation id="4744816391336495134">Kayıtlı bir şifre kullandığınızda kimliğinizi doğrulamak için parmak izinizi kullanabilirsiniz</translation>
 <translation id="4749011317274908093">Gizli sekme açtınız</translation>
+<translation id="4749620353539006322">Ödülleri artırın</translation>
+<translation id="4749924365937394956">Sunucu Kimlik Doğrulaması</translation>
 <translation id="4750671009706599284">bu telefon</translation>
 <translation id="4750917950439032686">Bilgileriniz (örneğin şifreler veya kredi kartı numaraları), bu siteye gönderilirken gizli olur.</translation>
 <translation id="4751249061288707459">İznin son güncellendiği zaman:</translation>
@@ -2987,6 +2995,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="5611398002774823980">Hesaba kaydet</translation>
 <translation id="561165882404867731">Bu sayfayı Google Çeviri'yle çevirin</translation>
 <translation id="5612720917913232150"><ph name="URL" />, bilgisayarınızın konumunu kullanmak istiyor</translation>
+<translation id="5613958591683399697">Siz sorun, <ph name="ENGINE_NAME" /> yanıtlasın</translation>
 <translation id="5614190747811328134">Kullanıcı Bildirimi</translation>
 <translation id="5614520971155863709">Kağıt Oyunları</translation>
 <translation id="5617949217645503996"><ph name="HOST_NAME" /> sizi çok fazla kez yönlendirdi.</translation>
@@ -3129,6 +3138,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="5860491529813859533">Etkinleştir</translation>
 <translation id="5862579898803147654">Yığınlayıcı 8</translation>
 <translation id="5863515189965725638">IBAN'ı düzenleyin</translation>
+<translation id="5863517400058880216">Gmail'deki doğrulama kodlarını otomatik doldur</translation>
 <translation id="5863847714970149516">Gireceğiniz sayfa sizden para almaya çalışabilir</translation>
 <translation id="5866257070973731571">Telefon Numarası Ekleyin</translation>
 <translation id="5866327164731551901"><ph name="TYPE_1" /> <ph name="TYPE_2" /> siteden</translation>
@@ -3242,6 +3252,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="6034000775414344507">Açık Gri</translation>
 <translation id="6034514109191629503">Akordeon katlama</translation>
 <translation id="6035491133925068289">Atletizm</translation>
+<translation id="6037458223703682108">Dijital İmza</translation>
 <translation id="6039846035001940113">Sorun devam ederse site sahibiyle iletişime geçin.</translation>
 <translation id="6040143037577758943">Kapat</translation>
 <translation id="6040539895181423374">Fiyat Analizleri</translation>
@@ -3553,6 +3564,7 @@ Sonra ödeme seçeneklerini gizlemek için <ph name="BEGIN_LINK" />ödeme ayarla
 <translation id="6474220430271405609">Politika Testleri</translation>
 <translation id="6476284679642588870">Ödeme yöntemlerini yönet</translation>
 <translation id="647881094269678013">Oyunculuk ve Tiyatro</translation>
+<translation id="6480363549849064919">İstemci Kimlik Doğrulaması</translation>
 <translation id="6480864723214312258">Ev Tipi Piller</translation>
 <translation id="6487678699866233349">Dünya Müziği</translation>
 <translation id="6489534406876378309">Kilitlenmeleri yüklemeye başla</translation>
@@ -4519,6 +4531,7 @@ Ek ayrıntılar:
 <translation id="7967973398323409409">Otomatik doldurulan bilgileriniz hiçbir zaman başkaları tarafından görülmez</translation>
 <translation id="79682505114836835">"<ph name="VALUE" />" değeri, geçersiz bir onaltılık renk.</translation>
 <translation id="7968982339740310781">Ayrıntıları görüntüle</translation>
+<translation id="7971403153351954587">Kuruluşunuz kopyalama işlemlerini izliyor</translation>
 <translation id="7972714317346275248">PKCS #1 RSA Şifrelemeli SHA-384</translation>
 <translation id="7976053965094442846">Taksitle ödeme yapmanıza olanak tanıyan "Şimdi al sonra öde" sağlayıcıları. Klavye gizli.</translation>
 <translation id="7976214039405368314">Çok fazla istek var</translation>
@@ -5133,6 +5146,7 @@ Ek ayrıntılar:
 <translation id="9001074447101275817"><ph name="DOMAIN" /> proxy'si için kullanıcı adı ve şifre gerekiyor.</translation>
 <translation id="9001701119003382280">Bilgisayar Çevre Birimleri</translation>
 <translation id="9001963517402879850">Zıpla!</translation>
+<translation id="9003263770394939629">Gemini tarafından önerildi. Gelişmiş otomatik doldurma özelliğini ayarlardan yönetin.</translation>
 <translation id="9003639428623471314">Zarf Kahu</translation>
 <translation id="9004367719664099443">VR oturumu devam ediyor</translation>
 <translation id="9005998258318286617">PDF dokümanı yüklenemedi.</translation>

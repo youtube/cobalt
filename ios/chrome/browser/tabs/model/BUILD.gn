@@ -9,7 +9,6 @@ source_set("model") {
     "tab_helper_filter.h",
     "tab_helper_util.h",
     "tab_title_util.h",
-    "tabs_closer.h",
   ]
   public_deps = [ "//ios/web" ]
   deps = [
@@ -43,7 +42,6 @@ source_set("tabs_internal") {
     "tab_helper_util.mm",
     "tab_title_util.h",
     "tab_title_util.mm",
-    "tabs_closer.mm",
   ]
   deps = [
     ":model",
@@ -93,6 +91,8 @@ source_set("tabs_internal") {
     "//ios/chrome/browser/download/model",
     "//ios/chrome/browser/download/ui:features",
     "//ios/chrome/browser/drive/model:drive_tab_helper",
+    "//ios/chrome/browser/enterprise/connectors/device_trust",
+    "//ios/chrome/browser/enterprise/connectors/device_trust:features",
     "//ios/chrome/browser/enterprise/data_controls/model",
     "//ios/chrome/browser/enterprise/data_protection/model",
     "//ios/chrome/browser/enterprise/data_protection/public:features",
@@ -111,8 +111,8 @@ source_set("tabs_internal") {
     "//ios/chrome/browser/itunes_urls/model",
     "//ios/chrome/browser/language/model",
     "//ios/chrome/browser/lens/model",
-    "//ios/chrome/browser/lens_overlay/coordinator:lens_overlay_availability",
     "//ios/chrome/browser/lens_overlay/model",
+    "//ios/chrome/browser/lens_overlay/public:lens_overlay_availability",
     "//ios/chrome/browser/link_to_text/model",
     "//ios/chrome/browser/main/model",
     "//ios/chrome/browser/metrics/model",
@@ -256,7 +256,6 @@ source_set("unit_tests") {
     "tab_helper_util_unittest.mm",
     "tab_sync_util_unittest.mm",
     "tab_title_util_unittest.mm",
-    "tabs_closer_unittest.mm",
     "tabs_dependency_installer_bridge_unittest.mm",
     "tabs_dependency_installer_manager_unittest.mm",
     "tabs_dependency_installer_unittest.mm",

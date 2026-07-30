@@ -143,24 +143,6 @@ NSData* ReadDataFromURL(GURL url) {
   return data;
 }
 
-// Generates a UIImage preview for the given PDF data.
-UIImage* GeneratePDFPreview(NSData* pdf_data) {
-  if (!pdf_data) {
-    return nil;
-  }
-  PDFDocument* doc = [[PDFDocument alloc] initWithData:pdf_data];
-  if (!doc) {
-    return nil;
-  }
-  PDFPage* page = [doc pageAtIndex:0];
-  if (!page) {
-    return nil;
-  }
-  // TODO(crbug.com/40280872): Determine the correct size for the thumbnail.
-  return [page thumbnailOfSize:CGSizeMake(200, 200)
-                        forBox:kPDFDisplayBoxCropBox];
-}
-
 // Creates an initial ContextualInputData object using the information from the
 // passed in `annotated_page_content` and `web_state`.
 std::unique_ptr<lens::ContextualInputData>
@@ -223,10 +205,10 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
 }  // namespace
 
 @interface ComposeboxInputPlateMediator () <
-    SearchEngineObserving,
     ComposeboxInputItemCollectionDelegate,
-    WebStateDeferredExecutorDelegate,
-    ComposeboxQueryContextualizerDelegate>
+    ComposeboxQueryContextualizerDelegate,
+    SearchEngineObserving,
+    WebStateDeferredExecutorDelegate>
 
 @end
 
@@ -582,6 +564,23 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
                         cachedWebStateIDs:attachments.cachedWebStateIDs];
 }
 
+- (void)removeSharedTabWithServerToken:
+    (const base::UnguessableToken&)serverToken {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  ComposeboxInputItem* item = [_items itemForServerToken:serverToken];
+  if (item) {
+    [self removeItem:item];
+  }
+}
+
+- (ComposeboxUIInputState*)currentUIInputState {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  return [_stateManager
+      computeUIInputStateWithFavicon:_currentTabFavicon
+                 attachedWebStateIDs:[self
+                                         attachedWebStateIDsInCurrentContext]];
+}
+
 - (void)applyFocusParams:(ComposeboxFocusParams*)params {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
   if (!params) {
@@ -783,6 +782,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
                                source:ComposeboxInputItemSource::
                                           kContextLibrary];
   item.title = title;
+  item.tabURL = url;
   item.state = ComposeboxInputItemState::kLoaded;
   base::UnguessableToken identifier = item.identifier;
 
@@ -970,6 +970,7 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
                                           kComposeboxInputItemTypeTab
                                source:source];
   item.title = base::SysUTF16ToNSString(webState->GetTitle());
+  item.tabURL = webState->GetVisibleURL();
   base::UnguessableToken identifier = item.identifier;
   _latestTabSelectionMapping[identifier] = webState->GetUniqueIdentifier();
 
@@ -1823,15 +1824,6 @@ lens::ImageEncodingOptions GetDefaultImageEncodingOptions() {
         GetDefaultImageEncodingOptions());
     [self notifyContextChanged];
   }
-
-  // Concurrently, generate a preview for the UI.
-  __weak __typeof(self) weakSelf = self;
-  base::ThreadPool::PostTaskAndReplyWithResult(
-      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
-      base::BindOnce(&GeneratePDFPreview, data),
-      base::BindOnce(^(UIImage* preview) {
-        [weakSelf didLoadPreviewImage:preview forItemWithIdentifier:identifier];
-      }));
 }
 
 - (void)processDriveFileWithIdentifier:(NSString*)identifier

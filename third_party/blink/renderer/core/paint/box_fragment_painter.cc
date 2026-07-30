@@ -168,8 +168,19 @@ inline bool IsVisibleToHitTest(const FragmentItem& item,
 inline bool IsVisibleToHitTest(const PhysicalFragment& fragment,
                                const HitTestRequest& request) {
   const ComputedStyle& style = fragment.Style();
-  return IsVisibleToPaint(fragment, style) &&
-         IsVisibleToHitTest(style, request);
+  if (!IsVisibleToHitTest(style, request)) {
+    return false;
+  }
+  if (IsVisibleToPaint(fragment, style)) {
+    return true;
+  }
+  // Table parts that are not themselves visible can still contribute ink
+  // to visible descendants.
+  if (request.IsHitTestVisualOverflow() && fragment.IsTablePart())
+      [[unlikely]] {
+    return true;
+  }
+  return false;
 }
 
 // Hit tests inline ancestor elements of |fragment| who do not have their own
@@ -1370,7 +1381,6 @@ void BoxFragmentPainter::PaintBoxDecorationBackground(
     const PaintInfo& paint_info,
     const PhysicalOffset& paint_offset,
     bool suppress_box_decoration_background) {
-  // TODO(mstensho): Break dependency on LayoutObject functionality.
   const LayoutObject& layout_object = *box_fragment_.GetLayoutObject();
 
   if (IsA<LayoutView>(layout_object) ||
@@ -1937,7 +1947,7 @@ void BoxFragmentPainter::PaintBackground(
       // If there's no such thing, we have nothing to paint.
       return;
     }
-    style_to_use = document.GetLayoutView()->Style();
+    style_to_use = &document.GetLayoutView()->StyleRef();
     background_color_to_use =
         style_to_use->VisitedDependentColor(GetCSSPropertyBackgroundColor());
   }
@@ -2490,11 +2500,13 @@ bool BoxFragmentPainter::NodeAtPoint(const HitTestContext& hit_test,
   bool pointer_events_bounding_box = false;
   bool hit_test_self = fragment.IsInSelfHitTestingPhase(hit_test.phase);
   if (hit_test_self) {
-    // Table row and table section are never a hit target.
+    // Table row and table section are never a hit target for regular hit test,
+    // but they are targets when testing for occlusion.
     // SVG <text> is not a hit target except if 'pointer-events: bounding-box'.
     if (GetPhysicalFragment().IsTableRow() ||
         GetPhysicalFragment().IsTableSection()) {
-      hit_test_self = false;
+      hit_test_self =
+          hit_test.result->GetHitTestRequest().IsHitTestVisualOverflow();
     } else if (fragment.IsSvgText()) {
       pointer_events_bounding_box =
           fragment.Style().UsedPointerEvents() == EPointerEvents::kBoundingBox;

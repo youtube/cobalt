@@ -10,6 +10,8 @@
 #include "base/memory/raw_ptr.h"
 #include "base/strings/to_string.h"
 #include "base/test/bind.h"
+#include "base/test/icu_test_util.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/enterprise/connectors/connectors_service.h"
@@ -27,6 +29,7 @@
 #include "components/enterprise/connectors/core/common.h"
 #include "components/enterprise/connectors/core/connectors_prefs.h"
 #include "components/enterprise/data_controls/core/browser/test_utils.h"
+#include "components/enterprise/data_protection/features.h"
 #include "components/enterprise/data_protection/utils.h"
 #include "components/policy/core/common/cloud/dm_token.h"
 #include "components/policy/core/common/cloud/mock_cloud_policy_client.h"
@@ -257,6 +260,12 @@ class FakeDataProtectionNavigationController
 
   void DidStartNavigation(
       content::NavigationHandle* navigation_handle) override {
+    // Actual controller only instantiates observer for primary main
+    // navigations.
+    if (!navigation_handle->IsInPrimaryMainFrame() ||
+        navigation_handle->IsSameDocument()) {
+      return;
+    }
     EXPECT_EQ(web_contents(), navigation_handle->GetWebContents());
     auto navigation_observer =
         std::make_unique<DataProtectionNavigationObserver>(
@@ -566,6 +575,44 @@ TEST_F(DataProtectionNavigationObserverTest,
   }
 }
 
+TEST_F(DataProtectionNavigationObserverTest,
+       SubframeNavigation_DoesNotDestroyObserver) {
+  // Disable real-time check so the verdict is received immediately upon
+  // observer creation.
+  profile()->GetPrefs()->SetInteger(
+      enterprise_connectors::kEnterpriseRealTimeUrlCheckMode,
+      enterprise_connectors::REAL_TIME_CHECK_DISABLED);
+
+  SetContents(CreateTestWebContents());
+
+  auto simulator = content::NavigationSimulator::CreateRendererInitiated(
+      GURL("https://example.com"), web_contents()->GetPrimaryMainFrame());
+
+  base::test::TestFuture<const UrlSettings&> future;
+  FakeDataProtectionNavigationController controller(
+      web_contents(), &lookup_service_, future.GetCallback());
+
+  // Start the main frame navigation. This creates the observer.
+  simulator->Start();
+
+  // Create a subframe and simulate a complete navigation on it.
+  content::RenderFrameHostTester* rfh_tester =
+      content::RenderFrameHostTester::For(main_rfh());
+  content::RenderFrameHost* subframe = rfh_tester->AppendChild("subframe");
+  auto subframe_simulator =
+      content::NavigationSimulator::CreateRendererInitiated(
+          GURL("https://subframe.com"), subframe);
+  subframe_simulator->Start();
+  subframe_simulator->Commit();
+
+  // Commit the main frame navigation. If the observer was prematurely destroyed
+  // by the subframe navigation, the callback would be dropped and this would
+  // hang/fail.
+  simulator->Commit();
+
+  EXPECT_TRUE(future.IsReady());
+}
+
 TEST_F(DataProtectionNavigationObserverTest, ApplyDataProtectionSettings) {
   enterprise_connectors::test::EventReportValidator validator(client_.get());
   validator.ExpectNoReport();
@@ -858,7 +905,14 @@ struct WatermarkStringParams {
 };
 
 class DataProtectionWatermarkStringTest
-    : public testing::TestWithParam<WatermarkStringParams> {};
+    : public testing::TestWithParam<WatermarkStringParams> {
+ protected:
+  DataProtectionWatermarkStringTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        kEnableWatermarkTimestampTimezone);
+  }
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
 
 }  // namespace
 
@@ -870,16 +924,16 @@ INSTANTIATE_TEST_SUITE_P(
             "example@email.com",
             "custom_message",
             1709181364,
-            "custom_message\nexample@email.com\n2024-02-29T04:36:04.000Z"),
+            "custom_message\nexample@email.com\n2024-02-29T04:36:04+00:00"),
         WatermarkStringParams(
             "<device-id>",
             "custom_message",
             1709181364,
-            "custom_message\n<device-id>\n2024-02-29T04:36:04.000Z"),
+            "custom_message\n<device-id>\n2024-02-29T04:36:04+00:00"),
         WatermarkStringParams("example@email.com",
                               "",
                               1709181364,
-                              "example@email.com\n2024-02-29T04:36:04.000Z"),
+                              "example@email.com\n2024-02-29T04:36:04+00:00"),
         WatermarkStringParams("example@email.com",
                               std::nullopt,
                               1709181364,
@@ -887,6 +941,7 @@ INSTANTIATE_TEST_SUITE_P(
 
 TEST_P(DataProtectionWatermarkStringTest,
        TestGetWatermarkStringFromThreatInfo) {
+  base::test::ScopedRestoreDefaultTimezone tz("UTC");
   safe_browsing::RTLookupResponse::ThreatInfo threat_info =
       GetTestThreatInfo(GetParam().custom_message, GetParam().timestamp_seconds,
                         GetParam().custom_message.has_value());
@@ -894,6 +949,20 @@ TEST_P(DataProtectionWatermarkStringTest,
       enterprise_data_protection::GetWatermarkString(
           GetParam().identifier, threat_info.matched_url_navigation_rule()),
       GetParam().expected);
+}
+
+TEST_F(DataProtectionNavigationObserverTest,
+       TestGetWatermarkStringFromThreatInfo_FeatureDisabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndDisableFeature(kEnableWatermarkTimestampTimezone);
+
+  base::test::ScopedRestoreDefaultTimezone tz("UTC");
+  safe_browsing::RTLookupResponse::ThreatInfo threat_info =
+      GetTestThreatInfo("custom_message", 1709181364, true);
+
+  EXPECT_EQ(enterprise_data_protection::GetWatermarkString(
+                "example@email.com", threat_info.matched_url_navigation_rule()),
+            "custom_message\nexample@email.com\n2024-02-29T04:36:04.000Z");
 }
 
 class SinglePageAppWatermarkTest : public DataProtectionNavigationObserverTest {
@@ -958,10 +1027,18 @@ class OrderedDataProtectionNavigationObserverTest
     : public DataProtectionNavigationObserverTest,
       public testing::WithParamInterface<bool> {
  public:
+  OrderedDataProtectionNavigationObserverTest() {
+    scoped_feature_list_.InitAndEnableFeature(
+        kEnableWatermarkTimestampTimezone);
+  }
   bool IsNavigationFinishedAfterVerdictReceived() const { return GetParam(); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 TEST_P(OrderedDataProtectionNavigationObserverTest, TestWatermarkTextUpdated) {
+  base::test::ScopedRestoreDefaultTimezone tz("UTC");
   chrome::cros::reporting::proto::UrlFilteringInterstitialEvent expected_event;
   expected_event.set_url("https://test/");
   expected_event.set_event_result(
@@ -1008,7 +1085,7 @@ TEST_P(OrderedDataProtectionNavigationObserverTest, TestWatermarkTextUpdated) {
   EXPECT_EQ(watermark_text,
             "custom_message\n" +
                 connectors_service->GetRealTimeUrlCheckIdentifier() +
-                "\n2024-02-29T04:36:04.000Z");
+                "\n2024-02-29T04:36:04+00:00");
 
   // Value should be cached.
   auto* user_data = DataProtectionPageUserData::GetForPage(

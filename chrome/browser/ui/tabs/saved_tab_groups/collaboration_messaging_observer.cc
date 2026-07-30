@@ -50,7 +50,7 @@ std::optional<int> GetTabStripIndex(LocalTabID local_tab_id,
     return std::nullopt;
   }
 
-  TabStripModel* tab_strip_model =
+  const TabStripModel* tab_strip_model =
       browser_with_local_group_id->tab_strip_model();
   if (!tab_strip_model || !tab_strip_model->SupportsTabGroups()) {
     return std::nullopt;
@@ -319,7 +319,7 @@ void CollaborationMessagingObserver::ManageSharingForCurrentInstantMessage(
                                            data_sharing::FlowType::kManage);
     collaboration::CollaborationService* service =
         collaboration::CollaborationServiceFactory::GetForProfile(
-            browser->profile());
+            browser->GetProfile());
     std::unique_ptr<CollaborationControllerDelegateDesktop> delegate =
         std::make_unique<CollaborationControllerDelegateDesktop>(browser);
     service->StartShareOrManageFlow(

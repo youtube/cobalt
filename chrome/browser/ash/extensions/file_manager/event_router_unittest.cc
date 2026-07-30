@@ -136,6 +136,7 @@ class FileManagerEventRouterTest : public testing::Test {
         profile_.get(),
         base::BindLambdaForTesting([this](content::BrowserContext* context) {
           return std::unique_ptr<KeyedService>(std::make_unique<VolumeManager>(
+              TestingBrowserProcess::GetGlobal()->local_state(),
               Profile::FromBrowserContext(context), nullptr, nullptr,
               &disk_mount_manager_, nullptr,
               VolumeManager::GetMtpStorageInfoCallback()));
@@ -292,7 +293,8 @@ TEST_F(FileManagerEventRouterTest, OnIOTaskStatusForTrash) {
   extensions::TestEventRouter* test_event_router =
       extensions::CreateAndUseTestEventRouter(profile_.get());
   TestEventRouterObserver observer(test_event_router);
-  auto event_router = std::make_unique<EventRouter>(profile_.get());
+  auto event_router = std::make_unique<EventRouter>(
+      TestingBrowserProcess::GetGlobal()->local_state(), profile_.get());
   event_router->ForceBroadcastingForTesting(true);
 
   io_task::EntryStatus source_entry =
@@ -333,7 +335,8 @@ TEST_F(FileManagerEventRouterTest, OnIOTaskStatusForCopyPause) {
   extensions::TestEventRouter* test_event_router =
       extensions::CreateAndUseTestEventRouter(profile_.get());
   TestEventRouterObserver observer(test_event_router);
-  auto event_router = std::make_unique<EventRouter>(profile_.get());
+  auto event_router = std::make_unique<EventRouter>(
+      TestingBrowserProcess::GetGlobal()->local_state(), profile_.get());
   event_router->ForceBroadcastingForTesting(true);
 
   io_task::EntryStatus source_entry =
@@ -368,7 +371,8 @@ TEST_F(FileManagerEventRouterTest, OnIOTaskStatusForPolicyError) {
   extensions::TestEventRouter* test_event_router =
       extensions::CreateAndUseTestEventRouter(profile_.get());
   TestEventRouterObserver observer(test_event_router);
-  auto event_router = std::make_unique<EventRouter>(profile_.get());
+  auto event_router = std::make_unique<EventRouter>(
+      TestingBrowserProcess::GetGlobal()->local_state(), profile_.get());
   event_router->ForceBroadcastingForTesting(true);
 
   io_task::EntryStatus source_entry =
@@ -419,7 +423,8 @@ TEST_F(FileManagerEventRouterLocalFilesTest, OnLocalUserFilesPolicyChanged) {
   extensions::TestEventRouter* test_event_router =
       extensions::CreateAndUseTestEventRouter(profile_.get());
   TestEventRouterObserver observer(test_event_router);
-  auto event_router = std::make_unique<EventRouter>(profile_.get());
+  auto event_router = std::make_unique<EventRouter>(
+      TestingBrowserProcess::GetGlobal()->local_state(), profile_.get());
   event_router->ForceBroadcastingForTesting(true);
 
   // Expect the preferences changed event.

@@ -27,12 +27,16 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.ContextUtils;
 import org.chromium.base.test.BaseRobolectricTestRunner;
+import org.chromium.components.omnibox.OmniboxWordBoundary;
+import org.chromium.components.omnibox.OmniboxWordBoundaryJni;
 import org.chromium.components.omnibox.TextSelection;
 
 import java.util.concurrent.atomic.AtomicInteger;
@@ -43,12 +47,15 @@ public class SpannableAutocompleteEditTextModelUnitTest {
     public @Rule MockitoRule mockitoRule = MockitoJUnit.rule();
     private @Mock AutocompleteInputConnection mConnection;
     private @Mock AutocompleteEditTextModelBase.Delegate mDelegate;
+    private @Mock OmniboxWordBoundary.Natives mWordBoundaryNatives;
     private SpannableAutocompleteEditTextModel mModel;
     private AutocompleteState mCurrentState;
     private AtomicInteger mImeCommandNestLevel;
+    private @Captor ArgumentCaptor<KeyEvent> mKeyEventCaptor;
 
     @Before
     public void setUp() {
+        OmniboxWordBoundaryJni.setInstanceForTesting(mWordBoundaryNatives);
         Context context =
                 new ContextThemeWrapper(
                         ContextUtils.getApplicationContext(), R.style.Theme_BrowserUI_DayNight);
@@ -191,6 +198,24 @@ public class SpannableAutocompleteEditTextModelUnitTest {
     }
 
     @Test
+    public void dispatchKeyEvent_handleAltDel() {
+        mCurrentState.setUserText("goo");
+        mCurrentState.setAutocompleteText(null);
+        assertEquals("goo", mCurrentState.getText());
+
+        clearInvocations(mConnection, mDelegate);
+        var event =
+                new KeyEvent(
+                        0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL, 0, KeyEvent.META_ALT_ON);
+        mModel.dispatchKeyEvent(event);
+
+        // Should delegate a FORWARD_DEL event.
+        verify(mDelegate).super_dispatchKeyEvent(mKeyEventCaptor.capture());
+        assertEquals(KeyEvent.KEYCODE_FORWARD_DEL, mKeyEventCaptor.getValue().getKeyCode());
+        assertEquals(0, mKeyEventCaptor.getValue().getMetaState());
+    }
+
+    @Test
     public void testSpanCursorController_setSpan_clampsSelection() {
         SpannableStringBuilder editable = new SpannableStringBuilder("userText");
         doReturn(editable).when(mDelegate).getEditableText();
@@ -209,5 +234,48 @@ public class SpannableAutocompleteEditTextModelUnitTest {
 
         assertEquals(12, Selection.getSelectionStart(editable));
         assertEquals(12, Selection.getSelectionEnd(editable));
+    }
+
+    @Test
+    public void dispatchKeyEvent_deleteWordBackward() {
+        mCurrentState.setAutocompleteText(null);
+        mCurrentState.setUserText("google.com");
+        mCurrentState.setSelection(new TextSelection(10, 10));
+
+        doReturn(7).when(mWordBoundaryNatives).getDeletionBoundary("google.com", 10, false);
+
+        var event =
+                new KeyEvent(
+                        0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL, 0, KeyEvent.META_CTRL_ON);
+
+        clearInvocations(mConnection, mDelegate);
+        boolean handled = mModel.dispatchKeyEvent(event);
+
+        assertTrue(handled);
+        verify(mConnection).deleteSurroundingText(3, 0);
+    }
+
+    @Test
+    public void dispatchKeyEvent_deleteWordForward() {
+        mCurrentState.setAutocompleteText(null);
+        mCurrentState.setUserText("google::com_");
+        mCurrentState.setSelection(new TextSelection(6, 6));
+
+        doReturn(12).when(mWordBoundaryNatives).getDeletionBoundary("google::com_", 6, true);
+
+        var event =
+                new KeyEvent(
+                        0,
+                        0,
+                        KeyEvent.ACTION_DOWN,
+                        KeyEvent.KEYCODE_FORWARD_DEL,
+                        0,
+                        KeyEvent.META_CTRL_ON);
+
+        clearInvocations(mConnection, mDelegate);
+        boolean handled = mModel.dispatchKeyEvent(event);
+
+        assertTrue(handled);
+        verify(mConnection).deleteSurroundingText(0, 6);
     }
 }

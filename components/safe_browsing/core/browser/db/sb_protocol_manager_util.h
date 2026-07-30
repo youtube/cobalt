@@ -311,6 +311,8 @@ using ListInfos = std::vector<ListInfo>;
 
 PlatformType GetCurrentPlatformType();
 ListIdentifier GetChromeExtMalwareId();
+// TODO(crbug.com/372395685): Rename method and SB_THREAT_TYPE_API_ABUSE to be
+// notifications-specific once v4 is deprecated.
 ListIdentifier GetChromeUrlApiId();
 ListIdentifier GetUrlBillingId();
 ListIdentifier GetUrlCsdDownloadAllowlistId();
@@ -461,6 +463,9 @@ class SBProtocolManagerUtil {
   // Generate the set of FullHashes to check for |url|.
   static void UrlToFullHashes(const GURL& url,
                               std::vector<FullHashStr>* full_hashes);
+
+  // Returns the 4-byte prefix of the requested 32-byte `full_hash`.
+  static HashPrefixStr GetHashPrefix(const FullHashStr& full_hash);
 
   static bool FullHashToHashPrefix(const FullHashStr& full_hash,
                                    PrefixSize prefix_size,

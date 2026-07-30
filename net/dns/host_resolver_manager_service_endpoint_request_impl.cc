@@ -93,13 +93,15 @@ int HostResolverManager::ServiceEndpointRequestImpl::Start(Delegate* delegate) {
 
   if (!resolve_context_) {
     error_info_ = ResolveErrorInfo(ERR_CONTEXT_SHUT_DOWN);
-    return ERR_CONTEXT_SHUT_DOWN;
+    return HostResolver::SquashErrorCode(ERR_CONTEXT_SHUT_DOWN);
   }
 
   delegate_ = delegate;
 
   next_state_ = State::kCheckIPv6Reachability;
-  return DoLoop(OK);
+  // Squash the error code like asynchronous completions. The detailed error
+  // is available via GetResolveErrorInfo().
+  return HostResolver::SquashErrorCode(DoLoop(OK));
 }
 
 const HostCache::EntryStaleness*
@@ -182,6 +184,7 @@ HostResolverManager::ServiceEndpointRequestImpl::GetResolutionDetails() const {
 
 ResolveErrorInfo
 HostResolverManager::ServiceEndpointRequestImpl::GetResolveErrorInfo() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   return error_info_;
 }
 
@@ -364,8 +367,7 @@ int HostResolverManager::ServiceEndpointRequestImpl::DoResolveLocally() {
       only_ipv6_reachable, *job_key_, ip_address, cache_usage,
       parameters_.secure_dns_policy, parameters_.source, net_log_, host_cache(),
       &tasks_, &stale_info_);
-  bool is_stale = results.error() == OK && stale_info_.has_value() &&
-                  stale_info_->is_stale();
+  bool is_stale = stale_info_.has_value() && stale_info_->is_stale();
 
   if (is_stale && stale_allowed_while_refreshing) {
     // When a stale result is found, ResolveLocally() returns the stale result
@@ -395,14 +397,20 @@ int HostResolverManager::ServiceEndpointRequestImpl::DoResolveLocally() {
   }
 
   if (is_stale && stale_allowed_while_refreshing) {
-    // Allow using stale results only when there is no network change.
-    // TODO(crbug.com/383174960): This also exclude results that are obtained
-    // from the same network but the device got disconnected/connected events.
-    // Ideally we should be able to use such results.
-    if (results.network_changes() == host_cache()->network_changes()) {
+    if (results.error() == OK &&
+        results.network_changes() == host_cache()->network_changes()) {
+      // Allow using stale results only when there is no network change.
+      // TODO(crbug.com/383174960): This also excludes results that are obtained
+      // from the same network but the device got disconnected/connected
+      // events. Ideally we should be able to use such results.
       // TODO(crbug.com/485672648): Consider setting resolution details for
       // stale endpoints.
       stale_endpoints_ = results.ConvertToServiceEndpoints(host_.GetPort());
+    } else {
+      // A stale negative result or a stale result from a different network
+      // isn't useful as an intermediate result. Clear the stale info so that
+      // `this` isn't considered to be serving stale results while refreshing.
+      stale_info_.reset();
     }
     if (!stale_endpoints_.empty()) {
       net_log_.AddEvent(
@@ -448,7 +456,26 @@ int HostResolverManager::ServiceEndpointRequestImpl::DoStartJob() {
 }
 
 void HostResolverManager::ServiceEndpointRequestImpl::OnIOComplete(int rv) {
-  DoLoop(rv);
+  if (!resolve_context_) {
+    // The ResolveContext was shut down while `this` was waiting for an
+    // asynchronous check. Fail the request without accessing the context.
+    next_state_ = State::kNone;
+    finalized_result_ = FinalizedResult(/*endpoints=*/{}, /*dns_aliases=*/{});
+    error_info_ = ResolveErrorInfo(ERR_CONTEXT_SHUT_DOWN);
+    rv = ERR_CONTEXT_SHUT_DOWN;
+  } else {
+    rv = DoLoop(rv);
+  }
+  if (rv != ERR_IO_PENDING) {
+    // The request finished synchronously in DoLoop() (e.g. resolved locally
+    // after an asynchronous IPv6 reachability check). Start() has already
+    // returned ERR_IO_PENDING, so the delegate needs to be notified of the
+    // completion here.
+    CHECK(delegate_);
+    delegate_->OnServiceEndpointRequestFinished(
+        HostResolver::SquashErrorCode(rv));
+    // Do not add code below. `this` may be deleted at this point.
+  }
 }
 
 void HostResolverManager::ServiceEndpointRequestImpl::

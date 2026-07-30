@@ -263,9 +263,9 @@ class SidePanelCoordinatorTest : public InProcessBrowserTest {
             .AddAPIPermission("sidePanel")
             .Build();
 
-    extensions::PermissionsUpdater(browser()->profile())
+    extensions::PermissionsUpdater(browser()->GetProfile())
         .GrantActivePermissions(extension.get());
-    extensions::ExtensionRegistrar::Get(browser()->profile())
+    extensions::ExtensionRegistrar::Get(browser()->GetProfile())
         ->AddExtension(extension);
 
     return extension;
@@ -334,32 +334,6 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, VerifyFocusOrder) {
   EXPECT_LT(resize_it, header_it);
   EXPECT_LT(header_it, content_it);
 }
-
-#if BUILDFLAG(IS_MAC)
-IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
-                       CloseRestoresFocusToContentsWebViewOnMac) {
-  Init();
-  coordinator()->DisableAnimationsForTesting();
-  coordinator()->Show(SidePanelEntry::Key(SidePanelEntry::Id::kBookmarks));
-  EXPECT_TRUE(GetSidePanel()->GetVisible());
-
-  views::View* focusable_in_side_panel =
-      GetSidePanel()->GetFocusManager()->GetNextFocusableView(
-          GetSidePanel(), nullptr, false, false);
-  ASSERT_TRUE(focusable_in_side_panel);
-  focusable_in_side_panel->RequestFocus();
-  EXPECT_TRUE(GetSidePanel()->Contains(
-      GetSidePanel()->GetFocusManager()->GetFocusedView()));
-
-  coordinator()->Close();
-  EXPECT_FALSE(GetSidePanel()->GetVisible());
-
-  ContentsWebView* contents_web_view =
-      browser()->GetBrowserView().contents_web_view();
-  EXPECT_EQ(contents_web_view,
-            contents_web_view->GetFocusManager()->GetFocusedView());
-}
-#endif
 
 IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest, OpenWhileClosing) {
   Init();
@@ -2006,7 +1980,7 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
       &guest_browser));
   ASSERT_TRUE(base::test::RunUntil([&]() { return guest_browser != nullptr; }));
   ASSERT_TRUE(guest_browser);
-  ASSERT_TRUE(guest_browser->profile()->IsGuestSession());
+  ASSERT_TRUE(guest_browser->GetProfile()->IsGuestSession());
 
   // Check that pin button does not show in guest window.
   auto* const coordinator = SidePanelCoordinator::From(guest_browser);
@@ -2039,7 +2013,8 @@ IN_PROC_BROWSER_TEST_F(SidePanelCoordinatorTest,
   EXPECT_TRUE(pin_button->GetVisible());
   EXPECT_FALSE(pin_button->GetToggled());
 
-  ToolbarActionsModel* model = ToolbarActionsModel::Get(browser()->profile());
+  ToolbarActionsModel* model =
+      ToolbarActionsModel::Get(browser()->GetProfile());
   EXPECT_TRUE(model->pinned_action_ids().empty());
 
   WaitForExtensionsContainerAnimation();

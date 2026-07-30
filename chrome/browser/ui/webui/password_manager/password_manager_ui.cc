@@ -19,8 +19,8 @@
 #include "chrome/browser/ui/webui/favicon_source.h"
 #include "chrome/browser/ui/webui/managed_ui_handler.h"
 #include "chrome/browser/ui/webui/page_not_available_for_guest/page_not_available_for_guest_ui.h"
-#include "chrome/browser/ui/webui/password_manager/promo_card.h"
-#include "chrome/browser/ui/webui/password_manager/promo_cards_handler.h"
+#include "chrome/browser/ui/webui/password_manager/notification_card.h"
+#include "chrome/browser/ui/webui/password_manager/notification_cards_handler.h"
 #include "chrome/browser/ui/webui/password_manager/sync_handler.h"
 #include "chrome/browser/ui/webui/plural_string_handler.h"
 #include "chrome/browser/ui/webui/policy_indicator_localized_strings_provider.h"
@@ -43,7 +43,6 @@
 #include "components/password_manager/core/browser/leak_detection_dialog_utils.h"
 #include "components/password_manager/core/common/password_manager_constants.h"
 #include "components/password_manager/core/common/password_manager_features.h"
-#include "components/signin/public/base/signin_switches.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/url_data_source.h"
 #include "content/public/browser/web_contents.h"
@@ -136,6 +135,16 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
        IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CHECKUP_BUTTON},
       {"automatedPasswordChangeCheckupButtonAriaDescription",
        IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CHECKUP_BUTTON_ARIA_DESCRIPTION},
+      {"automatedPasswordChangeAttemptingSignIn",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_ATTEMPTING_SIGN_IN},
+      {"automatedPasswordChangeChangingPassword",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CHANGING_PASSWORD},
+      {"automatedPasswordChangeConfirmingChangedPassword",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CONFIRMING_CHANGED_PASSWORD},
+      {"automatedPasswordChangeChangedSuccessfully",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_CHANGED_SUCCESSFULLY},
+      {"automatedPasswordChangeError",
+       IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_ERROR},
       {"automatedPasswordChangeTitle",
        IDS_PASSWORD_MANAGER_UI_PASSWORD_CHANGE_SETTINGS_TITLE},
       {"automatedPasswordChangeDescription",
@@ -326,12 +335,6 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       {"moreActionsAriaDescription",
        IDS_PASSWORD_MANAGER_UI_MORE_ACTIONS_ARIA_DESCRIPTION},
       {"movePasswordsButton", IDS_PASSWORD_MANAGER_UI_MOVE_PASSWORDS_BUTTON},
-      {"moveSinglePassword",
-       IDS_PASSWORD_MANAGER_UI_MOVE_SINGLE_PASSWORD_TO_ACCOUNT},
-      {"moveSinglePasswordTitle",
-       IDS_PASSWORD_MANAGER_UI_MOVE_SINGLE_PASSWORD_TITLE},
-      {"moveSinglePasswordDescription",
-       IDS_PASSWORD_MANAGER_UI_MOVE_SINGLE_PASSWORD_DESCRIPTION},
       {"moveSinglePasswordButton",
        IDS_PASSWORD_MANAGER_UI_MOVE_SINGLE_PASSWORD_ACTION_BUTTON},
       {"movePasswordsDescription",
@@ -683,10 +686,6 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       "enablePasswordManagerMojoApi",
       base::FeatureList::IsEnabled(
           password_manager::features::kEnablePasswordManagerMojoApi));
-
-  source->AddBoolean(
-      "passwordUploadUiUpdate",
-      base::FeatureList::IsEnabled(switches::kPasswordUploadUiUpdate));
 
   source->AddString("webuiRefresh2026", features::IsWebuiRefresh2026Enabled()
                                             ? "webui-refresh-2026"

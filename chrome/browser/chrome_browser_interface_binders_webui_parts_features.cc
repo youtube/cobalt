@@ -6,7 +6,6 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/glic/host/glic_ui.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
-#include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals.mojom.h"
 #include "chrome/browser/ui/webui/private_ai_internals/private_ai_internals_ui.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
@@ -15,6 +14,7 @@
 #include "components/enterprise/buildflags/buildflags.h"
 #include "components/on_device_translation/buildflags/buildflags.h"
 #include "components/private_ai/features.h"
+#include "components/private_ai/private_ai_internals/webui/private_ai_internals.mojom.h"
 #include "components/safe_browsing/buildflags.h"
 #include "components/signin/public/base/signin_buildflags.h"
 #include "content/public/browser/render_process_host.h"
@@ -39,6 +39,8 @@
 #endif
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+#include "chrome/browser/ui/webui/signin/cross_device_signin_qr_bubble/cross_device_signin_qr_bubble.mojom.h"
+#include "chrome/browser/ui/webui/signin/cross_device_signin_qr_bubble_ui.h"
 #include "chrome/browser/ui/webui/signin/signout_confirmation/signout_confirmation.mojom.h"
 #include "chrome/browser/ui/webui/signin/signout_confirmation/signout_confirmation_ui.h"
 #endif
@@ -84,6 +86,9 @@ void PopulateChromeWebUIFrameBindersPartsFeatures(
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT) || BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
+  RegisterWebUIControllerInterfaceBinder<
+      cross_device_signin::mojom::PageHandlerFactory,
+      CrossDeviceSigninQrBubbleUI>(map);
   RegisterWebUIControllerInterfaceBinder<
       signout_confirmation::mojom::PageHandlerFactory, SignoutConfirmationUI>(
       map);

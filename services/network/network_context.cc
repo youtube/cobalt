@@ -81,6 +81,7 @@
 #include "net/cookies/cookie_monster.h"
 #include "net/cookies/cookie_setting_override.h"
 #include "net/cookies/cookie_store.h"
+#include "net/cookies/site_for_cookies.h"
 #include "net/device_bound_sessions/session_service.h"
 #include "net/disk_cache/disk_cache.h"
 #include "net/dns/context_host_resolver.h"
@@ -178,6 +179,11 @@
 #include "services/network/url_request_context_builder_mojo.h"
 #include "services/network/web_transport.h"
 #include "url/gurl.h"
+
+#if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+#include "services/network/device_bound_session_service_delegate.h"
+#include "services/network/ssl_private_key_proxy.h"
+#endif
 
 #if BUILDFLAG(IS_CT_SUPPORTED)
 // gn check does not account for BUILDFLAG(). So, for iOS builds, it will
@@ -3254,6 +3260,22 @@ URLRequestContextOwner NetworkContext::MakeURLRequestContext(
         params_->device_bound_sessions_restricted_sites);
 
 #if BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
+    if (base::FeatureList::IsEnabled(
+            net::features::kDeviceBoundSessionsForSingleSignOn)) {
+      builder.set_device_bound_sessions_cookie_access_callback(
+          base::BindRepeating(
+              &NetworkContext::HasCookieAccessForDeviceBoundSession,
+              // `this` outlives the `URLRequestContext` that owns the
+              // device_bound_sessions::SessionService which calls this
+              // callback.
+              base::Unretained(this)));
+    }
+    device_bound_session_service_delegate_ =
+        std::make_unique<DeviceBoundSessionServiceDelegate>(
+            std::move(params_->device_bound_sessions_network_observer));
+    builder.set_device_bound_sessions_client_cert_handler(base::BindRepeating(
+        &DeviceBoundSessionServiceDelegate::SelectClientCertificate,
+        base::Unretained(device_bound_session_service_delegate_.get())));
     if (params_->bound_sessions_unexportable_key_service.is_valid()) {
       builder.set_unexportable_key_service(
           std::make_unique<unexportable_keys::UnexportableKeyServiceProxied>(
@@ -3961,6 +3983,21 @@ void NetworkContext::SetVariationsHeaders(
     variations::mojom::VariationsHeadersPtr variations_headers) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   variations_headers_ = std::move(variations_headers);
+}
+
+bool NetworkContext::HasCookieAccessForDeviceBoundSession(
+    const net::device_bound_sessions::CookieAccessCheckParams& params) {
+  if (!cookie_manager_) {
+    return false;
+  }
+  return cookie_manager_->cookie_settings().IsFullCookieAccessAllowed(
+      params.provider_origin->GetURL(),
+      net::SiteForCookies::FromOrigin(*params.relying_party_origin),
+      *params.relying_party_origin,
+      {net::CookieSettingOverride::kStorageAccessGrantEligible},
+      // TODO(crbug.com/353772143): update once partitioned cookies are
+      // supported. DBSC does not support cookie partition yet.
+      /*cookie_partition_key=*/std::nullopt);
 }
 
 }  // namespace network

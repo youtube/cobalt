@@ -74,7 +74,6 @@ Sumir eiginleikar kunna að vera óaðgengilegir og breytingar á kjörstillingu
 <translation id="1640672724030957280">Sækir...</translation>
 <translation id="1651617469580841801">Þegar þú notar Google-linsu verða titill síðu, vefslóð og innihald, að meðtöldum PDF-skjölum, send til Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Um ChromeOS Flex</translation>
-<translation id="1665867022636014702">Notaðu ráðlagðar vafrastillingar Google</translation>
 <translation id="1674870198290878346">Opna tengil í h&amp;uliðsglugga í Chrome</translation>
 <translation id="1682634494516646069">Google Chrome getur ekki lesið eða skrifað í gagnamöppu sína:
 
@@ -237,6 +236,7 @@ Ef þessi síða virkar ekki sem skyldi skaltu prófa að leyfa fínstillingu.</
 <translation id="3242123554343253302">Bæta við Chrome-prófíl</translation>
 <translation id="3242486428260808857">Fáðu meira út úr netverslun þegar þú notar Chrome-forritið í <ph name="DEVICE_TYPE" /></translation>
 <translation id="3245429137663807393">Ef þú deilir einnig Chrome notkunarskýrslum innihalda þær skýrslur vefslóðirnar sem þú opnar</translation>
+<translation id="3249558306861350254">Smelltu á <ph name="BEGIN_BOLD" />Stilla sem sjálfgefið<ph name="END_BOLD" /> í Windows-stillingunum.</translation>
 <translation id="3259748324892322072">Sækja Chrome-forritið</translation>
 <translation id="3282568296779691940">Skráðu þig inn á Chrome</translation>
 <translation id="3286538390144397061">Endurræsa núna</translation>
@@ -256,7 +256,6 @@ Ef þessi síða virkar ekki sem skyldi skaltu prófa að leyfa fínstillingu.</
 <translation id="345171907106878721">Bættu þér við Chrome</translation>
 <translation id="3453763134178591239">Skilmálar ChromeOS</translation>
 <translation id="3475778264501649775">Hafðu aðgangsorðin þín, flipa og fleira með þér á ferðinni með Chrome-forritinu í símanum þínum</translation>
-<translation id="3512495006767217696">Innbyggt í Chrome til að auðvelda þér að búa til, vista og færa sjálfkrafa inn traust aðgangsorð. Bættu flýtileiðinni við til að hafa greiðan aðgang</translation>
 <translation id="3539955434060988644">Opna tengil í huliðsglugga í Chrome</translation>
 <translation id="354621070532799440">Áminning: Bestu öryggiseiginleikar Google í vasanum</translation>
 <translation id="3547866758548131919">Smelltu á hnappinn „Taka saman“ til að deila þessu skjali með Gemini í Chrome til að fá snöggt yfirlit og spyrja frekari spurninga</translation>
@@ -309,6 +308,7 @@ Ef þessi síða virkar ekki sem skyldi skaltu prófa að leyfa fínstillingu.</
 <translation id="4012899077942246412">Á meðan þú ert innskráð(ur) geturðu notað aðgangsorðin þín og fleira af Google-reikningnum þínum í Chrome. Til að breyta þessu skaltu fara í „Reikningurinn þinn í Chrome“.</translation>
 <translation id="4022972681110646219">Þýða skjá</translation>
 <translation id="4023601594785368013">Upprunalegt tungumál: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">Innbyggt í Chrome til að auðvelda þér að búa til, vista og færa sjálfkrafa inn traust aðgangsorð. Bættu flýtileiðinni við til að hafa greiðan aðgang.</translation>
 <translation id="4035053306113201399">Endurræsa þarf ChromeOS til að nota uppfærsluna.</translation>
 <translation id="4050175100176540509">Mikilvægar öryggislagfæringar og nýir eiginleikar eru í boði í nýjustu útgáfunni.</translation>
 <translation id="4053720452172726777">Sérsníða og stjórna Google Chrome</translation>
@@ -549,7 +549,6 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="6438015621983209660">Framlengdu Enn öruggari vefskoðun með Chrome í símanum þínum</translation>
 <translation id="6442774133615368941">Notaðu myndavélina þína í Chrome iOS-forritinu til að versla, þýða og bera kennsl á það sem þú sérð</translation>
 <translation id="6448835208126432197">Notaðu flýtilykil til að velja hluta af skjánum í Gemini í Chrome.</translation>
-<translation id="6473659734176498825">Einfölduð mynd af aðgangsstað Google-aðgangsorðastjórnunar í Chrome</translation>
 <translation id="6473905796280459355">Fara á síðuna Um Chrome</translation>
 <translation id="6481963882741794338">Tengdu Chrome við aðrar Google-þjónustur til að sérsníða upplifun þína og fleira</translation>
 <translation id="648319183876919572">Enn öruggari vefskoðun gerir viðbótarráðstafanir til að vernda þig gegn skaðlegum vefsvæðum og niðurhali</translation>
@@ -566,6 +565,7 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="6539493053177300926">Auðvelt aðgengi að Gemini í Chrome í öðrum tækjum, jafnvel þó Chrome sé minnkað.</translation>
 <translation id="6585124893636629274">Loka Gemini í Chrome</translation>
 <translation id="659498884637196217">Í Aðgangsorðastjórnun Google í þessu tæki</translation>
+<translation id="6613949864921837107">Samstilltu aðgangsorðin þín, bókamerki og feril á milli tækja með því að velja Chrome sem sjálfgefinn vafra.</translation>
 <translation id="6631524303639368205">Haltu áfram þaðan sem frá var horfið: Chrome endurheimtir flipana sem þú varst með opna síðast. Þú getur slökkt á þessu í</translation>
 <translation id="6632473616050862500">ChromeOS Flex á tilvist sína að þakka öðrum <ph name="BEGIN_LINK_CROS_OSS" />opnum hugbúnaði<ph name="END_LINK_CROS_OSS" />.</translation>
 <translation id="6634299872736643004">Breytingar á þessari stillingu taka gildi þegar Chrome endurræsist.</translation>
@@ -691,7 +691,6 @@ Google Chrome getur ekki endurheimt stillingarnar þínar.</translation>
 <translation id="7804364787702057554">Reikningurinn þinn í Chrome</translation>
 <translation id="7804947029129221742">Leitarvélinni þinni var breytt utan Chrome. Chrome endurstillti hana á upphafleg sjálfgefin gildi til að vernda þig. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Fjarlægja úr Chrome...</translation>
-<translation id="7812800388699096556">Skýringarmynd sem sýnir hvernig þú getur notað Google-linsu til að fletta upp vöru</translation>
 <translation id="7827099906024714326">Chrome þarf að staðfesta að þetta sért þú svo að þú getir vistað tiltekin gögn á Google-reikningnum þínum og notað þau í öllum tækjunum þínum. Ef þú skráir þig út núna verður þessum gögnum eytt.</translation>
 <translation id="7832314606810669113">Skráðu þig inn á Chrome til að fá aðgang að bókamerkjum og fleiru í öllum tækjunum þínum Þetta bókamerki verður vistað á Google-reikningnum þínum eftir að þú skráir þig inn.</translation>
 <translation id="7845233973568007926">Takk fyrir að setja upp. Þú þarft að endurræsa tölvuna áður en þú getur notað <ph name="BUNDLE_NAME" />.</translation>
@@ -829,7 +828,6 @@ Ekki er hægt að vista ný bókamerki á reikningnum þínum fyrr en þú eyði
 <translation id="8999208279178790196">{0,plural, =0{Uppfærsla er í boði fyrir Chrome}=1{Uppfærsla er í boði fyrir Chrome}one{Uppfærsla hefur verið í boði fyrir Chrome í # dag}other{Uppfærsla hefur verið í boði fyrir Chrome í # daga}}</translation>
 <translation id="9014771989710951291">Mörg fyrirtæki hafa umsjón með Chrome</translation>
 <translation id="9018218886431812662">Uppsetningu lokið</translation>
-<translation id="9024318700713112071">Stilltu Chrome sem sjálfgefinn vafra</translation>
 <translation id="9066987883552592250">Loka Gemini í Chrome Canary</translation>
 <translation id="9074041031320636790">Þetta tókst! Nú geturðu spurt spurninga á auðveldan hátt á meðan þú vafrar með gervigreindarstillingu Google-leitar</translation>
 <translation id="9090566250983691233">Kynntu þér hvers vegna Chrome lokar á sumar skrár</translation>

@@ -274,20 +274,20 @@ class ContextSharingBorderViewUiTestBase : public test::InteractiveGlicTest {
             }
           }
         }),
-        ExecuteJsAt(test::kGlicContentsElementId,
-                    kContextAccessIndicatorCheckBox, kClickFn));
+        ExecuteJsAt(kGlicContentsElementId, kContextAccessIndicatorCheckBox,
+                    kClickFn));
   }
 
   void CloseGlicWindow() {
     const DeepQuery kCloseWindowButton{{"#closebn"}};
-    RunTestSequence(ExecuteJsAt(test::kGlicContentsElementId,
-                                kCloseWindowButton, kClickFn));
+    RunTestSequence(
+        ExecuteJsAt(kGlicContentsElementId, kCloseWindowButton, kClickFn));
   }
 
   void ShutdownGlicWindow() {
     const DeepQuery kShutdownWindowButton{{"#shutdownbn"}};
-    RunTestSequence(ExecuteJsAt(test::kGlicContentsElementId,
-                                kShutdownWindowButton, kClickFn));
+    RunTestSequence(
+        ExecuteJsAt(kGlicContentsElementId, kShutdownWindowButton, kClickFn));
   }
 
   void ClickGlicButtonInBrowser(Browser* browser) {
@@ -970,7 +970,7 @@ IN_PROC_BROWSER_TEST_F(ContextSharingBorderViewUiTest,
 
   // Get the actor keyed service.
   auto* actor_keyed_service =
-      actor::ActorKeyedService::Get(browser()->profile());
+      actor::ActorKeyedService::Get(browser()->GetProfile());
   ASSERT_TRUE(actor_keyed_service);
 
   // Create a new task.

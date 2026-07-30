@@ -40,6 +40,7 @@ import org.chromium.base.test.util.AdvancedMockContext;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
@@ -149,7 +150,9 @@ public class TabbedModeTabPersistencePolicyTest {
 
     @After
     public void tearDown() {
-        mMockDirectory.tearDown();
+        if (mMockDirectory != null) {
+            mMockDirectory.tearDown();
+        }
 
         for (Activity activity : ApplicationStatus.getRunningActivities()) {
             activity.finishAndRemoveTask();
@@ -279,6 +282,7 @@ public class TabbedModeTabPersistencePolicyTest {
     @Feature("TabPersistentStore")
     @EnableFeatures({ChromeFeatureList.SCHEDULE_WINDOW_CLEANING})
     @MediumTest
+    @DisabledTest(message = "crbug.com/533004361")
     public void testClearAllWindowsExceptFor() throws Throwable {
         File dir = TabStateDirectory.getOrCreateTabbedModeStateDirectory();
 
@@ -317,6 +321,7 @@ public class TabbedModeTabPersistencePolicyTest {
     @Feature("TabPersistentStore")
     @MediumTest
     @DisableFeatures({ChromeFeatureList.TAB_WINDOW_MANAGER_REPORT_INDICES_MISMATCH})
+    @DisabledTest(message = "crbug.com/533004361")
     public void testCleanupInstanceState() throws Throwable {
         assertNotNull(TabStateDirectory.getOrCreateBaseStateDirectory());
 

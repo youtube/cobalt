@@ -88,7 +88,8 @@ AccessibilityFocusHighlight::AccessibilityFocusHighlight(
   DCHECK(browser_view);
 
   // Listen for preference changes.
-  profile_pref_registrar_.Init(browser_view_->browser()->profile()->GetPrefs());
+  profile_pref_registrar_.Init(
+      browser_view_->browser()->GetProfile()->GetPrefs());
   profile_pref_registrar_.Add(
       prefs::kAccessibilityFocusHighlightEnabled,
       base::BindRepeating(&AccessibilityFocusHighlight::AddOrRemoveObservers,
@@ -158,7 +159,7 @@ void AccessibilityFocusHighlight::CreateOrUpdateLayer(gfx::Rect node_bounds) {
 
   // Create the layer if needed.
   if (!layer_) {
-    layer_ = std::make_unique<ui::Layer>(ui::LAYER_TEXTURED);
+    layer_ = std::make_unique<ui::LayerTextured>();
     layer_->SetName("AccessibilityFocusHighlight");
     layer_->SetFillsBoundsOpaquely(false);
     root_layer->Add(layer_.get());
@@ -223,7 +224,7 @@ void AccessibilityFocusHighlight::RemoveLayer() {
 
 void AccessibilityFocusHighlight::AddOrRemoveObservers() {
   Browser* browser = browser_view_->browser();
-  PrefService* prefs = browser->profile()->GetPrefs();
+  PrefService* prefs = browser->GetProfile()->GetPrefs();
   TabStripModel* tab_strip_model = browser->tab_strip_model();
 
   if (prefs->GetBoolean(prefs::kAccessibilityFocusHighlightEnabled)) {

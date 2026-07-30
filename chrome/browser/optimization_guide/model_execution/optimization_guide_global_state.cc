@@ -57,7 +57,7 @@ void LaunchService(
           .Pass());
 }
 
-void LogFreeDiskSpace(std::optional<base::ByteCount> bytes) {
+void LogFreeDiskSpace(std::optional<base::ByteSize> bytes) {
   if (bytes.has_value()) {
     base::UmaHistogramCounts10M("OptimizationGuide.OnDeviceModel.FreeDiskSpace",
                                 bytes->InMiB());
@@ -177,11 +177,8 @@ OptimizationGuideGlobalState::OptimizationGuideGlobalState(
   }
 
   auto model_broker_state = std::make_unique<ModelBrokerState>(
-      *g_browser_process->local_state(), prediction_manager_.model_provider(),
-      component_updater::CreateOptimizationGuideOnDeviceModelComponentDelegate(
-          component_updater::OnDeviceModelType::kBaseModel),
-      component_updater::CreateOptimizationGuideOnDeviceModelComponentDelegate(
-          component_updater::OnDeviceModelType::kClassifierModel),
+      *g_browser_process->local_state(), model_provider(),
+      component_updater::CreateOptimizationGuideOnDeviceModelComponentDelegate(),
       launch_service_callback, g_browser_process->component_updater());
 
   component_state_manager_observer_ =
@@ -213,7 +210,7 @@ OptimizationGuideGlobalState::OptimizationGuideGlobalState() {
 
 #if BUILDFLAG(IS_ANDROID)
   on_device_capability_ = std::make_unique<ModelBrokerAndroid>(
-      *g_browser_process->local_state(), prediction_manager_.model_provider());
+      *g_browser_process->local_state(), model_provider());
 #else   // !BUILDFLAG(IS_ANDROID)
   // Create a stub capability that can't do anything.
   on_device_capability_ = std::make_unique<OnDeviceCapability>();

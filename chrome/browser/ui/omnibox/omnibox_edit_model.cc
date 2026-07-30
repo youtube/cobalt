@@ -81,6 +81,7 @@
 #include "components/omnibox/browser/omnibox_triggered_feature_service.h"
 #include "components/omnibox/browser/page_classification_functions.h"
 #include "components/omnibox/browser/search_provider.h"
+#include "components/omnibox/browser/searchbox_utils.h"
 #include "components/omnibox/browser/suggestion_answer.h"
 #include "components/omnibox/browser/vector_icons.h"  // nogncheck
 #include "components/omnibox/browser/verbatim_match.h"
@@ -191,22 +192,6 @@ void EmitEnteredKeywordModeHistogram(
   if (turl != nullptr) {
     base::UmaHistogramEnumeration(
         omnibox::kKeywordModeUsageByEngineTypeEnteredHistogramName,
-        turl->GetBuiltinEngineType(),
-        BuiltinEngineType::KEYWORD_MODE_ENGINE_TYPE_MAX);
-  }
-}
-
-void EmitAcceptedKeywordSuggestionHistogram(
-    OmniboxEventProto::KeywordModeEntryMethod entry_method,
-    const TemplateURL* turl) {
-  UMA_HISTOGRAM_ENUMERATION(
-      omnibox::kAcceptedKeywordSuggestionHistogram,
-      static_cast<int>(entry_method),
-      static_cast<int>(OmniboxEventProto::KeywordModeEntryMethod_MAX + 1));
-
-  if (turl != nullptr) {
-    base::UmaHistogramEnumeration(
-        omnibox::kKeywordModeUsageByEngineTypeAcceptedHistogramName,
         turl->GetBuiltinEngineType(),
         BuiltinEngineType::KEYWORD_MODE_ENGINE_TYPE_MAX);
   }
@@ -2808,23 +2793,26 @@ void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
   }
   autocomplete_controller()->AddProviderAndTriggeringLogs(&log);
 
-  base::UmaHistogramEnumeration("Omnibox.SuggestionUsed.RichAutocompletion",
-                                match.rich_autocompletion_triggered);
+  searchbox::RecordSuggestionUsedMetrics(match);
 
   omnibox::LogIPv4PartsCount(user_text, destination_url, completed_length);
 
   controller_->client()->OnURLOpenedFromOmnibox(&log);
   OmniboxEventGlobalTracker::GetInstance()->OnURLOpened(&log);
 
-  LOCAL_HISTOGRAM_BOOLEAN("Omnibox.EventCount", true);
-  omnibox::answer_data_parser::LogAnswerUsed(match.answer_type);
+  if (auto* geolocation_header_service = autocomplete_controller()
+                                             ->autocomplete_provider_client()
+                                             ->GetGeolocationHeaderService()) {
+    geolocation_header_service->RecordInlineLocationSuggestionClicked(match);
+  }
 
-  TemplateURLService* service = controller_->client()->GetTemplateURLService();
-  TemplateURL* template_url = match.GetTemplateURL(service);
+  TemplateURLService* template_url_service =
+      controller_->client()->GetTemplateURLService();
+  TemplateURL* template_url = match.GetTemplateURL(template_url_service);
   if (template_url) {
     // |match| is a Search navigation or a URL navigation in keyword mode; log
     // search engine usage metrics.
-    AutocompleteMatch::LogSearchEngineUsed(match, service);
+    AutocompleteMatch::LogSearchEngineUsed(match, template_url_service);
 
     if (ui::PageTransitionTypeIncludingQualifiersIs(
             match.transition, ui::PAGE_TRANSITION_KEYWORD) ||
@@ -2832,11 +2820,9 @@ void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
             AutocompleteProvider::TYPE_UNSCOPED_EXTENSION) {
       // User is in keyword mode or accepted an unscoped extension suggestion,
       // increment usage count for the keyword.
-      base::RecordAction(base::UserMetricsAction("AcceptedKeyword"));
-      EmitAcceptedKeywordSuggestionHistogram(keyword_mode_entry_method_,
-                                             template_url);
-      controller_->client()->GetTemplateURLService()->IncrementUsageCount(
-          template_url);
+      searchbox::EmitAcceptedKeywordSuggestionHistogram(
+          keyword_mode_entry_method_, template_url);
+      template_url_service->IncrementUsageCount(template_url);
 
       // Notify the extension of the selected input, but ignore if the selection
       // corresponds to an action created by an extension in unscoped mode.
@@ -2883,27 +2869,10 @@ void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
     }
   }
 
-  TemplateURLService* template_url_service =
-      controller_->client()->GetTemplateURLService();
   if (action) {
-    int enter_starter_pack_id = controller_->client()->ExecuteAction(
+    controller_->client()->ExecuteAction(
         action, disposition, match_selection_timestamp,
         *(autocomplete_controller()->autocomplete_provider_client()));
-    if (enter_starter_pack_id != 0 && template_url_service) {
-      template_url_starter_pack_data::StarterPackId starter_pack_id =
-          static_cast<template_url_starter_pack_data::StarterPackId>(
-              enter_starter_pack_id);
-      if (const TemplateURL* starter_pack_turl =
-              template_url_service->FindStarterPackTemplateURL(
-                  starter_pack_id)) {
-        EnterKeywordMode(
-            OmniboxEventProto::TOOLBELT, starter_pack_turl,
-            AutocompleteMatch::GetKeywordPlaceholder(
-                starter_pack_turl,
-                controller_->client()->IsHistoryEmbeddingsEnabled()));
-        return;
-      }
-    }
   }
 
   if (disposition != WindowOpenDisposition::NEW_BACKGROUND_TAB && view_) {
@@ -2912,15 +2881,8 @@ void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
   }
 
   if (!action) {
-    // Track whether the destination URL sends us to a search results page
-    // using the default search provider.
-    if (template_url_service &&
-        template_url_service->IsSearchResultsPageFromDefaultSearchProvider(
-            match.destination_url)) {
-      base::RecordAction(
-          base::UserMetricsAction("OmniboxDestinationURLIsSearchOnDSP"));
-      base::UmaHistogramBoolean("Omnibox.Search.OffTheRecord", is_incognito);
-    }
+    searchbox::RecordNonActionSearchMetrics(
+        template_url_service, match, is_incognito, match_selection_timestamp);
 
     BookmarkModel* bookmark_model = controller_->client()->GetBookmarkModel();
     if (bookmark_model && bookmark_model->IsBookmarked(destination_url)) {
@@ -2932,10 +2894,6 @@ void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
     if (destination_url.is_valid()) {
       // This calls RevertAll again.
       base::AutoReset<bool> tmp(&in_revert_, true);
-
-      base::UmaHistogramMicrosecondsTimes(
-          "Omnibox.InputToAcceptNonAction",
-          base::TimeTicks::Now() - match_selection_timestamp);
       controller_->client()->OnAutocompleteAccept(
           destination_url, match.post_content.get(), disposition,
           ui::PageTransitionFromInt(match.transition |
@@ -2950,12 +2908,6 @@ void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
               autocomplete_controller()->autocomplete_provider_client(),
               alternate_input, alternate_nav_url, false));
     }
-  }
-
-  if (auto* geolocation_header_service = autocomplete_controller()
-                                             ->autocomplete_provider_client()
-                                             ->GetGeolocationHeaderService()) {
-    geolocation_header_service->RecordInlineLocationSuggestionClicked(match);
   }
 }
 
@@ -3332,7 +3284,11 @@ void OmniboxEditModel::InitializeQueryContextualizerIfNeeded() {
           std::move(get_viewport_options_callback),
           contextual_tasks::ContextualTasksContextServiceFactory::GetForProfile(
               profile),
-          chrome_omnibox_client->browser());
+          base::BindRepeating(
+              [](ChromeOmniboxClient* client) -> BrowserWindowInterface* {
+                return client->browser();
+              },
+              base::Unretained(chrome_omnibox_client)));
   auto* service =
       contextual_tasks::ContextualTasksServiceFactory::GetForProfile(profile);
   query_contextualizer_ =

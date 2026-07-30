@@ -32,6 +32,7 @@ source_set("scene_state_header") {
     "scene_controller.h",
     "scene_delegate.h",
     "scene_state.h",
+    "scene_state_options.h",
     "scene_state_prefs.h",
     "scene_ui_provider.h",
   ]
@@ -90,7 +91,6 @@ source_set("scene") {
 
   deps = [
     ":scene_state_header_for_otr_profile_deletion",
-    ":scene_util",
     ":tab_activity_utils",
     ":task_updater_scene_agent",
     "//base",
@@ -164,7 +164,9 @@ source_set("scene") {
     "//ios/chrome/browser/incognito_reauth/ui_bundled:incognito_reauth_scene_agent",
     "//ios/chrome/browser/infobars/model",
     "//ios/chrome/browser/intelligence/bwg/coordinator",
+    "//ios/chrome/browser/intelligence/bwg/model:tab_helper",
     "//ios/chrome/browser/intelligence/bwg/utils:constants",
+    "//ios/chrome/browser/intelligence/bwg/utils:prefs",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/intents/model:user_activity_browser_agent",
     "//ios/chrome/browser/intents/model:user_activity_compatibility_util",
@@ -276,19 +278,6 @@ source_set("tab_activity_utils") {
   frameworks = [ "UIKit.framework" ]
 }
 
-source_set("scene_util_test_support") {
-  testonly = true
-  sources = [
-    "scene_util_test_support.h",
-    "scene_util_test_support.mm",
-  ]
-  frameworks = [ "UIKit.framework" ]
-  deps = [
-    ":scene_state_header",
-    "//ios/chrome/app/application_delegate:app_state",
-  ]
-}
-
 source_set("unit_tests") {
   testonly = true
   sources = [
@@ -304,7 +293,6 @@ source_set("unit_tests") {
     ":scene_state_header",
     ":scene_testing",
     ":scene_util",
-    ":scene_util_test_support",
     ":task_updater_scene_agent",
     "//base/test:test_support",
     "//components/signin/public/identity_manager:test_support",

@@ -9,6 +9,7 @@
 
 #include "base/feature_list.h"
 #include "base/functional/function_ref.h"
+#include "base/memory/ptr_util.h"
 #include "base/memory/scoped_refptr.h"
 #include "base/memory/weak_ptr.h"
 #include "base/metrics/histogram_macros.h"
@@ -145,9 +146,9 @@ CanvasNon2DResourceProvider::Create(
   }
 #endif
 
-  auto provider = std::make_unique<CanvasNon2DResourceProvider>(
+  auto provider = base::WrapUnique(new CanvasNon2DResourceProvider(
       size, format, alpha_type, color_space, hdr_metadata,
-      context_provider_wrapper, shared_image_usage_flags, delegate);
+      context_provider_wrapper, shared_image_usage_flags, delegate));
 
   return provider->IsValid() ? std::move(provider) : nullptr;
 }
@@ -206,9 +207,9 @@ CanvasNon2DResourceProvider::CreateForSoftwareCompositor(
   CHECK(format == viz::SharedImageFormat::N32Format() ||
         format == viz::SinglePlaneFormat::kRGBA_F16);
 
-  auto provider = std::make_unique<CanvasNon2DResourceProvider>(
+  auto provider = base::WrapUnique(new CanvasNon2DResourceProvider(
       size, format, alpha_type, color_space, hdr_metadata,
-      shared_image_interface_provider, delegate);
+      shared_image_interface_provider, delegate));
   return provider->IsValid() ? std::move(provider) : nullptr;
 }
 
@@ -376,11 +377,6 @@ CanvasNon2DResourceProvider::~CanvasNon2DResourceProvider() {
 
   if (!is_software_) {
     FlushForImageListener::Get()->RemoveObserver(this);
-  }
-
-  // Last chance for outstanding GPU timers to record metrics.
-  if (RasterInterface()) {
-    CheckGpuTimers(RasterInterface());
   }
 
   UMA_HISTOGRAM_EXACT_LINEAR("Blink.Canvas.MaximumInflightResources",

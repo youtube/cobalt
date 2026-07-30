@@ -46,12 +46,7 @@ bool IsScriptToolRequestedByOrigin(
 }
 
 bool IsWebMCPEnabled(RenderFrameHost& rfh) {
-  // In the renderer, the WebMCP feature is implied by WebMCPTesting (in
-  // runtime_enabled_features.json5). Since this implication does not propagate
-  // automatically to the browser's base::FeatureList, we must explicitly check
-  // both features here to prevent renderer termination (bad IPC message).
-  return (base::FeatureList::IsEnabled(blink::features::kWebMCP) ||
-          base::FeatureList::IsEnabled(blink::features::kWebMCPTesting)) &&
+  return base::FeatureList::IsEnabled(blink::features::kWebMCP) &&
          rfh.IsFeatureEnabled(network::mojom::PermissionsPolicyFeature::kTools);
 }
 
@@ -259,6 +254,7 @@ void ModelContextUserData::GetScriptTools(
 }
 
 void ModelContextUserData::ExecuteRemoteScriptTool(
+    const base::UnguessableToken& invocation_id,
     const blink::FrameToken& tool_owner_frame_token,
     const url::Origin& expected_target_origin,
     const std::string& name,
@@ -345,12 +341,6 @@ void ModelContextUserData::ExecuteRemoteScriptTool(
 
   // At this point, it is safe to invoke the tool in the target renderer pointed
   // to by `target_data`.
-  //
-  // TODO(http://b/485810761): Right now `invocation_id` is only used to
-  // identify pending execution requests in the browser process. Plumb this up
-  // to the renderer for use by DevTools.
-  base::UnguessableToken invocation_id = base::UnguessableToken::Create();
-
   ModelContextPageUserData* page_data =
       ModelContextPageUserData::GetOrCreateForPage(target_rfh->GetPage());
   ModelContextPageUserData::PendingScriptToolExecution execution;
@@ -362,7 +352,7 @@ void ModelContextUserData::ExecuteRemoteScriptTool(
   page_data->AddPendingScriptToolExecution(invocation_id, std::move(execution));
 
   target_data->model_context_remote_->ExecuteScriptTool(
-      name, input_arguments,
+      invocation_id, name, input_arguments,
       base::BindOnce(
           [](base::WeakPtr<ModelContextPageUserData> page_data,
              base::UnguessableToken invocation_id,

@@ -20,6 +20,7 @@
 #include "base/test/mock_callback.h"
 #include "base/test/test_future.h"
 #include "base/test/test_mock_time_task_runner.h"
+#include "chrome/browser/ash/browser_delegate/browser_delegate.h"
 #include "chrome/browser/ash/extensions/file_manager/event_router.h"
 #include "chrome/browser/ash/extensions/file_manager/event_router_factory.h"
 #include "chrome/browser/ash/file_manager/file_manager_test_util.h"
@@ -48,9 +49,9 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/in_process_browser_test.h"
-#include "chrome/test/base/interactive_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/enterprise/data_controls/core/browser/dlp_histogram_helper.h"
 #include "components/strings/grit/components_strings.h"
@@ -59,8 +60,10 @@
 #include "storage/browser/file_system/file_system_url.h"
 #include "storage/browser/quota/quota_manager_proxy.h"
 #include "testing/gmock/include/gmock/gmock.h"
+#include "ui/aura/window.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/events/keycodes/keyboard_codes_posix.h"
+#include "ui/events/test/event_generator.h"
 #include "ui/message_center/public/cpp/notification.h"
 
 namespace policy {
@@ -198,15 +201,16 @@ class FilesPolicyNotificationManagerBrowserTest : public InProcessBrowserTest {
     InProcessBrowserTest::SetUpOnMainThread();
 
     // Needed to check that Files app was/wasn't opened.
-    ash::SystemWebAppManager::GetForTest(browser()->profile())
+    ash::SystemWebAppManager::GetForTest(browser()->GetProfile())
         ->InstallSystemAppsForTesting();
     file_manager::test::AddDefaultComponentExtensionsOnMainThread(
-        browser()->profile());
+        browser()->GetProfile());
 
     display_service_ = static_cast<NotificationDisplayServiceImpl*>(
-        NotificationDisplayServiceFactory::GetForProfile(browser()->profile()));
+        NotificationDisplayServiceFactory::GetForProfile(
+            browser()->GetProfile()));
     auto bridge = std::make_unique<TestNotificationPlatformBridgeDelegator>(
-        browser()->profile());
+        browser()->GetProfile());
     bridge_ = bridge.get();
     display_service_->SetNotificationPlatformBridgeDelegatorForTesting(
         std::move(bridge));
@@ -215,7 +219,7 @@ class FilesPolicyNotificationManagerBrowserTest : public InProcessBrowserTest {
     FilesPolicyDialog::SetFactory(factory_.get());
 
     fpnm_ = FilesPolicyNotificationManagerFactory::GetForBrowserContext(
-        browser()->profile());
+        browser()->GetProfile());
     ASSERT_TRUE(fpnm_);
   }
 
@@ -224,8 +228,11 @@ class FilesPolicyNotificationManagerBrowserTest : public InProcessBrowserTest {
 
   // Returns the last active Files app window, or nullptr when none are found.
   Browser* FindFilesApp() {
-    return FindSystemWebAppBrowser(browser()->profile(),
-                                   ash::SystemWebAppType::FILE_MANAGER);
+    ash::BrowserDelegate* delegate = FindSystemWebAppBrowser(
+        browser()->GetProfile(), ash::SystemWebAppType::FILE_MANAGER,
+        ash::BrowserType::kApp);
+    return delegate ? delegate->GetBrowser().GetBrowserForMigrationOnly()
+                    : nullptr;
   }
 
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -328,8 +335,7 @@ IN_PROC_BROWSER_TEST_P(NonIOWarningBrowserTest, SingleFileOKContinues) {
   auto action = GetParam();
   EXPECT_CALL(*factory_, CreateWarnDialog).Times(0);
   // No Files app opened.
-  ASSERT_FALSE(FindSystemWebAppBrowser(browser()->profile(),
-                                       ash::SystemWebAppType::FILE_MANAGER));
+  ASSERT_FALSE(FindFilesApp());
 
   // The callback is invoked directly from the notification.
   base::MockCallback<WarningWithJustificationCallback> cb;
@@ -345,8 +351,7 @@ IN_PROC_BROWSER_TEST_P(NonIOWarningBrowserTest, SingleFileOKContinues) {
   bridge_->Click(kNotificationId, NotificationButton::OK);
 
   // No Files app opened.
-  ASSERT_FALSE(FindSystemWebAppBrowser(browser()->profile(),
-                                       ash::SystemWebAppType::FILE_MANAGER));
+  ASSERT_FALSE(FindFilesApp());
 
   // The notification should be closed.
   EXPECT_FALSE(bridge_->GetDisplayedNotification(kNotificationId).has_value());
@@ -503,9 +508,9 @@ IN_PROC_BROWSER_TEST_P(NonIOWarningBrowserTest,
   testing::Mock::VerifyAndClearExpectations(&cb);
   EXPECT_CALL(cb, Run(/*user_justification=*/std::optional<std::u16string>(),
                       /*should_proceed=*/true));
-  ASSERT_TRUE(ui_test_utils::SendKeyPressSync(
-      browser(), ui::VKEY_RETURN, /*control=*/false,
-      /*shift=*/false, /*alt=*/false, /*command=*/false));
+  ui::test::EventGenerator(
+      browser()->GetWindow()->GetNativeWindow()->GetRootWindow())
+      .PressAndReleaseKey(ui::VKEY_RETURN, ui::EF_NONE);
 
   // Skip the warning timeout. Shouldn't do anything.
   testing::Mock::VerifyAndClearExpectations(&cb);
@@ -815,10 +820,10 @@ class IOTaskBrowserTest
 
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
     file_system_context_ = file_manager::util::GetFileManagerFileSystemContext(
-        browser()->profile());
+        browser()->GetProfile());
     // DLP Setup.
     policy::DlpRulesManagerFactory::GetInstance()->SetTestingFactory(
-        browser()->profile(),
+        browser()->GetProfile(),
         base::BindRepeating(&IOTaskBrowserTest::SetDlpRulesManager,
                             base::Unretained(this)));
     ASSERT_TRUE(policy::DlpRulesManagerFactory::GetForPrimaryProfile());
@@ -1044,8 +1049,8 @@ IN_PROC_BROWSER_TEST_P(IOTaskBrowserTest,
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId1, type,
-                     temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId1,
+                     type, temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
                      .empty());
   }
 
@@ -1153,12 +1158,12 @@ IN_PROC_BROWSER_TEST_P(IOTaskBrowserTest,
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId1, type,
-                     temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId1,
+                     type, temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
                      .empty());
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId2, type,
-                     temp_dir_.GetPath(), "test2.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId2,
+                     type, temp_dir_.GetPath(), "test2.txt", kTestStorageKey)
                      .empty());
   }
 
@@ -1246,8 +1251,8 @@ IN_PROC_BROWSER_TEST_P(IOTaskBrowserTest, MultiFileDismissCancels_Warning) {
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId1, type,
-                     temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId1,
+                     type, temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
                      .empty());
   }
 
@@ -1299,8 +1304,8 @@ IN_PROC_BROWSER_TEST_P(IOTaskBrowserTest, SingleFileOkProceeds_Warning) {
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId1, type,
-                     temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId1,
+                     type, temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
                      .empty());
   }
   ASSERT_TRUE(fpnm_->HasIOTask(kTaskId1));
@@ -1373,12 +1378,12 @@ IN_PROC_BROWSER_TEST_P(IOTaskBrowserTest,
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId1, type,
-                     temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId1,
+                     type, temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
                      .empty());
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId2, type,
-                     temp_dir_.GetPath(), "test2.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId2,
+                     type, temp_dir_.GetPath(), "test2.txt", kTestStorageKey)
                      .empty());
   }
   ASSERT_TRUE(fpnm_->HasIOTask(kTaskId1));
@@ -1458,8 +1463,8 @@ IN_PROC_BROWSER_TEST_P(IOTaskBrowserTest, MultiFileDismissRemovesIOInfo_Error) {
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId1, type,
-                     temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId1,
+                     type, temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
                      .empty());
   }
   ASSERT_TRUE(fpnm_->HasIOTask(kTaskId1));
@@ -1511,8 +1516,8 @@ IN_PROC_BROWSER_TEST_P(IOTaskBrowserTest,
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId1, type,
-                     temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId1,
+                     type, temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
                      .empty());
   }
   ASSERT_TRUE(fpnm_->HasIOTask(kTaskId1));
@@ -1572,8 +1577,8 @@ IN_PROC_BROWSER_TEST_P(IOTaskBrowserTest, SingleFileOkProceeds_Mix) {
   {
     base::ScopedAllowBlockingForTesting allow_blocking;
     ASSERT_FALSE(policy::AddCopyOrMoveIOTask(
-                     browser()->profile(), file_system_context_, kTaskId1, type,
-                     temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
+                     browser()->GetProfile(), file_system_context_, kTaskId1,
+                     type, temp_dir_.GetPath(), "test1.txt", kTestStorageKey)
                      .empty());
   }
   ASSERT_TRUE(fpnm_->HasIOTask(kTaskId1));

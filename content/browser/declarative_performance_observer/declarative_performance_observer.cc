@@ -57,16 +57,6 @@ DeclarativePerformanceObserver::DeclarativePerformanceObserver(
       web_contents && web_contents->GetVisibility() == Visibility::VISIBLE;
 
   if (enabled_types_.contains(
-          network::mojom::PerformanceEntryType::kVisibilityState)) {
-    base::DictValue entry;
-    entry.Set("name", started_in_foreground_ ? "visible" : "hidden");
-    entry.Set("entryType", "visibility-state");
-    entry.Set("startTime", 0.0);
-    entry.Set("duration", 0.0);
-    AddEntryToBuffer(std::move(entry));
-  }
-
-  if (enabled_types_.contains(
           network::mojom::PerformanceEntryType::kNavigation)) {
     base::DictValue entry;
     entry.Set("name", committed_url_.spec());
@@ -106,6 +96,16 @@ DeclarativePerformanceObserver::DeclarativePerformanceObserver(
     AddEntryToBuffer(std::move(entry));
   }
 
+  if (enabled_types_.contains(
+          network::mojom::PerformanceEntryType::kVisibilityState)) {
+    base::DictValue entry;
+    entry.Set("name", started_in_foreground_ ? "visible" : "hidden");
+    entry.Set("entryType", "visibility-state");
+    entry.Set("startTime", 0.0);
+    entry.Set("duration", 0.0);
+    AddEntryToBuffer(std::move(entry));
+  }
+
   // The storage partition associated with the RenderFrameHost is guaranteed to
   // be a `StoragePartitionImpl` in production and in all standard test
   // harnesses. We can safely downcast it here to retrieve the DPO store.
@@ -128,9 +128,9 @@ DeclarativePerformanceObserver::DeclarativePerformanceObserver(
 }
 
 DeclarativePerformanceObserver::~DeclarativePerformanceObserver() {
-  if (render_frame_host().IsActive()) {
-    AppendSessionEndEntry();
-    FlushMetrics();
+  if (render_frame_host().GetLifecycleState() !=
+      RenderFrameHost::LifecycleState::kPrerendering) {
+    EndSessionAndFlush();
   }
   base::UmaHistogramMemoryKB("DeclarativePerformanceObserver.PeakBufferSize",
                              peak_buffer_bytes_ / 1024);
@@ -215,20 +215,14 @@ void DeclarativePerformanceObserver::OnVisibilityChanged(
     entry.Set("duration", 0.0);
     AddEntryToBuffer(std::move(entry));
   }
-
-  if (visibility == Visibility::HIDDEN) {
-    FlushMetrics();
-  }
 }
 
 void DeclarativePerformanceObserver::OnFrameDeleted() {
-  AppendSessionEndEntry();
-  FlushMetrics();
+  EndSessionAndFlush();
 }
 
 void DeclarativePerformanceObserver::OnEnterBFCache() {
-  AppendSessionEndEntry();
-  FlushMetrics();
+  EndSessionAndFlush();
 }
 
 void DeclarativePerformanceObserver::SetStoragePartitionForTesting(  // IN-TEST
@@ -277,6 +271,14 @@ void DeclarativePerformanceObserver::AppendSessionEndEntry() {
     entry.Set("duration", 0.0);
     AddEntryToBuffer(std::move(entry));
   }
+}
+
+void DeclarativePerformanceObserver::EndSessionAndFlush() {
+  if (is_session_ended_) {
+    return;
+  }
+  AppendSessionEndEntry();
+  FlushMetrics();
 }
 
 void DeclarativePerformanceObserver::AddEntryToBuffer(base::DictValue entry) {
@@ -437,9 +439,29 @@ void DeclarativePerformanceObserver::RecordEarlyNavigationFailure(
 
 void DeclarativePerformanceObserver::OnEarlyFailureReportsTaken(
     base::ListValue reports) {
+  StoragePartition* storage_partition =
+      storage_partition_for_testing_
+          ? storage_partition_for_testing_.get()
+          : render_frame_host().GetStoragePartition();
+  if (!storage_partition) {
+    return;
+  }
   for (auto& val : reports) {
     if (val.is_dict()) {
-      AddEntryToBuffer(std::move(val).TakeDict());
+      base::DictValue entry = std::move(val).TakeDict();
+
+      std::string* name_url = entry.FindString("name");
+      GURL failed_url = name_url ? GURL(*name_url) : committed_url_;
+
+      base::DictValue report_body;
+      base::ListValue entries_list;
+      entries_list.Append(base::Value(std::move(entry)));
+      report_body.Set("entries", std::move(entries_list));
+
+      storage_partition->GetNetworkContext()->QueueReport(
+          kDeclarativePerformanceObserverReportType, reporting_endpoint_,
+          failed_url, reporting_source_, network_anonymization_key_,
+          std::move(report_body));
     }
   }
 }

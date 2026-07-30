@@ -4,6 +4,7 @@
 
 assert(is_win || is_mac || is_linux || is_chromeos)
 
+import("//build/config/ozone.gni")
 import("//build/config/ui.gni")
 import("//chrome/common/features.gni")
 
@@ -12,13 +13,11 @@ source_set("location_bar") {
 
   if (toolkit_views) {
     public += [
-      "ai_mode_page_action_icon_view.h",
       "content_setting_image_view.h",
       "custom_tab_bar_view.h",
       "intent_chip_button.h",
       "intent_picker_view.h",
       "lens_overlay_homework_page_action_controller.h",
-      "lens_overlay_homework_page_action_icon_view.h",
       "location_bar_bubble_delegate_view.h",
       "location_bar_layout.h",
       "location_bar_view.h",
@@ -80,13 +79,11 @@ source_set("impl") {
 
   if (toolkit_views) {
     sources += [
-      "ai_mode_page_action_icon_view.cc",
       "content_setting_image_view.cc",
       "custom_tab_bar_view.cc",
       "intent_chip_button.cc",
       "intent_picker_view.cc",
       "lens_overlay_homework_page_action_controller.cc",
-      "lens_overlay_homework_page_action_icon_view.cc",
       "location_bar_bubble_delegate_view.cc",
       "location_bar_layout.cc",
       "location_bar_view.cc",
@@ -120,6 +117,7 @@ source_set("impl") {
       "//chrome/browser/glic",
       "//chrome/browser/history_embeddings",
       "//chrome/browser/page_info",
+      "//chrome/browser/resources/omnibox_popup:resources_grit",
       "//chrome/browser/search_engines",
       "//chrome/browser/sharing_hub",
       "//chrome/browser/signin",
@@ -202,12 +200,12 @@ source_set("icon_label_bubble") {
     sources += [
       "icon_label_bubble_view.cc",
       "icon_label_bubble_view.h",
+      "location_bar_util.cc",
+      "location_bar_util.h",
       "slide_and_crossfade_icon_label_bubble_layout_strategy.cc",
       "slide_and_crossfade_icon_label_bubble_layout_strategy.h",
       "standard_icon_label_bubble_layout_strategy.cc",
       "standard_icon_label_bubble_layout_strategy.h",
-      "location_bar_util.cc",
-      "location_bar_util.h",
     ]
 
     public_deps = [
@@ -286,9 +284,13 @@ source_set("browser_tests") {
     "//content/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
+    "//ui/base:ozone_buildflags",
     "//ui/base/clipboard:clipboard_test_support",
     "//ui/views:test_support",
   ]
+  if (use_ozone) {
+    deps += [ "//ui/ozone" ]
+  }
   if (is_chromeos) {
     deps += [ "//chromeos/ui/frame:test_support" ]
   }
@@ -327,7 +329,6 @@ source_set("interactive_ui_tests") {
     "content_setting_image_view_interactive_uitest.cc",
     "content_setting_interactive_uitest.cc",
     "find_bar_interactive_uitest.cc",
-    "lens_overlay_homework_page_action_icon_view_interactive_uitest.cc",
     "lens_overlay_page_action_icon_view_interactive_uitest.cc",
     "location_icon_view_interactive_uitest.cc",
     "record_replay_page_action_controller_interactive_uitest.cc",
@@ -347,6 +348,7 @@ source_set("interactive_ui_tests") {
     "//chrome/browser/web_applications:web_applications_test_support",
     "//chrome/test:test_support",
     "//chrome/test:test_support_ui",
+    "//chrome/test/user_education:impl",
     "//components/commerce/core:proto",
     "//content/test:test_support",
     "//testing/gtest",

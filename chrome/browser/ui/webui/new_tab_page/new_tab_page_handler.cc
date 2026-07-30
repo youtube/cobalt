@@ -511,12 +511,13 @@ NewTabPageHandler::NewTabPageHandler(
         segmentation_platform_service,
     content::WebContents* web_contents,
     const base::Time& ntp_navigation_start_time,
+    base::TimeTicks ntp_navigation_start_time_ticks,
     const std::vector<ntp::ModuleIdDetail>* module_id_details)
     : SettingsEnabledObserver(
           optimization_guide::UserVisibleFeatureKey::kWallpaperSearch),
       logger_(profile,
               chrome::ChromeUINewTabPageURLAsGURL(),
-              ntp_navigation_start_time),
+              ntp_navigation_start_time_ticks),
       ntp_custom_background_service_(ntp_custom_background_service),
       logo_service_(logo_service),
 // TODO(b/502297163): Implement for Android.
@@ -1392,18 +1393,12 @@ void NewTabPageHandler::MaybeTriggerAutomaticCustomizeChromePromo() {
 }
 
 void NewTabPageHandler::LogEvent(NTPLoggingEventType event) {
-// TODO(b/502297163): Implement for Android.
-#if !BUILDFLAG(IS_ANDROID)
   logger_.LogEvent(event, base::TimeDelta() /* unused */);
-#endif
 }
 
 void NewTabPageHandler::LogEvent(NTPLoggingEventType event,
                                  base::TimeDelta delta) {
-// TODO(b/502297163): Implement for Android.
-#if !BUILDFLAG(IS_ANDROID)
   logger_.LogEvent(event, delta);
-#endif
 }
 
 void NewTabPageHandler::Fetch(const GURL& url,

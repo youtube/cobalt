@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">De informatiepagina '<ph name="ABOUT_PAGE" />' kan niet worden geladen.</translation>
 <translation id="424963718355121712">Apps moeten worden weergegeven vanaf de host waarop ze betrekking hebben</translation>
 <translation id="4306119971288449206">Apps moeten worden weergegeven met inhoudstype '<ph name="CONTENT_TYPE" />'</translation>
+<translation id="4349181963619779233">Extensies en apps kunnen niet worden toegevoegd vanaf deze website</translation>
 <translation id="4625078469366263107">App aanzetten</translation>
 <translation id="4633003931260532286">Voor deze extensie is minimaal versie '<ph name="IMPORT_VERSION" />' van '<ph name="IMPORT_NAME" />' vereist, maar alleen versie '<ph name="INSTALLED_VERSION" />' is geïnstalleerd</translation>
 <translation id="4660476621274971848">Verwachte versie '<ph name="EXPECTED_VERSION" />', maar versie is '<ph name="NEW_ID" />'</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">De invoerwaarde voor de privésleutel moet een geldige indeling hebben (PKCS#8-indeling met PEM-gecodeerde RSA-sleutel).</translation>
-<translation id="765293928828334535">Apps, extensies en gebruikersscripts kunnen niet worden toegevoegd vanaf deze website</translation>
 <translation id="7658239707568436148">Annuleren</translation>
 <translation id="7766838926148951335">Rechten accepteren</translation>
 <translation id="7876803335449432072">Kan bestand <ph name="RELATIVE_PATH" /> niet laden voor het contentscript. Stylesheets van contentscripts kunnen alleen worden geladen vanuit ondersteunde stylesheetbestanden, zoals css-bestanden.</translation>

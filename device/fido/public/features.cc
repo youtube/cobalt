@@ -9,18 +9,6 @@
 
 namespace {
 
-// Default maximum number of immediate requests allowed per origin (eTLD+1) for
-// the immediate request long rate limit.
-constexpr int kDefaultMaxRequests = 10;
-// Default time window (in seconds) for the immediate request long rate limit.
-constexpr int kDefaultWindowSeconds = 60;
-// Default maximum number of immediate requests allowed per origin (eTLD+1) for
-// the immediate request short rate limit.
-constexpr int kDefaultMaxRequestsShort = 2;
-// Default time window (in seconds) for the immediate request short rate limit.
-constexpr int kDefaultWindowSecondsShort = 5;
-// Default timeout for immediate mediation requests (in milliseconds).
-constexpr int kDefaultImmediateMediationTimeoutMs = 500;
 // Default ttl (in seconds) for keeping the cached opportunistically retrieved
 // key in case its Gaia Id doesn't match to primary signed-in account.
 constexpr int kDefaultOpportunisticRetrievalTimeToKeepCachedKeySeconds = 300;
@@ -150,56 +138,17 @@ BASE_FEATURE(kWebAuthnEnclaveAttestation,
              "WebAuthenticationEnclaveAttestation",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enabled by default as part of the WebAuthenticationImmediateGet feature. Do
-// not remove before WebAuthenticationImmediateGet is removed.
-BASE_FEATURE(kWebAuthnImmediateRequestRateLimit,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE_PARAM(int,
-                   kWebAuthnImmediateRequestLongRateLimitMaxRequests,
-                   &kWebAuthnImmediateRequestRateLimit,
-                   "max_requests",
-                   kDefaultMaxRequests);
-
-BASE_FEATURE_PARAM(int,
-                   kWebAuthnImmediateRequestLongRateLimitWindowSeconds,
-                   &kWebAuthnImmediateRequestRateLimit,
-                   "window_seconds",
-                   kDefaultWindowSeconds);
-
-BASE_FEATURE_PARAM(int,
-                   kWebAuthnImmediateRequestShortRateLimitMaxRequests,
-                   &kWebAuthnImmediateRequestRateLimit,
-                   "max_requests_short",
-                   kDefaultMaxRequestsShort);
-
-BASE_FEATURE_PARAM(int,
-                   kWebAuthnImmediateRequestShortRateLimitWindowSeconds,
-                   &kWebAuthnImmediateRequestRateLimit,
-                   "window_seconds_short",
-                   kDefaultWindowSecondsShort);
 
 BASE_FEATURE(kWebAuthnCrossDeviceFallbackUrl,
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Enabled in M148. Remove in or after M151.
-BASE_FEATURE(kWebAuthnImmediateGet,
-             "WebAuthenticationImmediateGet",
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE_PARAM(int,
-                   kWebAuthnImmediateMediationTimeoutMilliseconds,
-                   &kWebAuthnImmediateGet,
-                   "timeout_ms",
-                   kDefaultImmediateMediationTimeoutMs);
 
 // Enabled by default in M149. Remove in or after M152.
 BASE_FEATURE(kWebAuthnIWARemoteDesktopAllowedOriginsPolicy,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Disabled by default.
-BASE_FEATURE(kWebAuthnOpportunisticRetrieval,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+// Enabled by default in M152. Remove in or after M155.
+BASE_FEATURE(kWebAuthnOpportunisticRetrieval, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
                    kWebAuthnOpportunisticRetrievalTimeToKeepCachedKeySeconds,
@@ -240,9 +189,9 @@ COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_FEATURE(kWebAuthnGpmPasskeyEmbeddedRecoveryUrl,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Not yet enabled by default.
+// Enabled by default in M152. Remove in or after M155.
 COMPONENT_EXPORT(FIDO_PUBLIC)
 BASE_FEATURE(kWebAuthnEnclaveUseAuthDataFromEnclave,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace device

@@ -28,6 +28,7 @@
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/drive_picker_host/drive_picker_result_handler.mojom.h"
 #include "chrome/browser/ui/views/location_bar/omnibox_popup_file_selector.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_context_menu.h"
 #include "chrome/browser/ui/webui/cr_components/composebox/composebox_handler.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_web_contents_helper.h"
@@ -53,6 +54,8 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/menus/simple_menu_model.h"
+#include "ui/views/controls/menu/menu_item_view.h"
+#include "ui/views/controls/menu/submenu_view.h"
 
 namespace {
 
@@ -100,6 +103,37 @@ class OmniboxContextMenuControllerBrowserTest : public InProcessBrowserTest {
       const OmniboxContextMenuControllerBrowserTest&) = delete;
   OmniboxContextMenuControllerBrowserTest& operator=(
       const OmniboxContextMenuControllerBrowserTest&) = delete;
+
+  void SetUpOnMainThread() override {
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(embedded_test_server()->Start());
+    InProcessBrowserTest::SetUpOnMainThread();
+
+    OmniboxPopupWebContentsHelper::CreateForWebContents(GetWebContents());
+    LocationBar* location_bar =
+        BrowserWindow::FromBrowser(browser())->GetLocationBar();
+    OmniboxPopupWebContentsHelper::FromWebContents(GetWebContents())
+        ->set_omnibox_controller(location_bar->GetOmniboxController());
+  }
+
+  content::WebContents* GetWebContents() {
+    return browser()->tab_strip_model()->GetActiveWebContents();
+  }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+class OmniboxInlineTabsContextMenuBrowserTest : public InProcessBrowserTest {
+ public:
+  OmniboxInlineTabsContextMenuBrowserTest() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/
+        {{omnibox::internal::kWebUIOmniboxAimPopup, {}},
+         {omnibox::internal::kWebUIOmniboxPopup, {}},
+         {omnibox::kContextManagementInComposebox, {}}},
+        /*disabled_features=*/{omnibox::kContextManagementInOmnibox});
+  }
 
   void SetUpOnMainThread() override {
     host_resolver()->AddRule("*", "127.0.0.1");
@@ -170,6 +204,49 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
             controller.shared_tabs_menu_model()->GetMinorTextAt(0));
   EXPECT_EQ(std::u16string(),
             controller.shared_tabs_menu_model()->GetMinorTextAt(1));
+}
+
+IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
+                       RecentAndCurrentTabLabelsWithFeatureEnabled) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupURL)));
+  auto* web_contents = GetWebContents();
+
+  GURL url1(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(AddTabAtIndex(1, url1, ui::PAGE_TRANSITION_TYPED));
+
+  GURL url2(embedded_test_server()->GetURL("/title2.html"));
+  ASSERT_TRUE(AddTabAtIndex(2, url2, ui::PAGE_TRANSITION_TYPED));
+
+  auto owning_window = gfx::NativeWindow();
+  auto omnibox_popup_file_selector =
+      std::make_unique<OmniboxPopupFileSelector>(owning_window);
+
+  // Case 1: Active tab is tab 1, which is a tab that can be added
+  // as context. Therefore, label it as 'current tab'.
+  browser()->tab_strip_model()->ActivateTabAt(1);
+  {
+    OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                            web_contents);
+    ASSERT_TRUE(controller.shared_tabs_menu_model());
+    EXPECT_EQ(l10n_util::GetStringUTF16(IDS_COMPOSE_CURRENT_TAB),
+              controller.shared_tabs_menu_model()->GetMinorTextAt(0));
+    EXPECT_EQ(std::u16string(),
+              controller.shared_tabs_menu_model()->GetMinorTextAt(1));
+  }
+
+  // Case 2: Active tab is tab 0 (non-addable tab for context), so tab label
+  // should say 'recent tab' instead for other most recent tab.
+  browser()->tab_strip_model()->ActivateTabAt(0);
+  {
+    OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                            web_contents);
+    ASSERT_TRUE(controller.shared_tabs_menu_model());
+    EXPECT_EQ(l10n_util::GetStringUTF16(IDS_NTP_COMPOSEBOX_RECENT_TAB_SUFFIX),
+              controller.shared_tabs_menu_model()->GetMinorTextAt(0));
+    EXPECT_EQ(std::u16string(),
+              controller.shared_tabs_menu_model()->GetMinorTextAt(1));
+  }
 }
 
 // TODO(crbug.com/460910010): Flaky, especially on ASAN/LSAN bots and certain
@@ -289,7 +366,7 @@ IN_PROC_BROWSER_TEST_P(OmniboxContextMenuControllerBrowserTestWithCommand,
   ASSERT_TRUE(omnibox_controller);
 
   // Start with the popup in Classic state.
-  OpenClassicPopup(browser()->profile(), omnibox_controller);
+  OpenClassicPopup(browser()->GetProfile(), omnibox_controller);
 
   // Executing the command should record that AIM was NOT open.
   controller.ExecuteCommand(GetCommandId(), 0);
@@ -711,7 +788,7 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
       OmniboxPopupWebContentsHelper::FromWebContents(web_contents)
           ->get_omnibox_controller();
   ASSERT_TRUE(omnibox_controller);
-  OpenClassicPopup(browser()->profile(), omnibox_controller);
+  OpenClassicPopup(browser()->GetProfile(), omnibox_controller);
 
   ASSERT_NE(command_id, -1) << "Drive option not found in menu";
   controller.ExecuteCommand(command_id, 0);
@@ -1628,8 +1705,16 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
   EXPECT_FALSE(controller.IsCommandIdEnabled(33001));
 }
 
+// TODO(crbug.com/530351886): Times out flakily on Linux and Win.
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
+#define MAYBE_VerifyTabEnablementWhenMaxInputsReached \
+  DISABLED_VerifyTabEnablementWhenMaxInputsReached
+#else
+#define MAYBE_VerifyTabEnablementWhenMaxInputsReached \
+  VerifyTabEnablementWhenMaxInputsReached
+#endif
 IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
-                       VerifyTabEnablementWhenMaxInputsReached) {
+                       MAYBE_VerifyTabEnablementWhenMaxInputsReached) {
   ASSERT_TRUE(ui_test_utils::NavigateToURL(
       browser(), GURL(chrome::kChromeUIOmniboxPopupAimURL)));
   auto* popup_web_contents = GetWebContents();
@@ -1703,4 +1788,108 @@ IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerPecBrowserTest,
     EXPECT_TRUE(controller.IsCommandIdEnabled(33000));
     EXPECT_FALSE(controller.IsCommandIdEnabled(33001));
   }
+}
+
+// Recent tab/Current tab should not show since context management flag is
+// disabled by default.
+IN_PROC_BROWSER_TEST_F(OmniboxInlineTabsContextMenuBrowserTest,
+                       InlineTabsDoNotRenderRecentOrCurrentTabLabel) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupURL)));
+  auto* web_contents = GetWebContents();
+
+  // Add two tabs: active tab and a background (recent) tab.
+  GURL url1(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(AddTabAtIndex(1, url1, ui::PAGE_TRANSITION_TYPED));
+
+  GURL url2(embedded_test_server()->GetURL("/title2.html"));
+  ASSERT_TRUE(AddTabAtIndex(2, url2, ui::PAGE_TRANSITION_TYPED));
+
+  browser()->tab_strip_model()->ActivateTabAt(0);
+
+  auto owning_window = gfx::NativeWindow();
+  auto omnibox_popup_file_selector =
+      std::make_unique<OmniboxPopupFileSelector>(owning_window);
+
+  OmniboxContextMenuController controller(omnibox_popup_file_selector.get(),
+                                          web_contents);
+  ui::SimpleMenuModel* model = controller.menu_model();
+
+  // Without the flag enabled (kContextManagementInOmnibox disabled), no shared
+  // tabs submenu is created.
+  EXPECT_FALSE(controller.shared_tabs_menu_model());
+
+  // Verify that neither 'Recent tab' nor 'Current tab' label is rendered
+  // on any item in the menu model.
+  std::u16string recent_tab_label =
+      l10n_util::GetStringUTF16(IDS_NTP_COMPOSEBOX_RECENT_TAB_SUFFIX);
+  std::u16string current_tab_label =
+      l10n_util::GetStringUTF16(IDS_COMPOSE_CURRENT_TAB);
+
+  for (size_t i = 0; i < model->GetItemCount(); ++i) {
+    EXPECT_NE(model->GetMinorTextAt(i), recent_tab_label);
+    EXPECT_NE(model->GetMinorTextAt(i), current_tab_label);
+    EXPECT_EQ(model->GetMinorTextAt(i), std::u16string());
+  }
+}
+
+// Context menu omnibox flag is on.
+IN_PROC_BROWSER_TEST_F(OmniboxContextMenuControllerBrowserTest,
+                       VerifySubmenuContextMenuMaxWidth) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupURL)));
+  auto* web_contents = GetWebContents();
+
+  GURL url1(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(AddTabAtIndex(1, url1, ui::PAGE_TRANSITION_TYPED));
+
+  auto owning_window = browser()->GetWindow()->GetNativeWindow();
+  auto omnibox_popup_file_selector =
+      std::make_unique<OmniboxPopupFileSelector>(owning_window);
+
+  OmniboxContextMenu context_menu(nullptr, omnibox_popup_file_selector.get(),
+                                  web_contents);
+
+  // Direct `GetMinimumMenuWidth` test for main menu ("menu == menu_").
+  EXPECT_EQ(context_menu.GetMinimumMenuWidth(context_menu.menu()), 240);
+  EXPECT_EQ(context_menu.GetMaxWidthForMenu(context_menu.menu()), 240);
+
+  // Direct `GetMinimumMenuWidth` test for submenu item (where "menu != menu_").
+  views::MenuItemView* submenu_item = context_menu.menu()->GetMenuItemByID(
+      IDC_OMNIBOX_CONTEXT_SHARED_TABS_SUBMENU);
+  ASSERT_TRUE(submenu_item);
+  EXPECT_EQ(context_menu.GetMinimumMenuWidth(submenu_item), 320);
+  EXPECT_EQ(context_menu.GetMaxWidthForMenu(submenu_item), 320);
+
+  // Verify `set_minimum_preferred_width` behavior on `SubmenuView`.
+  context_menu.menu()->GetSubmenu()->set_minimum_preferred_width(
+      context_menu.GetMinimumMenuWidth(context_menu.menu()));
+  EXPECT_GE(context_menu.menu()->GetSubmenu()->GetPreferredSize({}).width(),
+            240);
+
+  submenu_item->GetSubmenu()->set_minimum_preferred_width(
+      context_menu.GetMinimumMenuWidth(submenu_item));
+  EXPECT_GE(submenu_item->GetSubmenu()->GetPreferredSize({}).width(), 320);
+}
+
+// Context menu omnibox flag is off.
+IN_PROC_BROWSER_TEST_F(OmniboxInlineTabsContextMenuBrowserTest,
+                       InlineTabsUseDefaultMenuWidth) {
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), GURL(chrome::kChromeUIOmniboxPopupURL)));
+  auto* web_contents = GetWebContents();
+
+  GURL url1(embedded_test_server()->GetURL("/title1.html"));
+  ASSERT_TRUE(AddTabAtIndex(1, url1, ui::PAGE_TRANSITION_TYPED));
+
+  auto owning_window = browser()->GetWindow()->GetNativeWindow();
+  auto omnibox_popup_file_selector =
+      std::make_unique<OmniboxPopupFileSelector>(owning_window);
+
+  OmniboxContextMenu context_menu(nullptr, omnibox_popup_file_selector.get(),
+                                  web_contents);
+
+  // When tabs are inline (no submenu), main menu width is 320px.
+  EXPECT_EQ(context_menu.GetMinimumMenuWidth(context_menu.menu()), 320);
+  EXPECT_EQ(context_menu.GetMaxWidthForMenu(context_menu.menu()), 320);
 }

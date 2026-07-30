@@ -114,11 +114,11 @@ void SkillsInteractiveUiTestBase::SetUpOnMainThread() {
   skills::SkillsFunctionalBrowserTestBase::SetUpOnMainThread();
 
   skills::SkillsServiceFactory::GetInstance()->SetTestingFactory(
-      browser()->profile(),
+      browser()->GetProfile(),
       base::BindRepeating(&SkillsInteractiveUiTestBase::CreateSkillsService,
                           base::Unretained(this)));
 
-  skills::SkillsServiceFactory::GetForProfile(browser()->profile())
+  skills::SkillsServiceFactory::GetForProfile(browser()->GetProfile())
       ->SetServiceStatusForTesting(
           skills::SkillsService::ServiceStatus::kReady);
 
@@ -150,6 +150,7 @@ SkillsInteractiveUiTestBase::UpdateContextualSkillPreviews(
                              std::move(contextual_skill_previews)]() mutable {
     GetGlicInstanceImpl()
         ->host()
+        .instance_delegate()
         .skills_manager()
         .NotifyContextualSkillsChanged(std::move(contextual_skill_previews));
   }));
@@ -208,10 +209,10 @@ SkillsInteractiveUiTestBase::VerifyInvocationInWebUI(
     const std::string& expected_prompt) {
   return Steps(
       Log("Verifying Glic Panel Opened via Toast Interaction"),
-      WaitForShow(glic::test::kGlicHostElementId),
+      WaitForShow(glic::kGlicHostElementId),
 
       WaitForJsResult(
-          glic::test::kGlicContentsElementId,
+          glic::kGlicContentsElementId,
           base::StringPrintf(
               "() => {"
               "  const input = document.getElementById('skillPromptInput');"
@@ -280,7 +281,7 @@ SkillsInteractiveUiTestBase::WaitForSkillPreviewShown(
                         std::string(skill_name) + "\"]"};
   state_change.test_function = "el => el.checkVisibility()";
   state_change.event = kSkillPreviewShown;
-  return WaitForStateChange(glic::test::kGlicContentsElementId, state_change);
+  return WaitForStateChange(glic::kGlicContentsElementId, state_change);
 }
 
 ui::test::InteractiveTestApi::MultiStep
@@ -307,12 +308,12 @@ SkillsInteractiveUiTestBase::WaitForSkillPreviewOrder(
       "}",
       expected_json.c_str());
   state_change.event = kSkillPreviewOrderMatched;
-  return WaitForStateChange(glic::test::kGlicContentsElementId, state_change);
+  return WaitForStateChange(glic::kGlicContentsElementId, state_change);
 }
 
 ui::test::InteractiveTestApi::StepBuilder
 SkillsInteractiveUiTestBase::ClickOnGlicClientElement(DeepQuery where) {
-  return ExecuteJsAt(glic::test::kGlicContentsElementId, where, kClickFn);
+  return ExecuteJsAt(glic::kGlicContentsElementId, where, kClickFn);
 }
 
 ui::test::InteractiveTestApi::MultiStep
@@ -344,7 +345,7 @@ SkillsInteractiveUiTestBase::WaitFor1PSkills() {
   return PollUntil(
       [this]() {
         return !skills::SkillsServiceFactory::GetForProfile(
-                    browser()->profile())
+                    browser()->GetProfile())
                     ->Get1PSkills()
                     .empty();
       },

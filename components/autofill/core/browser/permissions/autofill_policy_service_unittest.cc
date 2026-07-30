@@ -43,6 +43,18 @@ class AutofillPolicyServiceTest : public testing::Test {
 
   AutofillPolicyService* service() { return service_.get(); }
 
+  bool IsAutofillTypeBlockedByPolicy(
+      const GURL& url,
+      AutofillClient::AutofillPolicyDataCategory category) {
+    bool instance_result =
+        service()->IsAutofillTypeBlockedByPolicy(url, category);
+    bool static_result =
+        AutofillPolicyService::IsAutofillTypeBlockedByPolicyFromPref(
+            prefs_, url, category);
+    EXPECT_EQ(instance_result, static_result);
+    return instance_result;
+  }
+
  protected:
   TestingPrefServiceSimple prefs_;
 
@@ -55,15 +67,15 @@ class AutofillPolicyServiceTest : public testing::Test {
 // Autofill data categories are permitted across all navigation URLs.
 TEST_F(AutofillPolicyServiceTest, EmptyPolicyAllowsAllAutofillCategories) {
   const GURL url("https://www.example.com");
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kContactInfo));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kPayments));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kIdentityDocs));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kTravel));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kShopping));
 }
 
@@ -81,16 +93,16 @@ TEST_F(AutofillPolicyServiceTest,
   blocked_list.Append(std::move(entry));
   SetPolicy(std::move(blocked_list));
 
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kContactInfo));
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kIdentityDocs));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kPayments));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kTravel));
 }
@@ -107,7 +119,7 @@ TEST_F(AutofillPolicyServiceTest, ActiveRuleOnUnrelatedDomainAllowsAutofill) {
   blocked_list.Append(std::move(entry));
   SetPolicy(std::move(blocked_list));
 
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.google.com"),
       AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 }
@@ -128,7 +140,7 @@ TEST_F(AutofillPolicyServiceTest, FeatureFlagDisabledAllowsAllAutofill) {
   blocked_list.Append(std::move(entry));
   SetPolicy(std::move(blocked_list));
 
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 }
@@ -139,18 +151,18 @@ TEST_F(AutofillPolicyServiceTest, UserSettingDisabledBlocksAutofill) {
   const GURL url("https://www.example.com");
 
   // 1. Initially enabled.
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kTravel));
 
   // 2. Disable user setting.
   prefs_.SetBoolean(prefs::kAutofillAiTravelEntitiesEnabled, false);
 
   // 3. Getter should now return true (blocked).
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kTravel));
 
   // Other categories should still be allowed if enabled.
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 }
 
@@ -161,7 +173,7 @@ TEST_F(AutofillPolicyServiceTest,
   const GURL url("https://www.example.com");
 
   // 1. Initial state: policy list is empty, URL should not be blocked.
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 
   // 2. Set policy to block contact_info on example.com.
@@ -175,7 +187,7 @@ TEST_F(AutofillPolicyServiceTest,
   SetPolicy(std::move(blocked_list));
 
   // 3. Observer should have updated the cache: URL should now be blocked.
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 
   // 4. Update policy to empty list (revoking policy).
@@ -183,7 +195,7 @@ TEST_F(AutofillPolicyServiceTest,
   SetPolicy(std::move(empty_list));
 
   // 5. Cache should naturally be cleared: URL should no longer be blocked.
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       url, AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 }
 
@@ -200,13 +212,13 @@ TEST_F(AutofillPolicyServiceTest,
   blocked_list.Append(std::move(entry));
   SetPolicy(std::move(blocked_list));
 
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kPayments));
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.google.com"),
       AutofillClient::AutofillPolicyDataCategory::kPayments));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 }
@@ -236,18 +248,18 @@ TEST_F(AutofillPolicyServiceTest,
   SetPolicy(std::move(blocked_list));
 
   // example.com matches both wildcard '*' and '[*.]example.com' (union).
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kPayments));
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 
   // google.com only matches wildcard '*'.
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.google.com"),
       AutofillClient::AutofillPolicyDataCategory::kPayments));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.google.com"),
       AutofillClient::AutofillPolicyDataCategory::kContactInfo));
 }
@@ -274,14 +286,16 @@ TEST_F(AutofillPolicyServiceTest,
 
   SetPolicy(std::move(blocked_list));
 
-  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kContactInfo));
-  EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kTravel));
 }
 
+// Tests that shopping category is blocked when the policy rule configures it
+// for a matching domain. Unrelated domains are unaffected.
 TEST_F(AutofillPolicyServiceTest, ShoppingCategoryBlocksAutofill) {
   base::ListValue blocked_list;
   base::DictValue entry;
@@ -292,10 +306,86 @@ TEST_F(AutofillPolicyServiceTest, ShoppingCategoryBlocksAutofill) {
   blocked_list.Append(std::move(entry));
   SetPolicy(std::move(blocked_list));
 
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kShopping));
+  EXPECT_FALSE(IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.google.com"),
+      AutofillClient::AutofillPolicyDataCategory::kShopping));
+}
+
+// Tests that when the "all" category is configured in a policy rule for a
+// specific domain, all Autofill data categories are blocked on that domain.
+// Unrelated domains are unaffected.
+TEST_F(AutofillPolicyServiceTest, AllCategoryBlocksAllAutofillDataTypes) {
+  base::ListValue blocked_list;
+  base::DictValue entry;
+  entry.Set("url_pattern", "https://[*.]example.com");
+  base::ListValue blocked_types;
+  blocked_types.Append("all");
+  entry.Set("blocked_types", std::move(blocked_types));
+  blocked_list.Append(std::move(entry));
+  SetPolicy(std::move(blocked_list));
+
+  // LINT.IfChange(AutofillPolicyDataCategory)
+  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kContactInfo));
+  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kPayments));
+  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kIdentityDocs));
+  EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kTravel));
   EXPECT_TRUE(service()->IsAutofillTypeBlockedByPolicy(
       GURL("https://www.example.com"),
       AutofillClient::AutofillPolicyDataCategory::kShopping));
+  // LINT.ThenChange(//components/autofill/core/browser/foundations/autofill_client.h:AutofillPolicyDataCategory,//components/autofill/core/browser/permissions/autofill_policy_service.cc:AutofillPolicyDataCategory)
+
   EXPECT_FALSE(service()->IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.google.com"),
+      AutofillClient::AutofillPolicyDataCategory::kContactInfo));
+}
+
+// Tests that when the "all" category is configured with a global wildcard
+// pattern ('*'), all Autofill data categories are blocked across all navigation
+// URLs.
+TEST_F(AutofillPolicyServiceTest, AllCategoryWithWildcardBlocksAllAutofill) {
+  base::ListValue blocked_list;
+  base::DictValue entry;
+  // Wildcard matches all URLs.
+  entry.Set("url_pattern", "*");
+  base::ListValue blocked_types;
+  blocked_types.Append("all");
+  entry.Set("blocked_types", std::move(blocked_types));
+  blocked_list.Append(std::move(entry));
+  SetPolicy(std::move(blocked_list));
+
+  // Should be blocked on example.com.
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kContactInfo));
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kPayments));
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kIdentityDocs));
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kTravel));
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.example.com"),
+      AutofillClient::AutofillPolicyDataCategory::kShopping));
+
+  // Should be blocked on google.com too because of the wildcard.
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
+      GURL("https://www.google.com"),
+      AutofillClient::AutofillPolicyDataCategory::kContactInfo));
+  EXPECT_TRUE(IsAutofillTypeBlockedByPolicy(
       GURL("https://www.google.com"),
       AutofillClient::AutofillPolicyDataCategory::kShopping));
 }

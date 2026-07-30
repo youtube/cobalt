@@ -12,6 +12,8 @@
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/content_settings/page_specific_content_settings_delegate.h"
+#include "chrome/browser/infobars/browser_infobar_manager.h"
+#include "chrome/browser/infobars/infobar_features.h"
 #include "chrome/browser/permissions/permission_actions_history_factory.h"
 #include "chrome/browser/permissions/permission_decision_auto_blocker_factory.h"
 #include "chrome/browser/permissions/permission_manager_factory.h"
@@ -21,6 +23,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/safe_browsing/chrome_password_protection_service.h"
 #include "chrome/browser/ssl/chrome_security_state_tab_helper.h"
+#include "chrome/browser/ssl/https_upgrades_util.h"
 #include "chrome/browser/ssl/stateful_ssl_host_state_delegate_factory.h"
 #include "chrome/browser/subresource_filter/subresource_filter_profile_context_factory.h"
 #include "chrome/browser/ui/url_identity.h"
@@ -58,6 +61,7 @@
 #include "chrome/browser/certificate_viewer.h"
 #include "chrome/browser/hid/hid_chooser_context.h"
 #include "chrome/browser/hid/hid_chooser_context_factory.h"
+#include "chrome/browser/infobars/infobar_spec.h"
 #include "chrome/browser/lookalikes/safety_tip_ui_helper.h"
 #include "chrome/browser/serial/serial_chooser_context.h"
 #include "chrome/browser/serial/serial_chooser_context_factory.h"
@@ -74,7 +78,12 @@
 #include "chrome/browser/web_applications/web_app_provider.h"
 #include "chrome/browser/web_applications/web_app_registrar.h"
 #include "chrome/browser/web_applications/web_app_tab_helper.h"
+#include "components/strings/grit/components_strings.h"
+#include "components/vector_icons/vector_icons.h"
 #include "components/webapps/common/web_app_id.h"
+#include "content/public/browser/reload_type.h"
+#include "ui/base/l10n/l10n_util.h"
+#include "ui/base/ui_base_features.h"
 #include "ui/events/event.h"
 #endif
 
@@ -169,7 +178,7 @@ void ChromePageInfoDelegate::OnUserActionOnPasswordUi(
   DCHECK(chrome_password_protection_service);
 
   chrome_password_protection_service->OnUserAction(
-      web_contents_,
+      web_contents_->GetWeakPtr(),
       chrome_password_protection_service
           ->reused_password_account_type_for_last_shown_warning(),
       safe_browsing::RequestOutcome::UNKNOWN,
@@ -224,7 +233,42 @@ bool ChromePageInfoDelegate::IsRwsManaged(const GURL& site_url) {
       ->IsPartOfManagedRelatedWebsiteSet(net::SchemefulSite(site_url));
 }
 
+// static
+void ChromePageInfoDelegate::RegisterPageInfoInfoBar(
+    infobars::BrowserInfoBarManager* infobar_manager) {
+  auto spec =
+      infobars::InfoBarSpec::Builder(
+          infobars::InfoBarDelegate::PAGE_INFO_INFOBAR_DELEGATE)
+          .SetMessageText(l10n_util::GetStringUTF16(IDS_PAGE_INFO_INFOBAR_TEXT))
+          .SetIcon(features::IsRoundedIconsEnabled()
+                       ? vector_icons::kSettingsIcon
+                       : vector_icons::kSettingsChromeRefreshOldIcon)
+          .SetScope(infobars::InfoBarScope::kTab)
+          .AddOkButton(
+              l10n_util::GetStringUTF16(IDS_PAGE_INFO_INFOBAR_BUTTON),
+              base::BindRepeating([](content::WebContents* web_contents) {
+                if (web_contents) {
+                  web_contents->GetController().Reload(
+                      content::ReloadType::NORMAL, true);
+                }
+              }))
+          .Build();
+  infobar_manager->Register(std::move(spec));
+}
+
 bool ChromePageInfoDelegate::CreateInfoBarDelegate() {
+  if (infobars::IsInfoBarMigrated(
+          infobars::InfoBarDelegate::PAGE_INFO_INFOBAR_DELEGATE)) {
+    auto* browser_infobar_manager =
+        infobars::BrowserInfoBarManager::From(g_browser_process);
+    if (browser_infobar_manager) {
+      browser_infobar_manager->Show(
+          web_contents_, infobars::InfoBarDelegate::PAGE_INFO_INFOBAR_DELEGATE);
+      return true;
+    }
+    return false;
+  }
+
   infobars::ContentInfoBarManager* infobar_manager =
       infobars::ContentInfoBarManager::FromWebContents(web_contents_);
   if (infobar_manager) {
@@ -495,15 +539,8 @@ const std::u16string ChromePageInfoDelegate::GetClientApplicationName() {
 }
 #endif
 
-bool ChromePageInfoDelegate::IsHttpsFirstModeEnabled() {
-  bool https_first_mode_fully_enabled =
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kHttpsOnlyModeEnabled);
-  bool https_first_mode_enabled_in_incognito =
-      base::FeatureList::IsEnabled(features::kHttpsFirstModeIncognito) &&
-      GetProfile()->GetPrefs()->GetBoolean(prefs::kHttpsFirstModeIncognito);
-  return https_first_mode_fully_enabled ||
-         (GetProfile()->IsIncognitoProfile() &&
-          https_first_mode_enabled_in_incognito);
+bool ChromePageInfoDelegate::IsHttpsFirstModeEnabledForUrl(const GURL& url) {
+  return IsInterstitialEnabled(ComputeInterstitialState(web_contents_, url));
 }
 
 bool ChromePageInfoDelegate::IsIncognitoProfile() {

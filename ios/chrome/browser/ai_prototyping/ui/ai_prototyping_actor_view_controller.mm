@@ -24,6 +24,8 @@ NSString* const kToolMultiTool = @"Multi-tool";
 NSString* const kToolScroll = @"Scroll";
 NSString* const kToolScrollTo = @"Scroll To";
 NSString* const kToolSelect = @"Select";
+NSString* const kToolCloseTab = @"Close Tab";
+NSString* const kToolAttemptLogin = @"Attempt Login";
 
 // Placeholder macro for tab ID.
 NSString* const kTabIdMacro = @"{{tab_id}}";
@@ -37,7 +39,8 @@ bool IsWebActuationTool(NSString* tool) {
          [tool isEqualToString:kToolMultiTool] ||
          [tool isEqualToString:kToolScroll] ||
          [tool isEqualToString:kToolScrollTo] ||
-         [tool isEqualToString:kToolSelect];
+         [tool isEqualToString:kToolSelect] ||
+         [tool isEqualToString:kToolAttemptLogin];
 }
 }  // namespace
 
@@ -526,6 +529,22 @@ bool IsWebActuationTool(NSString* tool) {
         }
       }
     },
+    kToolCloseTab : @{
+      @"ui" : @[ _tabIdContainer, _jsonContainer ],
+      @"template" : @{@"close_tab" : @{@"tab_id" : kTabIdMacro}}
+    },
+    kToolAttemptLogin : @{
+      @"ui" : @[ _tabIdContainer, _frameIdContainer, _jsonContainer ],
+      @"template" : @{
+        @"attempt_login" : @{
+          @"tab_id" : kTabIdMacro,
+          @"login_targets" : @[ @{
+            @"login_type" : @(1),
+            @"target" : @{@"coordinate" : @{@"x" : @(200), @"y" : @(200)}}
+          } ]
+        }
+      }
+    },
   };
 
   _toolPickerButton.menu = [self createToolPickerMenu];
@@ -572,6 +591,30 @@ bool IsWebActuationTool(NSString* tool) {
       // Revert to template default if frame deselected.
       toolDict[@"target"] = [configTemplate[@"target"] mutableCopy];
     }
+  }
+
+  if (toolDict[@"login_targets"]) {
+    NSMutableArray* loginTargets = [toolDict[@"login_targets"] mutableCopy];
+    NSArray* defaultLoginTargets =
+        configTemplate ? configTemplate[@"login_targets"] : nil;
+    for (NSUInteger i = 0; i < loginTargets.count; i++) {
+      NSMutableDictionary* loginTarget = [loginTargets[i] mutableCopy];
+      if (loginTarget[@"target"]) {
+        NSDictionary* defaultTarget =
+            (defaultLoginTargets && i < defaultLoginTargets.count)
+                ? defaultLoginTargets[i][@"target"]
+                : nil;
+        if (frameId) {
+          loginTarget[@"target"] =
+              [@{@"document_identifier" : frameId, @"content_node_id" : @(1)}
+                  mutableCopy];
+        } else if (defaultTarget) {
+          loginTarget[@"target"] = [defaultTarget mutableCopy];
+        }
+      }
+      loginTargets[i] = loginTarget;
+    }
+    toolDict[@"login_targets"] = loginTargets;
   }
 }
 
@@ -743,7 +786,8 @@ bool IsWebActuationTool(NSString* tool) {
   // Define the explicit order for the dropdown menu.
   NSArray<NSString*>* orderedTools = @[
     kToolMultiTool, kToolNavigate, kToolClick, kToolType, kToolHistoryBack,
-    kToolHistoryForward, kToolWait, kToolScroll, kToolScrollTo, kToolSelect
+    kToolHistoryForward, kToolWait, kToolScroll, kToolScrollTo, kToolSelect,
+    kToolCloseTab, kToolAttemptLogin
   ];
 
   for (NSString* toolName in orderedTools) {

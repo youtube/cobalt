@@ -7,6 +7,7 @@
 
 #import <UIKit/UIKit.h>
 
+#import <map>
 #import <memory>
 #import <set>
 
@@ -190,12 +191,17 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Fetches the full context of the active page and feeds it to Gemini.
   void RequestPageContextGeneration();
 
-  // Propagates the page context to the provider if the floaty is invoked.
-  void PropagatePageContextToProvider(GeminiPageContext* gemini_page_context);
+  // Updates the active page context and passes it to the Gemini provider, along
+  // with any shared tabs.
+  void PropagatePageContextToProvider(GeminiPageContext* active_page_context);
 
   // Updates the floaty with partial page context synchronously if the tab
   // helper is available.
   void UpdateFloatyWithPartialPageContext();
+
+  // Returns the array of page contexts for all currently attached
+  // shared tabs.
+  NSArray<GeminiPageContext*>* GetSharedTabs() const;
 
   // Starts the Gemini session (prepares context and shows overlay).
   void PresentFloaty(UIViewController* base_view_controller,
@@ -345,9 +351,18 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Called when the page content sharing preference changes.
   void OnPageContentPrefChanged();
 
+  // Called when the microphone preference changes.
+  void OnMicrophonePrefChanged();
+
   // Clears the set of attached tabs if it doesn't include the active web
   // state.
   void UpdateAttachedTabsForActiveWebState(web::WebState* active_web_state);
+
+  // Creates a partial page context synchronously for a web state.
+  GeminiPageContext* CreatePartialPageContext(web::WebState* web_state);
+
+  // Removes a tab from selected tabs and propagates attached tabs to Gemini.
+  void DetachTabWithID(NSString* tab_id);
 
   // The gateway for bridging internal protocols.
   __strong id<BWGGatewayProtocol> bwg_gateway_ = nullptr;
@@ -407,8 +422,9 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Whether the keyboard is currently visible.
   bool is_keyboard_visible_ = false;
 
-  // The set of tabs currently attached to the floaty. Includes the active tab.
-  std::set<web::WebStateID> attached_tabs_;
+  // The active and shared tabs currently attached to the floaty, represented by
+  // a mapping of the tab's WebStateID to its page context.
+  std::map<web::WebStateID, __strong GeminiPageContext*> attached_tabs_;
 
   // Used to track the last shown view state of an invoked floaty. Used to show
   // a hidden floaty with the previous view state.
@@ -446,6 +462,26 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
   // Whether the floaty is hidden by the keyboard.
   bool is_hidden_by_keyboard_ = false;
 
+  // Start time of the current Gemini Live response. Used for barge-in latency
+  // and response duration.
+  base::TimeTicks live_response_start_time_;
+
+  // Start time of the Gemini Live thinking state. Used for response latency.
+  base::TimeTicks live_thinking_start_time_;
+
+  // The number of turns in the current Gemini Live session.
+  int live_turn_count_ = 0;
+
+  // The start time of the current Gemini Live session segment.
+  base::TimeTicks live_session_start_time_;
+
+  // The accumulated duration of all Gemini Live segments within a single
+  // overall interaction.
+  base::TimeDelta live_session_accumulated_duration_;
+
+  // Logs Gemini live related metrics and resets values if needed.
+  void LogLiveSessionMetrics(bool floaty_dismissed = false);
+
   // The current processing status of the Gemini client.
   ios::provider::GeminiClientMode processing_status_ =
       ios::provider::GeminiClientMode::kUnknown;
@@ -458,6 +494,10 @@ class GeminiBrowserAgent : public BrowserUserData<GeminiBrowserAgent>,
 
   // Handles the client transitioning to a dormant status.
   void HandleDormantStatus(ios::provider::GeminiDormantReason dormant_reason);
+
+  // Logs state transition events for Gemini Live metrics.
+  void LogLiveStatusTransition(ios::provider::GeminiClientMode old_status,
+                               ios::provider::GeminiClientMode new_status);
 
   // Whether we are currently displaying the Live session dormant snackbar.
   bool is_showing_live_session_dormant_snackbar_ = false;

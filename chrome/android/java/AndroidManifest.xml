@@ -937,9 +937,24 @@ by a child template that "extends" this file.
             android:process=":decoder_service" />
 
         <!-- Actor foreground service -->
+        <!-- TODO: This service needs to verify the calling app and its certificates before
+             starting the actor service. Export this service in production channels once the
+             verification is handled correctly in the service. -->
+        {% if channel in ['default'] %}
         <service android:name="org.chromium.chrome.browser.actor.ActorForegroundService"
-           android:foregroundServiceType="dataSync" android:exported="false">
+            android:foregroundServiceType="dataSync"
+            android:exported="true"
+            tools:ignore="ExportedService">
+            <intent-filter>
+                <action android:name="org.chromium.chrome.browser.actor.START_ACTOR_FOREGROUND_SERVICE" />
+            </intent-filter>
         </service>
+        {% else %}
+        <service android:name="org.chromium.chrome.browser.actor.ActorForegroundService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false">
+        </service>
+        {% endif %}
 
         <!-- Download foreground service -->
         <service android:name="org.chromium.chrome.browser.download.DownloadForegroundService"
@@ -1190,8 +1205,6 @@ by a child template that "extends" this file.
         <receiver android:name="org.chromium.chrome.browser.customtabs.CustomTabsShareBroadcastReceiver"
             android:exported="false"/>
 
-        <receiver android:name="org.chromium.chrome.browser.sharing.click_to_call.ClickToCallMessageHandler$TapReceiver"
-            android:exported="false"/>
         <receiver android:name="org.chromium.chrome.browser.sharing.sms_fetcher.SmsFetcherMessageHandler$NotificationReceiver"
             android:exported="false"/>
 
@@ -1206,6 +1219,9 @@ by a child template that "extends" this file.
             {% else %}
             android:foregroundServiceType="camera|microphone"
             {% endif %}
+            android:exported="false"/>
+        <service android:name="org.chromium.chrome.browser.GracefulShutdownService"
+            android:foregroundServiceType="shortService|dataSync"
             android:exported="false"/>
         <service android:name="org.chromium.chrome.browser.media.ui.ChromeMediaNotificationControllerServices$PlaybackListenerService"
             android:foregroundServiceType="mediaPlayback" android:exported="false">
@@ -1307,14 +1323,9 @@ by a child template that "extends" this file.
           android:process=":sandboxed_process{{ i }}"
           android:permission="{{ manifest_package }}.permission.CHILD_SERVICE"
           android:isolatedProcess="true"
-          android:exported="{{sandboxed_service_exported|default(false)}}"
+          android:exported="false"
           {% if (i == 0) %}
           android:useAppZygote="true"
-          {% endif %}
-          {% if (sandboxed_service_exported|default(false)) == 'true' %}
-          android:externalService="true"
-          tools:ignore="ExportedService"
-          android:visibleToInstantApps="true"
           {% endif %} />
       {% endfor %}
       <!-- Restricting to just 2 native-only services, one for zygote and one for non-zygote. -->
@@ -1327,12 +1338,7 @@ by a child template that "extends" this file.
           {% if (i == 0) %}
           android:useAppZygote="true"
           {% endif %}
-          android:exported="{{sandboxed_service_exported|default(false)}}"
-          {% if (sandboxed_service_exported|default(false)) == 'true' %}
-          android:externalService="true"
-          tools:ignore="ExportedService"
-          android:visibleToInstantApps="true"
-          {% endif %} >
+          android:exported="false" >
           <property android:name="android.app.PROPERTY_NATIVE_SERVICE_LIBRARY_NAME"
               android:value="lib{{ library_name }}.so" />
           <property android:name="android.app.PROPERTY_NATIVE_SERVICE_FUNCTION_NAME"

@@ -137,6 +137,20 @@ NET_EXPORT BASE_DECLARE_FEATURE(kAdjustIPv6FallbackTime);
 // The duration to use for the slow timer if the feature is enabled.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kIPv6FallbackTime);
 
+// Feature to base the Happy Eyeballs slow timer on the network RTT.
+NET_EXPORT BASE_DECLARE_FEATURE(kIPv6FallbackBasedOnRTT);
+
+// The multiplier for the RTT if the RTT based fallback feature is enabled.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(double, kIPv6FallbackRTTMultiplier);
+
+// The minimum value to use for the fallback time if the RTT based fallback
+// feature is enabled.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kIPv6FallbackMin);
+
+// The maximum value to use for the fallback time if the RTT based fallback
+// feature is enabled.
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(base::TimeDelta, kIPv6FallbackMax);
+
 // Allows Cache-Control: immutable to override Pragma: no-cache.
 NET_EXPORT BASE_DECLARE_FEATURE(kCacheControlImmutable);
 
@@ -474,10 +488,10 @@ NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessions);
 // requests.
 NET_EXPORT BASE_DECLARE_FEATURE(
     kDeviceBoundSessionsBypassDeferralsForRefreshRequests);
-// This feature enables the Device Bound Session Credentials refresh quota.
+// This feature enables the Device Bound Session Credentials signing quota.
 // This behavior is expected by default; disabling it should only be for
 // testing purposes.
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kDeviceBoundSessionsRefreshQuota);
+NET_EXPORT BASE_DECLARE_FEATURE_PARAM(bool, kDeviceBoundSessionsSigningQuota);
 // This feature controls whether DBSC checks the .well-known for subdomain
 // registration.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
@@ -494,23 +508,15 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
     bool,
     kDeviceBoundSessionsFederatedRegistrationCheckWellKnown);
 
-// This feature controls whether to proactively trigger Device
-// Bound Session refreshes when a cookie is soon to expire.
-NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionProactiveRefresh);
-// This controls the threshold for proactive refrehshes.
-NET_EXPORT BASE_DECLARE_FEATURE_PARAM(
-    base::TimeDelta,
-    kDeviceBoundSessionProactiveRefreshThreshold);
-
-// This feature controls whether DBSC has a signing quota instead of a refresh
-// quota, and has associated signing caching for refreshes.
-NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionSigningQuotaAndCaching);
-
 // This feature controls whether DBSC is allowed to register sessions on
 // a certain list of sites, as specified in
 // `device_bound_sessions_restricted_sites` in the
 // `NetworkContextParams`.
 NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionsForRestrictedSites);
+
+// This feature controls whether DBSC allows mTLS / client certificate
+// selection for background registration and refresh requests.
+NET_EXPORT BASE_DECLARE_FEATURE(kDeviceBoundSessionsClientCertSelection);
 
 // This feature will enable the browser to use Device Bound Session Credentials
 // for Single Sign On. This feature is only valid if `kDeviceBoundSessions` is
@@ -735,9 +741,6 @@ NET_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
 // The percentage of noise to add/subtract from the probability.
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(double,
                                       kTcpSocketPoolLimitRandomizationNoise);
-// Whether or not the randomization is enabled for proxy socket pools. This has
-// no impact if `kTcpSocketPoolLimitRandomization` is disabled.
-NET_EXPORT BASE_DECLARE_FEATURE(kTcpSocketPoolLimitRandomizationForProxy);
 
 // When enabled, Net Task Scheduler is enabled on the network thread.
 NET_EXPORT BASE_DECLARE_FEATURE(kNetTaskScheduler);
@@ -798,6 +801,9 @@ NET_EXPORT BASE_DECLARE_FEATURE(kQuicLongerIdleConnectionTimeout);
 // If enabled, we will use QUIC with a smaller MTU.
 NET_EXPORT BASE_DECLARE_FEATURE(kLowerQuicMaxPacketSize);
 NET_EXPORT BASE_DECLARE_FEATURE_PARAM(size_t, kQuicMaxPacketSize);
+
+// If enabled, QuicChromiumPacketReader will use ReadMultiple API.
+NET_EXPORT BASE_DECLARE_FEATURE(kQuicUseReadMultiple);
 
 // When enabled, races QUIC connection attempts for the specified hostnames
 // even when there is no available ALPN information.

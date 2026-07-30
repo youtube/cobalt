@@ -66,7 +66,8 @@ def CreateIdentifier(str_id):
   return hashlib.sha1(str_id.encode("utf-8")).hexdigest()[:24].upper()
 
 
-def GenerateSchemeForTarget(root, project, old_project, name, path, is_test):
+def GenerateSchemeForTarget(root, project, old_project, name, path, is_test,
+                            test_host_name, test_host_path):
   """Generates the .xcsheme file for target named |name|.
 
   The file is generated in the new project schemes directory from a template.
@@ -91,8 +92,14 @@ def GenerateSchemeForTarget(root, project, old_project, name, path, is_test):
   }
 
   if is_test:
+    host_name = test_host_name or name
+    host_path = test_host_path or path
+    host_identifier = CreateIdentifier('%s %s' % (host_name, host_path))
     template = LoadSchemeTemplate(root, 'xcodescheme-testable')
     substitutions['PATH'] = os.environ['PATH']
+    substitutions['HOST_BLUEPRINT_NAME'] = host_name
+    substitutions['HOST_BUILDABLE_NAME'] = host_path
+    substitutions['HOST_BLUEPRINT_IDENTIFIER'] = host_identifier
 
   else:
     template = LoadSchemeTemplate(root, 'xcodescheme')
@@ -125,14 +132,30 @@ def GenerateSchemeForTarget(root, project, old_project, name, path, is_test):
 
       template_tree_root = template_tree.getroot()
       for child in tree_root:
-        if child.tag != 'BuildAction':
-          continue
+        if child.tag == 'BuildAction':
+          for subchild in list(child):
+            child.remove(subchild)
 
-        for subchild in list(child):
-          child.remove(subchild)
-
-        for post_action in template_tree_root.findall('.//PostActions'):
-          child.append(post_action)
+          for post_action in template_tree_root.findall('.//PostActions'):
+            child.append(post_action)
+        elif child.tag == 'TestAction':
+          child.set('shouldUseLaunchSchemeArgsEnv', 'YES')
+        elif child.tag == 'LaunchAction':
+          # Adding explicit BuildableProductRunnable to LaunchAction ensures
+          # $(PROJECT_DIR) resolves when TestAction inherits from LaunchAction,
+          # allowing the custom LLDB init file to load.
+          runnable = child.find('BuildableProductRunnable')
+          if runnable is None:
+            runnable = template_tree_root.find(
+                './/LaunchAction/BuildableProductRunnable')
+            if runnable is not None:
+              child.append(runnable)
+          else:
+            ref = runnable.find('BuildableReference')
+            if ref is not None:
+              ref.set('BuildableName', host_path)
+              ref.set('BlueprintName', host_name)
+              ref.set('BlueprintIdentifier', host_identifier)
 
     tree.write(scheme_path, xml_declaration=True, encoding='UTF-8')
 
@@ -322,13 +345,13 @@ def UpdateXcodeProject(project_dir, old_project_dir, configurations, root_dir):
     if not tests:
       GenerateSchemeForTarget(
           root_dir, project_dir, old_project_dir,
-          obj['name'], product_path, False)
+          obj['name'], product_path, False, "", "")
 
     else:
       for (_, test_name, test_path) in tests:
         GenerateSchemeForTarget(
           root_dir, project_dir, old_project_dir,
-          test_name, test_path, True)
+          test_name, test_path, True, obj['name'], product_path)
 
   root_object = project.objects[json_data['rootObject']]
   main_group = project.objects[root_object['mainGroup']]

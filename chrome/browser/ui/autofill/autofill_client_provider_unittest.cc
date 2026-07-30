@@ -114,19 +114,7 @@ TEST_F(AutofillClientProviderBaseTest, UsesBuiltInAutofillForDisabledPref) {
 
 #if BUILDFLAG(IS_ANDROID)
 
-class AutofillClientProviderTest : public AutofillClientProviderBaseTest {
- public:
-  AutofillClientProviderTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kAutofillThirdPartyModeContentProvider,
-         features::kAutofillDeepLinkAutofillOptions,
-         features::kAutofillThirdPartyModeRestoredOnStart},
-        {});
-  }
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
+class AutofillClientProviderTest : public AutofillClientProviderBaseTest {};
 
 TEST_F(AutofillClientProviderTest,
        CreateAndroidClientForEnabledPlatformAutofillSetting) {

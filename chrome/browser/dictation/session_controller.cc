@@ -19,6 +19,11 @@
 #include "chrome/browser/dictation/session_ui.h"
 #include "chrome/browser/dictation/stream_provider.h"
 #include "chrome/browser/dictation/target.h"
+#include "content/public/browser/focused_node_details.h"
+#include "content/public/browser/global_dom_node_id.h"
+#include "content/public/browser/render_frame_host.h"
+#include "content/public/browser/web_contents.h"
+#include "third_party/blink/public/mojom/input/focus_type.mojom.h"
 
 namespace dictation {
 
@@ -38,7 +43,7 @@ void SessionController::Initialize() {
 }
 
 void SessionController::StartDictationStream(
-    const TargetId& target_id,
+    const content::GlobalDOMNodeId& target_id,
     DictationStreamStartTrigger trigger) {
   // TODO(b/525856380): Add support for "swapping in" a new stream. That is,
   // end the current stream and start a new one without entering the
@@ -46,6 +51,9 @@ void SessionController::StartDictationStream(
   CHECK(state_ == SessionState::kInactive ||
         state_ == SessionState::kFinalizing);
   CHECK(!attached_stream_provider_);
+
+  Observe(content::WebContents::FromRenderFrameHost(
+      target_id.document.AsRenderFrameHostIfValid()));
 
   RecordDictationStreamStartTrigger(trigger);
 
@@ -57,6 +65,47 @@ void SessionController::StartDictationStream(
   last_used_target_id_ = target_id;
 
   MoveToState(SessionState::kStreamInitializing);
+}
+
+void SessionController::OnFocusChangedInPage(
+    const content::FocusedNodeDetails& details) {
+  if (details.focus_type == blink::mojom::FocusType::kNone ||
+      details.focus_type == blink::mojom::FocusType::kScript) {
+    return;
+  }
+
+  if (attached_stream_provider_) {
+    EndDictationStream();
+  }
+
+  if (!details.is_editable_node ||
+      !details.global_dom_node_id.document.AsRenderFrameHostIfValid()) {
+    return;
+  }
+
+  content::GlobalDOMNodeId newly_focused_target_id = details.global_dom_node_id;
+
+  const bool is_finalizing_for_same_element = std::ranges::any_of(
+      finalizing_stream_providers_,
+      [&newly_focused_target_id](
+          const std::unique_ptr<StreamProvider>& provider) {
+        CHECK(newly_focused_target_id.document.AsRenderFrameHostIfValid());
+        return provider->GetTarget() &&
+               provider->GetTarget()
+                       ->global_dom_node_id()
+                       .document.AsRenderFrameHostIfValid() ==
+                   newly_focused_target_id.document
+                       .AsRenderFrameHostIfValid() &&
+               provider->GetTarget()
+                       ->global_dom_node_id()
+                       .target_element_dom_id ==
+                   newly_focused_target_id.target_element_dom_id;
+      });
+
+  if (!is_finalizing_for_same_element) {
+    StartDictationStream(newly_focused_target_id,
+                         DictationStreamStartTrigger::kFocusChange);
+  }
 }
 
 void SessionController::EndDictationStream() {

@@ -99,7 +99,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
     private @FuseboxLayoutMode int mLayoutMode;
     private boolean mIsReparentedToPopover;
     private @BrandedColorScheme int mBrandedColorScheme = BrandedColorScheme.APP_DEFAULT;
-    private boolean mIsInStandby;
+    private boolean mShowStandbyRing;
     private boolean mIsHovered;
 
     /** Constructor used to inflate from XML. */
@@ -480,7 +480,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         GradientDrawable unfocusedRect =
                 (GradientDrawable) mUnfocusedDrawable.findDrawableByLayerId(R.id.unfocused_bg);
         if (unfocusedRect != null) {
-            if (mIsInStandby) {
+            if (mShowStandbyRing) {
                 unfocusedRect.setColor(
                         OmniboxResourceProvider.getTabletToolbarTextBoxStandbyBackgroundColor(
                                 context, mBrandedColorScheme));
@@ -570,16 +570,16 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
     }
 
     @Override
-    void setIsInStandby(boolean isInStandby) {
-        if (isInStandby == mIsInStandby) return;
-        mIsInStandby = isInStandby;
+    void setShowStandbyRing(boolean showStandbyRing) {
+        if (showStandbyRing == mShowStandbyRing) return;
+        mShowStandbyRing = showStandbyRing;
         updateLayoutAndBackground();
         updateForeground();
         updateVisualsForState(mBrandedColorScheme);
     }
 
     private void updateForeground() {
-        if (mIsInStandby) {
+        if (mShowStandbyRing) {
             setForeground(mInsetStandbyBorder);
         } else if (mIsHovered
                 && (mLayoutMode != FuseboxLayoutMode.SUGGESTIONS_POPOVER
@@ -596,16 +596,17 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         Resources resources = getResources();
         LinearLayout.LayoutParams parentParams =
                 (LinearLayout.LayoutParams) mHolder.getLayoutParams();
-        if (!mIsInStandby
+        boolean isPopover =
+            mLayoutMode == FuseboxLayoutMode.SUGGESTIONS_POPOVER && mIsReparentedToPopover;
+        if (!mShowStandbyRing
                 && (mFuseboxState == FuseboxState.COMPACT
                         || mFuseboxState == FuseboxState.EXPANDED
-                        || (mLayoutMode == FuseboxLayoutMode.SUGGESTIONS_POPOVER
-                                && mIsReparentedToPopover))) {
+                        || isPopover)) {
             parentParams.height = ViewGroup.LayoutParams.WRAP_CONTENT;
             int expansionPx =
                     resources.getDimensionPixelSize(
                             R.dimen.location_bar_tablet_fusebox_popup_inset);
-            parentParams.topMargin = -expansionPx;
+            parentParams.topMargin = isPopover ? 0 : -expansionPx;
             setMarginsForWindowWidth(parentParams, expansionPx);
             parentParams.gravity = Gravity.TOP;
             setPadding(expansionPx, expansionPx, expansionPx, getPaddingBottom());
@@ -647,7 +648,7 @@ class LocationBarTablet extends LocationBarLayout implements OnLongClickListener
         MarginLayoutParams statusViewLayoutParams =
                 (MarginLayoutParams) mStatusView.getLayoutParams();
         Resources resources = getResources();
-        if (state == FuseboxState.COMPACT && !mIsInStandby) {
+        if (state == FuseboxState.COMPACT && !mShowStandbyRing) {
             // In the compact fusebox state, the location bar is taller than its inner background,
             // creating the appearance of vertical misalignment. We resolve this by translating
             // constituent views to be centered withing the 56 dp inner background, shifting them

@@ -39,7 +39,6 @@
 #include "chrome/browser/ui/toolbar/app_menu_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
-#include "chrome/browser/ui/views/location_bar/lens_overlay_homework_page_action_icon_view.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/search_test_utils.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -1102,7 +1101,7 @@ class LensOverlayControllerEduActionChipTest
   void SetupOptimizationFilter() {
     auto* optimization_guide_decider =
         OptimizationGuideKeyedServiceFactory::GetForProfile(
-            browser()->profile());
+            browser()->GetProfile());
     // Simulate the URL being allowed by both the allowlist and the blocklist.
     optimization_guide_decider->AddHintWithMultipleOptimizationsForTesting(
         GURL(embedded_test_server()->GetURL(kDocumentWithNamedElement)),

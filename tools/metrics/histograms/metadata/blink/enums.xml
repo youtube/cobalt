@@ -255,6 +255,7 @@ Called by update_document_policy_enum.py.-->
   <int value="14" label="IncludeJSCallStacksInCrashReports"/>
   <int value="15" label="ExpectNoLinkedResources"/>
   <int value="16" label="NetworkEfficiencyGuardrails"/>
+  <int value="17" label="JSProfilingMode"/>
 </enum>
 
 <!-- LINT.IfChange(EvpAutofillFlowResult) -->
@@ -6002,7 +6003,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5296" label="V8Window_Close_Method"/>
   <int value="5297" label="V8Window_Focus_Method"/>
   <int value="5298" label="V8Window_PostMessage_Method"/>
-  <int value="5299" label="HTMLImageElementNaturalSizeDiffersForSvgImage"/>
+  <int value="5299"
+      label="OBSOLETE_HTMLImageElementNaturalSizeDiffersForSvgImage"/>
   <int value="5300" label="WindowProxyIndexedGetter"/>
   <int value="5301" label="WindowProxyNamedGetter"/>
   <int value="5302"
@@ -6537,7 +6539,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5796" label="V8WindowClient_Navigate_Method"/>
   <int value="5797" label="LanguageModel_OnQuotaOverflow"/>
   <int value="5798" label="LanguageModel_OnContextOverflow"/>
-  <int value="5799" label="ModelContextExecuteTool"/>
+  <int value="5799" label="ModelContextExecuteImperativeTool"/>
   <int value="5800" label="ModelContextExecuteDeclarativeTool"/>
   <int value="5801" label="ModelContextExecuteDeclarativeAutosubmit"/>
   <int value="5802" label="Prerender2CrossOriginIframes"/>
@@ -6689,6 +6691,30 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5940" label="RTCSctpSnapNegotiated"/>
   <int value="5941" label="V8RTC_StartDiagnosticLogging_Method"/>
   <int value="5942" label="SpeculationRulesModerateViewportHeuristicsControl"/>
+  <int value="5943" label="ModelContextExecuteTool"/>
+  <int value="5944" label="WebAuthnAppidExtension"/>
+  <int value="5945" label="WebAuthnAppidExcludeExtension"/>
+  <int value="5946" label="WebAuthnHmacCreateSecretExtension"/>
+  <int value="5947" label="WebAuthnCredentialProtectionPolicyExtension"/>
+  <int value="5948" label="WebAuthnEnforceCredentialProtectionPolicyExtension"/>
+  <int value="5949" label="WebAuthnCredPropsExtension"/>
+  <int value="5950" label="WebAuthnLargeBlobRegisterExtension"/>
+  <int value="5951" label="WebAuthnLargeBlobReadExtension"/>
+  <int value="5952" label="WebAuthnLargeBlobWriteExtension"/>
+  <int value="5953" label="WebAuthnCredBlobRegisterExtension"/>
+  <int value="5954" label="WebAuthnCredBlobGetExtension"/>
+  <int value="5955" label="WebAuthnPaymentRegisterExtension"/>
+  <int value="5956" label="WebAuthnMinPinLengthExtension"/>
+  <int value="5957" label="WebAuthnPrfRegisterExtension"/>
+  <int value="5958" label="WebAuthnPrfGetExtension"/>
+  <int value="5959" label="WebAuthnCmtgKeyRegisterExtension"/>
+  <int value="5960" label="WebAuthnCmtgKeyGetExtension"/>
+  <int value="5961" label="WebAuthnCrossDeviceFallbackUrlExtension"/>
+  <int value="5962" label="WebAuthnRemoteDesktopClientOverrideExtension"/>
+  <int value="5963" label="WebAuthnUvmRegisterExtension"/>
+  <int value="5964" label="WebAuthnCreatePublicKeyCredentialWithAttachment"/>
+  <int value="5965"
+      label="WebAuthnCreatePublicKeyCredentialWithAttachmentAndNoHints"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -7350,16 +7376,6 @@ Called by update_permissions_policy_enum.py.-->
 
 <!-- LINT.ThenChange(//chrome/browser/ui/webid/identity_ui_utils.h:SheetType) -->
 
-<!-- LINT.IfChange(FedCmShowPopupWindowResult) -->
-
-<enum name="FedCmShowPopupWindowResult">
-  <int value="0" label="Successfully opened"/>
-  <int value="1" label="Invalid URL"/>
-  <int value="2" label="Failed for other reasons"/>
-</enum>
-
-<!-- LINT.ThenChange(//chrome/browser/ui/views/webid/fedcm_modal_dialog_view.h:ShowPopupWindowResult) -->
-
 <!-- LINT.IfChange(FedCmSignInStateMatchStatus) -->
 
 <enum name="FedCmSignInStateMatchStatus">
@@ -7475,20 +7491,6 @@ Called by update_permissions_policy_enum.py.-->
 </enum>
 
 <!-- LINT.ThenChange(//content/browser/webid/metrics.h:VerifyingDialogResult) -->
-
-<enum name="FencedFrameBeaconReportingResult">
-  <int value="0" label="Unknown result"/>
-  <int value="1" label="Invalid / missing network request for an enum beacon"/>
-  <int value="2" label="Successful network request for an enum beacon"/>
-  <int value="3" label="Failed network request for an enum beacon"/>
-  <int value="4" label="Invalid / missing network request for a URL beacon"/>
-  <int value="5" label="Successful network request for a URL beacon"/>
-  <int value="6" label="Failed network request for a URL beacon"/>
-  <int value="7"
-      label="Invalid / missing network request for an automatic beacon"/>
-  <int value="8" label="Successful network request for an automatic beacon"/>
-  <int value="9" label="Failed network request for an automatic beacon"/>
-</enum>
 
 <enum name="FencedFrameCreationOutcome">
   <int value="0" label="Success (default mode)"/>
@@ -8607,6 +8609,7 @@ Called by update_use_counter_css.py.-->
   <int value="959" label="corner-block-end"/>
   <int value="960" label="corner-inline-start"/>
   <int value="961" label="corner-inline-end"/>
+  <int value="962" label="window-drag"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -9163,7 +9166,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="424" label="DRAFT_InstallElement"/>
   <int value="425" label="LanguageDetector"/>
   <int value="426" label="Translator"/>
-  <int value="427" label="NavigatorModelcontext"/>
+  <int value="427" label="DocumentModelcontext"/>
   <int value="428" label="LoadingLazyMedia"/>
   <int value="429" label="ManifestLocalization"/>
   <int value="430" label="ContrastColor"/>
@@ -9181,6 +9184,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="442" label="DRAFT_HTMLProcessingInstructions"/>
   <int value="443" label="DRAFT_HTMLSetterMethods"/>
   <int value="444" label="DRAFT_HTMLStreamMethods"/>
+  <int value="445" label="CanvasHtml"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

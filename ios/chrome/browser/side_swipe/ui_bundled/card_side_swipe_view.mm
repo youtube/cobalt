@@ -11,8 +11,8 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "base/strings/sys_string_conversions.h"
-#import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
+#import "ios/chrome/browser/lens_overlay/public/lens_overlay_availability.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/ui/util/rtl_geometry.h"
@@ -236,20 +236,11 @@ const CGFloat kResizeFactor = 4;
   [card setHidden:NO];
 
   web::WebState* webState = _webStateList->GetWebStateAt(index);
-  PrefService* prefs =
-      ProfileIOS::FromBrowserState(webState->GetBrowserState())->GetPrefs();
   // Lens overlay displays content fullscreen and hides the vertical toolbars.
   if (LensOverlayTabHelper* lensOverlayTabHelper =
           LensOverlayTabHelper::FromWebState(webState)) {
-    BOOL lensOverlayShown;
-
-    if (IsLensOverlaySameTabNavigationEnabled(prefs)) {
-      lensOverlayShown =
-          lensOverlayTabHelper->IsLensOverlayInvokedOnCurrentNavigationItem();
-    } else {
-      lensOverlayShown =
-          lensOverlayTabHelper->IsLensOverlayUIAttachedAndAlive();
-    }
+    BOOL lensOverlayShown =
+        lensOverlayTabHelper->IsLensOverlayInvokedOnCurrentNavigationItem();
 
     UIImage* lensOverlaySnapshot = lensOverlayTabHelper->GetViewportSnapshot();
     if (lensOverlayShown && lensOverlaySnapshot) {

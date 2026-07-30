@@ -19,6 +19,7 @@ struct CoreAccountInfo;
 
 namespace trusted_vault_pb {
 enum SecurityDomainMember_MemberType : int;
+class RotateSharedKeyRequest;
 }  // namespace trusted_vault_pb
 
 namespace trusted_vault {
@@ -69,6 +70,44 @@ enum class TrustedVaultDownloadKeysStatus {
   // Used for all network errors.
   kNetworkError,
   // Used for all http and protocol errors, when no statuses above fits.
+  kOtherError,
+};
+
+enum class TrustedVaultDownloadPasswordPublicKeyStatus {
+  kSuccess,
+  // Used when request wasn't sent due to transient auth error that prevented
+  // fetching an access token.
+  kTransientAccessTokenFetchError,
+  // Used when request wasn't sent due to persistent auth error that prevented
+  // fetching an access token.
+  kPersistentAccessTokenFetchError,
+  // Used when request wasn't sent because primary account changed meanwhile.
+  kPrimaryAccountChangeAccessTokenFetchError,
+  // Used for all network errors.
+  kNetworkError,
+  // Used for all http and protocol errors, when no statuses above fits.
+  kOtherError,
+};
+
+enum class TrustedVaultKeyRotationStatus {
+  kSuccess,
+  // Used when base epoch doesn't match current epoch of the security domain.
+  kLocalDataObsolete,
+  // Used when rotated shared member keys don't match current members.
+  kMembershipMismatch,
+  // Used when security domain has no members.
+  kEmptySecurityDomain,
+  // Used when request wasn't sent due to transient auth error that prevented
+  // fetching an access token.
+  kTransientAccessTokenFetchError,
+  // Used when request wasn't sent due to persistent auth error that prevented
+  // fetching an access token.
+  kPersistentAccessTokenFetchError,
+  // Used when request wasn't sent because primary account changed meanwhile.
+  kPrimaryAccountChangeAccessTokenFetchError,
+  // Used for all network errors.
+  kNetworkError,
+  // Used for all http and protocol errors not covered by the above.
   kOtherError,
 };
 
@@ -265,6 +304,11 @@ class TrustedVaultConnection {
   using DownloadAuthenticationFactorsRegistrationStateCallback =
       base::OnceCallback<void(
           DownloadAuthenticationFactorsRegistrationStateResult)>;
+  using DownloadGaiaPasswordPublicKeyCallback =
+      base::OnceCallback<void(TrustedVaultDownloadPasswordPublicKeyStatus,
+                              const std::vector<uint8_t>&)>;
+  using RotateSharedKeyCallback =
+      base::OnceCallback<void(TrustedVaultKeyRotationStatus, int)>;
 
   // Used to control ongoing request lifetime, destroying Request object causes
   // request cancellation.
@@ -322,6 +366,21 @@ class TrustedVaultConnection {
   DownloadIsRecoverabilityDegraded(
       const CoreAccountInfo& account_info,
       IsRecoverabilityDegradedCallback callback) = 0;
+
+  // Asynchronously attempts to download the Gaia password public key from the
+  // trusted vault server. Caller should hold returned request object until
+  // |callback| call or until request needs to be cancelled.
+  [[nodiscard]] virtual std::unique_ptr<Request> DownloadGaiaPasswordPublicKey(
+      const CoreAccountInfo& account_info,
+      DownloadGaiaPasswordPublicKeyCallback callback) = 0;
+
+  // Asynchronously attempts to rotate the shared key stored in a security
+  // domain. Caller should hold returned request object until |callback| call or
+  // until request needs to be cancelled.
+  [[nodiscard]] virtual std::unique_ptr<Request> RotateSharedKey(
+      const CoreAccountInfo& account_info,
+      const trusted_vault_pb::RotateSharedKeyRequest& request,
+      RotateSharedKeyCallback callback) = 0;
 
   // Enumerates the members of the security domain and determines the
   // recoverability of the security domain. (See the values of

@@ -91,6 +91,7 @@
 #import "components/variations/net/variations_command_line.h"
 #import "components/variations/variations_switches.h"
 #import "components/wallet/core/common/wallet_features.h"
+#import "components/webauthn/ios/features.h"
 #import "components/webui/flags/feature_entry.h"
 #import "components/webui/flags/feature_entry_macros.h"
 #import "components/webui/flags/flags_storage.h"
@@ -119,7 +120,6 @@
 #import "ios/chrome/browser/policy/model/reporting/features.h"
 #import "ios/chrome/browser/popup_menu/overflow_menu/public/features.h"
 #import "ios/chrome/browser/reader_mode/model/features.h"
-#import "ios/chrome/browser/settings/clear_browsing_data/public/features.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_manager_ui_features.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
@@ -2064,11 +2064,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"reader-mode-us-enabled", flag_descriptions::kReaderModeUSEnabledName,
      flag_descriptions::kReaderModeUSEnabledDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableReaderModeInUS)},
-    {"reader-mode-readability-distiller-enabled",
-     flag_descriptions::kReaderModeReadabilityDistillerName,
-     flag_descriptions::kReaderModeReadabilityDistillerDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(dom_distiller::kReaderModeUseReadability)},
     {"reader-mode-content-settings-for-links",
      flag_descriptions::kReaderModeContentSettingsForLinksName,
      flag_descriptions::kReaderModeContentSettingsForLinksDescription,
@@ -2201,6 +2196,12 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kAutofillCreditCardScannerIosDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(autofill::features::kAutofillCreditCardScannerIos)},
+    {"autofill-save-card-bottom-sheet-strike-limit-ios",
+     flag_descriptions::kAutofillSaveCardBottomSheetStrikeLimitIosName,
+     flag_descriptions::kAutofillSaveCardBottomSheetStrikeLimitIosDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         autofill::features::kAutofillSaveCardBottomSheetStrikeLimitIos)},
     {"lens-strokes-api-enabled", flag_descriptions::kStrokesAPIEnabledName,
      flag_descriptions::kStrokesAPIEnabledDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kLensStrokesAPIEnabled)},
@@ -2419,11 +2420,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kComposeboxAttachmentsTypedStateDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(omnibox::kComposeboxAttachmentsTypedState)},
-    {"password-removal-from-delete-browsing-data",
-     flag_descriptions::kPasswordRemovalFromDeleteBrowsingDataName,
-     flag_descriptions::kPasswordRemovalFromDeleteBrowsingDataDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kPasswordRemovalFromDeleteBrowsingData)},
     {"autofill-enable-wallet-branding",
      flag_descriptions::kAutofillEnableWalletBrandingName,
      flag_descriptions::kAutofillEnableWalletBrandingDescription,
@@ -2464,12 +2460,19 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"gemini-updated-consent", flag_descriptions::kGeminiUpdatedConsentName,
      flag_descriptions::kGeminiUpdatedConsentDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiUpdatedConsent)},
+    {"gemini-fre-refactor", flag_descriptions::kGeminiFRERefactorName,
+     flag_descriptions::kGeminiFRERefactorDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kGeminiFRERefactor)},
     {"enable-file-download-connector-ios",
      flag_descriptions::kEnableFileDownloadConnectorIOSName,
      flag_descriptions::kEnableFileDownloadConnectorIOSDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          enterprise_connectors::kEnableFileDownloadConnectorIOS)},
+    {"enable-enterprise-watermarking-ios",
+     flag_descriptions::kEnableEnterpriseWatermarkingIOSName,
+     flag_descriptions::kEnableEnterpriseWatermarkingIOSDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kEnableEnterpriseWatermarkingIOS)},
     {"disable-composebox-from-aimntp",
      flag_descriptions::kDisableComposeboxFromAIMNTPName,
      flag_descriptions::kDisableComposeboxFromAIMNTPDescription,
@@ -2593,12 +2596,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kAutofillAiAvailableByDefaultDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(autofill::features::kAutofillAiAvailableByDefault)},
-    {"autofill-ai-create-entity-data-manager",
-     flag_descriptions::kAutofillAiCreateEntityDataManagerName,
-     flag_descriptions::kAutofillAiCreateEntityDataManagerDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         autofill::features::kAutofillAiCreateEntityDataManager)},
     {"autofill-ai-dedupe-entities",
      flag_descriptions::kAutofillAiDedupeEntitiesName,
      flag_descriptions::kAutofillAiDedupeEntitiesDescription, flags_ui::kOsIos,
@@ -2738,9 +2735,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSCobaltDeveloperModeName,
      flag_descriptions::kIOSCobaltDeveloperModeDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(web::features::kIOSCobaltDeveloperMode)},
-    {"cobrowse-aim-history", flag_descriptions::kCobrowseAimHistoryName,
-     flag_descriptions::kCobrowseAimHistoryDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kCobrowseAimHistory)},
     {"autofill-upstream-enforce-strike-delay",
      flag_descriptions::kAutofillUpstreamEnforceStrikeDelayName,
      flag_descriptions::kAutofillUpstreamEnforceStrikeDelayDescription,
@@ -2871,6 +2865,26 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          enterprise_connectors::kEnableBulkDataEntryConnectorIOS)},
+    {"gaia-auth-fetcher-dont-send-sid-cookies",
+     flag_descriptions::kGaiaAuthFetcherDontSendSIDCookiesName,
+     flag_descriptions::kGaiaAuthFetcherDontSendSIDCookiesDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         switches::kDontIncludeSIDUnsecureCookiesInGaiaAuthFetcher)},
+    {"gemini-quizzes", flag_descriptions::kGeminiQuizzesName,
+     flag_descriptions::kGeminiQuizzesDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kGeminiQuizzes)},
+    {"ios-passkey-conditional-login-with-shim",
+     flag_descriptions::kIOSPasskeyConditionalLoginWithShimName,
+     flag_descriptions::kIOSPasskeyConditionalLoginWithShimDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSPasskeyConditionalLoginWithShim)},
+    {"ios-passkey-modal-login-with-shim",
+     flag_descriptions::kIOSPasskeyModalLoginWithShimName,
+     flag_descriptions::kIOSPasskeyModalLoginWithShimDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSPasskeyModalLoginWithShim)},
+    {"toolbar-glass-prototype", flag_descriptions::kToolbarGlassPrototypeName,
+     flag_descriptions::kToolbarGlassPrototypeDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kToolbarGlassPrototype)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

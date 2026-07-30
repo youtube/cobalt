@@ -393,6 +393,7 @@ chromium-metrics-reviews@google.com.
   <int value="119" label="AutofillGmailOtpFillingEnabled"/>
   <int value="120" label="AutofillGmailOtpFillingActivationDismissalTimestamp"/>
   <int value="121" label="DriveConsentState"/>
+  <int value="122" label="AutofillAiPrivateInferenceOptInStatus"/>
 <!-- LINT.ThenChange(/components/sync_preferences/common_syncable_prefs_database.cc:CommonSyncablePref)-->
 
 <!-- LINT.IfChange(ChromeSyncablePref) -->
@@ -1050,6 +1051,7 @@ chromium-metrics-reviews@google.com.
   <int value="78" label="Themes (iOS)"/>
   <int value="79" label="(Obsolete) Accessibility Annotation"/>
   <int value="80" label="Themes (Android)"/>
+  <int value="81" label="Encrypted Tab Context Container"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/base/data_type.h:SyncDataTypes) -->

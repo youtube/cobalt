@@ -13,6 +13,7 @@
 #include "base/base_switches.h"
 #include "base/check.h"
 #include "base/command_line.h"
+#include "base/feature_list.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
 #include "base/memory/raw_ptr.h"
@@ -292,9 +293,6 @@
 #include "chrome/browser/chrome_process_singleton.h"
 #include "chrome/browser/ui/startup/startup_browser_creator.h"
 
-#if BUILDFLAG(IS_LINUX)
-#include "base/nix/xdg_util.h"
-#endif
 #endif  // BUILDFLAG(ENABLE_PROCESS_SINGLETON)
 
 #if BUILDFLAG(ENABLE_RLZ) && !BUILDFLAG(IS_CHROMEOS)
@@ -503,13 +501,6 @@ void ProcessSingletonNotificationCallbackImpl(
   if (command_line.HasSwitch(switches::kUninstall)) {
     return;
   }
-#endif
-
-#if BUILDFLAG(IS_LINUX)
-  // Set the global activation token sent as a command line switch by another
-  // browser process. This also removes the switch after use to prevent any side
-  // effects of leaving it in the command line after this point.
-  base::nix::ExtractXdgActivationTokenFromCmdLine(command_line);
 #endif
 
   StartupProfilePathInfo startup_profile_path_info =
@@ -1692,12 +1683,12 @@ void ChromeBrowserMainParts::PostBrowserStart() {
   webnn::SchedulePlatformRuntimeInstallationIfRequired();
 #endif
 
-  // At this point, StartupBrowserCreator::Start has run creating initial
-  // browser windows and tabs, but no progress has been made in loading
-  // content as the main message loop hasn't started processing tasks yet.
-  // We setup to observe to the initial page load here to defer running
-  // task posted via PostAfterStartupTask until its complete.
-  AfterStartupTaskUtils::StartMonitoringStartup();
+#if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(features::kImprovedStartupBestEffortDelay)) {
+    first_idle_ref_ = AfterStartupTaskUtils::RegisterStartupInProgressRef();
+  }
+#endif
+  AfterStartupTaskUtils::BeginMonitoringStartupCompletion();
 }
 
 int ChromeBrowserMainParts::PreMainMessageLoopRunImpl() {
@@ -2152,6 +2143,9 @@ void ChromeBrowserMainParts::WillRunMainMessageLoop(
 void ChromeBrowserMainParts::OnFirstIdle() {
   startup_metric_utils::GetBrowser().RecordBrowserMainLoopFirstIdle(
       base::TimeTicks::Now());
+#if !BUILDFLAG(IS_ANDROID)
+  first_idle_ref_.reset();
+#endif
 #if BUILDFLAG(IS_ANDROID)
   sharing::ShareHistory::CreateForProfile(
       ProfileManager::GetPrimaryUserProfile());

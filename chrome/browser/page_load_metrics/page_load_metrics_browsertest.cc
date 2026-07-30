@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/byte_size.h"
 #include "base/check_op.h"
 #include "base/containers/to_vector.h"
 #include "base/files/file_util.h"
@@ -334,7 +335,7 @@ class PageLoadMetricsBrowserTest : public InProcessBrowserTest {
   void TriggerNoStatePrefetch(const GURL& url) {
     prerender::NoStatePrefetchManager* no_state_prefetch_manager =
         prerender::NoStatePrefetchManagerFactory::GetForBrowserContext(
-            browser()->profile());
+            browser()->GetProfile());
     ASSERT_TRUE(no_state_prefetch_manager);
 
     prerender::test_utils::TestNoStatePrefetchContentsFactory*
@@ -1280,7 +1281,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, IgnoreDownloads) {
   ASSERT_TRUE(embedded_test_server()->Start());
 
   content::DownloadTestObserverTerminal downloads_observer(
-      browser()->profile()->GetDownloadManager(),
+      browser()->GetProfile()->GetDownloadManager(),
       1,  // == wait_count (only waiting for "download-test3.gif").
       content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_FAIL);
 
@@ -1487,7 +1488,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest,
   ASSERT_TRUE(embedded_test_server()->Start());
 
   content::DownloadTestObserverTerminal downloads_observer(
-      browser()->profile()->GetDownloadManager(),
+      browser()->GetProfile()->GetDownloadManager(),
       1,  // == wait_count (only waiting for "download-test1.lib").
       content::DownloadTestObserver::ON_DANGEROUS_DOWNLOAD_FAIL);
 
@@ -2424,7 +2425,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsResourceLoadBrowserTest,
       browser(), embedded_test_server()->GetURL(
                      "foo.com", "/cross_site_iframe_factory.html?foo")));
   waiter->Wait();
-  base::ByteCount one_frame_page_size = waiter->current_network_bytes();
+  base::ByteSize one_frame_page_size = waiter->current_network_bytes();
 
   waiter = CreatePageLoadMetricsTestWaiter("waiter");
   waiter->AddPageExpectation(TimingField::kLoadEvent);
@@ -2435,7 +2436,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsResourceLoadBrowserTest,
   // Verify that 7 iframes are fetched, with some amount of tolerance since
   // favicon is fetched only once.
   waiter->AddMinimumNetworkBytesExpectation(
-      7 * (one_frame_page_size - base::ByteCount(100)));
+      7 * (one_frame_page_size - base::ByteSize(100)).AsByteSize());
   waiter->Wait();
 }
 
@@ -2516,7 +2517,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsResourceLoadBrowserTest,
   main_html_response->Send(std::string(1000, ' '));
   main_html_response->Done();
   waiter->AddMinimumCompleteResourcesExpectation(1);
-  waiter->AddMinimumNetworkBytesExpectation(base::ByteCount(1000));
+  waiter->AddMinimumNetworkBytesExpectation(base::ByteSize(1000));
   waiter->Wait();
 
   script_response->WaitForRequest();
@@ -2528,7 +2529,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsResourceLoadBrowserTest,
   script_response->Send(std::string(1000, ' '));
   // Data received but resource not complete
   waiter->AddMinimumCompleteResourcesExpectation(1);
-  waiter->AddMinimumNetworkBytesExpectation(base::ByteCount(2000));
+  waiter->AddMinimumNetworkBytesExpectation(base::ByteSize(2000));
 
   // Network bytes information is sent only when the resource is complete.
   // So we need to call Wait() after finishing `script_response`.
@@ -2543,7 +2544,7 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsResourceLoadBrowserTest,
   iframe_response->Send(std::string(2000, ' '));
   iframe_response->Done();
   waiter->AddMinimumCompleteResourcesExpectation(3);
-  waiter->AddMinimumNetworkBytesExpectation(base::ByteCount(4000));
+  waiter->AddMinimumNetworkBytesExpectation(base::ByteSize(4000));
   waiter->Wait();
 }
 
@@ -3400,7 +3401,7 @@ class PageLoadMetricsBrowserTestTerminatedPage
   void AddNewTab() {
     std::unique_ptr<content::WebContents> web_contents_to_add =
         content::WebContents::Create(
-            content::WebContents::CreateParams(browser()->profile()));
+            content::WebContents::CreateParams(browser()->GetProfile()));
 
     web_contents_to_add->GetController().LoadURL(
         embedded_test_server()->GetURL("/title1.html"), content::Referrer(),
@@ -3655,7 +3656,9 @@ IN_PROC_BROWSER_TEST_P(PageLoadMetricsBrowserTestNoRendererCrashedPage,
   destruction_observer.Wait();
   EXPECT_TRUE(web_contents() == contents);
   EXPECT_FALSE(contents->IsCrashed());
-  EXPECT_EQ(GURL(GetParam()), contents->GetLastCommittedURL());
+  // GetWithoutRef() allows chrome://process-internals/ to (sometimes) redirect
+  // to chrome://process-internals/#general. See crbug.com/526654572.
+  EXPECT_EQ(GURL(GetParam()), contents->GetLastCommittedURL().GetWithoutRef());
   EXPECT_FALSE(contents->HasUncommittedNavigationInPrimaryMainFrame());
 
   // Verify page load metric is recorded.

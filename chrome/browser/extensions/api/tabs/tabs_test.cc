@@ -10,8 +10,11 @@
 #include <memory>
 #include <string>
 
+#include "base/feature_list.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/format_macros.h"
+#include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ptr.h"
 #include "base/memory/ref_counted.h"
 #include "base/run_loop.h"
 #include "base/strings/pattern.h"
@@ -82,6 +85,7 @@
 #include "pdf/buildflags.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/abseil-cpp/absl/strings/str_format.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "ui/base/base_window.h"
 #include "ui/base/ozone_buildflags.h"
@@ -89,7 +93,7 @@
 #include "ui/display/display.h"
 #include "ui/display/screen.h"
 #include "ui/gfx/geometry/rect.h"
-#include "ui/views/widget/widget_interactive_uitest_utils.h"
+#include "ui/views/test/views_test_utils.h"
 #include "url/gurl.h"
 
 #if BUILDFLAG(IS_OZONE)
@@ -175,7 +179,7 @@ tabs::TabInterface* OpenTabWithHistory(TabListInterface* tab_list,
 
 struct TabListData {
   std::vector<int> tab_ids;
-  std::vector<content::WebContents*> web_contentses;
+  std::vector<raw_ptr<content::WebContents, DanglingUntriaged>> web_contentses;
 };
 
 // Opens tabs in `tab_list` until there are `count` tabs, then returns the tab
@@ -648,7 +652,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest,
       update_tab_function.get(),
       std::string("[null, {\"url\": \"") + chrome::kChromeUIExtensionsURL +
           chrome::kExtensionConfigureCommandsSubPage + "\"}]",
-      incognito->profile(),  // incognito doesn't have any tabs.
+      incognito->GetProfile(),  // incognito doesn't have any tabs.
       api_test_utils::FunctionMode::kNone);
   EXPECT_EQ(ErrorUtils::FormatErrorMessage(
                 tabs_constants::kURLsNotAllowedInIncognitoError,
@@ -699,7 +703,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DefaultToIncognitoWhenItIsForced) {
   function->set_extension(extension.get());
   result = utils::ToDict(utils::RunFunctionAndReturnSingleResult(
       function.get(), kArgsWithoutExplicitIncognitoParam,
-      incognito_browser->profile(), api_test_utils::FunctionMode::kIncognito));
+      incognito_browser->GetProfile(),
+      api_test_utils::FunctionMode::kIncognito));
   // Make sure it is a new(different) window.
   EXPECT_NE(ExtensionTabUtil::GetWindowId(incognito_browser),
             GetWindowId(result));
@@ -767,7 +772,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest,
   function = base::MakeRefCounted<WindowsCreateFunction>();
   function->set_extension(extension.get());
   result = utils::ToDict(utils::RunFunctionAndReturnSingleResult(
-      function.get(), kEmptyArgs, incognito_browser->profile(),
+      function.get(), kEmptyArgs, incognito_browser->GetProfile(),
       api_test_utils::FunctionMode::kIncognito));
   // Make sure it is a new(different) window.
   EXPECT_NE(ExtensionTabUtil::GetWindowId(incognito_browser),
@@ -801,7 +806,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest,
   EXPECT_TRUE(base::MatchPattern(
       utils::RunFunctionAndReturnError(function.get(),
                                        kArgsWithExplicitIncognitoParam,
-                                       incognito_browser->profile()),
+                                       incognito_browser->GetProfile()),
       keys::kIncognitoModeIsForced));
 }
 
@@ -827,7 +832,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest,
   function->set_extension(extension.get());
   EXPECT_TRUE(base::MatchPattern(
       utils::RunFunctionAndReturnError(function.get(), kArgs,
-                                       incognito_browser->profile()),
+                                       incognito_browser->GetProfile()),
       keys::kIncognitoModeIsDisabled));
 }
 
@@ -1971,14 +1976,7 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, ExecuteScriptOnDevTools) {
   DevToolsWindowTesting::CloseDevToolsWindowSync(devtools);
 }
 
-// TODO(crbug.com/504781983): Fails on Linux.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_DiscardedProperty DISABLED_DiscardedProperty
-#else
-#define MAYBE_DiscardedProperty DiscardedProperty
-#endif
-// TODO(georgesak): change this browsertest to an unittest.
-IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, MAYBE_DiscardedProperty) {
+IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, DiscardedProperty) {
   ASSERT_TRUE(g_browser_process && g_browser_process->GetTabManager());
   resource_coordinator::TabManager* tab_manager =
       g_browser_process->GetTabManager();
@@ -1987,15 +1985,28 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, MAYBE_DiscardedProperty) {
   // explicitly.
   resource_coordinator::GetTabLifecycleUnitSource()
       ->SetFocusedTabStripModelForTesting(browser()->tab_strip_model());
+  // Ensure the focused tab strip model is reset.
+  // TODO(devlin): Update SetFocusedTabStripModelForTesting() to return a
+  // base::AutoReset<> to avoid this ScopedClosureRunner.
+  base::ScopedClosureRunner reset_focused_tab_strip_model(base::BindOnce(
+      [](resource_coordinator::TabLifecycleUnitSource* source) {
+        source->SetFocusedTabStripModelForTesting(nullptr);
+      },
+      resource_coordinator::GetTabLifecycleUnitSource()));
 
-  // Create two additional tabs.
+  // Create two additional tabs and wait for them to finish loading.
   content::OpenURLParams params(GURL(url::kAboutBlankURL), content::Referrer(),
                                 WindowOpenDisposition::NEW_BACKGROUND_TAB,
                                 ui::PAGE_TRANSITION_LINK, false);
   content::WebContents* web_contents_a =
       browser()->OpenURL(params, /*navigation_handle_callback=*/{});
+  ASSERT_TRUE(web_contents_a);
+  content::WaitForLoadStop(web_contents_a);
+
   content::WebContents* web_contents_b =
       browser()->OpenURL(params, /*navigation_handle_callback=*/{});
+  ASSERT_TRUE(web_contents_b);
+  content::WaitForLoadStop(web_contents_b);
 
   // Set up query function with an extension.
   scoped_refptr<const Extension> extension = ExtensionBuilder("Test").Build();
@@ -2083,8 +2094,11 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, MAYBE_DiscardedProperty) {
     EXPECT_EQ(2u, result.size());
   }
 
-  // Activates the first created tab.
+  // Activate the first created tab and wait for its reload to complete so its
+  // discarded state deterministically updates to false.
   browser()->tab_strip_model()->ActivateTabAt(1);
+  content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents());
 
   // Get non-discarded tabs after activating a discarded tab.
   {
@@ -5482,62 +5496,72 @@ IN_PROC_BROWSER_TEST_F(ExtensionTabsTest, GroupSingleTabInSplitView) {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_ANDROID)
-class ExtensionTabsWebContentsDiscardDisabledTest : public ExtensionTabsTest {
+class ExtensionTabsDiscardTest : public ExtensionTabsTest,
+                                 public ::testing::WithParamInterface<bool> {
  public:
-  ExtensionTabsWebContentsDiscardDisabledTest() {
-    scoped_feature_list_.InitAndDisableFeature(features::kWebContentsDiscard);
+  ExtensionTabsDiscardTest() {
+    scoped_feature_list_.InitWithFeatureState(features::kWebContentsDiscard,
+                                              GetParam());
   }
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
 };
 
-IN_PROC_BROWSER_TEST_F(ExtensionTabsWebContentsDiscardDisabledTest,
-                       OnReplacedEvent) {
+INSTANTIATE_TEST_SUITE_P(WebContentsDiscard,
+                         ExtensionTabsDiscardTest,
+                         ::testing::Bool());
+
+IN_PROC_BROWSER_TEST_P(ExtensionTabsDiscardTest, DiscardEvent) {
   TestExtensionDir test_dir;
   test_dir.WriteManifest(R"({
-    "name": "onReplaced Test",
+    "name": "Discard Event Test",
     "version": "1.0",
     "manifest_version": 3,
     "background": {
       "service_worker": "background.js"
     }
   })");
-  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"), R"(
-    chrome.tabs.create({"url": "about:blank"}, function(tab) {
-      chrome.tabs.onReplaced.addListener(function(new_tab_id, old_tab_id) {
-        if (old_tab_id === tab.id && new_tab_id !== tab.id) {
-          chrome.test.sendMessage("success");
-        } else {
-          chrome.test.sendMessage("failure");
-        }
-      });
-      chrome.test.sendMessage("ready");
-    });
-  )");
 
-  ExtensionTestMessageListener ready_listener("ready");
+  std::string event_name;
+  std::string event_listener;
+  if (base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
+    event_name = "onUpdated";
+    event_listener = R"(
+        function(tab_id, change_info, updated_tab) {
+          if (tab_id === created_tab.id && change_info.discarded === true) {
+            chrome.test.sendMessage("success");
+          }
+          // Ignore extra non-matching updates.
+        }
+                     )";
+  } else {
+    event_name = "onReplaced";
+    event_listener = R"(
+        function(new_tab_id, old_tab_id) {
+          if (old_tab_id === created_tab.id && new_tab_id !== created_tab.id) {
+            chrome.test.sendMessage("success");
+          } else {
+            chrome.test.sendMessage("failure");
+          }
+        }
+                     )";
+  }
+  test_dir.WriteFile(FILE_PATH_LITERAL("background.js"),
+                     absl::StrFormat(R"(
+      chrome.tabs.create({"url": "about:blank"}, function(created_tab) {
+        chrome.tabs.%s.addListener(%s);
+        chrome.tabs.discard(created_tab.id);
+      });
+                                     )",
+                                     event_name, event_listener));
+
   ExtensionTestMessageListener success_listener("success");
 
   const Extension* extension = LoadExtension(test_dir.UnpackedPath());
   ASSERT_TRUE(extension);
 
-  // Wait for the JS to create the tab and attach its listener.
-  ASSERT_TRUE(ready_listener.WaitUntilSatisfied());
-
-  // Do the replacement on the last tab (the one the extension just created).
-  TabStripModel* tab_strip_model = browser()->tab_strip_model();
-  int target_index = tab_strip_model->count() - 1;
-
-  auto new_contents =
-      content::WebContents::Create(content::WebContents::CreateParams(
-          browser()->profile(),
-          content::SiteInstance::Create(browser()->profile())));
-
-  auto old_contents = tab_strip_model->DiscardWebContentsAt(
-      target_index, std::move(new_contents));
-
-  // Wait for the JS test to catch the event and send "success".
+  // Wait for the JS to discard the tab, catch the event and send "success".
   ASSERT_TRUE(success_listener.WaitUntilSatisfied());
 }
 

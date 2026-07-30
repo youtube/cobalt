@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/base_switches.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/debug/crash_logging.h"
@@ -50,18 +51,17 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "chrome/grit/renderer_resources.h"
-#include "chrome/renderer/benchmarking_extension.h"
+#include "chrome/renderer/benchmarking_bindings.h"
 #include "chrome/renderer/browser_exposed_renderer_interfaces.h"
 #include "chrome/renderer/chrome_content_settings_agent_delegate.h"
 #include "chrome/renderer/chrome_render_frame_observer.h"
 #include "chrome/renderer/chrome_render_thread_observer.h"
 #include "chrome/renderer/controlled_frame/controlled_frame_extensions_renderer_api_provider.h"
 #include "chrome/renderer/google_accounts_private_api_extension.h"
-#include "chrome/renderer/loadtimes_extension_bindings.h"
+#include "chrome/renderer/loadtimes_bindings.h"
 #include "chrome/renderer/media/flash_embed_rewrite.h"
 #include "chrome/renderer/media/webrtc_logging_agent_impl.h"
 #include "chrome/renderer/net/net_error_helper.h"
-#include "chrome/renderer/net_benchmarking_extension.h"
 #include "chrome/renderer/plugins/non_loadable_plugin_placeholder.h"
 #include "chrome/renderer/plugins/pdf_plugin_placeholder.h"
 #include "chrome/renderer/process_state.h"
@@ -344,6 +344,11 @@ bool IsStandaloneContentExtensionProcess() {
 #endif
 }
 
+bool IsTopChromeWebUiProcess() {
+  return base::CommandLine::ForCurrentProcess()->HasSwitch(
+      switches::kTopChromeWebUI);
+}
+
 std::unique_ptr<base::Unwinder> CreateV8Unwinder(v8::Isolate* isolate) {
   return std::make_unique<V8Unwinder>(isolate);
 }
@@ -393,6 +398,11 @@ void ChromeContentRendererClient::RenderThreadStarted() {
     // "Extension Renderer" to highlight that it's hosting an extension.
     base::CurrentProcess::GetInstance().SetProcessType(
         base::CurrentProcessType::PROCESS_RENDERER_EXTENSION);
+  }
+
+  if (IsTopChromeWebUiProcess()) {
+    base::CurrentProcess::GetInstance().SetProcessType(
+        base::CurrentProcessType::PROCESS_RENDERER_TOP_WEBUI);
   }
 
 #if BUILDFLAG(IS_WIN)
@@ -453,20 +463,6 @@ void ChromeContentRendererClient::RenderThreadStarted() {
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   thread->AddObserver(phishing_model_setter_.get());
 #endif
-
-  blink::WebScriptController::RegisterExtension(
-      extensions_v8::LoadTimesExtension::Get());
-
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(variations::switches::kEnableBenchmarkingApi)) {
-    blink::WebScriptController::RegisterExtension(
-        extensions_v8::BenchmarkingExtension::Get());
-  }
-
-  if (command_line->HasSwitch(switches::kEnableNetBenchmarking)) {
-    blink::WebScriptController::RegisterExtension(
-        extensions_v8::NetBenchmarkingExtension::Get());
-  }
 
   // chrome: is also to be permitted to embeds https:// things and have them
   // treated as first-party.
@@ -535,6 +531,7 @@ void ChromeContentRendererClient::RenderThreadStarted() {
   // kInstantProcess command-line switch and all code that depends on it will be
   // removed. Remove this display-isolation policy block as part of that
   // cleanup.
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
   bool should_restrict_chrome_search_scheme =
       !command_line->HasSwitch(switches::kInstantProcess);
 
@@ -1510,6 +1507,8 @@ void ChromeContentRendererClient::WillEvaluateServiceWorkerOnWorkerThread(
           context_proxy, v8_context, service_worker_version_id,
           service_worker_scope, script_url, service_worker_token);
 #endif
+  BenchmarkingBindings::InstallConditionally(v8_context);
+  LoadTimesBindings::Install(v8_context);
 }
 
 void ChromeContentRendererClient::DidStartServiceWorkerContextOnWorkerThread(

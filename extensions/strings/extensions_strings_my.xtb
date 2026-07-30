@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">စာမျက်နှာ '<ph name="ABOUT_PAGE" />' အကြောင်းကို တင် မပေးနိုင်ခဲ့ပါ။</translation>
 <translation id="424963718355121712">အက်ပ်များကို ၎င်းတို့အကျိုးသက်ရောက်မှုရှိသည့် ဆာဗာပင်ရင်းက ဝန်ဆောင်ပေးရမည်</translation>
 <translation id="4306119971288449206">အက်ပ်များကို "<ph name="CONTENT_TYPE" />" အကြောင်းအရာ အမျိုးအစားဖြင့် ဝန်ဆောင်ပေးရမည်</translation>
+<translation id="4349181963619779233">ဤဝဘ်ဆိုက်မှ နောက်ဆက်တွဲများနှင့် အက်ပ်များကို ထည့်၍မရပါ</translation>
 <translation id="4625078469366263107">အက်ပ်ကို ဖွင့်ရန်</translation>
 <translation id="4633003931260532286">နောက်ဆက်တွဲသည် အနိမ့်ဆုံးဗားရှင်း "<ph name="IMPORT_VERSION" />" ရှိသည့် "<ph name="IMPORT_NAME" />" ကို လိုအပ်သော်လည်း ဗားရှင်း "<ph name="INSTALLED_VERSION" />" ကိုသာ ထည့်သွင်းထားသည်</translation>
 <translation id="4660476621274971848">ဗားရှင်း "<ph name="EXPECTED_VERSION" />" ကို မျှော်မှန်းထားသော်လည်း ဗားရှင်းမှာ "<ph name="NEW_ID" />" ဖြစ်နေသည်</translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">သီးသန့်ကီးအတွက် ထည့်သွင်းရန်တန်ဖိုးသည် မှန်ကန်သည့် ဖော်မက်ဖြစ်ရပါမည် (PKCS#8-format PEM-encoded RSA ကီး)။</translation>
-<translation id="765293928828334535">ဤဝဘ်ဆိုက်မှ အက်ပ်များ၊ နောက်ဆက်တွဲများနှင့် အသုံးပြုသူ script များကို ပေါင်းထည့်၍ မရပါ</translation>
 <translation id="7658239707568436148">မလုပ်တော့</translation>
 <translation id="7766838926148951335">ခွင့်ပြုချက်များကို လက်ခံရန်</translation>
 <translation id="7876803335449432072">အကြောင်းအရာ Script အတွက် ‘<ph name="RELATIVE_PATH" />’ ဖိုင်ကို ဖွင့်၍မရလိုက်ပါ။ အကြောင်းအရာ Script ပုံစံစာမျက်နှာများကို .css ဖိုင်များကဲ့သို့သော ပံ့ပိုးပေးသည့် ပုံစံစာမျက်နှာဖိုင်များဖြင့်သာ ဖွင့်နိုင်သည်။</translation>

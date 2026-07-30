@@ -4,7 +4,6 @@
 
 #include "components/page_load_metrics/renderer/page_resource_data_use.h"
 
-#include "base/byte_count.h"
 #include "base/byte_size.h"
 #include "net/base/proxy_chain.h"
 #include "services/network/public/cpp/url_loader_completion_status.h"
@@ -44,7 +43,7 @@ void PageResourceDataUse::DidStartResponse(
 }
 
 void PageResourceDataUse::DidReceiveTransferSizeUpdate(
-    base::ByteCount received_data_length) {
+    base::ByteSize received_data_length) {
   total_received_bytes_ += received_data_length;
 }
 
@@ -52,13 +51,12 @@ void PageResourceDataUse::DidCompleteResponse(
     const network::URLLoaderCompletionStatus& status) {
   // Report the difference in received bytes.
   is_complete_ = true;
-  encoded_body_length_ = status.encoded_body_length.AsDeprecatedByteCount();
-  decoded_body_length_ = status.decoded_body_length.AsDeprecatedByteCount();
-  base::ByteCount delta_bytes =
-      status.encoded_data_length.AsDeprecatedByteCount() -
-      total_received_bytes_;
+  encoded_body_length_ = status.encoded_body_length;
+  decoded_body_length_ = status.decoded_body_length;
+  base::ByteSizeDelta delta_bytes =
+      status.encoded_data_length - total_received_bytes_;
   if (delta_bytes.is_positive()) {
-    total_received_bytes_ += delta_bytes;
+    total_received_bytes_ += delta_bytes.AsByteSize();
   }
 }
 
@@ -68,7 +66,7 @@ void PageResourceDataUse::DidCancelResponse() {
 
 void PageResourceDataUse::DidLoadFromMemoryCache(
     const GURL& response_url,
-    base::ByteCount encoded_body_length,
+    base::ByteSize encoded_body_length,
     const std::string& mime_type) {
   // Resource id was set in the constructor.
   CHECK_NE(resource_id_, kUnknownResourceId);
@@ -92,12 +90,11 @@ void PageResourceDataUse::SetIsMainFrameResource(bool is_main_frame_resource) {
   is_main_frame_resource_ = is_main_frame_resource;
 }
 
-base::ByteCount PageResourceDataUse::CalculateNewlyReceivedBytes() {
-  base::ByteCount newly_received_bytes =
+base::ByteSize PageResourceDataUse::CalculateNewlyReceivedBytes() {
+  base::ByteSizeDelta newly_received_bytes =
       total_received_bytes_ - last_update_bytes_;
   last_update_bytes_ = total_received_bytes_;
-  DCHECK(!newly_received_bytes.is_negative());
-  return newly_received_bytes;
+  return newly_received_bytes.AsByteSize();
 }
 
 mojom::ResourceDataUpdatePtr PageResourceDataUse::GetResourceDataUpdate() {

@@ -29,8 +29,6 @@
 #include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/action_tracker_for_metrics.h"
-#include "chrome/browser/actor/actor_container_config.h"
-#include "chrome/browser/actor/actor_container_config_slot.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_proto_conversion.h"
@@ -62,6 +60,8 @@
 #include "components/keyed_service/core/service_access_type.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/origin_gating/core/actor_container_config.h"
+#include "components/origin_gating/core/actor_container_config_slot.h"
 #include "components/origin_gating/core/origin_gating_cache.h"
 #include "components/origin_gating/core/types.h"
 #include "components/password_manager/core/browser/actor_login/actor_login_service.h"
@@ -95,6 +95,8 @@ namespace actor {
 
 namespace {
 
+constexpr char kSafetyListPredicateName[] = "actor_safety_list_check";
+
 struct ActorGatingContext : public origin_gating::GatingDecisionContext {
   ActorGatingContext(ukm::SourceId ukm_id,
                      bool skip,
@@ -108,6 +110,25 @@ struct ActorGatingContext : public origin_gating::GatingDecisionContext {
   bool skip_prompt;
   base::ScopedUmaHistogramTimer timer;
 };
+
+origin_gating::CustomPredicate CreateSafetyListPredicate() {
+  return origin_gating::CustomPredicate(
+      base::BindRepeating([](const origin_gating::GatingDecisionContext*,
+                             origin_gating::GateableEvent,
+                             const GURL& source_url,
+                             const GURL& destination_url) {
+        switch (SafetyListManager::GetInstance()->Find(source_url,
+                                                       destination_url)) {
+          case SafetyListManager::Decision::kNone:
+            return origin_gating::Decision::kNoDecision;
+          case SafetyListManager::Decision::kAllow:
+            return origin_gating::Decision::kAllowed;
+          case SafetyListManager::Decision::kBlock:
+            return origin_gating::Decision::kBlocked;
+        }
+      }),
+      kSafetyListPredicateName);
+}
 
 static constexpr std::string_view kPermissionGrantedHistogram =
     "Actor.NavigationGating.PermissionGranted";
@@ -145,14 +166,26 @@ url::Origin OriginOrPrecursorIfOpaque(const url::Origin& origin) {
       origin.GetTupleOrPrecursorTupleIfOpaque().GetURL());
 }
 
-ExecutionEngine::GatingDecision MapDecisionSourceToGatingDecision(
-    origin_gating::DecisionSource source) {
-  switch (source) {
-    case origin_gating::DecisionSource::kAllowSameOrigin:
-      return ExecutionEngine::GatingDecision::kAllowSameOrigin;
-    case origin_gating::DecisionSource::kCache:
-    case origin_gating::DecisionSource::kNoVerdict:
-      return ExecutionEngine::GatingDecision::kNeedsAsyncCheck;
+ExecutionEngine::GatingDecision MapGatingDecisionToEngineDecision(
+    const origin_gating::GatingDecision& decision) {
+  switch (decision.attribution.type()) {
+    case origin_gating::DecisionAttribution::Type::kDecisionSource:
+      switch (decision.attribution.Source()) {
+        case origin_gating::DecisionSource::kAllowSameOrigin:
+          return ExecutionEngine::GatingDecision::kAllowSameOrigin;
+        case origin_gating::DecisionSource::kCacheWithUserConfirmation:
+        case origin_gating::DecisionSource::kCacheWithoutUserConfirmation:
+        case origin_gating::DecisionSource::kNoVerdict:
+          return ExecutionEngine::GatingDecision::kNeedsAsyncCheck;
+      }
+    case origin_gating::DecisionAttribution::Type::kCustomPredicate:
+      if (decision.attribution == kSafetyListPredicateName) {
+        return decision.is_allowed
+                   ? ExecutionEngine::GatingDecision::kAllowByStaticList
+                   : ExecutionEngine::GatingDecision::kBlockByStaticList;
+      }
+      NOTREACHED() << "Unrecognized custom predicate attribution: "
+                   << decision.attribution.CustomPredicateName();
   }
 }
 
@@ -239,7 +272,16 @@ ExecutionEngine::ExecutionEngine(
       origin_gating_checker_(
           *this,
           origin_gating::OriginGatingConfiguration(
-              {origin_gating::DecisionSource::kAllowSameOrigin},
+              {
+                  {CreateSafetyListPredicate(),
+                   {origin_gating::GateableEvent::kNavigationResponse}},
+                  {origin_gating::DecisionSource::kCacheWithUserConfirmation,
+                   {origin_gating::GateableEvent::kNavigationResponse}},
+                  {origin_gating::DecisionSource::kAllowSameOrigin,
+                   {origin_gating::GateableEvent::kNavigationResponse}},
+                  {origin_gating::DecisionSource::kCacheWithoutUserConfirmation,
+                   {origin_gating::GateableEvent::kNavigationResponse}},
+              },
               kGlicNavigationGatingUseSiteNotOrigin.Get())),
       dark_launch_origin_gating_cache_(
           kGlicNavigationGatingUseSiteNotOrigin.Get()) {
@@ -369,8 +411,8 @@ ExecutionEngine::ShouldDeferNavigation(
           GetPrimaryMainFrame(navigation_handle)->GetPageUkmSourceId(),
           navigation_handle.IsInPrerenderedMainFrame(), std::move(timer));
       origin_gating_checker_.ComputeGatingDecision(
-          std::move(context), source_origin.GetURL(),
-          navigation_handle.GetURL(),
+          std::move(context), origin_gating::GateableEvent::kNavigationResponse,
+          source_origin.GetURL(), navigation_handle.GetURL(),
           base::BindOnce(&ExecutionEngine::OnComputedGatingDecision,
                          GetWeakPtr(), std::move(callback), source_origin,
                          url::Origin::Create(navigation_handle.GetURL()),
@@ -392,14 +434,17 @@ void ExecutionEngine::OnComputedGatingDecision(
     origin_gating::GatingDecision decision) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   auto* actor_context = static_cast<ActorGatingContext*>(context.get());
+  bool is_no_verdict =
+      decision.attribution == origin_gating::DecisionSource::kNoVerdict;
   LogNavigationGating(source_origin, initiator, destination_origin,
-                      /*applied_gate=*/decision.source ==
-                          origin_gating::DecisionSource::kNoVerdict);
+                      /*applied_gate=*/!decision.is_allowed || is_no_verdict);
 
-  RecordNavigationGatingDecision(
-      MapDecisionSourceToGatingDecision(decision.source));
+  RecordNavigationGatingDecision(MapGatingDecisionToEngineDecision(decision));
 
-  if (decision.source == origin_gating::DecisionSource::kCache) {
+  if (decision.attribution ==
+          origin_gating::DecisionSource::kCacheWithoutUserConfirmation ||
+      decision.attribution ==
+          origin_gating::DecisionSource::kCacheWithUserConfirmation) {
     ukm::builders::Actor_OriginGating builder(actor_context->ukm_source_id);
     builder
         .SetServerConfirmationResult(static_cast<int64_t>(
@@ -451,19 +496,12 @@ ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
                : GatingDecision::kBlockByContainerConfig;
   }
 
-  switch (SafetyListManager::GetInstance()->Find(source_url, destination_url)) {
-    case SafetyListManager::Decision::kNone:
-      return GatingDecision::kNeedsAsyncCheck;
-    case SafetyListManager::Decision::kAllow:
-      return GatingDecision::kAllowByStaticList;
-    case SafetyListManager::Decision::kBlock:
-      return GatingDecision::kBlockByStaticList;
-  }
-  NOTREACHED();
+  return GatingDecision::kNeedsAsyncCheck;
 }
 
 void ExecutionEngine::DoesOriginRequireUserConfirmation(
     origin_gating::GatingDecisionContext* context,
+    origin_gating::GateableEvent event,
     const GURL& source,
     const GURL& destination,
     DoesOriginRequireUserConfirmationCallback callback) const {
@@ -480,6 +518,7 @@ void ExecutionEngine::DoesOriginRequireUserConfirmation(
 
 void ExecutionEngine::OnNoVerdict(
     origin_gating::GatingDecisionContext* context,
+    origin_gating::GateableEvent event,
     const GURL& source,
     const GURL& destination,
     bool requires_user_confirmation,

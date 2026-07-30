@@ -63,10 +63,29 @@ enum class IndigoTransformationResult {
   kRefreshTokenInPersistentErrorState = 11,
   kManagedDomain = 12,
   kGlicDisabledForProfile = 13,
-  kMaxValue = kGlicDisabledForProfile,
+  kEnterpriseDisallowed = 14,
+  kPrimaryImageDisconnected = 15,
+  kEmptyPrimaryImageSize = 16,
+  kPrimaryImageTooSmall = 17,
+  kNoPrimaryImageFound = 18,
+  kPrimaryImageReplacementCreationFailed = 19,
+  kMaxValue = kPrimaryImageReplacementCreationFailed,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/indigo/enums.xml:IndigoTransformationResult)
+
+// Trigger sources for the Indigo page action.
+// These values are persisted to logs. Entries should not be renumbered and
+// numeric values should never be reused.
+// LINT.IfChange(IndigoTriggerSource)
+enum class IndigoTriggerSource {
+  kUnknown = 0,
+  kForced = 1,
+  kOptimizationGuide = 2,
+  kLocalProductKeywordHeuristic = 3,
+  kMaxValue = kLocalProductKeywordHeuristic,
+};
+// LINT.ThenChange(//tools/metrics/histograms/metadata/indigo/enums.xml:IndigoTriggerSource)
 
 enum class ResetType {
   kResetReplacementsAndContentScript,
@@ -126,7 +145,9 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
   }
 
   // Shows a toast notification informing the user that an error has occurred.
-  void ShowInvocationErrorToast();
+  // Note: `result` is only used for metrics purposes and doesn't affect the
+  // error toast displayed.
+  void ShowInvocationErrorToast(IndigoTransformationResult result);
 
   base::WeakPtr<IndigoPageActionController> GetWeakPtr() {
     return weak_ptr_factory_.GetWeakPtr();
@@ -186,6 +207,10 @@ class IndigoPageActionController : public tabs::ContentsObservingTabFeature,
  private:
   // Updates the visibility and states of all entry points.
   void UpdateEntryPointsState();
+
+  // Determines the source that triggered the Indigo page action, if it should
+  // be shown. Returns std::nullopt if the page action should not be shown.
+  std::optional<IndigoTriggerSource> DetermineTriggerSource() const;
 
   // Shows the onboarding dialog with the appropriate URL based on disposition.
   void ShowOnboardingDialog(OnboardingDisposition disposition,

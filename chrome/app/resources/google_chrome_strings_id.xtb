@@ -72,7 +72,6 @@
 <translation id="1640672724030957280">Mengunduh...</translation>
 <translation id="1651617469580841801">Saat Anda menggunakan Google Lens, judul halaman, URL, dan konten halaman, termasuk PDF, akan dikirim ke Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Tentang ChromeOS Flex</translation>
-<translation id="1665867022636014702">Gunakan setelan browser yang direkomendasikan Google</translation>
 <translation id="1674870198290878346">Buka Link di Jendela Sa&amp;maran Chrome</translation>
 <translation id="1682634494516646069">Google Chrome tidak dapat membaca dan menulis ke direktori datanya: <ph name="USER_DATA_DIRECTORY" /></translation>
 <translation id="1688214853608504530">Saat Anda mengetik di kolom URL atau kotak penelusuran, Chrome akan mengirimkan hal yang Anda ketik ke alat penelusuran, AI, dan agen milik organisasi Anda untuk mendapatkan saran.</translation>
@@ -233,6 +232,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="3242123554343253302">Tambahkan profil Chrome</translation>
 <translation id="3242486428260808857">Optimalkan pengalaman belanja online dengan aplikasi Chrome di <ph name="DEVICE_TYPE" /></translation>
 <translation id="3245429137663807393">Jika Anda juga membagikan laporan penggunaan Chrome, laporan tersebut akan menyertakan URL yang Anda buka</translation>
+<translation id="3249558306861350254">Klik <ph name="BEGIN_BOLD" />Setel sebagai Default<ph name="END_BOLD" /> di setelan Windows Anda.</translation>
 <translation id="3259748324892322072">Dapatkan Aplikasi Chrome</translation>
 <translation id="3282568296779691940">Login ke Chrome</translation>
 <translation id="3286538390144397061">Mulai Ulang Sekarang</translation>
@@ -252,7 +252,6 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="345171907106878721">Tambahkan diri Anda ke Chrome</translation>
 <translation id="3453763134178591239">Persyaratan ChromeOS</translation>
 <translation id="3475778264501649775">Bawa sandi, tab, dan info lainnya kapan saja di mana saja dengan aplikasi Chrome di ponsel Anda</translation>
-<translation id="3512495006767217696">Diintegrasikan dalam Chrome untuk membantu Anda membuat, menyimpan, dan mengisi otomatis sandi kuat. Tambahkan pintasan untuk memudahkan akses</translation>
 <translation id="3539955434060988644">Buka link di jendela Samaran Chrome</translation>
 <translation id="354621070532799440">Pengingat: Fitur keamanan terbaik Google ada di genggaman Anda</translation>
 <translation id="3547866758548131919">Klik tombol Ringkas untuk membagikan dokumen ini ke Gemini di Chrome guna mendapatkan ringkasan cepat dan mengajukan pertanyaan lanjutan</translation>
@@ -305,6 +304,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="4012899077942246412">Saat Anda login, Anda dapat menggunakan sandi Anda dan info lainnya dari Akun Google Anda di Chrome. Untuk mengubahnya, buka “Akun Anda di Chrome”.</translation>
 <translation id="4022972681110646219">Terjemahkan layar</translation>
 <translation id="4023601594785368013">Bahasa asli: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">Diintegrasikan dalam Chrome untuk membantu Anda membuat, menyimpan, dan mengisi otomatis sandi kuat. Tambahkan pintasan untuk memudahkan akses.</translation>
 <translation id="4035053306113201399">ChromeOS harus dimulai ulang untuk menerapkan update.</translation>
 <translation id="4050175100176540509">Peningkatan keamanan dan fitur baru yang penting tersedia di versi terbaru.</translation>
 <translation id="4053720452172726777">Sesuaikan dan kontrol Google Chrome</translation>
@@ -541,7 +541,6 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="6438015621983209660">Manfaatkan Safe Browsing yang Disempurnakan dengan Chrome di ponsel</translation>
 <translation id="6442774133615368941">Gunakan kamera di aplikasi Chrome versi iOS untuk berbelanja, menerjemahkan teks, dan mengidentifikasi objek yang Anda lihat</translation>
 <translation id="6448835208126432197">Gunakan pintasan keyboard untuk memilih bagian tertentu dari layar di Gemini di Chrome.</translation>
-<translation id="6473659734176498825">Gambar sederhana yang menampilkan titik entri Pengelola Sandi Google di Chrome</translation>
 <translation id="6473905796280459355">Buka halaman Tentang Chrome</translation>
 <translation id="6481963882741794338">Tautkan Chrome dan layanan Google lainnya untuk personalisasi dan tujuan lainnya</translation>
 <translation id="648319183876919572">Safe Browsing yang Disempurnakan melakukan lebih banyak hal untuk melindungi Anda dari situs dan download berbahaya</translation>
@@ -558,6 +557,7 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="6539493053177300926">Akses mudah untuk menggunakan Gemini di Chrome di berbagai perangkat Anda, bahkan saat Chrome diperkecil.</translation>
 <translation id="6585124893636629274">Tutup Gemini di Chrome</translation>
 <translation id="659498884637196217">Di Pengelola Sandi Google di perangkat ini</translation>
+<translation id="6613949864921837107">Selalu sinkronkan sandi, bookmark, dan histori lintas perangkat dengan menyetel Chrome sebagai browser default Anda.</translation>
 <translation id="6631524303639368205">Lanjutkan dari halaman terakhir yang dibuka: Chrome memulihkan tab Anda dari sesi terakhir. Anda dapat menonaktifkannya di</translation>
 <translation id="6632473616050862500">ChromeOS Flex terwujud karena adanya <ph name="BEGIN_LINK_CROS_OSS" />software open source<ph name="END_LINK_CROS_OSS" /> tambahan.</translation>
 <translation id="6634299872736643004">Perubahan pada setelan ini akan diterapkan setelah Chrome dimulai ulang.</translation>
@@ -683,7 +683,6 @@ Jika halaman ini tidak berfungsi sebagaimana mestinya, coba izinkan pengoptimala
 <translation id="7804364787702057554">Akun Anda di Chrome</translation>
 <translation id="7804947029129221742">Mesin telusur Anda diubah dari luar Chrome. Untuk melindungi Anda, Chrome meresetnya ke setelan default aslinya. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Hapus dari Chrome...</translation>
-<translation id="7812800388699096556">Ilustrasi yang menunjukkan cara menggunakan Google Lens untuk mencari produk</translation>
 <translation id="7827099906024714326">Chrome perlu memverifikasi diri Anda sebelum beberapa data dapat disimpan di Akun Google Anda dan digunakan di semua perangkat Anda. Jika Anda logout sekarang, data ini akan dihapus.</translation>
 <translation id="7832314606810669113">Untuk mendapatkan bookmark dan info Anda yang lain di semua perangkat Anda, login ke Chrome. Bookmark ini akan disimpan di Akun Google Anda setelah Anda login.</translation>
 <translation id="7845233973568007926">Terima kasih telah menginstal. Anda harus memulai ulang komputer sebelum menggunakan <ph name="BUNDLE_NAME" />.</translation>
@@ -820,7 +819,6 @@ Bookmark baru tidak dapat disimpan di akun hingga Anda menghapus beberapa bookma
 <translation id="8999208279178790196">{0,plural, =0{Update Chrome tersedia}=1{Update Chrome tersedia}other{Update Chrome telah tersedia selama # hari}}</translation>
 <translation id="9014771989710951291">Beberapa organisasi mengelola Chrome</translation>
 <translation id="9018218886431812662">Penginstalan selesai</translation>
-<translation id="9024318700713112071">Setel Chrome sebagai browser default</translation>
 <translation id="9066987883552592250">Tutup Gemini di Chrome Canary</translation>
 <translation id="9074041031320636790">Berhasil! Kini Anda dapat dengan mudah mengajukan pertanyaan saat menjelajah dengan Mode AI Google Penelusuran</translation>
 <translation id="9090566250983691233">Pelajari alasan Chrome memblokir beberapa file</translation>

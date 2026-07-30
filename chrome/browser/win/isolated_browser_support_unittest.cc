@@ -6,21 +6,42 @@
 
 #include <objbase.h>
 
+#include <shlobj.h>
+#include <wrl/client.h>
+
+#include <optional>
 #include <utility>
 
 #include "base/base64.h"
+#include "base/base_switches.h"
 #include "base/command_line.h"
 #include "base/logging.h"
+#include "base/path_service.h"
+#include "base/process/launch.h"
+#include "base/process/process.h"
+#include "base/strings/strcat.h"
 #include "base/strings/sys_string_conversions.h"
+#include "base/strings/utf_string_conversions.h"
+#include "base/synchronization/waitable_event.h"
 #include "base/test/gmock_expected_support.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/multiprocess_test.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/test_future.h"
 #include "base/test/test_reg_util_win.h"
+#include "base/test/test_timeouts.h"
+#include "base/types/expected.h"
 #include "base/uuid.h"
+#include "base/win/com_init_util.h"
+#include "base/win/elevation_util.h"
+#include "base/win/scoped_bstr.h"
+#include "base/win/scoped_com_initializer.h"
 #include "chrome/browser/os_crypt/app_bound_encryption_provider_win.h"
 #include "chrome/browser/os_crypt/app_bound_encryption_win.h"
+#include "chrome/browser/win/isolated_browser_test_support.h"
 #include "chrome/common/chrome_switches.h"
+#include "chrome/elevation_service/elevation_service_idl.h"
+#include "chrome/elevation_service/elevator.h"
 #include "chrome/install_static/test/scoped_install_details.h"
 #include "components/prefs/mock_pref_change_callback.h"
 #include "components/prefs/pref_change_registrar.h"
@@ -28,6 +49,7 @@
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "testing/multiprocess_func_list.h"
 #include "third_party/abseil-cpp/absl/cleanup/cleanup.h"
 
 namespace chrome {
@@ -367,5 +389,133 @@ TEST_P(IsolatedBrowserSupportSystemTestWithFailures, InjectFailures) {
 INSTANTIATE_TEST_SUITE_P(,
                          IsolatedBrowserSupportSystemTestWithFailures,
                          ::testing::Bool());
+
+
+
+class IsolatedBrowserSupportLaunchTest : public ::testing::Test {
+ protected:
+  void SetUp() override {
+    env_ = std::make_unique<chrome::IsolatedBrowserTestEnvironment>();
+    if (!env_->is_valid()) {
+      GTEST_SKIP() << "Test requires admin rights";
+    }
+  }
+
+  std::unique_ptr<chrome::IsolatedBrowserTestEnvironment> env_;
+};
+
+base::expected<base::Process, DWORD> RunInChildDeElevated(
+    std::string_view function_name) {
+  base::CommandLine command_line =
+      base::GetMultiProcessTestChildBaseCommandLine();
+  command_line.AppendSwitchASCII(switches::kTestChildProcess, function_name);
+
+  return base::win::RunDeElevated(command_line);
+}
+
+TEST_F(IsolatedBrowserSupportLaunchTest, RunIsolatedChromeLaunchUnisolated) {
+  auto child_or_error =
+      RunInChildDeElevated("RunIsolatedChromeLaunchUnisolatedInChild");
+
+  if (!child_or_error.has_value()) {
+    GTEST_SKIP() << "Cannot de-elevate when UAC is disabled.";
+  }
+  int exit_code;
+  ASSERT_TRUE(child_or_error->WaitForExit(&exit_code));
+  ASSERT_EQ(exit_code, 0);
+}
+
+TEST_F(IsolatedBrowserSupportLaunchTest, CheckIsolatedCommandline) {
+  base::Process process = chrome::SpawnIsolatedMultiProcessTestChild(
+      "CheckIsolatedCommandlineInChild");
+  ASSERT_TRUE(process.IsValid());
+  int exit_code = -1;
+  ASSERT_TRUE(process.WaitForExit(&exit_code));
+  EXPECT_EQ(exit_code, 0);
+}
+
+MULTIPROCESS_TEST_MAIN(CheckIsolatedCommandlineInChild) {
+  const auto* cmd_line = base::CommandLine::ForCurrentProcess();
+  // Only verify the command line here has passed via elevation service, as the
+  // security attribute is not present for Chromium builds.
+  if (cmd_line->HasSwitch(::switches::kIsolated)) {
+    return 0;
+  }
+  return 1;
+}
+
+MULTIPROCESS_TEST_MAIN(RunIsolatedChromeLaunchUnisolatedInChild) {
+  const std::string event_name =
+      base::Uuid::GenerateRandomV4().AsLowercaseString();
+  base::CommandLine cmd = base::GetMultiProcessTestChildBaseCommandLine();
+  cmd.AppendArg(event_name);
+
+  base::WaitableEvent event(base::win::ScopedHandle(::CreateEventA(
+      /*lpEventAttributes=*/nullptr, /*bManualReset=*/FALSE,
+      /*bInitialState=*/FALSE, /*lpName=*/event_name.c_str())));
+
+  base::Process process = chrome::SpawnIsolatedMultiProcessTestChild(
+      "RunIsolatedChromeLaunchUnisolatedInGrandchild", cmd);
+  if (!process.IsValid()) {
+    return 1;
+  }
+
+  HANDLE handles[] = {event.handle(), process.Handle()};
+  DWORD wait_res = ::WaitForMultipleObjects(2, handles, FALSE, INFINITE);
+  if (wait_res == WAIT_OBJECT_0 + 1) {
+    int exit_code = 0;
+    process.WaitForExit(&exit_code);
+    LOG(ERROR) << "Child process exited prematurely with exit code: "
+               << exit_code;
+    ADD_FAILURE() << "Child process exited with code " << exit_code;
+  } else {
+    EXPECT_EQ(WAIT_OBJECT_0, wait_res);
+  }
+
+  EXPECT_TRUE(process.IsRunning());
+  EXPECT_TRUE(process.Terminate(0, /*wait=*/true));
+
+  return ::testing::Test::HasFailure() ? 1 : 0;
+}
+
+MULTIPROCESS_TEST_MAIN(RunIsolatedChromeLaunchUnisolatedInGrandchild) {
+  base::CommandLine cmd = base::GetMultiProcessTestChildBaseCommandLine();
+  cmd.AppendSwitchASCII(switches::kTestChildProcess,
+                        "RunIsolatedChromeLaunchUnisolatedInGreatGrandchild");
+  base::LaunchOptions options;
+  options.wait = true;
+  const auto unisolated_token = chrome::GetUnisolatedAccessToken();
+  if (!unisolated_token.has_value()) {
+    return -103;
+  }
+  options.as_user = unisolated_token->get();
+  base::Process process = base::LaunchProcess(cmd, options);
+  if (!process.IsValid()) {
+    return -104;
+  }
+  int exit_code = -1;
+  if (!process.WaitForExit(&exit_code)) {
+    return -105;
+  }
+  if (exit_code != 0) {
+    return exit_code;
+  }
+
+  const auto* cmd_line = base::CommandLine::ForCurrentProcess();
+  const auto args = cmd_line->GetArgs();
+  if (args.size() > 0) {
+    ::SetEvent(::OpenEventW(EVENT_MODIFY_STATE, /*bInheritHandle=*/FALSE,
+                            args[0].c_str()));
+  }
+  base::PlatformThread::Sleep(TestTimeouts::action_timeout());
+  return 0;
+}
+
+MULTIPROCESS_TEST_MAIN(RunIsolatedChromeLaunchUnisolatedInGreatGrandchild) {
+  if (chrome::IsRunningIsolated()) {
+    return -102;
+  }
+  return 0;
+}
 
 }  // namespace chrome

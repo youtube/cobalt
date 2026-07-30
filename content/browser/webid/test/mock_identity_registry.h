@@ -8,7 +8,7 @@
 #include "base/memory/weak_ptr.h"
 #include "content/browser/webid/identity_registry.h"
 #include "testing/gmock/include/gmock/gmock.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 
 class GURL;
 
@@ -17,7 +17,7 @@ namespace content::webid {
 class MockIdentityRegistry : public IdentityRegistry {
  public:
   explicit MockIdentityRegistry(
-      content::WebContents* web_contents,
+      WebContents* web_contents,
       base::WeakPtr<IdentityRegistryDelegate> delegate,
       const GURL& idp_config_url);
 

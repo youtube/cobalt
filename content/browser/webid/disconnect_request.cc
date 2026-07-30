@@ -13,14 +13,14 @@
 #include "content/public/browser/webid/federated_identity_permission_context_delegate.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
 #include "third_party/blink/public/mojom/devtools/console_message.mojom.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 
 namespace content::webid {
 
 using FederatedApiPermissionStatus =
     FederatedIdentityApiPermissionContextDelegate::PermissionStatus;
 using LoginState = IdentityRequestAccount::LoginState;
-using blink::mojom::FederatedAuthRequestResult;
+using blink::mojom::FederatedRequestResult;
 
 // static
 std::unique_ptr<DisconnectRequest> DisconnectRequest::Create(
@@ -138,47 +138,47 @@ void DisconnectRequest::OnAllConfigAndWellKnownFetched(
 
     DisconnectStatus status;
     switch (fetch_error.result) {
-      case FederatedAuthRequestResult::kWellKnownHttpNotFound: {
+      case FederatedRequestResult::kWellKnownHttpNotFound: {
         status = DisconnectStatus::kWellKnownHttpNotFound;
         break;
       }
-      case FederatedAuthRequestResult::kWellKnownNoResponse: {
+      case FederatedRequestResult::kWellKnownNoResponse: {
         status = DisconnectStatus::kWellKnownNoResponse;
         break;
       }
-      case FederatedAuthRequestResult::kWellKnownInvalidResponse: {
+      case FederatedRequestResult::kWellKnownInvalidResponse: {
         status = DisconnectStatus::kWellKnownInvalidResponse;
         break;
       }
-      case FederatedAuthRequestResult::kWellKnownListEmpty: {
+      case FederatedRequestResult::kWellKnownListEmpty: {
         status = DisconnectStatus::kWellKnownListEmpty;
         break;
       }
-      case FederatedAuthRequestResult::kWellKnownInvalidContentType: {
+      case FederatedRequestResult::kWellKnownInvalidContentType: {
         status = DisconnectStatus::kWellKnownInvalidContentType;
         break;
       }
-      case FederatedAuthRequestResult::kConfigHttpNotFound: {
+      case FederatedRequestResult::kConfigHttpNotFound: {
         status = DisconnectStatus::kConfigHttpNotFound;
         break;
       }
-      case FederatedAuthRequestResult::kConfigNoResponse: {
+      case FederatedRequestResult::kConfigNoResponse: {
         status = DisconnectStatus::kConfigNoResponse;
         break;
       }
-      case FederatedAuthRequestResult::kConfigInvalidResponse: {
+      case FederatedRequestResult::kConfigInvalidResponse: {
         status = DisconnectStatus::kConfigInvalidResponse;
         break;
       }
-      case FederatedAuthRequestResult::kConfigInvalidContentType: {
+      case FederatedRequestResult::kConfigInvalidContentType: {
         status = DisconnectStatus::kConfigInvalidContentType;
         break;
       }
-      case FederatedAuthRequestResult::kWellKnownTooBig: {
+      case FederatedRequestResult::kWellKnownTooBig: {
         status = DisconnectStatus::kWellKnownTooBig;
         break;
       }
-      case FederatedAuthRequestResult::kConfigNotInWellKnown: {
+      case FederatedRequestResult::kConfigNotInWellKnown: {
         status = DisconnectStatus::kConfigNotInWellKnown;
         break;
       }

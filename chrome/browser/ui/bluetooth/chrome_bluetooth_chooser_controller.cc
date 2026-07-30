@@ -10,7 +10,7 @@
 #include "build/buildflag.h"
 #include "chrome/browser/chooser_controller/title_util.h"
 #include "chrome/browser/profiles/profile_manager.h"
-#include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/scoped_tabbed_browser_displayer.h"
 #include "chrome/common/url_constants.h"
 #include "components/permissions/constants.h"
@@ -36,11 +36,11 @@
 
 namespace {
 
-Browser* GetBrowser() {
+BrowserWindowInterface* GetBrowser() {
   chrome::ScopedTabbedBrowserDisplayer browser_displayer(
       ProfileManager::GetLastUsedProfileAllowedByPolicy());
-  DCHECK(browser_displayer.browser());
-  return browser_displayer.browser();
+  DCHECK(browser_displayer.browser_window_interface());
+  return browser_displayer.browser_window_interface();
 }
 
 }  // namespace
@@ -59,7 +59,7 @@ void ChromeBluetoothChooserController::OpenAdapterOffHelpUrl() const {
 #if BUILDFLAG(IS_CHROMEOS)
   // Chrome OS can directly link to the OS setting to turn on the adapter.
   chrome::SettingsWindowManager::GetInstance()->ShowOSSettings(
-      GetBrowser()->profile(),
+      GetBrowser()->GetProfile(),
       chromeos::settings::mojom::kBluetoothDevicesSubpagePath);
 #else
   // For other operating systems, show a help center page in a tab.

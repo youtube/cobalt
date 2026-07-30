@@ -41,7 +41,7 @@
 #include "components/autofill/core/browser/studies/autofill_ablation_study.h"
 #include "components/autofill/core/browser/ui/payments/card_unmask_prompt_options.h"
 #include "components/autofill/core/common/unique_ids.h"
-#include "components/personal_context/core/personal_context_enablement_service.h"
+#include "components/personal_context/core/personal_context_eligibility_service.h"
 #include "components/personal_context/core/personal_context_types.h"
 #include "components/signin/public/identity_manager/account_info.h"
 #include "content/public/browser/visibility.h"
@@ -76,7 +76,7 @@ class AtMemoryBottomSheetBridge;
 #endif
 
 class ActorKeyMetricsRecorder;
-class PersonalContextAccessManager;
+class AutofillAiPersonalContextAccessManager;
 class AutofillOptimizationGuideDecider;
 class EmailVerificationPopupController;
 class EmailVerifierDelegate;
@@ -158,15 +158,16 @@ class ChromeAutofillClient : public ContentAutofillClient {
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() final;
   AutofillComposeDelegate* GetComposeDelegate() final;
   AtMemoryQueryService* GetAtMemoryQueryService() override;
-  personal_context::PersonalContextEnablementState
-  GetPersonalContextEnablementState() const override;
-  personal_context::PersonalContextEnablementService*
-  GetPersonalContextEnablementService() const override;
+  personal_context::PersonalContextEligibilityState
+  GetPersonalContextEligibilityState() const override;
+  personal_context::PersonalContextEligibilityService*
+  GetPersonalContextEligibilityService() const override;
   PasswordManagerDelegate* GetPasswordManagerDelegate(
       const FieldGlobalId& field_id) final;
   void GetAiPageContent(GetAiPageContentCallback callback) final;
   AutofillAiManager* GetAutofillAiManager() final;
-  PersonalContextAccessManager* GetPersonalContextAccessManager() final;
+  AutofillAiPersonalContextAccessManager*
+  GetAutofillAiPersonalContextAccessManager() final;
   AutofillAiModelCache* GetAutofillAiModelCache() final;
   AutofillAiModelExecutor* GetAutofillAiModelExecutor() final;
   consent_auditor::ConsentAuditor* GetConsentAuditor() final;
@@ -289,6 +290,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
   void ShowAutofillAiSaveToWalletFailureNotification() final;
   void ShowAutofillAiFetchFromWalletFailureNotification() final;
   void ShowAutofillAiPreFetchFailureNotification() final;
+  void ShowAutofillAiPrivateInferenceNotice() final;
   void ShowEmailVerifiedToast(const GURL& issuer) final;
   void ShowEmailVerificationPopup(
       const gfx::RectF& element_bounds,

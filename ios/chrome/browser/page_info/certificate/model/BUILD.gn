@@ -10,7 +10,9 @@ source_set("model") {
   deps = [
     "//base",
     "//components/certificate_model",
+    "//components/strings",
     "//crypto",
+    "//ios/chrome/app/strings",
     "//net",
     "//third_party/boringssl",
     "//ui/base",

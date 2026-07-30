@@ -49,7 +49,7 @@ import java.io.InputStream;
 class FuseboxAttachmentDetailsFetcher extends AsyncTask<Boolean> {
     private static final String TAG = "FbAttachFetcher";
     private static final int THUMBNAIL_BITMAP_EDGE_SIZE = 256;
-    private static final int MAX_IMAGE_EDGE_SIZE = 1600;
+    @VisibleForTesting static final int MAX_IMAGE_AREA = 1600 * 1600;
 
     @VisibleForTesting
     static final long MAX_ATTACHMENT_SIZE_BYTES = 100 * 1000 * 1000L; /* 100 MB */
@@ -211,24 +211,32 @@ class FuseboxAttachmentDetailsFetcher extends AsyncTask<Boolean> {
         byte[] data = null;
 
         @Nullable CompressFormat outputFormat = getCompressionFormat(mimeType);
+        boolean oomOccurred = false;
 
         if (outputFormat != null && OmniboxFeatures.sOmniboxAimImageDownscaling.isEnabled()) {
             try {
                 data = loadDownscaledImage(outputFormat);
             } catch (OutOfMemoryError e) {
                 Log.w(TAG, "Failed to read attachment data", e);
+                oomOccurred = true;
             }
         }
 
         if (data == null) {
             try (InputStream inputStream = mContentResolver.openInputStream(mUri)) {
-                if (inputStream == null) return null;
-                data = sFileStreamReader.readStream(inputStream);
-            } catch (IOException | OutOfMemoryError e) {
+                if (inputStream != null) {
+                    data = sFileStreamReader.readStream(inputStream);
+                }
+            } catch (IOException e) {
                 Log.w(TAG, "Failed to read attachment data", e);
-                return null;
+            } catch (OutOfMemoryError e) {
+                Log.w(TAG, "Failed to read attachment data", e);
+                oomOccurred = true;
             }
         }
+
+        FuseboxMetrics.recordAttachmentLoadOom(
+                oomOccurred, MimeTypeUtils.getTypeFromMimeType(mimeType));
 
         return data;
     }
@@ -259,24 +267,38 @@ class FuseboxAttachmentDetailsFetcher extends AsyncTask<Boolean> {
         decoder.setAllocator(ImageDecoder.ALLOCATOR_SOFTWARE);
 
         Size size = info.getSize();
-        int width = size.getWidth();
-        int height = size.getHeight();
+        Size targetSize = getTargetSizeForDownscaling(size.getWidth(), size.getHeight());
+        if (targetSize == null) return;
 
-        if (width <= MAX_IMAGE_EDGE_SIZE && height <= MAX_IMAGE_EDGE_SIZE) {
-            return;
+        decoder.setTargetSize(targetSize.getWidth(), targetSize.getHeight());
+    }
+
+    /**
+     * Calculate the target size to downscale an image to, preserving aspect ratio, so that its
+     * total area does not exceed {@link #MAX_IMAGE_AREA}.
+     *
+     * @param width The original width of the image.
+     * @param height The original height of the image.
+     * @return The target {@link Size} if downscaling is required (the original area exceeds the
+     *     limit and target dimensions are valid), or {@code null} if no downscaling is needed or if
+     *     the downscaled dimensions would round down to 0.
+     */
+    @VisibleForTesting
+    static @Nullable Size getTargetSizeForDownscaling(int width, int height) {
+        long area = (long) width * height;
+        if (area <= MAX_IMAGE_AREA) {
+            return null;
         }
 
-        double ratio = (double) MAX_IMAGE_EDGE_SIZE / Math.max(width, height);
-        int targetWidth = (int) Math.round(width * ratio);
-        int targetHeight = (int) Math.round(height * ratio);
+        double ratio = Math.sqrt((double) MAX_IMAGE_AREA / area);
+        int targetWidth = (int) (width * ratio);
+        int targetHeight = (int) (height * ratio);
 
-        // This is highly likely for very asymmetrical images e.g., (20000 x 1). Just load the image
-        // without downscaling.
         if (targetWidth <= 0 || targetHeight <= 0) {
-            return;
+            return null;
         }
 
-        decoder.setTargetSize(targetWidth, targetHeight);
+        return new Size(targetWidth, targetHeight);
     }
 
     private static @Nullable CompressFormat getCompressionFormat(String mimeType) {

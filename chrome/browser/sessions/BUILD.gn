@@ -122,6 +122,7 @@ source_set("impl") {
     ]
 
     deps += [
+      "//chrome/browser:after_startup_task_utils",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/devtools",
       "//chrome/browser/extensions",
@@ -307,6 +308,10 @@ if (!is_android) {
       "//testing/gtest",
       "//ui/base:ozone_buildflags",
     ]
+
+    if (use_ozone) {
+      deps += [ "//ui/ozone" ]
+    }
 
     # Some of these tests have pre-existing size_t-vs-int comparisons that only
     # compiled in //chrome/test because it transitively depends on

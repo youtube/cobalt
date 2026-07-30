@@ -202,10 +202,11 @@ class GPU_GLES2_EXPORT CompoundImageBacking
 
   // Called by wrapped representations before access. This will update
   // the backing that is going to be accessed if most recent pixels are in
-  // a different backing.
-  void NotifyBeginAccess(SharedImageBacking* backing,
-                         RepresentationAccessMode mode,
-                         SharedImageAccessStream stream);
+  // a different backing. Returns false if a required content sync failed,
+  // in which case the caller must not proceed with the access.
+  [[nodiscard]] bool NotifyBeginAccess(SharedImageBacking* backing,
+                                       RepresentationAccessMode mode,
+                                       SharedImageAccessStream stream);
 
   // Called by wrapped representations during EndAccess(). This will update the
   // CompoundImageBacking's clear rect with the accessed backing's clear rect it
@@ -433,6 +434,7 @@ class GPU_GLES2_EXPORT CompoundImageBacking
       SharedImageBackingFactory* backing_factory,
       std::string debug_label,
       SharedImageUsageSet usage,
+      viz::SharedImageFormat backing_format,
       std::unique_ptr<SharedImageBacking>& backing);
 
   // Method used for lazy backing creation. It will use

@@ -1201,7 +1201,7 @@ void TestRecipeReplayer::CleanupSiteData() {
   ASSERT_TRUE(
       ui_test_utils::NavigateToURL(browser_, GURL(url::kAboutBlankURL)));
   content::BrowsingDataRemover* remover =
-      browser_->profile()->GetBrowsingDataRemover();
+      browser_->GetProfile()->GetBrowsingDataRemover();
   content::BrowsingDataRemoverCompletionObserver completion_observer(remover);
   remover->RemoveAndReply(
       base::Time(), base::Time::Max(),
@@ -2451,6 +2451,7 @@ bool TestRecipeReplayer::SimulateLeftMouseClickAt(
       blink::WebInputEvent::GetStaticTimeStampForTests());
   mouse_event.button = blink::WebMouseEvent::Button::kLeft;
   mouse_event.SetPositionInWidget(point.x(), point.y());
+  mouse_event.SetTimeStamp(base::TimeTicks::Now());
 
   // Mac needs positionInScreen for events to plugins.
   gfx::Rect offset =

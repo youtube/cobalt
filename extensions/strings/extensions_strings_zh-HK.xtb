@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">無法載入網頁「<ph name="ABOUT_PAGE" />」。</translation>
 <translation id="424963718355121712">應用程式的安裝來源必須與受影響的主機相同</translation>
 <translation id="4306119971288449206">應用程式的內容類型應設為「<ph name="CONTENT_TYPE" />」</translation>
+<translation id="4349181963619779233">無法從此網站新增擴充程式和應用程式</translation>
 <translation id="4625078469366263107">啟用應用程式</translation>
 <translation id="4633003931260532286">此擴充程式要求 <ph name="IMPORT_NAME" /> <ph name="IMPORT_VERSION" /> 或以上，但現有版本僅為 <ph name="INSTALLED_VERSION" /></translation>
 <translation id="4660476621274971848">預期版本為 <ph name="EXPECTED_VERSION" />，但實際為 <ph name="NEW_ID" /></translation>
@@ -121,7 +122,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">私人密鑰的輸入值必須是有效格式 (須採用 PKCS#8 格式和 PEM 編碼的 RSA 密鑰)。</translation>
-<translation id="765293928828334535">無法從這個網站新增應用程式、擴充程式及使用者指令碼</translation>
 <translation id="7658239707568436148">取消</translation>
 <translation id="7766838926148951335">接受權限</translation>
 <translation id="7876803335449432072">無法載入「<ph name="RELATIVE_PATH" />」檔案的內容指令碼，內容指令碼樣式表只能從支援的樣式表檔案 (例如 .css 檔案) 載入。</translation>

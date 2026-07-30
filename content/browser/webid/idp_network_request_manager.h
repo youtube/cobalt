@@ -21,7 +21,7 @@
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/mojom/client_security_state.mojom-forward.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -35,8 +35,6 @@ enum class ReferrerPolicy;
 
 namespace content {
 
-using IdentityProviderDataPtr = scoped_refptr<IdentityProviderData>;
-using IdentityRequestAccountPtr = scoped_refptr<IdentityRequestAccount>;
 class FederatedIdentityPermissionContextDelegate;
 class RenderFrameHostImpl;
 
@@ -148,11 +146,11 @@ class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
     // website's eTLD+1. e.g. for an origin https://login.website.example, we
     // check if the user has any sign-in accounts from this IdP on the site
     // "website.example".
-    std::vector<IdentityRequestAccountPtr> PotentialAccountsForSite(
+    std::vector<scoped_refptr<IdentityRequestAccount>> PotentialAccountsForSite(
         const std::string& site) const;
 
     // The list of all accounts to be shown in the UI.
-    std::vector<IdentityRequestAccountPtr> accounts;
+    std::vector<scoped_refptr<IdentityRequestAccount>> accounts;
     // A salt used to compute hashes of the RP site (eTLD+1) to check against
     // potentially_approved_site_hashes in each account. This allows the browser
     // to filter accounts based on whether they have been used on the current
@@ -243,33 +241,33 @@ class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
 
   using AccountsRequestCallback =
       base::OnceCallback<void(FetchStatus, AccountsResponse)>;
+  using ContinueOnCallback = base::OnceCallback<void(FetchStatus, const GURL&)>;
+  using DisconnectCallback =
+      base::OnceCallback<void(FetchStatus, const std::string&)>;
   using FetchAccountPicturesAndBrandIconsCallback =
       base::OnceCallback<void(AccountsResponse,
                               std::unique_ptr<IdentityProviderInfo>,
                               const gfx::Image&)>;
+  using FetchClientMetadataCallback =
+      base::OnceCallback<void(FetchStatus, ClientMetadata)>;
+  using FetchConfigCallback = base::OnceCallback<
+      void(FetchStatus, Endpoints, IdentityProviderMetadata)>;
   using FetchIdpBrandIconCallback =
       base::OnceCallback<void(std::unique_ptr<IdentityProviderInfo>)>;
   using FetchWellKnownCallback =
       base::OnceCallback<void(FetchStatus, const WellKnown&)>;
-  using FetchConfigCallback = base::OnceCallback<
-      void(FetchStatus, Endpoints, IdentityProviderMetadata)>;
-  using FetchClientMetadataCallback =
-      base::OnceCallback<void(FetchStatus, ClientMetadata)>;
-  using DisconnectCallback =
-      base::OnceCallback<void(FetchStatus, const std::string&)>;
-  using TokenRequestCallback =
-      base::OnceCallback<void(FetchStatus, TokenResult&&)>;
-  using ContinueOnCallback = base::OnceCallback<void(FetchStatus, const GURL&)>;
+  using ImageCallback = base::OnceCallback<void(const gfx::Image&)>;
+  using RecordErrorMetricsCallback =
+      base::OnceCallback<void(FedCmTokenResponseType,
+                              std::optional<FedCmErrorDialogType>,
+                              std::optional<FedCmErrorUrlType>)>;
   using RedirectToCallback =
       base::OnceCallback<void(FetchStatus,
                               blink::mojom::RedirectParams::Tag,
                               const GURL&,
                               const std::string& request_body)>;
-  using RecordErrorMetricsCallback =
-      base::OnceCallback<void(FedCmTokenResponseType,
-                              std::optional<FedCmErrorDialogType>,
-                              std::optional<FedCmErrorUrlType>)>;
-  using ImageCallback = base::OnceCallback<void(const gfx::Image&)>;
+  using TokenRequestCallback =
+      base::OnceCallback<void(FetchStatus, TokenResult&&)>;
 
   static std::unique_ptr<IdpNetworkRequestManager> Create(
       RenderFrameHostImpl* host);
@@ -280,7 +278,7 @@ class CONTENT_EXPORT IdpNetworkRequestManager : public NetworkRequestManager {
       scoped_refptr<network::SharedURLLoaderFactory> loader_factory,
       FederatedIdentityPermissionContextDelegate* permission_delegate,
       network::mojom::ClientSecurityStatePtr client_security_state,
-      content::FrameTreeNodeId frame_tree_node_id);
+      FrameTreeNodeId frame_tree_node_id);
 
   ~IdpNetworkRequestManager() override;
 

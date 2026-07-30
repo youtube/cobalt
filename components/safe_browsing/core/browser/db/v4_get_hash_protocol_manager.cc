@@ -134,14 +134,6 @@ void RecordV4GetHashCheckResult(V4GetHashCheckResultType result_type) {
 }
 
 const char kPermission[] = "permission";
-const char kPhaPatternType[] = "pha_pattern_type";
-const char kMalwareThreatType[] = "malware_threat_type";
-const char kSePatternType[] = "se_pattern_type";
-const char kLanding[] = "LANDING";
-const char kDistribution[] = "DISTRIBUTION";
-const char kSocialEngineeringAds[] = "SOCIAL_ENGINEERING_ADS";
-const char kSocialEngineeringLanding[] = "SOCIAL_ENGINEERING_LANDING";
-const char kPhishing[] = "PHISHING";
 
 }  // namespace
 
@@ -358,10 +350,10 @@ void V4GetHashProtocolManager::GetFullHashes(
                            prefixes_to_request.size());
 }
 
-void V4GetHashProtocolManager::GetFullHashesWithApis(
+void V4GetHashProtocolManager::GetFullHashesForNotificationAbuse(
     const GURL& url,
     const std::vector<std::string>& list_client_states,
-    ThreatMetadataForApiCallback api_callback) {
+    NotificationAbuseCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   DCHECK(url.SchemeIs(url::kHttpScheme) || url.SchemeIs(url::kHttpsScheme));
 
@@ -379,10 +371,10 @@ void V4GetHashProtocolManager::GetFullHashesWithApis(
         GetChromeUrlApiId(), prefix);
   }
 
-  GetFullHashes(full_hash_to_store_and_hash_prefixes, list_client_states,
-                base::BindOnce(&V4GetHashProtocolManager::OnFullHashForApi,
-                               base::Unretained(this), std::move(api_callback),
-                               full_hashes));
+  GetFullHashes(
+      full_hash_to_store_and_hash_prefixes, list_client_states,
+      base::BindOnce(&V4GetHashProtocolManager::OnFullHashForNotificationAbuse,
+                     base::Unretained(this), std::move(callback), full_hashes));
 }
 
 void V4GetHashProtocolManager::GetFullHashCachedResults(
@@ -530,19 +522,21 @@ void V4GetHashProtocolManager::HandleGetHashError(const Time& now) {
   next_gethash_time_ = now + next;
 }
 
-void V4GetHashProtocolManager::OnFullHashForApi(
-    ThreatMetadataForApiCallback api_callback,
+void V4GetHashProtocolManager::OnFullHashForNotificationAbuse(
+    NotificationAbuseCallback callback,
     const std::vector<FullHashStr>& full_hashes,
     const std::vector<FullHashInfo>& full_hash_infos) {
-  ThreatMetadata md;
+  bool is_abusive = false;
   for (const FullHashInfo& full_hash_info : full_hash_infos) {
     DCHECK_EQ(GetChromeUrlApiId(), full_hash_info.list_id);
     DCHECK(std::ranges::contains(full_hashes, full_hash_info.full_hash));
-    md.api_permissions.insert(full_hash_info.metadata.api_permissions.begin(),
-                              full_hash_info.metadata.api_permissions.end());
+    if (full_hash_info.is_notification_abusive) {
+      is_abusive = true;
+      break;
+    }
   }
 
-  std::move(api_callback).Run(md);
+  std::move(callback).Run(is_abusive);
 }
 
 bool V4GetHashProtocolManager::ParseHashResponse(
@@ -610,7 +604,7 @@ bool V4GetHashProtocolManager::ParseHashResponse(
     }
     FullHashInfo full_hash_info(match.threat().hash(), list_id,
                                 positive_expiry);
-    ParseMetadata(match, &full_hash_info.metadata);
+    ParseMetadata(match, &full_hash_info);
     TRACE_EVENT2("safe_browsing", "V4GetHashProtocolManager::ParseHashResponse",
                  "threat_type", full_hash_info.list_id.threat_type(),
                  "metadata", full_hash_info.metadata.ToTracedValue());
@@ -621,7 +615,7 @@ bool V4GetHashProtocolManager::ParseHashResponse(
 
 // static
 void V4GetHashProtocolManager::ParseMetadata(const ThreatMatch& match,
-                                             ThreatMetadata* metadata) {
+                                             FullHashInfo* full_hash_info) {
   // Different threat types will handle the metadata differently.
   if (match.threat_type() == API_ABUSE) {
     if (!match.has_platform_type()) {
@@ -633,52 +627,15 @@ void V4GetHashProtocolManager::ParseMetadata(const ThreatMatch& match,
       RecordParseGetHashResult(NO_METADATA_ERROR);
       return;
     }
-    // For API Abuse, store a list of the returned permissions.
+    // For API Abuse, check if the returned permissions contain NOTIFICATIONS.
     for (const ThreatEntryMetadata::MetadataEntry& m :
          match.threat_entry_metadata().entries()) {
       if (m.key() != kPermission) {
         RecordParseGetHashResult(UNEXPECTED_METADATA_VALUE_ERROR);
         return;
       }
-      metadata->api_permissions.insert(m.value());
-    }
-  } else if (match.threat_type() == MALWARE_THREAT ||
-             match.threat_type() == POTENTIALLY_HARMFUL_APPLICATION) {
-    for (const ThreatEntryMetadata::MetadataEntry& m :
-         match.threat_entry_metadata().entries()) {
-      if (m.key() == kPhaPatternType || m.key() == kMalwareThreatType) {
-        if (m.value() == kLanding) {
-          metadata->threat_pattern_type = ThreatPatternType::MALWARE_LANDING;
-          break;
-        } else if (m.value() == kDistribution) {
-          metadata->threat_pattern_type =
-              ThreatPatternType::MALWARE_DISTRIBUTION;
-          break;
-        } else {
-          RecordParseGetHashResult(UNEXPECTED_METADATA_VALUE_ERROR);
-          return;
-        }
-      }
-    }
-  } else if (match.threat_type() == SOCIAL_ENGINEERING) {
-    for (const ThreatEntryMetadata::MetadataEntry& m :
-         match.threat_entry_metadata().entries()) {
-      if (m.key() == kSePatternType) {
-        if (m.value() == kSocialEngineeringAds) {
-          metadata->threat_pattern_type =
-              ThreatPatternType::SOCIAL_ENGINEERING_ADS;
-          break;
-        } else if (m.value() == kSocialEngineeringLanding) {
-          metadata->threat_pattern_type =
-              ThreatPatternType::SOCIAL_ENGINEERING_LANDING;
-          break;
-        } else if (m.value() == kPhishing) {
-          metadata->threat_pattern_type = ThreatPatternType::PHISHING;
-          break;
-        } else {
-          RecordParseGetHashResult(UNEXPECTED_METADATA_VALUE_ERROR);
-          return;
-        }
+      if (m.value() == "NOTIFICATIONS") {
+        full_hash_info->is_notification_abusive = true;
       }
     }
   } else if (match.threat_type() == SUBRESOURCE_FILTER) {
@@ -691,10 +648,12 @@ void V4GetHashProtocolManager::ParseMetadata(const ThreatMatch& match,
                                : SubresourceFilterLevel::ENFORCE;
       };
       if (m.key() == "sf_absv") {
-        metadata->subresource_filter_match[SubresourceFilterType::ABUSIVE] =
+        full_hash_info->metadata
+            .subresource_filter_match[SubresourceFilterType::ABUSIVE] =
             get_enforcement(m.value());
       } else if (m.key() == "sf_bas") {
-        metadata->subresource_filter_match[SubresourceFilterType::BETTER_ADS] =
+        full_hash_info->metadata
+            .subresource_filter_match[SubresourceFilterType::BETTER_ADS] =
             get_enforcement(m.value());
       }
     }
@@ -871,8 +830,7 @@ void V4GetHashProtocolManager::CollectFullHashCacheInfo(
 std::ostream& operator<<(std::ostream& os, const FullHashInfo& fhi) {
   os << "{full_hash: " << fhi.full_hash << "; list_id: " << fhi.list_id
      << "; positive_expiry: " << fhi.positive_expiry
-     << "; metadata.api_permissions.size(): "
-     << fhi.metadata.api_permissions.size() << "}";
+     << "; is_notification_abusive: " << fhi.is_notification_abusive << "}";
   return os;
 }
 #endif

@@ -46,13 +46,15 @@ import {
   FocusRequestTarget,
   LhsChipIdentifier,
   OmniboxTextColor,
+  PageActionId,
+  PageActionTrigger,
   PermissionAction,
   PermissionChipTheme,
   PermissionPromptStyle,
   SplitTabActiveLocation,
 } from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 import {IconType} from '/shared/icon_handle.mojom-webui.js';
-import type {OmniboxAction, LocationBarState, PermissionChipState, PermissionDashboardState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
+import type {OmniboxAction, LocationBarState, PageActionState, PermissionChipState, PermissionDashboardState} from '/shared/toolbar_ui_api_data_model.mojom-webui.js';
 
 import {INVALID_FOCUS_REQUEST_HANDLE} from './browser_proxy.js';
 import {AppMenuButtonElement} from './app_menu_button.js';
@@ -60,6 +62,8 @@ import {ContentSettingIconElement} from './content_setting_icon.js';
 import {ContentSettingsIconsElement} from './content_settings_icons.js';
 import {LocationBarElement} from './location_bar.js';
 import {LocationIconElement} from './location_icon.js';
+import {PageActionIconElement} from './page_action_icon.js';
+import {PageActionIconsElement} from './page_action_icons.js';
 import {PointerProxyImpl} from './pointer_proxy.js';
 import type {PointerProxy} from './pointer_proxy.js';
 import {PermissionChipElement} from './permission_chip.js';
@@ -90,6 +94,10 @@ export {
   LocationBarElement,
   LocationIconElement,
   OmniboxTextColor,
+  PageActionIconElement,
+  PageActionIconsElement,
+  PageActionId,
+  PageActionTrigger,
   PermissionAction,
   PermissionChipElement,
   PermissionChipTheme,
@@ -103,6 +111,7 @@ export type {
   IconFromTableElement,
   LocationBarState,
   OmniboxAction,
+  PageActionState,
   PermissionChipState,
   PermissionDashboardElement,
   PermissionDashboardState,
@@ -202,7 +211,7 @@ export class ToolbarAppElement extends AppElementBase {
     splitTabsControlState: {
       isCurrentTabSplit: false,
       location: SplitTabActiveLocation.kStart,
-      isPinned: false,
+      shouldBeShown: false,
       isContextMenuVisible: false,
     },
     backForwardControlState: {
@@ -271,6 +280,7 @@ export class ToolbarAppElement extends AppElementBase {
       accessibilityName: '',
       accessibilityDescription: '',
       enabled: true,
+      hasAiRing: false,
     },
     layoutConstantsVersion: 0,
     touchUi: false,
@@ -552,6 +562,9 @@ export class ToolbarAppElement extends AppElementBase {
          e.dataTransfer.types.includes('text/plain') ||
          e.dataTransfer.types.includes('Files'))) {
       e.preventDefault();
+      // By default, we show an allowed cursor over the general toolbar area.
+      // Individual components (like the Omnibox) that handle their own
+      // drag-and-drop will override this and call stopPropagation().
       e.dataTransfer.dropEffect = 'copy';
     }
   }

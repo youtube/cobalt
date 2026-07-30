@@ -584,7 +584,7 @@ bool OffscreenCanvas::HasPlaceholderCanvas() const {
 }
 
 CanvasResourceDispatcher* OffscreenCanvas::GetOrCreateResourceDispatcher() {
-  DCHECK(HasPlaceholderCanvas());
+  CHECK(HasPlaceholderCanvas());
   // If we don't have a valid placeholder_canvas_id_, then this is a standalone
   // OffscreenCanvas, and it should not have a placeholder.
   if (frame_dispatcher_ == nullptr) {
@@ -648,7 +648,8 @@ void OffscreenCanvas::DidDraw(const gfx::Rect& rect) {
           if (placeholder_canvas &&
               placeholder_canvas->IsOffscreenCanvasRegistered() &&
               placeholder_canvas->HasCanvasCapture()) {
-            BeginFrame();
+            GetOrCreateResourceDispatcher()->SetNeedsBeginFrame(false);
+            PushFrameIfNeeded();
           }
         }
       }
@@ -659,8 +660,8 @@ void OffscreenCanvas::DidDraw(const gfx::Rect& rect) {
 }
 
 bool OffscreenCanvas::BeginFrame() {
-  DCHECK(HasPlaceholderCanvas());
-  GetOrCreateResourceDispatcher()->SetNeedsBeginFrame(false);
+  CHECK(frame_dispatcher_);
+  frame_dispatcher_->SetNeedsBeginFrame(false);
   return PushFrameIfNeeded();
 }
 
@@ -687,6 +688,12 @@ bool OffscreenCanvas::PushFrame(
   }
   canvas_resource->SetOriginClean(OriginClean());
   current_frame_damage_rect_.Intersect(gfx::Rect(Size()));
+
+  // We can't submit empty CompositorFrames, but contexts not always obeys it
+  // (e.g webgl clamps it's size to 1x1) and can still produce the resource.
+  if (Size().IsEmpty()) {
+    return false;
+  }
 
   auto exported_resource =
       base::MakeRefCounted<ExportedCanvasResource>(std::move(canvas_resource));

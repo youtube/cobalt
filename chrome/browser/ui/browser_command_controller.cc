@@ -90,6 +90,7 @@
 #include "chrome/browser/ui/tabs/tab_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_user_gesture_details.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_utils.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -682,6 +683,21 @@ void BrowserCommandController::HandleCommandWithDisposition(
       ToggleVerticalTabs(browser_);
       break;
     case IDC_TOGGLE_VERTICAL_TABS_COLLAPSE:
+#if !BUILDFLAG(IS_MAC)
+      // On Mac, the logging for both the keyboard shortcut and the view menu
+      // is handled in BrowserNativeWidgetMac::ExecuteCommand to correctly
+      // distinguish between the two trigger sources.
+      if (auto* controller =
+              tabs::VerticalTabStripStateController::From(browser_)) {
+        if (controller->IsCollapsed()) {
+          base::RecordAction(base::UserMetricsAction(
+              "VerticalTabs_TabStrip_KeyboardShortcutToggleUncollapsed"));
+        } else {
+          base::RecordAction(base::UserMetricsAction(
+              "VerticalTabs_TabStrip_KeyboardShortcutToggleCollapsed"));
+        }
+      }
+#endif  // !BUILDFLAG(IS_MAC)
       ToggleCollapseVerticalTabs(browser_);
       break;
     case IDC_VERTICAL_TABS_SEND_FEEDBACK:
@@ -825,24 +841,12 @@ void BrowserCommandController::HandleCommandWithDisposition(
 #endif  // BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_WIN)
-    case IDC_MOVE_WINDOW: {
-      HWND hwnd = BrowserView::GetBrowserViewForBrowser(browser_)
-                      ->GetWidget()
-                      ->GetNativeWindow()
-                      ->GetHost()
-                      ->GetAcceleratedWidget();
-      PostMessage(hwnd, WM_SYSCOMMAND, SC_MOVE, 0);
+    case IDC_MOVE_WINDOW:
+      chrome::OpenMoveWindow(browser_);
       break;
-    }
-    case IDC_SIZE_WINDOW: {
-      HWND hwnd = BrowserView::GetBrowserViewForBrowser(browser_)
-                      ->GetWidget()
-                      ->GetNativeWindow()
-                      ->GetHost()
-                      ->GetAcceleratedWidget();
-      PostMessage(hwnd, WM_SYSCOMMAND, SC_SIZE, 0);
+    case IDC_SIZE_WINDOW:
+      chrome::OpenSizeWindow(browser_);
       break;
-    }
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)
@@ -921,22 +925,21 @@ void BrowserCommandController::HandleCommandWithDisposition(
       ShowSyncPassphraseDialogAndDecryptData(*browser_);
       break;
 #endif  // !BUILDFLAG(IS_CHROMEOS)
-    case IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL:
-      ToggleContextualTasksSidePanel(browser_);
-      break;
     case IDC_TURN_ON_SYNC:
       signin_ui_util::EnableSyncFromSingleAccountPromo(
-          browser_->profile(), GetAccountInfoFromProfile(browser_->profile()),
+          browser_->GetProfile(),
+          GetAccountInfoFromProfile(browser_->GetProfile()),
           signin_metrics::AccessPoint::kMenu);
       break;
     case IDC_SHOW_SIGNIN:
       signin_ui_util::SignInFromSingleAccountPromo(
-          browser_->profile(), GetAccountInfoFromProfile(browser_->profile()),
+          browser_->GetProfile(),
+          GetAccountInfoFromProfile(browser_->GetProfile()),
           signin_metrics::AccessPoint::kMenu);
       break;
     case IDC_SHOW_SIGNIN_WHEN_PAUSED:
       signin_ui_util::ShowReauthForPrimaryAccountWithAuthError(
-          browser_->profile(), signin_metrics::AccessPoint::kMenu);
+          browser_->GetProfile(), signin_metrics::AccessPoint::kMenu);
       break;
     case IDC_SHOW_PASSWORD_MANAGER:
       ShowPasswordManager(browser_);
@@ -1422,6 +1425,8 @@ void BrowserCommandController::HandleCommandWithDisposition(
     case IDC_DEBUG_TOGGLE_TABLET_MODE:
     case IDC_DEBUG_PRINT_VIEW_TREE:
     case IDC_DEBUG_PRINT_VIEW_TREE_DETAILS:
+    case IDC_DEBUG_PRINT_WINDOW_HIERARCHY:
+    case IDC_DEBUG_PRINT_LAYER_HIERARCHY:
       ExecuteUIDebugCommand(id, browser_);
       break;
 
@@ -1476,15 +1481,15 @@ void BrowserCommandController::HandleCommandWithDisposition(
       chrome::ShowSettingsSubPage(browser_, chrome::kManageProfileSubPage);
       break;
     case IDC_CLOSE_PROFILE: {
-      if (browser_->profile()->IsIncognitoProfile()) {
-        chrome::CloseAllBrowsersWithIncognitoProfile(browser_->profile());
+      if (browser_->GetProfile()->IsIncognitoProfile()) {
+        chrome::CloseAllBrowsersWithIncognitoProfile(browser_->GetProfile());
       } else {
-        profiles::CloseProfileWindows(browser_->profile());
+        profiles::CloseProfileWindows(browser_->GetProfile());
       }
       break;
     }
     case IDC_MANAGE_GOOGLE_ACCOUNT: {
-      Profile* profile = browser_->profile();
+      Profile* profile = browser_->GetProfile();
       signin::IdentityManager* identity_manager =
           IdentityManagerFactory::GetForProfile(profile);
       DCHECK(
@@ -1514,7 +1519,7 @@ void BrowserCommandController::HandleCommandWithDisposition(
 
       // Clear prefs and close prompts.
       chrome::startup::default_prompt::UpdatePrefsForDismissedPrompt(
-          browser_->profile());
+          browser_->GetProfile());
       DefaultBrowserPromptManager::GetInstance()->CloseAllPrompts(
           DefaultBrowserPromptManager::CloseReason::kAccept);
       break;
@@ -1750,7 +1755,7 @@ void BrowserCommandController::InitCommandState() {
   command_updater_->UpdateCommandEnabled(IDC_MANAGE_PASSWORDS_FOR_PAGE, true);
 
   // Zoom
-  command_updater_->UpdateCommandEnabled(IDC_ZOOM_MENU, true);
+  command_updater_->UpdateCommandEnabled(kZoomMenuId, true);
   command_updater_->UpdateCommandEnabled(IDC_ZOOM_PLUS, true);
   command_updater_->UpdateCommandEnabled(IDC_ZOOM_NORMAL, false);
   command_updater_->UpdateCommandEnabled(IDC_ZOOM_MINUS, true);
@@ -1792,7 +1797,7 @@ void BrowserCommandController::InitCommandState() {
                                          CanOpenTaskManager());
   command_updater_->UpdateCommandEnabled(IDC_TASK_MANAGER_MAIN_MENU,
                                          CanOpenTaskManager());
-  command_updater_->UpdateCommandEnabled(IDC_PROFILE_MENU_IN_APP_MENU, true);
+  command_updater_->UpdateCommandEnabled(kProfileMenuId, true);
   command_updater_->UpdateCommandEnabled(
       IDC_SHOW_HISTORY, (!guest_session && !profile()->IsSystemProfile()));
   command_updater_->UpdateCommandEnabled(
@@ -1803,8 +1808,8 @@ void BrowserCommandController::InitCommandState() {
       TabsFromOtherDevicesSidePanelCoordinator::IsSupported(profile()));
   command_updater_->UpdateCommandEnabled(IDC_SHOW_DOWNLOADS, true);
   command_updater_->UpdateCommandEnabled(IDC_SHOW_COMMENTS_SIDE_PANEL, true);
-  command_updater_->UpdateCommandEnabled(IDC_FIND_AND_EDIT_MENU, true);
-  command_updater_->UpdateCommandEnabled(IDC_SAVE_AND_SHARE_MENU, true);
+  command_updater_->UpdateCommandEnabled(kFindAndEditMenuId, true);
+  command_updater_->UpdateCommandEnabled(kSaveAndShareMenuId, true);
   command_updater_->UpdateCommandEnabled(IDC_SHOW_READING_MODE_SIDE_PANEL,
                                          true);
   command_updater_->UpdateCommandEnabled(IDC_SHOW_READING_MODE_KEYBOARD, true);
@@ -1814,7 +1819,7 @@ void BrowserCommandController::InitCommandState() {
                                          true);
   command_updater_->UpdateCommandEnabled(IDC_SEND_TAB_TO_SELF, false);
   command_updater_->UpdateCommandEnabled(IDC_QRCODE_GENERATOR, false);
-  command_updater_->UpdateCommandEnabled(IDC_PASSWORDS_AND_AUTOFILL_MENU,
+  command_updater_->UpdateCommandEnabled(kPasswordsAndAutofillMenuId,
                                          !guest_session);
   command_updater_->UpdateCommandEnabled(IDC_SHOW_PASSWORD_MANAGER,
                                          !guest_session);
@@ -1832,7 +1837,7 @@ void BrowserCommandController::InitCommandState() {
   command_updater_->UpdateCommandEnabled(IDC_SHOW_IDENTITY_DOCS,
                                          !guest_session);
   command_updater_->UpdateCommandEnabled(IDC_SHOW_TRAVEL, !guest_session);
-  command_updater_->UpdateCommandEnabled(IDC_HELP_MENU, true);
+  command_updater_->UpdateCommandEnabled(kHelpMenuId, true);
   command_updater_->UpdateCommandEnabled(IDC_HELP_PAGE_VIA_KEYBOARD, true);
   command_updater_->UpdateCommandEnabled(IDC_HELP_PAGE_VIA_MENU, true);
   command_updater_->UpdateCommandEnabled(IDC_SHOW_BETA_FORUM, true);
@@ -1840,11 +1845,11 @@ void BrowserCommandController::InitCommandState() {
       IDC_CHROME_ENTERPRISE_RELEASE_NOTES,
       base::FeatureList::IsEnabled(features::kEnterpriseReleaseNotes));
   command_updater_->UpdateCommandEnabled(
-      IDC_BOOKMARKS_MENU, (!guest_session && !profile()->IsSystemProfile()));
-  command_updater_->UpdateCommandEnabled(IDC_SAVED_TAB_GROUPS_MENU, true);
+      kBookmarksMenuId, (!guest_session && !profile()->IsSystemProfile()));
+  command_updater_->UpdateCommandEnabled(kSavedTabGroupsMenuId, true);
   command_updater_->UpdateCommandEnabled(
-      IDC_RECENT_TABS_MENU, (!guest_session && !profile()->IsSystemProfile() &&
-                             !profile()->IsIncognitoProfile()));
+      kRecentTabsMenuId, (!guest_session && !profile()->IsSystemProfile() &&
+                          !profile()->IsIncognitoProfile()));
   command_updater_->UpdateCommandEnabled(
       IDC_RECENT_TABS_LOGIN_FOR_DEVICE_TABS,
       (!guest_session && !profile()->IsSystemProfile() &&
@@ -1890,7 +1895,7 @@ void BrowserCommandController::InitCommandState() {
   const bool is_web_app_or_custom_tab = IsWebAppOrCustomTab(browser_);
   const bool enable_copy_url =
       is_web_app_or_custom_tab ||
-      !sharing_hub::SharingIsDisabledByPolicy(browser_->profile());
+      !sharing_hub::SharingIsDisabledByPolicy(browser_->GetProfile());
   command_updater_->UpdateCommandEnabled(IDC_COPY_URL, enable_copy_url);
   command_updater_->UpdateCommandEnabled(IDC_WEB_APP_SETTINGS,
                                          is_web_app_or_custom_tab);
@@ -1939,13 +1944,14 @@ void BrowserCommandController::InitCommandState() {
   command_updater_->UpdateCommandEnabled(IDC_TAB_SEARCH_TOGGLE_PIN,
                                          enable_tab_search_commands);
 
-  command_updater_->UpdateCommandEnabled(IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL,
-                                         true);
-
   if (base::FeatureList::IsEnabled(features::kUIDebugTools)) {
     command_updater_->UpdateCommandEnabled(IDC_DEBUG_TOGGLE_TABLET_MODE, true);
     command_updater_->UpdateCommandEnabled(IDC_DEBUG_PRINT_VIEW_TREE, true);
     command_updater_->UpdateCommandEnabled(IDC_DEBUG_PRINT_VIEW_TREE_DETAILS,
+                                           true);
+    command_updater_->UpdateCommandEnabled(IDC_DEBUG_PRINT_WINDOW_HIERARCHY,
+                                           true);
+    command_updater_->UpdateCommandEnabled(IDC_DEBUG_PRINT_LAYER_HIERARCHY,
                                            true);
   }
 
@@ -1953,7 +1959,7 @@ void BrowserCommandController::InitCommandState() {
 
   if (browser_->is_type_normal()) {
     // Reading list commands.
-    command_updater_->UpdateCommandEnabled(IDC_READING_LIST_MENU, true);
+    command_updater_->UpdateCommandEnabled(kReadingListMenuId, true);
     command_updater_->UpdateCommandEnabled(IDC_READING_LIST_MENU_ADD_TAB, true);
     command_updater_->UpdateCommandEnabled(IDC_READING_LIST_MENU_SHOW_UI, true);
   }
@@ -2317,7 +2323,7 @@ void BrowserCommandController::UpdateCommandsForFullscreenMode() {
       IDC_FOCUS_INACTIVE_POPUP_FOR_ACCESSIBILITY, main_not_fullscreen);
 
   // Show various bits of UI
-  command_updater_->UpdateCommandEnabled(IDC_DEVELOPER_MENU, show_main_ui);
+  command_updater_->UpdateCommandEnabled(kDeveloperMenuId, show_main_ui);
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   command_updater_->UpdateCommandEnabled(
       IDC_FEEDBACK, show_main_ui || browser_->is_type_devtools());
@@ -2656,7 +2662,7 @@ BrowserWindow* BrowserCommandController::window() {
 }
 
 Profile* BrowserCommandController::profile() {
-  return browser_->profile();
+  return browser_->GetProfile();
 }
 
 }  // namespace chrome

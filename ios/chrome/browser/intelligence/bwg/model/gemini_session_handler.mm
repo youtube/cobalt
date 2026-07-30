@@ -204,6 +204,9 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
                        serverID:(NSString*)serverID {
   [self updateSessionWithClientID:clientID serverID:serverID];
 
+  // Record that the Gemini Floaty has successfully appeared on screen.
+  RecordGeminiSessionOpened();
+
   // Start session timer.
   _sessionStartTime = base::TimeTicks::Now();
   // Reset first response flag for new session.
@@ -358,7 +361,9 @@ IOSGeminiSessionCancellationReason HistogramEnumFromGeminiCancelType(
 }
 
 - (void)didRequestToDetachTabWithID:(NSString*)tabID {
-  // TODO(crbug.com/525782842): Implement tab detachment logic.
+  if (self.tabDetachRequestCallback) {
+    self.tabDetachRequestCallback(tabID);
+  }
 }
 
 - (void)geminiLiveUserDidBargeIn {

@@ -73,6 +73,7 @@
 <translation id="4233778200880751280">No s'ha pogut carregar la pàgina d'informació "<ph name="ABOUT_PAGE" />".</translation>
 <translation id="424963718355121712">Les aplicacions s'han de distribuir des de l'amfitrió que afecten</translation>
 <translation id="4306119971288449206">Les aplicacions s'han de distribuir amb el tipus de contingut "<ph name="CONTENT_TYPE" />"</translation>
+<translation id="4349181963619779233">No es poden afegir extensions ni aplicacions des d'aquest lloc web</translation>
 <translation id="4625078469366263107">Activa l'aplicació</translation>
 <translation id="4633003931260532286">L'extensió requereix <ph name="IMPORT_NAME" /> amb <ph name="IMPORT_VERSION" /> com a versió mínima, però només hi ha instal·lada la versió <ph name="INSTALLED_VERSION" /></translation>
 <translation id="4660476621274971848">La versió esperada era <ph name="EXPECTED_VERSION" />, però la que hi havia era <ph name="NEW_ID" /></translation>
@@ -123,7 +124,6 @@
 
 <ph name="EXTENSION_NAME" /></translation>
 <translation id="7612608473764576263">El valor d'entrada per a la clau privada ha de ser un format vàlid (clau RSA en format PKCS #8 amb codificació PEM).</translation>
-<translation id="765293928828334535">No es poden afegir aplicacions, extensions ni scripts d'usuari des d'aquest lloc web</translation>
 <translation id="7658239707568436148">Cancel·la</translation>
 <translation id="7766838926148951335">Accepta els permisos</translation>
 <translation id="7876803335449432072">No s'ha pogut carregar el fitxer <ph name="RELATIVE_PATH" /> per a l'script de contingut. Els fulls d'estil dels scripts de contingut només es poden carregar des de fitxers de fulls d'estil admesos, com ara fitxers .css.</translation>

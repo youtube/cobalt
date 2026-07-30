@@ -8,7 +8,6 @@
 #include "base/containers/span.h"
 #include "base/files/file_util.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/user_metrics.h"
 #include "base/strings/strcat.h"
 #include "base/task/task_traits.h"
 #include "base/task/thread_pool.h"
@@ -35,13 +34,12 @@
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
 #include "components/omnibox/common/input_state.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/omnibox/common/omnibox_metrics_utils.h"
 #include "content/public/browser/web_contents.h"
 #include "net/base/mime_util.h"
-#include "ui/base/base_window.h"
 #include "ui/gfx/native_ui_types.h"
 #include "ui/shell_dialogs/select_file_dialog.h"
-#include "ui/shell_dialogs/select_file_dialog_factory.h"
 #include "ui/shell_dialogs/selected_file_info.h"
 
 OmniboxPopupFileSelector::OmniboxPopupFileSelector(
@@ -49,6 +47,19 @@ OmniboxPopupFileSelector::OmniboxPopupFileSelector(
     : owning_window_(owning_window) {}
 
 OmniboxPopupFileSelector::~OmniboxPopupFileSelector() = default;
+
+std::optional<lens::ImageEncodingOptions>
+OmniboxPopupFileSelector::CreateImageEncodingOptions() {
+  // TODO(crbug.com/457815342): Use omnibox fieldtrial when available.
+  auto image_upload_config =
+      omnibox::FeatureConfig::Get().config.composebox().image_upload();
+  return lens::ImageEncodingOptions{
+      .enable_webp_encoding = image_upload_config.enable_webp_encoding(),
+      .max_size = image_upload_config.downscale_max_image_size(),
+      .max_height = image_upload_config.downscale_max_image_height(),
+      .max_width = image_upload_config.downscale_max_image_width(),
+      .compression_quality = image_upload_config.image_compression_quality()};
+}
 
 void OmniboxPopupFileSelector::OpenFileUploadDialog(
     content::WebContents* web_contents,

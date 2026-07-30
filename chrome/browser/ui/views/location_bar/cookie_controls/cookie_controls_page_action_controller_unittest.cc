@@ -9,14 +9,12 @@
 
 #include "base/callback_list.h"
 #include "base/test/metrics/user_action_tester.h"
-#include "base/test/scoped_feature_list.h"
 #include "chrome/browser/content_settings/cookie_settings_factory.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/page_action/test_support/mock_page_action_controller.h"
-#include "chrome/browser/ui/page_action/test_support/mock_page_action_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/grit/generated_resources.h"
@@ -25,7 +23,6 @@
 #include "components/content_settings/core/common/cookie_controls_state.h"
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/privacy_sandbox/privacy_sandbox_features.h"
-#include "components/strings/grit/privacy_sandbox_strings.h"
 #include "components/tabs/public/mock_tab_interface.h"
 #include "components/user_education/common/feature_promo/feature_promo_result.h"
 #include "content/public/test/browser_task_environment.h"
@@ -102,11 +99,6 @@ class FakeBubbleDelegate
 class CookieControlsPageActionControllerTestBase : public testing::Test {
  public:
   CookieControlsPageActionControllerTestBase() {
-    scoped_feature_list_.InitWithFeaturesAndParameters(
-        {{features::kPageActionsMigration,
-          {{features::kPageActionsMigrationCookieControls.name, "true"}}}},
-        {});
-
     auto fake_bubble_delegate = std::make_unique<FakeBubbleDelegate>();
     fake_bubble_delegate_ = fake_bubble_delegate.get();
 
@@ -183,7 +175,6 @@ class CookieControlsPageActionControllerTestBase : public testing::Test {
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   content::RenderViewHostTestEnabler rvh_test_enabler_;
 
-  base::test::ScopedFeatureList scoped_feature_list_;
   ui::UnownedUserDataHost user_data_host_;
   TestingProfile profile_;
   std::unique_ptr<content::WebContents> web_contents_;
@@ -306,10 +297,6 @@ TEST_P(CookieControlsPageActionControllerActionTest, ExecuteAction) {
                                                  GetParam().controls_state);
 
   EXPECT_CALL(*fake_bubble_delegate(), ShowBubble);
-  EXPECT_CALL(user_education(),
-              NotifyFeaturePromoFeatureUsed(
-                  testing::Ref(feature_engagement::kIPHCookieControlsFeature),
-                  FeaturePromoFeatureUsedAction::kClosePromoIfPresent));
   controller().ExecutePageAction(nullptr);
 
   EXPECT_EQ(1, user_action_tester().GetActionCount(GetParam().action_name));

@@ -200,16 +200,6 @@ chromium-metrics-reviews@google.com.
                results page."/>
 </variants>
 
-<variants name="NavigationPrefetchOnly">
-  <variant name="NavigationPrefetch"
-      summary="Recorded for prefetches where Chrome is relatively confident
-               an omnibox navigation is about to occur (i.e. the user
-               selected a search suggestion). These prefetches allow Chrome
-               to kickstart the request without waiting until before unload
-               handlers or other navigation pre-processing mechanisms in
-               Chrome."/>
-</variants>
-
 <variants name="OmniboxAutocompleteUpdateSlice">
   <variant name=""
       summary="This slice measures match changes for all updates, regardless
@@ -315,6 +305,12 @@ chromium-metrics-reviews@google.com.
       summary="Omnibox composebox in the SRP"/>
   <variant name="SRP_ZPS_PREFETCH"
       summary="Search Results Page zero-prefix suggestion prefetch"/>
+</variants>
+
+<variants name="OmniboxPopupWebUIType">
+  <variant name="Aim" summary="Aim WebUI"/>
+  <variant name="FullWebUI" summary="Full WebUI"/>
+  <variant name="WebUI" summary="Classic WebUI"/>
 </variants>
 
 <variants name="OmniboxProviders">
@@ -434,13 +430,6 @@ Keep consistent with active providers. Doesn't need to include every provider in
                Additionally, the Omnibox client decides to prefetch when the
                user has chosen (or likely chosen) a search suggestion to
                initiate the search suggestion navigation earlier."/>
-</variants>
-
-<variants name="SuggestionPrefetchOnly">
-  <variant name="SuggestionPrefetch"
-      summary="Recorded for prefetches where an omnibox suggestion from the
-               suggestion server recommends a prefetch of a suggestion
-               results page."/>
 </variants>
 
 <histogram
@@ -922,7 +911,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.AimEntrypoint.Shown.ByPageContext.{OmniboxPageContext}{AimEntrypointParty}"
-    enum="Boolean" expires_after="2026-08-09">
+    enum="Boolean" expires_after="2026-11-15">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -1429,7 +1418,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.ContextualSearchSuggestion.Precision" enum="Boolean"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1452,7 +1441,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.ContextualSearchSuggestion.Recall" enum="Boolean"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1472,7 +1461,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.ContextualSearchSuggestion.Usage" enum="Boolean"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1596,7 +1585,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.CutOrCopyAllText" units="count"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>jdonnelly@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -1799,7 +1788,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.DsePreload.SignalResult{DsePreloadTriggerType}{PreloadType}"
-    enum="SearchPreloadSignalResult" expires_after="2026-10-25">
+    enum="SearchPreloadSignalResult" expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <owner>kenoss@chromium.org</owner>
@@ -1934,7 +1923,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToCutOrCopyAllTextTime.ByPageContext.{OmniboxPageContext}"
-    units="ms" expires_after="2026-10-25">
+    units="ms" expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2012,7 +2001,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.ByPageContext.{OmniboxPageContext}"
-    units="ms" expires_after="2026-10-25">
+    units="ms" expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2031,7 +2020,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.BySummarizedResultType.{OmniboxSummarizedResultType}"
-    units="ms" expires_after="2026-10-25">
+    units="ms" expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2051,7 +2040,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.FocusToOpenTimeAnyPopupState3.BySummarizedResultType.{OmniboxSummarizedResultType}.ByPageContext.{OmniboxPageContext}"
-    units="ms" expires_after="2026-10-25">
+    units="ms" expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2541,7 +2530,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LensAction.Recall" enum="Boolean"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2562,7 +2551,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LensAction.Usage" enum="Boolean"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2642,6 +2631,17 @@ Keep consistent with active providers. Doesn't need to include every provider in
     The length of time it takes to handle the deletion request for a match and
     to update the list of provider matches synchronously. Emitted when user
     requests to delete a local history zero-prefix suggestion.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.LocationIconView.Update.Time" units="microseconds"
+    expires_after="2026-10-10">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the duration of LocationIconView::Update calls. Recorded when the
+    location icon view is updated (e.g. during navigation or state changes).
+    This metric is only reported for clients with high-resolution clocks.
   </summary>
 </histogram>
 
@@ -2859,6 +2859,31 @@ Keep consistent with active providers. Doesn't need to include every provider in
     type. Note that abandonment, success, and failure are exclusive outcomes,
     only one will be reported.
   </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.MobileFusebox.AttachmentLoadOOM{FuseboxAttachmentFileType}"
+    enum="Boolean" expires_after="2027-03-30">
+  <owner>jkoblinsky@google.com</owner>
+  <owner>chrome-mobile-search@google.com</owner>
+  <summary>
+    Records whether an OutOfMemoryError was encountered while trying to read and
+    prepare a {FuseboxAttachmentFileType} attachment for upload.
+
+    There is a unique histogram for each file type (Audio, Image, PDF, ...), and
+    a general aggregate total histogram for all file types.
+
+    A value is emitted when we attempt to fetch the data of an attachment. This
+    attempt occurs immediately after the Android file/gallery picker is closed
+    via selection, and before the attachment is added to the Omnibox toolbar or
+    uploaded to the server.
+
+    It records true once if at least one OutOfMemoryError is thrown. It records
+    false if no OutOfMemoryError is thrown, even if the fetch fails for another
+    reason (e.g. IOException). At most one emission occurs per upload attempt.
+    Note that duplicate files will result in separate emissions.
+  </summary>
+  <token key="FuseboxAttachmentFileType" variants="FuseboxAttachmentFileType"/>
 </histogram>
 
 <histogram name="Omnibox.MobileFusebox.AttachmentSizeLimitCheck"
@@ -3643,29 +3668,6 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
-<histogram name="Omnibox.Popup.Aim.DeferredShowVisualStateReadyDuration"
-    units="ms" expires_after="2026-12-22">
-  <owner>avivkiss@chromium.org</owner>
-  <owner>mahmadi@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Records the duration it took for the visual state callback to be called (or
-    fallback timeout to be reached) during a deferred show of the AI Mode popup.
-    Logged every time the popup show is triggered.
-  </summary>
-</histogram>
-
-<histogram name="Omnibox.Popup.Aim.DeferredShowVisualStateReadyFromTimeout"
-    enum="Boolean" expires_after="2026-12-22">
-  <owner>avivkiss@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Records whether the deferred show of the AI Mode popup was triggered by the
-    fallback timer task (True) or the visual state callback (False). Logged
-    every time the popup show is triggered.
-  </summary>
-</histogram>
-
 <histogram name="Omnibox.Popup.Aim.PresenterShowLatency.ToPaint" units="ms"
     expires_after="2026-12-22">
   <owner>mahmadi@chromium.org</owner>
@@ -3726,31 +3728,6 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
-<histogram name="Omnibox.Popup.FullWebUI.DeferredShowVisualStateReadyDuration"
-    units="ms" expires_after="2026-12-22">
-  <owner>khalidpeer@chromium.org</owner>
-  <owner>avivkiss@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Records the duration it took for the visual state callback to be called (or
-    fallback timeout to be reached) during a deferred show of the Full WebUI
-    popup. Logged every time the popup show is triggered.
-  </summary>
-</histogram>
-
-<histogram
-    name="Omnibox.Popup.FullWebUI.DeferredShowVisualStateReadyFromTimeout"
-    enum="Boolean" expires_after="2026-12-22">
-  <owner>khalidpeer@chromium.org</owner>
-  <owner>avivkiss@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Records whether the deferred show of the Full WebUI popup was triggered by
-    the fallback timer task (True) or the visual state callback (False). Logged
-    every time the popup show is triggered.
-  </summary>
-</histogram>
-
 <histogram name="Omnibox.Popup.FullWebUI.PresenterShowLatency.ToPaint"
     units="ms" expires_after="2026-12-22">
   <owner>khalidpeer@chromium.org</owner>
@@ -3782,17 +3759,19 @@ Keep consistent with active providers. Doesn't need to include every provider in
     enum="OmniboxPopupResultToContentReadyEarlyExitReason"
     expires_after="2026-11-12">
   <owner>mych@chromium.org</owner>
+  <owner>ryanakiyama@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
-    Records the number of times the popup (Views or WebUI) was shown but not
-    being able to record the Omnibox.Popup.ResultToContentReady metric due to
-    various early exit reasons.
+    Records the number of times the Views popup was shown but not being able to
+    record the Omnibox.Popup.ResultToContentReady metric due to various early
+    exit reasons.
   </summary>
 </histogram>
 
 <histogram name="Omnibox.Popup.ResultToContentReadyOnFirstShow" units="ms"
     expires_after="2026-11-12">
   <owner>mych@chromium.org</owner>
+  <owner>ryanakiyama@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
     Measures the latency from when the Omnibox controller receives a new set of
@@ -3800,14 +3779,15 @@ Keep consistent with active providers. Doesn't need to include every provider in
     after popup creation. Recorded at most once per popup lifetime.
 
     The starting point is when the controller receives autocomplete results and
-    begins updating the UI. The end point is when content is ready (visual state
-    synchronized for WebUI, compositor presentation for Views).
+    begins updating the UI. The end point is when content is ready (compositor
+    presentation for Views).
   </summary>
 </histogram>
 
 <histogram name="Omnibox.Popup.ResultToContentReadyPerShow" units="ms"
     expires_after="2026-11-12">
   <owner>mych@chromium.org</owner>
+  <owner>ryanakiyama@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
     Measures the latency from when the Omnibox controller receives a new set of
@@ -3815,8 +3795,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
     popup transitions from closed to open.
 
     The starting point is when the controller receives autocomplete results and
-    begins updating the UI. The end point is when content is ready (visual state
-    synchronized for WebUI, compositor presentation for Views).
+    begins updating the UI. The end point is when content is ready (compositor
+    presentation for Views).
   </summary>
 </histogram>
 
@@ -3848,27 +3828,6 @@ Keep consistent with active providers. Doesn't need to include every provider in
     reloaded before showing the classic WebUI Omnibox popup.
 
     Recorded every time the classic WebUI Omnibox popup web content is shown.
-  </summary>
-</histogram>
-
-<histogram name="Omnibox.Popup.WebUI.DeferredShowVisualStateReadyDuration"
-    units="ms" expires_after="2026-12-22">
-  <owner>avivkiss@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Records the duration it took for the visual state callback to be called (or
-    fallback timeout to be reached) during a deferred show of the WebUI popup.
-    Logged every time the popup show is triggered.
-  </summary>
-</histogram>
-
-<histogram name="Omnibox.Popup.WebUI.DeferredShowVisualStateReadyFromFallback"
-    enum="Boolean" expires_after="2026-12-22">
-  <owner>avivkiss@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    Records whether the deferred show of the WebUI popup was triggered by the
-    fallback timer task (True) or the visual state callback (False).
   </summary>
 </histogram>
 
@@ -3923,6 +3882,70 @@ Keep consistent with active providers. Doesn't need to include every provider in
     this does not take into account the time the DOM change task spends in the
     message loop nor its duration.
   </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.Popup.{WebUIType}.DeferredShowVisualStateReadyDuration"
+    units="ms" expires_after="2026-12-22">
+  <owner>avivkiss@chromium.org</owner>
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the duration it took for the visual state callback to be called (or
+    fallback timeout to be reached) during a deferred show of the {WebUIType}
+    popup. Logged every time the popup show is triggered.
+  </summary>
+  <token key="WebUIType" variants="OmniboxPopupWebUIType"/>
+</histogram>
+
+<histogram
+    name="Omnibox.Popup.{WebUIType}.DeferredShowVisualStateReadyFromTimeout"
+    enum="Boolean" expires_after="2026-12-22">
+  <owner>avivkiss@chromium.org</owner>
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records whether the deferred show of the {WebUIType} popup was triggered by
+    the fallback timer task (True) or the visual state callback (False). Logged
+    every time the popup show is triggered.
+  </summary>
+  <token key="WebUIType" variants="OmniboxPopupWebUIType"/>
+</histogram>
+
+<histogram name="Omnibox.Popup.{WebUIType}.ResultToContentReadyEarlyExitReason"
+    enum="OmniboxPopupResultToContentReadyEarlyExitReason"
+    expires_after="2026-11-12">
+  <owner>mych@chromium.org</owner>
+  <owner>ryanakiyama@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the reason for early exit when the ResultToContentReady latency
+    cannot be recorded for the {WebUIType} popup.
+  </summary>
+  <token key="WebUIType" variants="OmniboxPopupWebUIType"/>
+</histogram>
+
+<histogram name="Omnibox.Popup.{WebUIType}.ResultToContentReadyOnFirstShow"
+    units="ms" expires_after="2026-11-12">
+  <owner>mych@chromium.org</owner>
+  <owner>ryanakiyama@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the latency from when the popup results are updated to the first
+    visual state change of the {WebUIType} popup on the first show.
+  </summary>
+  <token key="WebUIType" variants="OmniboxPopupWebUIType"/>
+</histogram>
+
+<histogram name="Omnibox.Popup.{WebUIType}.ResultToContentReadyPerShow"
+    units="ms" expires_after="2026-11-12">
+  <owner>ryanakiyama@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the latency from when the popup results are updated to the first
+    visual state change of the {WebUIType} popup.
+  </summary>
+  <token key="WebUIType" variants="OmniboxPopupWebUIType"/>
 </histogram>
 
 <histogram name="Omnibox.ProviderTime2.{OmniboxProvider}" units="ms"
@@ -4701,7 +4724,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SuggestionUsed.URL.Experimental.NavigationToFirstMeaningfulPaint"
-    units="ms" expires_after="2026-11-01">
+    units="ms" expires_after="2027-01-03">
   <owner>jdonnelly@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -5149,7 +5172,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.TemplateUrl.Reconciliation.Type"
-    enum="ReconciliationType" expires_after="2026-11-01">
+    enum="ReconciliationType" expires_after="2027-01-03">
   <owner>ender@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -5472,6 +5495,42 @@ Keep consistent with active providers. Doesn't need to include every provider in
     screen. This is emitted once each time the omnibox is opened. It is recorded
     again if the omnibox has closed and later re-opened. It is not emitted more
     than once for a single opened instance of the ombibox popup.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Views.RevertAll.Time" units="microseconds"
+    expires_after="2026-10-10">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the duration of OmniboxViewViews::RevertAll. Recorded when the
+    omnibox view is reverted (e.g. when the user presses Escape or navigation
+    starts). This metric is only reported for clients with high-resolution
+    clocks.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Views.SetTextAndSelectedRange.IdempotentCall"
+    enum="Boolean" expires_after="2026-10-10">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records whether a call to OmniboxViewViews::SetTextAndSelectedRange was
+    idempotent (i.e., the text and selection were already set to the target
+    values, and no additional text was present). Recorded when
+    SetTextAndSelectedRange is called. This helps measure the potential savings
+    of adding an idempotency guard.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Views.SetTextAndSelectedRange.Time"
+    units="microseconds" expires_after="2026-10-10">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the duration of OmniboxViewViews::SetTextAndSelectedRange. Recorded
+    when the text and selection in the omnibox view are updated. This metric is
+    only reported for clients with high-resolution clocks.
   </summary>
 </histogram>
 
@@ -5822,40 +5881,6 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram
-    name="Omnibox.{SearchPrefetch}.ClickToNavigationIntercepted.{NavigationPrefetchOnly}"
-    units="ms" expires_after="2023-10-15">
-  <owner>spelchat@chromium.org</owner>
-  <owner>chrome-brapp-loading@google.com</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    {SearchPrefetch}
-
-    Measures the time between the user clicks the Omnibox suggestion and the
-    moment the navigation is intercepted by the Search Prefetch code.
-
-    {NavigationPrefetchOnly}
-  </summary>
-  <token key="SearchPrefetch" variants="SearchPrefetch"/>
-  <token key="NavigationPrefetchOnly" variants="NavigationPrefetchOnly"/>
-</histogram>
-
-<histogram name="Omnibox.{SearchPrefetch}.FetchResult.{SuggestionPrefetchOnly}"
-    enum="BooleanSuccess" expires_after="2023-10-15">
-  <owner>ryansturm@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    {SearchPrefetch}
-
-    Whether a search prefetch request finished with a success status or a status
-    that could be served. Recorded when prefetch requests receive headers.
-
-    {SuggestionPrefetchOnly}
-  </summary>
-  <token key="SearchPrefetch" variants="SearchPrefetch"/>
-  <token key="SuggestionPrefetchOnly" variants="SuggestionPrefetchOnly"/>
-</histogram>
-
-<histogram
     name="Omnibox.{SearchPrefetch}.HasNoVarySearchHeader2.{PrefetchFallbackOrInitial}.{NavigationOrSuggestionPrefetch}"
     enum="Boolean" expires_after="2026-11-29">
   <owner>chikamune@chromium.org</owner>
@@ -6002,22 +6027,6 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <token key="PrefetchFallbackOrInitial" variants="PrefetchFallbackOrInitial"/>
   <token key="NavigationOrSuggestionPrefetch"
       variants="NavigationOrSuggestionPrefetch"/>
-</histogram>
-
-<histogram name="Omnibox.{SearchPrefetch}.StartTimeV2.{NavigationPrefetchOnly}"
-    units="ms" expires_after="2023-10-15">
-  <owner>ryansturm@chromium.org</owner>
-  <owner>curranmax@chromium.org</owner>
-  <owner>chrome-desktop-search@google.com</owner>
-  <summary>
-    {SearchPrefetch}
-
-    The amount of time it takes to start a prefetch request.
-
-    {NavigationPrefetchOnly}
-  </summary>
-  <token key="SearchPrefetch" variants="SearchPrefetch"/>
-  <token key="NavigationPrefetchOnly" variants="NavigationPrefetchOnly"/>
 </histogram>
 
 <histogram name="ShortcutsProvider.DatabaseSize" units="units"

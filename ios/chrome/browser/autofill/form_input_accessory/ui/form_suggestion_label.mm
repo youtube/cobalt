@@ -19,6 +19,7 @@
 #import "components/password_manager/ios/shared_password_controller.h"
 #import "components/strings/grit/components_strings.h"
 #import "components/webauthn/ios/features.h"
+#import "ios/chrome/browser/autofill/model/autofill_ai_util.h"
 #import "ios/chrome/browser/autofill/model/features.h"
 #import "ios/chrome/browser/autofill/model/form_suggestion_constants.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
@@ -263,6 +264,7 @@ bool IsPasswordSuggestion(FormSuggestion* suggestion) {
     case SuggestionType::kManageCreditCard:
     case SuggestionType::kManageIban:
     case SuggestionType::kManageLoyaltyCard:
+    case SuggestionType::kManageEnhancedAutofill:
     case SuggestionType::kComposeResumeNudge:
     case SuggestionType::kComposeDisable:
     case SuggestionType::kComposeGoToSettings:
@@ -304,6 +306,7 @@ bool IsPasswordSuggestion(FormSuggestion* suggestion) {
     case SuggestionType::kAllLoyaltyCardsEntry:
     case SuggestionType::kOneTimePasswordEntry:
     case SuggestionType::kLoadingThrobber:
+    case SuggestionType::kAtMemoryAiDisclosure:
     case SuggestionType::kAtMemorySearchResult:
     case SuggestionType::kAtMemoryInactivityNudge:
     case SuggestionType::kBnplFootnote:
@@ -314,6 +317,7 @@ bool IsPasswordSuggestion(FormSuggestion* suggestion) {
     case SuggestionType::kAtMemorySearchAffordance:
     case SuggestionType::kPersonalContextNotice:
     case SuggestionType::kAutofillAiOtherOrders:
+    case SuggestionType::kAutofillAiPrivateInferenceNotice:
     case SuggestionType::kFetchingAmbientData:
     case SuggestionType::kMaximizeCreditCardBenefitsEntry:
       return false;
@@ -585,8 +589,7 @@ NSString* DisplayDescriptionForSuggestion(FormSuggestion* suggestion,
     }
 
     if (ShouldShowContextMenu(suggestion)) {
-      if (base::FeatureList::IsEnabled(
-              autofill::features::kAutofillAmbientAutofill)) {
+      if (autofill::IsAmbientAutofillEnabled()) {
         [self addInteraction:[[UIContextMenuInteraction alloc]
                                  initWithDelegate:self]];
       }

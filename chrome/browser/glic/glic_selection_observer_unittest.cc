@@ -18,6 +18,8 @@
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
+#include "components/content_settings/core/browser/host_content_settings_map.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility.h"
 #include "components/optimization_guide/content/browser/page_context_eligibility_api.h"
 #include "components/prefs/pref_service.h"
@@ -33,8 +35,8 @@
 #include "ui/base/clipboard/clipboard.h"
 #include "ui/base/clipboard/clipboard_buffer.h"
 #include "ui/base/clipboard/test/test_clipboard.h"
-#include "ui/events/keycodes/keyboard_codes.h"
 #include "ui/base/unowned_user_data/unowned_user_data_host.h"
+#include "ui/events/keycodes/keyboard_codes.h"
 
 namespace tabs {
 class TestMockTabInterface : public MockTabInterface {
@@ -133,9 +135,7 @@ class TestGlicSelectionObserver : public GlicSelectionObserver {
   void SendAdditionalContextToPanel(
       tabs::TabInterface* tab_interface,
       const std::u16string& selected_text) override {
-    if (page_context_tracker() && !selected_text.empty() &&
-        page_context_tracker()->IsPageContextEligible() ==
-            optimization_guide::PageContextEligibilityStatus::kNotEligible) {
+    if (!IsPageContextEligible() && !selected_text.empty()) {
       return;
     }
     last_sent_context_ = selected_text;
@@ -905,12 +905,9 @@ TEST_F(GlicSelectionObserverTest, SelectionShowOnShiftClick) {
   EXPECT_EQ(u"Initial Text Extended", *observer->last_processed_text());
 }
 
-
-TEST_F(GlicSelectionObserverTest, UpdateSelectionStatePanelShowingWithWidget) {
+TEST_F(GlicSelectionObserverTest, UpdateSelectionStatePanelShowing) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kGlicSelectionPrompt,
-      {{features::kGlicSelectionPromptUseWidget.name, "true"}});
+  feature_list.InitAndEnableFeature(features::kGlicSelectionPrompt);
 
   auto* observer = GetObserver();
   ASSERT_TRUE(observer);
@@ -930,33 +927,6 @@ TEST_F(GlicSelectionObserverTest, UpdateSelectionStatePanelShowingWithWidget) {
 
   EXPECT_TRUE(observer->show_selection_affordance_called());
   EXPECT_EQ(u"Selected Text", *observer->last_affordance_text());
-  EXPECT_TRUE(observer->send_context_called());
-  EXPECT_EQ(u"Selected Text", *observer->last_sent_context());
-}
-
-TEST_F(GlicSelectionObserverTest, UpdateSelectionStatePanelShowingNoWidget) {
-  base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kGlicSelectionPrompt,
-      {{features::kGlicSelectionPromptUseWidget.name, "false"}});
-
-  auto* observer = GetObserver();
-  ASSERT_TRUE(observer);
-
-  tabs::MockTabInterface mock_tab;
-  MockBrowserWindowInterface mock_bwi;
-  tabs::TabLookupFromWebContents::CreateForWebContents(web_contents(),
-                                                       &mock_tab);
-  EXPECT_CALL(mock_tab, GetBrowserWindowInterface())
-      .WillRepeatedly(testing::Return(&mock_bwi));
-
-  observer->set_call_base_update_selection_state(true);
-  observer->set_mock_panel_showing(true);
-
-  observer->OnTextSelectionChanged(nullptr, u"Selected Text");
-  task_environment()->FastForwardBy(base::Milliseconds(300));
-
-  EXPECT_FALSE(observer->show_selection_affordance_called());
   EXPECT_TRUE(observer->send_context_called());
   EXPECT_EQ(u"Selected Text", *observer->last_sent_context());
 }
@@ -987,8 +957,7 @@ TEST_F(GlicSelectionObserverTest,
 
 TEST_F(GlicSelectionObserverTest, EligibleSelection) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kGlicSelectionPrompt, {{"use_widget", "false"}});
+  feature_list.InitAndEnableFeature(features::kGlicSelectionPrompt);
 
   auto* observer = GetObserver();
   ASSERT_TRUE(observer);
@@ -1013,8 +982,7 @@ TEST_F(GlicSelectionObserverTest, EligibleSelection) {
 
 TEST_F(GlicSelectionObserverTest, IneligibleSelection) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kGlicSelectionPrompt, {{"use_widget", "false"}});
+  feature_list.InitAndEnableFeature(features::kGlicSelectionPrompt);
 
   auto* observer = GetObserver();
   ASSERT_TRUE(observer);
@@ -1038,8 +1006,7 @@ TEST_F(GlicSelectionObserverTest, IneligibleSelection) {
 
 TEST_F(GlicSelectionObserverTest, DynamicEligibilityChangeClearsContext) {
   base::test::ScopedFeatureList feature_list;
-  feature_list.InitAndEnableFeatureWithParameters(
-      features::kGlicSelectionPrompt, {{"use_widget", "false"}});
+  feature_list.InitAndEnableFeature(features::kGlicSelectionPrompt);
 
   auto* observer = GetObserver();
   ASSERT_TRUE(observer);
@@ -1107,6 +1074,29 @@ TEST_F(GlicSelectionObserverTest, IdentityManagerIntegration) {
   task_environment()->FastForwardBy(base::Milliseconds(300));
   EXPECT_TRUE(observer->send_context_called());
   EXPECT_EQ(u"Test text signed in", *observer->last_sent_context());
+}
+
+TEST_F(GlicSelectionObserverTest, HideForThisSiteSetsBlockSetting) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeatureWithParameters(
+      features::kGlicSelectionPrompt,
+      {{features::kGlicSelectionEnableSiteSettings.name, "true"}});
+
+  GURL url("https://example.com");
+  NavigateAndCommit(url);
+  TestGlicSelectionObserver* observer = GetObserver();
+  ASSERT_TRUE(observer);
+
+  HostContentSettingsMap* settings_map =
+      HostContentSettingsMapFactory::GetForProfile(profile());
+  EXPECT_EQ(CONTENT_SETTING_ALLOW,
+            settings_map->GetContentSetting(
+                url, GURL(), ContentSettingsType::INLINE_CUE_MENU));
+
+  CallOnHideForThisSite();
+  EXPECT_EQ(CONTENT_SETTING_BLOCK,
+            settings_map->GetContentSetting(
+                url, GURL(), ContentSettingsType::INLINE_CUE_MENU));
 }
 
 }  // namespace glic

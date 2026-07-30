@@ -104,9 +104,9 @@ class V4GetHashProtocolManagerTest : public PlatformTest {
     pm->SetClockForTests(&clock_);
   }
 
-  void ValidateGetV4ApiResults(const ThreatMetadata& expected_md,
-                               const ThreatMetadata& actual_md) {
-    EXPECT_EQ(expected_md, actual_md);
+  void ValidateNotificationAbuseResults(bool expected_is_abusive,
+                                        bool actual_is_abusive) {
+    EXPECT_EQ(expected_is_abusive, actual_is_abusive);
     callback_called_ = true;
   }
 
@@ -302,7 +302,7 @@ TEST_F(V4GetHashProtocolManagerTest, TestGetHashErrorHandlingOK) {
       StoreAndHashPrefix(GetChromeUrlApiId(), prefix));
   std::vector<FullHashInfo> expected_results;
   FullHashInfo fhi(full_hash, GetChromeUrlApiId(), now + base::Seconds(300));
-  fhi.metadata.api_permissions.insert("NOTIFICATIONS");
+  fhi.is_notification_abusive = true;
   expected_results.push_back(fhi);
 
   pm->GetFullHashes(
@@ -436,8 +436,7 @@ TEST_F(V4GetHashProtocolManagerTest, TestParseHashResponse) {
   const FullHashInfo& fhi = full_hash_infos[0];
   EXPECT_EQ(full_hash, fhi.full_hash);
   EXPECT_EQ(GetChromeUrlApiId(), fhi.list_id);
-  EXPECT_EQ(1ul, fhi.metadata.api_permissions.size());
-  EXPECT_EQ(1ul, fhi.metadata.api_permissions.count("NOTIFICATIONS"));
+  EXPECT_TRUE(fhi.is_notification_abusive);
   EXPECT_EQ(now + base::Seconds(300), fhi.positive_expiry);
   EXPECT_EQ(now + base::Seconds(400), pm->next_gethash_time_);
 }
@@ -468,114 +467,6 @@ TEST_F(V4GetHashProtocolManagerTest,
   EXPECT_EQ(0ul, full_hash_infos.size());
 }
 
-// Adds entries with a ThreatPatternType metadata.
-TEST_F(V4GetHashProtocolManagerTest, TestParseHashThreatPatternType) {
-  std::unique_ptr<V4GetHashProtocolManager> pm(CreateProtocolManager());
-
-  base::Time now = base::Time::UnixEpoch();
-  SetTestClock(now, pm.get());
-
-  {
-    // Test social engineering pattern type.
-    FindFullHashesResponse se_res;
-    se_res.mutable_negative_cache_duration()->set_seconds(600);
-    ThreatMatch* se = se_res.add_matches();
-    se->set_threat_type(SOCIAL_ENGINEERING);
-    se->set_platform_type(CHROME_PLATFORM);
-    se->set_threat_entry_type(URL);
-    FullHashStr full_hash("Everything's shiny, Cap'n.");
-    se->mutable_threat()->set_hash(full_hash);
-    ThreatEntryMetadata::MetadataEntry* se_meta =
-        se->mutable_threat_entry_metadata()->add_entries();
-    se_meta->set_key("se_pattern_type");
-    se_meta->set_value("SOCIAL_ENGINEERING_LANDING");
-
-    std::string se_data;
-    se_res.SerializeToString(&se_data);
-
-    std::vector<FullHashInfo> full_hash_infos;
-    base::Time cache_expire;
-    EXPECT_TRUE(
-        pm->ParseHashResponse(se_data, &full_hash_infos, &cache_expire));
-    EXPECT_EQ(now + base::Seconds(600), cache_expire);
-
-    // Ensure that the threat remains valid since we found a full hash match,
-    // even though the metadata information could not be parsed correctly.
-    ASSERT_EQ(1ul, full_hash_infos.size());
-    const FullHashInfo& fhi = full_hash_infos[0];
-    EXPECT_EQ(full_hash, fhi.full_hash);
-    const ListIdentifier list_id(CHROME_PLATFORM, URL, SOCIAL_ENGINEERING);
-    EXPECT_EQ(list_id, fhi.list_id);
-    EXPECT_EQ(ThreatPatternType::SOCIAL_ENGINEERING_LANDING,
-              fhi.metadata.threat_pattern_type);
-  }
-
-  {
-    // Test potentially harmful application pattern type.
-    FindFullHashesResponse pha_res;
-    pha_res.mutable_negative_cache_duration()->set_seconds(600);
-    ThreatMatch* pha = pha_res.add_matches();
-    pha->set_threat_type(POTENTIALLY_HARMFUL_APPLICATION);
-    pha->set_threat_entry_type(URL);
-    pha->set_platform_type(CHROME_PLATFORM);
-    FullHashStr full_hash("Not to fret.");
-    pha->mutable_threat()->set_hash(full_hash);
-    ThreatEntryMetadata::MetadataEntry* pha_meta =
-        pha->mutable_threat_entry_metadata()->add_entries();
-    pha_meta->set_key("pha_pattern_type");
-    pha_meta->set_value("LANDING");
-
-    std::string pha_data;
-    pha_res.SerializeToString(&pha_data);
-    std::vector<FullHashInfo> full_hash_infos;
-    base::Time cache_expire;
-    EXPECT_TRUE(
-        pm->ParseHashResponse(pha_data, &full_hash_infos, &cache_expire));
-    EXPECT_EQ(now + base::Seconds(600), cache_expire);
-
-    ASSERT_EQ(1ul, full_hash_infos.size());
-    const FullHashInfo& fhi = full_hash_infos[0];
-    EXPECT_EQ(full_hash, fhi.full_hash);
-    const ListIdentifier list_id(CHROME_PLATFORM, URL,
-                                 POTENTIALLY_HARMFUL_APPLICATION);
-    EXPECT_EQ(list_id, fhi.list_id);
-    EXPECT_EQ(ThreatPatternType::MALWARE_LANDING,
-              fhi.metadata.threat_pattern_type);
-  }
-
-  {
-    // Test invalid pattern type.
-    FullHashStr full_hash("Not to fret.");
-    FindFullHashesResponse invalid_res;
-    invalid_res.mutable_negative_cache_duration()->set_seconds(600);
-    ThreatMatch* invalid = invalid_res.add_matches();
-    invalid->set_threat_type(POTENTIALLY_HARMFUL_APPLICATION);
-    invalid->set_threat_entry_type(URL);
-    invalid->set_platform_type(CHROME_PLATFORM);
-    invalid->mutable_threat()->set_hash(full_hash);
-    ThreatEntryMetadata::MetadataEntry* invalid_meta =
-        invalid->mutable_threat_entry_metadata()->add_entries();
-    invalid_meta->set_key("pha_pattern_type");
-    invalid_meta->set_value("INVALIDE_VALUE");
-
-    std::string invalid_data;
-    invalid_res.SerializeToString(&invalid_data);
-    std::vector<FullHashInfo> full_hash_infos;
-    base::Time cache_expire;
-    EXPECT_TRUE(
-        pm->ParseHashResponse(invalid_data, &full_hash_infos, &cache_expire));
-
-    // Ensure that the threat remains valid since we found a full hash match,
-    // even though the metadata information could not be parsed correctly.
-    ASSERT_EQ(1ul, full_hash_infos.size());
-    const auto& fhi = full_hash_infos[0];
-    EXPECT_EQ(full_hash, fhi.full_hash);
-    EXPECT_EQ(
-        ListIdentifier(CHROME_PLATFORM, URL, POTENTIALLY_HARMFUL_APPLICATION),
-        fhi.list_id);
-    EXPECT_EQ(ThreatPatternType::NONE, fhi.metadata.threat_pattern_type);
-  }
-}
 
 TEST_F(V4GetHashProtocolManagerTest, TestParseSubresourceFilterMetadata) {
   typedef SubresourceFilterLevel Level;
@@ -689,7 +580,7 @@ TEST_F(V4GetHashProtocolManagerTest,
   const auto& fhi = full_hash_infos[0];
   EXPECT_EQ(full_hash, fhi.full_hash);
   EXPECT_EQ(GetChromeUrlApiId(), fhi.list_id);
-  EXPECT_TRUE(fhi.metadata.api_permissions.empty());
+  EXPECT_FALSE(fhi.is_notification_abusive);
 }
 
 TEST_F(V4GetHashProtocolManagerTest,
@@ -844,7 +735,7 @@ TEST_F(V4GetHashProtocolManagerTest, TestUpdatesAreMerged) {
                                 now + base::Seconds(200));
   expected_results.emplace_back(full_hash_2, GetChromeUrlApiId(),
                                 now + base::Seconds(300));
-  expected_results[1].metadata.api_permissions.insert("NOTIFICATIONS");
+  expected_results[1].is_notification_abusive = true;
 
   pm->GetFullHashes(
       matched_locally, {},
@@ -875,16 +766,15 @@ TEST_F(V4GetHashProtocolManagerTest, TestUpdatesAreMerged) {
 
 // The server responds back with full hash information containing metadata
 // information for one of the full hashes for the URL in test.
-TEST_F(V4GetHashProtocolManagerTest, TestGetFullHashesWithApisMergesMetadata) {
+TEST_F(V4GetHashProtocolManagerTest,
+       TestGetFullHashesForNotificationAbuse_Abusive) {
   const GURL url("https://www.example.com/more");
-  ThreatMetadata expected_md;
-  expected_md.api_permissions.insert("NOTIFICATIONS");
-  expected_md.api_permissions.insert("AUDIO_CAPTURE");
   std::unique_ptr<V4GetHashProtocolManager> pm(CreateProtocolManager());
-  pm->GetFullHashesWithApis(
+  pm->GetFullHashesForNotificationAbuse(
       url, {} /* list_client_states */,
-      base::BindOnce(&V4GetHashProtocolManagerTest::ValidateGetV4ApiResults,
-                     base::Unretained(this), expected_md));
+      base::BindOnce(
+          &V4GetHashProtocolManagerTest::ValidateNotificationAbuseResults,
+          base::Unretained(this), /*expected_is_abusive=*/true));
 
   // The following two random looking strings value are two of the full hashes
   // produced by UrlToFullHashes in v4_protocol_manager_util.h for the URL:
@@ -907,6 +797,29 @@ TEST_F(V4GetHashProtocolManagerTest, TestGetFullHashesWithApisMergesMetadata) {
   info = TestV4HashResponseInfo(full_hash, GetChromeUrlApiId());
   info.key_values.emplace_back("permission", "GEOLOCATION");
   infos.push_back(info);
+  SetupFetcherToReturnOKResponse(pm.get(), infos);
+
+  EXPECT_TRUE(callback_called());
+}
+
+TEST_F(V4GetHashProtocolManagerTest,
+       TestGetFullHashesForNotificationAbuse_NotAbusive) {
+  const GURL url("https://www.example.com/more");
+  std::unique_ptr<V4GetHashProtocolManager> pm(CreateProtocolManager());
+  pm->GetFullHashesForNotificationAbuse(
+      url, {} /* list_client_states */,
+      base::BindOnce(
+          &V4GetHashProtocolManagerTest::ValidateNotificationAbuseResults,
+          base::Unretained(this), /*expected_is_abusive=*/false));
+
+  std::vector<TestV4HashResponseInfo> infos;
+  FullHashStr full_hash;
+  base::Base64Decode("1ZzJ0/7NjPkg6t0DAS8L5Jf7jA48Pn7opQcP4UXYeXc=",
+                     &full_hash);
+  TestV4HashResponseInfo info(full_hash, GetChromeUrlApiId());
+  info.key_values.emplace_back("permission", "GEOLOCATION");
+  infos.push_back(info);
+
   SetupFetcherToReturnOKResponse(pm.get(), infos);
 
   EXPECT_TRUE(callback_called());

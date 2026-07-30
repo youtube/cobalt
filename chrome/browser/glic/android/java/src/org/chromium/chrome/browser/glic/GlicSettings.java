@@ -17,10 +17,13 @@ import android.text.style.ForegroundColorSpan;
 import android.view.View;
 import android.widget.TextView;
 
+import androidx.annotation.VisibleForTesting;
 import androidx.core.content.ContextCompat;
 import androidx.preference.Preference;
 import androidx.preference.Preference.OnPreferenceChangeListener;
+import androidx.preference.PreferenceGroup.PreferencePositionCallback;
 import androidx.preference.TwoStatePreference;
+import androidx.recyclerview.widget.RecyclerView;
 
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
@@ -31,6 +34,7 @@ import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
+import org.chromium.chrome.browser.prefs.LocalStatePrefs;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.settings.ChromeBaseSettingsFragment;
 import org.chromium.chrome.browser.settings.search.ChromeBaseSearchIndexProvider;
@@ -44,6 +48,11 @@ import org.chromium.components.browser_ui.settings.SettingsCustomTabLauncher;
 import org.chromium.components.browser_ui.settings.SettingsFragment;
 import org.chromium.components.browser_ui.settings.SettingsUtils;
 import org.chromium.components.browser_ui.settings.search.SettingsIndexData;
+import org.chromium.components.browser_ui.widget.containment.ContainerStyle;
+import org.chromium.components.browser_ui.widget.containment.ContainmentItemDecoration;
+import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter;
+import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightParams;
+import org.chromium.components.browser_ui.widget.highlight.ViewHighlighter.HighlightShape;
 import org.chromium.components.prefs.PrefChangeRegistrar;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -56,7 +65,7 @@ import org.chromium.ui.util.AttrUtils;
 public class GlicSettings extends ChromeBaseSettingsFragment {
     private static final String PREFERENCE_BUTTON = "glic_button";
     private static final String PREFERENCE_BUTTON_TOGGLE = "glic_button_toggle";
-    private static final String PERMISSION_LOCATION = "permissions_location";
+    @VisibleForTesting static final String PERMISSION_LOCATION = "permissions_location";
     private static final String PERMISSION_DEFAULT_TAB_ACCESS =
             "glic_permissions_default_tab_access";
     private static final String PERMISSION_AUTO_BROWSE = "glic_permissions_auto_browse";
@@ -78,14 +87,82 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
     public static final String PREF_KEY_GLIC_PERMISSIONS_ACTIVITY = "glic_permissions_activity";
     public static final String PREF_KEY_GLIC_EXTENSIONS = "glic_extensions";
 
+    private static final String PREF_LAUNCHER_ENABLED = "glic_launcher_enabled";
+    // TODO(b/531824318): Make the shortcut customizable.
+    private static final String PREF_LAUNCHER_HOTKEY = "glic_launcher_hotkey";
+    @VisibleForTesting static final String PREF_NAVIGATION_SHORTCUT = "glic_navigation_shortcut";
+
     private final SharedPreferencesManager mSharedPreferencesManager =
             ChromeSharedPreferences.getInstance();
     private final SettableMonotonicObservableSupplier<String> mPageTitle =
             ObservableSuppliers.createMonotonic();
 
     private @Nullable PrefChangeRegistrar mPrefChangeRegistrar;
+    private @Nullable ChromeSwitchPreference mLauncherEnabledPref;
+    private @Nullable Preference mLauncherHotkeyPref;
+    private @Nullable Preference mNavigationShortcutPref;
+    private @Nullable PrefService mLocalPrefs;
     private GlicKeyedService.@Nullable UserEnabledActuationOnWebObserver
             mUserEnabledActuationOnWebObserver;
+
+    @Override
+    public void onViewCreated(View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        String highlightField =
+                getArguments() != null
+                        ? getArguments().getString(GlicNavigationUtils.EXTRA_HIGHLIGHT_FIELD)
+                        : null;
+        if (GlicNavigationUtils.FIELD_LOCATION_PERMISSION.equals(highlightField)) {
+            view.post(() -> {
+                if (!isAdded() || getView() == null) return;
+                scrollAndHighlightPreference(PERMISSION_LOCATION);
+            });
+        }
+    }
+
+    private void scrollAndHighlightPreference(String key) {
+        RecyclerView listView = getListView();
+        if (listView == null) return;
+
+        RecyclerView.Adapter adapter = listView.getAdapter();
+        if (!(adapter instanceof PreferencePositionCallback)) return;
+        PreferencePositionCallback callback = (PreferencePositionCallback) adapter;
+
+        int position = callback.getPreferenceAdapterPosition(key);
+        if (position == RecyclerView.NO_POSITION) return;
+
+        scrollToPreference(key);
+
+        listView.post(() -> {
+            if (!isAdded() || getView() == null) return;
+            highlightPreferenceAtPosition(listView, position);
+        });
+    }
+
+    private void highlightPreferenceAtPosition(RecyclerView listView, int position) {
+        RecyclerView.ViewHolder viewHolder = listView.findViewHolderForAdapterPosition(position);
+        if (viewHolder == null) return;
+
+        View prefView = viewHolder.itemView;
+        HighlightParams params = new HighlightParams(HighlightShape.RECTANGLE);
+        params.setNumPulses(1);
+
+        // Copy rounded corners from ContainmentItemDecoration if present.
+        for (int i = 0; i < listView.getItemDecorationCount(); i++) {
+            RecyclerView.ItemDecoration decoration = listView.getItemDecorationAt(i);
+            if (decoration instanceof ContainmentItemDecoration) {
+                ContainmentItemDecoration containmentDec = (ContainmentItemDecoration) decoration;
+                ContainerStyle style = containmentDec.getContainerStyle(position);
+                if (style != null) {
+                    params.setTopCornerRadius((int) style.getTopRadius());
+                    params.setBottomCornerRadius((int) style.getBottomRadius());
+                }
+                break;
+            }
+        }
+
+        ViewHighlighter.turnOnHighlight(prefView, params);
+    }
 
     @Override
     public void onCreatePreferences(@Nullable Bundle savedInstanceState, @Nullable String rootKey) {
@@ -104,7 +181,7 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
         ChromeSwitchPreference buttonTogglePref =
                 assertNonNull(findPreference(PREFERENCE_BUTTON_TOGGLE));
 
-        var context = getContext();
+        Context context = getContext();
         // TODO(crbug.com/503082430): Change to tab strip visibility check once toolbar Glic
         // supported on LFF
         if (AndroidSidePanelEnabledFn.isEnabled()) {
@@ -145,6 +222,31 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
             }
         }
 
+        mLauncherEnabledPref = findPreference(PREF_LAUNCHER_ENABLED);
+        mLauncherHotkeyPref = findPreference(PREF_LAUNCHER_HOTKEY);
+        mNavigationShortcutPref = findPreference(PREF_NAVIGATION_SHORTCUT);
+        mLocalPrefs = LocalStatePrefs.get();
+
+        if (mLocalPrefs != null) {
+            final PrefService localPrefs = mLocalPrefs;
+            boolean enabled = localPrefs.getBoolean(GlicPrefNames.GLIC_LAUNCHER_ENABLED);
+            if (mLauncherEnabledPref != null) {
+                mLauncherEnabledPref.setChecked(enabled);
+                mLauncherEnabledPref.setOnPreferenceChangeListener(
+                        (preference, newValue) -> {
+                            boolean boolValue = (boolean) newValue;
+                            localPrefs.setBoolean(GlicPrefNames.GLIC_LAUNCHER_ENABLED, boolValue);
+                            updateHotkeyVisibility(boolValue);
+                            return true;
+                        });
+            }
+
+            updateHotkeyVisibility(enabled);
+        } else {
+            if (mLauncherEnabledPref != null) mLauncherEnabledPref.setVisible(false);
+            updateHotkeyVisibility(false);
+        }
+
         ChromeSwitchPreference locationPref =
                 setupSwitchPreference(
                         PERMISSION_LOCATION,
@@ -158,9 +260,7 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                             return true;
                         });
 
-        if (!ChromeFeatureList.isEnabled(ChromeFeatureList.GLIC_EXPERIMENTAL_LOCATION)) {
-            locationPref.setVisible(false);
-        } else if (locationPref.isChecked()) {
+        if (locationPref.isChecked()) {
             ensureFineLocationPermissionGranted();
         }
 
@@ -262,7 +362,10 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                 PREFERENCE_BUTTON_TOGGLE,
                 PERMISSION_LOCATION,
                 PREF_KEY_GLIC_PERMISSIONS_ACTIVITY,
-                PREF_KEY_GLIC_EXTENSIONS
+                PREF_KEY_GLIC_EXTENSIONS,
+                PREF_LAUNCHER_ENABLED,
+                PREF_LAUNCHER_HOTKEY,
+                PREF_NAVIGATION_SHORTCUT
             };
             for (String key : prefsToDisable) {
                 Preference pref = findPreference(key);
@@ -505,6 +608,16 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
         return createSpanInfo("<a href=\"#\">", url, pref);
     }
 
+    private void updateHotkeyVisibility(boolean enabled) {
+        if (mLauncherHotkeyPref != null) {
+            mLauncherHotkeyPref.setVisible(enabled);
+        }
+        if (mNavigationShortcutPref != null) {
+            mNavigationShortcutPref.setVisible(enabled && AndroidSidePanelEnabledFn.isEnabled());
+        }
+        notifyPreferencesUpdated();
+    }
+
     @Override
     public MonotonicObservableSupplier<String> getPageTitle() {
         return mPageTitle;
@@ -527,10 +640,7 @@ public class GlicSettings extends ChromeBaseSettingsFragment {
                         indexData.removeEntryForKey(prefFrag, PREFERENCE_BUTTON);
                     } else {
                         indexData.removeEntryForKey(prefFrag, PREFERENCE_BUTTON_TOGGLE);
-                    }
-                    if (!ChromeFeatureList.isEnabled(
-                            ChromeFeatureList.GLIC_EXPERIMENTAL_LOCATION)) {
-                        indexData.removeEntryForKey(prefFrag, PERMISSION_LOCATION);
+                        indexData.removeEntryForKey(prefFrag, PREF_NAVIGATION_SHORTCUT);
                     }
                     if (!ChromeFeatureList.isEnabled(
                             ChromeFeatureList.ACTOR_LOGIN_PERMISSIONS_UI)) {

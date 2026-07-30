@@ -9,7 +9,7 @@
 #include <string>
 
 #include "base/functional/callback.h"
-#include "base/memory/raw_ptr.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "components/policy/core/common/cloud/device_management_service.h"
 
@@ -56,13 +56,13 @@ struct AccountStatus {
 // Provided email should be canonicalized.
 class AccountStatusCheckFetcher {
  public:
-  // Provided email should be canonicalized.
-  explicit AccountStatusCheckFetcher(const std::string& canonicalized_email);
+  // `url_loader_factory` must be non-null.
+  // `device_management_service` must be non-null and must outlive `this`.
   // Provided email should be canonicalized.
   AccountStatusCheckFetcher(
-      const std::string& canonicalized_email,
-      DeviceManagementService* service,
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory);
+      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+      DeviceManagementService* device_management_service,
+      const std::string& canonicalized_email);
   AccountStatusCheckFetcher(const AccountStatusCheckFetcher&) = delete;
   AccountStatusCheckFetcher& operator=(const AccountStatusCheckFetcher&) =
       delete;
@@ -79,14 +79,14 @@ class AccountStatusCheckFetcher {
   // Response from DM server.
   void OnAccountStatusCheckReceived(DMServerJobResult result);
 
+  const scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
+  const raw_ref<DeviceManagementService> device_management_service_;
+
   // Account ID, added to the DM server request.
   std::string email_;
 
   // Job that sends request to the DM server.
   std::unique_ptr<DeviceManagementService::Job> fetch_request_job_;
-
-  raw_ptr<DeviceManagementService, DanglingUntriaged> service_ = nullptr;
-  scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory_;
 
   // Randomly generated device id for the request to make sure request won't
   // send private device information. It's important because request could be

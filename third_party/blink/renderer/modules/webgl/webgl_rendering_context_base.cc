@@ -1789,7 +1789,15 @@ WebGLRenderingContextBase::ClearIfComposited(
     return kSkipped;
   }
 
-  if (!framebuffer_binding_) {
+  if (!framebuffer_binding_ ||
+      (caller != kClearCallerDrawOrClear &&
+       base::FeatureList::IsEnabled(features::kWebGLDiscardBackBuffer))) {
+    // If the back buffer was discarded when the page was hidden, it must be
+    // recreated before we can read or copy from it (which corresponds to
+    // kClearCallerOther). If a custom framebuffer is currently bound, the back
+    // buffer isn't active for drawing, but it is still needed for the
+    // copy/read.
+    //
     // DrawingBuffer may have discarded the back buffer, and we are about to use
     // it, recreate it. Note: we don't call MarkContentsChanged(), because it
     // hasn't (there is no new content to present).
@@ -2618,6 +2626,9 @@ bool WebGLRenderingContextBase::ValidateAndUpdateBufferBindTarget(
 }
 
 void WebGLRenderingContextBase::bindBuffer(GLenum target, WebGLBuffer* buffer) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("bindBuffer", buffer))
     return;
   if (!ValidateAndUpdateBufferBindTarget("bindBuffer", target, buffer))
@@ -2627,6 +2638,9 @@ void WebGLRenderingContextBase::bindBuffer(GLenum target, WebGLBuffer* buffer) {
 
 void WebGLRenderingContextBase::bindFramebuffer(GLenum target,
                                                 WebGLFramebuffer* buffer) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("bindFramebuffer", buffer))
     return;
 
@@ -2641,6 +2655,9 @@ void WebGLRenderingContextBase::bindFramebuffer(GLenum target,
 void WebGLRenderingContextBase::bindRenderbuffer(
     GLenum target,
     WebGLRenderbuffer* render_buffer) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("bindRenderbuffer", render_buffer))
     return;
   if (target != GL_RENDERBUFFER) {
@@ -2655,6 +2672,9 @@ void WebGLRenderingContextBase::bindRenderbuffer(
 
 void WebGLRenderingContextBase::bindTexture(GLenum target,
                                             WebGLTexture* texture) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("bindTexture", texture))
     return;
   if (texture && texture->GetTarget() && texture->GetTarget() != target) {
@@ -3098,6 +3118,7 @@ void WebGLRenderingContextBase::copyTexImage2D(GLenum target,
                                                GLint border) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
   if (!ValidateTexture2DBinding("copyTexImage2D", target, true))
     return;
   if (!ValidateCopyTexFormat("copyTexImage2D", internalformat))
@@ -3127,6 +3148,7 @@ void WebGLRenderingContextBase::copyTexSubImage2D(GLenum target,
                                                   GLsizei height) {
   if (isContextLost())
     return;
+  MaybeEndPixelLocalStorageImplicit();
   if (!ValidateTexture2DBinding("copyTexSubImage2D", target))
     return;
   WebGLFramebuffer* read_framebuffer_binding = nullptr;
@@ -3392,8 +3414,7 @@ bool WebGLRenderingContextBase::ValidateRenderingState(
 bool WebGLRenderingContextBase::ValidateNullableWebGLObject(
     const char* function_name,
     WebGLObject* object) {
-  if (isContextLost())
-    return false;
+  DCHECK(!isContextLost());
   if (!object) {
     // This differs in behavior to ValidateWebGLObject; null objects are allowed
     // in these entry points.
@@ -3404,8 +3425,7 @@ bool WebGLRenderingContextBase::ValidateNullableWebGLObject(
 
 bool WebGLRenderingContextBase::ValidateWebGLObject(const char* function_name,
                                                     WebGLObject* object) {
-  if (isContextLost())
-    return false;
+  DCHECK(!isContextLost());
   DCHECK(object);
   if (object->MarkedForDeletion()) {
     SynthesizeGLError(GL_INVALID_OPERATION, function_name,
@@ -3554,9 +3574,14 @@ void WebGLRenderingContextBase::framebufferRenderbuffer(
     GLenum attachment,
     GLenum renderbuffertarget,
     WebGLRenderbuffer* buffer) {
-  if (isContextLost() || !ValidateFramebufferFuncParameters(
-                             "framebufferRenderbuffer", target, attachment))
+  if (isContextLost()) {
     return;
+  }
+  MaybeEndPixelLocalStorageImplicit();
+  if (!ValidateFramebufferFuncParameters("framebufferRenderbuffer", target,
+                                         attachment)) {
+    return;
+  }
   if (renderbuffertarget != GL_RENDERBUFFER) {
     SynthesizeGLError(GL_INVALID_ENUM, "framebufferRenderbuffer",
                       "invalid target");
@@ -3594,9 +3619,14 @@ void WebGLRenderingContextBase::framebufferTexture2D(GLenum target,
                                                      GLenum textarget,
                                                      WebGLTexture* texture,
                                                      GLint level) {
-  if (isContextLost() || !ValidateFramebufferFuncParameters(
-                             "framebufferTexture2D", target, attachment))
+  if (isContextLost()) {
     return;
+  }
+  MaybeEndPixelLocalStorageImplicit();
+  if (!ValidateFramebufferFuncParameters("framebufferTexture2D", target,
+                                         attachment)) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("framebufferTexture2D", texture))
     return;
   // TODO(crbug.com/919711): validate texture's target against textarget.
@@ -6305,6 +6335,9 @@ void WebGLRenderingContextBase::TexImageViaGPU(
           gfx::Point(params.xoffset, params.yoffset), source_sub_rectangle);
     } else {
       WebGLRenderingContextBase* gl = source_canvas_webgl_context;
+      // If the source's back buffer has been discarded, make sure it's back and
+      // initialized.
+      gl->ClearIfComposited(kClearCallerOther);
       ScopedTexture2DRestorer inner_restorer(gl);
       if (!gl->GetDrawingBuffer()->CopyToPlatformTexture(
               ContextGL(), params.target, target_texture, params.level,
@@ -7421,6 +7454,9 @@ void WebGLRenderingContextBase::uniformMatrix4fv(
 }
 
 void WebGLRenderingContextBase::useProgram(WebGLProgram* program) {
+  if (isContextLost()) {
+    return;
+  }
   if (!ValidateNullableWebGLObject("useProgram", program))
     return;
   if (program && !program->LinkStatus(this)) {

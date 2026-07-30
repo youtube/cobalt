@@ -34,8 +34,6 @@ namespace send_tab_to_self {
 
 namespace {
 
-constexpr size_t kMaxDevices = 5;
-
 static_assert(IDC_CONTENT_CONTEXT_SEND_TAB_TO_SELF_DEVICE_LAST -
                       IDC_CONTENT_CONTEXT_SEND_TAB_TO_SELF_DEVICE1 + 1 ==
                   kMaxDevices,
@@ -171,7 +169,10 @@ void SendTabToSelfContextMenuDelegate::ExecuteCommand(int command_id,
 
     UserEducationService::MaybeNotifyNewBadgeFeatureUsed(
         web_contents_->GetBrowserContext(),
-        send_tab_to_self::kSendTabToSelfEnhancedDesktopUI);
+        base::FeatureList::IsEnabled(
+            send_tab_to_self::kSendTabToSelfEnhancedDesktopUIv2)
+            ? send_tab_to_self::kSendTabToSelfEnhancedDesktopUIv2
+            : send_tab_to_self::kSendTabToSelfEnhancedDesktopUI);
 
     RecordEntryPointInvoked(entry_point_);
 

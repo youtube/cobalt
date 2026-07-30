@@ -6,7 +6,9 @@
 
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
+#include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "base/win/windows_version.h"
 #include "chrome/app/chrome_command_ids.h"
@@ -217,10 +219,11 @@ class WebAppBrowserFrameViewWinTest : public InProcessBrowserTest {
     }
 
     webapps::AppId app_id = web_app::test::InstallWebApp(
-        browser()->profile(), std::move(web_app_info));
+        browser()->GetProfile(), std::move(web_app_info));
     content::TestNavigationObserver navigation_observer(GetStartURL());
     navigation_observer.StartWatchingNewWebContents();
-    app_browser_ = web_app::LaunchWebAppBrowser(browser()->profile(), app_id);
+    app_browser_ =
+        web_app::LaunchWebAppBrowser(browser()->GetProfile(), app_id);
     navigation_observer.WaitForNavigationFinished();
 
     browser_view_ = BrowserView::GetBrowserViewForBrowser(app_browser_);
@@ -381,13 +384,13 @@ class WebAppBrowserFrameViewWinWindowControlsOverlayTest
     web_app_info->display_override = display_overrides;
 
     webapps::AppId app_id = web_app::test::InstallWebApp(
-        browser()->profile(), std::move(web_app_info));
+        browser()->GetProfile(), std::move(web_app_info));
 
     content::TestNavigationObserver navigation_observer(start_url);
     base::RunLoop loop;
     navigation_observer.StartWatchingNewWebContents();
     Browser* app_browser =
-        web_app::LaunchWebAppBrowser(browser()->profile(), app_id);
+        web_app::LaunchWebAppBrowser(browser()->GetProfile(), app_id);
 
     // TODO(crbug.com/40174440): Register binder for BrowserInterfaceBroker
     // during testing.
@@ -449,16 +452,27 @@ IN_PROC_BROWSER_TEST_F(WebAppBrowserFrameViewWinWindowControlsOverlayTest,
   InstallAndLaunchWebAppWithWindowControlsOverlay();
   ToggleWindowControlsOverlayEnabledAndWait();
 
+  EXPECT_TRUE(browser_view_->IsWindowControlsOverlayEnabled());
   EXPECT_GT(frame_view_->GetBoundsForClientView().y(), 0);
 
   frame_view_->browser_widget()->SetFullscreen(true);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return frame_view_->browser_widget()->IsFullscreen(); }));
   browser_view_->GetWidget()->LayoutRootViewIfNecessary();
 
-  // ClientView should be covering the entire screen.
+  // WCO and its caption controls should remain enabled in fullscreen.
+  EXPECT_TRUE(browser_view_->IsWindowControlsOverlayEnabled());
+  EXPECT_TRUE(
+      frame_view_->caption_button_container_for_testing()->GetVisible());
   EXPECT_EQ(frame_view_->GetBoundsForClientView().y(), 0);
+
+  // Non-button overlay areas must stay client-clickable in fullscreen.
+  EXPECT_EQ(frame_view_->NonClientHitTest(gfx::Point(10, 10)), HTCLIENT);
 
   // Exit full screen.
   frame_view_->browser_widget()->SetFullscreen(false);
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !frame_view_->browser_widget()->IsFullscreen(); }));
 }
 
 IN_PROC_BROWSER_TEST_F(WebAppBrowserFrameViewWinWindowControlsOverlayTest,

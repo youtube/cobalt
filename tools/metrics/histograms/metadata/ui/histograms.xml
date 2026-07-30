@@ -473,7 +473,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DefaultBrowser.{DefaultBrowserSetterType}.Result"
-    enum="BooleanSuccess" expires_after="2026-10-25">
+    enum="BooleanSuccess" expires_after="2027-01-03">
   <owner>alsan@chromium.org</owner>
   <owner>atharvmaan@chromium.org</owner>
   <owner>koretadaniel@chromium.org</owner>
@@ -1161,7 +1161,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Snackbar.DismissalReason" enum="SnackbarDismissalReason"
-    expires_after="2026-11-01">
+    expires_after="2027-01-03">
   <owner>lazzzis@google.com</owner>
   <owner>src/chrome/browser/ui/messages/OWNERS</owner>
   <summary>Records the reason why a snackbar was dismissed.</summary>
@@ -1264,6 +1264,30 @@ features through Chrome Labs. -->
     ColorProvider with a Key that is not in the cache. Since the cache size is
     capped, a distribution with too many results at the tail indicate that the
     cache is too small.
+  </summary>
+</histogram>
+
+<histogram name="Views.FocusRing.RefreshLayer.Time" units="microseconds"
+    expires_after="2026-10-10">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the duration of all FocusRing::RefreshLayer calls. Recorded when the
+    focus ring's layer is refreshed. This captures fast cached cases as well as
+    slow layer creation/destruction cases. This metric is only reported for
+    clients with high-resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="Views.FocusRing.RefreshLayer.Time.NotCached"
+    units="microseconds" expires_after="2026-10-10">
+  <owner>gjc@google.com</owner>
+  <owner>chrome-loading@google.com</owner>
+  <summary>
+    Records the duration of FocusRing::RefreshLayer calls that result in actual
+    layer creation or destruction. Recorded when the focus ring's layer is
+    refreshed and results in actual layer creation or destruction. This metric
+    is only reported for clients with high-resolution clocks.
   </summary>
 </histogram>
 
@@ -1435,7 +1459,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.RequestToFCP{WebUIName}" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2027-01-03">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-webui-for-features@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1449,7 +1473,7 @@ features through Chrome Labs. -->
 </histogram>
 
 <histogram name="WebUI.TopChrome.RequestToLCP{WebUIName}" units="ms"
-    expires_after="2026-10-25">
+    expires_after="2027-01-03">
   <owner>kerenzhu@chromium.org</owner>
   <owner>chrome-webui-for-features@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>

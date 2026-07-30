@@ -115,6 +115,15 @@ void MailboxToSurfaceBridgeImpl::GenSyncToken(gpu::SyncToken* out_sync_token) {
   gl_->GenSyncTokenCHROMIUM(out_sync_token->GetData());
 }
 
+void MailboxToSurfaceBridgeImpl::VerifySyncToken(
+    gpu::SyncToken& out_sync_token) {
+  TRACE_EVENT0("gpu", "VerifySyncToken");
+  DCHECK(IsConnected());
+
+  auto* sync_token_data = out_sync_token.GetData();
+  gl_->VerifySyncTokensCHROMIUM(&sync_token_data, 1);
+}
+
 void MailboxToSurfaceBridgeImpl::WaitSyncToken(
     const gpu::SyncToken& sync_token) {
   TRACE_EVENT0("gpu", "WaitSyncToken");
@@ -160,7 +169,8 @@ MailboxToSurfaceBridgeImpl::CreateSharedImage(
       {format, size, color_space, usage, "WebXrMailboxToSurfaceBridge"},
       std::move(buffer_handle));
   CHECK(client_shared_image);
-  sync_token = sii->GenVerifiedSyncToken();
+  sync_token = client_shared_image->creation_sync_token();
+  sii->VerifySyncToken(sync_token);
   DCHECK(client_shared_image->GetTextureTarget() == GL_TEXTURE_2D);
   return client_shared_image;
 }

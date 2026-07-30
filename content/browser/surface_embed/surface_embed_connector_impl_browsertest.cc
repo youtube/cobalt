@@ -339,7 +339,7 @@ IN_PROC_BROWSER_TEST_F(SurfaceEmbedConnectorImplBrowserTest,
   connector->UpdateCursor(ui::Cursor());
 
   EXPECT_EQ(connector->HasFocus(),
-            FrameConnector::RootViewFocusState::kNullView);
+            FrameConnector::RootViewFocusState::kFocused);
 
   connector->FocusRootView();  // void
 

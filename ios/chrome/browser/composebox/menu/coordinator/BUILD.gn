@@ -2,6 +2,17 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+source_set("shared_tab") {
+  sources = [
+    "composebox_menu_shared_tab.h",
+    "composebox_menu_shared_tab.mm",
+  ]
+  deps = [
+    "//base",
+    "//url",
+  ]
+}
+
 source_set("coordinator") {
   sources = [
     "composebox_menu_coordinator.h",
@@ -11,11 +22,13 @@ source_set("coordinator") {
   ]
   deps = [
     "//components/contextual_search:public",
+    "//components/contextual_tasks/public:feature_list",
     "//components/omnibox/browser",
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/aim/model:aim_availability",
     "//ios/chrome/browser/composebox/coordinator:input_state_manager",
     "//ios/chrome/browser/composebox/coordinator:mode_holder",
+    "//ios/chrome/browser/composebox/menu/coordinator:shared_tab",
     "//ios/chrome/browser/composebox/menu/ui",
     "//ios/chrome/browser/composebox/model",
     "//ios/chrome/browser/composebox/public:features",
@@ -30,9 +43,12 @@ source_set("coordinator") {
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/profile",
     "//ios/chrome/browser/shared/public/commands",
+    "//ios/chrome/browser/shared/public/snackbar",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/signin/model",
     "//ios/chrome/browser/tab_switcher/ui_bundled:utils",
+    "//ios/chrome/browser/url_loading/model",
+    "//ios/chrome/browser/url_loading/model:url_loading_params_header",
     "//ios/web/public",
     "//ui/base",
   ]

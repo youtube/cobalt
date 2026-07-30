@@ -5,6 +5,7 @@
 #ifndef CHROME_BROWSER_GLIC_HOST_CONTEXT_GLIC_DELEGATING_SHARING_MANAGER_H_
 #define CHROME_BROWSER_GLIC_HOST_CONTEXT_GLIC_DELEGATING_SHARING_MANAGER_H_
 
+#include "base/memory/raw_ptr.h"
 #include "chrome/browser/glic/host/context/glic_pin_candidate_provider.h"
 #include "chrome/browser/glic/public/context/glic_sharing_manager.h"
 
@@ -86,11 +87,11 @@ class GlicDelegatingSharingManagerBase : public GlicSharingManagerInternal {
 
   void GetContextFromTab(
       tabs::TabHandle tab_handle,
-      const mojom::GetTabContextOptions& options,
+      const mojom::TabContextOptions& options,
       base::OnceCallback<void(GlicGetContextResult)> callback) override;
   void GetContextForActorFromTab(
       tabs::TabHandle tab_handle,
-      const mojom::GetTabContextOptions& options,
+      const mojom::TabContextOptions& options,
       base::OnceCallback<void(GlicGetContextResult)> callback) override;
   void GetImageBytes(
       tabs::TabHandle tab_handle,

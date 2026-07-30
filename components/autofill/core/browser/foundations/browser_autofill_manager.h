@@ -20,6 +20,7 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
+#include "base/types/optional_ref.h"
 #include "build/build_config.h"
 #include "components/autofill/core/browser/at_memory/at_memory_manager.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
@@ -39,6 +40,7 @@
 #include "components/autofill/core/browser/integrators/one_time_tokens/metrics/otp_form_event_logger.h"
 #include "components/autofill/core/browser/integrators/one_time_tokens/otp_manager.h"
 #include "components/autofill/core/browser/integrators/password_manager/password_manager_delegate.h"
+#include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_autofill_delegate.h"
 #include "components/autofill/core/browser/integrators/touch_to_fill/touch_to_fill_payment_method_delegate.h"
 #include "components/autofill/core/browser/metrics/autofill_metrics.h"
 #include "components/autofill/core/browser/metrics/form_events/address_form_event_logger.h"
@@ -205,13 +207,16 @@ class BrowserAutofillManager : public AutofillManager {
       const AutofillSuggestionDelegate::SuggestionMetadata& metadata,
       const FieldGlobalId& trigger_field_id);
 
-  void DidShowSuggestions(base::span<const Suggestion> suggestions,
-                          const FormGlobalId& form_id,
-                          const FieldGlobalId& field_id,
-                          AutofillExternalDelegate::UpdateSuggestionsCallback
-                              update_suggestions_callback,
-                          AutofillSuggestionTriggerSource trigger_source =
-                              AutofillSuggestionTriggerSource::kUnspecified);
+  void DidShowSuggestions(
+      base::span<const Suggestion> suggestions,
+      base::optional_ref<const AutofillSuggestionDelegate::SuggestionMetadata>
+          parent_suggestion_metadata,
+      const FormGlobalId& form_id,
+      const FieldGlobalId& field_id,
+      AutofillExternalDelegate::UpdateSuggestionsCallback
+          update_suggestions_callback,
+      AutofillSuggestionTriggerSource trigger_source =
+          AutofillSuggestionTriggerSource::kUnspecified);
 
   // Invoked when the user selected the `suggestion` in a suggestions list from
   // single field filling.
@@ -268,6 +273,8 @@ class BrowserAutofillManager : public AutofillManager {
       const AutofillField& trigger_field,
       base::span<const AutofillField* const> safe_filled_fields,
       const base::flat_set<FieldGlobalId>& filled_field_ids,
+      const base::flat_map<FieldGlobalId, DenseSet<FieldFillingSkipReason>>&
+          skip_reasons,
       const FillingPayload& filling_payload,
       AutofillTriggerSource trigger_source,
       std::optional<RefillTriggerReason> refill_trigger_reason);
@@ -297,6 +304,10 @@ class BrowserAutofillManager : public AutofillManager {
       const std::u16string& old_value) override;
   void OnLoadedServerPredictionsImpl(
       base::span<const raw_ref<FormStructure>> forms) override;
+  void OnDidDetectJavaScriptAutofillImpl(
+      const FormData& form,
+      const FieldGlobalId& trigger_field_id,
+      const std::vector<FieldGlobalId>& field_ids) override;
   void Reset() override;
 
   base::WeakPtr<BrowserAutofillManager> GetBrowserAutofillManagerWeakPtr();
@@ -332,6 +343,17 @@ class BrowserAutofillManager : public AutofillManager {
           touch_to_fill_payment_method_delegate) {
     touch_to_fill_payment_method_delegate_ =
         std::move(touch_to_fill_payment_method_delegate);
+  }
+
+  TouchToFillAutofillDelegate* touch_to_fill_autofill_delegate() {
+    return touch_to_fill_autofill_delegate_.get();
+  }
+
+  void set_touch_to_fill_autofill_delegate(
+      std::unique_ptr<TouchToFillAutofillDelegate>
+          touch_to_fill_autofill_delegate) {
+    touch_to_fill_autofill_delegate_ =
+        std::move(touch_to_fill_autofill_delegate);
   }
 
   // This reference is not stable over the lifetime of BrowserAutofillManager.
@@ -384,20 +406,9 @@ class BrowserAutofillManager : public AutofillManager {
  private:
   friend class BrowserAutofillManagerTestApi;
 
-  struct FormAndField {
-    STACK_ALLOCATED();
-
-   public:
-    FormStructure* form_structure = nullptr;
-    AutofillField* autofill_field = nullptr;
-  };
-
-  // Returns the cached form and field corresponding to `form_id` and
-  // `field_id`. This might have the side-effect of updating the cache. The
-  // returned `FormAndField` may not contain form or field, if the form is not
-  // autofillable, or if either the form or the field cannot be found.
-  FormAndField GetCachedFormAndField(const FormGlobalId& form_id,
-                                     const FieldGlobalId& field_id);
+  // Mutable version of `FindFormAndField`.
+  MutableFormAndField FindMutableFormAndField(const FormGlobalId& form_id,
+                                              const FieldGlobalId& field_id);
 
   // Emits all metrics that should be recorded at submission time.
   void LogSubmissionMetrics(const FormStructure* submitted_form,
@@ -642,7 +653,7 @@ class BrowserAutofillManager : public AutofillManager {
   void InitializeSuggestionGenerators(
       AutofillSuggestionTriggerSource trigger_source,
       FormGlobalId form_id,
-      FieldGlobalId field_id);
+      const FormFieldData& field);
 
   // Delegates to perform external processing (display, selection) on
   // our behalf.
@@ -650,6 +661,7 @@ class BrowserAutofillManager : public AutofillManager {
       std::make_unique<AutofillExternalDelegate>(this);
   std::unique_ptr<TouchToFillPaymentMethodDelegate>
       touch_to_fill_payment_method_delegate_;
+  std::unique_ptr<TouchToFillAutofillDelegate> touch_to_fill_autofill_delegate_;
 
   // This is always non-nullopt except very briefly during Reset().
   std::optional<MetricsState> metrics_ = std::make_optional<MetricsState>(this);

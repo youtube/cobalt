@@ -67,8 +67,7 @@ DelegatedFrameHost::DelegatedFrameHost(const viz::FrameSinkId& frame_sink_id,
   CHECK(host_frame_sink_manager_);
   frame_evictor_->SetVisible(client_->DelegatedFrameHostIsVisible());
 
-  stale_content_layer_ =
-      std::make_unique<ui::Layer>(ui::LayerType::LAYER_SOLID_COLOR);
+  stale_content_layer_ = std::make_unique<ui::LayerSolidColor>();
   stale_content_layer_->SetVisible(false);
   stale_content_layer_->SetColor(SK_ColorTRANSPARENT);
 }
@@ -100,9 +99,6 @@ void DelegatedFrameHost::WasShown(
 
   frame_evictor_->SetVisible(true);
   if (record_tab_switch_time_request && compositor_) {
-    // Only requests with saved frames should be sent to the DelegatedFrameHost.
-    CHECK(record_tab_switch_time_request
-              ->AllEventsAreTabSwitchesWithSavedFrame());
     compositor_->RequestSuccessfulPresentationTimeForNextFrame(
         tab_switch_time_recorder_.TabWasShown(
             std::move(*record_tab_switch_time_request)));
@@ -124,9 +120,6 @@ void DelegatedFrameHost::RequestSuccessfulPresentationTimeForNextFrame(
     blink::RecordContentToVisibleTimeRequest visible_time_request) {
   if (!compositor_)
     return;
-
-  // Only requests with saved frames should be sent to the DelegatedFrameHost.
-  CHECK(visible_time_request.AllEventsAreTabSwitchesWithSavedFrame());
 
   // Tab was shown while widget was already painting, eg. due to being
   // captured.
@@ -712,7 +705,9 @@ void DelegatedFrameHost::TakeFallbackContentFrom(DelegatedFrameHost* other) {
   if (!HasPrimarySurface()) {
     client_->DelegatedFrameHostGetLayer()->SetShowSurface(
         desired_fallback, other->client_->DelegatedFrameHostGetLayer()->size(),
-        other->client_->DelegatedFrameHostGetLayer()->background_color(),
+        other->client_->DelegatedFrameHostGetLayer()
+            ->AsSolidColor()
+            ->GetTargetColor(),
         cc::DeadlinePolicy::UseDefaultDeadline(),
         false /* stretch_content_to_fill_bounds */);
   }

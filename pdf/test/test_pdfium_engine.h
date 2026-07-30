@@ -105,6 +105,8 @@ class TestPDFiumEngine : public PDFiumEngine {
 
   MOCK_METHOD(bool, HasJavaScript, (), (const override));
 
+  MOCK_METHOD(bool, IsPasswordProtected, (), (const override));
+
   MOCK_METHOD(uint32_t, GetLoadedByteSize, (), (override));
 
   MOCK_METHOD(bool,
@@ -118,7 +120,10 @@ class TestPDFiumEngine : public PDFiumEngine {
               (override));
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
-  MOCK_METHOD(void, AddFont, (FontId, base::span<const uint8_t>), (override));
+  MOCK_METHOD(void,
+              AddFont,
+              (FontId, const std::string&, base::span<const uint8_t>),
+              (override));
 
   MOCK_METHOD(void,
               DrawText,

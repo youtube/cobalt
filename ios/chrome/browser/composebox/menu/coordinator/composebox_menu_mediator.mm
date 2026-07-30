@@ -57,6 +57,11 @@
 
 #pragma mark - Public
 
+- (void)updateUIInputState:(ComposeboxUIInputState*)inputState {
+  _inputState = inputState;
+  [self.consumer setUIInputState:_inputState];
+}
+
 - (void)processImageItems:(NSArray<ComposeboxPickerImageResult*>*)imageItems {
   NSMutableArray<ComposeboxPickerImageResult*>* updatedImageResults =
       [[NSMutableArray alloc] init];
@@ -187,6 +192,9 @@
       [self.delegate
           composeboxMenuMediator:self
                      didTapModel:ComposeboxModelOption::kThinkingNoGenUI];
+      break;
+    case ComposeboxMenuItemType::kAttachmentSharedTabs:
+      [self.delegate composeboxMenuMediatorDidRequestSharedTabs:self];
       break;
     case ComposeboxMenuItemType::kAttachmentTabs:
       [self.delegate composeboxMenuMediatorDidRequestTabSelection:self];

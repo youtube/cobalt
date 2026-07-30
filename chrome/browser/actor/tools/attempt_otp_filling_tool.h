@@ -7,15 +7,19 @@
 
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/memory/weak_ptr.h"
 #include "base/types/expected.h"
+#include "chrome/browser/actor/tools/attempt_otp_filling_tool_request.h"
 #include "chrome/browser/actor/tools/tool.h"
 #include "chrome/browser/actor/tools/tool_delegate.h"
 #include "chrome/common/actor.mojom-forward.h"
+#include "chrome/common/actor_webui.mojom-forward.h"
 #include "components/actor/core/shared_types.h"
 #include "components/actor/core/task_id.h"
+#include "components/actor/public/mojom/actor_types.mojom-forward.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/one_time_tokens/core/browser/one_time_token_retrieval_error.h"
 
@@ -30,11 +34,14 @@ namespace actor {
 // If this is part of a sign-in flow, set `for_signin` to true.
 class AttemptOtpFillingTool : public Tool {
  public:
-  AttemptOtpFillingTool(TaskId task_id,
-                        ToolDelegate& tool_delegate,
-                        tabs::TabHandle tab_handle,
-                        std::vector<PageTarget> trigger_fields,
-                        bool for_signin);
+  AttemptOtpFillingTool(
+      TaskId task_id,
+      ToolDelegate& tool_delegate,
+      tabs::TabHandle tab_handle,
+      std::vector<PageTarget> trigger_fields,
+      bool for_signin,
+      AttemptOtpFillingToolRequest::OtpType predicted_otp_type =
+          AttemptOtpFillingToolRequest::OtpType::kUnknown);
   ~AttemptOtpFillingTool() override;
 
   // Tool:
@@ -55,6 +62,8 @@ class AttemptOtpFillingTool : public Tool {
   tabs::TabHandle GetTargetTab() const override;
 
  private:
+  void OnGmailOtpOptInResponse(ToolCallback callback,
+                               webui::mojom::GmailOtpOptInResultPtr response);
   void OnOtpRetrieved(
       ToolCallback callback,
       base::expected<std::string, one_time_tokens::OneTimeTokenRetrievalError>
@@ -62,10 +71,14 @@ class AttemptOtpFillingTool : public Tool {
   void OnOtpFilled(ToolCallback callback, bool success);
   void OnActorLoginFlowChecked(ToolCallback callback, bool is_actor_login);
 
+  void LogJournalEvent(std::string_view event_name,
+                       std::vector<mojom::JournalDetailsPtr> journal_details);
+
   tabs::TabHandle tab_handle_;
   std::vector<PageTarget> trigger_fields_;
   std::vector<autofill::FieldGlobalId> trigger_field_ids_;
   bool for_signin_;
+  AttemptOtpFillingToolRequest::OtpType predicted_otp_type_;
 
   // `DomainRelationChecker` finds relationship between origins (exactly the
   // same, affiliated, ePSL match, weak match, no match). used to determine if

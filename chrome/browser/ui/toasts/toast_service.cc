@@ -43,6 +43,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "components/autofill/core/common/autofill_features.h"
 #include "components/commerce/core/commerce_feature_list.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/data_sharing/public/features.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
@@ -410,13 +411,15 @@ void ToastService::RegisterToasts(
           features::IsRoundedIconsEnabled() ? kDeleteIcon : kDeleteOldIcon,
           IDS_SKILL_DELETED_TOAST_BODY)
           .AddCloseButton()
-          .AddActionButton(IDS_SKILL_UNDO_TOAST_BUTTON,
-                           base::BindRepeating(
-                               [](BrowserWindowInterface* window) {
-                                 skills::SkillsUiWindowController::From(window)
-                                     ->UndoLastSkillRemoval();
-                               },
-                               base::Unretained(browser_window_interface)))
+          .AddActionButton(
+              IDS_SKILL_UNDO_TOAST_BUTTON,
+              // TODO(crbug.com/532203296): Wire undo callback for v2.
+              base::BindRepeating(
+                  [](BrowserWindowInterface* window) {
+                    skills::SkillsUiWindowController::From(window)
+                        ->UndoLastSkillRemoval();
+                  },
+                  base::Unretained(browser_window_interface)))
           .Build());
 
   toast_registry_->RegisterToast(
@@ -671,5 +674,29 @@ void ToastService::RegisterToasts(
                                         : vector_icons::kErrorOldIcon,
                                     IDS_DICTATION_ERROR_TOAST)
             .Build());
+    toast_registry_->RegisterToast(
+        ToastId::kDictationStopped,
+        ToastSpecification::Builder(
+            features::IsRoundedIconsEnabled()
+                ? vector_icons::kMicIcon
+                : vector_icons::kMicChromeRefreshOldIcon,
+            IDS_DICTATION_STOPPED_TOAST)
+            .SetPersistOnNavigation()
+            .Build());
   }
+  toast_registry_->RegisterToast(
+      ToastId::kGlicSelectionHiddenForSite,
+      ToastSpecification::Builder(
+          vector_icons::kVisibilityOffIcon,
+          IDS_GLIC_SELECTION_HIDDEN_FOR_SITE_TOAST_BODY)
+          .AddActionButton(IDS_MANAGE,
+                           base::BindRepeating(
+                               [](BrowserWindowInterface* window) {
+                                 chrome::ShowContentSettingsExceptions(
+                                     window,
+                                     ContentSettingsType::INLINE_CUE_MENU);
+                               },
+                               base::Unretained(browser_window_interface)))
+          .AddCloseButton()
+          .Build());
 }  // RegisterToasts() end.

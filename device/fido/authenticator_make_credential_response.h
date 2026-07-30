@@ -15,6 +15,7 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/span.h"
 #include "device/fido/attestation_object.h"
+#include "device/fido/cmtg_key_response.h"
 #include "device/fido/public/fido_constants.h"
 #include "device/fido/public/fido_transport_protocol.h"
 
@@ -92,6 +93,10 @@ class COMPONENT_EXPORT(DEVICE_FIDO) AuthenticatorMakeCredentialResponse {
   // prf_results contains the output of the hmac-secret-mc or prf extension.
   // The values have already been decrypted.
   std::optional<std::vector<uint8_t>> prf_results;
+
+  // `cmtg_key` is present if the client requested a CMTG key and the
+  // authenticator supported it.
+  std::optional<CmtgKeyResponse> cmtg_key;
 };
 
 // Through cbor::Writer, produces a CTAP style CBOR-encoded byte array

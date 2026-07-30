@@ -26,10 +26,9 @@ class CONTENT_EXPORT FakeIdentityRequestDialogController
     : public IdentityRequestDialogController,
       public WebContentsObserver {
  public:
-  using IdentityProviderDataPtr = scoped_refptr<content::IdentityProviderData>;
-  using IdentityRequestAccountPtr =
-      scoped_refptr<content::IdentityRequestAccount>;
-  using TokenError = content::IdentityCredentialTokenError;
+  using IdentityProviderDataPtr = scoped_refptr<IdentityProviderData>;
+  using IdentityRequestAccountPtr = scoped_refptr<IdentityRequestAccount>;
+  using TokenError = IdentityCredentialTokenError;
 
   FakeIdentityRequestDialogController(
       std::optional<std::string> selected_account,
@@ -37,7 +36,7 @@ class CONTENT_EXPORT FakeIdentityRequestDialogController
   ~FakeIdentityRequestDialogController() override;
 
   bool ShowAccountsDialog(
-      content::RelyingPartyData rp_data,
+      RelyingPartyData rp_data,
       const std::vector<IdentityProviderDataPtr>& idp_list,
       const std::vector<IdentityRequestAccountPtr>& accounts,
       const std::vector<IdentityRequestAccountPtr>& filtered_accounts,
@@ -74,10 +73,10 @@ class CONTENT_EXPORT FakeIdentityRequestDialogController
                          DismissCallback dismiss_callback) override;
 
   bool ShowVerifyingDialog(
-      const content::RelyingPartyData& rp_data,
+      const RelyingPartyData& rp_data,
       const IdentityProviderDataPtr& idp_data,
       const IdentityRequestAccountPtr& account,
-      content::IdentityRequestAccount::SignInMode sign_in_mode,
+      IdentityRequestAccount::SignInMode sign_in_mode,
       blink::mojom::RpMode rp_mode,
       AccountsDisplayedCallback accounts_displayed_callback) override;
 
@@ -86,11 +85,10 @@ class CONTENT_EXPORT FakeIdentityRequestDialogController
 
   void ShowUrl(LinkType link_type, const GURL& url) override;
 
-  content::WebContents* ShowModalDialog(
-      const GURL& url,
-      blink::mojom::RpMode rp_mode,
-      DismissCallback dismiss_callback,
-      ShownModalAsyncCallback on_shown_async) override;
+  WebContents* ShowModalDialog(const GURL& url,
+                               blink::mojom::RpMode rp_mode,
+                               DismissCallback dismiss_callback,
+                               ShownModalAsyncCallback on_shown_async) override;
 
   void CloseModalDialog() override;
 
@@ -99,8 +97,6 @@ class CONTENT_EXPORT FakeIdentityRequestDialogController
   void RequestIdPRegistrationPermision(
       const url::Origin& origin,
       base::OnceCallback<void(bool accepted)> callback) override;
-
-  bool DidShowUi() const override;
 
  private:
   void PostTask(const base::Location& from_here, base::OnceClosure task);
@@ -113,7 +109,6 @@ class CONTENT_EXPORT FakeIdentityRequestDialogController
   // We observe WebContentsDestroyed to ensure that this pointer is valid.
   raw_ptr<WebContents> popup_window_{nullptr};
   DismissCallback popup_dismiss_callback_;
-  bool did_show_ui_ = false;
 };
 
 }  // namespace content

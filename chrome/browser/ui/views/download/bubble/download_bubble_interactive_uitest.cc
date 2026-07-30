@@ -12,7 +12,6 @@
 #include "chrome/browser/download/download_browsertest_utils.h"
 #include "chrome/browser/download/download_core_service.h"
 #include "chrome/browser/download/download_core_service_factory.h"
-#include "chrome/browser/feature_engagement/tracker_factory.h"
 #include "chrome/browser/ui/accelerator_utils.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
@@ -27,10 +26,8 @@
 #include "chrome/test/base/ui_test_utils.h"
 #include "chrome/test/user_education/interactive_feature_promo_test.h"
 #include "components/feature_engagement/public/feature_constants.h"
-#include "components/feature_engagement/test/scoped_iph_feature_list.h"
 #include "components/policy/core/browser/browser_policy_connector.h"
 #include "components/policy/core/common/mock_configuration_policy_provider.h"
-#include "components/policy/core/common/policy_map.h"
 #include "components/policy/policy_constants.h"
 #include "components/safe_browsing/core/common/safe_browsing_policy_handler.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -238,8 +235,8 @@ class DownloadBubbleInteractiveUiTest
   auto DownloadDangerousTestFile() {
     // Set up the fake delegate that forces the download to be malicious.
     std::unique_ptr<TestDownloadManagerDelegate> test_delegate(
-        new TestDownloadManagerDelegate(browser()->profile()));
-    DownloadCoreServiceFactory::GetForBrowserContext(browser()->profile())
+        new TestDownloadManagerDelegate(browser()->GetProfile()));
+    DownloadCoreServiceFactory::GetForBrowserContext(browser()->GetProfile())
         ->SetDownloadManagerDelegateForTesting(std::move(test_delegate));
     GURL url = embedded_test_server()->GetURL(
         DownloadTestBase::kDangerousMockFilePath);
@@ -297,7 +294,8 @@ class DownloadBubbleInteractiveUiTest
     // TODO(chlily): This is now solely a function of Profile prefs. Add
     // explicit coverage for the pref being enabled/disabled, and simplify the
     // rest of the tests by assuming the pref's default value.
-    return download::IsDownloadBubblePartialViewEnabled(browser()->profile());
+    return download::IsDownloadBubblePartialViewEnabled(
+        browser()->GetProfile());
   }
 
   views::View* GetContainerView() {
@@ -432,7 +430,7 @@ IN_PROC_BROWSER_TEST_F(
 
   EXPECT_TRUE(safe_browsing::SafeBrowsingPolicyHandler::
                   IsSafeBrowsingProtectionLevelSetByPolicy(
-                      browser()->profile()->GetPrefs()));
+                      browser()->GetProfile()->GetPrefs()));
   RunTestSequence(
       Do(DownloadDangerousTestFile()),
       ObserveState(kDownloadsButtonVisible, GetContainerView()),

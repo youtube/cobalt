@@ -64,7 +64,6 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinatorFactory;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.theme.NtpCustomizationPromoManager;
-import org.chromium.chrome.browser.omnibox.HintTextUpdater;
 import org.chromium.chrome.browser.omnibox.SearchEngineService;
 import org.chromium.chrome.browser.omnibox.SearchEngineService.SearchEngineIconObserver;
 import org.chromium.chrome.browser.omnibox.SearchEngineService.SearchEngineNameObserver;
@@ -95,6 +94,7 @@ import org.chromium.components.browser_ui.widget.displaystyle.DisplayStyleObserv
 import org.chromium.components.browser_ui.widget.displaystyle.UiConfig;
 import org.chromium.components.embedder_support.util.UrlUtilities;
 import org.chromium.components.omnibox.AutocompleteRequestType;
+import org.chromium.components.omnibox.OmniboxCapabilities;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.components.signin.SigninFeatures;
@@ -390,8 +390,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
         // This should be called after both mNtpSearchBox and mComposeplateCoordinator are
         // initialized.
-        onCustomizedBackgroundChanged(
-                NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox());
+        onCustomizedBackgroundChanged(shouldApplyWhiteBackgroundOnSearchBox());
 
         // This should called after flags of composeplate view are initialized.
         setSearchBoxHeightBoundsVerticalInset();
@@ -488,8 +487,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
     public void onSearchBoxHintTextChanged() {
         if (mNtpSearchBox != null) {
-            mNtpSearchBox.setSearchBoxHintText(
-                    HintTextUpdater.getNtpHintText(mActivity, mSearchEngineService));
+            mNtpSearchBox.setSearchBoxHintText(mSearchEngineService.getNtpHintText(mActivity));
         }
     }
 
@@ -497,16 +495,19 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
     void setSearchBoxTextAppearance() {
         if (mNtpSearchBox == null) return;
 
-        boolean shouldApplyWhiteBackground =
-                NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox();
-
-        if (shouldApplyWhiteBackground) {
+        if (shouldApplyWhiteBackgroundOnSearchBox()) {
             mNtpSearchBox.setSearchBoxTextAppearance(
                     R.style.TextAppearance_FakeSearchBoxTextMediumDark);
         } else {
             mNtpSearchBox.setSearchBoxTextAppearance(
                     R.style.TextAppearance_FakeSearchBoxTextMedium);
         }
+    }
+
+    @VisibleForTesting
+    boolean shouldApplyWhiteBackgroundOnSearchBox() {
+        return NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox()
+                || OmniboxCapabilities.isDesktopPlatform();
     }
 
     private void initializeComposeplateFlags(Profile profile) {
@@ -552,15 +553,14 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         GURL composeplateUrl = assumeNonNull(mComposeplateUrlSupplier).get();
         if (composeplateUrl == null) return;
 
-        mManager.getNativePageHost()
-                .loadUrl(new LoadUrlParams(composeplateUrl), /* incognito= */ false);
+        mManager.loadUrl(new LoadUrlParams(composeplateUrl), /* incognito= */ false);
     }
 
     private void onIncognitoButtonClicked(View view) {
         if (!IncognitoUtils.isIncognitoModeEnabled(mProfile)) return;
 
         UrlConstantResolver resolver = UrlConstantResolverFactory.getForProfile(mProfile);
-        mManager.getNativePageHost().loadUrl(new LoadUrlParams(resolver.getNtpUrl()), true);
+        mManager.loadUrl(new LoadUrlParams(resolver.getNtpUrl()), /* incognito= */ true);
     }
 
     @VisibleForTesting
@@ -603,7 +603,7 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         Callback<LoadUrlParams> logoClickedCallback =
                 mCallbackController.makeCancelable(
                         (urlParams) -> {
-                            mManager.getNativePageHost().loadUrl(urlParams, /* incognito= */ false);
+                            mManager.loadUrl(urlParams, /* incognito= */ false);
                             BrowserUiUtils.recordModuleClickHistogram(
                                     ModuleTypeOnStartAndNtp.DOODLE);
                         });

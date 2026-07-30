@@ -55,6 +55,16 @@
       debugDocumentVersioning = "YES"
       debugServiceExtension = "internal"
       allowLocationSimulation = "YES">
+      <BuildableProductRunnable
+         runnableDebuggingMode = "0">
+         <BuildableReference
+            BuildableIdentifier = "primary"
+            BlueprintIdentifier = "@{HOST_BLUEPRINT_IDENTIFIER}"
+            BuildableName = "@{HOST_BUILDABLE_NAME}"
+            BlueprintName = "@{HOST_BLUEPRINT_NAME}"
+            ReferencedContainer = "container:@{PROJECT_NAME}">
+         </BuildableReference>
+      </BuildableProductRunnable>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Profile"

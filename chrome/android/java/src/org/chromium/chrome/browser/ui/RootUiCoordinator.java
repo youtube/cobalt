@@ -207,6 +207,7 @@ import org.chromium.chrome.browser.ui.lens.LensOverlayCoordinator;
 import org.chromium.chrome.browser.ui.lens.LensOverlayInvocationSource;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
+import org.chromium.chrome.browser.ui.side_ui.SideUiStateProvider;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinator;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinatorSupplier;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncCoordinatorSupplier.SupplierFlow;
@@ -785,7 +786,7 @@ public class RootUiCoordinator
                                         mBottomSheetControllerSupplier.get();
                                 return controller != null
                                         && BottomSheetUtils.isContentActingAsBrowserControls(
-                                                controller)
+                                                controller, isBottomSheetAsBrowserControlsEnabled())
                                         && controller.isFullWidth();
                             }
                         },
@@ -1357,7 +1358,8 @@ public class RootUiCoordinator
                         mWindowAndroid,
                         mActivityLifecycleDispatcher,
                         mLayoutStateProviderOneShotSupplier,
-                        mFullscreenManager);
+                        mFullscreenManager,
+                        getSideUiStateProviderSupplier());
         mReadAloudControllerSupplier.set(controller);
         mReadAloudContextualSearchObserver =
                 new ContextualSearchObserver() {
@@ -2434,7 +2436,10 @@ public class RootUiCoordinator
                                     : edgeToEdgeController.getBottomInset();
                         },
                         getDesktopWindowStateManager(),
-                        mWindowAndroid.getInsetObserver());
+                        mWindowAndroid.getInsetObserver(),
+                        /* enableLargeFormFactorUi= */ ChromeFeatureList
+                                .sBottomSheetOnDesktopWindowing
+                                .isEnabled());
         mBottomSheetControllerSupplier.set(bottomSheetController);
         BottomSheetControllerFactory.setExceptionReporter(
                 ChromePureJavaExceptionReporter::reportJavaException);
@@ -2449,7 +2454,8 @@ public class RootUiCoordinator
                         mOmniboxFocusStateSupplier,
                         panelManagerSupplier,
                         mLayoutStateProviderOneShotSupplier,
-                        mBottomControlsStacker);
+                        mBottomControlsStacker,
+                        isBottomSheetAsBrowserControlsEnabled());
 
         // TODO(crbug.com/40208738): Consider moving handler registration to feature code.
         assert mBackPressManager != null
@@ -2460,6 +2466,14 @@ public class RootUiCoordinator
             mBackPressManager.addHandler(
                     bottomSheetBackPressHandler, BackPressHandler.Type.BOTTOM_SHEET);
         }
+    }
+
+    /**
+     * Returns whether the bottom sheet acting as browser controls is enabled for the current
+     * activity.
+     */
+    protected boolean isBottomSheetAsBrowserControlsEnabled() {
+        return false;
     }
 
     /** Returns whether the Android Edge To Edge Feature is supported for the current activity. */
@@ -2870,5 +2884,13 @@ public class RootUiCoordinator
 
     public @Nullable HandoffController getHandoffController() {
         return mHandoffController;
+    }
+
+    /**
+     * Returns the {@link OneshotSupplier} for the {@link SideUiStateProvider}. Can return null if
+     * the current activity does not support Side Panel.
+     */
+    protected @Nullable OneshotSupplier<SideUiStateProvider> getSideUiStateProviderSupplier() {
+        return null;
     }
 }

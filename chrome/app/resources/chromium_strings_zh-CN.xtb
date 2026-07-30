@@ -27,13 +27,11 @@
 <translation id="126567311906253476">使用 <ph name="USER_EMAIL" /> 登录 Gmail 或 YouTube 等 Google 服务时，您可以使用同一账号自动登录 Chromium</translation>
 <translation id="1287534462498555020">在手机上下载 Chromium</translation>
 <translation id="1290883685122687410">设置错误：<ph name="METAINSTALLER_EXIT_CODE" />。<ph name="WINDOWS_ERROR" /></translation>
-<translation id="1312200348844120300">插图：展示如何使用“图片搜索”功能查找商品</translation>
 <translation id="1315551408014407711">设置您的新 Chromium 个人资料</translation>
 <translation id="132092532143527429">试用 Chromium 中的 Gemini</translation>
 <translation id="1324107359134968521">Chromium 需获得蓝牙使用权限，才能浏览蓝牙设备。<ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1329040302064168406">在手机上登录 Chromium</translation>
 <translation id="1330562121671411446">检测语言</translation>
-<translation id="1330742950061766891">使用 Chromium 推荐的浏览器设置</translation>
 <translation id="1342274909142618978">同时删除 Chromium 中的数据 (<ph name="URL" />)</translation>
 <translation id="1345251407431278948">已固定！您可以通过工具栏中的新按钮再次使用图片搜索功能</translation>
 <translation id="1356661055722410047">新功能！您可以翻译屏幕上的文字和图片</translation>
@@ -96,6 +94,7 @@
 <translation id="2018879682492276940">安装失败。请重试。</translation>
 <translation id="2039417478970545937">设置。</translation>
 <translation id="2049376729098081731">选择是否要包含 Chromium 历史记录以便在各款 Google 服务中获享更个性化的体验</translation>
+<translation id="2050698962207788467">内置于 Chromium 中，可帮助您创建、保存和自动填充安全系数高的密码。添加快捷方式，即可轻松访问。</translation>
 <translation id="2064856577282482477">点击“新标签页”页面上的“自定义 Chromium”按钮，即可为 Chromium 换上全新外观</translation>
 <translation id="2066690553719545730">始终显示 AI 模式</translation>
 <translation id="2086476982681781442">Chromium 阻止了此项下载操作，因为该文件具有欺骗性，可能会意外更改您的设备</translation>
@@ -231,7 +230,6 @@
 <translation id="3387527074123400161">Chromium 操作系统</translation>
 <translation id="3406848076815591792">切换到现有的 Chromium 个人资料？</translation>
 <translation id="3412460710772753638">在此设备上的密码管理工具中更新</translation>
-<translation id="3423442168617177595">内置于 Chromium 中，可帮助您创建、保存和自动填充安全系数高的密码。添加快捷方式，访问更轻松</translation>
 <translation id="3455907671758333080">借助 Chromium 在手机上使用增强型安全浏览功能</translation>
 <translation id="3461644266919055473">正在打造您的专属 Chromium…</translation>
 <translation id="3474745554856756813">这会从这台设备上删除 <ph name="ITEMS_COUNT" /> 项内容。如果日后想要检索您的数据，届时请以 <ph name="USER_EMAIL" /> 的身份登录 Chromium。</translation>
@@ -425,6 +423,7 @@
 <translation id="5768371961535086509">Chromium 会释放闲置标签页占用的内存。这可让活跃标签页和其他应用获得更多计算机资源，并让 Chromium 保持快速运行。当您返回到闲置标签页时，它们会自动重新变为活跃状态。<ph name="BEGIN_LINK" />详细了解省内存模式<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">如果您忘记了口令或想更改此设置，请<ph name="SETTINGS_LINK" />您账号中的 Chromium 数据</translation>
 <translation id="5800158606660203929">自定义和控制 Chromium。将 Chromium 设为默认浏览器。</translation>
+<translation id="5802618941556161431">将 Chromium 设为默认浏览器，让您的密码、书签和历史记录在所有设备上完美同步。</translation>
 <translation id="5809516625706423866">无法连接到互联网。发生 HTTP 401 Unauthorized 错误，请检查您的代理配置。</translation>
 <translation id="5817952762723416573">使用 Chromium 的 V8 引擎加速网站，但 Chromium 的防攻击能力会略微降低。此设置已关闭。</translation>
 <translation id="5821520528363214608">如要将 Chromium 数据保存在 Google 账号中并使用这些数据，请更新 Chromium</translation>
@@ -494,7 +493,6 @@
 <translation id="6400112897226594999">计算机屏幕中的 Chromium 徽标。</translation>
 <translation id="6403826409255603130">Chromium 是一款可高速运行网页和应用的网络浏览器。它快捷、稳定且易于使用。Chromium 内置的防护恶意软件和网上诱骗的功能可让您更安全地浏览网页。</translation>
 <translation id="6414624068245092115">为了确保您可以一直通过 Google 账号使用和保存 Chromium 数据，请验证是您本人在操作</translation>
-<translation id="6417332166651156371">简图：展示 Chromium 中密码管理工具的入口点</translation>
 <translation id="642132557830635295">Chromium 的运行速度会更快，并且使用 JavaScript 的功能应该能按预期运行</translation>
 <translation id="6436260184216827876">图片搜索功能不可用，请稍后再试。</translation>
 <translation id="6442900851116057561">重启 Chromium 操作系统</translation>

@@ -72,7 +72,6 @@
 <translation id="1640672724030957280">Letöltés...</translation>
 <translation id="1651617469580841801">A Google Lens használatakor a rendszer elküldi az oldal címét, URL-jét és tartalmát (beleértve a PDF-eket is) a Google-nak. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">A ChromeOS Flex névjegye</translation>
-<translation id="1665867022636014702">A Google által ajánlott böngészőbeállítások használata</translation>
 <translation id="1674870198290878346">Link megnyitása Chrome-inko&amp;gnitóablakban</translation>
 <translation id="1682634494516646069">A Chrome nem tudja olvasni és írni az adatkönyvtárát: <ph name="USER_DATA_DIRECTORY" /></translation>
 <translation id="1688214853608504530">Amikor beír valamit a címsávba vagy a keresőmezőbe, a Chrome elküldi a beírt szöveget a szervezet keresési, AI- és ügynökeszközeinek javaslatok biztosítása érdekében.</translation>
@@ -233,6 +232,7 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="3242123554343253302">Chrome-profil hozzáadása</translation>
 <translation id="3242486428260808857">A Chrome app használatával többet hozhat ki az online vásárlásból <ph name="DEVICE_TYPE" /> eszközén</translation>
 <translation id="3245429137663807393">Ha a Chrome használati jelentéseit is megosztja, ezek a jelentések tartalmazzák az Ön által felkeresett URL-eket.</translation>
+<translation id="3249558306861350254">Kattintson a <ph name="BEGIN_BOLD" />Beállítás alapértelmezettként<ph name="END_BOLD" /> lehetőségre a Windows beállításaiban.</translation>
 <translation id="3259748324892322072">A Chrome app letöltése</translation>
 <translation id="3282568296779691940">Bejelentkezés a Chrome-ba</translation>
 <translation id="3286538390144397061">Újraindítás most</translation>
@@ -252,7 +252,6 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="345171907106878721">Adja hozzá magát a Chrome-ban</translation>
 <translation id="3453763134178591239">ChromeOS – Szerződési Feltételek</translation>
 <translation id="3475778264501649775">A telefonjára telepített Chrome alkalmazással útközben is hozzáférhet jelszavaihoz, lapjaihoz és sok minden máshoz</translation>
-<translation id="3512495006767217696">A Chrome beépített funkciója, amely segít erős jelszavak létrehozásában, mentésében és automatikus kitöltésében. Adja hozzá a parancsikont a könnyű hozzáférés érdekében.</translation>
 <translation id="3539955434060988644">Link megnyitása Chrome-inkognitóablakban</translation>
 <translation id="354621070532799440">Emlékeztető: A Google legjobb biztonsági funkciói a zsebében</translation>
 <translation id="3547866758548131919">A Összegzés gombra kattintva megoszthatja ezt a dokumentumot a Geminivel a Chrome-ban, hogy gyors áttekintést kapjon, és utánkövető kérdéseket tehessen fel</translation>
@@ -305,6 +304,7 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="4012899077942246412">Amíg be van jelentkezve, használhatja a Google-fiókjában tárolt jelszavait és egyéb tartalmait a Chrome-ban. A módosításhoz lépjen „Az Ön fiókja a Chrome-ban” részhez.</translation>
 <translation id="4022972681110646219">Képernyőtartalom lefordítása</translation>
 <translation id="4023601594785368013">Eredeti nyelv: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">A Chrome beépített funkciója, amely segít erős jelszavak létrehozásában, mentésében és automatikus kitöltésében. Adja hozzá a gyorsparancsot a könnyű hozzáférés érdekében.</translation>
 <translation id="4035053306113201399">A frissítés alkalmazásához újra kell indítani a ChromeOS-t.</translation>
 <translation id="4050175100176540509">A legújabb verzióban fontos biztonsági fejlesztések és új funkciók érhetők el.</translation>
 <translation id="4053720452172726777">A Google Chrome személyre szabása és beállításai</translation>
@@ -541,7 +541,6 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="6438015621983209660">A Biztonságos Böngészés fokozott védelemmel funkció használatának kiterjesztésre a telefonra a Chrome-mal</translation>
 <translation id="6442774133615368941">Vásárolhat, fordíthat, és azonosíthatja a látott dolgokat a kamera segítségével a Chrome iOS-alkalmazásban</translation>
 <translation id="6448835208126432197">Billentyűparancs használata a képernyő egy részének kiválasztásához a Gemini a Chrome-ban szolgáltatásban.</translation>
-<translation id="6473659734176498825">Egyszerűsített kép, amely a Google Jelszókezelő belépési pontját mutatja a Chrome-ban</translation>
 <translation id="6473905796280459355">Ugrás A Chrome névjegye oldalra</translation>
 <translation id="6481963882741794338">A Chrome és más Google-szolgáltatások összekapcsolása személyre szabási és egyéb célokból</translation>
 <translation id="648319183876919572">A Biztonságos Böngészés fokozott védelemmel funkció többet tesz a veszélyes webhelyekkel és letöltésekkel szembeni védekezésért</translation>
@@ -558,6 +557,7 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="6539493053177300926">Könnyen hozzáférhet a Gemini a Chrome-ban szolgáltatáshoz az eszközén, még akkor is, ha a Chromium kis méretre van állítva.</translation>
 <translation id="6585124893636629274">A Gemini a Chrome-ban bezárása</translation>
 <translation id="659498884637196217">A Google Jelszókezelőben ezen az eszközön</translation>
+<translation id="6613949864921837107">Ha a Chrome-ot állítja be alapértelmezett böngészőként, jelszavai, könyvjelzői és előzményei tökéletesen szinkronizálódnak az eszközök között.</translation>
 <translation id="6631524303639368205">Ott folytathatja, ahol abbahagyta: a Chrome visszaállította a lapokat az előző munkamenetből. Ezt a következő helyen kapcsolhatja ki:</translation>
 <translation id="6632473616050862500">A ChromeOS Flex létrejöttéhez egyéb <ph name="BEGIN_LINK_CROS_OSS" />nyílt forráskódú szoftverek<ph name="END_LINK_CROS_OSS" /> is hozzájárultak.</translation>
 <translation id="6634299872736643004">A beállítás módosításai a Chrome újraindítása után lépnek érvénybe.</translation>
@@ -683,7 +683,6 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="7804364787702057554">Az Ön fiókja a Chrome-ban</translation>
 <translation id="7804947029129221742">A keresőmotor a Chrome-on kívülről lett módosítva. A Chrome visszaállította az eredeti, alapértelmezett motort az Ön biztonsága érdekében. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Eltávolítás a Chrome-ból…</translation>
-<translation id="7812800388699096556">Illusztráció, amely bemutatja, hogyan használhatja a Google Lens szolgáltatást egy termék megkeresésére</translation>
 <translation id="7827099906024714326">A Chrome-nak ellenőriznie kell az Ön személyazonosságát, mielőtt bizonyos adatokat menthetne az Ön Google-fiókjába, és minden eszközén használhatná őket. Ha most jelentkezik ki, akkor ezek az adatok törlődnek.</translation>
 <translation id="7832314606810669113">Ha az összes eszközén szeretne hozzáférni könyvjelzőihez és egyebekhez, jelentkezzen be a Chrome-ba Ezt a könyvjelzőt a rendszer az Ön Google-fiókjába menti a bejelentkezés után.</translation>
 <translation id="7845233973568007926">Köszönjük, hogy elvégezte a telepítést. A(z) <ph name="BUNDLE_NAME" /> használata előtt újra kell indítania a számítógépet.</translation>
@@ -822,7 +821,6 @@ Ha ez az oldal nem a várt módon működik, próbálkozzon az optimalizálás e
 <translation id="8999208279178790196">{0,plural, =0{Rendelkezésre áll egy Chrome-frissítés}=1{Rendelkezésre áll egy Chrome-frissítés}other{# napja rendelkezésre áll egy Chrome-frissítés}}</translation>
 <translation id="9014771989710951291">Több szervezet is kezeli a Chrome-ot</translation>
 <translation id="9018218886431812662">A telepítés befejeződött</translation>
-<translation id="9024318700713112071">A Chrome beállítása alapértelmezettként</translation>
 <translation id="9066987883552592250">A Gemini bezárása a Chrome Canaryban</translation>
 <translation id="9074041031320636790">Sikerült! Mostantól egyszerűen tehet fel kérdéseket böngészés közben a Google Kereső AI-módjával.</translation>
 <translation id="9090566250983691233">További információ arról, hogy miért tilt le bizonyos fájlokat a Chrome</translation>

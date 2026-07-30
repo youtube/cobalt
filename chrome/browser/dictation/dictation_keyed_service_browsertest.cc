@@ -23,11 +23,13 @@
 #include "chrome/common/extensions/api/dictation_private.h"
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/platform_browser_test.h"
+#include "content/public/browser/global_dom_node_id.h"
 #include "content/public/browser/web_contents_observer.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
 #include "extensions/common/switches.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "third_party/blink/public/common/dom/dom_node_id.h"
 #include "ui/views/widget/widget.h"
 #include "ui/views/widget/widget_delegate.h"
 #include "ui/views/window/dialog_delegate.h"
@@ -141,6 +143,9 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                        ExecuteContextMenuCommand) {
   content::ContextMenuParams params;
   params.is_editable = true;
+  params.form_field_dom_node_id = content::GlobalDOMNodeId(
+      web_contents()->GetPrimaryMainFrame()->GetWeakDocumentPtr(),
+      blink::DOMNodeIdType(123));
   TestRenderViewContextMenu menu(*web_contents()->GetPrimaryMainFrame(),
                                  params);
   menu.Init();
@@ -154,6 +159,8 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
   StreamProvider* provider = session_controller()->attached_stream_provider();
   ASSERT_NE(provider, nullptr);
   ASSERT_NE(provider->GetTarget(), nullptr);
+  EXPECT_EQ(provider->GetTarget()->global_dom_node_id().target_element_dom_id,
+            blink::DOMNodeIdType(123));
 }
 
 // TODO(crbug.com/502587072): Add tests which have the test extension simulate
@@ -366,7 +373,13 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                     "until crbug.com/525856380 is fixed.";
   }
 
-  StartSession();
+  std::optional<int> dom_node_id =
+      content::GetDOMNodeId(*web_contents()->GetPrimaryMainFrame(), "#text_id");
+  ASSERT_TRUE(dom_node_id.has_value());
+
+  StartSession(content::GlobalDOMNodeId{
+      web_contents()->GetPrimaryMainFrame()->GetWeakDocumentPtr(),
+      blink::DOMNodeIdType(dom_node_id.value())});
 
   SessionController* controller = session_controller();
   ListenerStreamProvider* provider = static_cast<ListenerStreamProvider*>(
@@ -418,9 +431,15 @@ IN_PROC_BROWSER_TEST_F(DictationKeyedServiceBrowserTest,
                     "until crbug.com/525856380 is fixed.";
   }
 
+  std::optional<int> dom_node_id =
+      content::GetDOMNodeId(*web_contents()->GetPrimaryMainFrame(), "#text_id");
+  ASSERT_TRUE(dom_node_id.has_value());
+
   // Start a new session and stream, commit some text, and stop.
   {
-    StartSession();
+    StartSession(content::GlobalDOMNodeId{
+        web_contents()->GetPrimaryMainFrame()->GetWeakDocumentPtr(),
+        blink::DOMNodeIdType(dom_node_id.value())});
 
     ASSERT_TRUE(attached_stream());
     auto stream_id = attached_stream()->stream_id_for_testing();

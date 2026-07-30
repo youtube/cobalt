@@ -361,7 +361,14 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kAcceleratedVideoDecodeLinux);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAcceleratedVideoDecodeLinuxGL);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAcceleratedVideoEncodeLinux);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kVaapiIgnoreDriverChecks);
+#if BUILDFLAG(USE_VAAPI) && BUILDFLAG(USE_V4L2_CODEC)
+// When both VA-API and V4L2 are compiled in, selects the active backend:
+// disabled (default) => VA-API, enabled => V4L2. Toggle via
+// --enable-features=PreferV4L2VideoAcceleration.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kPreferV4L2VideoAcceleration);
+#endif
 #endif  // BUILDFLAG(IS_LINUX)
+
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kVaapiOnNvidiaGPUs);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kVaapiLowPowerEncoderGen9x);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kVaapiVideoMinResolutionForPerformance);
@@ -402,7 +409,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kFullscreenVideoPictureInPicture);
 
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecBlockModel);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecLowDelayMode);
-MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaControlsExpandGesture);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaDrmPersistentLicense);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaDrmPreprovisioning);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaDrmPreprovisioningAtStartup);
@@ -647,6 +653,9 @@ MEDIA_EXPORT uint32_t GetPassthroughAudioFormats();
 #if BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseMediaFormatCodedSize);
 #endif
+
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kRustMpegAudioDataParser);
+
 }  // namespace media
 
 #endif  // MEDIA_BASE_MEDIA_SWITCHES_H_

@@ -268,6 +268,7 @@ def fuzz_target_builder(
         clusterfuzz_ios_targets_only = None,
         clusterfuzz_v8_targets_only = None,
         use_ssd_for_test_builder = False,
+        free_space_for_test_builder = None,
         contact_team_email = "chrome-fuzzing-core@google.com",
         **kwargs):
     if not name and not test_builder_name:
@@ -350,6 +351,9 @@ def fuzz_target_builder(
 
     if "ssd" in kwargs:
         kwargs["ssd"] = use_ssd_for_test_builder
+
+    if free_space_for_test_builder != None:
+        kwargs["free_space"] = free_space_for_test_builder
 
     ci_builder(
         name = test_builder_name,
@@ -460,6 +464,28 @@ browser_asan_builder(
     siso_remote_jobs = 250,
 )
 
+# TODO(crbug.com/531402315): After verifying BRPV2 is as good as BRPV1, make
+# it the default and clean up this builder.
+browser_asan_builder(
+    name = "ASAN Release BrpV2",
+    description_html = "This builder produces an ASAN Chromium build with AsanBackupRefPtrV2.",
+    # TODO(crbug.com/531402315): Add to gardener rotation after verifying
+    gardener_rotations = args.ignore_default(None),
+    build_config = builder_config.build_config.RELEASE,
+    target_bits = 64,
+    target_platform = builder_config.target_platform.LINUX,
+    clusterfuzz_archive_name_prefix = "asan-brp-v2",
+    contact_team_email = "chrome-sanitizer-builder-owners@google.com",
+    gn_extra_configs = [
+        "lsan",
+        "fuzzer",
+        "v8_heap",
+        "enable_asan_backup_ref_ptr_v2",
+    ],
+    max_concurrent_invocations = 1,
+    siso_remote_jobs = 250,
+)
+
 ci.builder(
     name = "ASAN Release V8 Sandbox Testing",
     description_html = "This builder produces an ASan Chromium build in the V8 Sandbox Testing configuration.",
@@ -530,15 +556,15 @@ ci_builder(
     android_config_name = "base_config",
     chromium_config_name = "main_builder",
     clusterfuzz_archive = builder_config.clusterfuzz_archive(
+        # TODO(https://crbug.com/527836546): Remove `archive_name_prefix` once
+        # `builder_config.clusterfuzz_archive()` does not require its presence.
         archive_name_prefix = "asan",
-
-        # TODO(https://crbug.com/525381517): Replace this with
-        # "android-release-desktop-x64/asan-android-release" and set
-        # `use_archive_path` to True.
-        archive_path = "linux-release-desktop-x64/asan-linux-release",
-        archive_subdir = "desktop-x64",
+        archive_path = "android-release-desktop-x64/asan-android-release",
         gs_acl = "public-read",
         gs_bucket = "chromium-browser-asan",
+
+        # TODO(https://crbug.com/527836546): Flip default to true and remove.
+        use_archive_path = True,
     ),
     console_category = "android",
     console_short_name = "asan-x64",
@@ -581,9 +607,11 @@ def centipede_linux_asan_builder(
 centipede_linux_asan_builder(
     name = "Centipede Upload Linux ASan",
     branch_selector = branches.selector.LINUX_BRANCHES,
+    free_space = builders.free_space.high,
     clusterfuzz_archive_name_prefix = "centipede",
     console_short_name = "cent",
     execution_timeout = 6 * time.hour,
+    free_space_for_test_builder = builders.free_space.standard,
     gn_extra_configs = [
         "chromeos_codecs",
         "pdf_xfa",

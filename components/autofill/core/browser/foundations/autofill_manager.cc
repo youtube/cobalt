@@ -317,10 +317,6 @@ void AutofillManager::OnFormsSeen(std::vector<FormData> updated_forms,
         if (!parsed_forms.empty()) {
           self.OnFormsParsed(parsed_forms, forms_seen_timestamp);
         }
-        if (!base::FeatureList::IsEnabled(
-                features::kAutofillManagerFiresOnAfterFooIfCacheIsFull)) {
-          updated_form_ids = base::ToVector(parsed_forms, &FormData::global_id);
-        }
         self.NotifyObservers(&Observer::OnAfterFormsSeen, updated_form_ids,
                              removed_form_ids);
       },
@@ -560,6 +556,19 @@ void AutofillManager::OnJavaScriptChangedAutofilledValue(
               form.global_id(), field_id)));
 }
 
+void AutofillManager::OnDidDetectJavaScriptAutofill(
+    const FormData& form,
+    const FieldGlobalId& trigger_field_id,
+    const std::vector<FieldGlobalId>& field_ids) {
+  if (!IsValidFormData(form)) {
+    return;
+  }
+  ParseFormAsync(
+      form, ParsingCallback(&AutofillManager::OnDidDetectJavaScriptAutofillImpl,
+                            trigger_field_id, field_ids)
+                .Then(base::BindOnce([](AutofillManager&) {})));
+}
+
 const FormStructure* AutofillManager::FindCachedFormById(
     const FormGlobalId& form_id) const {
   auto it = form_structures_.find(form_id);
@@ -583,6 +592,16 @@ FormStructure* AutofillManager::FindCachedFormById(
     const FormMutationPassKey& pass_key) {
   return const_cast<FormStructure*>(
       std::as_const(*this).FindCachedFormById(form_id));
+}
+
+AutofillManager::FormAndField AutofillManager::FindFormAndField(
+    const FormGlobalId& form_id,
+    const FieldGlobalId& field_id) const {
+  const FormStructure* cached_form = FindCachedFormById(form_id);
+  if (!cached_form) {
+    return {};
+  }
+  return {cached_form, cached_form->GetFieldById(field_id)};
 }
 
 void AutofillManager::ForEachCachedForm(
@@ -682,10 +701,7 @@ void AutofillManager::ParseFormAsync(
       kAutofillManagerMaxFormCacheSize) {
     LOG_AF(log_manager()) << LoggingScope::kAbortParsing
                           << LogMessage::kAbortParsingTooManyForms << form;
-    if (base::FeatureList::IsEnabled(
-            features::kAutofillManagerFiresOnAfterFooIfCacheIsFull)) {
       std::move(callback).Run(*this, form);
-    }
     return;
   }
 

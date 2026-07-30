@@ -1256,6 +1256,7 @@ class MockUDPClientSocket : public DatagramClientSocket, public AsyncSocket {
       pending_read_datagrams_callback_;
   size_t pending_max_packet_size_ = 0;
   CompletionOnceCallback pending_write_callback_;
+  CompletionOnceCallback pending_connect_callback_;
 
   NetLogWithSource net_log_;
 
@@ -1619,9 +1620,9 @@ uint64_t GetTaggedBytes(int32_t expected_tag);
 // and using that data to validate expected behavior. We take this walk
 // about 100 times as there is randomization in the transition points.
 void ValidateAdditionalCapacityForSocketPool(
-    base::RepeatingCallback<SocketPoolState()> request_socket,
+    base::RepeatingCallback<SocketPoolExpandability()> request_socket,
     base::RepeatingCallback<void()> wait_for_socket_initialization,
-    base::RepeatingCallback<SocketPoolState()> release_socket,
+    base::RepeatingCallback<SocketPoolExpandability()> release_socket,
     base::RepeatingCallback<size_t()> sockets_in_use);
 
 }  // namespace net

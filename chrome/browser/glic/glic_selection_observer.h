@@ -32,6 +32,7 @@ class RenderFrameHost;
 }  // namespace content
 
 class BrowserWindowInterface;
+enum class ToastId;
 
 namespace optimization_guide {
 class PageContextEligibilityObserver;
@@ -121,6 +122,7 @@ class GlicSelectionObserver
   void OnCopyLink();
   void OnHideForThisSite();
   void OnSettings();
+  void ShowHiddenToast(ToastId toast_id);
 
   void CopyLinkToHighlight(content::WeakDocumentPtr weak_document_ptr);
 
@@ -135,7 +137,8 @@ class GlicSelectionObserver
 
   void RequestLinkGeneration(content::RenderFrameHost* rfh);
 
-  void OnPageContextEligibilityChanged(std::optional<bool> is_eligible);
+  void OnPageContextEligibilityChanged(
+      optimization_guide::PageContextEligibilityStatus status);
   void CreatePageContextEligibilityAPI(std::string account);
   void OnPageContextEligibilityAPILoaded(
       std::string account,
@@ -189,7 +192,7 @@ class GlicSelectionObserver
   friend class GlicSelectionObserverTest;
 
  protected:
-  std::optional<bool> IsPageContextEligible() const;
+  bool IsPageContextEligible() const;
 
   ::optimization_guide::PageContextEligibilityObserver* page_context_tracker() {
     return page_context_tracker_.get();

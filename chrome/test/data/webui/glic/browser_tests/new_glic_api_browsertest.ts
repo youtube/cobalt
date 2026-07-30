@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {CancelActionsResult, ClientCapabilities, ExperimentalTriggeringUpdateType, FormFactor, HostCapability, PanelStateKind, SbThreatType, ScrollToErrorReason, SkillSource, WebClientMode} from '/glic/glic_api/glic_api.js';
+import {CancelActionsResult, ClientCapabilities, ExperimentalTriggeringUpdateType, FormFactor, HostCapability, PanelStateKind, SbThreatType, ScreenshotEncryptionScheme, ScrollToErrorReason, SkillSource, WebClientMode} from '/glic/glic_api/glic_api.js';
 import type {AdditionalContext, CounterAbuseVerdict, ExperimentalTriggeringUpdate, FocusedTabData, GetPinCandidatesOptions, GlicBrowserHost, GlicWebClient, InvokeOptions, Observable, Observable2, OpenPanelInfo, PageMetadata, PanelOpeningData, PanelState, ScrollToError, TabData, ZeroStateSuggestionsV2} from '/glic/glic_api/glic_api.js';
 import {Subject} from '/glic/observable.js';
 
@@ -148,6 +148,14 @@ class ApiTests extends ApiTestFixtureBase {
     assertDefined(activated);
     assertEquals(activated.tabId, createdProd.tabId);
     assertEquals(activated.url, prodUrl);
+
+    // Activating a non-existent URL should fall back to creating a new tab
+    // without showing the Glic side panel.
+    const fallbackUrl = location.href + '&nonexistent=1#activate_fallback';
+    const fallbackCreated = await this.host.activateTabWithUrl(
+        fallbackUrl, {pattern: '*activate_nonexistent*'});
+    assertDefined(fallbackCreated);
+    assertEquals(fallbackCreated.url, fallbackUrl);
   }
 
   async testCreateTabFailsWithUnsupportedScheme() {
@@ -609,7 +617,21 @@ class ApiTests extends ApiTestFixtureBase {
     assertEquals(0, suggestions.suggestions.length);
   }
 
-  async testNoZssWarmingForPromotionPage() {
+  async testNoZssWarmingStateMachine() {
+    assertDefined(this.host.getZeroStateSuggestionsForFocusedTab);
+    const suggestions = await this.host.getZeroStateSuggestionsForFocusedTab();
+    assertDefined(suggestions);
+    assertEquals(3, suggestions.suggestions.length);
+  }
+
+  async testNoZssWarmingStateMachineImplicitPreservesDisabled() {
+    assertDefined(this.host.getZeroStateSuggestionsForFocusedTab);
+    const suggestions = await this.host.getZeroStateSuggestionsForFocusedTab();
+    assertDefined(suggestions);
+    assertEquals(3, suggestions.suggestions.length);
+  }
+
+  async testNoZssWarmingStateMachineImplicitPreservesEnabled() {
     assertDefined(this.host.getZeroStateSuggestionsForFocusedTab);
     const suggestions = await this.host.getZeroStateSuggestionsForFocusedTab();
     assertDefined(suggestions);
@@ -694,6 +716,14 @@ class ApiTests extends ApiTestFixtureBase {
     this.host.processCounterAbuseVerdict(tabData.tabId, verdict);
 
     await this.advanceToNextStep();
+  }
+
+  async testProcessCounterAbuseVerdictWhenSafeBrowsingDisabled() {
+    await this.testProcessCounterAbuseVerdict();
+  }
+
+  async testProcessCounterAbuseVerdictWhenUrlAllowlistedByPolicy() {
+    await this.testProcessCounterAbuseVerdict();
   }
 
   async testProcessCounterAbuseVerdictIsUndefinedWhenFeatureDisabled() {
@@ -948,6 +978,45 @@ class ApiTests extends ApiTestFixtureBase {
     assertEquals(
         PanelStateKind.ATTACHED,
         this.host.getPanelState().getCurrentValue()?.kind);
+  }
+
+  async testGetPanelStateAttachedHidden() {
+    assertDefined(this.host.getPanelState);
+    // getPanelState and notifyPanelWillOpen should signal the ATTACHED state.
+    const panelStates = observeSequence(this.host.getPanelState());
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+
+    // Open and select a second tab.
+    await this.advanceToNextStep();
+    await panelStates.waitFor(state => state.kind === PanelStateKind.HIDDEN);
+
+    // Select the first tab again.
+    await this.advanceToNextStep();
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+  }
+
+  async testCanAttachPanelSidePanel() {
+    assertDefined(this.host.getPanelState);
+    assertDefined(this.host.canAttachPanel);
+
+    const panelStates = observeSequence(this.host.getPanelState());
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+
+    await observeSequence(this.host.canAttachPanel()).waitForValue(false);
+  }
+
+  async testCanAttachPanelDetached() {
+    assertDefined(this.host.getPanelState);
+    assertDefined(this.host.detachPanel);
+    assertDefined(this.host.canAttachPanel);
+
+    const panelStates = observeSequence(this.host.getPanelState());
+    await panelStates.waitFor(state => state.kind === PanelStateKind.ATTACHED);
+
+    this.host.detachPanel();
+    await panelStates.waitFor(state => state.kind === PanelStateKind.DETACHED);
+
+    await observeSequence(this.host.canAttachPanel()).waitForValue(true);
   }
 }
 
@@ -1602,6 +1671,17 @@ class InitiallyNotResizableTest extends ApiTestFixtureBase {
   }
 }
 
+class ScreenshotTests extends ApiTestFixtureBase {
+  async testCaptureAndUploadEncryptedScreenshot() {
+    await runUntil(() => this.client.lastUploadedScreenshot !== null);
+    assertDefined(this.client.lastUploadedScreenshot);
+    assertTrue(this.client.lastUploadedScreenshot!.data.byteLength > 0);
+    assertEquals(
+        this.client.lastUploadedScreenshot!.encryptionScheme,
+        ScreenshotEncryptionScheme.RFC8291);
+  }
+}
+
 const TEST_FIXTURES: Array<typeof ApiTestFixtureBase> = [
   ApiTests,
   AdditionalContextQueuedTest,
@@ -1610,6 +1690,7 @@ const TEST_FIXTURES: Array<typeof ApiTestFixtureBase> = [
   InvokeTest,
   ApiTestFailsToInitialize,
   TriggeringUpdatesTest,
+  ScreenshotTests,
 ];
 
 

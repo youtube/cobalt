@@ -49,6 +49,7 @@ export {getTrustedHTML} from 'chrome://resources/js/static_types.js';
 export {SettingsAboutPageElement} from './about_page/about_page.js';
 export {ControlledRadioButtonElement} from './controls/controlled_radio_button.js';
 export {SettingsDropdownMenuElement} from './controls/settings_dropdown_menu.js';
+export {SettingsRadioGroupElement} from './controls/settings_radio_group.js';
 export {SettingsToggleButtonElement} from './controls/settings_toggle_button.js';
 // clang-format off
 // <if expr="_google_chrome">
@@ -154,6 +155,7 @@ export type {SearchManager} from './search_settings.js';
 export {SettingsMainElement} from './settings_main/settings_main.js';
 export {SettingsMenuElement} from './settings_menu/settings_menu.js';
 export {SearchableViewContainerMixin} from './settings_page/searchable_view_container_mixin.js';
+export {SearchableViewContainerMixinLit} from './settings_page/searchable_view_container_mixin_lit.js';
 export {SettingsSectionElement} from './settings_page/settings_section.js';
 export {SettingsViewMixin} from './settings_page/settings_view_mixin.js';
 export {SettingsViewMixinLit} from './settings_page/settings_view_mixin_lit.js';

@@ -10,7 +10,9 @@
 #include "base/callback_list.h"
 #include "base/functional/callback_forward.h"
 #include "base/functional/callback_helpers.h"
+#include "base/memory/raw_ref.h"
 #include "net/base/net_export.h"
+#include "net/device_bound_sessions/cookie_access_check_params.h"
 #include "net/device_bound_sessions/deletion_reason.h"
 #include "net/device_bound_sessions/registration_fetcher_param.h"
 #include "net/device_bound_sessions/session.h"
@@ -26,9 +28,32 @@ class FirstPartySetMetadata;
 class IsolationInfo;
 class URLRequestContext;
 class HttpRequestHeaders;
+class SSLCertRequestInfo;
+class X509Certificate;
+class SSLPrivateKey;
 }  // namespace net
 
 namespace net::device_bound_sessions {
+
+// Callback invoked when a client certificate selection has finished.
+// `cert` and `key` are the selected certificate and its private key. Both are
+// null if no certificate was selected or the request was cancelled.
+// `cancel` is true if the request should be aborted (e.g. user cancelled the
+// prompt), or false if it should continue (either with a certificate or without
+// one).
+using SelectClientCertificateCallback =
+    base::OnceCallback<void(scoped_refptr<X509Certificate> cert,
+                            scoped_refptr<SSLPrivateKey> key,
+                            bool cancel)>;
+
+// Handler invoked by the SessionService to select a client certificate for a
+// Device Bound session request (registration or refresh).
+// When the certificate selection is complete, the handler must run the
+// provided `callback`.
+using SelectClientCertificateHandler =
+    base::RepeatingCallback<void(const GURL& url,
+                                 scoped_refptr<SSLCertRequestInfo> cert_info,
+                                 SelectClientCertificateCallback callback)>;
 
 // Main class for Device Bound Session Credentials (DBSC).
 // Full information can be found at https://github.com/WICG/dbsc
@@ -37,6 +62,8 @@ class NET_EXPORT SessionService {
   using OnAccessCallback = base::RepeatingCallback<void(const SessionAccess&)>;
   using OnEventCallback = base::RepeatingCallback<void(const SessionEvent&)>;
   using RefreshCompleteCallback = base::OnceCallback<void(RefreshResult)>;
+  using CookieAccessCallback =
+      base::RepeatingCallback<bool(const CookieAccessCheckParams&)>;
 
   // Indicates the reason for deferring. Exactly one of
   // `is_pending_initialization` or `session_id` will be truthy.
@@ -79,7 +106,9 @@ class NET_EXPORT SessionService {
   // platform or the device.
   static std::unique_ptr<SessionService> Create(
       const URLRequestContext* request_context,
-      const std::vector<SchemefulSite>& restricted_sites);
+      const std::vector<SchemefulSite>& restricted_sites,
+      SelectClientCertificateHandler client_cert_handler,
+      CookieAccessCallback has_cookie_access_cb = base::NullCallback());
 
   SessionService(const SessionService&) = delete;
   SessionService& operator=(const SessionService&) = delete;
@@ -211,6 +240,11 @@ class NET_EXPORT SessionService {
       DbscRequest& request,
       HttpResponseHeaders* headers,
       const FirstPartySetMetadata& first_party_set_metadata) = 0;
+
+  virtual void SelectClientCertificate(
+      const GURL& url,
+      scoped_refptr<SSLCertRequestInfo> cert_info,
+      SelectClientCertificateCallback callback) = 0;
 
  protected:
   SessionService() = default;

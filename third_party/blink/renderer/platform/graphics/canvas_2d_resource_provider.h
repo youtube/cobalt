@@ -136,7 +136,6 @@ class PLATFORM_EXPORT CanvasResourceProviderDelegate {
 // * by Canvas2D.
 class PLATFORM_EXPORT Canvas2DResourceProvider
     : public CanvasResourceSharedImage::Client,
-      public FlushForImageObserver,
       public WebGraphicsContext3DProviderWrapper::DestructionObserver,
       public viz::ContextLostObserver,
       public BitmapGpuChannelLostObserver,
@@ -202,6 +201,73 @@ class PLATFORM_EXPORT Canvas2DResourceProvider
         shared_image_interface_provider, delegate);
   }
 
+  ~Canvas2DResourceProvider() override;
+
+  gpu::SharedImageUsageSet GetSharedImageUsageFlags() const;
+  bool unused_resources_reclaim_timer_is_running_for_testing() const;
+  bool HasUnusedResourcesForTesting() const;
+  bool IsSingleBuffered() const;
+
+  bool IsAccelerated() const { return is_accelerated_; }
+  bool IsSoftware() const { return is_software_; }
+  void SetDelegate(CanvasResourceProviderDelegate* delegate) {
+    delegate_ = delegate;
+  }
+  bool IsPrinting() const { return delegate_ && delegate_->IsPrinting(); }
+
+  viz::SharedImageFormat GetSharedImageFormat() const { return format_; }
+  const gfx::ColorSpace& GetColorSpace() const { return color_space_; }
+  const gfx::HDRMetadata& GetHdrMetadata() const { return hdr_metadata_; }
+  SkAlphaType GetAlphaType() const { return alpha_type_; }
+  gfx::Size Size() const { return size_; }
+
+  size_t max_recorded_op_bytes() const { return max_recorded_op_bytes_; }
+  size_t max_pinned_image_bytes() const { return max_pinned_image_bytes_; }
+  bool clear_frame() const { return clear_frame_; }
+
+  int NumInflightResourcesForTesting() const { return num_inflight_resources_; }
+  base::ByteSize EstimatedSizeInBytes() const;
+
+  virtual scoped_refptr<CanvasResource> ProduceCanvasResource();
+  void OnFlushForImage(cc::PaintImage::ContentId content_id);
+
+  bool IsValid() const;
+  virtual scoped_refptr<StaticBitmapImage> Snapshot(
+      ImageOrientation = ImageOrientationEnum::kDefault);
+  std::optional<cc::PaintRecord> Flush(FlushReason = FlushReason::kOther);
+  void ReleaseImageProviderImages();
+  const std::optional<cc::PaintRecord>& LastRecording();
+
+  void SetAnimatedImageFrameIndexes(
+      scoped_refptr<const cc::AnimatedImageFrameIndexMap>);
+  virtual bool WritePixels(const SkImageInfo& orig_info,
+                           const void* pixels,
+                           size_t row_bytes,
+                           int x,
+                           int y);
+
+  const MemoryManagedPaintRecorder& Recorder() const { return *recorder_; }
+  MemoryManagedPaintRecorder& Recorder() { return *recorder_; }
+  std::unique_ptr<MemoryManagedPaintRecorder> ReleaseRecorder();
+  void SetRecorder(std::unique_ptr<MemoryManagedPaintRecorder> recorder);
+
+  void SetResourceRecyclingEnabled(bool value);
+
+  // Signals that the ongoing transfer of this resource to WebGPU has completed,
+  // passing the token that should be waited on to ensure that the service-side
+  // operations of the WebGPU write have completed. Ensures that the next read
+  // of this resource (whether via raster or the compositor) waits on this
+  // token.
+  void TransferBackFromWebGPU(const gpu::SyncToken& webgpu_write_sync_token);
+
+  void AlwaysEnableRasterTimersForTesting(bool value) {
+    always_enable_raster_timers_for_testing_ = value;
+  }
+  virtual void RasterRecord(cc::PaintRecord last_recording);
+  MemoryManagedPaintCanvas& GetCanvasForTesting();
+  void RestoreBackBuffer(const cc::PaintImage&);
+
+ protected:
   Canvas2DResourceProvider(gfx::Size,
                            viz::SharedImageFormat,
                            SkAlphaType,
@@ -218,94 +284,34 @@ class PLATFORM_EXPORT Canvas2DResourceProvider
                            const gfx::HDRMetadata&,
                            WebGraphicsSharedImageInterfaceProvider*,
                            CanvasResourceProviderDelegate*);
-  ~Canvas2DResourceProvider() override;
 
+  scoped_refptr<UnacceleratedStaticBitmapImage> UnacceleratedSnapshot(
+      ImageOrientation);
+
+ private:
   void ClearUnusedResources();
-  gpu::SharedImageUsageSet GetSharedImageUsageFlags() const;
-  bool unused_resources_reclaim_timer_is_running_for_testing() const;
-  bool HasUnusedResourcesForTesting() const;
-  bool IsSingleBuffered() const;
-
-  bool IsAccelerated() const { return is_accelerated_; }
-  bool IsSoftware() const { return is_software_; }
   bool IsGpuContextLost() const;
-  void SetDelegate(CanvasResourceProviderDelegate* delegate) {
-    delegate_ = delegate;
-  }
-  bool IsPrinting() const { return delegate_ && delegate_->IsPrinting(); }
-
-  viz::SharedImageFormat GetSharedImageFormat() const { return format_; }
-  const gfx::ColorSpace& GetColorSpace() const { return color_space_; }
-  const gfx::HDRMetadata& GetHdrMetadata() const { return hdr_metadata_; }
-  SkAlphaType GetAlphaType() const { return alpha_type_; }
-  gfx::Size Size() const { return size_; }
-
-  size_t max_recorded_op_bytes() const { return max_recorded_op_bytes_; }
-  size_t max_pinned_image_bytes() const { return max_pinned_image_bytes_; }
-  bool clear_frame() const { return clear_frame_; }
 
   // WebGraphicsContext3DProviderWrapper::DestructionObserver implementation.
   void OnContextDestroyed() override;
   void OnResourceRefReturned(
       scoped_refptr<CanvasResourceSharedImage>&& resource) override;
   void OnDestroyResource() override { --num_inflight_resources_; }
-  int NumInflightResourcesForTesting() const { return num_inflight_resources_; }
-  base::ByteSize EstimatedSizeInBytes() const;
   // CanvasMemoryDumpClient implementation.
   void OnMemoryDump(base::trace_event::ProcessMemoryDump* pmd) override;
   size_t GetSize() const override;
-
-  virtual scoped_refptr<CanvasResource> ProduceCanvasResource();
 
   void EnsureWriteAccess();
   void EndWriteAccess();
 
   scoped_refptr<CanvasResourceSharedImage> NewOrRecycledResource();
 
-  void OnFlushForImage(cc::PaintImage::ContentId content_id) override;
-  virtual void RasterRecord(cc::PaintRecord last_recording);
-  bool IsValid() const;
-  virtual scoped_refptr<StaticBitmapImage> Snapshot(
-      ImageOrientation = ImageOrientationEnum::kDefault);
-  std::optional<cc::PaintRecord> Flush(FlushReason = FlushReason::kOther);
-  const std::optional<cc::PaintRecord>& LastRecording();
-
-  void SetAnimatedImageFrameIndexes(
-      scoped_refptr<const cc::AnimatedImageFrameIndexMap>);
-  virtual bool WritePixels(const SkImageInfo& orig_info,
-                           const void* pixels,
-                           size_t row_bytes,
-                           int x,
-                           int y);
-
-  const MemoryManagedPaintRecorder& Recorder() const { return *recorder_; }
-  MemoryManagedPaintRecorder& Recorder() { return *recorder_; }
-  std::unique_ptr<MemoryManagedPaintRecorder> ReleaseRecorder();
-  void SetRecorder(std::unique_ptr<MemoryManagedPaintRecorder> recorder);
   // MemoryManagedPaintRecorder::Client implementation.
   void InitializeForRecording(cc::PaintCanvas* canvas) const override;
   void RecordingCleared() override;
 
-  void SetResourceRecyclingEnabled(bool value);
-
-  // Signals that the ongoing transfer of this resource to WebGPU has completed,
-  // passing the token that should be waited on to ensure that the service-side
-  // operations of the WebGPU write have completed. Ensures that the next read
-  // of this resource (whether via raster or the compositor) waits on this
-  // token.
-  void TransferBackFromWebGPU(const gpu::SyncToken& webgpu_write_sync_token);
-
-  void AlwaysEnableRasterTimersForTesting(bool value) {
-    always_enable_raster_timers_for_testing_ = value;
-  }
-  ScopedRasterTimer CreateScopedRasterTimer();
-  MemoryManagedPaintCanvas& GetCanvasForTesting();
-  void RestoreBackBuffer(const cc::PaintImage&);
   void ApplyAnimatedImageFrameIndexesForId(SkCanvas* canvas, uint32_t id);
 
- protected:
-  scoped_refptr<UnacceleratedStaticBitmapImage> UnacceleratedSnapshot(
-      ImageOrientation);
   SkSurface* GetSkSurface() const;
   CanvasImageProvider* GetOrCreateSWCanvasImageProvider();
 

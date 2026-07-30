@@ -86,7 +86,7 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/glic/android/glic_keyed_service_android.h"
-#include "chrome/browser/glic/browser_ui/glic_nudge_controller_android.h"
+#include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #else
 #include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_controller.h"
@@ -243,6 +243,7 @@ void GlicKeyedService::ToggleUI(BrowserWindowInterface* bwi,
     return;
   }
 
+  enabling().MaybeRecordRecoveryOnInteraction();
   instance_coordinator().Toggle(
       bwi ? bwi : GetActiveGlicEligibleBrowser(profile_), prevent_close,
       source);
@@ -285,6 +286,7 @@ base::WeakPtr<GlicInstance> GlicKeyedService::InvokeWithAutoSubmit(
     InvokeWithAutoSubmitPasskey auto_submit_passkey,
     GlicInvokeOptions options,
     GlicInvokeWithAutoSubmitOptions auto_submit_options) {
+  enabling().MaybeRecordRecoveryOnInteraction();
   return static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator())
       .InvokeWithAutoSubmit(auto_submit_passkey, std::move(options),
                             std::move(auto_submit_options));
@@ -292,6 +294,7 @@ base::WeakPtr<GlicInstance> GlicKeyedService::InvokeWithAutoSubmit(
 
 base::WeakPtr<GlicInstance> GlicKeyedService::Invoke(
     GlicInvokeOptions options) {
+  enabling().MaybeRecordRecoveryOnInteraction();
   return static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator())
       .Invoke(std::move(options));
 }
@@ -489,17 +492,17 @@ base::WeakPtr<GlicKeyedService> GlicKeyedService::GetWeakPtr() {
 }
 
 void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
+  if (result == GlicPrewarmingChecksResult::kSuccess) {
+    if (!instance_coordinator().MaybeStartInitialWarming()) {
+      result = GlicPrewarmingChecksResult::kUnderMemoryPressure;
+    }
+  }
+
   base::UmaHistogramEnumeration("Glic.Prewarming.ChecksResult", result);
   if (preload_callback_) {
     base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(preload_callback_)));
   }
-
-  if (result != GlicPrewarmingChecksResult::kSuccess) {
-    return;
-  }
-
-  instance_coordinator().EnsurePreload();
 }
 
 GlicInstance* GlicKeyedService::GetInstanceForTab(tabs::TabInterface* tab) {
@@ -551,7 +554,7 @@ void GlicKeyedService::OnExperimentalTriggeringStateChanged() {
 // features) is supported on Android, move ownership of the nudge controller to
 // it (accessed via unowned user data and ::From methods), matching Desktop,
 // rather than storing it in GlicKeyedService.
-GlicNudgeControllerAndroid* GlicKeyedService::GetOrCreateNudgeController(
+GlicNudgeController* GlicKeyedService::GetOrCreateNudgeController(
     BrowserWindowInterface* browser) {
   if (!browser) {
     return nullptr;
@@ -561,7 +564,7 @@ GlicNudgeControllerAndroid* GlicKeyedService::GetOrCreateNudgeController(
     return it->second.get();
   }
 
-  auto controller = std::make_unique<GlicNudgeControllerAndroid>(browser);
+  auto controller = GlicNudgeController::CreateFor(browser);
   auto* controller_ptr = controller.get();
   nudge_controllers_[browser] = std::move(controller);
 

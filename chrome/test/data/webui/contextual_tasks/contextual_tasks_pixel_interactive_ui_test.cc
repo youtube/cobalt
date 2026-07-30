@@ -39,6 +39,8 @@ class FakeContextualTasksUiService
             /*eligibility_manager=*/nullptr,
             /*cookie_synchronizer=*/nullptr) {}
   GURL GetDefaultAiPageUrl() override { return GURL(url::kAboutBlankURL); }
+
+  bool IsAiUrl(const GURL& url) override { return true; }
 };
 
 class ContextualTasksPixelTestBase : public WebUIComposeBoxPixelTest {
@@ -84,7 +86,7 @@ class ContextualTasksPixelTestBase : public WebUIComposeBoxPixelTest {
     WebUIComposeBoxPixelTest::SetUpOnMainThread();
     identity_test_environment_adaptor_ =
         std::make_unique<IdentityTestEnvironmentProfileAdaptor>(
-            browser()->profile());
+            browser()->GetProfile());
 
     // Set up a fake identity to get an OAuth token, which allows the <webview>
     // to load the AI page correctly.

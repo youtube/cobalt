@@ -78,8 +78,12 @@ bool CanPerformAutofillAiAction(ProfileIOS* profile,
       IsWalletPublicPassStorageEnabled(profile), profile->IsOffTheRecord(),
       GeoIpCountryCode(GetCountryCodeFromVariations()),
       SubscriptionEligibilityServiceFactory::GetForProfile(profile),
-      personal_context::PersonalContextEnablementState::kDisabledNotEligible,
+      personal_context::PersonalContextEligibilityState::kDisabledNotEligible,
       action, entity_type);
+}
+
+bool IsAmbientAutofillEnabled() {
+  return base::FeatureList::IsEnabled(features::kAutofillAmbientAutofill);
 }
 
 bool IsAutofillAtMemoryEnabled() {
@@ -105,7 +109,7 @@ void SetEnhancedAutofillEnabled(ProfileIOS* profile, bool enabled) {
       original_profile->IsOffTheRecord(),
       GeoIpCountryCode(GetCountryCodeFromVariations()),
       SubscriptionEligibilityServiceFactory::GetForProfile(original_profile),
-      personal_context::PersonalContextEnablementState::kDisabledNotEligible,
+      personal_context::PersonalContextEligibilityState::kDisabledNotEligible,
       enabled ? AutofillAiOptInStatus::kOptedIn
               : AutofillAiOptInStatus::kOptedOut);
 }

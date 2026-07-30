@@ -197,6 +197,10 @@ public class ClearBrowsingDataFragment extends ChromeBaseSettingsFragment
     static final String PREF_MANAGE_OTHER_GOOGLE_DATA_EXPANDABLE =
             "manage_other_google_data_expandable";
 
+    static final String PREF_PASSWORD_MANAGER_LINK_OUT = "password_manager_link_out";
+    static final String PREF_SEARCH_HISTORY_LINK_OUT = "search_history_link_out";
+    static final String PREF_MY_ACTIVITY_LINK_OUT = "my_activity_link_out";
+
     /** The "Clear" button preference. */
     @VisibleForTesting public static final String PREF_CLEAR_BUTTON = "clear_button";
 
@@ -702,7 +706,27 @@ public class ClearBrowsingDataFragment extends ChromeBaseSettingsFragment
         ClearBrowsingDataExpandablePreferenceCategory manageOtherGoogleDataSection =
                 findPreference(PREF_MANAGE_OTHER_GOOGLE_DATA_EXPANDABLE);
 
-        manageOtherGoogleDataSection.setExpanded(true);
+        manageOtherGoogleDataSection.setOnExpandedListener(
+                () -> {
+                    updateManageOtherGoogleDataSectionContentVisibility();
+                });
+
+        manageOtherGoogleDataSection.setExpanded(false);
+    }
+
+    private void updateManageOtherGoogleDataSectionContentVisibility() {
+        ClearBrowsingDataExpandablePreferenceCategory manageOtherGoogleDataSection =
+                findPreference(PREF_MANAGE_OTHER_GOOGLE_DATA_EXPANDABLE);
+        assert manageOtherGoogleDataSection != null;
+
+        boolean isExpanded = manageOtherGoogleDataSection.isExpanded();
+        boolean isSignedIn = mSigninManager.getIdentityManager().hasPrimaryAccount();
+
+        findPreference(PREF_PASSWORD_MANAGER_LINK_OUT).setVisible(isExpanded);
+        findPreference(PREF_SEARCH_HISTORY_LINK_OUT).setVisible(isSignedIn && isExpanded);
+        findPreference(PREF_MY_ACTIVITY_LINK_OUT).setVisible(isSignedIn && isExpanded);
+
+        notifyPreferencesUpdated();
     }
 
     @Override
@@ -897,6 +921,22 @@ public class ClearBrowsingDataFragment extends ChromeBaseSettingsFragment
     @Override
     public void onSignOutAllowedChanged() {
         updateSignOutOfChromeText();
+    }
+
+    /** {@link SigninManager.SignInStateObserver} implementation. */
+    @Override
+    public void onSignedIn() {
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.DBD_PASSWORD_REMOVAL_ON_ANDROID)) {
+            updateManageOtherGoogleDataSectionContentVisibility();
+        }
+    }
+
+    /** {@link SigninManager.SignInStateObserver} implementation. */
+    @Override
+    public void onSignedOut() {
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.DBD_PASSWORD_REMOVAL_ON_ANDROID)) {
+            updateManageOtherGoogleDataSectionContentVisibility();
+        }
     }
 
     @Override

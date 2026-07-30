@@ -17,6 +17,7 @@ export function getHtml(this: NtpComposeboxElement) {
       part="composebox-entrypoint"
       exportparts="context-menu-entrypoint-icon, entrypoint-button"
       class="upload-button no-overlap"
+      disable-auto-reposition
       @add-tab-context="${this.onAddTabContext}"
       @delete-tab-context="${this.onDeleteTabContext}"
       @tool-click="${this.onToolClick}"
@@ -36,6 +37,7 @@ export function getHtml(this: NtpComposeboxElement) {
       .recentTabId="${this.recentTabId}"
       .smartTabSharingActive="${this.smartTabSharingActive}"
       .contextManagementInComposeboxEnabled="${this.contextManagementInComposeboxEnabled}"
+      .smartTabSharingVisible="${this.smartTabSharingVisible}"
       .searchboxLayoutMode="${this.searchboxLayoutMode}"
       .tabSuggestions="${this.tabSuggestions}"
       .hasImageFiles="${this.hasImageFiles()}"
@@ -47,13 +49,6 @@ export function getHtml(this: NtpComposeboxElement) {
       ?upload-button-disabled="${this.uploadButtonDisabled}"
       ?show-context-menu-description="${this.showContextMenuDescription}">
   </cr-composebox-contextual-entrypoint-and-menu>
-  ${this.shouldShowVoiceSearch() ? html`
-    <cr-icon-button id="voiceSearchButton" class="voice-icon"
-        part="voice-icon" iron-icon="cr:mic"
-        @click="${this.onVoiceSearchButtonClick}"
-        title="${this.i18n('voiceSearchButtonLabel')}">
-    </cr-icon-button>
-  ` : ''}
 </div>
   `;
   // clang-format on

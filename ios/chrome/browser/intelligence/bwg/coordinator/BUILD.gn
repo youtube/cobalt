@@ -22,6 +22,7 @@ source_set("coordinator") {
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/assistant/coordinator:commands",
     "//ios/chrome/browser/assistant/ui",
+    "//ios/chrome/browser/assistant/ui:detent",
     "//ios/chrome/browser/authentication/account_menu/coordinator",
     "//ios/chrome/browser/authentication/account_menu/public",
     "//ios/chrome/browser/authentication/ui_bundled:continuation",
@@ -55,7 +56,6 @@ source_set("coordinator") {
     "//ios/chrome/browser/signin/model",
     "//ios/chrome/browser/signin/model:authentication_service",
     "//ios/chrome/browser/signin/model:authentication_service_factory",
-    "//ios/public/provider/chrome/browser/bwg:bwg_api",
     "//ios/public/provider/chrome/browser/bwg:gemini_api",
     "//ios/web/public",
   ]

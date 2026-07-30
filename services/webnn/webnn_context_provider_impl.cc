@@ -113,21 +113,15 @@ void RecordDeviceType(const mojom::Device device) {
 
 #if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
 // Returns true if the request described by `options` should be served by the
-// renderer-process (in-process) TFLite backend instead of the GPU-process
-// TFLite/LiteRT backend. The GPU process attempts GPU device requests first
-// when the ChromeML GPU delegate is available there, and falls back to the
-// renderer-process TFLite backend otherwise (including for CPU and NPU).
+// renderer-process (in-process) TFLite/LiteRT backend instead of the
+// GPU-process backend. For `kGpu` device requests, the GPU process attempts
+// execution first using the LiteRT WebGPU accelerator
+// (`libLiteRtWebGpuAccelerator`, which is preloaded during
+// `PreSandboxWebNNInitialization()`). If no GPU accelerator is available or if
+// the request is for `kCpu` / `kNpu`, it falls back to the renderer-process
+// (in-process) TFLite/LiteRT backend.
 bool ShouldUseInProcessTflite(const mojom::CreateContextOptions& options) {
-#if BUILDFLAG(WEBNN_USE_CHROME_ML_API)
-  if (options.device == mojom::Device::kGpu) {
-    auto* chrome_ml = ml::ChromeML::Get();
-    if (chrome_ml && chrome_ml->HasCreateGpuDelegate() &&
-        chrome_ml->HasDestroyGpuDelegate()) {
-      return false;
-    }
-  }
-#endif
-  return true;
+  return options.device != mojom::Device::kGpu;
 }
 
 void FallbackInProcessTFLite(
@@ -538,9 +532,12 @@ void WebNNContextProviderImpl::CreateWebNNContext(
 #endif  // BUILDFLAG(IS_APPLE)
 
 #if BUILDFLAG(WEBNN_USE_LITERT)
-  // Returning a `kNotSupportedError` from `OnCreateWebNNContextImpl` lets the
-  // renderer's `ML::createContext` fallback path create the in-process TFLite
-  // context instead.
+  // Attempt to create a LiteRT GPU context (`ContextImplLiteRt`) in the GPU
+  // process using the WebGPU accelerator preloaded prior to sandbox lockdown
+  // (`PreSandboxWebNNInitialization()`). If context creation fails or is not
+  // supported, returning `kNotSupportedError` from `OnCreateWebNNContextImpl`
+  // lets the renderer's `ML::createContext` fallback path create the in-process
+  // TFLite/LiteRT context instead.
   if (!context_impl && !should_use_in_process_tflite &&
       base::FeatureList::IsEnabled(mojom::features::kWebNNLiteRT)) {
     CreateLiteRtContext(
@@ -805,9 +802,8 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
 
     // Create session options before posting context creation, so that
     // if no EP device is available we can fall back to TFLite/LiteRT.
-    OrtHardwareDeviceType device_type =
-        ort::WebnnToOrtDeviceType(options->device);
-    auto session_options_result = ort::SessionOptions::Create(device_type, env);
+    auto session_options_result =
+        ort::SessionOptions::Create(options.Clone(), env);
 
     if (!session_options_result.has_value()) {
       LOG(ERROR) << "[WebNN] Failed to create ONNX Runtime session options: "
@@ -818,6 +814,8 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
       // that delegates graph building/compilation to a per-EP-device Compiler
       // process. Fall back to another backend if no compatible EP device is
       // found.
+      OrtHardwareDeviceType device_type =
+          ort::WebnnToOrtDeviceType(options->device);
       std::optional<EpDeviceInfo> selected_device =
           env->SelectEpDeviceForCompiler(device_type);
       if (selected_device.has_value()) {
@@ -865,9 +863,9 @@ void WebNNContextProviderImpl::OnOrtEnvCreated(
   }
 
 #if BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
-  // If the request would be served by the renderer-process TFLite backend,
-  // skip the GPU-process TFLite/LiteRT fallbacks and instruct the renderer to
-  // create the in-process TFLite context instead.
+  // If the request would be served by the renderer-process TFLite/LiteRT
+  // backend, skip the GPU-process fallbacks and instruct the renderer to
+  // create the in-process context instead.
   if (ShouldUseInProcessTflite(*options)) {
     FallbackInProcessTFLite(std::move(callback));
     return;

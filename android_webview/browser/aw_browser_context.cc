@@ -79,6 +79,7 @@
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
 #include "components/url_formatter/url_fixer.h"
 #include "components/user_prefs/user_prefs.h"
+#include "components/visitedlink/browser/partitioned_visitedlink_writer.h"
 #include "components/visitedlink/browser/visitedlink_writer.h"
 #include "content/public/browser/browser_task_traits.h"
 #include "content/public/browser/browser_thread.h"
@@ -161,9 +162,17 @@ AwBrowserContext::AwBrowserContext(std::string name,
 
   CreateUserPrefService();
 
-  visitedlink_writer_ =
-      std::make_unique<visitedlink::VisitedLinkWriter>(this, this, false);
-  visitedlink_writer_->Init();
+  if (base::FeatureList::IsEnabled(features::kWebViewMigrateVisitedLinks)) {
+    partitioned_visitedlink_writer_ =
+        std::make_unique<visitedlink::PartitionedVisitedLinkWriter>(
+            this, this,
+            /*use_constant_salt=*/true);
+    partitioned_visitedlink_writer_->Init();
+  } else {
+    visitedlink_writer_ =
+        std::make_unique<visitedlink::VisitedLinkWriter>(this, this, false);
+    visitedlink_writer_->Init();
+  }
 
   EnsureResourceContextInitialized();
   prefetch_manager_ = std::make_unique<AwPrefetchManager>(this);
@@ -182,6 +191,8 @@ AwBrowserContext::AwBrowserContext(std::string name,
       std::make_unique<AwContentRestrictionManagerClient>();
   content_restriction_blocked_navigation_tracker_ =
       std::make_unique<AwContentRestrictionBlockedNavigationTracker>();
+  cross_origin_allow_list_matcher_ =
+      std::make_unique<origin_matcher::OriginMatcher>();
 
   if (auto* pm_registry =
           performance_manager::PerformanceManagerRegistry::GetInstance()) {
@@ -345,8 +356,13 @@ std::vector<std::string> AwBrowserContext::GetAuthSchemes() {
 }
 
 void AwBrowserContext::AddVisitedURLs(const std::vector<GURL>& urls) {
-  DCHECK(visitedlink_writer_);
-  visitedlink_writer_->AddURLs(urls);
+  if (base::FeatureList::IsEnabled(features::kWebViewMigrateVisitedLinks)) {
+    CHECK(partitioned_visitedlink_writer_);
+    partitioned_visitedlink_writer_->AddPseudoPartitionedVisitedLinks(urls);
+  } else {
+    CHECK(visitedlink_writer_);
+    visitedlink_writer_->AddURLs(urls);
+  }
 }
 
 AwQuotaManagerBridge* AwBrowserContext::GetQuotaManagerBridge() {
@@ -519,8 +535,9 @@ void AwBrowserContext::RebuildTable(
 
 void AwBrowserContext::BuildVisitedLinkTable(
     const scoped_refptr<VisitedLinkEnumerator>& enumerator) {
-  // Partitioned visited link hashtables are not supported in Android WebView,
-  // so this initialization path is not used.
+  // Android WebView gets :visited links history from each individual WebView's
+  // WebChromeClient.getVisitedHistory rather than handling them at the
+  // BrowserContext level. Therefore this initialization path is not used.
   enumerator->OnVisitedLinkComplete(true);
 }
 
@@ -794,7 +811,7 @@ void AwBrowserContext::AddQuicHints(JNIEnv* env,
 }
 
 void AwBrowserContext::SetServiceWorkerIoThreadClient(
-    JNIEnv* const env,
+    JNIEnv* env,
     const base::android::JavaRef<jobject>& io_thread_client) {
   sw_io_thread_client_ =
       base::android::ScopedJavaGlobalRef<jobject>(io_thread_client);
@@ -805,7 +822,7 @@ int AwBrowserContext::AllowedPrerenderingCount() const {
   return allowed_prerendering_count_;
 }
 
-void AwBrowserContext::SetAllowedPrerenderingCount(JNIEnv* const env,
+void AwBrowserContext::SetAllowedPrerenderingCount(JNIEnv* env,
                                                    int allowed_count) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   CHECK_GT(allowed_count, 0);
@@ -813,12 +830,12 @@ void AwBrowserContext::SetAllowedPrerenderingCount(JNIEnv* const env,
       std::min(allowed_count, kMaxAllowedPrerenderingCount);
 }
 
-void AwBrowserContext::ClearAllowedPrerenderingCount(JNIEnv* const env) {
+void AwBrowserContext::ClearAllowedPrerenderingCount(JNIEnv* env) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   allowed_prerendering_count_ = kDefaultAllowedPrerenderingCount;
 }
 
-void AwBrowserContext::WarmUpSpareRenderer(JNIEnv* const env) {
+void AwBrowserContext::WarmUpSpareRenderer(JNIEnv* env) {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
   base::TimeTicks start_time = base::TimeTicks::Now();
   content::RenderProcessHost* rph =
@@ -913,6 +930,34 @@ AwBrowserContext::CreateURLLoaderFactory() {
       std::move(url_loader_factory_params));
 
   return factory;
+}
+
+std::vector<std::string> AwBrowserContext::SetCrossOriginIsolatedAllowList(
+    JNIEnv* env,
+    const std::vector<std::string>& origin_patterns) {
+  std::unique_ptr<origin_matcher::OriginMatcher> allow_list =
+      std::make_unique<origin_matcher::OriginMatcher>();
+  std::vector<std::string> bad_patterns;
+
+  for (const std::string& pattern : origin_patterns) {
+    bool success = allow_list->AddRuleFromString(pattern);
+
+    if (!success) {
+      bad_patterns.push_back(pattern);
+    }
+  }
+
+  if (!bad_patterns.empty()) {
+    return bad_patterns;
+  }
+
+  cross_origin_allow_list_matcher_ = std::move(allow_list);
+  return {};
+}
+
+std::vector<std::string> AwBrowserContext::GetCrossOriginIsolatedAllowList(
+    JNIEnv* env) {
+  return cross_origin_allow_list_matcher_->Serialize();
 }
 
 }  // namespace android_webview

@@ -350,6 +350,7 @@
 <translation id="1542105669288201090">비즈니스 교육</translation>
 <translation id="1542830386724426410">결제 시 사용 가능한 카드 혜택 및 리워드를 표시합니다. 발급기관 약관이 적용됩니다. <ph name="CARD_BENEFIT_HELP_LINK_BEGIN" />자세히 알아보기<ph name="CARD_BENEFIT_HELP_LINK_END" /></translation>
 <translation id="1545757265410828525">가격 변동 내역</translation>
+<translation id="1546286808622193216">Gemini를 사용하여 카드 혜택 비교</translation>
 <translation id="1549470594296187301">이 기능을 이용하려면 자바스크립트를 사용하도록 설정해야 합니다.</translation>
 <translation id="1553152622374372421">동계 스포츠</translation>
 <translation id="1553358976309200471">Chrome 업데이트</translation>
@@ -504,6 +505,7 @@
 <translation id="175656076281618225">마술</translation>
 <translation id="1757773103848038814">고정폭 글꼴</translation>
 <translation id="1757935267918149452">Google 비밀번호 변경 버튼, Google 계정 비밀번호를 변경하려면 활성화하세요.</translation>
+<translation id="1759776526873274358">사이트에서 보안 강화를 위해 사용하는 인증 코드를 자동 완성합니다. Chrome이 Gmail에서 이 코드를 가져올 수 있습니다. <ph name="BEGIN_LINK" />이 기능에 대해 자세히 알아보기<ph name="LINK_END" /></translation>
 <translation id="1763864636252898013">이 서버가 <ph name="DOMAIN" />임을 입증할 수 없으며 기기의 운영체제에서 신뢰하는 보안 인증서가 아닙니다. 서버를 잘못 설정했거나 불법 사용자가 연결을 가로채고 있기 때문일 수 있습니다.</translation>
 <translation id="1768211456781949159"><ph name="BEGIN_LINK" />Windows 네트워크 진단 프로그램을 실행<ph name="END_LINK" />해 보세요.</translation>
 <translation id="1777422078676229054">사진(보관용)</translation>
@@ -2155,6 +2157,7 @@
 <translation id="4304049446746819918">{0,plural, =1{관리자 정책에 따라 이 파일을 <ph name="DESTINATION_NAME" />(으)로 이동하지 않는 것이 좋습니다.}other{관리자 정책에 따라 이 파일을 <ph name="DESTINATION_NAME" />(으)로 이동하지 않는 것이 좋습니다.}}</translation>
 <translation id="4304485328308299773">제품, 서비스 또는 경험에 대한 고객 평가를 읽어보고 리뷰를 참고하여 결정을 내리세요</translation>
 <translation id="4305666528087210886">파일에 액세스할 수 없음</translation>
+<translation id="4306349443295056740">OCSP 서명</translation>
 <translation id="4306529830550717874">주소를 저장하시겠습니까?</translation>
 <translation id="4306812610847412719">클립보드</translation>
 <translation id="4308567447483056043">사용자가 제휴되어 있지 않으므로 이 정책은 무시됩니다. 이 정책을 적용하려면 Chrome 브라우저와 프로필을 관리 콘솔에서 같은 조직으로 관리해야 합니다.</translation>
@@ -2324,6 +2327,7 @@
 <translation id="4607608436550361748">Chrome 도움말 보기</translation>
 <translation id="460848736049414407">관리자가 차단함</translation>
 <translation id="4610279718074907952"><ph name="SET_OWNER" />에서 정의한 그룹(내 활동을 볼 수 있음)에 속하는 사이트입니다.</translation>
+<translation id="4612631413844865947"><ph name="PAYMENT_APP_ORIGIN" /> 앱으로 <ph name="MERCHANT_ORIGIN" /> 주문을 처리하는 중에 오류가 발생했습니다.</translation>
 <translation id="46128681529823442">축구 장비</translation>
 <translation id="4612904677925722054">이 사이트에는 미성년자 부적합 콘텐츠가 포함되어 있을 수 있습니다. 부모님 또는 보호자가 이 웹사이트 방문을 허용해야 합니다.</translation>
 <translation id="4619564267100705184">본인 인증</translation>
@@ -2413,6 +2417,8 @@
 <translation id="4744603770635761495">실행 가능 경로</translation>
 <translation id="4744816391336495134">저장된 비밀번호를 사용할 때마다 지문을 사용하여 본인 인증을 할 수 있습니다.</translation>
 <translation id="4749011317274908093">시크릿 모드로 전환됨</translation>
+<translation id="4749620353539006322">리워드 극대화</translation>
+<translation id="4749924365937394956">서버 인증</translation>
 <translation id="4750671009706599284">이 휴대전화</translation>
 <translation id="4750917950439032686">비밀번호나 신용카드 번호 등의 정보는 비공개 상태로 이 사이트에 전송됩니다.</translation>
 <translation id="4751249061288707459">동의 최종 업데이트:</translation>
@@ -2987,6 +2993,7 @@
 <translation id="5611398002774823980">계정에 저장</translation>
 <translation id="561165882404867731">Google 번역으로 이 페이지를 번역하세요.</translation>
 <translation id="5612720917913232150"><ph name="URL" />에서 내 컴퓨터의 위치에 액세스하려고 합니다</translation>
+<translation id="5613958591683399697"><ph name="ENGINE_NAME" />에 물어보기</translation>
 <translation id="5614190747811328134">사용자 알림</translation>
 <translation id="5614520971155863709">카드 게임</translation>
 <translation id="5617949217645503996"><ph name="HOST_NAME" />에서 리디렉션한 횟수가 너무 많습니다.</translation>
@@ -3129,6 +3136,7 @@
 <translation id="5860491529813859533">사용</translation>
 <translation id="5862579898803147654">스태커 8</translation>
 <translation id="5863515189965725638">IBAN 수정</translation>
+<translation id="5863517400058880216">Gmail에서 가져온 인증 코드 자동 완성</translation>
 <translation id="5863847714970149516">방문하려는 페이지에서 금액을 청구할 수 있습니다.</translation>
 <translation id="5866257070973731571">전화번호 추가</translation>
 <translation id="5866327164731551901"><ph name="TYPE_1" /> <ph name="TYPE_2" />에서</translation>
@@ -3242,6 +3250,7 @@
 <translation id="6034000775414344507">연한 회색</translation>
 <translation id="6034514109191629503">아코디언 폴드</translation>
 <translation id="6035491133925068289">육상</translation>
+<translation id="6037458223703682108">디지털 서명</translation>
 <translation id="6039846035001940113">문제가 계속되면 사이트 소유자에게 문의하세요.</translation>
 <translation id="6040143037577758943">닫기</translation>
 <translation id="6040539895181423374">가격 정보</translation>
@@ -3553,6 +3562,7 @@
 <translation id="6474220430271405609">정책 테스트</translation>
 <translation id="6476284679642588870">결제 수단 관리</translation>
 <translation id="647881094269678013">연기 및 연극</translation>
+<translation id="6480363549849064919">클라이언트 인증</translation>
 <translation id="6480864723214312258">가정용 배터리</translation>
 <translation id="6487678699866233349">월드뮤직</translation>
 <translation id="6489534406876378309">비정상 종료 업로드 시작하기</translation>
@@ -4518,6 +4528,7 @@
 <translation id="7967973398323409409">자동 완성된 정보는 누구에게도 공개되지 않습니다</translation>
 <translation id="79682505114836835">"<ph name="VALUE" />" 값은 유효하지 않은 16진수 색상입니다.</translation>
 <translation id="7968982339740310781">세부정보 보기</translation>
+<translation id="7971403153351954587">조직에서 복사 작업을 모니터링하고 있습니다</translation>
 <translation id="7972714317346275248">PKCS #1 SHA-384(RSA 암호화 사용)</translation>
 <translation id="7976053965094442846">할부 결제를 지원하는 선구매 후지불 발급기관 목록입니다. 키보드가 숨겨졌습니다.</translation>
 <translation id="7976214039405368314">요청 횟수가 너무 많음</translation>
@@ -5131,6 +5142,7 @@
 <translation id="9001074447101275817">프록시 <ph name="DOMAIN" />에 사용자 이름 및 비밀번호를 입력해야 합니다.</translation>
 <translation id="9001701119003382280">컴퓨터 주변기기</translation>
 <translation id="9001963517402879850">점프하세요</translation>
+<translation id="9003263770394939629">Gemini가 추천합니다. 설정에서 향상된 자동 완성 기능을 관리해 보세요.</translation>
 <translation id="9003639428623471314">봉투 Kahu</translation>
 <translation id="9004367719664099443">VR 세션 진행 중</translation>
 <translation id="9005998258318286617">PDF 문서를 로드하지 못했습니다.</translation>

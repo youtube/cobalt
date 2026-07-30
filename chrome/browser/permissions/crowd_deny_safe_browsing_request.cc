@@ -21,9 +21,6 @@
 
 namespace {
 
-// The permission identifier string used by Safe Browsing for notifications.
-constexpr char kSafeBrowsingNotificationPermissionName[] = "NOTIFICATIONS";
-
 // The maximum amount of time to wait for the Safe Browsing response.
 constexpr base::TimeDelta kSafeBrowsingCheckTimeout = base::Seconds(2);
 
@@ -48,18 +45,18 @@ class CrowdDenySafeBrowsingRequest::SafeBrowsingClient
 
   ~SafeBrowsingClient() override {
     if (timeout_.IsRunning())
-      database_manager_->CancelApiCheck(this);
+      database_manager_->CancelNotificationAbuseCheck(this);
   }
 
   void CheckOrigin(const url::Origin& origin) {
     DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
-    // Start the timer before the call to CheckApiBlocklistUrl(), as it may
-    // call back into OnCheckApiBlocklistUrlResult() synchronously.
+    // Start the timer before the call to CheckNotificationAbuseUrl(), as it may
+    // call back into OnCheckNotificationAbuseUrlResult() synchronously.
     timeout_.Start(FROM_HERE, kSafeBrowsingCheckTimeout, this,
                    &SafeBrowsingClient::OnTimeout);
 
-    if (database_manager_->CheckApiBlocklistUrl(origin.GetURL(), this)) {
+    if (database_manager_->CheckNotificationAbuseUrl(origin.GetURL(), this)) {
       timeout_.Stop();
       SendResultToHandler(Verdict::kAcceptable);
     }
@@ -69,16 +66,9 @@ class CrowdDenySafeBrowsingRequest::SafeBrowsingClient
   SafeBrowsingClient(const SafeBrowsingClient&) = delete;
   SafeBrowsingClient& operator=(const SafeBrowsingClient&) = delete;
 
-  static Verdict ExtractVerdictFromMetadata(
-      const safe_browsing::ThreatMetadata& metadata) {
-    return metadata.api_permissions.count(
-               kSafeBrowsingNotificationPermissionName)
-               ? Verdict::kUnacceptable
-               : Verdict::kAcceptable;
-  }
 
   void OnTimeout() {
-    database_manager_->CancelApiCheck(this);
+    database_manager_->CancelNotificationAbuseCheck(this);
     SendResultToHandler(Verdict::kAcceptable);
   }
 
@@ -90,11 +80,10 @@ class CrowdDenySafeBrowsingRequest::SafeBrowsingClient
   }
 
   // SafeBrowsingDatabaseManager::Client:
-  void OnCheckApiBlocklistUrlResult(
-      const GURL& url,
-      const safe_browsing::ThreatMetadata& metadata) override {
+  void OnCheckNotificationAbuseUrlResult(bool is_abusive) override {
     timeout_.Stop();
-    SendResultToHandler(ExtractVerdictFromMetadata(metadata));
+    SendResultToHandler(is_abusive ? Verdict::kUnacceptable
+                                   : Verdict::kAcceptable);
   }
 
   base::OneShotTimer timeout_;

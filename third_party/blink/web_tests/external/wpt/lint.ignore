@@ -170,13 +170,7 @@ SET TIMEOUT: common/reftest-wait.js
 SET TIMEOUT: compute-pressure/resources/support-iframe.html
 SET TIMEOUT: conformance-checkers/*
 SET TIMEOUT: content-security-policy/*
-SET TIMEOUT: css/css-image-animation/image-animation-img-running.tentative.html
-SET TIMEOUT: css/css-image-animation/image-animation-img-running-to-normal.tentative.html
-SET TIMEOUT: css/css-image-animation/image-animation-paused-exact-frame.tentative.html
-SET TIMEOUT: css/css-image-animation/image-animation-stopped-reset-frame.tentative.html
-SET TIMEOUT: css/css-image-animation/image-animation-video-poster-running.html
 SET TIMEOUT: css/compositing/opacity-and-transform-animation-crash.html
-SET TIMEOUT: css/css-image-animation/image-animation-display-none-reset.tentative.html
 SET TIMEOUT: css/css-contain/contain-body-overflow-002.html
 SET TIMEOUT: css/css-display/display-contents-shadow-dom-1.html
 SET TIMEOUT: css/CSS2/normal-flow/crashtests/block-in-inline-ax-crash.html
@@ -226,6 +220,7 @@ SET TIMEOUT: html/canvas/element/manual/draw-element-image/onpaint-css-animation
 SET TIMEOUT: html/canvas/element/manual/draw-element-image/requestPaint.tentative.html
 SET TIMEOUT: html/cross-origin-opener-policy/resources/fully-loaded.js
 SET TIMEOUT: html/editing/dnd/*
+SET TIMEOUT: html/semantics/embedded-content/media-elements/crashtests/no-blocking-loads-gc-crash.html
 SET TIMEOUT: html/semantics/embedded-content/media-elements/track/track-element/crashtests/*
 SET TIMEOUT: html/semantics/embedded-content/the-iframe-element/*
 SET TIMEOUT: html/semantics/embedded-content/the-img-element/*
@@ -640,6 +635,7 @@ MISSING-LINK: css/cssom/cssstyledeclaration-csstext-setter.window.js
 MISSING-LINK: css/geometry/*.worker.js
 MISSING-LINK: css/geometry/*.any.js
 MISSING-LINK: css/filter-effects/*.any.js
+MISSING-LINK: css/css-typed-om/stylevalue-subclasses/*.any.js
 
 # Tests that use WebKit/Blink testing APIs
 LAYOUTTESTS APIS: import-maps/data-driven/resources/test-helper-iframe.js

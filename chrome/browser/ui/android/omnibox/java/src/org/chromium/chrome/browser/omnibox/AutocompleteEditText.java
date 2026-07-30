@@ -170,7 +170,6 @@ public class AutocompleteEditText extends EditTextWithLeading
     /**
      * @return Whether any autocomplete information is specified on the current text.
      */
-    @VisibleForTesting
     public boolean hasAutocomplete() {
         if (mModel == null) return false;
         return mModel.hasAutocomplete();
@@ -349,6 +348,17 @@ public class AutocompleteEditText extends EditTextWithLeading
     }
 
     @Override
+    public boolean onKeyPreIme(int keyCode, KeyEvent event) {
+        if (mModel != null && mModel.isDeleteByWord(event)) {
+            // Route directly to dispatchKeyEvent to override the native word deletion.
+            if (dispatchKeyEvent(event)) {
+                return true;
+            }
+        }
+        return super.onKeyPreIme(keyCode, event);
+    }
+
+    @Override
     public void setOnKeyListener(@Nullable OnKeyListener listener) {
         super.setOnKeyListener(listener);
         mOnKeyListener = listener;
@@ -356,6 +366,11 @@ public class AutocompleteEditText extends EditTextWithLeading
 
     private @Nullable OnKeyListener getOnKeyListener() {
         return mOnKeyListener;
+    }
+
+    private void dispatchKeyEventToModel(KeyEvent event) {
+        if (mModel == null) return;
+        mModel.dispatchKeyEvent(event);
     }
 
     @Override
@@ -412,5 +427,14 @@ public class AutocompleteEditText extends EditTextWithLeading
         }
         Drawable[] drawables = getCompoundDrawablesRelative();
         setCompoundDrawablesRelative(drawable, drawables[1], drawables[2], drawables[3]);
+    }
+
+    public void maybeAcceptInlineSuggestion(KeyEvent event) {
+        OnKeyListener onKeyListener = getOnKeyListener();
+        // Set our key listener to null because this method can be called in the process of handling
+        // a key event; if we don't set it to null we may recurse infinitely.
+        setOnKeyListener(null);
+        dispatchKeyEventToModel(event);
+        setOnKeyListener(onKeyListener);
     }
 }

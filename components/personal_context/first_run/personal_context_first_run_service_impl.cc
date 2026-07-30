@@ -6,8 +6,10 @@
 
 #include <utility>
 
+#include "base/feature_list.h"
 #include "base/functional/bind.h"
-#include "components/personal_context/core/personal_context_enablement_service.h"
+#include "components/personal_context/core/personal_context_debug_features.h"
+#include "components/personal_context/core/personal_context_eligibility_service.h"
 #include "components/personal_context/core/personal_context_features.h"
 #include "components/personal_context/core/personal_context_prefs.h"
 #include "components/prefs/pref_service.h"
@@ -17,36 +19,48 @@ namespace personal_context {
 namespace {
 
 bool AreServicesAvailableAndAccountEligibleForPersonalIntelligence(
-    PersonalContextEnablementService* enablement_service,
+    PersonalContextEligibilityService* eligibility_service,
     PrefService* pref_service) {
-  if (!features::IsPersonalContextFirstRunNoticePhase2Enabled()) {
-    return false;
-  }
-  if (!enablement_service || !pref_service) {
+  if (!eligibility_service || !pref_service) {
     return false;
   }
 
-  if (enablement_service->GetEnablementState() !=
-      PersonalContextEnablementState::kEnabled) {
+  if (eligibility_service->GetEligibilityState() !=
+      PersonalContextEligibilityState::kEligible) {
     // Account not eligible.
     return false;
   }
   return true;
 }
 
+void ResetNoticePrefs(PrefService* pref_service) {
+  if (!pref_service) {
+    return;
+  }
+  pref_service->ClearPref(
+      prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown);
+  pref_service->ClearPref(prefs::kPersonalContextAtMemoryNoticeShouldBeShown);
+  pref_service->ClearPref(
+      prefs::kPersonalContextInAutofillSettingsToggleStatus);
+}
+
 }  // namespace
 
 PersonalContextFirstRunServiceImpl::PersonalContextFirstRunServiceImpl(
     std::unique_ptr<PersonalContextFirstRunClient> client,
-    PersonalContextEnablementService* enablement_service,
+    PersonalContextEligibilityService* eligibility_service,
     PrefService* pref_service,
     signin::IdentityManager* identity_manager)
     : client_(std::move(client)),
-      enablement_service_(enablement_service),
+      eligibility_service_(eligibility_service),
       pref_service_(pref_service),
       identity_manager_(identity_manager) {
   if (identity_manager_) {
     identity_manager_observation_.Observe(identity_manager_);
+  }
+  if (base::FeatureList::IsEnabled(
+          features::debug::kPersonalContextResetNoticePrefsOnStartup)) {
+    ResetNoticePrefs(pref_service_);
   }
 }
 
@@ -57,14 +71,7 @@ void PersonalContextFirstRunServiceImpl::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event_details) {
   if (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
       signin::PrimaryAccountChangeEvent::Type::kCleared) {
-    if (pref_service_) {
-      pref_service_->ClearPref(
-          prefs::kPersonalContextAmbientAutofillNoticeShouldBeShown);
-      pref_service_->ClearPref(
-          prefs::kPersonalContextAtMemoryNoticeShouldBeShown);
-      pref_service_->ClearPref(
-          prefs::kPersonalContextInAutofillSettingsToggleStatus);
-    }
+    ResetNoticePrefs(pref_service_);
   }
 }
 
@@ -72,13 +79,13 @@ void PersonalContextFirstRunServiceImpl::MaybeTriggerFirstRun(
     content::WebContents* web_contents,
     FirstRunInvocationSource invocation_source,
     base::OnceCallback<void(FirstRunTriggerResult)> callback) {
-  if (!enablement_service_ || !pref_service_) {
+  if (!eligibility_service_ || !pref_service_) {
     std::move(callback).Run(FirstRunTriggerResult::kIgnoredNotEligible);
     return;
   }
 
-  if (enablement_service_->GetEnablementState() !=
-      PersonalContextEnablementState::kEnabled) {
+  if (eligibility_service_->GetEligibilityState() !=
+      PersonalContextEligibilityState::kEligible) {
     // Account not eligible.
     std::move(callback).Run(FirstRunTriggerResult::kIgnoredNotEligible);
     return;
@@ -120,7 +127,7 @@ void PersonalContextFirstRunServiceImpl::
 bool PersonalContextFirstRunServiceImpl::
     ShouldShowPersonalContextAmbientAutofillNotice() const {
   if (!AreServicesAvailableAndAccountEligibleForPersonalIntelligence(
-          enablement_service_, pref_service_)) {
+          eligibility_service_, pref_service_)) {
     return false;
   }
 
@@ -145,7 +152,7 @@ void PersonalContextFirstRunServiceImpl::
 bool PersonalContextFirstRunServiceImpl::
     ShouldShowPersonalContextAtMemoryNotice() const {
   if (!AreServicesAvailableAndAccountEligibleForPersonalIntelligence(
-          enablement_service_, pref_service_)) {
+          eligibility_service_, pref_service_)) {
     return false;
   }
 

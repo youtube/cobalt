@@ -38,6 +38,7 @@
 #include "chrome/browser/ui/lens/lens_query_flow_router.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/webui/searchbox/searchbox_test_utils.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/test/base/in_process_browser_test.h"
@@ -545,8 +546,10 @@ class ContextualTasksComposeboxHandlerTestWithContextManagementEnabled
     : public ContextualTasksComposeboxHandlerTest {
  public:
   ContextualTasksComposeboxHandlerTestWithContextManagementEnabled() {
-    feature_list_context_management_.InitAndEnableFeature(
-        omnibox::kContextManagementInComposebox);
+    feature_list_context_management_.InitWithFeatures(
+        {omnibox::kContextManagementInComposebox,
+         omnibox::kContextManagementInOmnibox},
+        {});
   }
   ~ContextualTasksComposeboxHandlerTestWithContextManagementEnabled() override =
       default;
@@ -3752,6 +3755,28 @@ IN_PROC_BROWSER_TEST_F(
 IN_PROC_BROWSER_TEST_F(
     ContextualTasksComposeboxHandlerTestWithContextManagementEnabled,
     CacheSubmittedTabsOnInit) {
+  class TestSupportsTabHandles : public tabs::SupportsTabHandles {
+   public:
+    void SetSessionId(int32_t session_id) {
+      tabs::SupportsTabHandles::SetSessionId(session_id);
+    }
+  };
+
+  // Use the default tab created in SetUpOnMainThread.
+  tabs::TabInterface* tab1 =
+      tabs::TabLookupFromWebContents::FromWebContents(web_contents_)->model();
+  ASSERT_NE(tab1, nullptr);
+  SessionID session_id1 =
+      sessions::SessionTabHelper::FromWebContents(tab1->GetContents())
+          ->session_id();
+
+  // Add a second tab.
+  tabs::TabInterface* tab2 = AddTab(GURL("about:blank#2"));
+  ASSERT_NE(tab2, nullptr);
+  SessionID session_id2 =
+      sessions::SessionTabHelper::FromWebContents(tab2->GetContents())
+          ->session_id();
+
   auto mock_session = std::make_unique<testing::NiceMock<
       contextual_search::MockContextualSearchSessionHandle>>();
 
@@ -3760,7 +3785,7 @@ IN_PROC_BROWSER_TEST_F(
   contextual_search::FileInfo tab_info1;
   tab_info1.tab_url = GURL("about:blank#1");
   tab_info1.tab_title = "About Blank 1";
-  tab_info1.tab_session_id = SessionID::FromSerializedValue(42);
+  tab_info1.tab_session_id = session_id1;
   tab_info1.mime_type = lens::MimeType::kHtml;
   tab_info1.selection_time = now;
   submitted_file_infos.push_back(tab_info1);
@@ -3768,7 +3793,7 @@ IN_PROC_BROWSER_TEST_F(
   contextual_search::FileInfo tab_info2;
   tab_info2.tab_url = GURL("about:blank#2");
   tab_info2.tab_title = "About Blank 2";
-  tab_info2.tab_session_id = SessionID::FromSerializedValue(43);
+  tab_info2.tab_session_id = session_id2;
   tab_info2.mime_type = lens::MimeType::kHtml;
   tab_info2.selection_time = now + base::Seconds(1);
   submitted_file_infos.push_back(tab_info2);
@@ -3788,10 +3813,10 @@ IN_PROC_BROWSER_TEST_F(
         EXPECT_EQ(tabs.size(), 2u);
         EXPECT_EQ(tabs[0]->url, GURL("about:blank#1"));
         EXPECT_EQ(tabs[0]->title, "About Blank 1");
-        EXPECT_EQ(tabs[0]->tab_id, 42);
+        EXPECT_EQ(tabs[0]->tab_id, 2);
         EXPECT_EQ(tabs[1]->url, GURL("about:blank#2"));
         EXPECT_EQ(tabs[1]->title, "About Blank 2");
-        EXPECT_EQ(tabs[1]->tab_id, 43);
+        EXPECT_EQ(tabs[1]->tab_id, 3);
       });
 
   SetUpHandler();
@@ -3799,4 +3824,54 @@ IN_PROC_BROWSER_TEST_F(
 
   // Clean up session handle from mock UI.
   mock_ui_->SetSessionHandle(nullptr);
+}
+
+class ContextualTasksComposeboxHandlerAutoTriggerTest
+    : public ContextualTasksComposeboxHandlerTest {
+ public:
+  ContextualTasksComposeboxHandlerAutoTriggerTest() {
+    local_feature_list_.InitAndEnableFeatureWithParameters(
+        omnibox::kWebUIOmniboxAskGAboutThisPage,
+        {{"Omnibox_AskGCoBrowseWithVisualSelection", "true"}});
+  }
+ private:
+  base::test::ScopedFeatureList local_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksComposeboxHandlerAutoTriggerTest, AutoTriggerLens) {
+  // Destroy the default handler and reset the receiver to allow rebinding.
+  handler_.reset();
+  searchbox_page_receiver_.reset();
+
+  // Set the invocation source on the mock LensSearchController.
+  mock_lens_controller_->SetInvocationSource(
+      lens::LensOverlayInvocationSource::kOmniboxPageAction);
+
+  // We expect OpenLensOverlay to be called when OnTaskChanged is called.
+  EXPECT_CALL(
+      *mock_lens_controller_,
+      OpenLensOverlay(
+          lens::LensOverlayInvocationSource::kOmniboxPageAction,
+          testing::_))
+      .Times(1);
+
+  // Manually create the handler to use our mock page.
+  auto custom_handler = std::make_unique<TestContextualTasksComposeboxHandler>(
+      mock_ui_.get(), profile(), web_contents(),
+      mojo::PendingReceiver<composebox::mojom::PageHandler>(),
+      mojo::PendingRemote<composebox::mojom::Page>(),
+      mojo::PendingReceiver<searchbox::mojom::PageHandler>(),
+      searchbox_page_receiver_.BindNewPipeAndPassRemote(),
+      base::BindRepeating(
+          &ContextualTasksUI::GetOrCreateContextualSessionHandle,
+          base::Unretained(mock_ui_.get())),
+      base::BindRepeating(&ContextualTasksUI::ClearContextualSessionHandle,
+                          base::Unretained(mock_ui_.get())),
+      base::BindRepeating(&ContextualTasksUI::TakeInputStateModel,
+                          base::Unretained(mock_ui_.get())));
+
+  ON_CALL(*custom_handler, GetLensSearchController())
+      .WillByDefault(testing::Return(mock_lens_controller_.get()));
+
+  custom_handler->OnTaskChanged();
 }

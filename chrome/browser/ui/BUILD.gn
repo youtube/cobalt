@@ -87,10 +87,12 @@ if (!is_android) {
     deps = [
       ":browser_actions",
       ":browser_select_file_dialog_controller",
+      ":chrome_pages",
       ":ui",
       "//build:branding_buildflags",
       "//chrome/app:command_ids",
       "//chrome/app/vector_icons",
+      "//chrome/browser/browsing_data",
       "//chrome/browser/contextual_cueing",
       "//chrome/browser/contextual_tasks:ui",
       "//chrome/browser/devtools",
@@ -101,6 +103,7 @@ if (!is_android) {
       "//chrome/browser/indigo/resources:indigo_strings",
       "//chrome/browser/multistep_filter/ui",
       "//chrome/browser/prefs",
+      "//chrome/browser/resources/omnibox_popup:resources_grit",
       "//chrome/browser/search_engines",
       "//chrome/browser/sharing_hub",
       "//chrome/browser/spellchecker",
@@ -116,6 +119,7 @@ if (!is_android) {
       "//chrome/browser/ui/bookmarks",
       "//chrome/browser/ui/commerce",
       "//chrome/browser/ui/customize_chrome",
+      "//chrome/browser/ui/interaction",
       "//chrome/browser/ui/lens",
       "//chrome/browser/ui/page_info",
       "//chrome/browser/ui/passwords",
@@ -138,6 +142,7 @@ if (!is_android) {
       "//chrome/browser/ui/views/frame:toolbar_button_provider",
       "//chrome/browser/ui/views/js_optimization",
       "//chrome/browser/ui/views/location_bar/cookie_controls",
+      "//chrome/browser/ui/views/page_info",
       "//chrome/browser/ui/views/send_tab_to_self",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/ui/views/toolbar",
@@ -145,12 +150,22 @@ if (!is_android) {
       "//chrome/browser/ui/web_applications:launch_utils",
       "//chrome/browser/ui/webid",
       "//chrome/browser/ui/webui/inspect",
+      "//chrome/browser/ui/webui/omnibox_popup",
+      "//chrome/browser/undo",
       "//components/commerce/core:metrics",
       "//components/multistep_filter/core:features",
+      "//components/omnibox/common:features",
       "//components/spellcheck/browser",
+      "//components/undo",
     ]
     if (is_mac) {
       deps += [ "//chrome/browser:global_keyboard_shortcuts_mac" ]
+    }
+    if (is_chromeos) {
+      deps += [ "//chrome/browser/ui/ash/multi_user" ]
+    }
+    if (is_win || is_mac || is_linux) {
+      deps += [ "//chrome/browser/ui/startup/default_browser_prompt" ]
     }
   }
 }
@@ -605,7 +620,6 @@ static_library("ui") {
     "//chrome/browser/subresource_filter",
     "//chrome/browser/supervised_user:impl",
     "//chrome/browser/sync",
-    "//chrome/browser/task_manager:impl",
     "//chrome/browser/task_manager/common",
     "//chrome/browser/task_manager/common:impl",
     "//chrome/browser/translate:impl",
@@ -1083,17 +1097,13 @@ static_library("ui") {
       "//chrome/browser/new_tab_page:impl",
 
       # views/data_sharing:impl includes headers still built as part of this
-      # target (chrome_pages.h, browser_element_identifiers.h and
+      # target (browser_element_identifiers.h and
       # views/frame/browser_view.h) that can't be split out yet.
       "//chrome/browser/ui/views/data_sharing:impl",
 
       # downloads includes headers from //chrome/browser/ui (e.g.
-      # browser_window.h, chrome_pages.h) that can't be split out yet.
+      # browser_window.h) that can't be split out yet.
       "//chrome/browser/ui/webui/downloads",
-
-      # feedback:impl includes headers from //chrome/browser/ui (e.g.
-      # chrome_pages.h) that can't be split out yet.
-      "//chrome/browser/ui/webui/feedback:impl",
 
       # history_clusters includes headers from //chrome/browser/ui (e.g.
       # browser_commands.h) that can't be split out yet.
@@ -1149,7 +1159,7 @@ static_library("ui") {
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/browser.h, browser_window.h, chrome_pages.h
+    # c/b/ui/browser.h, browser_window.h
     "//chrome/browser/ui/autofill/payments:impl",
 
     # TODO(crbug.com/502936350): Remove this circular dependency.
@@ -1167,7 +1177,7 @@ static_library("ui") {
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/browser.h, browser_commands.h, browser_window.h, chrome_pages.h
+    # c/b/ui/browser.h, browser_commands.h, browser_window.h
     # c/b/ui/scoped_tabbed_browser_displayer.h
     # c/b/ui/views/frame/browser_view.h
     # c/b/ui/views/safe_browsing/tailored_security_unconsented_modal.h
@@ -1180,11 +1190,12 @@ static_library("ui") {
     "//chrome/browser/feedback:feedback_impl",
 
     # lifetime:impl includes headers from //chrome/browser/ui that can't be
-    # split out yet (e.g. browser.h, browser_window.h).
+    # split out yet (e.g. browser_window.h).
     "//chrome/browser/lifetime:impl",
 
-    # notifications:impl includes chrome/browser/ui/browser.h,
-    # chrome/browser/ui/chrome_pages.h,
+    # notifications:impl includes headers from //chrome/browser/ui that can't
+    # be split out yet (e.g. browser.h, browser_window.h,
+    # scoped_tabbed_browser_displayer.h, settings_window_manager_chromeos.h).
     "//chrome/browser/notifications:impl",
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
@@ -1222,7 +1233,7 @@ static_library("ui") {
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/chrome_pages.h, crypto_module_delegate_nss.h
+    # c/b/ui/crypto_module_delegate_nss.h
     "//chrome/browser/net:impl",
 
     # TODO(crbug.com/360599255): popunder_preventer.cc includes browser.h
@@ -1236,33 +1247,32 @@ static_library("ui") {
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/browser.h, browser_window.h, chrome_pages.h, singleton_tabs.h
+    # c/b/ui/browser.h, browser_window.h, singleton_tabs.h
     # c/b/ui/views/autofill/popup/email_verifier/email_verification_popup_view.h
     # c/b/ui/views/frame/browser_view.h
     "//chrome/browser/ui/autofill:impl",
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/browser.h, scoped_tabbed_browser_displayer.h
+    # c/b/ui/scoped_tabbed_browser_displayer.h
     # c/b/ui/settings_window_manager_chromeos.h
     "//chrome/browser/ui/bluetooth:impl",
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/browser.h, browser_window.h, chrome_pages.h
+    # c/b/ui/browser.h, browser_window.h
     # c/b/ui/views/profiles/profile_management_types.h
     "//chrome/browser/ui/profiles:impl",
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/browser.h, scoped_tabbed_browser_displayer.h
+    # c/b/ui/scoped_tabbed_browser_displayer.h
     # c/b/ui/settings_window_manager_chromeos.h
     "//chrome/browser/ui/serial:impl",
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
     # c/b/ui/browser.h, browser_commands.h, browser_tabstrip.h, browser_window.h
-    # c/b/ui/chrome_pages.h
     # c/b/ui/webui/settings/reset_settings_handler.h
     "//chrome/browser/ui/startup:impl",
 
@@ -1290,7 +1300,7 @@ static_library("ui") {
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/browser.h, browser_commands.h, browser_window.h, chrome_pages.h
+    # c/b/ui/browser_commands.h, browser_window.h
     # c/b/ui/scoped_tabbed_browser_displayer.h
     # c/b/ui/webui/profile_helper.h
     "//chrome/browser/signin:impl",
@@ -1302,7 +1312,7 @@ static_library("ui") {
 
     # TODO(crbug.com/353332589): Remove this circular dependency when the
     # following headers get componentized:
-    # c/b/ui/browser.h, bubble_anchor_util.h, chrome_pages.h, tab_dialogs.h
+    # c/b/ui/browser.h, bubble_anchor_util.h, tab_dialogs.h
     "//chrome/browser/ui/page_info:impl",
 
     # TODO(crbug.com/366272539): It includes //c/b/ui/browser_dialogs.h.
@@ -1324,18 +1334,13 @@ static_library("ui") {
     # c/b/ui/webui/settings/reset_settings_handler.h, settings_ui.h
     "//chrome/browser/prefs:impl",
 
-    # TODO(crbug.com/353332589): Remove this circular dependency when the
-    # following header gets componentized:
-    # c/b/ui/chrome_pages.h
-    "//chrome/browser/task_manager:impl",
-
     # TODO(crbug.com/364667551): includes //c/b/about_flags.h and other sources
     # from //chrome/browser/ui/webui, which are not modularized yet.
     "//chrome/browser/ui/webui/about:impl",
 
     # TODO(crbug.com/437811373): Remove this circular dependency when the
     # following headers get componentized:
-    # - c/b/ui/chrome_pages.h and browser.h
+    # - c/b/ui/browser.h
     "//chrome/browser/ui/passwords:impl",
 
     # ssl:impl includes headers from //chrome/browser/ui that can't be
@@ -1353,11 +1358,6 @@ static_library("ui") {
     # vr_tab_helper.cc includes //c/b/ui/browser.h.
     "//chrome/browser/vr:impl",
 
-    # TODO(crbug.com/353332589): Remove this circular dependency when the
-    # following headers get componentized:
-    # - c/b/ui/chrome_pages.h
-    "//chrome/browser/supervised_user:impl",
-
     # webauthn:impl includes headers from //chrome/browser/ui that can't be
     # split out yet.
     "//chrome/browser/webauthn:impl",
@@ -1373,6 +1373,7 @@ static_library("ui") {
 
   if (!is_android) {
     deps += [
+      ":chrome_pages",
       ":chrome_web_modal_dialog_manager_delegate",
       "//chrome/browser:certificate_viewer",
       "//chrome/browser:repost_form_warning_controller",
@@ -1520,6 +1521,8 @@ static_library("ui") {
       "browser_commands.h",
       "browser_content_setting_bubble_model_delegate.cc",
       "browser_content_setting_bubble_model_delegate.h",
+      "browser_init_state.cc",
+      "browser_init_state.h",
       "browser_live_tab_context.cc",
       "browser_live_tab_context.h",
       "browser_manager_service.cc",
@@ -1542,7 +1545,6 @@ static_library("ui") {
       "browser_window_theme_observer.cc",
       "browser_window_theme_observer.h",
       "chrome_pages.cc",
-      "chrome_pages.h",
       "intent_picker_tab_helper.cc",
       "intent_picker_tab_helper.h",
       "sad_tab.cc",
@@ -2133,7 +2135,7 @@ static_library("ui") {
       "//chrome/browser/ui/webui/history",
 
       # browser_command_handler.cc includes browser.h, browser_commands.h,
-      # chrome_pages.h, etc. from //chrome/browser/ui:ui.
+      # etc. from //chrome/browser/ui:ui.
       "//chrome/browser/ui/webui/browser_command",
 
       # inspect_ui.cc includes browser.h, singleton_tabs.h.
@@ -2150,7 +2152,7 @@ static_library("ui") {
 
       # These side panel UIs include loose headers that remain in
       # //chrome/browser/ui:ui (browser.h, browser_window.h, browser_commands.h,
-      # chrome_pages.h, views/frame/browser_view.h).
+      # views/frame/browser_view.h).
       "//chrome/browser/ui/webui/side_panel/bookmarks:impl",
       "//chrome/browser/ui/webui/side_panel/reading_list:impl",
       "//chrome/browser/ui/webui/side_panel/customize_chrome:impl",
@@ -2272,7 +2274,7 @@ static_library("ui") {
       # TODO(crbug.com/438226511): Remove this circular dependency when the
       # following headers get componentized:
       # - c/b/ui/browser.h, browser_window.h, browser_window_state.h,
-      #   browser_commands.h, chrome_pages.h,
+      #   browser_commands.h,
       #   browser_tabstrip.h, intent_picker_tab_helper.h.
       "//chrome/browser/ui/web_applications:impl",
 
@@ -2284,8 +2286,8 @@ static_library("ui") {
       # panel.
       "//chrome/browser/ui/side_panel:side_panel_views_dependent",
 
-      # hid's :impl includes //chrome/browser/ui/dialogs/browser_dialogs.h, and
-      # //chrome/browser/ui/chrome_pages.h from //chrome/browser/ui.
+      # hid's :impl includes //chrome/browser/ui/dialogs/browser_dialogs.h from
+      # //chrome/browser/ui.
       "//chrome/browser/hid:impl",
 
       # ntp and ntp_resource_cache include browser_window.h and
@@ -2548,7 +2550,6 @@ static_library("ui") {
       "//chrome/browser/apps/app_preload_service",
       "//chrome/browser/apps/browser_instance",
       "//chrome/browser/ash/accessibility/live_caption",
-      "//chrome/browser/ash/android_sms",
       "//chrome/browser/ash/annotator",
       "//chrome/browser/ash/api/tasks",
       "//chrome/browser/ash/app_list",
@@ -2935,7 +2936,6 @@ static_library("ui") {
       "//chromeos/ash/services/hotspot_config/public/mojom",
       "//chromeos/ash/services/multidevice_setup",
       "//chromeos/ash/services/multidevice_setup/public/cpp",
-      "//chromeos/ash/services/multidevice_setup/public/cpp:android_sms_app_helper_delegate",
       "//chromeos/ash/services/multidevice_setup/public/cpp:prefs",
       "//chromeos/ash/services/multidevice_setup/public/cpp:url_provider",
       "//chromeos/ash/services/nearby/public/mojom",
@@ -2953,7 +2953,6 @@ static_library("ui") {
       "//chromeos/components/security_token_pin",
       "//chromeos/components/sharesheet:constants",
       "//chromeos/constants",
-      "//chromeos/crosapi/cpp:crosapi_constants",
       "//chromeos/dbus/dlp",
       "//chromeos/dbus/power",
       "//chromeos/dbus/tpm_manager",
@@ -3070,7 +3069,6 @@ static_library("ui") {
       "//chrome/browser/ash/accessibility",
       "//chrome/browser/ash/accessibility/live_caption",
       "//chrome/browser/ash/account_manager",
-      "//chrome/browser/ash/android_sms",
       "//chrome/browser/ash/annotator",
       "//chrome/browser/ash/app_list",
       "//chrome/browser/ash/app_list/app_service",
@@ -4134,6 +4132,8 @@ static_library("ui") {
       "views/frame/top_container_view.cc",
       "views/frame/top_container_view.h",
       "views/frame/top_controls_slide_controller.h",
+      "views/frame/vertical_tab_strip_background_blur_backdrop.cc",
+      "views/frame/vertical_tab_strip_background_blur_backdrop.h",
       "views/frame/vertical_tab_strip_region_view.cc",
       "views/frame/vertical_tab_strip_region_view.h",
       "views/frame/web_contents_close_handler.cc",
@@ -4196,6 +4196,8 @@ static_library("ui") {
       "views/omnibox/omnibox_aim_popup_webui_content.h",
       "views/omnibox/omnibox_context_menu.cc",
       "views/omnibox/omnibox_context_menu.h",
+      "views/omnibox/omnibox_context_menu_mixin.cc",
+      "views/omnibox/omnibox_context_menu_mixin.h",
       "views/omnibox/omnibox_full_popup_webui_content.cc",
       "views/omnibox/omnibox_full_popup_webui_content.h",
       "views/omnibox/omnibox_header_view.cc",
@@ -4251,77 +4253,6 @@ static_library("ui") {
       "views/omnibox/webui_readonly_omnibox.h",
       "views/optimization_guide/optimization_guide_icon_view.cc",
       "views/optimization_guide/optimization_guide_icon_view.h",
-      "views/overlay/back_to_tab_button.cc",
-      "views/overlay/back_to_tab_button.h",
-      "views/overlay/back_to_tab_label_button.cc",
-      "views/overlay/back_to_tab_label_button.h",
-      "views/overlay/close_image_button.cc",
-      "views/overlay/close_image_button.h",
-      "views/overlay/constants.h",
-      "views/overlay/hang_up_button.cc",
-      "views/overlay/hang_up_button.h",
-      "views/overlay/minimize_button.cc",
-      "views/overlay/minimize_button.h",
-      "views/overlay/overlay_controls_fade_animation.cc",
-      "views/overlay/overlay_controls_fade_animation.h",
-      "views/overlay/overlay_window_image_button.cc",
-      "views/overlay/overlay_window_image_button.h",
-      "views/overlay/overlay_window_live_caption_button.cc",
-      "views/overlay/overlay_window_live_caption_button.h",
-      "views/overlay/overlay_window_live_caption_dialog.cc",
-      "views/overlay/overlay_window_live_caption_dialog.h",
-      "views/overlay/playback_image_button.cc",
-      "views/overlay/playback_image_button.h",
-      "views/overlay/resize_handle_button.cc",
-      "views/overlay/resize_handle_button.h",
-      "views/overlay/simple_overlay_window_image_button.cc",
-      "views/overlay/simple_overlay_window_image_button.h",
-      "views/overlay/skip_ad_label_button.cc",
-      "views/overlay/skip_ad_label_button.h",
-      "views/overlay/toggle_camera_button.cc",
-      "views/overlay/toggle_camera_button.h",
-      "views/overlay/toggle_microphone_button.cc",
-      "views/overlay/toggle_microphone_button.h",
-      "views/overlay/toggle_mute_button.cc",
-      "views/overlay/toggle_mute_button.h",
-      "views/overlay/video_overlay_window_views.cc",
-      "views/overlay/video_overlay_window_views.h",
-      "views/page_info/about_this_site_side_panel_coordinator.cc",
-      "views/page_info/about_this_site_side_panel_coordinator.h",
-      "views/page_info/chosen_object_view.cc",
-      "views/page_info/chosen_object_view.h",
-      "views/page_info/chosen_object_view_observer.h",
-      "views/page_info/merchant_trust_side_panel_coordinator.cc",
-      "views/page_info/merchant_trust_side_panel_coordinator.h",
-      "views/page_info/page_info_ad_personalization_content_view.cc",
-      "views/page_info/page_info_ad_personalization_content_view.h",
-      "views/page_info/page_info_cookies_content_view.cc",
-      "views/page_info/page_info_cookies_content_view.h",
-      "views/page_info/page_info_main_view.cc",
-      "views/page_info/page_info_main_view.h",
-      "views/page_info/page_info_merchant_trust_content_view.cc",
-      "views/page_info/page_info_merchant_trust_content_view.h",
-      "views/page_info/page_info_merchant_trust_controller.cc",
-      "views/page_info/page_info_merchant_trust_controller.h",
-      "views/page_info/page_info_merchant_trust_coordinator.cc",
-      "views/page_info/page_info_merchant_trust_coordinator.h",
-      "views/page_info/page_info_permission_content_view.cc",
-      "views/page_info/page_info_permission_content_view.h",
-      "views/page_info/page_info_security_content_view.cc",
-      "views/page_info/page_info_security_content_view.h",
-      "views/page_info/page_info_view_factory.cc",
-      "views/page_info/page_info_view_factory.h",
-      "views/page_info/permission_toggle_row_view.cc",
-      "views/page_info/permission_toggle_row_view.h",
-      "views/page_info/permission_toggle_row_view_observer.h",
-      "views/page_info/safety_tip_page_info_bubble_view.cc",
-      "views/page_info/safety_tip_page_info_bubble_view.h",
-      "views/page_info/security_information_view.cc",
-      "views/page_info/security_information_view.h",
-      "views/page_info/star_rating_view.cc",
-      "views/page_info/star_rating_view.h",
-      "views/page_info/web_view_side_panel_view.cc",
-      "views/page_info/web_view_side_panel_view.h",
       "views/passwords/account_chooser_dialog_view.cc",
       "views/passwords/account_chooser_dialog_view.h",
       "views/passwords/auto_signin_first_run_dialog_view.cc",
@@ -4364,51 +4295,6 @@ static_library("ui") {
       "views/passwords/shared_passwords_notification_view.h",
       "views/passwords/views_utils.cc",
       "views/passwords/views_utils.h",
-      "views/payments/contact_info_editor_view_controller.cc",
-      "views/payments/contact_info_editor_view_controller.h",
-      "views/payments/editor_view_controller.cc",
-      "views/payments/editor_view_controller.h",
-      "views/payments/error_message_view_controller.cc",
-      "views/payments/error_message_view_controller.h",
-      "views/payments/order_summary_view_controller.cc",
-      "views/payments/order_summary_view_controller.h",
-      "views/payments/payment_handler_modal_dialog_manager_delegate.cc",
-      "views/payments/payment_handler_modal_dialog_manager_delegate.h",
-      "views/payments/payment_handler_web_flow_view_controller.cc",
-      "views/payments/payment_handler_web_flow_view_controller.h",
-      "views/payments/payment_method_view_controller.cc",
-      "views/payments/payment_method_view_controller.h",
-      "views/payments/payment_request_dialog_view.cc",
-      "views/payments/payment_request_dialog_view.h",
-      "views/payments/payment_request_dialog_view_ids.h",
-      "views/payments/payment_request_item_list.cc",
-      "views/payments/payment_request_item_list.h",
-      "views/payments/payment_request_row_view.cc",
-      "views/payments/payment_request_row_view.h",
-      "views/payments/payment_request_sheet_controller.cc",
-      "views/payments/payment_request_sheet_controller.h",
-      "views/payments/payment_request_views_util.cc",
-      "views/payments/payment_request_views_util.h",
-      "views/payments/payment_sheet_view_controller.cc",
-      "views/payments/payment_sheet_view_controller.h",
-      "views/payments/profile_list_view_controller.cc",
-      "views/payments/profile_list_view_controller.h",
-      "views/payments/secure_payment_confirmation_dialog_view.cc",
-      "views/payments/secure_payment_confirmation_dialog_view.h",
-      "views/payments/secure_payment_confirmation_views_util.cc",
-      "views/payments/secure_payment_confirmation_views_util.h",
-      "views/payments/shipping_address_editor_view_controller.cc",
-      "views/payments/shipping_address_editor_view_controller.h",
-      "views/payments/shipping_option_view_controller.cc",
-      "views/payments/shipping_option_view_controller.h",
-      "views/payments/validating_combobox.cc",
-      "views/payments/validating_combobox.h",
-      "views/payments/validating_textfield.cc",
-      "views/payments/validating_textfield.h",
-      "views/payments/validation_delegate.cc",
-      "views/payments/validation_delegate.h",
-      "views/payments/view_stack.cc",
-      "views/payments/view_stack.h",
       "views/permissions/chip/multi_image_container.cc",
       "views/permissions/chip/multi_image_container.h",
       "views/permissions/chip/permission_dashboard_controller.cc",
@@ -4809,7 +4695,6 @@ static_library("ui") {
       "//chrome/browser/ui/views/desktop_capture:impl",
       "//chrome/browser/ui/views/dictation",
       "//chrome/browser/ui/views/digital_credentials",
-      "//chrome/browser/ui/views/digital_credentials:impl",
       "//chrome/browser/ui/views/download",
       "//chrome/browser/ui/views/extensions:security_dialog_tracker",
       "//chrome/browser/ui/views/frame",
@@ -4825,11 +4710,15 @@ static_library("ui") {
       "//chrome/browser/ui/views/location_bar:impl",
       "//chrome/browser/ui/views/location_bar/cookie_controls",
       "//chrome/browser/ui/views/location_bar/cookie_controls:impl",
+      "//chrome/browser/ui/views/overlay",
+      "//chrome/browser/ui/views/overlay:impl",
       "//chrome/browser/ui/views/page_action",
       "//chrome/browser/ui/views/page_action:impl",
       "//chrome/browser/ui/views/page_info",
       "//chrome/browser/ui/views/page_info:impl",
       "//chrome/browser/ui/views/passwords:password_bubble_view_base",
+      "//chrome/browser/ui/views/payments",
+      "//chrome/browser/ui/views/payments:impl",
       "//chrome/browser/ui/views/performance_controls",
       "//chrome/browser/ui/views/performance_controls:impl",
       "//chrome/browser/ui/views/permissions",
@@ -4953,6 +4842,12 @@ static_library("ui") {
       "//chrome/browser/ui/views/bubble",
 
       # TODO(crbug.com/353332589): Remove this circular dependency when the
+      # following header gets componentized:
+      # c/b/ui/browser.h (video_overlay_window_views.cc reads
+      # Browser::app_name(), which has no BrowserWindowInterface accessor yet)
+      "//chrome/browser/ui/views/overlay:impl",
+
+      # TODO(crbug.com/353332589): Remove this circular dependency when the
       # following headers get componentized:
       # c/b/ui/browser.h, browser_tabstrip.h, browser_window.h
       # c/b/ui/views/frame/browser_view.h
@@ -4976,13 +4871,20 @@ static_library("ui") {
 
       # TODO(crbug.com/353332589): Remove this circular dependency when the
       # following headers get componentized:
-      # c/b/ui/browser.h, browser_window.h
+      # c/b/ui/browser.h, browser_commands.h, browser_window.h
+      # c/b/ui/view_ids.h
       # c/b/ui/views/bubble_anchor_util_views.h
-      # c/b/ui/views/page_info/page_info_main_view.h
-      # c/b/ui/views/page_info/page_info_merchant_trust_content_view.h
-      # c/b/ui/views/page_info/page_info_merchant_trust_coordinator.h
-      # c/b/ui/views/page_info/page_info_security_content_view.h
+      # c/b/ui/views/frame/browser_view.h
+      # c/b/ui/views/frame/contents_container_outline.h
+      # c/b/ui/views/frame/contents_container_view.h
+      # c/b/ui/views/frame/multi_contents_view.h
+      # c/b/ui/views/sub_apps_permission_explanation.h
       "//chrome/browser/ui/views/page_info:impl",
+
+      # TODO(crbug.com/353332589): Remove this circular dependency when the
+      # following headers get componentized:
+      # c/b/ui/browser_tabstrip.h
+      "//chrome/browser/ui/views/payments:impl",
 
       # TODO(crbug.com/353332589): Remove this circular dependency when the
       # following header gets componentized:
@@ -5027,7 +4929,7 @@ static_library("ui") {
 
       # TODO(crbug.com/434882143): Remove this circular dependency when the
       # following headers get componentized:
-      # c/b/ui/browser.h, browser_command_controller.h, browser_commands.h,
+      # c/b/ui/browser_command_controller.h, browser_commands.h,
       # browser_tabstrip.h, browser_window.h, bubble_anchor_util.h,
       # intent_picker_tab_helper.h, view_ids.h
       # c/b/ui/views/bookmarks/bookmark_bubble_view.h
@@ -5129,12 +5031,8 @@ static_library("ui") {
       # - c/b/ui/views/frame/browser_view.h,
       "//chrome/browser/ui/views/accessibility:impl",
 
-      # TODO(crbug.com/353332589): Remove this circular include annotation.
-      "//chrome/browser/ui/views/digital_credentials:impl",
-
       # TODO(crbug.com/353332589): Remove this circular dependency when
       # the following headers get modularized:
-      # - c/b/ui/chrome_pages.h
       # - c/b/ui/scoped_tabbed_browser_displayer.h
       "//chrome/browser/ui/views/commerce:impl",
 
@@ -5151,7 +5049,6 @@ static_library("ui") {
 
       # TODO(crbug.com/353332589): Remove this circular dependency when the
       # following headers get componentized:
-      # c/b/ui/chrome_pages.h
       # c/b/ui/scoped_tabbed_browser_displayer.h
       # c/b/ui/views/frame/browser_view.h
       "//chrome/browser/ui/views/translate:impl",
@@ -5193,8 +5090,6 @@ static_library("ui") {
         "views/apps/chrome_native_app_window_views_mac.h",
         "views/apps/chrome_native_app_window_views_mac.mm",
         "views/chrome_views_delegate_mac.cc",
-        "views/overlay/video_overlay_window_native_widget_mac.h",
-        "views/overlay/video_overlay_window_native_widget_mac.mm",
         "views/permissions/permission_prompt_notifications_mac.cc",
         "views/permissions/permission_prompt_notifications_mac.h",
         "views/policy/enterprise_startup_dialog_mac_util.h",
@@ -5493,7 +5388,7 @@ static_library("ui") {
     ]
 
     # print_preview includes headers from //chrome/browser/ui (e.g.
-    # chrome_pages.h, browser_tabstrip.h, managed_ui_handler.h,
+    # browser_tabstrip.h, managed_ui_handler.h,
     # metrics_handler.h) that can't be split out yet.
     allow_circular_includes_from +=
         [ "//chrome/browser/ui/webui/print_preview:impl" ]
@@ -5733,6 +5628,20 @@ if (!is_android) {
     ]
   }
 
+  source_set("chrome_pages") {
+    public = [ "chrome_pages.h" ]
+    public_deps = [
+      "//base",
+      "//build:branding_buildflags",
+      "//chrome/browser/feedback:feedback_enum",
+      "//chrome/browser/signin",
+      "//chrome/browser/ui/user_education",
+      "//components/content_settings/core/common",
+      "//components/signin/public/base:signin_buildflags",
+      "//url",
+    ]
+  }
+
   source_set("browser_tests") {
     testonly = true
     defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
@@ -5813,10 +5722,6 @@ static_library("test_support") {
     sources += [
       "views/extensions/extensions_menu_test_util.cc",
       "views/extensions/extensions_menu_test_util.h",
-      "views/payments/test_chrome_payment_request_delegate.cc",
-      "views/payments/test_chrome_payment_request_delegate.h",
-      "views/payments/test_secure_payment_confirmation_payment_request_delegate.cc",
-      "views/payments/test_secure_payment_confirmation_payment_request_delegate.h",
       "views/web_apps/isolated_web_apps/test_isolated_web_app_installer_model_observer.cc",
       "views/web_apps/isolated_web_apps/test_isolated_web_app_installer_model_observer.h",
     ]

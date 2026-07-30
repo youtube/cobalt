@@ -6,14 +6,18 @@
 
 #include <string_view>
 
+#include "base/strings/string_view_util.h"
 #include "base/time/time.h"
 #include "net/cert/x509_certificate.h"
 #include "net/cert/x509_util.h"
 #include "net/test/cert_builder.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/test_data_directory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
+#include "third_party/boringssl/src/pki/parse_certificate.h"
+#include "third_party/boringssl/src/pki/signature_algorithm.h"
 
 namespace x509_certificate_model {
 
@@ -27,6 +31,35 @@ bool ContainsAttribute(
     std::string_view value) {
   for (const auto& attr : attributes) {
     if (attr.oid == oid && attr.value == value) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Returns true if any directoryName GeneralName in `names` carries an RDN
+// matching (`oid`, `value`) in its parsed `directory_name` list.
+bool ContainsDirectoryNameAttribute(
+    const std::vector<X509CertificateModel::GeneralName>& names,
+    std::string_view oid,
+    std::string_view value) {
+  for (const auto& name : names) {
+    if (name.type == X509CertificateModel::GeneralName::Type::kDirectoryName &&
+        ContainsAttribute(name.directory_name, oid, value)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+// Returns true if `names` contains a GeneralName whose `type` matches `type`
+// and `value` matches `value`.
+bool ContainsGeneralName(
+    const std::vector<X509CertificateModel::GeneralName>& names,
+    X509CertificateModel::GeneralName::Type type,
+    std::string_view value) {
+  for (const auto& name : names) {
+    if (name.type == type && name.value == value) {
       return true;
     }
   }
@@ -104,6 +137,77 @@ TEST_F(X509CertificateModelTest, GetGoogleCertFields) {
   // Dec 18 23:59:59 2011 GMT
   const double kGoogleParseValidTo = 1324252799;
   EXPECT_EQ(kGoogleParseValidTo, not_after.InSecondsFSinceUnixEpoch());
+
+  // Signature information.
+  EXPECT_EQ("PKCS #1 SHA-1 With RSA Encryption", model.GetSignatureAlgorithm());
+  EXPECT_EQ("None", model.GetSignatureParameters());
+  EXPECT_EQ(
+      "9F 43 CF 5B C4 50 29 B1 BF E2 B0 9A FF 6A 21 1D 2D 12 C3 2C 4E 5A "
+      "F9 12 E2 CE B9 82 52 2D E7 1D 7E 1A 76 96 90 79 D1 24 52 38 79 BB "
+      "63 8D 80 97 7C 23 20 0F 91 4D 16 B9 EA EE F4 6D 89 CA C6 BD CC 24 "
+      "68 D6 43 5B CE 2A 58 BF 3C 18 E0 E0 3C 62 CF 96 02 2D 28 47 50 34 "
+      "E1 27 BA CF 99 D1 50 FF 29 25 C0 36 36 15 33 52 70 BE 31 8F 9F E8 "
+      "7F E7 11 0C 8D BF 84 A0 42 1A 80 89 B0 31 58 41 07 5F",
+      model.GetSignatureData());
+
+  // Subject Public Key Info.
+  EXPECT_EQ("PKCS #1 RSA Encryption", model.GetPublicKeyAlgorithm());
+  EXPECT_EQ("None", model.GetPublicKeyParameters());
+  std::optional<size_t> public_key_size = model.GetPublicKeySize();
+  EXPECT_TRUE(public_key_size.has_value());
+  EXPECT_EQ(1024u, public_key_size.value());
+  EXPECT_EQ(
+      "30 81 89 02 81 81 00 E8 F9 86 0F 90 FA 86 D7 DF BD 72 26 B6 D7 44 "
+      "02 83 78 73 D9 02 28 EF 88 45 39 FB 10 E8 7C AE A9 38 D5 75 C6 38 "
+      "EB 0A 15 07 9B 83 E8 CD 82 D5 E3 F7 15 68 45 A1 0B 19 85 BC E2 EF "
+      "84 E7 DD F2 D7 B8 98 C2 A1 BB B5 C1 51 DF D4 83 02 A7 3D 06 42 5B "
+      "E1 22 C3 DE 6B 85 5F 1C D6 DA 4E 8B D3 9B EE B9 67 22 2A 1D 11 EF "
+      "79 A4 B3 37 8A F4 FE 18 FD BC F9 46 23 50 97 F3 AC FC 24 46 2B 5C "
+      "3B B7 45 02 03 01 00 01",
+      model.GetPublicKeyData());
+
+  // google.single.pem has 4 extensions in this DER order: Basic Constraints,
+  // CRL Distribution Points, Extended Key Usage, and Authority Information
+  // Access.
+  EXPECT_THAT(
+      model.GetExtensionOidsInOrder(),
+      testing::ElementsAre(bssl::der::Input(bssl::kBasicConstraintsOid),
+                           bssl::der::Input(bssl::kCrlDistributionPointsOid),
+                           bssl::der::Input(bssl::kExtKeyUsageOid),
+                           bssl::der::Input(bssl::kAuthorityInfoAccessOid)));
+
+  EXPECT_TRUE(model.IsBasicConstraintsCritical());
+  EXPECT_FALSE(model.IsBasicConstraintsCA());
+  EXPECT_FALSE(model.GetBasicConstraintsPathLen().has_value());
+
+  EXPECT_FALSE(model.IsCRLDistributionPointsCritical());
+  auto crl_dps = model.GetCRLDistributionPointsFullNames();
+  ASSERT_EQ(1u, crl_dps.size());
+  EXPECT_EQ(X509CertificateModel::GeneralName::Type::kURI, crl_dps[0].type);
+  EXPECT_EQ("http://crl.thawte.com/ThawteSGCCA.crl", crl_dps[0].value);
+
+  EXPECT_FALSE(model.IsExtendedKeyUsageCritical());
+  auto eku_purposes = model.GetExtendedKeyUsagePurposes();
+  ASSERT_EQ(3u, eku_purposes.size());
+  EXPECT_EQ("Server Authentication", eku_purposes[0]);
+  EXPECT_EQ("Client Authentication", eku_purposes[1]);
+  // Unknown OID: Netscape Server Gated Crypto (2.16.840.1.113730.4.1) falls
+  // back to dotted decimal notation.
+  EXPECT_EQ("2.16.840.1.113730.4.1", eku_purposes[2]);
+
+  // Two AccessDescriptions in DER order: OCSP then CA Issuers, both URIs.
+  EXPECT_FALSE(model.IsAuthorityInformationAccessCritical());
+  auto aia = model.GetAuthorityInformationAccess();
+  ASSERT_EQ(2u, aia.size());
+  EXPECT_EQ("OCSP", aia[0].method);
+  EXPECT_EQ(X509CertificateModel::GeneralName::Type::kURI,
+            aia[0].location.type);
+  EXPECT_EQ("http://ocsp.thawte.com", aia[0].location.value);
+  EXPECT_EQ("CA Issuers", aia[1].method);
+  EXPECT_EQ(X509CertificateModel::GeneralName::Type::kURI,
+            aia[1].location.type);
+  EXPECT_EQ("http://www.thawte.com/repository/Thawte_SGC_CA.crt",
+            aia[1].location.value);
 }
 
 TEST_F(X509CertificateModelTest, GetNDNCertFields) {
@@ -214,6 +318,351 @@ TEST_F(X509CertificateModelTest, SubjectEmptySequence) {
   EXPECT_EQ(OptionalStringOrError(NotPresent()), model.GetSubjectOrgName());
   EXPECT_EQ(OptionalStringOrError(NotPresent()), model.GetSubjectOrgUnitName());
   EXPECT_TRUE(model.GetSubjectAttributesInOrder().empty());
+}
+
+TEST_F(X509CertificateModelTest, SignatureParametersRawBytes) {
+  base::FilePath certs_dir = net::GetTestCertsDirectory();
+  std::unique_ptr<net::CertBuilder> builder =
+      net::CertBuilder::FromFile(certs_dir.AppendASCII("ok_cert.pem"), nullptr);
+  ASSERT_TRUE(builder);
+
+  // SEQUENCE {
+  //   OBJECT_IDENTIFIER { 1.2.840.113549.1.1.11 }  # sha256WithRSAEncryption
+  //   OCTET_STRING { DE AD BE EF }                 # bogus, but non-NULL
+  // }
+  const uint8_t kAlg[] = {0x30, 0x11, 0x06, 0x09, 0x2A, 0x86, 0x48,
+                          0x86, 0xF7, 0x0D, 0x01, 0x01, 0x0B, 0x04,
+                          0x04, 0xDE, 0xAD, 0xBE, 0xEF};
+  builder->SetSignatureAlgorithmTLV(base::as_string_view(kAlg));
+  builder->SetTBSSignatureAlgorithmTLV(base::as_string_view(kAlg));
+
+  X509CertificateModel model(bssl::UpRef(builder->GetCertBuffer()));
+  ASSERT_TRUE(model.is_valid());
+  EXPECT_EQ("04 04 DE AD BE EF", model.GetSignatureParameters());
+}
+
+TEST_F(X509CertificateModelTest, ECPublicKey) {
+  base::FilePath certs_dir = net::GetTestCertsDirectory();
+  std::unique_ptr<net::CertBuilder> builder =
+      net::CertBuilder::FromFile(certs_dir.AppendASCII("ok_cert.pem"), nullptr);
+  ASSERT_TRUE(builder);
+  builder->GenerateECKey();
+  // This is a self-signed cert, so the signature algorithm must match the new
+  // key type, otherwise signing fails.
+  builder->SetSignatureAlgorithm(bssl::SignatureAlgorithm::kEcdsaSha256);
+
+  X509CertificateModel model(bssl::UpRef(builder->GetCertBuffer()));
+  ASSERT_TRUE(model.is_valid());
+
+  EXPECT_EQ("Elliptic Curve Public Key", model.GetPublicKeyAlgorithm());
+  // The DER-encoded named curve OID for prime256v1 (1.2.840.10045.3.1.7).
+  EXPECT_EQ("06 08 2A 86 48 CE 3D 03 01 07", model.GetPublicKeyParameters());
+  std::optional<size_t> public_key_size = model.GetPublicKeySize();
+  EXPECT_TRUE(public_key_size.has_value());
+  EXPECT_EQ(256u, public_key_size.value());
+  EXPECT_FALSE(model.GetPublicKeyData().empty());
+}
+
+TEST_F(X509CertificateModelTest, Mldsa44PublicKey) {
+  base::FilePath certs_dir = net::GetTestCertsDirectory();
+  std::unique_ptr<net::CertBuilder> builder =
+      net::CertBuilder::FromFile(certs_dir.AppendASCII("ok_cert.pem"), nullptr);
+  ASSERT_TRUE(builder);
+  builder->GenerateMldsa44Key();
+  // This is a self-signed cert, so the signature algorithm must match the new
+  // key type, otherwise signing fails.
+  builder->SetSignatureAlgorithm(bssl::SignatureAlgorithm::kMldsa44);
+
+  X509CertificateModel model(bssl::UpRef(builder->GetCertBuffer()));
+  ASSERT_TRUE(model.is_valid());
+
+  EXPECT_EQ("ML-DSA-44", model.GetPublicKeyAlgorithm());
+  EXPECT_EQ("None", model.GetPublicKeyParameters());
+  std::optional<size_t> public_key_size = model.GetPublicKeySize();
+  EXPECT_TRUE(public_key_size.has_value());
+  EXPECT_EQ(10496u, public_key_size.value());
+  EXPECT_FALSE(model.GetPublicKeyData().empty());
+}
+
+TEST_F(X509CertificateModelTest, GlobalsignComCert) {
+  auto cert = net::ImportCertFromFile(net::GetTestCertsDirectory(),
+                                      "2029_globalsign_com_cert.pem");
+  ASSERT_TRUE(cert);
+  X509CertificateModel model(cert.get());
+  ASSERT_TRUE(model.is_valid());
+
+  // The cert has 9 extensions in this DER order. The last one, Netscape Cert
+  // Type (2.16.840.1.113730.1.1), has no BoringSSL OID constant.
+  static constexpr uint8_t kNetscapeCertTypeOid[] = {
+      0x60, 0x86, 0x48, 0x01, 0x86, 0xf8, 0x42, 0x01, 0x01};
+  EXPECT_THAT(
+      model.GetExtensionOidsInOrder(),
+      testing::ElementsAre(bssl::der::Input(bssl::kSubjectKeyIdentifierOid),
+                           bssl::der::Input(bssl::kAuthorityKeyIdentifierOid),
+                           bssl::der::Input(bssl::kAuthorityInfoAccessOid),
+                           bssl::der::Input(bssl::kCrlDistributionPointsOid),
+                           bssl::der::Input(bssl::kBasicConstraintsOid),
+                           bssl::der::Input(bssl::kKeyUsageOid),
+                           bssl::der::Input(bssl::kExtKeyUsageOid),
+                           bssl::der::Input(bssl::kCertificatePoliciesOid),
+                           bssl::der::Input(kNetscapeCertTypeOid)));
+
+  EXPECT_FALSE(model.IsBasicConstraintsCritical());
+  EXPECT_FALSE(model.IsBasicConstraintsCA());
+  EXPECT_FALSE(model.GetBasicConstraintsPathLen().has_value());
+
+  EXPECT_TRUE(model.IsKeyUsageCritical());
+  EXPECT_EQ(
+      "Digital Signature, Non-repudiation, Key Encipherment, Data Encipherment",
+      model.GetKeyUsageString());
+
+  EXPECT_FALSE(model.IsExtendedKeyUsageCritical());
+  auto eku_purposes = model.GetExtendedKeyUsagePurposes();
+  ASSERT_EQ(2u, eku_purposes.size());
+  EXPECT_EQ("Server Authentication", eku_purposes[0]);
+  EXPECT_EQ("Client Authentication", eku_purposes[1]);
+
+  EXPECT_FALSE(model.IsSubjectKeyIdentifierCritical());
+  EXPECT_EQ("59 BC D9 69 F7 B0 65 BB C8 34 C5 D2 C2 EF 17 78 A6 47 1E 8B",
+            model.GetSubjectKeyIdentifier());
+
+  EXPECT_FALSE(model.IsAuthorityKeyIdentifierCritical());
+  EXPECT_EQ("8A FC 14 1B 3D A3 59 67 A5 3B E1 73 92 A6 62 91 7F E4 78 30",
+            model.GetAuthorityKeyIdentifier());
+  EXPECT_TRUE(model.GetAuthorityKeyIdentifierIssuer().empty());
+  EXPECT_EQ("", model.GetAuthorityKeyIdentifierSerial());
+
+  // A single CA Issuers AccessDescription with a URI location.
+  EXPECT_FALSE(model.IsAuthorityInformationAccessCritical());
+  auto aia = model.GetAuthorityInformationAccess();
+  ASSERT_EQ(1u, aia.size());
+  EXPECT_EQ("CA Issuers", aia[0].method);
+  EXPECT_EQ(X509CertificateModel::GeneralName::Type::kURI,
+            aia[0].location.type);
+  EXPECT_EQ("http://secure.globalsign.net/cacert/SHA256extendval1.crt",
+            aia[0].location.value);
+
+  EXPECT_FALSE(model.IsCRLDistributionPointsCritical());
+  auto crl_dps = model.GetCRLDistributionPointsFullNames();
+  ASSERT_EQ(1u, crl_dps.size());
+  EXPECT_EQ(X509CertificateModel::GeneralName::Type::kURI, crl_dps[0].type);
+  EXPECT_EQ("http://crl.globalsign.net/SHA256ExtendVal1.crl", crl_dps[0].value);
+}
+
+TEST_F(X509CertificateModelTest, DiginotarCert) {
+  auto cert = net::ImportCertFromFile(net::GetTestCertsDirectory(),
+                                      "diginotar_public_ca_2025.pem");
+  ASSERT_TRUE(cert);
+  X509CertificateModel model(cert.get());
+  ASSERT_TRUE(model.is_valid());
+
+  // The cert has 7 extensions in this DER order.
+  EXPECT_THAT(
+      model.GetExtensionOidsInOrder(),
+      testing::ElementsAre(bssl::der::Input(bssl::kAuthorityInfoAccessOid),
+                           bssl::der::Input(bssl::kAuthorityKeyIdentifierOid),
+                           bssl::der::Input(bssl::kBasicConstraintsOid),
+                           bssl::der::Input(bssl::kCertificatePoliciesOid),
+                           bssl::der::Input(bssl::kCrlDistributionPointsOid),
+                           bssl::der::Input(bssl::kKeyUsageOid),
+                           bssl::der::Input(bssl::kSubjectKeyIdentifierOid)));
+
+  EXPECT_TRUE(model.IsBasicConstraintsCritical());
+  EXPECT_TRUE(model.IsBasicConstraintsCA());
+  std::optional<uint8_t> path_len = model.GetBasicConstraintsPathLen();
+  ASSERT_TRUE(path_len.has_value());
+  EXPECT_EQ(0u, path_len.value());
+
+  EXPECT_FALSE(model.IsSubjectKeyIdentifierCritical());
+  EXPECT_EQ("DF 33 C0 AF 92 FE 37 FC B6 D8 16 16 D0 D9 B1 91 D5 FA 6E A5",
+            model.GetSubjectKeyIdentifier());
+
+  EXPECT_FALSE(model.IsAuthorityKeyIdentifierCritical());
+  EXPECT_EQ("88 68 BF E0 8E 35 C4 3B 38 6B 62 F7 28 3B 84 81 C8 0C D7 4D",
+            model.GetAuthorityKeyIdentifier());
+
+  // A single OCSP AccessDescription with a URI location.
+  EXPECT_FALSE(model.IsAuthorityInformationAccessCritical());
+  auto aia = model.GetAuthorityInformationAccess();
+  ASSERT_EQ(1u, aia.size());
+  EXPECT_EQ("OCSP", aia[0].method);
+  EXPECT_EQ(X509CertificateModel::GeneralName::Type::kURI,
+            aia[0].location.type);
+  EXPECT_EQ("http://validation.diginotar.nl", aia[0].location.value);
+}
+
+TEST_F(X509CertificateModelTest, DiginotarCyberCa) {
+  auto cert = net::ImportCertFromFile(net::GetTestCertsDirectory(),
+                                      "diginotar_cyber_ca.pem");
+  ASSERT_TRUE(cert);
+  X509CertificateModel model(cert.get());
+  ASSERT_TRUE(model.is_valid());
+
+  // The cert has 6 extensions in this DER order.
+  EXPECT_THAT(
+      model.GetExtensionOidsInOrder(),
+      testing::ElementsAre(bssl::der::Input(bssl::kBasicConstraintsOid),
+                           bssl::der::Input(bssl::kCertificatePoliciesOid),
+                           bssl::der::Input(bssl::kKeyUsageOid),
+                           bssl::der::Input(bssl::kAuthorityKeyIdentifierOid),
+                           bssl::der::Input(bssl::kCrlDistributionPointsOid),
+                           bssl::der::Input(bssl::kSubjectKeyIdentifierOid)));
+
+  EXPECT_TRUE(model.IsBasicConstraintsCritical());
+  EXPECT_TRUE(model.IsBasicConstraintsCA());
+  std::optional<uint8_t> path_len = model.GetBasicConstraintsPathLen();
+  ASSERT_TRUE(path_len.has_value());
+  EXPECT_EQ(1u, path_len.value());
+
+  EXPECT_TRUE(model.IsKeyUsageCritical());
+  EXPECT_EQ("Certificate Signer, CRL Signer", model.GetKeyUsageString());
+
+  EXPECT_FALSE(model.IsSubjectKeyIdentifierCritical());
+  EXPECT_EQ("AB F9 68 DF CF 4A 37 D7 7B 45 8C 5F 72 DE 40 44 C3 65 BB C2",
+            model.GetSubjectKeyIdentifier());
+
+  EXPECT_FALSE(model.IsAuthorityKeyIdentifierCritical());
+  EXPECT_EQ("A6 0C 1D 9F 61 FF 07 17 B5 BF 38 46 DB 43 30 D5 8E B0 52 06",
+            model.GetAuthorityKeyIdentifier());
+}
+
+TEST_F(X509CertificateModelTest, AuthorityKeyIdentifierAllFields) {
+  auto cert = net::ImportCertFromFile(net::GetTestCertsDirectory(),
+                                      "diginotar_cyber_ca.pem");
+  ASSERT_TRUE(cert);
+  X509CertificateModel model(cert.get());
+  ASSERT_TRUE(model.is_valid());
+
+  EXPECT_EQ("A6 0C 1D 9F 61 FF 07 17 B5 BF 38 46 DB 43 30 D5 8E B0 52 06",
+            model.GetAuthorityKeyIdentifier());
+
+  auto aki_issuer = model.GetAuthorityKeyIdentifierIssuer();
+  EXPECT_FALSE(aki_issuer.empty());
+  // 2.5.4.3 = commonName.
+  EXPECT_TRUE(ContainsDirectoryNameAttribute(aki_issuer, "2.5.4.3",
+                                             "GTE CyberTrust Global Root"));
+  // 2.5.4.6 = countryName.
+  EXPECT_TRUE(ContainsDirectoryNameAttribute(aki_issuer, "2.5.4.6", "US"));
+  // 2.5.4.10 = organizationName.
+  EXPECT_TRUE(ContainsDirectoryNameAttribute(aki_issuer, "2.5.4.10",
+                                             "GTE Corporation"));
+  // 2.5.4.11 = organizationalUnitName.
+  EXPECT_TRUE(ContainsDirectoryNameAttribute(aki_issuer, "2.5.4.11",
+                                             "GTE CyberTrust Solutions, Inc."));
+
+  EXPECT_EQ("01 A5", model.GetAuthorityKeyIdentifierSerial());
+}
+
+TEST_F(X509CertificateModelTest,
+       AuthorityInfoAccessNonstandardOidAndLocationType) {
+  base::FilePath certs_dir = net::GetTestCertsDirectory();
+  std::unique_ptr<net::CertBuilder> builder =
+      net::CertBuilder::FromFile(certs_dir.AppendASCII("ok_cert.pem"), nullptr);
+  ASSERT_TRUE(builder);
+
+  // SEQUENCE {
+  //  SEQUENCE {
+  //    OBJECT_IDENTIFIER { 1.4.9.20 }
+  //    [1 PRIMITIVE] { "foo@example.com" }  -- rfc822Name
+  //  }
+  // }
+  const uint8_t kAIA[] = {0x30, 0x18, 0x30, 0x16, 0x06, 0x03, 0x2c, 0x09, 0x14,
+                          0x81, 0x0f, 0x66, 0x6f, 0x6f, 0x40, 0x65, 0x78, 0x61,
+                          0x6d, 0x70, 0x6c, 0x65, 0x2e, 0x63, 0x6f, 0x6d};
+  builder->SetExtension(bssl::der::Input(bssl::kAuthorityInfoAccessOid),
+                        std::string(base::as_string_view(kAIA)));
+
+  X509CertificateModel model(bssl::UpRef(builder->GetCertBuffer()));
+  ASSERT_TRUE(model.is_valid());
+
+  auto aia = model.GetAuthorityInformationAccess();
+  ASSERT_EQ(1u, aia.size());
+  // Unknown accessMethod OID falls back to dotted decimal notation.
+  EXPECT_EQ("1.4.9.20", aia[0].method);
+  EXPECT_EQ(X509CertificateModel::GeneralName::Type::kRFC822Name,
+            aia[0].location.type);
+  EXPECT_EQ("foo@example.com", aia[0].location.value);
+}
+
+TEST_F(X509CertificateModelTest, SubjectAltNameSanityTest) {
+  auto cert = net::ImportCertFromFile(net::GetTestCertsDirectory(),
+                                      "subjectAltName_sanity_check.pem");
+  ASSERT_TRUE(cert);
+  X509CertificateModel model(cert.get());
+  ASSERT_TRUE(model.is_valid());
+
+  EXPECT_FALSE(model.IsSubjectAlternativeNameCritical());
+
+  // subjectAltName_sanity_check.pem carries: IP 127.0.0.2, IP fe80::1,
+  // DNS test.example, email test@test.example, otherName 1.2.3.4,
+  // DirName CN=127.0.0.3.
+  using GeneralName = X509CertificateModel::GeneralName;
+  auto names = model.GetSubjectAlternativeNames();
+
+  EXPECT_TRUE(
+      ContainsGeneralName(names, GeneralName::Type::kIPAddress, "127.0.0.2"));
+  EXPECT_TRUE(
+      ContainsGeneralName(names, GeneralName::Type::kIPAddress, "fe80::1"));
+  EXPECT_TRUE(
+      ContainsGeneralName(names, GeneralName::Type::kDNSName, "test.example"));
+  EXPECT_TRUE(ContainsGeneralName(names, GeneralName::Type::kRFC822Name,
+                                  "test@test.example"));
+
+  // otherName: type-id 1.2.3.4, value decoded from the inner UTF8String.
+  const GeneralName* other_name = nullptr;
+  for (const auto& name : names) {
+    if (name.type == GeneralName::Type::kOtherName) {
+      other_name = &name;
+      break;
+    }
+  }
+  ASSERT_NE(other_name, nullptr);
+  EXPECT_EQ("1.2.3.4", other_name->other_name_oid);
+  EXPECT_EQ("ignore me", other_name->value);
+
+  // The directoryName entry carries parsed RDNs in `directory_name`, not in
+  // `value`; assert via the RDN helper. 2.5.4.3 = commonName.
+  EXPECT_TRUE(ContainsDirectoryNameAttribute(names, "2.5.4.3", "127.0.0.3"));
+}
+
+TEST_F(X509CertificateModelTest, IssuerAltNameTest) {
+  base::FilePath certs_dir = net::GetTestCertsDirectory();
+  std::unique_ptr<net::CertBuilder> builder =
+      net::CertBuilder::FromFile(certs_dir.AppendASCII("ok_cert.pem"), nullptr);
+  ASSERT_TRUE(builder);
+
+  // SEQUENCE {                                    -- GeneralNames
+  //   [2 PRIMITIVE] { "test.example" }            -- dNSName
+  //   [1 PRIMITIVE] { "test@test.example" }       -- rfc822Name
+  //   [6 PRIMITIVE] { "http://test.example/" }    -- URI
+  //   [7 PRIMITIVE] { 7F 00 00 02 }               -- iPAddress 127.0.0.2
+  // }
+  const uint8_t kIAN[] = {0x30, 0x3d, 0x82, 0x0c, 0x74, 0x65, 0x73, 0x74, 0x2e,
+                          0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x81, 0x11,
+                          0x74, 0x65, 0x73, 0x74, 0x40, 0x74, 0x65, 0x73, 0x74,
+                          0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70, 0x6c, 0x65, 0x86,
+                          0x14, 0x68, 0x74, 0x74, 0x70, 0x3a, 0x2f, 0x2f, 0x74,
+                          0x65, 0x73, 0x74, 0x2e, 0x65, 0x78, 0x61, 0x6d, 0x70,
+                          0x6c, 0x65, 0x2f, 0x87, 0x04, 0x7f, 0x00, 0x00, 0x02};
+  builder->SetExtension(bssl::der::Input(kIssuerAltNameOid),
+                        std::string(base::as_string_view(kIAN)));
+
+  X509CertificateModel model(bssl::UpRef(builder->GetCertBuffer()));
+  ASSERT_TRUE(model.is_valid());
+
+  EXPECT_FALSE(model.IsIssuerAlternativeNameCritical());
+
+  using GeneralName = X509CertificateModel::GeneralName;
+  auto names = model.GetIssuerAlternativeNames();
+  ASSERT_EQ(4u, names.size());
+  EXPECT_TRUE(
+      ContainsGeneralName(names, GeneralName::Type::kDNSName, "test.example"));
+  EXPECT_TRUE(ContainsGeneralName(names, GeneralName::Type::kRFC822Name,
+                                  "test@test.example"));
+  EXPECT_TRUE(ContainsGeneralName(names, GeneralName::Type::kURI,
+                                  "http://test.example/"));
+  EXPECT_TRUE(
+      ContainsGeneralName(names, GeneralName::Type::kIPAddress, "127.0.0.2"));
 }
 
 }  // namespace x509_certificate_model

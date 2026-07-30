@@ -15,6 +15,7 @@
 #include <utility>
 #include <vector>
 
+#include "base/containers/flat_set.h"
 #include "base/feature_list.h"
 #include "base/i18n/case_conversion.h"
 #include "base/logging.h"
@@ -37,6 +38,7 @@
 #include "components/password_manager/core/common/password_manager_features.h"
 #include "components/password_manager/core/common/password_manager_util.h"
 #include "services/metrics/public/cpp/ukm_builders.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 
 using autofill::FieldGlobalId;
 using autofill::FieldPropertiesFlags;
@@ -227,6 +229,20 @@ struct SignificantFields {
   // webauthn request.
   bool accepts_webauthn_credentials = false;
 
+  // The method used to detect the username field.
+  UsernameDetectionMethod username_detection_method =
+      UsernameDetectionMethod::kNoUsernameDetected;
+
+  // Sets `username_detection_method` to `new_method` if no username detection
+  // method has been recorded yet and a username field is present.
+  void RecordMethodIfUsernameFound(UsernameDetectionMethod new_method) {
+    if (username_detection_method ==
+            UsernameDetectionMethod::kNoUsernameDetected &&
+        username) {
+      username_detection_method = new_method;
+    }
+  }
+
   // Returns true if some password field is present. This is the minimal
   // requirement for a successful creation of a PasswordForm is present.
   bool HasPasswords() const {
@@ -308,6 +324,58 @@ struct SignificantFields {
           // Password selection in a prompt will allow to correct the choice.
           password = passwords[0];
         }
+    }
+  }
+
+  // Returns true if the same field has been assigned to multiple non-null
+  // credential roles (username, password, new_password, confirmation_password).
+  bool HasConflicts() const {
+    absl::flat_hash_set<const FormFieldData*> seen;
+    return std::ranges::any_of(
+        std::initializer_list<const FormFieldData*>{
+            username.get(), password.get(), new_password.get(),
+            confirmation_password.get()},
+        [&seen](const FormFieldData* field) {
+          return field && !seen.insert(field).second;
+        });
+  }
+
+  // Checks if a conflict is present. If so, resets the state to empty
+  // and returns true. Otherwise, returns false.
+  bool ResetIfConflict() {
+    if (HasConflicts()) {
+      *this = SignificantFields();
+      return true;
+    }
+    return false;
+  }
+
+  // Resolves credential role conflicts on the same field by applying priority
+  // resolution rules based on input controls (e.g. input type).
+  void Sanitize() {
+    if (confirmation_password && (confirmation_password == new_password ||
+                                  confirmation_password == password)) {
+      confirmation_password = nullptr;
+    }
+
+    if (password && password == new_password) {
+      (confirmation_password ? password : new_password) = nullptr;
+    }
+
+    if (!username) {
+      return;
+    }
+    if (username->form_control_type() ==
+            autofill::FormControlType::kInputPassword &&
+        (username == password || username == new_password ||
+         username == confirmation_password)) {
+      username = nullptr;
+    } else if (username == password) {
+      password = nullptr;
+    } else if (username == new_password) {
+      new_password = nullptr;
+    } else if (username == confirmation_password) {
+      confirmation_password = nullptr;
     }
   }
 
@@ -1164,13 +1232,6 @@ bool FieldMaxLengthAllowsPasswordGeneration(const FormFieldData& field) {
          autofill::password_generation::kMinimumPasswordLength;
 }
 
-bool ShouldUpdateUsernameDetectionMethod(
-    UsernameDetectionMethod method,
-    const SignificantFields& significant_fields) {
-  return (method == UsernameDetectionMethod::kNoUsernameDetected) &&
-         significant_fields.username;
-}
-
 bool ShouldContinueParsing(bool parsing_complete_with_model_predictions,
                            const SignificantFields& significant_fields) {
   // Model predictions provide field types for all fields in the form and are
@@ -1314,16 +1375,25 @@ FormParsingResult FormDataParser::ParseAndReturnParsingResult(
   }
 
   SignificantFields significant_fields;
-  UsernameDetectionMethod method = UsernameDetectionMethod::kNoUsernameDetected;
 
+  // We expect model predictions to be complete and cover all fields in a form.
+  // If a prediction stage is incomplete or yields role conflicts when combined
+  // with other predictions, all accumulated predictions so far are discarded
+  // and reset to empty (`ResetIfConflict()`). Rather than evaluating which
+  // suboptimal prediction source is correct when sources contradict each other,
+  // the parser resets state completely so subsequent stages (such as local
+  // heuristics) can parse on a clean slate.
   // (1) Parse with model predictions if they are available.
   bool parsing_complete_with_model_predictions = false;
   if (model_predictions_.has_value()) {
     parsing_complete_with_model_predictions =
         ParseUsingModelPredictions(processed_fields, *model_predictions_, mode,
                                    ukm_source_id, &significant_fields);
-    if (ShouldUpdateUsernameDetectionMethod(method, significant_fields)) {
-      method = UsernameDetectionMethod::kModelPrediction;
+    if (significant_fields.ResetIfConflict()) {
+      parsing_complete_with_model_predictions = false;
+    } else {
+      significant_fields.RecordMethodIfUsernameFound(
+          UsernameDetectionMethod::kModelPrediction);
     }
   }
 
@@ -1334,13 +1404,16 @@ FormParsingResult FormDataParser::ParseAndReturnParsingResult(
                               significant_fields)) {
       ParseUsingServerPredictions(processed_fields, *server_predictions_, mode,
                                   &significant_fields);
-      if (ShouldUpdateUsernameDetectionMethod(method, significant_fields)) {
-        method = UsernameDetectionMethod::kServerSidePrediction;
+      if (!significant_fields.ResetIfConflict()) {
+        significant_fields.RecordMethodIfUsernameFound(
+            UsernameDetectionMethod::kServerSidePrediction);
       }
     } else {
       std::map<ProcessedField*, autofill::FieldType> overrides =
           ExtractServerOverrides(server_predictions_.value(), processed_fields);
       if (!overrides.empty()) {
+        // No conflict check needed here since ApplyServerOverrides self-clears
+        // conflicts.
         ApplyServerOverrides(overrides, &significant_fields);
       }
     }
@@ -1379,8 +1452,9 @@ FormParsingResult FormDataParser::ParseAndReturnParsingResult(
   if (ShouldContinueParsing(parsing_complete_with_model_predictions,
                             significant_fields)) {
     ParseUsingAutocomplete(processed_fields, mode, &significant_fields);
-    if (ShouldUpdateUsernameDetectionMethod(method, significant_fields)) {
-      method = UsernameDetectionMethod::kAutocompleteAttribute;
+    if (!significant_fields.ResetIfConflict()) {
+      significant_fields.RecordMethodIfUsernameFound(
+          UsernameDetectionMethod::kAutocompleteAttribute);
     }
   }
 
@@ -1395,9 +1469,8 @@ FormParsingResult FormDataParser::ParseAndReturnParsingResult(
     ParseUsingBaseHeuristics(processed_fields, stored_usernames, mode,
                              &significant_fields, &username_max,
                              &readonly_status_);
-    if (ShouldUpdateUsernameDetectionMethod(method, significant_fields)) {
-      method = UsernameDetectionMethod::kBaseHeuristic;
-    }
+    significant_fields.RecordMethodIfUsernameFound(
+        UsernameDetectionMethod::kBaseHeuristic);
 
     // Additionally, and based on the best interactability computed by base
     // heuristics, try to improve the username based on the context of the
@@ -1411,9 +1484,12 @@ FormParsingResult FormDataParser::ParseAndReturnParsingResult(
           !(mode == FormDataParser::Mode::kSaving &&
             username_field_by_context->value().empty())) {
         significant_fields.username = username_field_by_context;
-        if (method == UsernameDetectionMethod::kNoUsernameDetected ||
-            method == UsernameDetectionMethod::kBaseHeuristic) {
-          method = UsernameDetectionMethod::kHtmlBasedClassifier;
+        if (significant_fields.username_detection_method ==
+                UsernameDetectionMethod::kNoUsernameDetected ||
+            significant_fields.username_detection_method ==
+                UsernameDetectionMethod::kBaseHeuristic) {
+          significant_fields.username_detection_method =
+              UsernameDetectionMethod::kHtmlBasedClassifier;
         }
       }
     }
@@ -1433,10 +1509,15 @@ FormParsingResult FormDataParser::ParseAndReturnParsingResult(
     }
   }
 
+  // Sanitize the significant fields to resolve any remaining role conflicts
+  // as a last resort before final classification.
+  significant_fields.Sanitize();
+
   // If no password is found, check if the form is UFF. For now, only consider
   // the case when username is found using autocomplete attribute.
   if (!significant_fields.HasPasswords() &&
-      method == UsernameDetectionMethod::kAutocompleteAttribute) {
+      significant_fields.username_detection_method ==
+          UsernameDetectionMethod::kAutocompleteAttribute) {
     significant_fields.is_single_username = true;
   }
 
@@ -1470,9 +1551,8 @@ FormParsingResult FormDataParser::ParseAndReturnParsingResult(
                                       *significant_fields.new_password) &&
                                   new_password_found_before_heuristic;
 
-
   base::UmaHistogramEnumeration("PasswordManager.UsernameDetectionMethod",
-                                method);
+                                significant_fields.username_detection_method);
 
   // OTPs and PIN codes are usually split across several 1-digit fields.
   // Don't automatically show Save/Update prompt in such case.
@@ -1486,7 +1566,8 @@ FormParsingResult FormDataParser::ParseAndReturnParsingResult(
       AssemblePasswordForm(
           form_data, significant_fields, std::move(all_alternative_passwords),
           std::move(all_alternative_usernames), server_predictions_),
-      method, is_new_password_reliable, suggestion_banned_fields,
+      significant_fields.username_detection_method, is_new_password_reliable,
+      suggestion_banned_fields,
       significant_fields.manual_generation_enabled_fields);
 }
 

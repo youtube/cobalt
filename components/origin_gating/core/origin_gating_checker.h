@@ -6,6 +6,8 @@
 #define COMPONENTS_ORIGIN_GATING_CORE_ORIGIN_GATING_CHECKER_H_
 
 #include <memory>
+#include <optional>
+#include <utility>
 
 #include "base/functional/callback.h"
 #include "base/memory/raw_ref.h"
@@ -38,6 +40,7 @@ class OriginGatingChecker {
     // the result.
     virtual void DoesOriginRequireUserConfirmation(
         GatingDecisionContext* context,
+        GateableEvent event,
         const GURL& source,
         const GURL& destination,
         DoesOriginRequireUserConfirmationCallback callback) const = 0;
@@ -45,6 +48,7 @@ class OriginGatingChecker {
     // Defers the final decision from the OriginGatingChecker to the delegate.
     virtual void OnNoVerdict(
         GatingDecisionContext* context,
+        GateableEvent event,
         const GURL& source,
         const GURL& destination,
         bool requires_user_confirmation,
@@ -58,10 +62,11 @@ class OriginGatingChecker {
   OriginGatingChecker(const OriginGatingChecker&) = delete;
   OriginGatingChecker& operator=(const OriginGatingChecker&) = delete;
 
-  // Evaluates a navigation/actuation.
+  // Evaluates a navigation/actuation. `event` selects which predicates apply.
   // The callback is guaranteed to be invoked asynchronously on the same
   // sequence.
   void ComputeGatingDecision(std::unique_ptr<GatingDecisionContext> context,
+                             GateableEvent event,
                              const GURL& source,
                              const GURL& destination,
                              GatingDecisionCallback callback);
@@ -77,30 +82,46 @@ class OriginGatingChecker {
   const OriginGatingCache& cache() const { return cache_; }
 
  private:
-  void RunNextPredicate(std::unique_ptr<GatingDecisionContext> context,
-                        base::span<const DecisionSource> pending_predicates,
-                        const GURL& source,
-                        const GURL& destination,
-                        GatingDecisionCallback callback);
+  // Holds various inputs provided by the delegate (and data derived thereof),
+  // to avoid needless recomputations.
+  struct DelegateInputs {
+    GateableEvent event;
+    GURL source;
+    url::Origin source_origin;
+    GURL destination;
+    url::Origin destination_origin;
+    std::optional<bool> requires_user_confirmation;
+  };
 
-  void OnPredicateVerdict(std::unique_ptr<GatingDecisionContext> context,
-                          base::span<const DecisionSource> remaining_predicates,
-                          DecisionSource attribution,
-                          const GURL& source,
-                          const GURL& destination,
-                          GatingDecisionCallback callback,
-                          Decision decision);
+  void RunNextPredicate(
+      std::unique_ptr<GatingDecisionContext> context,
+      base::span<const PredicateConfiguration> pending_predicates,
+      DelegateInputs input,
+      GatingDecisionCallback callback);
+
+  void OnPredicateVerdict(
+      std::unique_ptr<GatingDecisionContext> context,
+      base::span<const PredicateConfiguration> remaining_predicates,
+      DecisionAttribution attribution,
+      DelegateInputs input,
+      GatingDecisionCallback callback,
+      Decision decision);
 
   void OnUserConfirmationRequiredAnswer(
       std::unique_ptr<GatingDecisionContext> context,
-      const GURL& source,
-      const GURL& destination,
+      base::span<const PredicateConfiguration> pending_predicates,
+      DelegateInputs input,
       GatingDecisionCallback callback,
       bool requires_user_confirmation);
+
   void OnNoVerdictAnswer(std::unique_ptr<GatingDecisionContext> context,
                          const GURL& destination,
                          GatingDecisionCallback callback,
                          Delegate::NoVerdictResult result);
+
+  // Predicate that returns `kAllowed` if `destination` is in the cache with
+  // user confirmation; `kNoDecision` otherwise.
+  Decision IsCachedWithUserConfirmation(const url::Origin& origin) const;
 
   SEQUENCE_CHECKER(sequence_checker_);
   const raw_ref<Delegate> delegate_;

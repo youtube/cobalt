@@ -419,7 +419,7 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorRoundedCornersTest,
                        RoundedCornersOnTabSwitch) {
   // 1. Set dummy contents so CreateView can set up containing view.
   coordinator().SetContentsView(
-      std::make_unique<views::WebView>(browser()->profile()));
+      std::make_unique<views::WebView>(browser()->GetProfile()));
   coordinator().Show();
   EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kShown);
 
@@ -431,17 +431,16 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorRoundedCornersTest,
   // to a view added deep in the hierarchy without OnChildViewAdded.
   std::unique_ptr<content::WebContents> test_web_contents =
       content::WebContents::Create(
-          content::WebContents::CreateParams(browser()->profile()));
-  auto web_view_owner = std::make_unique<views::WebView>(browser()->profile());
+          content::WebContents::CreateParams(browser()->GetProfile()));
+  auto web_view_owner =
+      std::make_unique<views::WebView>(browser()->GetProfile());
   web_view_owner->SetWebContents(test_web_contents.get());
 
   coordinator().SetContentsView(std::move(web_view_owner));
 
   views::WebView* web_view = FindWebView(content_parent);
   ASSERT_TRUE(web_view);
-  ui::Layer* layer = web_view->holder()->GetUILayer();
-  ASSERT_TRUE(layer);
-  EXPECT_FALSE(layer->rounded_corner_radii().IsEmpty());
+  EXPECT_FALSE(web_view->holder()->GetNativeViewCornerRadii().IsEmpty());
 
   // 3. Add a new tab and switch to it.
   chrome::AddTabAt(browser(), GURL("about:blank"), -1, true);
@@ -452,9 +451,7 @@ IN_PROC_BROWSER_TEST_F(GlicSidePanelCoordinatorRoundedCornersTest,
   EXPECT_EQ(future_.Take(), GlicSidePanelCoordinator::State::kShown);
 
   // Verify rounded corners are still there
-  ui::Layer* layer_after = web_view->holder()->GetUILayer();
-  ASSERT_TRUE(layer_after);
-  EXPECT_FALSE(layer_after->rounded_corner_radii().IsEmpty());
+  EXPECT_FALSE(web_view->holder()->GetNativeViewCornerRadii().IsEmpty());
 }
 
 }  // namespace

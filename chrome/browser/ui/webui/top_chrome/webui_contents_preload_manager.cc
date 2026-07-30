@@ -80,7 +80,7 @@ class FixedCandidateSelector : public webui::PreloadCandidateSelector {
     DCHECK(std::ranges::contains(preloadable_urls, webui_url_));
   }
   std::optional<GURL> GetURLToPreload(
-      const webui::PreloadContext& context) const override {
+      webui::PreloadContext context) const override {
     return IsUrlExcludedByFlag(webui_url_) ? std::nullopt
                                            : std::make_optional(webui_url_);
   }
@@ -332,10 +332,11 @@ void WebUIContentsPreloadManager::WarmupForBrowser(Browser* browser) {
 
   if (IsDelayPreloadEnabled()) {
     MaybePreloadForBrowserContextLater(
-        browser->profile(), browser->tab_strip_model()->GetActiveWebContents(),
+        browser->GetProfile(),
+        browser->tab_strip_model()->GetActiveWebContents(),
         PreloadReason::kBrowserWarmup);
   } else {
-    MaybePreloadForBrowserContext(browser->profile(),
+    MaybePreloadForBrowserContext(browser->GetProfile(),
                                   PreloadReason::kBrowserWarmup);
   }
 }

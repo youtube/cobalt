@@ -24,7 +24,7 @@ source_set("events") {
     "//chrome/browser/ui",
     "//chrome/browser/ui/navigator",
     "//chrome/common/chromeos/extensions/api",
-    "//chromeos/crosapi/mojom",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//extensions/browser",
     "//url",
   ]
@@ -32,8 +32,8 @@ source_set("events") {
 
 source_set("event_router") {
   sources = [
-    "event_observation_crosapi.cc",
-    "event_observation_crosapi.h",
+    "event_observation.cc",
+    "event_observation.h",
     "event_router.cc",
     "event_router.h",
   ]
@@ -42,8 +42,7 @@ source_set("event_router") {
     ":event_converters",
     "//base",
     "//chrome/common/chromeos/extensions/api",
-    "//chromeos/ash/components/telemetry_extension/events",
-    "//chromeos/crosapi/mojom",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//content/public/browser",
     "//extensions/common",
     "//mojo/public/cpp/bindings",
@@ -64,8 +63,9 @@ source_set("event_manager") {
     "//chrome/browser/chromeos/extensions/telemetry/api/common",
     "//chrome/browser/chromeos/extensions/telemetry/api/common:util",
     "//chrome/common/chromeos/extensions",
-    "//chromeos/ash/components/telemetry_extension/events",
-    "//chromeos/crosapi/mojom",
+    "//chrome/common/chromeos/extensions/api",
+    "//chromeos/ash/services/cros_healthd/public/cpp",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//content/public/browser",
   ]
 
@@ -84,7 +84,7 @@ source_set("event_converters") {
   deps = [
     "//base",
     "//chrome/common/chromeos/extensions/api",
-    "//chromeos/crosapi/mojom",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//third_party/abseil-cpp:absl",
   ]
 }
@@ -133,7 +133,6 @@ source_set("unit_tests") {
     "//chrome/test:test_support",
     "//chromeos/ash/components/mojo_service_manager:test_support",
     "//chromeos/constants",
-    "//chromeos/crosapi/mojom",
     "//content/public/browser",
     "//net",
     "//net:test_support",
@@ -145,7 +144,7 @@ source_set("unit_tests") {
 source_set("extensions_unittests") {
   testonly = true
   sources = [
-    "event_observation_crosapi_unittest.cc",
+    "event_observation_unittest.cc",
     "event_router_unittest.cc",
   ]
 
@@ -153,7 +152,7 @@ source_set("extensions_unittests") {
     ":event_router",
     "//base/test:test_support",
     "//chrome/common/chromeos/extensions/api",
-    "//chromeos/crosapi/mojom",
+    "//chromeos/ash/services/cros_healthd/public/mojom",
     "//content/test:test_support",
     "//extensions:test_support",
     "//extensions/common",

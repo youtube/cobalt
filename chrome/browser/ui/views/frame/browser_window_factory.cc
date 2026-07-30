@@ -12,9 +12,6 @@
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/webui_browser/webui_browser.h"
 #include "chrome/browser/ui/webui_browser/webui_browser_window.h"
-#include "chrome/browser/ui/window_feature_controller/window_feature_controller.h"
-#include "components/safe_browsing/core/browser/password_protection/metrics_util.h"
-#include "ui/base/l10n/l10n_util.h"
 #include "ui/views/widget/widget.h"
 
 #if defined(USE_AURA)
@@ -103,13 +100,11 @@ const BrowserWindow* BrowserWindow::FromBrowser(
   }
   // Fallback for BrowserWindow implementations that are not reachable through
   // the NativeWindow property table (notably TestBrowserWindow in unit tests,
-  // and the brief moment during Browser construction when window_ has been
-  // assigned but no NativeWindow exists yet). This preserves drop-in
-  // equivalence with the legacy `browser->window()` call and will be removed
-  // alongside `Browser::window()` once all callers have migrated
-  // (https://crbug.com/496674143).
-  const Browser* concrete = browser->GetBrowserForMigrationOnly();
-  return concrete ? concrete->window() : nullptr;
+  // and during window teardown, when the NativeWindow lookups above no longer
+  // resolve but callers may still need the window - e.g. to save workspace
+  // state or update commands as tabs close). The window returned by
+  // GetWindow() is always a BrowserWindow, so the downcast is safe.
+  return static_cast<const BrowserWindow*>(browser->GetWindow());
 }
 
 // static

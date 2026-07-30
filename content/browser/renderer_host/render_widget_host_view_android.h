@@ -220,7 +220,7 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
                                  const gfx::Rect& bounds) override;
   void ClearKeyboardTriggeredTooltip() override;
   void TransformPointToRootSurface(gfx::PointF* point) override;
-  gfx::Rect GetBoundsInRootWindow() override;
+  gfx::Rect GetBoundsInScreen() override;
   const viz::LocalSurfaceId& IncrementSurfaceIdForNavigation() override;
   void ProcessAckedTouchEvent(
       const input::TouchEventWithLatencyInfo& touch,
@@ -669,6 +669,11 @@ class CONTENT_EXPORT RenderWidgetHostViewAndroid
   void ObserveDevicePosturePlatformProvider();
   void ComputeDisplayFeature();
   void SetDisplayFeatureBoundsForTesting(const gfx::Rect& bounds);
+
+  // Update `tooltip_text_` returning `false` if already set to input string.
+  bool UpdateTooltipText(const std::u16string& tooltip_text);
+  // Return `tooltip_text_` clamped to `kMaxTooltipLength`.
+  std::u16string GetTrimmedTooltipText() const;
 
   // Window-specific bits that affect widget visibility.
   bool is_window_visible_;

@@ -32,24 +32,6 @@ BASE_DECLARE_FEATURE(kSafetyCheckAutorunByManagerKillswitch);
 // Stack if no issues are found.
 BASE_DECLARE_FEATURE(kSafetyCheckModuleHiddenIfNoIssuesKillswitch);
 
-// Enum defining the available Tab Grid setup modes.
-enum class TabGridSetupMode {
-  // The Tab Grid is set up immediately at startup (legacy behavior).
-  kImmediate = 0,
-  // The Tab Grid is set up after startup, once the UI thread is idle.
-  kDeferred = 1,
-
-  // For simulating the race condition where the user navigates to
-  // the tab grid before deferred setup is complete.
-  kLazy_ForTesting = 2,
-};
-
-// Feature flag to control Tab Grid setup mode.
-BASE_DECLARE_FEATURE(kTabGridSetupMode);
-extern const base::FeatureParam<std::string> kTabGridSetupModeParam;
-extern const char kTabGridSetupModeParamName[];
-TabGridSetupMode GetTabGridSetupMode();
-
 // Feature to enable the refactored implementation of the `OmahaService`, using
 // new `OmahaServiceObserver`(s) for Omaha clients. Acts as a killswitch.
 BASE_DECLARE_FEATURE(kOmahaServiceRefactor);
@@ -986,12 +968,6 @@ BASE_DECLARE_FEATURE(kPlusButtonInFakebox);
 // Returns true if the plus button in NTP fakebox is enabled
 bool IsPlusButtonInFakeboxEnabled();
 
-// Enables the CobrowseAimHistory feature.
-BASE_DECLARE_FEATURE(kCobrowseAimHistory);
-
-// Returns true if the CobrowseAimHistory feature is enabled.
-bool IsCobrowseAimHistoryEnabled();
-
 // Enables the `AssistantAimMinimizedState` feature.
 BASE_DECLARE_FEATURE(kAssistantAimMinimizedState);
 
@@ -1073,5 +1049,11 @@ BASE_DECLARE_FEATURE(kAppBarHideInFullscreen);
 
 // Returns true if the App Bar should be completely hidden when in fullscreen.
 bool IsAppBarHiddenInFullscreen();
+
+// Enables the ToolbarGlassPrototype feature.
+BASE_DECLARE_FEATURE(kToolbarGlassPrototype);
+
+// Returns true if the ToolbarGlassPrototype feature is enabled.
+bool IsToolbarGlassPrototypeEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

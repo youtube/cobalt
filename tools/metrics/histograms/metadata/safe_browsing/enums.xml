@@ -580,6 +580,7 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="CHECKSUM_MISMATCH_FAILURE"/>
   <int value="12" label="MMAP_FAILURE"/>
   <int value="13" label="READ_FAILURE_NOT_SORTED"/>
+  <int value="14" label="REMOVALS_INDEX_NEGATIVE_FAILURE"/>
 </enum>
 
 <enum name="SafeBrowsingV4DecodeResult">
@@ -659,9 +660,36 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="MmapFailure"/>
   <int value="3" label="FileSizeNotMultipleOfPrefixSize"/>
   <int value="4" label="ChecksumMismatchFailure"/>
+  <int value="5" label="RiceDecodingAdditionsFailure"/>
+  <int value="6" label="RiceDecodingRemovalsFailure"/>
+  <int value="7" label="AdditionsHasExistingPrefixFailure"/>
+  <int value="8" label="RemovalsIndexTooLargeFailure"/>
+  <int value="9" label="WriteFailure"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/hash_prefix_list.h:V5ApplyUpdateResult) -->
+
+<!-- LINT.IfChange(SafeBrowsingV5DecodeResult) -->
+
+<enum name="SafeBrowsingV5DecodeResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="PrefixAccumulationOverflow"/>
+  <int value="2" label="RanOutOfBits"/>
+  <int value="3" label="QuotientTooLarge"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v5_rice.h:V5DecodeResult) -->
+
+<!-- LINT.IfChange(SafeBrowsingV5InputValidationResult) -->
+
+<enum name="SafeBrowsingV5InputValidationResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="NegativeNumEntries"/>
+  <int value="2" label="RiceParameterTooSmall"/>
+  <int value="3" label="RiceParameterTooLarge"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v5_rice.h:V5InputValidationResult) -->
 
 <!-- LINT.IfChange(SafeBrowsingV5StoreReadResult) -->
 
@@ -681,6 +709,17 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/sb_store.h:V5StoreReadResult) -->
+
+<!-- LINT.IfChange(SafeBrowsingV5StoreWriteResult) -->
+
+<enum name="SafeBrowsingV5StoreWriteResult">
+  <int value="0" label="WriteSuccess"/>
+  <int value="1" label="UnexpectedWriteFailure"/>
+  <int value="2" label="UnexpectedBytesWrittenFailure"/>
+  <int value="3" label="UnableToRenameFailure"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v5_store.h:V5StoreWriteResult) -->
 
 <!-- LINT.IfChange(V5ToV4MigrationResult) -->
 
@@ -943,6 +982,9 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="MismatchedNameError"/>
   <int value="4" label="MismatchedPrefixLengthError"/>
   <int value="5" label="NegativeDurationError"/>
+  <int value="6" label="InvalidRiceFieldError"/>
+  <int value="7" label="ChecksumMissingError"/>
+  <int value="8" label="ChecksumSizeError"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/safe_browsing/core/browser/db/v5_update_protocol_manager.h:V5ParseResult) -->

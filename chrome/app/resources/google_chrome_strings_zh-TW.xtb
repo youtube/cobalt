@@ -72,7 +72,6 @@
 <translation id="1640672724030957280">下載中…</translation>
 <translation id="1651617469580841801">使用 Google 智慧鏡頭時，系統會將網頁標題、網址和內容 (包括 PDF) 傳送給 Google。<ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">關於 ChromeOS Flex</translation>
-<translation id="1665867022636014702">使用 Google 建議的瀏覽器設定</translation>
 <translation id="1674870198290878346">在 Chrome 無痕視窗中開啟連結(&amp;G)</translation>
 <translation id="1682634494516646069">Google Chrome 無法讀取及寫入資料目錄：<ph name="USER_DATA_DIRECTORY" /></translation>
 <translation id="1688214853608504530">在網址列或搜尋框中輸入時，Chrome 會將這些內容傳送給貴機構的搜尋、AI 和代理工具，為你提供建議。</translation>
@@ -231,6 +230,7 @@
 <translation id="3242123554343253302">新增 Chrome 設定檔</translation>
 <translation id="3242486428260808857">在 <ph name="DEVICE_TYPE" /> 上使用 Chrome 應用程式，享受更豐富的線上購物體驗</translation>
 <translation id="3245429137663807393">如果你一併提供 Chrome 使用報告，這些報告中會包含你造訪的網址</translation>
+<translation id="3249558306861350254">在 Windows 設定中，點選「設定預設值」<ph name="BEGIN_BOLD" /><ph name="END_BOLD" />。</translation>
 <translation id="3259748324892322072">下載 Chrome 應用程式</translation>
 <translation id="3282568296779691940">登入 Chrome</translation>
 <translation id="3286538390144397061">立即重新啟動</translation>
@@ -250,7 +250,6 @@
 <translation id="345171907106878721">新增為 Chrome 使用者</translation>
 <translation id="3453763134178591239">Chrome OS 條款</translation>
 <translation id="3475778264501649775">使用手機版 Chrome，密碼、分頁等資料隨身帶著走</translation>
-<translation id="3512495006767217696">Chrome 內建這項功能，能幫你建立、儲存及自動填入高強度密碼。建議新增捷徑，方便隨時使用</translation>
 <translation id="3539955434060988644">在 Chrome 無痕視窗中開啟連結(&amp;G)</translation>
 <translation id="354621070532799440">提醒：將 Google 最頂尖的安全防護功能帶在身邊</translation>
 <translation id="3547866758548131919">點選「摘要」按鈕，即可與 Chrome 內建 Gemini 分享這份文件，快速取得內容總覽並提出後續問題</translation>
@@ -302,6 +301,7 @@
 <translation id="4012899077942246412">登入帳戶就能在 Chrome 使用 Google 帳戶儲存的密碼和其他資訊。如要變更，請前往「你在 Chrome 中的帳戶」。</translation>
 <translation id="4022972681110646219">翻譯這個畫面</translation>
 <translation id="4023601594785368013">原文語言：<ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">Chrome 內建這項功能，能幫你建立、儲存及自動填入高強度密碼。建議新增捷徑，方便隨時使用。</translation>
 <translation id="4035053306113201399">Chrome OS 必須重新啟動，才能套用更新。</translation>
 <translation id="4050175100176540509">最新版本包含重要的安全性改善與新功能。</translation>
 <translation id="4053720452172726777">自訂及管理 Google Chrome</translation>
@@ -540,7 +540,6 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6438015621983209660">在手機上使用 Chrome，享有更全面的安全瀏覽強化防護功能</translation>
 <translation id="6442774133615368941">在 Chrome iOS 應用程式使用相機購物、翻譯及辨識所見事物</translation>
 <translation id="6448835208126432197">如要在 Chrome 內建 Gemini 中選取部分畫面，請使用鍵盤快速鍵。</translation>
-<translation id="6473659734176498825">這張簡化示意圖呈現 Chrome 的 Google 密碼管理工具進入點</translation>
 <translation id="6473905796280459355">前往「關於 Chrome」頁面</translation>
 <translation id="6481963882741794338">連結 Chrome 和其他 Google 服務，用於個人化等用途</translation>
 <translation id="648319183876919572">安全瀏覽強化防護功能可進一步協助你防範危險的網站和下載內容</translation>
@@ -557,6 +556,7 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="6539493053177300926">即使 Chrome 最小化，也能輕鬆在裝置上使用 Chrome 內建 Gemini。</translation>
 <translation id="6585124893636629274">關閉 Chrome 內建 Gemini</translation>
 <translation id="659498884637196217">前往這部裝置的 Google 密碼管理員進行更新</translation>
+<translation id="6613949864921837107">將 Chrome 設為預設瀏覽器，即可在各裝置完美同步密碼、書籤和歷史記錄。</translation>
 <translation id="6631524303639368205">接續上次的瀏覽內容：Chrome 已還原上次開啟的分頁。如要關閉這項功能，請前往</translation>
 <translation id="6632473616050862500">ChromeOS Flex 藉助了其他<ph name="BEGIN_LINK_CROS_OSS" />開放原始碼軟體<ph name="END_LINK_CROS_OSS" />的相關技術才得以問世。</translation>
 <translation id="6634299872736643004">系統會在 Chrome 重新啟動後套用這項設定的變更。</translation>
@@ -682,7 +682,6 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="7804364787702057554">你在 Chrome 中的帳戶</translation>
 <translation id="7804947029129221742">搜尋引擎被 Chrome 以外的程式變更。Chrome 已將這項設定重設為原始預設值，保護你的安全。<ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">從 Chrome 中移除...</translation>
-<translation id="7812800388699096556">插圖顯示如何使用 Google 智慧鏡頭查詢產品</translation>
 <translation id="7827099906024714326">Chrome 必須先驗證身分，才能將這些資料儲存到 Google 帳戶，讓你在所有裝置上使用。如果現在登出，系統將刪除這類資料。</translation>
 <translation id="7832314606810669113">如要在所有裝置上存取書籤和其他資料，請登入 Chrome。登入後，這個書籤就會儲存到 Google 帳戶。</translation>
 <translation id="7845233973568007926">感謝你安裝本服務。你必須重新啟動電腦，才能使用 <ph name="BUNDLE_NAME" />。</translation>
@@ -821,7 +820,6 @@ Google Chrome 無法復原你的設定。</translation>
 <translation id="8999208279178790196">{0,plural, =0{有可用的 Chrome 更新}=1{有可用的 Chrome 更新}other{Chrome 更新已發布 # 天}}</translation>
 <translation id="9014771989710951291">Chrome 是由多個機構管理</translation>
 <translation id="9018218886431812662">安裝完成</translation>
-<translation id="9024318700713112071">將 Chrome 設為預設瀏覽器</translation>
 <translation id="9066987883552592250">關閉 Chrome 內建 Gemini (Canary 版)</translation>
 <translation id="9074041031320636790">大功告成！現在使用 Google 搜尋的 AI 模式，就能在瀏覽時輕鬆提問</translation>
 <translation id="9090566250983691233">瞭解 Chrome 封鎖某些檔案的原因</translation>

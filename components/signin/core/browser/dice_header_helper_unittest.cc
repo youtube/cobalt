@@ -961,7 +961,8 @@ TEST_F(
     DiceHeaderHelperTest,
     AppendOrRemoveDiceRequestHeader_DiceLinkedAccounts_SyncDisabled_PrimarySet) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(switches::kDiceLinkedAccounts);
+  scoped_feature_list.InitWithFeatures(
+      {switches::kDiceLinkedAccounts, switches::kDiceHeaderVersion2}, {});
 
   account_consistency_ = AccountConsistencyMethod::kDice;
   sync_enabled_ = false;
@@ -974,14 +975,15 @@ TEST_F(
           "version=%s,client_id=%s,device_id=DeviceID,"
           "primary_account_id=0123456789,linked_accounts=1,"
           "signin_mode=all_accounts,signout_mode=show_confirmation",
-          kDiceProtocolVersion, client_id.c_str()));
+          kDiceProtocolVersion2, client_id.c_str()));
 }
 
 TEST_F(
     DiceHeaderHelperTest,
     AppendOrRemoveDiceRequestHeader_DiceLinkedAccounts_SyncDisabled_PrimaryEmpty) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(switches::kDiceLinkedAccounts);
+  scoped_feature_list.InitWithFeatures(
+      {switches::kDiceLinkedAccounts, switches::kDiceHeaderVersion2}, {});
 
   account_consistency_ = AccountConsistencyMethod::kDice;
   sync_enabled_ = false;
@@ -994,14 +996,15 @@ TEST_F(
           "version=%s,client_id=%s,device_id=DeviceID,"
           "linked_accounts=1,"
           "signin_mode=all_accounts,signout_mode=show_confirmation",
-          kDiceProtocolVersion, client_id.c_str()));
+          kDiceProtocolVersion2, client_id.c_str()));
 }
 
 TEST_F(
     DiceHeaderHelperTest,
     AppendOrRemoveDiceRequestHeader_DiceLinkedAccounts_SyncEnabled_PrimarySet) {
   base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(switches::kDiceLinkedAccounts);
+  scoped_feature_list.InitWithFeatures(
+      {switches::kDiceLinkedAccounts, switches::kDiceHeaderVersion2}, {});
 
   account_consistency_ = AccountConsistencyMethod::kDice;
   sync_enabled_ = true;
@@ -1015,7 +1018,24 @@ TEST_F(
           "0123456789,"
           "primary_account_id=0123456789,linked_accounts=1,"
           "signin_mode=all_accounts,signout_mode=show_confirmation",
-          kDiceProtocolVersion, client_id.c_str()));
+          kDiceProtocolVersion2, client_id.c_str()));
+}
+
+TEST_F(DiceHeaderHelperTest,
+       AppendOrRemoveDiceRequestHeader_DiceHeaderVersion2Enabled) {
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(switches::kDiceHeaderVersion2);
+
+  account_consistency_ = AccountConsistencyMethod::kDice;
+  sync_enabled_ = false;
+
+  std::string client_id = GaiaUrls::GetInstance()->oauth2_chrome_client_id();
+  ASSERT_FALSE(client_id.empty());
+  CheckDiceHeaderRequest(
+      GURL("https://accounts.google.com"), GaiaId("0123456789"),
+      base::StringPrintf("version=%s,client_id=%s,device_id=DeviceID,signin_"
+                         "mode=all_accounts,signout_mode=show_confirmation",
+                         kDiceProtocolVersion2, client_id.c_str()));
 }
 
 }  // namespace signin

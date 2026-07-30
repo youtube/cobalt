@@ -72,7 +72,6 @@
 <translation id="1640672724030957280">Descargando...</translation>
 <translation id="1651617469580841801">Cuando usas Google Lens, el título de la página, la URL y el contenido, incluidos los archivos PDF, se envían a Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Acerca de ChromeOS Flex</translation>
-<translation id="1665867022636014702">Usar la configuración recomendada del navegador Google</translation>
 <translation id="1674870198290878346">Abrir vínculo en una ventana de navegación de incó&amp;gnito de Chrome</translation>
 <translation id="1682634494516646069">Google Chrome no puede leer ni agregar datos al directorio de datos: <ph name="USER_DATA_DIRECTORY" /></translation>
 <translation id="1688214853608504530">Cuando escribes en la barra de direcciones o en el cuadro de búsqueda, Chrome envía lo que escribes a las herramientas de búsqueda, IA y agentes de tu organización para obtener sugerencias.</translation>
@@ -233,6 +232,7 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="3242123554343253302">Agregar perfil de Chrome</translation>
 <translation id="3242486428260808857">Aprovecha más las compras en línea cuando usas la app de Chrome en tu <ph name="DEVICE_TYPE" /></translation>
 <translation id="3245429137663807393">Si también compartes los informes de uso de Chrome, estos incluirán las URLs que visites</translation>
+<translation id="3249558306861350254">Haz clic en <ph name="BEGIN_BOLD" />Establecer como predeterminado<ph name="END_BOLD" /> en la configuración de Windows.</translation>
 <translation id="3259748324892322072">Obtener la app de Chrome</translation>
 <translation id="3282568296779691940">Acceder a Chrome</translation>
 <translation id="3286538390144397061">Reiniciar ahora</translation>
@@ -252,7 +252,6 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="345171907106878721">Agrégate a Chrome</translation>
 <translation id="3453763134178591239">Condiciones del ChromeOS</translation>
 <translation id="3475778264501649775">Lleva tus contraseñas, pestañas y mucho más contigo con la app de Chrome en tu teléfono</translation>
-<translation id="3512495006767217696">Integrado en Chrome para ayudarte a crear, guardar y autocompletar contraseñas seguras. Agrega el acceso directo para ingresar fácilmente</translation>
 <translation id="3539955434060988644">Abrir el vínculo en una ventana de navegación de incó&amp;gnito de Chrome</translation>
 <translation id="354621070532799440">Recordatorio: Las mejores funciones de seguridad de Google están en tu bolsillo</translation>
 <translation id="3547866758548131919">Haz clic en el botón Resumir para compartir este documento con Gemini en Chrome, obtener una descripción general rápida y hacer preguntas adicionales</translation>
@@ -305,6 +304,7 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="4012899077942246412">Mientras tengas acceso, puedes usar las contraseñas y otros elementos de tu Cuenta de Google en Chrome. Para cambiar esta opción, ve a "Tu cuenta en Chrome".</translation>
 <translation id="4022972681110646219">Traducir pantalla</translation>
 <translation id="4023601594785368013">Idioma original: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">Integrado en Chrome para ayudarte a crear, guardar y autocompletar contraseñas seguras. Agrega el acceso directo para ingresar fácilmente.</translation>
 <translation id="4035053306113201399">ChromeOS debe reiniciarse para que se aplique la actualización.</translation>
 <translation id="4050175100176540509">La última versión proporciona importantes mejoras de seguridad y nuevas funciones.</translation>
 <translation id="4053720452172726777">Personalizar y controlar Google Chrome</translation>
@@ -541,7 +541,6 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="6438015621983209660">Extiende la Navegación segura mejorada con Chrome en tu teléfono</translation>
 <translation id="6442774133615368941">Compra, identifica y traduce lo que ves con la cámara en la app de Chrome para iOS</translation>
 <translation id="6448835208126432197">Para seleccionar una parte de la pantalla en Gemini en Chrome, usa la combinación de teclas.</translation>
-<translation id="6473659734176498825">Una imagen simplificada que muestra el punto de entrada del Administrador de contraseñas de Google en Chrome</translation>
 <translation id="6473905796280459355">Ir a la página Acerca de Chrome</translation>
 <translation id="6481963882741794338">Vincula Chrome y otros servicios de Google para la personalización y otros fines</translation>
 <translation id="648319183876919572">La Navegación segura mejorada realiza más acciones para protegerte de descargas y sitios web peligrosos</translation>
@@ -558,6 +557,7 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="6539493053177300926">Accede fácilmente a Gemini en Chrome en todo tu dispositivo, incluso si Chrome está minimizado.</translation>
 <translation id="6585124893636629274">Cerrar Gemini en Chrome</translation>
 <translation id="659498884637196217">En el Administrador de contraseñas de Google en este dispositivo</translation>
+<translation id="6613949864921837107">Establece Chrome como tu navegador predeterminado para mantener tus contraseñas, favoritos y el historial perfectamente sincronizados en todos los dispositivos.</translation>
 <translation id="6631524303639368205">Retoma tu actividad desde donde la dejaste: Chrome restableció las pestañas de tu última sesión. Puedes desactivar esta opción en</translation>
 <translation id="6632473616050862500">ChromeOS Flex funciona gracias a <ph name="BEGIN_LINK_CROS_OSS" />software de código abierto<ph name="END_LINK_CROS_OSS" /> adicional.</translation>
 <translation id="6634299872736643004">Los cambios en este parámetro de configuración se aplicarán una vez que se reinicie Chrome.</translation>
@@ -683,7 +683,6 @@ Si esta página no funciona como debería, intenta permitir la optimización.</t
 <translation id="7804364787702057554">Tu cuenta en Chrome</translation>
 <translation id="7804947029129221742">Se cambió tu motor de búsqueda fuera de Chrome. Chrome lo restableció a su configuración predeterminada original para protegerte. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Eliminar de Chrome…</translation>
-<translation id="7812800388699096556">Una ilustración que muestra cómo puedes usar Google Lens para buscar un producto</translation>
 <translation id="7827099906024714326">Chrome debe verificar tu identidad para guardar algunos datos en tu Cuenta de Google y que puedan usarse en todos tus dispositivos. Si sales ahora, se borrarán estos datos.</translation>
 <translation id="7832314606810669113">Para usar tus favoritos y más en todos tus dispositivos, accede a Chrome. Este favorito se guardará en tu Cuenta de Google después de que accedas.</translation>
 <translation id="7845233973568007926">Gracias por instalar <ph name="BUNDLE_NAME" />. Debes reiniciar tu computadora antes de usarlo.</translation>
@@ -822,7 +821,6 @@ No se pueden guardar nuevos favoritos en tu cuenta hasta que borres algunos. Si 
 <translation id="8999208279178790196">{0,plural, =0{Hay una actualización de Chrome disponible}=1{Hay una actualización de Chrome disponible}other{Hay una actualización de Chrome disponible hace # días}}</translation>
 <translation id="9014771989710951291">Varias organizaciones administran Chrome</translation>
 <translation id="9018218886431812662">Se completó la instalación</translation>
-<translation id="9024318700713112071">Establece Chrome como navegador predeterminado</translation>
 <translation id="9066987883552592250">Cerrar Gemini en Chrome Canary</translation>
 <translation id="9074041031320636790">Listo. Ahora puedes hacer preguntas fácilmente mientras navegas con el Modo IA de la Búsqueda de Google</translation>
 <translation id="9090566250983691233">Descubre por qué Chrome bloquea algunos archivos</translation>

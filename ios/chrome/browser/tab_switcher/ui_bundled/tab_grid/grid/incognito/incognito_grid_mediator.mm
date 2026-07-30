@@ -38,8 +38,8 @@
 // refactored.
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/tab_grid_view_controller.h"
 
-@interface IncognitoGridMediator () <IncognitoStateObserver,
-                                     FamilyLinkUserCapabilitiesObserving>
+@interface IncognitoGridMediator () <FamilyLinkUserCapabilitiesObserving,
+                                     IncognitoStateObserver>
 @end
 
 @implementation IncognitoGridMediator {
@@ -74,18 +74,6 @@
   CloseAllWebStates(*self.webStateList,
                     WebStateList::ClosingReason::kUserAction);
   SnapshotBrowserAgent::FromBrowser(self.browser)->RemoveAllSnapshots();
-}
-
-- (void)saveAndCloseAllItems {
-  NOTREACHED() << "Incognito tabs should not be saved before closing.";
-}
-
-- (void)undoCloseAllItems {
-  NOTREACHED() << "Incognito tabs are not saved before closing.";
-}
-
-- (void)discardSavedClosedItems {
-  NOTREACHED() << "Incognito tabs cannot be saved.";
 }
 
 - (void)setPinState:(BOOL)pinState forItemWithID:(web::WebStateID)itemID {

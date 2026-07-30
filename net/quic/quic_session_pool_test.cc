@@ -91,6 +91,7 @@
 #include "net/spdy/spdy_session_test_util.h"
 #include "net/spdy/spdy_test_util_common.h"
 #include "net/ssl/test_ssl_config_service.h"
+#include "net/ssl/test_static_ech_mode_getter.h"
 #include "net/test/cert_test_util.h"
 #include "net/test/gtest_util.h"
 #include "net/test/test_data_directory.h"
@@ -372,6 +373,7 @@ class QuicSessionPoolTest : public QuicSessionPoolTestBase,
   // NetworkAnonymizationKeys, but the same server. If false, stores data for
   // two different servers, using the same NetworkAnonymizationKey.
   void VerifyInitialization(bool vary_network_anonymization_key);
+  void TestYielding(bool use_read_multiple, bool yield_by_duration);
 
   // Helper methods for tests of connection migration on write error.
   void TestMigrationOnWriteErrorNonMigratableStream(IoMode write_error_mode,
@@ -13309,12 +13311,22 @@ TEST_P(QuicSessionPoolTest,
   }
 }
 
-TEST_P(QuicSessionPoolTest, YieldAfterPackets) {
+void QuicSessionPoolTest::TestYielding(bool use_read_multiple,
+                                       bool yield_by_duration) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitWithFeatureState(features::kQuicUseReadMultiple,
+                                    use_read_multiple);
   Initialize();
   pool_->set_has_quic_ever_worked_on_current_network(true);
   ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
   crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
-  QuicSessionPoolPeer::SetYieldAfterPackets(pool_.get(), 0);
+
+  if (yield_by_duration) {
+    QuicSessionPoolPeer::SetYieldAfterDuration(
+        pool_.get(), quic::QuicTime::Delta::FromMilliseconds(-1));
+  } else {
+    QuicSessionPoolPeer::SetYieldAfterPackets(pool_.get(), 0);
+  }
 
   MockQuicData socket_data(version_);
   socket_data.AddRead(SYNCHRONOUS, ConstructServerConnectionClosePacket(1));
@@ -13328,22 +13340,17 @@ TEST_P(QuicSessionPoolTest, YieldAfterPackets) {
   host_resolver_->rules()->AddIPLiteralRule(kDefaultServerHostName,
                                             "192.168.0.1", "");
 
-  // Set up the TaskObserver to verify QuicChromiumPacketReader::StartReading
-  // posts a task.
-  // TODO(rtenneti): Change SpdySessionTestTaskObserver to NetTestTaskObserver??
+  // Set up the TaskObserver to verify yielding.
+  std::string expected_method =
+      use_read_multiple ? "ProcessPendingPackets" : "StartReading";
   SpdySessionTestTaskObserver observer("quic_chromium_packet_reader.cc",
-                                       "StartReading");
+                                       expected_method);
 
   RequestBuilder builder(this);
   EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
-  // Call run_loop so that QuicChromiumPacketReader::OnReadComplete() gets
-  // called.
   base::RunLoop().RunUntilIdle();
 
-  // Verify task that the observer's executed_count is 1, which indicates
-  // QuicChromiumPacketReader::StartReading() has posted only one task and
-  // yielded the read.
   EXPECT_EQ(1u, observer.executed_count());
 
   std::unique_ptr<HttpStream> stream = CreateStream(&builder.request);
@@ -13352,48 +13359,20 @@ TEST_P(QuicSessionPoolTest, YieldAfterPackets) {
   socket_data.ExpectAllWriteDataConsumed();
 }
 
+TEST_P(QuicSessionPoolTest, YieldAfterPackets) {
+  TestYielding(/*use_read_multiple=*/false, /*yield_by_duration=*/false);
+}
+
+TEST_P(QuicSessionPoolTest, YieldAfterPacketsWithReadMultiple) {
+  TestYielding(/*use_read_multiple=*/true, /*yield_by_duration=*/false);
+}
+
 TEST_P(QuicSessionPoolTest, YieldAfterDuration) {
-  Initialize();
-  pool_->set_has_quic_ever_worked_on_current_network(true);
-  ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
-  crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
-  QuicSessionPoolPeer::SetYieldAfterDuration(
-      pool_.get(), quic::QuicTime::Delta::FromMilliseconds(-1));
+  TestYielding(/*use_read_multiple=*/false, /*yield_by_duration=*/true);
+}
 
-  MockQuicData socket_data(version_);
-  socket_data.AddRead(SYNCHRONOUS, ConstructServerConnectionClosePacket(1));
-  client_maker_.SetEncryptionLevel(quic::ENCRYPTION_ZERO_RTT);
-  socket_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket());
-  socket_data.AddSocketDataToFactory(socket_factory_.get());
-
-  crypto_client_stream_factory_.set_handshake_mode(
-      MockCryptoClientStream::ZERO_RTT);
-  host_resolver_->set_synchronous_mode(true);
-  host_resolver_->rules()->AddIPLiteralRule(kDefaultServerHostName,
-                                            "192.168.0.1", "");
-
-  // Set up the TaskObserver to verify QuicChromiumPacketReader::StartReading
-  // posts a task.
-  // TODO(rtenneti): Change SpdySessionTestTaskObserver to NetTestTaskObserver??
-  SpdySessionTestTaskObserver observer("quic_chromium_packet_reader.cc",
-                                       "StartReading");
-
-  RequestBuilder builder(this);
-  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
-  EXPECT_THAT(callback_.WaitForResult(), IsOk());
-  // Call run_loop so that QuicChromiumPacketReader::OnReadComplete() gets
-  // called.
-  base::RunLoop().RunUntilIdle();
-
-  // Verify task that the observer's executed_count is 1, which indicates
-  // QuicChromiumPacketReader::StartReading() has posted only one task and
-  // yielded the read.
-  EXPECT_EQ(1u, observer.executed_count());
-
-  std::unique_ptr<HttpStream> stream = CreateStream(&builder.request);
-  EXPECT_FALSE(stream.get());  // Session is already closed.
-  socket_data.ExpectAllReadDataConsumed();
-  socket_data.ExpectAllWriteDataConsumed();
+TEST_P(QuicSessionPoolTest, YieldAfterDurationWithReadMultiple) {
+  TestYielding(/*use_read_multiple=*/true, /*yield_by_duration=*/true);
 }
 
 // Pool to existing session with matching quic::QuicServerId
@@ -15365,6 +15344,78 @@ TEST_P(QuicSessionPoolTest, EchDisabled) {
   EXPECT_FALSE(config.ech_grease_enabled);
 }
 
+// Test that, when EchMode is kDisabled for the host, neither ECH nor ECH GREASE
+// are configured.
+TEST_P(QuicSessionPoolTest, EchModeDisabledForHost) {
+  quic_params_->supported_versions = {version_};
+  HostResolverEndpointResult endpoint;
+  endpoint.ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
+  endpoint.metadata.supported_protocol_alpns = {quic::AlpnForVersion(version_)};
+  endpoint.metadata.ech_config_list = {1, 2, 3, 4};
+
+  host_resolver_ = std::make_unique<MockHostResolver>();
+  host_resolver_->rules()->AddRule(
+      kDefaultServerHostName,
+      MockHostResolverBase::RuleResolver::RuleResult({endpoint}));
+
+  ssl_config_service_.SetEchModeGetter(
+      std::make_unique<TestStaticEchModeGetter>(EchMode::kDisabled,
+                                                kDefaultServerHostName));
+
+  Initialize();
+  ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
+  crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
+
+  MockQuicData socket_data(version_);
+  socket_data.AddReadPauseForever();
+  socket_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket());
+  socket_data.AddSocketDataToFactory(socket_factory_.get());
+
+  RequestBuilder builder(this);
+  builder.quic_version = quic::ParsedQuicVersion::Unsupported();
+  builder.require_dns_https_alpn = true;
+  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
+  ASSERT_THAT(callback_.WaitForResult(), IsOk());
+
+  QuicChromiumClientSession* session = GetActiveSession(
+      kDefaultDestination, PRIVACY_MODE_DISABLED, NetworkAnonymizationKey(),
+      ProxyChain::Direct(), SessionUsage::kDestination,
+      /*require_dns_https_alpn=*/true);
+  ASSERT_TRUE(session);
+  quic::QuicSSLConfig config = session->GetSSLConfig();
+  EXPECT_TRUE(config.ech_config_list.empty());
+  EXPECT_FALSE(config.ech_grease_enabled);
+}
+
+// Test that EchMode::kStrict prevents connections to endpoints without ECH
+// configs.
+TEST_P(QuicSessionPoolTest, EchModeStrictNoFallback) {
+  ssl_config_service_.SetEchModeGetter(
+      std::make_unique<TestStaticEchModeGetter>(EchMode::kStrict,
+                                                kDefaultServerHostName));
+
+  // The A/AAAA is compatible with QUIC, but is ineligible in EchMode::kStrict.
+  std::vector<HostResolverEndpointResult> endpoints(1);
+  endpoints[0].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
+
+  host_resolver_ = std::make_unique<MockHostResolver>();
+  host_resolver_->rules()->AddRule(
+      kDefaultServerHostName,
+      MockHostResolverBase::RuleResolver::RuleResult(std::move(endpoints)));
+
+  Initialize();
+  ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
+  crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
+
+  MockQuicData socket_data(version_);
+  socket_data.AddReadPauseForever();
+  socket_data.AddSocketDataToFactory(socket_factory_.get());
+
+  RequestBuilder builder(this);
+  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
+  EXPECT_THAT(callback_.WaitForResult(), IsError(ERR_STRICT_ECH_REQUIRED));
+}
+
 // Test that, when the server supports ECH, the connection should use
 // SVCB-reliant behavior.
 TEST_P(QuicSessionPoolTest, EchSvcbReliant) {
@@ -15430,6 +15481,52 @@ TEST_P(QuicSessionPoolTest, EchDisabledSvcbOptional) {
   RequestBuilder builder(this);
   EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
   EXPECT_THAT(callback_.WaitForResult(), IsOk());
+}
+
+// Test that, when EchMode is kDisabled for the host, SVCB-reliant behavior
+// doesn't trigger.
+TEST_P(QuicSessionPoolTest, EchModeDisabledForHostSvcbOptional) {
+  // The HTTPS-RR route only advertises HTTP/2 and is therefore incompatible
+  // with QUIC. The fallback A/AAAA is compatible, but is ineligible in
+  // ECH-capable clients.
+  std::vector<HostResolverEndpointResult> endpoints(2);
+  endpoints[0].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
+  endpoints[0].metadata.supported_protocol_alpns = {"h2"};
+  endpoints[0].metadata.ech_config_list = {1, 2, 3, 4};
+  endpoints[1].ip_endpoints = {IPEndPoint(IPAddress::IPv4Localhost(), 0)};
+
+  host_resolver_ = std::make_unique<MockHostResolver>();
+  host_resolver_->rules()->AddRule(
+      kDefaultServerHostName,
+      MockHostResolverBase::RuleResolver::RuleResult(std::move(endpoints)));
+
+  // This client explicitly disables ECH via EchMode for the host, so the
+  // connection should succeed using the fallback endpoint.
+  ssl_config_service_.SetEchModeGetter(
+      std::make_unique<TestStaticEchModeGetter>(EchMode::kDisabled,
+                                                kDefaultServerHostName));
+
+  Initialize();
+  ProofVerifyDetailsChromium verify_details = DefaultProofVerifyDetails();
+  crypto_client_stream_factory_.AddProofVerifyDetails(&verify_details);
+
+  MockQuicData socket_data(version_);
+  socket_data.AddReadPauseForever();
+  socket_data.AddWrite(SYNCHRONOUS, ConstructInitialSettingsPacket());
+  socket_data.AddSocketDataToFactory(socket_factory_.get());
+
+  RequestBuilder builder(this);
+  EXPECT_EQ(ERR_IO_PENDING, builder.CallRequest());
+  ASSERT_THAT(callback_.WaitForResult(), IsOk());
+
+  QuicChromiumClientSession* session = GetActiveSession(
+      kDefaultDestination, PRIVACY_MODE_DISABLED, NetworkAnonymizationKey(),
+      ProxyChain::Direct(), SessionUsage::kDestination,
+      /*require_dns_https_alpn=*/false);
+  ASSERT_TRUE(session);
+  quic::QuicSSLConfig config = session->GetSSLConfig();
+  EXPECT_TRUE(config.ech_config_list.empty());
+  EXPECT_FALSE(config.ech_grease_enabled);
 }
 
 // Test that Trust Anchor IDs are not advertised if the feature is enabled but

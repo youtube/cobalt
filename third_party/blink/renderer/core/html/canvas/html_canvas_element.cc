@@ -380,7 +380,6 @@ void HTMLCanvasElement::AttributeChanged(
     bool has_layoutsubtree = !params.new_value.IsNull();
     if (had_layoutsubtree != has_layoutsubtree) {
       setLayoutSubtree(has_layoutsubtree);
-      UseCounter::Count(GetDocument(), WebFeature::kHTMLInCanvas);
       if (accessibility_manager_) {
         accessibility_manager_->SetHasLayoutSubtree(has_layoutsubtree);
       }
@@ -922,11 +921,6 @@ bool HTMLCanvasElement::VerifyDrawElementImageEligibility(
     Element* element,
     const String& func_name,
     ExceptionState& exception_state) const {
-  if (IsInCanvasSubtree()) {
-    exception_state.ThrowDOMException(DOMExceptionCode::kNotSupportedError,
-                                      "Nested canvases are not supported.");
-    return false;
-  }
   if (element->parentElement() != this) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
@@ -1474,11 +1468,6 @@ CanvasResourceDispatcher* HTMLCanvasElement::GetOrCreateResourceDispatcher() {
         surface_layer_bridge_->GetFrameSinkId().sink_id(), Size());
   }
   return frame_dispatcher_.get();
-}
-
-bool HTMLCanvasElement::PushFrame(scoped_refptr<CanvasResource>&& image) {
-  NOTIMPLEMENTED();
-  return false;
 }
 
 bool HTMLCanvasElement::ShouldAccelerate() const {
@@ -2127,6 +2116,16 @@ String HTMLCanvasElement::CanvasAnnotation() const {
     return accessibility_manager_->CanvasAnnotation();
   }
   return String();
+}
+
+bool HTMLCanvasElement::HasRequestedOCR() const {
+  return accessibility_manager_ && accessibility_manager_->HasRequestedOCR();
+}
+
+void HTMLCanvasElement::ClearHasRequestedOCR() {
+  if (accessibility_manager_) {
+    accessibility_manager_->ClearHasRequestedOCR();
+  }
 }
 
 void HTMLCanvasElement::EnsureAccessibilityManager() {

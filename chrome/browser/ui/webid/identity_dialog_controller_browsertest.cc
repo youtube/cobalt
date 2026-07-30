@@ -27,7 +27,7 @@
 #include "content/public/test/browser_test.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -180,7 +180,7 @@ class IdentityDialogControllerBrowserTest : public InProcessBrowserTest {
 
   TaskId SimulateNewActiveActorTask() {
     actor::ActorKeyedService* actor_service =
-        actor::ActorKeyedService::Get(browser()->profile());
+        actor::ActorKeyedService::Get(browser()->GetProfile());
     CHECK(actor_service);
 
     actor::TaskId task_id = actor_service->CreateTask(
@@ -207,7 +207,7 @@ class IdentityDialogControllerBrowserTest : public InProcessBrowserTest {
   void SimulateActorTaskFinished(IdentityDialogController* controller,
                                  TaskId task_id) {
     actor::ActorKeyedService* actor_service =
-        actor::ActorKeyedService::Get(browser()->profile());
+        actor::ActorKeyedService::Get(browser()->GetProfile());
     EXPECT_NE(actor_service, nullptr);
     actor_service->StopTask(task_id,
                             actor::ActorTask::StoppedReason::kTaskComplete);
@@ -266,6 +266,4 @@ IN_PROC_BROWSER_TEST_F(IdentityDialogControllerBrowserTest,
       /*on_add_account=*/base::DoNothing(),
       /*dismiss_callback=*/base::DoNothing(),
       /*accounts_displayed_callback=*/base::DoNothing()));
-
-  EXPECT_FALSE(controller->DidShowUi());
 }

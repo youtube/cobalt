@@ -10,13 +10,13 @@ import android.view.View;
 import android.widget.ViewFlipper;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.HomeProperties;
 import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.ScreenId;
-import org.chromium.chrome.browser.ui.autofill.AtMemoryBottomSheetProperties.SearchItemProperties;
 import org.chromium.chrome.browser.ui.autofill.internal.R;
 
 /** View wrapper for the @memory bottom sheet. */
 @NullMarked
-public class AtMemoryBottomSheetView implements SearchItemProperties.Delegate {
+public class AtMemoryBottomSheetView implements HomeProperties.SearchDelegate {
     private final View mContentView;
     private final AtMemoryHomeView mHomeView;
     private final AtMemoryFlyoutView mFlyoutView;
@@ -31,6 +31,12 @@ public class AtMemoryBottomSheetView implements SearchItemProperties.Delegate {
     public void setCurrentScreen(@ScreenId int screenId) {
         ViewFlipper viewFlipper = mContentView.findViewById(R.id.at_memory_view_flipper);
         viewFlipper.setDisplayedChild(getDisplayedChildForScreenId(screenId));
+    }
+
+    @ScreenId
+    public int getCurrentScreen() {
+        ViewFlipper viewFlipper = mContentView.findViewById(R.id.at_memory_view_flipper);
+        return getScreenIdForDisplayedChild(viewFlipper.getDisplayedChild());
     }
 
     public View getContentView() {
@@ -58,6 +64,10 @@ public class AtMemoryBottomSheetView implements SearchItemProperties.Delegate {
         mHomeView.hideKeyboardAndClearFocus();
     }
 
+    public boolean searchHasFocus() {
+        return mHomeView.searchHasFocus();
+    }
+
     private int getDisplayedChildForScreenId(@ScreenId int screenId) {
         switch (screenId) {
             case ScreenId.HOME_SCREEN:
@@ -67,6 +77,17 @@ public class AtMemoryBottomSheetView implements SearchItemProperties.Delegate {
         }
         assert false : "Undefined ScreenId: " + screenId;
         return 0;
+    }
+
+    private @ScreenId int getScreenIdForDisplayedChild(int displayedChild) {
+        switch (displayedChild) {
+            case 0:
+                return ScreenId.HOME_SCREEN;
+            case 1:
+                return ScreenId.FLYOUT_SCREEN;
+        }
+        assert false : "Undefined displayedChild: " + displayedChild;
+        return ScreenId.HOME_SCREEN;
     }
 
     public void setNoticeSettingsClickListener(Runnable onClick) {

@@ -4,7 +4,7 @@ desc: |-
   Setting this policy allows you to specify which Autofill data types are blocked on specific URL patterns.
 
   The policy is structured as a list of dictionaries. Each dictionary must contain:
-  * "url_pattern": A content setting URL pattern (e.g., "https://[*.]example.com").
+  * "url_pattern": A content setting URL pattern for the main frame (e.g., "https://[*.]example.com").
   * "blocked_types": A list of strings representing the categories of Autofill data to block.
 
   The supported values for "blocked_types" are:
@@ -13,6 +13,7 @@ desc: |-
   * "identity_docs": Blocks filling and saving of identity documents (e.g. passport, drivers license, national id).
   * "travel": Blocks filling and saving of travel information (e.g. flight reservation, vehicle registration).
   * "shopping": Blocks filling and saving of shopping information (e.g. online orders, shipments).
+  * "all": Blocks filling and saving of all Autofill data types.
 
   If a data type is blocked for a site, both the generation of suggestions and the prompt to save/import new data of that type are disabled on that site.
 
@@ -52,6 +53,7 @@ schema:
           - identity_docs
           - travel
           - shopping
+          - all
           type: string
         type: array
     required:

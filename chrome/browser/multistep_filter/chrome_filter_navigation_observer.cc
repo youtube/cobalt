@@ -14,7 +14,7 @@
 #include "chrome/browser/multistep_filter/ui/filter_ui_controller.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "components/multistep_filter/content/filter_navigation_observer.h"
+#include "components/multistep_filter/content/content_filter_navigation_observer.h"
 #include "components/multistep_filter/core/multistep_filter_service.h"
 #include "components/multistep_filter/core/multistep_filter_ui_delegate.h"
 #include "components/tabs/public/tab_interface.h"
@@ -55,8 +55,13 @@ void ChromeFilterNavigationObserver::UpdateObserver(
 
   Profile* profile =
       Profile::FromBrowserContext(web_contents->GetBrowserContext());
-  observer_ = std::make_unique<FilterNavigationObserver>(
-      web_contents, MultistepFilterServiceFactory::GetForProfile(profile),
+  MultistepFilterService* service =
+      MultistepFilterServiceFactory::GetForProfile(profile);
+  if (!service) {
+    return;
+  }
+  observer_ = std::make_unique<ContentFilterNavigationObserver>(
+      web_contents, service,
       MultistepFilterLogRouterFactory::GetForProfile(profile),
       std::make_unique<MultistepFilterUiDelegateImpl>(tab()));
 }

@@ -581,8 +581,8 @@ TEST_F(AutofillAiPermissionUtilsTest, kTypeSupportsAmbientAutofillData) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndEnableFeature(features::debug::kAutofillAiForceOptIn);
 
-  client().set_personal_context_enablement_state(
-      personal_context::PersonalContextEnablementState::kEnabled);
+  client().set_personal_context_eligibility_state(
+      personal_context::PersonalContextEligibilityState::kEligible);
   for (const EntityTypeName type :
        {kPassport, kDriversLicense, kNationalIdCard, kFlightReservation,
         kShipment, kOrder, kVehicle}) {
@@ -615,13 +615,13 @@ TEST_F(AutofillAiPermissionUtilsTest, kTypeSupportsAmbientAutofillData) {
 }
 
 TEST_F(AutofillAiPermissionUtilsTest, kAmbientAutofill) {
-  client().set_personal_context_enablement_state(
-      personal_context::PersonalContextEnablementState::kEnabled);
+  client().set_personal_context_eligibility_state(
+      personal_context::PersonalContextEligibilityState::kEligible);
   EXPECT_TRUE(
       MayPerformAutofillAiAction(client(), AutofillAiAction::kAmbientAutofill));
 
-  client().set_personal_context_enablement_state(
-      personal_context::PersonalContextEnablementState::kDisabledNotEligible);
+  client().set_personal_context_eligibility_state(
+      personal_context::PersonalContextEligibilityState::kDisabledNotEligible);
   EXPECT_FALSE(
       MayPerformAutofillAiAction(client(), AutofillAiAction::kAmbientAutofill));
 }
@@ -630,8 +630,8 @@ TEST_F(AutofillAiPermissionUtilsTest, AmbientAutofillFillingRequiresOptIn) {
   base::test::ScopedFeatureList feature_list;
   feature_list.InitAndDisableFeature(features::kAutofillAiAvailableByDefault);
 
-  client().set_personal_context_enablement_state(
-      personal_context::PersonalContextEnablementState::kEnabled);
+  client().set_personal_context_eligibility_state(
+      personal_context::PersonalContextEligibilityState::kEligible);
 
   // Opted out.
   SetAutofillAiOptInStatus(client(), AutofillAiOptInStatus::kOptedOut);
@@ -645,8 +645,8 @@ TEST_F(AutofillAiPermissionUtilsTest, AmbientAutofillFillingRequiresOptIn) {
 }
 
 TEST_F(AutofillAiPermissionUtilsTest, kAmbientAutofill_G1Tiers) {
-  client().set_personal_context_enablement_state(
-      personal_context::PersonalContextEnablementState::kEnabled);
+  client().set_personal_context_eligibility_state(
+      personal_context::PersonalContextEligibilityState::kEligible);
 
   // Scenario 1: Tiers 1 and 2 are eligible.
   {
@@ -685,8 +685,8 @@ TEST_F(AutofillAiPermissionUtilsTest, kAmbientAutofill_G1Tiers) {
 
 TEST_F(AutofillAiPermissionUtilsTest,
        AmbientAutofillRequiresPersonalContextPref) {
-  client().set_personal_context_enablement_state(
-      personal_context::PersonalContextEnablementState::kEnabled);
+  client().set_personal_context_eligibility_state(
+      personal_context::PersonalContextEligibilityState::kEligible);
 
   // Pref enabled by default in RegisterProfilePrefs.
   EXPECT_TRUE(
@@ -769,6 +769,32 @@ TEST_F(AutofillAiPermissionUtilsTest, OptInStatus) {
   EXPECT_FALSE(GetAutofillAiOptInStatus(client()));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
+
+TEST_F(AutofillAiPermissionUtilsTest, OptInStatusWithUsePrivateAi) {
+  base::test::ScopedFeatureList feature_list{features::kAutofillAiUsePrivateAi};
+
+  // By default, neither the opt-in pref nor the notice shown timestamp is set.
+  EXPECT_FALSE(GetAutofillAiOptInStatus(client()));
+
+  client().GetPrefs()->SetBoolean(prefs::kAutofillAiPrivateInferenceOptInStatus,
+                                  true);
+  // Setting only `kAutofillAiPrivateInferenceOptInStatus` is not sufficient
+  // without `kAutofillAiPrivateInferenceNoticeFirstShownTimestamp` being set.
+  EXPECT_FALSE(GetAutofillAiOptInStatus(client()));
+
+  client().GetPrefs()->SetTime(
+      prefs::kAutofillAiPrivateInferenceNoticeFirstShownTimestamp,
+      base::Time::Now());
+  // Both `kAutofillAiPrivateInferenceOptInStatus` is true and
+  // `kAutofillAiPrivateInferenceNoticeFirstShownTimestamp` is set.
+  EXPECT_TRUE(GetAutofillAiOptInStatus(client()));
+
+  client().GetPrefs()->SetBoolean(prefs::kAutofillAiPrivateInferenceOptInStatus,
+                                  false);
+  // Setting `kAutofillAiPrivateInferenceOptInStatus` to false returns false
+  // even if `kAutofillAiPrivateInferenceNoticeFirstShownTimestamp` remains set.
+  EXPECT_FALSE(GetAutofillAiOptInStatus(client()));
+}
 
 TEST_F(AutofillAiPermissionUtilsTest,
        UsersCannotOptInIfAutofillForAddressesIsDisabled) {

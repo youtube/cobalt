@@ -17,7 +17,7 @@
 #include "content/public/browser/webid/identity_request_dialog_controller.h"
 #include "third_party/blink/public/mojom/devtools/inspector_issue.mojom-forward.h"
 #include "third_party/blink/public/mojom/webid/email_verification_request.mojom-forward.h"
-#include "third_party/blink/public/mojom/webid/federated_auth_request.mojom-forward.h"
+#include "third_party/blink/public/mojom/webid/federated_request.mojom-forward.h"
 
 namespace content {
 
@@ -61,36 +61,36 @@ enum class MetricsEndpointErrorCode {
 std::vector<std::string> DisclosureFieldsToStringList(
     const std::vector<IdentityRequestDialogDisclosureField>& fields);
 
-// Converts a FederatedAuthRequestResult, which is a browser type for the
+// Converts a FederatedRequestResult, which is a browser type for the
 // result, to a RequestTokenStatus, which is a renderer type, e.g. the one to be
 // exposed to web developers.
-blink::mojom::RequestTokenStatus FederatedAuthRequestResultToRequestTokenStatus(
-    blink::mojom::FederatedAuthRequestResult result);
+blink::mojom::RequestTokenStatus FederatedRequestResultToRequestTokenStatus(
+    blink::mojom::FederatedRequestResult result);
 
-// Converts a FederatedAuthRequestResult, which is a browser type for the
+// Converts a FederatedRequestResult, which is a browser type for the
 // result, to a MetricsEndpointErrorCode, which is a type used in the metrics
 // endpoint error code.
-MetricsEndpointErrorCode FederatedAuthRequestResultToMetricsEndpointErrorCode(
-    blink::mojom::FederatedAuthRequestResult result);
+MetricsEndpointErrorCode FederatedRequestResultToMetricsEndpointErrorCode(
+    blink::mojom::FederatedRequestResult result);
 
 // Converts an error ParseStatus from the accounts response to a pair. The first
-// member of the pair is a FederatedAuthRequestResult, which is a browser type
+// member of the pair is a FederatedRequestResult, which is a browser type
 // for the result. The second member of the pair is a FedCmRequestIdTokenStatus,
 // which is a type used in metrics recording. Should not be invoked with
 // ParseStatus::kSuccess.
-std::pair<blink::mojom::FederatedAuthRequestResult, RequestIdTokenStatus>
+std::pair<blink::mojom::FederatedRequestResult, RequestIdTokenStatus>
 AccountParseStatusToRequestResultAndTokenStatus(ParseStatus status);
 
 LifecycleStateFailureReason
 LifecycleStateImplLifecycleStateImplToFedCmLifecycleStateFailureReason(
     RenderFrameHostImpl::LifecycleStateImpl lifecycle_state);
 
-// Converts a FederatedApiPermissionStatus to a (FederatedAuthRequestResult,
+// Converts a FederatedApiPermissionStatus to a (FederatedRequestResult,
 // FedCmRequestIdTokenStatus) pair. Should not be invoked with
 // FederatedApiPermissionStatus::GRANTED.
-std::pair<blink::mojom::FederatedAuthRequestResult, RequestIdTokenStatus>
+std::pair<blink::mojom::FederatedRequestResult, RequestIdTokenStatus>
 PermissionStatusToRequestResultAndTokenStatus(
-    content::FederatedIdentityApiPermissionContextDelegate::PermissionStatus
+    FederatedIdentityApiPermissionContextDelegate::PermissionStatus
         permission_status);
 
 ErrorDialogResult DismissReasonToErrorDialogResult(
@@ -98,9 +98,9 @@ ErrorDialogResult DismissReasonToErrorDialogResult(
     bool has_url);
 
 // Converts a FetchStatus from the ID assertion endpoint to a
-// (FederatedAuthRequestResult, FedCmRequestIdTokenStatus) pair. Should not be
+// (FederatedRequestResult, FedCmRequestIdTokenStatus) pair. Should not be
 // invoked when the parse_status is ParseStatus::kSuccess.
-std::pair<blink::mojom::FederatedAuthRequestResult, RequestIdTokenStatus>
+std::pair<blink::mojom::FederatedRequestResult, RequestIdTokenStatus>
 IdAssertionFetchStatusToRequestResultAndTokenStatus(FetchStatus status);
 
 // Converts a ParseStatus from a well-known fetch to an EvpRequestStatus.
@@ -137,12 +137,12 @@ GetDisclosureFields(const std::optional<std::vector<std::string>>& fields);
 // the login state and the available account data.
 CONTENT_EXPORT void ComputeAccountFields(
     const std::vector<IdentityRequestDialogDisclosureField>& rp_fields,
-    std::vector<IdentityRequestAccountPtr>& accounts);
+    std::vector<scoped_refptr<IdentityRequestAccount>>& accounts);
 
-// Converts a FederatedAuthRequestResult to a FederatedLoginResult. The later is
+// Converts a FederatedRequestResult to a FederatedLoginResult. The later is
 // a less granular result type used by the embedder.
-FederatedLoginResult FederatedAuthRequestResultToFederatedLoginResult(
-    blink::mojom::FederatedAuthRequestResult result);
+FederatedLoginResult FederatedRequestResultToFederatedLoginResult(
+    blink::mojom::FederatedRequestResult result);
 
 }  // namespace webid
 }  // namespace content

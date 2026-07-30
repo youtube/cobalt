@@ -40,6 +40,7 @@ import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_
 import static org.chromium.chrome.browser.tasks.tab_management.MessageCardViewProperties.MESSAGE_TYPE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_ALPHA;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.CARD_TYPE;
+import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.ARCHIVED_TAB_GROUP;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.MESSAGE;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB;
 import static org.chromium.chrome.browser.tasks.tab_management.TabListModel.CardProperties.ModelType.TAB_GROUP;
@@ -3686,7 +3687,7 @@ public class TabListMediatorUnitTest {
 
         mMediator.resetWithListOfTabs(tabs, syncIds, false);
 
-        assertEquals(TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
+        assertEquals(ARCHIVED_TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
         assertThat(
                 mModelList
                         .get(0)
@@ -3709,7 +3710,7 @@ public class TabListMediatorUnitTest {
         syncIds = List.of(SYNC_GROUP_ID2);
         mMediator.resetWithListOfTabs(tabs, syncIds, false);
 
-        assertEquals(TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
+        assertEquals(ARCHIVED_TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
         assertThat(
                 mModelList
                         .get(0)
@@ -3895,7 +3896,7 @@ public class TabListMediatorUnitTest {
 
         mMediator.resetWithListOfTabs(tabs, syncIds, false);
 
-        assertEquals(TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
+        assertEquals(ARCHIVED_TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
         assertThat(
                 mModelList
                         .get(0)
@@ -3918,7 +3919,7 @@ public class TabListMediatorUnitTest {
         syncIds = List.of(SYNC_GROUP_ID2);
         mMediator.resetWithListOfTabs(tabs, syncIds, false);
 
-        assertEquals(TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
+        assertEquals(ARCHIVED_TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
         assertThat(
                 mModelList
                         .get(0)
@@ -5011,7 +5012,7 @@ public class TabListMediatorUnitTest {
         mMediator.resetWithListOfTabs(tabs, null, false);
         assertThat(mModelList.size(), equalTo(5));
 
-        TreeMap<Integer, List<Integer>> resultMap = new TreeMap<>();
+        TreeMap<Integer, List<PropertyModel>> resultMap = new TreeMap<>();
 
         List<Tab> tabsToFade = List.of(mTab1, tab4, tab5, tab6, tab7);
 
@@ -5021,8 +5022,8 @@ public class TabListMediatorUnitTest {
         assertThat(resultMap.keySet(), contains(1, 2));
 
         // Tab 1 and group tab 5 & 6 should be filtered for animation.
-        assertThat(resultMap.get(1), contains(0));
-        assertThat(resultMap.get(2), contains(3));
+        assertThat(resultMap.get(1), contains(mModelList.get(0).model));
+        assertThat(resultMap.get(2), contains(mModelList.get(3).model));
     }
 
     @Test
@@ -5304,16 +5305,17 @@ public class TabListMediatorUnitTest {
     }
 
     @Test
-    public void testResetWithListOfTabs_withTabGroupType() {
+    public void testResetWithListOfTabs_withArchivedTabGroupType() {
         Tab newTab = prepareTab(TAB3_ID, TAB3_TITLE, TAB3_URL);
         List<Tab> tabs = List.of(mTab1, newTab);
         List<String> syncIds = List.of(SYNC_GROUP_ID1);
         mMediator.setDefaultGridCardSize(new Size(100, 200));
+        mSavedTabGroup1.archivalTimeMs = System.currentTimeMillis();
 
         mMediator.resetWithListOfTabs(tabs, syncIds, false);
 
         // Assert that group types come before tabs and all properties are correct.
-        assertEquals(TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
+        assertEquals(ARCHIVED_TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
         assertEquals(SYNC_GROUP_ID1, mModelList.get(0).model.get(TabProperties.TAB_GROUP_SYNC_ID));
         assertEquals(GROUP_TITLE, mModelList.get(0).model.get(TabProperties.TITLE));
         var provider = mModelList.get(0).model.get(TabProperties.TAB_GROUP_COLOR_VIEW_PROVIDER);
@@ -5322,7 +5324,7 @@ public class TabListMediatorUnitTest {
     }
 
     @Test
-    public void testBindTabGroupActionButtonData_withTabGroupType() {
+    public void testBindTabGroupActionButtonData_withArchivedTabGroupType() {
         Tab newTab = prepareTab(TAB3_ID, TAB3_TITLE, TAB3_URL);
         List<Tab> tabs = List.of(mTab1, newTab);
         List<String> syncIds = List.of(SYNC_GROUP_ID1);
@@ -5333,7 +5335,7 @@ public class TabListMediatorUnitTest {
 
         mMediator.resetWithListOfTabs(tabs, syncIds, false);
 
-        assertEquals(TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
+        assertEquals(ARCHIVED_TAB_GROUP, mModelList.get(0).model.get(CARD_TYPE));
         assertNotNull(mModelList.get(0).model.get(TabProperties.TAB_ACTION_BUTTON_DATA));
         mModelList
                 .get(0)
@@ -5452,6 +5454,7 @@ public class TabListMediatorUnitTest {
         List<Tab> tabs = List.of(mTab1);
         List<String> syncIds = List.of(SYNC_GROUP_ID1);
         mMediator.setDefaultGridCardSize(new Size(100, 200));
+        mSavedTabGroup1.archivalTimeMs = System.currentTimeMillis();
 
         // Assert that a tab group type is the first item in the list.
         mMediator.resetWithListOfTabs(tabs, syncIds, false);
@@ -5480,6 +5483,7 @@ public class TabListMediatorUnitTest {
     public void removeListItem_TabGroup() {
         List<String> syncIds = List.of(SYNC_GROUP_ID1);
         mMediator.setDefaultGridCardSize(new Size(100, 200));
+        mSavedTabGroup1.archivalTimeMs = System.currentTimeMillis();
         mMediator.resetWithListOfTabs(null, syncIds, false);
 
         assertEquals(1, mModelList.size());

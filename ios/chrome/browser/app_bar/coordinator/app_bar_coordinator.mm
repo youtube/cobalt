@@ -5,6 +5,7 @@
 #import "ios/chrome/browser/app_bar/coordinator/app_bar_coordinator.h"
 
 #import "components/signin/public/base/signin_metrics.h"
+#import "ios/chrome/browser/aim/model/ios_chrome_aim_eligibility_service_factory.h"
 #import "ios/chrome/browser/app_bar/coordinator/app_bar_container_mediator.h"
 #import "ios/chrome/browser/app_bar/coordinator/app_bar_mediator.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_container_view_controller.h"
@@ -142,10 +143,14 @@
                                           profile)
                    geminiBrowserAgent:GeminiBrowserAgent::FromBrowser(
                                           _regularBrowser)
+                aimEligibilityService:IOSChromeAimEligibilityServiceFactory::
+                                          GetForProfile(profile)
                             URLLoader:UrlLoadingBrowserAgent::FromBrowser(
                                           _regularBrowser)
                          tabGridState:sceneState.tabGridState
-                       incognitoState:sceneState.incognitoState];
+                       incognitoState:sceneState.incognitoState
+             lensOverlayStateNotifier:sceneState.lensOverlayStateNotifier];
+  _mediator.layoutState = sceneState.layoutState;
   _mediator.sceneHandler = sceneHandler;
   _mediator.lensHandler = HandlerForProtocol(regularDispatcher, LensCommands);
   _mediator.delegate = self;

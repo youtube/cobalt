@@ -113,13 +113,13 @@ class LensSearchControllerUnificationBrowserTest : public InProcessBrowserTest {
   MockAimEligibilityService* GetMockAimService() {
     return static_cast<MockAimEligibilityService*>(
         AimEligibilityServiceFactory::GetInstance()->GetForProfile(
-            browser()->profile()));
+            browser()->GetProfile()));
   }
 
   MockContextualTasksUiServiceForAuth* GetMockUiService() {
     return static_cast<MockContextualTasksUiServiceForAuth*>(
         contextual_tasks::ContextualTasksUiServiceFactory::GetForBrowserContext(
-            browser()->profile()));
+            browser()->GetProfile()));
   }
 
  protected:
@@ -127,6 +127,12 @@ class LensSearchControllerUnificationBrowserTest : public InProcessBrowserTest {
                                          bool cobrowse_eligible) {
     // Set up ineligibility.
     auto* mock_aim = GetMockAimService();
+
+    ON_CALL(*mock_aim, IsAimUrl(testing::_, testing::_))
+        .WillByDefault(testing::Return(false));
+    ON_CALL(*mock_aim, IsAimHost(testing::_, testing::_))
+        .WillByDefault(testing::Return(false));
+
     ASSERT_TRUE(mock_aim);
     EXPECT_CALL(*mock_aim, IsAimEligible())
         .WillRepeatedly(testing::Return(aim_eligible));
@@ -373,7 +379,7 @@ IN_PROC_BROWSER_TEST_F(LensSearchControllerUnificationSignOutDisabledTest,
 IN_PROC_BROWSER_TEST_F(LensSearchControllerUnificationBrowserTest,
                        IsWebUIEnabledInIncognito_WithUnificationEnabled) {
   Browser* incognito_browser = CreateIncognitoBrowser();
-  Profile* incognito_profile = incognito_browser->profile();
+  Profile* incognito_profile = incognito_browser->GetProfile();
   EXPECT_TRUE(incognito_profile->IsOffTheRecord());
 
   ContextualTasksUIConfig config;
@@ -397,7 +403,7 @@ class LensSearchControllerUnificationDisabledTest
 IN_PROC_BROWSER_TEST_F(LensSearchControllerUnificationDisabledTest,
                        IsWebUIEnabledInIncognito_WithUnificationDisabled) {
   Browser* incognito_browser = CreateIncognitoBrowser();
-  Profile* incognito_profile = incognito_browser->profile();
+  Profile* incognito_profile = incognito_browser->GetProfile();
   EXPECT_TRUE(incognito_profile->IsOffTheRecord());
 
   ContextualTasksUIConfig config;

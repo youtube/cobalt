@@ -72,7 +72,6 @@
 <translation id="1640672724030957280">Download wird ausgeführt...</translation>
 <translation id="1651617469580841801">Wenn du Google Lens verwendest, werden der Seitentitel, die URL und der Inhalt, einschließlich PDFs, an Google gesendet. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Über Chrome OS Flex</translation>
-<translation id="1665867022636014702">Von Google empfohlene Browsereinstellungen verwenden</translation>
 <translation id="1674870198290878346">Link in Chrome-Inkognitofenster öffnen</translation>
 <translation id="1682634494516646069">Google Chrome kann im folgenden Datenverzeichnis weder lesen noch schreiben: <ph name="USER_DATA_DIRECTORY" />.</translation>
 <translation id="1688214853608504530">Wenn du etwas in die Adressleiste oder das Suchfeld eingibst, sendet Chrome deine Eingabe an die Such-, KI- und Hilfetools deiner Organisation, um Vorschläge zu erhalten.</translation>
@@ -233,6 +232,7 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="3242123554343253302">Chrome-Profil hinzufügen</translation>
 <translation id="3242486428260808857">Mit der Chrome App auf deinem <ph name="DEVICE_TYPE" /> noch besser online einkaufen</translation>
 <translation id="3245429137663807393">Wenn du Chrome-Nutzungsberichte teilst, enthalten diese Berichte die von dir aufgerufenen URLs</translation>
+<translation id="3249558306861350254">Klicke in den Windows-Einstellungen auf <ph name="BEGIN_BOLD" />Als Standard festlegen<ph name="END_BOLD" />.</translation>
 <translation id="3259748324892322072">Chrome App herunterladen</translation>
 <translation id="3282568296779691940">In Chrome anmelden</translation>
 <translation id="3286538390144397061">Jetzt neu starten</translation>
@@ -252,7 +252,6 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="345171907106878721">Mich zu Chrome hinzufügen</translation>
 <translation id="3453763134178591239">Chrome OS-Nutzungsbedingungen</translation>
 <translation id="3475778264501649775">Mit der Chrome App auf deinem Smartphone Passwörter, Tabs und andere Daten unterwegs nutzen</translation>
-<translation id="3512495006767217696">Der Passwortmanager ist direkt in Chrome eingebunden und kann für dich starke Passwörter erstellen, speichern und automatisch eintragen. Füge die Verknüpfung hinzu, um einfacher darauf zuzugreifen.</translation>
 <translation id="3539955434060988644">Link in Inkognitofenster in Chrome öffnen</translation>
 <translation id="354621070532799440">Erinnerung: Die besten Sicherheitsfunktionen von Google in deiner Hosentasche</translation>
 <translation id="3547866758548131919">Klicke auf den Button „Zusammenfassen“, um dieses Dokument mit Gemini in Chrome zu teilen und eine schnelle Übersicht zu erhalten sowie weiterführende Fragen zu stellen</translation>
@@ -304,6 +303,7 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="4012899077942246412">Solange du angemeldet bist, kannst du deine Passwörter und weitere Daten aus deinem Google‑Konto in Chrome verwenden. Wenn du das ändern möchtest, rufe „Mein Konto in Chrome“ auf.</translation>
 <translation id="4022972681110646219">Bildschirm übersetzen</translation>
 <translation id="4023601594785368013">Originalsprache: <ph name="LANGUAGE" /></translation>
+<translation id="4034249157893816477">Der Passwortmanager ist direkt in Chrome eingebunden und kann für dich starke Passwörter erstellen, speichern und automatisch eintragen. Füge die Verknüpfung hinzu, um einfacher darauf zuzugreifen.</translation>
 <translation id="4035053306113201399">Chrome OS muss neu gestartet werden, um das Update zu installieren.</translation>
 <translation id="4050175100176540509">Wichtige Sicherheitsverbesserungen und neue Funktionen sind in der aktuellen Version verfügbar.</translation>
 <translation id="4053720452172726777">Google Chrome anpassen und verwalten</translation>
@@ -540,7 +540,6 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="6438015621983209660">Erweitertes Safe Browsing mit Chrome auf deinem Smartphone nutzen</translation>
 <translation id="6442774133615368941">Du kannst mit der Chrome App für iOS die Kamera nutzen, um einzukaufen, Texte übersetzen zu lassen und zu identifizieren, was du gerade siehst</translation>
 <translation id="6448835208126432197">Wenn du in Gemini in Chrome einen Teil des Bildschirms auswählen möchtest, kannst du diese Tastenkombination verwenden.</translation>
-<translation id="6473659734176498825">Ein vereinfachtes Bild des Einstiegspunkts für den Google Passwortmanager in Chrome</translation>
 <translation id="6473905796280459355">Zur Seite „Über Chrome“</translation>
 <translation id="6481963882741794338">Chrome und andere Google-Dienste zur Personalisierung und für andere Zwecke verknüpfen</translation>
 <translation id="648319183876919572">Erweitertes Safe Browsing schützt dich besser vor gefährlichen Websites und Downloads</translation>
@@ -557,6 +556,7 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="6539493053177300926">Du kannst einfach auf Gemini in Chrome auf deinem Gerät zugreifen, auch wenn Chrome minimiert ist.</translation>
 <translation id="6585124893636629274">Gemini in Chrome schließen</translation>
 <translation id="659498884637196217">Im Google Passwortmanager auf diesem Gerät</translation>
+<translation id="6613949864921837107">Wenn du Chrome als Standardbrowser festlegst, werden deine Passwörter, deine Lesezeichen und dein Verlauf auf allen Geräten synchronisiert.</translation>
 <translation id="6631524303639368205">Mach dort weiter, wo du aufgehört hast: Chrome hat deine Tabs aus der letzten Sitzung wiederhergestellt. Du kannst diese Funktion deaktivieren in</translation>
 <translation id="6632473616050862500">Chrome OS Flex wird durch zusätzliche <ph name="BEGIN_LINK_CROS_OSS" />Open-Source-Software<ph name="END_LINK_CROS_OSS" /> ermöglicht.</translation>
 <translation id="6634299872736643004">Änderungen an dieser Einstellung werden nach dem Neustart von Chrome übernommen.</translation>
@@ -682,7 +682,6 @@ Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optim
 <translation id="7804364787702057554">Mein Konto in Chrome</translation>
 <translation id="7804947029129221742">Deine Suchmaschine wurde außerhalb von Chrome geändert. Zu deinem Schutz hat Chrome die ursprüngliche Standardsuchmaschine wiederhergestellt. <ph name="LEARN_MORE_LINK" /></translation>
 <translation id="7808348361785373670">Aus Chrome entfernen...</translation>
-<translation id="7812800388699096556">Eine Illustration, die zeigt, wie du mit Google Lens nach einem Produkt suchen kannst</translation>
 <translation id="7827099906024714326">Chrome muss deine Identität bestätigen, damit einige Daten in deinem Google-Konto gespeichert und auf allen deinen Geräten verwendet werden können. Wenn du dich jetzt abmeldest, werden diese Daten gelöscht.</translation>
 <translation id="7832314606810669113">Wenn du auf allen deinen Geräten auf deine Lesezeichen und andere Daten zugreifen möchtest, melde dich in Chrome an. Dieses Lesezeichen wird in deinem Google-Konto gespeichert, nachdem du dich angemeldet hast.</translation>
 <translation id="7845233973568007926">Vielen Dank für die Installation. Du musst deinen Computer neu starten, bevor du <ph name="BUNDLE_NAME" /> verwenden kannst.</translation>
@@ -821,7 +820,6 @@ Du kannst erst neue Lesezeichen in deinem Konto speichern, wenn du einige gelös
 <translation id="8999208279178790196">{0,plural, =0{Ein Chrome-Update ist verfügbar}=1{Ein Chrome-Update ist verfügbar}other{Ein Chrome-Update ist seit # Tagen verfügbar}}</translation>
 <translation id="9014771989710951291">Chrome wird von mehreren Organisationen verwaltet</translation>
 <translation id="9018218886431812662">Installation abgeschlossen</translation>
-<translation id="9024318700713112071">Chrome als Standardbrowser festlegen</translation>
 <translation id="9066987883552592250">Gemini in Chrome Canary schließen</translation>
 <translation id="9074041031320636790">Fertig! Mit dem KI-Modus der Google Suche kannst du jetzt ganz einfach Fragen stellen, während du surfst</translation>
 <translation id="9090566250983691233">Gründe, warum Chrome einige Dateien blockiert</translation>

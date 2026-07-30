@@ -4,7 +4,12 @@
 
 package org.chromium.ui.accessibility;
 
+import static com.google.common.truth.Truth.assertThat;
+
 import android.accessibilityservice.AccessibilityServiceInfo;
+import android.app.Activity;
+import android.app.Application;
+import android.content.ContentResolver;
 import android.content.Context;
 import android.provider.Settings;
 import android.view.accessibility.AccessibilityEvent;
@@ -20,7 +25,9 @@ import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
+import org.robolectric.Robolectric;
 import org.robolectric.RuntimeEnvironment;
 import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
@@ -28,7 +35,12 @@ import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 import org.robolectric.shadow.api.Shadow;
 import org.robolectric.shadows.ShadowAccessibilityManager;
+import org.robolectric.shadows.ShadowLooper;
+import org.robolectric.shadows.ShadowSettings;
 
+import org.chromium.base.ActivityState;
+import org.chromium.base.ApplicationState;
+import org.chromium.base.ApplicationStatus;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.RobolectricUtil;
 
@@ -61,6 +73,7 @@ public class AccessibilityStateTest {
             AccessibilityServiceInfo.CAPABILITY_CAN_RETRIEVE_WINDOW_CONTENT;
 
     private Context mContext;
+    private AccessibilityStateDelegateImpl mDelegate;
     @Mock private AccessibilityState.Natives mAccessibilityStateNatives;
     private AutoCloseable mCloseableMocks;
 
@@ -69,11 +82,12 @@ public class AccessibilityStateTest {
         mCloseableMocks = MockitoAnnotations.openMocks(this);
         AccessibilityStateJni.setInstanceForTesting(mAccessibilityStateNatives);
         mContext = RuntimeEnvironment.getApplication();
+        mDelegate = AccessibilityState.getDelegate();
 
         // Reset all flags to empty/default state.
         setEnabledAccessibilityServiceList(new ArrayList<>());
         setEnabledAccessibilityServices(null);
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
     }
 
     @After
@@ -102,16 +116,26 @@ public class AccessibilityStateTest {
 
     private BuilderForTests createPasswordManagerServiceInfoBuilderWithFlags(int flags) {
         return new BuilderForTests()
-                .setCapabilities(AccessibilityState.PASSWORD_MANAGER_CAPABILITY_TYPE_MASK)
-                .setEventTypes(AccessibilityState.PASSWORD_MANAGER_EVENT_TYPE_MASK)
+                .setCapabilities(
+                        AccessibilityStateDelegateImpl.PASSWORD_MANAGER_CAPABILITY_TYPE_MASK)
+                .setEventTypes(AccessibilityStateDelegateImpl.PASSWORD_MANAGER_EVENT_TYPE_MASK)
                 .setFlags(flags);
+    }
+
+    private void simulateActivityStateChange(
+            Activity activity,
+            @ActivityState int activityState,
+            @ApplicationState int expectedApplicationState) {
+        ApplicationStatus.onStateChangeForTesting(activity, activityState);
+        assertThat(ApplicationStatus.getStateForApplication()).isEqualTo(expectedApplicationState);
     }
 
     @Test
     @SmallTest
     public void testSimpleString() {
         String inputString = "placeholder";
-        List<String> response = AccessibilityState.getCanonicalizedEnabledServiceNames(inputString);
+        List<String> response =
+                AccessibilityStateDelegateImpl.getCanonicalizedEnabledServiceNames(inputString);
 
         Assert.assertNotNull(response);
         Assert.assertFalse(response.isEmpty());
@@ -123,7 +147,8 @@ public class AccessibilityStateTest {
     @SmallTest
     public void testBadInput() {
         String inputString = "placeholder:::";
-        List<String> response = AccessibilityState.getCanonicalizedEnabledServiceNames(inputString);
+        List<String> response =
+                AccessibilityStateDelegateImpl.getCanonicalizedEnabledServiceNames(inputString);
 
         Assert.assertNotNull(response);
         Assert.assertFalse(response.isEmpty());
@@ -135,7 +160,8 @@ public class AccessibilityStateTest {
     @SmallTest
     public void testComplexString() {
         String inputString = "com.google.placeholder.test/com.test.google";
-        List<String> response = AccessibilityState.getCanonicalizedEnabledServiceNames(inputString);
+        List<String> response =
+                AccessibilityStateDelegateImpl.getCanonicalizedEnabledServiceNames(inputString);
 
         Assert.assertNotNull(response);
         Assert.assertFalse(response.isEmpty());
@@ -147,7 +173,8 @@ public class AccessibilityStateTest {
     @SmallTest
     public void testMultipleSimpleStrings() {
         String inputString = "placeholder:foo:bar";
-        List<String> response = AccessibilityState.getCanonicalizedEnabledServiceNames(inputString);
+        List<String> response =
+                AccessibilityStateDelegateImpl.getCanonicalizedEnabledServiceNames(inputString);
 
         Assert.assertNotNull(response);
         Assert.assertFalse(response.isEmpty());
@@ -163,7 +190,8 @@ public class AccessibilityStateTest {
         String inputString =
                 "com.google.placeholder.test/com.test.google:"
                         + "placeholder:com.google.test/.classname:com.google.test/test.google";
-        List<String> response = AccessibilityState.getCanonicalizedEnabledServiceNames(inputString);
+        List<String> response =
+                AccessibilityStateDelegateImpl.getCanonicalizedEnabledServiceNames(inputString);
 
         Assert.assertNotNull(response);
         Assert.assertFalse(response.isEmpty());
@@ -180,7 +208,8 @@ public class AccessibilityStateTest {
         String inputString =
                 "com.google.placeholder.test/com.test.google:"
                         + "placeholder::::com.google.test/.classname:::com.google.test/test.google";
-        List<String> response = AccessibilityState.getCanonicalizedEnabledServiceNames(inputString);
+        List<String> response =
+                AccessibilityStateDelegateImpl.getCanonicalizedEnabledServiceNames(inputString);
 
         Assert.assertNotNull(response);
         Assert.assertFalse(response.isEmpty());
@@ -197,7 +226,7 @@ public class AccessibilityStateTest {
         String enabledServices = "placeholder:services";
         setEnabledAccessibilityServices(enabledServices);
 
-        Assert.assertEquals(enabledServices, AccessibilityState.getEnabledServiceString(mContext));
+        Assert.assertEquals(enabledServices, mDelegate.getEnabledServiceString(mContext));
     }
 
     @Test
@@ -210,8 +239,7 @@ public class AccessibilityStateTest {
         serviceInfoList.add(service2);
         setEnabledAccessibilityServiceList(serviceInfoList);
 
-        List<AccessibilityServiceInfo> runningServices =
-                AccessibilityState.getRunningServiceInfoList();
+        List<AccessibilityServiceInfo> runningServices = mDelegate.getRunningServiceInfoList();
         Assert.assertNotNull(runningServices);
         Assert.assertFalse(runningServices.isEmpty());
         Assert.assertEquals(2, runningServices.size());
@@ -238,19 +266,19 @@ public class AccessibilityStateTest {
         AccessibilityServiceInfo serviceEmpty =
                 new BuilderForTests().setEventTypes(serviceEventMask_empty).build();
         setEnabledAccessibilityServiceList(List.of(serviceEmpty));
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
         Set<Integer> outcome_empty = AccessibilityState.relevantEventTypesForCurrentServices();
 
         AccessibilityServiceInfo serviceFull =
                 new BuilderForTests().setEventTypes(serviceEventMask_full).build();
         setEnabledAccessibilityServiceList(List.of(serviceFull));
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
         Set<Integer> outcome_full = AccessibilityState.relevantEventTypesForCurrentServices();
 
         AccessibilityServiceInfo serviceTest =
                 new BuilderForTests().setEventTypes(serviceEventMask_test).build();
         setEnabledAccessibilityServiceList(List.of(serviceTest));
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
         Set<Integer> outcome_test = AccessibilityState.relevantEventTypesForCurrentServices();
 
         // Verify results.
@@ -277,7 +305,7 @@ public class AccessibilityStateTest {
     @Test
     @SmallTest
     public void testAreOnlyPasswordManagerFlagsRequested_empty() {
-        Assert.assertFalse(AccessibilityState.areOnlyPasswordManagerMasksRequested());
+        Assert.assertFalse(mDelegate.areOnlyPasswordManagerMasksRequested());
     }
 
     @Test
@@ -285,11 +313,11 @@ public class AccessibilityStateTest {
     public void testAreOnlyPasswordManagerFlagsRequested_true() {
         AccessibilityServiceInfo passwordManagerService =
                 createPasswordManagerServiceInfoWithFlags(
-                        AccessibilityState.PASSWORD_MANAGER_FLAG_TYPE_MASK);
+                        AccessibilityStateDelegateImpl.PASSWORD_MANAGER_FLAG_TYPE_MASK);
         setEnabledAccessibilityServiceList(List.of(passwordManagerService));
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
 
-        Assert.assertTrue(AccessibilityState.areOnlyPasswordManagerMasksRequested());
+        Assert.assertTrue(mDelegate.areOnlyPasswordManagerMasksRequested());
     }
 
     @Test
@@ -307,9 +335,9 @@ public class AccessibilityStateTest {
         AccessibilityServiceInfo passwordManagerService =
                 createPasswordManagerServiceInfoWithFlags(flags_mask);
         setEnabledAccessibilityServiceList(List.of(passwordManagerService));
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
 
-        Assert.assertTrue(AccessibilityState.areOnlyPasswordManagerMasksRequested());
+        Assert.assertTrue(mDelegate.areOnlyPasswordManagerMasksRequested());
     }
 
     @Test
@@ -328,9 +356,9 @@ public class AccessibilityStateTest {
         AccessibilityServiceInfo passwordManagerService =
                 createPasswordManagerServiceInfoWithFlags(flags_mask);
         setEnabledAccessibilityServiceList(List.of(passwordManagerService));
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
 
-        Assert.assertFalse(AccessibilityState.areOnlyPasswordManagerMasksRequested());
+        Assert.assertFalse(mDelegate.areOnlyPasswordManagerMasksRequested());
     }
 
     @Test
@@ -338,17 +366,17 @@ public class AccessibilityStateTest {
     public void testCalculateHeuristicState_Autofill_passwordManager() {
         AccessibilityServiceInfo myService =
                 createPasswordManagerServiceInfoBuilderWithFlags(
-                                AccessibilityState.PASSWORD_MANAGER_FLAG_TYPE_MASK)
+                                AccessibilityStateDelegateImpl.PASSWORD_MANAGER_FLAG_TYPE_MASK)
                         .setId(AccessibilityState.AUTOFILL_COMPAT_ACCESSIBILITY_SERVICE_ID)
                         .build();
         startTestWithService(
                 myService,
                 "android/com.android.server.autofill.AutofillCompatAccessibilityService");
 
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
 
         Assert.assertTrue(AccessibilityState.isAnyAccessibilityServiceEnabled());
-        Assert.assertFalse(AccessibilityState.areOnlyPasswordManagerMasksRequested());
+        Assert.assertFalse(mDelegate.areOnlyPasswordManagerMasksRequested());
     }
 
     @Test
@@ -358,10 +386,10 @@ public class AccessibilityStateTest {
                 new BuilderForTests().setEventTypes(~0).setFlags(~0).setCapabilities(~0).build();
         startTestWithService(myService);
 
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
 
         Assert.assertTrue(AccessibilityState.isAnyAccessibilityServiceEnabled());
-        Assert.assertFalse(AccessibilityState.areOnlyPasswordManagerMasksRequested());
+        Assert.assertFalse(mDelegate.areOnlyPasswordManagerMasksRequested());
     }
 
     @Test
@@ -369,16 +397,19 @@ public class AccessibilityStateTest {
     public void testCalculateHeuristicState_notAutofill_passwordManager() {
         AccessibilityServiceInfo myService =
                 new BuilderForTests()
-                        .setEventTypes(AccessibilityState.PASSWORD_MANAGER_EVENT_TYPE_MASK)
-                        .setFlags(AccessibilityState.PASSWORD_MANAGER_FLAG_TYPE_MASK)
-                        .setCapabilities(AccessibilityState.PASSWORD_MANAGER_CAPABILITY_TYPE_MASK)
+                        .setEventTypes(
+                                AccessibilityStateDelegateImpl.PASSWORD_MANAGER_EVENT_TYPE_MASK)
+                        .setFlags(AccessibilityStateDelegateImpl.PASSWORD_MANAGER_FLAG_TYPE_MASK)
+                        .setCapabilities(
+                                AccessibilityStateDelegateImpl
+                                        .PASSWORD_MANAGER_CAPABILITY_TYPE_MASK)
                         .build();
         startTestWithService(myService);
 
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
 
         Assert.assertTrue(AccessibilityState.isAnyAccessibilityServiceEnabled());
-        Assert.assertTrue(AccessibilityState.areOnlyPasswordManagerMasksRequested());
+        Assert.assertTrue(mDelegate.areOnlyPasswordManagerMasksRequested());
     }
 
     @Test
@@ -405,7 +436,7 @@ public class AccessibilityStateTest {
 
         startTestWithService(errorProneService);
 
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
 
         Assert.assertTrue(AccessibilityState.isAnyAccessibilityServiceEnabled());
         // Before P0 fix, this call would have (incorrectly) returned true.
@@ -415,7 +446,7 @@ public class AccessibilityStateTest {
         // we now show touch exploration as being enabled.
         setEnabledAccessibilityServiceList(List.of(properConfigService));
 
-        AccessibilityState.updateAccessibilityServices();
+        mDelegate.updateAccessibilityServices();
 
         Assert.assertTrue(AccessibilityState.isAnyAccessibilityServiceEnabled());
         Assert.assertTrue(AccessibilityState.isTouchExplorationEnabled());
@@ -439,9 +470,80 @@ public class AccessibilityStateTest {
         RobolectricUtil.runAllBackgroundAndUi();
 
         Set<Integer> expectedEventTypes =
-                ImmutableSet.of(AccessibilityEvent.TYPE_VIEW_CLICKED, AccessibilityEvent.TYPE_VIEW_FOCUSED);
+                ImmutableSet.of(
+                        AccessibilityEvent.TYPE_VIEW_CLICKED, AccessibilityEvent.TYPE_VIEW_FOCUSED);
         Assert.assertEquals(
                 expectedEventTypes, AccessibilityState.relevantEventTypesForCurrentServices());
+    }
+
+    /**
+     * Test that AccessibilityState#getAnimatorDurationScale() uses the cached value if one is
+     * available.
+     */
+    @Test
+    @SmallTest
+    @Config(shadows = {CountAnimatorDurationScaleShadowSettingsSecure.class})
+    public void testPrefersReducedMotionUsesCachedValue() throws Exception {
+        CountAnimatorDurationScaleShadowSettingsSecure.sNumAnimatorDurationGets = 0;
+
+        Settings.Global.putFloat(
+                mContext.getContentResolver(), Settings.Global.ANIMATOR_DURATION_SCALE, 14.0f);
+
+        assertThat(AccessibilityState.getAnimatorDurationScale()).isWithin(0.1f).of(14.0f);
+        // Should use cached value for second call
+        assertThat(AccessibilityState.getAnimatorDurationScale()).isWithin(0.1f).of(14.0f);
+        assertThat(CountAnimatorDurationScaleShadowSettingsSecure.sNumAnimatorDurationGets)
+                .isEqualTo(1);
+
+        CountAnimatorDurationScaleShadowSettingsSecure.sNumAnimatorDurationGets = 0;
+    }
+
+    /** Test that Chromium ignores accessibility state changes when its in the background. */
+    @Test
+    @SmallTest
+    public void testApplicationStateChange() {
+        Activity mockActivity = Robolectric.buildActivity(Activity.class).setup().get();
+
+        Application application = (Application) mContext.getApplicationContext();
+
+        // App starts out in foreground.
+        simulateActivityStateChange(
+                mockActivity, ActivityState.STARTED, ApplicationState.HAS_RUNNING_ACTIVITIES);
+        AccessibilityState.initializeOnStartup();
+        AccessibilityState.registerObservers();
+
+        // Verify initial call from initializeOnStartup().
+        Mockito.verify(mAccessibilityStateNatives, Mockito.times(1))
+                .onAnimatorDurationScaleChanged();
+
+        ContentResolver contentResolver = mContext.getContentResolver();
+        Settings.Global.putFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 14.0f);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        // Verify call after setting scale in foreground.
+        Mockito.verify(mAccessibilityStateNatives, Mockito.times(2))
+                .onAnimatorDurationScaleChanged();
+
+        // Move app to background, state changes should be ignored.
+        simulateActivityStateChange(
+                mockActivity, ActivityState.STOPPED, ApplicationState.HAS_STOPPED_ACTIVITIES);
+        Settings.Global.putFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 10.0f);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+
+        // Verify no extra calls while in background.
+        Mockito.verify(mAccessibilityStateNatives, Mockito.times(2))
+                .onAnimatorDurationScaleChanged();
+
+        // Move app to foreground, state changes should be picked up by observers.
+        simulateActivityStateChange(
+                mockActivity, ActivityState.RESUMED, ApplicationState.HAS_RUNNING_ACTIVITIES);
+        ShadowLooper.runUiThreadTasksIncludingDelayedTasks();
+        Mockito.verify(mAccessibilityStateNatives, Mockito.times(3))
+                .onAnimatorDurationScaleChanged();
+
+        ApplicationStatus.onStateChangeForTesting(mockActivity, ActivityState.STOPPED);
+        ApplicationStatus.destroyForJUnitTests();
+        AccessibilityState.uninitializeForTesting();
     }
 
     private void startTestWithService(AccessibilityServiceInfo newService) {
@@ -521,6 +623,20 @@ public class AccessibilityStateTest {
         @Implementation
         protected boolean isAccessibilityTool() {
             return false;
+        }
+    }
+
+    @Implements(Settings.Global.class)
+    public static class CountAnimatorDurationScaleShadowSettingsSecure
+            extends ShadowSettings.ShadowGlobal {
+        public static int sNumAnimatorDurationGets;
+
+        @Implementation
+        protected static float getFloat(ContentResolver cr, String name, float def) {
+            if (Settings.Global.ANIMATOR_DURATION_SCALE.equals(name)) {
+                ++sNumAnimatorDurationGets;
+            }
+            return ShadowSettings.ShadowGlobal.getFloat(cr, name, def);
         }
     }
 }

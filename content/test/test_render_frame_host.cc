@@ -20,6 +20,7 @@
 #include "content/browser/renderer_host/page_impl.h"
 #include "content/browser/renderer_host/render_frame_host_delegate.h"
 #include "content/browser/web_contents/web_contents_impl.h"
+#include "content/browser/web_package/prefetched_signed_exchange_cache.h"
 #include "content/common/frame_messages.mojom.h"
 #include "content/common/navigation_params_utils.h"
 #include "content/public/browser/navigation_throttle.h"
@@ -159,8 +160,7 @@ void TestRenderFrameHost::ReportInspectorIssue(
     }
   } else if (issue->code ==
              blink::mojom::InspectorIssueCode::kFederatedAuthRequestIssue) {
-    ++federated_auth_counts_[issue->details->federated_auth_request_details
-                                 ->status];
+    ++federated_auth_counts_[issue->details->federated_request_details->status];
   } else if (issue->code == blink::mojom::InspectorIssueCode::
                                 kFederatedAuthUserInfoRequestIssue) {
     ++federated_auth_user_info_counts_
@@ -301,8 +301,8 @@ int TestRenderFrameHost::GetHeavyAdIssueCount(
   }
 }
 
-int TestRenderFrameHost::GetFederatedAuthRequestIssueCount(
-    std::optional<blink::mojom::FederatedAuthRequestResult> status_type) {
+int TestRenderFrameHost::GetFederatedRequestIssueCount(
+    std::optional<blink::mojom::FederatedRequestResult> status_type) {
   if (!status_type) {
     int total = 0;
     for (const auto& [result, count] : federated_auth_counts_)
@@ -316,7 +316,7 @@ int TestRenderFrameHost::GetFederatedAuthRequestIssueCount(
   return it->second;
 }
 
-int TestRenderFrameHost::GetFederatedAuthUserInfoRequestIssueCount(
+int TestRenderFrameHost::GetFederatedUserInfoRequestIssueCount(
     std::optional<blink::mojom::FederatedAuthUserInfoRequestResult>
         status_type) {
   if (!status_type) {
@@ -628,12 +628,23 @@ void TestRenderFrameHost::SimulateCommitProcessed(
       same_document);
 }
 
-#if !BUILDFLAG(IS_ANDROID)
+void TestRenderFrameHost::SimulateOnSameDocumentCommitProcessed(
+    const base::UnguessableToken& navigation_token,
+    bool should_replace_current_entry,
+    blink::mojom::CommitResult result) {
+  OnSameDocumentCommitProcessed(navigation_token, should_replace_current_entry,
+                                result);
+}
+
+void TestRenderFrameHost::SetPrefetchedSignedExchangeCacheForTesting(
+    scoped_refptr<PrefetchedSignedExchangeCache> cache) {
+  prefetched_signed_exchange_cache_ = std::move(cache);
+}
+
 void TestRenderFrameHost::CreateHidServiceForTesting(
     mojo::PendingReceiver<blink::mojom::HidService> receiver) {
   RenderFrameHostImpl::GetHidService(std::move(receiver));
 }
-#endif  // !BUILDFLAG(IS_ANDROID)
 
 void TestRenderFrameHost::CreateWebUsbServiceForTesting(
     mojo::PendingReceiver<blink::mojom::WebUsbService> receiver) {

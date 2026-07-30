@@ -15,7 +15,10 @@
 #include "base/sequence_checker.h"
 #include "base/strings/escape.h"
 #include "base/strings/stringprintf.h"
+#include "components/safe_browsing/core/browser/db/v5_hash_list_rice_decoder.h"
+#include "components/safe_browsing/core/browser/db/v5_rice.h"
 #include "components/safe_browsing/core/common/utils.h"
+#include "crypto/hash.h"
 #include "google_apis/google_api_keys.h"
 #include "net/base/load_flags.h"
 #include "net/http/http_response_headers.h"
@@ -354,6 +357,28 @@ V5UpdateProtocolManager::ParseUpdateResponse(
         (hash_list.has_additions_thirty_two_bytes() &&
          expected_hash_prefix_lengths != 32)) {
       return base::unexpected(V5ParseResult::kMismatchedPrefixLengthError);
+    }
+
+    V5InputValidationResult validation_result =
+        v5_hash_list_rice_decoder::ValidateHashList(hash_list);
+    base::UmaHistogramEnumeration(
+        "SafeBrowsing.V5Update.RiceInputValidationResult", validation_result);
+    if (validation_result != V5InputValidationResult::kSuccess) {
+      return base::unexpected(V5ParseResult::kInvalidRiceFieldError);
+    }
+
+    bool has_additions = hash_list.compressed_additions_case() !=
+                         V5::HashList::COMPRESSED_ADDITIONS_NOT_SET;
+    bool has_removals = hash_list.has_compressed_removals();
+    bool has_changes = has_additions || has_removals;
+
+    const std::string& expected_checksum = hash_list.sha256_checksum();
+    if (has_changes && expected_checksum.empty()) {
+      return base::unexpected(V5ParseResult::kChecksumMissingError);
+    }
+    if (!expected_checksum.empty() &&
+        expected_checksum.size() != crypto::hash::kSha256Size) {
+      return base::unexpected(V5ParseResult::kChecksumSizeError);
     }
 
     // Save off the smallest minimum_wait_duration across lists and use that to
