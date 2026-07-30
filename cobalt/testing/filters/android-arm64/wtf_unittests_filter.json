@@ -1,0 +1,7 @@
+{
+  "failing_tests": [
+    "CaseMapTest.ToTitleWithPreviousCharacter",
+    "DecimalTest.ToDoubleSpecialValues",
+    "StringBuilderTest.AppendSharingImpl"
+  ]
+}

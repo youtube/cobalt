@@ -113,6 +113,8 @@ class JArrayViewBase {
 template <typename T>
 class JArrayView;
 
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 // Wrapper for a jobjectArray.
 template <typename T>
   requires internal::IsJobject<T>
@@ -225,6 +227,7 @@ class JArrayView<T> : public JArrayViewBase<T> {
 
   friend iterator;
 };
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 
 namespace internal {
 
@@ -234,11 +237,14 @@ struct is_scoped_java_local_ref : std::false_type {};
 template <typename T>
 struct is_scoped_java_local_ref<ScopedJavaLocalRef<T>> : std::true_type {};
 
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 template <typename T>
 concept IsScopedJavaLocalRef = is_scoped_java_local_ref<T>::value;
 
 template <typename T>
 concept IsPrimitiveType = std::is_arithmetic<T>::value;
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 
 template <typename T>
 struct _JniFuncMappings;
@@ -427,6 +433,8 @@ struct _JniFuncMappings<double> {
 
 }  // namespace internal
 
+#if !BUILDFLAG(IS_COBALT) || \
+    (defined(__cpp_concepts) && __cpp_concepts >= 201907L)
 // Wrapper for a primitive jarray (e.g. jbooleanArray, jintArray, etc.).
 template <typename T>
   requires internal::IsPrimitiveType<T>
@@ -649,6 +657,8 @@ static ScopedJavaLocalRef<JArray<jstring>> NewStringArray(
     std::initializer_list<T> buf) {
   return NewStringArray<T>(env, std::span<const T>(buf));
 }
+
+#endif  // !BUILDFLAG(IS_COBALT) || (concepts)
 
 }  // namespace jni_zero
 

@@ -6,6 +6,9 @@
 # in the file PATENTS.  All contributing project authors may
 # be found in the AUTHORS file in the root of the source tree.
 import("../webrtc.gni")
+if (is_cobalt) {
+  import("//starboard/build/buildflags.gni")
+}
 if (rtc_enable_protobuf) {
   import("//third_party/protobuf/proto_library.gni")
 }

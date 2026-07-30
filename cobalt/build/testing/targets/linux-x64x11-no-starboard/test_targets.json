@@ -1,0 +1,7 @@
+[
+  {
+    "target": ":blink_web_tests",
+    "runs_on": "host",
+    "test_type": "webtest"
+  }
+]

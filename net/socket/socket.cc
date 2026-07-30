@@ -14,6 +14,19 @@ Socket::Socket() = default;
 
 Socket::~Socket() = default;
 
+#if BUILDFLAG(IS_COBALT)
+
+Socket::ReadPacketResults::ReadPacketResults() = default;
+Socket::ReadPacketResults::~ReadPacketResults() = default;
+
+int Socket::ReadMultiplePackets(ReadPacketResults* results,
+                                int read_buffer_size,
+                                CompletionOnceCallback callback) {
+  // Default to not implemented
+  return ERR_NOT_IMPLEMENTED;
+}
+#endif
+
 int Socket::ReadIfReady(IOBuffer* buf,
                         int buf_len,
                         CompletionOnceCallback callback) {

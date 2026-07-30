@@ -7,6 +7,7 @@
 #include <tuple>
 
 #include "base/numerics/safe_conversions.h"
+#include "base/strings/strcat.h"
 #include "gin/converter.h"
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"

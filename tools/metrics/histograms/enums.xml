@@ -20944,6 +20944,7 @@ from previous Chrome versions.
   <int value="5" label="kFrameInjectingDemuxer"/>
   <int value="6" label="kStreamProviderDemuxer"/>
   <int value="7" label="kManifestDemuxer"/>
+  <int value="8" label="kUrlPlayerDemuxer"/>
 </enum>
 
 <enum name="MediaEncryptionType">
@@ -20978,6 +20979,8 @@ from previous Chrome versions.
   <int value="9" label="kCastStreaming"/>
   <int value="10" label="kContentEmbedderDefined"/>
   <int value="11" label="kTest"/>
+<!-- Cobalt: Renderer for Starboard (SbPlayer) -->
+  <int value="12" label="kStarboard"/>
 </enum>
 
 <!-- LINT.IfChange(MediaSessionAction) -->

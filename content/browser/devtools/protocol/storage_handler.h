@@ -13,15 +13,22 @@
 #include "base/memory/weak_ptr.h"
 #include "base/scoped_observation.h"
 #include "base/types/optional_ref.h"
+#include "build/buildflag.h"
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "components/services/storage/shared_storage/shared_storage_manager.h"
+#include "content/browser/interest_group/devtools_enums.h"  // nogncheck
+#include "content/browser/interest_group/interest_group_manager_impl.h"  // nogncheck
+#include "content/browser/shared_storage/shared_storage_runtime_manager.h"  // nogncheck
+#include "third_party/blink/public/common/shared_storage/shared_storage_utils.h"
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 #include "content/browser/devtools/protocol/devtools_domain_handler.h"
 #include "content/browser/devtools/protocol/storage.h"
-#include "content/browser/interest_group/devtools_enums.h"
-#include "content/browser/interest_group/interest_group_manager_impl.h"
-#include "content/browser/shared_storage/shared_storage_runtime_manager.h"
 #include "content/public/browser/global_routing_id.h"
 #include "storage/browser/quota/quota_manager.h"
-#include "third_party/blink/public/common/shared_storage/shared_storage_utils.h"
+
+namespace net {
+class CanonicalCookie;
+}
 
 namespace storage {
 class QuotaOverrideHandle;
@@ -37,10 +44,13 @@ namespace protocol {
 
 class StorageHandler
     : public DevToolsDomainHandler,
-      public Storage::Backend,
-      public content::InterestGroupManagerImpl::InterestGroupObserver,
+      public Storage::Backend
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+    , public content::InterestGroupManagerImpl::InterestGroupObserver,
       public content::SharedStorageRuntimeManager::
-          SharedStorageObserverInterface {
+          SharedStorageObserverInterface
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
+    {
  public:
   explicit StorageHandler(DevToolsAgentHostImpl* host,
                           DevToolsAgentHostClient* client);
@@ -59,7 +69,11 @@ class StorageHandler
   Response Disable() override;
 
   bool interest_group_auction_tracking_enabled() const {
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
     return interest_group_auction_tracking_enabled_;
+#else
+    return false;
+#endif
   }
 
   // content::protocol::storage::Backend
@@ -159,6 +173,7 @@ class StorageHandler
   DispatchResponse DeleteStorageBucket(
       std::unique_ptr<protocol::Storage::StorageBucket> bucket) override;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   void NotifyInterestGroupAuctionEventOccurred(
       base::Time event_time,
       content::InterestGroupAuctionEventType type,
@@ -170,6 +185,7 @@ class StorageHandler
       content::InterestGroupAuctionFetchType type,
       const std::string& request_id,
       const std::vector<std::string>& devtools_auction_ids);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   Response SetProtectedAudienceKAnonymity(
       const std::string& in_owner_origin,
@@ -180,18 +196,22 @@ class StorageHandler
   // See definition for lifetime information.
   class CacheStorageObserver;
   class IndexedDBObserver;
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   class InterestGroupObserver;
   class SharedStorageObserver;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   class QuotaManagerObserver;
 
   // Not thread safe.
   CacheStorageObserver* GetCacheStorageObserver();
   IndexedDBObserver* GetIndexedDBObserver();
 
+  storage::QuotaManagerProxy* GetQuotaManagerProxy();
+
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   SharedStorageRuntimeManager* GetSharedStorageRuntimeManager();
   std::variant<protocol::Response, storage::SharedStorageManager*>
   GetSharedStorageManager();
-  storage::QuotaManagerProxy* GetQuotaManagerProxy();
 
   // content::InterestGroupManagerImpl::InterestGroupObserver
   void OnInterestGroupAccessed(
@@ -227,6 +247,7 @@ class StorageHandler
       const base::UnguessableToken& worklet_devtools_token,
       GlobalRenderFrameHostId main_frame_id,
       const std::string& owner_origin) override;
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   void NotifyCacheStorageListChanged(
       const storage::BucketLocator& bucket_locator);
@@ -247,10 +268,12 @@ class StorageHandler
   Response GetStorageKeyForFrameInternal(const std::string& frame_id,
                                          std::string* serialized_storage_key);
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   // This doesn't update `interest_group_auction_tracking_enabled_` and does not
   // have to work on `storage_partition_`, unlike the public version.
   Response SetInterestGroupTrackingInternal(StoragePartition* storage_partition,
                                             bool enable);
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   void GotAllCookies(
       std::unique_ptr<Storage::Backend::GetCookiesCallback> callback,
       const std::vector<net::CanonicalCookie>& cookies);
@@ -268,6 +291,7 @@ class StorageHandler
   std::unique_ptr<storage::QuotaOverrideHandle> quota_override_handle_;
   raw_ptr<DevToolsAgentHostClient> client_;
 
+#if BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
   bool interest_group_tracking_enabled_ = false;
   bool interest_group_auction_tracking_enabled_ = false;
 
@@ -275,6 +299,7 @@ class StorageHandler
       content::SharedStorageRuntimeManager,
       content::SharedStorageRuntimeManager::SharedStorageObserverInterface>
       shared_storage_observation_{this};
+#endif  // BUILDFLAG(ENABLE_PRIVACY_SANDBOX_APIS) && CHROMIUM_MILESTONE_LE_150
 
   base::WeakPtrFactory<StorageHandler> weak_ptr_factory_{this};
 };

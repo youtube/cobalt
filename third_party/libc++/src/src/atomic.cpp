@@ -17,7 +17,10 @@
 #include <thread>
 #include <type_traits>
 
-#ifdef __linux__
+// TODO: b/558305425 - Remove the _LIBCPP_COBALT_NO_PLATFORM_FUTEX checks in
+// 142.7444. They are currently required in linux-modular builds to avoid the
+// futex code paths.
+#if defined(__linux__) && !defined(_LIBCPP_COBALT_NO_PLATFORM_FUTEX)
 
 #  include <linux/futex.h>
 #  include <sys/syscall.h>
@@ -68,7 +71,7 @@ _LIBCPP_BEGIN_NAMESPACE_STD
 
 struct NoTimeout {};
 
-#ifdef __linux__
+#if defined(__linux__) && !defined(_LIBCPP_COBALT_NO_PLATFORM_FUTEX)
 
 template <std::size_t _Size, class MaybeTimeout>
 static void __platform_wait_on_address(void const* __ptr, void const* __val, MaybeTimeout maybe_timeout_ns) {

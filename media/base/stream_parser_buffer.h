@@ -140,6 +140,13 @@ class MEDIA_EXPORT StreamParserBuffer : public DecoderBuffer {
       bool is_key_frame,
       Type type,
       TrackId track_id);
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  static scoped_refptr<StreamParserBuffer> CopyFrom(
+      base::span<const base::span<const uint8_t>> parts,
+      bool is_key_frame,
+      Type type,
+      TrackId track_id);
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
   static scoped_refptr<StreamParserBuffer> FromExternalMemory(
       std::unique_ptr<ExternalMemory> external_memory,
       bool is_key_frame,

@@ -1,0 +1,4 @@
+include_rules = [
+  # Code in //cobalt is not allowed to depend on //chrome.
+  "-chrome",
+]

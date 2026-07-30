@@ -13,7 +13,9 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/trace_event/trace_event.h"
-#include "third_party/cld_3/src/src/nnet_language_identifier.h"
+#if !BUILDFLAG(IS_COBALT)
+#include "third_party/cld_3/src/src/nnet_language_identifier.h"  // nogncheck
+#endif  // !BUILDFLAG(IS_COBALT)
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/accessibility_switches.h"
 #include "ui/accessibility/ax_enums.mojom.h"
@@ -32,14 +34,18 @@ const int kMaxDetectedLanguagesPerPage = 3;
 // starting point.
 const int kMaxDetectedLanguagesPerSpan = 3;
 
+#if !BUILDFLAG(IS_COBALT)
 const int kShortTextIdentifierMinByteLength = 1;
 // TODO(crbug.com/41463459): Determine appropriate value for
 // |kShortTextIdentifierMaxByteLength|.
 const int kShortTextIdentifierMaxByteLength = 1000;
+#endif  // !BUILDFLAG(IS_COBALT)
 }  // namespace
 
+#if !BUILDFLAG(IS_COBALT)
 using Result = chrome_lang_id::NNetLanguageIdentifier::Result;
 using SpanInfo = chrome_lang_id::NNetLanguageIdentifier::SpanInfo;
+#endif  // !BUILDFLAG(IS_COBALT)
 
 AXLanguageInfo::AXLanguageInfo() = default;
 AXLanguageInfo::~AXLanguageInfo() = default;
@@ -210,6 +216,7 @@ AXLanguageDetectionManager::AXLanguageDetectionManager(AXTree* tree)
 
 AXLanguageDetectionManager::~AXLanguageDetectionManager() = default;
 
+#if !BUILDFLAG(IS_COBALT)
 chrome_lang_id::NNetLanguageIdentifier&
 AXLanguageDetectionManager::GetLanguageIdentifier() {
   if (!language_identifier_) {
@@ -229,6 +236,7 @@ AXLanguageDetectionManager::GetShortTextLanguageIdentifier() {
   }
   return *short_text_language_identifier_;
 }
+#endif  // !BUILDFLAG(IS_COBALT)
 
 bool AXLanguageDetectionManager::IsStaticLanguageDetectionEnabled() {
   // Static language detection can be enabled by either:
@@ -297,6 +305,7 @@ void AXLanguageDetectionManager::DetectLanguagesForSubtree(
 // Will not descend into children.
 // Will not check feature flag.
 void AXLanguageDetectionManager::DetectLanguagesForNode(AXNode* node) {
+#if !BUILDFLAG(IS_COBALT)
   // Count this detection attempt.
   lang_info_stats_.RecordDetectionAttempt();
 
@@ -344,6 +353,9 @@ void AXLanguageDetectionManager::DetectLanguagesForNode(AXNode* node) {
     // Update statistics to take these results into account.
     lang_info_stats_.Add(lang_info->detected_languages);
   }
+#else
+  (void)node;
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 // Label languages for each node. This relies on DetectLanguages having already
@@ -433,6 +445,7 @@ std::vector<AXLanguageSpan>
 AXLanguageDetectionManager::GetLanguageAnnotationForStringAttribute(
     const AXNode& node,
     ax::mojom::StringAttribute attr) {
+#if !BUILDFLAG(IS_COBALT)
   std::vector<AXLanguageSpan> language_annotation;
   if (!node.HasStringAttribute(attr))
     return language_annotation;
@@ -480,6 +493,11 @@ AXLanguageDetectionManager::GetLanguageAnnotationForStringAttribute(
     }
   }
   return language_annotation;
+#else
+  (void)node;
+  (void)attr;
+  return std::vector<AXLanguageSpan>();
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 AXLanguageDetectionObserver::AXLanguageDetectionObserver(AXTree* tree) {
