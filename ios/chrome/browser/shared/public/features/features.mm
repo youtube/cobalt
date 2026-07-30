@@ -652,6 +652,9 @@ bool IsNTPBackgroundColorSliderEnabled() {
   return base::FeatureList::IsEnabled(kNTPBackgroundColorSlider);
 }
 
+BASE_FEATURE(kNTPBackgroundDownsampleImage,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kRunDefaultStatusCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsRunDefaultStatusCheckEnabled() {
@@ -813,7 +816,7 @@ const char kEnableFuseboxKeyboardAccessoryBoth[] =
     "kEnableFuseboxKeyboardAccessoryBoth";
 
 bool ShouldShowKeyboardAccessory() {
-  if (!base::FeatureList::IsEnabled(kComposeboxIOS)) {
+  if (!IsComposeboxIOSEnabled()) {
     // Keyboard accessory is enabled by default.
     if (!base::FeatureList::IsEnabled(kDisableKeyboardAccessory)) {
       return true;
@@ -829,7 +832,7 @@ bool ShouldShowKeyboardAccessory() {
 }
 
 bool ShouldShowKeyboardAccessorySymbols() {
-  if (base::FeatureList::IsEnabled(kComposeboxIOS)) {
+  if (IsComposeboxIOSEnabled()) {
     if (base::FeatureList::IsEnabled(kEnableFuseboxKeyboardAccessory)) {
       std::string feature_param = base::GetFieldTrialParamValueByFeature(
           kEnableFuseboxKeyboardAccessory,
@@ -848,7 +851,7 @@ bool ShouldShowKeyboardAccessorySymbols() {
 }
 
 bool ShouldShowKeyboardAccessoryFeatures() {
-  if (base::FeatureList::IsEnabled(kComposeboxIOS)) {
+  if (IsComposeboxIOSEnabled()) {
     if (base::FeatureList::IsEnabled(kEnableFuseboxKeyboardAccessory)) {
       std::string feature_param = base::GetFieldTrialParamValueByFeature(
           kEnableFuseboxKeyboardAccessory,
@@ -883,6 +886,9 @@ bool IsComposeboxIOSEnabled() {
   }
   return true;
 }
+
+BASE_FEATURE(kContextMenuPreviewDownsampleImage,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTabGroupColorOnSurface, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -964,11 +970,25 @@ bool IsComposeboxIpadEnabled() {
 
 BASE_FEATURE(kChromeNextIa, base::FEATURE_DISABLED_BY_DEFAULT);
 
+constexpr base::FeatureParam<bool> kChromeNextIaLensIconVisible{
+    &kChromeNextIa, "chrome_next_ia_lens_icon_visible", false};
+
+constexpr base::FeatureParam<bool> kChromeNextIaShareIconVisible{
+    &kChromeNextIa, "chrome_next_ia_share_icon_visible", false};
+
 bool IsChromeNextIaEnabled() {
   if (!IsComposeboxIOSEnabled()) {
     return false;
   }
   return base::FeatureList::IsEnabled(kChromeNextIa);
+}
+
+bool IsChromeNextIaLensIconVisible() {
+  return IsChromeNextIaEnabled() && kChromeNextIaLensIconVisible.Get();
+}
+
+bool IsChromeNextIaShareIconVisible() {
+  return IsChromeNextIaEnabled() && kChromeNextIaShareIconVisible.Get();
 }
 
 BASE_FEATURE(kComposeboxAIMDisabled, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1180,7 +1200,17 @@ bool IsSyncedGroupColorEnabled() {
 // Enables the plus button in NTP fakebox.
 BASE_FEATURE(kPlusButtonInFakebox, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Returns true if the plus button in NTP fakebox is enabled
+// Returns true if the plus button in NTP fakebox is enabled.
 bool IsPlusButtonInFakeboxEnabled() {
+  if (IsComposeboxAIMDisabled() || !IsComposeboxIOSEnabled()) {
+    return false;
+  }
+
   return base::FeatureList::IsEnabled(kPlusButtonInFakebox);
+}
+
+BASE_FEATURE(kCobrowseAimHistory, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsCobrowseAimHistoryEnabled() {
+  return base::FeatureList::IsEnabled(kCobrowseAimHistory);
 }

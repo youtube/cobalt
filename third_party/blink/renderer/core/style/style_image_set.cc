@@ -84,8 +84,8 @@ bool StyleImageSet::ErrorOccurred() const {
   return best_fit_image_ && best_fit_image_->ErrorOccurred();
 }
 
-bool StyleImageSet::IsAccessAllowed(String& failing_url) const {
-  return !best_fit_image_ || best_fit_image_->IsAccessAllowed(failing_url);
+bool StyleImageSet::IsCorsSameOrigin(String& failing_url) const {
+  return !best_fit_image_ || best_fit_image_->IsCorsSameOrigin(failing_url);
 }
 
 NaturalSizingInfo StyleImageSet::GetNaturalSizingInfo(
@@ -146,13 +146,6 @@ bool StyleImageSet::KnownToBeOpaque(const Document& document,
                                     const ComputedStyle& computed_style) const {
   return best_fit_image_ &&
          best_fit_image_->KnownToBeOpaque(document, computed_style);
-}
-
-RespectImageOrientationEnum StyleImageSet::ForceOrientationIfNecessary(
-    RespectImageOrientationEnum default_orientation) const {
-  return best_fit_image_
-             ? best_fit_image_->ForceOrientationIfNecessary(default_orientation)
-             : RespectImageOrientationEnum::kDoNotRespectImageOrientation;
 }
 
 void StyleImageSet::Trace(Visitor* visitor) const {

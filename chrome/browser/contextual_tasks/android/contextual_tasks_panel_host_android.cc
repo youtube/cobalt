@@ -51,7 +51,7 @@ void ContextualTasksPanelHostAndroid::Close(AnimationStyle animation_style) {
     return;
   }
   if (auto* bridge = GetOrCreateBridge()) {
-    bridge->Close();
+    bridge->Close(/* animate= */ true);
   }
 }
 
@@ -83,11 +83,14 @@ void ContextualTasksPanelHostAndroid::SetWebContents(
   }
 
   web_contents_ = web_contents;
+
+  if (!web_contents_) {
+    return;
+  }
+
+  web_contents_->SetDelegate(this);
   if (auto* bridge = GetOrCreateBridge()) {
     bridge->SetWebContents(web_contents);
-    if (!web_contents) {
-      return;
-    }
     bridge->ResetTouchOffset(web_contents);
     if (is_open_) {
       bridge->Show(/*animate=*/false, /*starts_expanded=*/true);
@@ -95,10 +98,26 @@ void ContextualTasksPanelHostAndroid::SetWebContents(
   }
 }
 
-void ContextualTasksPanelHostAndroid::OnClose() {
+void ContextualTasksPanelHostAndroid::OnClosed() {
   is_open_ = false;
   observers_.Notify(&ContextualTasksPanelHost::Observer::OnSurfaceStateChanged,
                     SurfaceState::kClosed, StateChangeReason::kUserAction);
+}
+
+void ContextualTasksPanelHostAndroid::OnSuppressed() {}
+
+void ContextualTasksPanelHostAndroid::OnOpened(bool is_expanded) {}
+
+content::WebContents* ContextualTasksPanelHostAndroid::OpenURLFromTab(
+    content::WebContents* source,
+    const content::OpenURLParams& params,
+    base::OnceCallback<void(content::NavigationHandle&)>
+        navigation_handle_callback) {
+  if (browser_window_) {
+    return browser_window_->OpenURL(params,
+                                    std::move(navigation_handle_callback));
+  }
+  return nullptr;
 }
 
 context_sharing::TabBottomSheetBridge*
@@ -109,7 +128,7 @@ ContextualTasksPanelHostAndroid::GetOrCreateBridge() {
       return nullptr;
     }
     bridge_ = std::make_unique<context_sharing::TabBottomSheetBridge>(
-        this, tab_android);
+        this, tab_android, /*show_fusebox=*/true);
   }
   return bridge_.get();
 }

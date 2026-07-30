@@ -25,6 +25,9 @@ import java.util.Objects;
  */
 @NullMarked
 public interface ButtonData {
+    /** Default delay for collapsing the action chip. */
+    int DEFAULT_ACTION_CHIP_DELAY_MS = 3000;
+
     /** Returns {@code true} when the {@link ButtonDataProvider} wants to show a button. */
     boolean canShow();
 
@@ -48,6 +51,7 @@ public interface ButtonData {
     final class ButtonSpec {
         public static final int INVALID_TOOLTIP_TEXT_ID = 0;
         private final @Nullable Drawable mDrawable;
+        private final @Nullable Drawable mCollapsedDrawable;
         // TODO(crbug.com/40753109): make mOnClickListener
         private final @Nullable View.OnClickListener mOnClickListener;
         private final @Nullable OnLongClickListener mOnLongClickListener;
@@ -61,9 +65,11 @@ public interface ButtonData {
         private final boolean mHasErrorBadge;
         private final boolean mIsChecked;
         private final boolean mShouldSuppressCpa;
+        private final int mActionChipCollapseDelayMs;
 
         private ButtonSpec(
                 @Nullable Drawable drawable,
+                @Nullable Drawable collapsedDrawable,
                 @Nullable View.OnClickListener onClickListener,
                 @Nullable OnLongClickListener onLongClickListener,
                 String contentDescription,
@@ -74,8 +80,10 @@ public interface ButtonData {
                 int tooltipTextResId,
                 boolean hasErrorBadge,
                 boolean isChecked,
-                boolean shouldSuppressCpa) {
+                boolean shouldSuppressCpa,
+                int actionChipCollapseDelayMs) {
             mDrawable = drawable;
+            mCollapsedDrawable = collapsedDrawable;
             mOnClickListener = onClickListener;
             mOnLongClickListener = onLongClickListener;
             mContentDescription = contentDescription;
@@ -88,11 +96,13 @@ public interface ButtonData {
             mHasErrorBadge = hasErrorBadge;
             mIsChecked = isChecked;
             mShouldSuppressCpa = shouldSuppressCpa;
+            mActionChipCollapseDelayMs = actionChipCollapseDelayMs;
         }
 
         /** Builder for {@link ButtonSpec}. */
         public static class Builder {
             private @Nullable Drawable mDrawable;
+            private @Nullable Drawable mCollapsedDrawable;
             private @Nullable View.OnClickListener mOnClickListener;
             private @Nullable OnLongClickListener mOnLongClickListener;
             private String mContentDescription;
@@ -105,6 +115,7 @@ public interface ButtonData {
             private boolean mHasErrorBadge;
             private boolean mIsChecked;
             private boolean mShouldSuppressCpa;
+            private int mActionChipCollapseDelayMs = DEFAULT_ACTION_CHIP_DELAY_MS;
 
             /**
              * Creates a new {@link Builder} with the required properties.
@@ -129,6 +140,7 @@ public interface ButtonData {
              */
             public Builder(ButtonSpec buttonSpec) {
                 mDrawable = buttonSpec.mDrawable;
+                mCollapsedDrawable = buttonSpec.mCollapsedDrawable;
                 mOnClickListener = buttonSpec.mOnClickListener;
                 mOnLongClickListener = buttonSpec.mOnLongClickListener;
                 mContentDescription = buttonSpec.mContentDescription;
@@ -140,10 +152,16 @@ public interface ButtonData {
                 mHasErrorBadge = buttonSpec.mHasErrorBadge;
                 mIsChecked = buttonSpec.mIsChecked;
                 mShouldSuppressCpa = buttonSpec.mShouldSuppressCpa;
+                mActionChipCollapseDelayMs = buttonSpec.mActionChipCollapseDelayMs;
             }
 
             public Builder setDrawable(@Nullable Drawable drawable) {
                 mDrawable = drawable;
+                return this;
+            }
+
+            public Builder setCollapsedDrawable(@Nullable Drawable collapsedDrawable) {
+                mCollapsedDrawable = collapsedDrawable;
                 return this;
             }
 
@@ -203,9 +221,15 @@ public interface ButtonData {
                 return this;
             }
 
+            public Builder setActionChipCollapseDelayMs(int actionChipCollapseDelayMs) {
+                mActionChipCollapseDelayMs = actionChipCollapseDelayMs;
+                return this;
+            }
+
             public ButtonSpec build() {
                 return new ButtonSpec(
                         mDrawable,
+                        mCollapsedDrawable,
                         mOnClickListener,
                         mOnLongClickListener,
                         mContentDescription,
@@ -216,13 +240,24 @@ public interface ButtonData {
                         mTooltipTextResId,
                         mHasErrorBadge,
                         mIsChecked,
-                        mShouldSuppressCpa);
+                        mShouldSuppressCpa,
+                        mActionChipCollapseDelayMs);
             }
         }
 
         /** Returns the {@link Drawable} for the button icon. */
         public @Nullable Drawable getDrawable() {
             return mDrawable;
+        }
+
+        /**
+         * Returns the {@link Drawable} for the button icon when collapsed (e.g., after an action
+         * chip collapses), as opposed to the regular drawable which is used when the button is
+         * first shown or expanded. If this is null then the regular drawable is used for all
+         * states.
+         */
+        public @Nullable Drawable getCollapsedDrawable() {
+            return mCollapsedDrawable;
         }
 
         /** Returns the {@link View.OnClickListener} used on the button. */
@@ -299,6 +334,14 @@ public interface ButtonData {
             return mShouldSuppressCpa;
         }
 
+        /**
+         * Returns the delay for collapsing the action chip in milliseconds. The default value is
+         * 3000ms.
+         */
+        public int getActionChipCollapseDelayMs() {
+            return mActionChipCollapseDelayMs;
+        }
+
         @Override
         public boolean equals(Object o) {
             if (this == o) {
@@ -314,6 +357,7 @@ public interface ButtonData {
                     && mActionChipLabelResId == that.mActionChipLabelResId
                     && mIsChecked == that.mIsChecked
                     && mShouldSuppressCpa == that.mShouldSuppressCpa
+                    && mActionChipCollapseDelayMs == that.mActionChipCollapseDelayMs
                     && Objects.equals(mDrawable, that.mDrawable)
                     && Objects.equals(mOnClickListener, that.mOnClickListener)
                     && Objects.equals(mOnLongClickListener, that.mOnLongClickListener)
@@ -334,7 +378,8 @@ public interface ButtonData {
                     mIsDynamicAction,
                     mActionChipLabelResId,
                     mIsChecked,
-                    mShouldSuppressCpa);
+                    mShouldSuppressCpa,
+                    mActionChipCollapseDelayMs);
         }
     }
 }

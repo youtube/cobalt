@@ -654,6 +654,9 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
     case IDC_TAB_SEARCH_CLOSE:
       CloseTabSearch(browser_);
       break;
+    case IDC_TAB_SEARCH_TOGGLE_PIN:
+      ToggleTabSearchPin(browser_);
+      break;
     case IDC_TOGGLE_VERTICAL_TABS:
       ToggleVerticalTabs(browser_);
       break;
@@ -1815,6 +1818,8 @@ void BrowserCommandController::InitCommandState() {
                                         enable_tab_search_commands);
   command_updater_.UpdateCommandEnabled(IDC_TAB_SEARCH_CLOSE,
                                         enable_tab_search_commands);
+  command_updater_.UpdateCommandEnabled(IDC_TAB_SEARCH_TOGGLE_PIN,
+                                        enable_tab_search_commands);
 
   command_updater_.UpdateCommandEnabled(IDC_SHOW_CONTEXTUAL_TASKS_SIDE_PANEL,
                                         true);
@@ -2167,8 +2172,9 @@ void BrowserCommandController::UpdateCommandsForFullscreenMode() {
                                         main_not_fullscreen);
   command_updater_.UpdateCommandEnabled(IDC_FOCUS_WEB_CONTENTS_PANE,
                                         main_not_fullscreen);
-  command_updater_.UpdateCommandEnabled(IDC_FOCUS_BOOKMARKS,
-                                        main_not_fullscreen);
+  // Just use show_main_ui because the condition for bookmark bar shortcut is
+  // handled in `BrowserView::FocusBookmarksToolbar()`,
+  command_updater_.UpdateCommandEnabled(IDC_FOCUS_BOOKMARKS, show_main_ui);
   command_updater_.UpdateCommandEnabled(
       IDC_FOCUS_INACTIVE_POPUP_FOR_ACCESSIBILITY, main_not_fullscreen);
 

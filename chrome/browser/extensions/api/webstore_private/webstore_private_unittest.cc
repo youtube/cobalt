@@ -19,7 +19,6 @@
 #include "chrome/browser/extensions/extension_install_prompt_show_params.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/supervised_user/supervised_user_test_util.h"
-#include "chrome/common/extensions/extension_constants.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/test/base/testing_browser_process.h"
 #include "chrome/test/base/testing_profile.h"
@@ -40,13 +39,14 @@
 #include "extensions/browser/install_approval.h"
 #include "extensions/browser/pref_names.h"
 #include "extensions/buildflags/buildflags.h"
+#include "extensions/common/constants.h"
 #include "extensions/common/extension_builder.h"
 #include "extensions/common/extension_features.h"
 #include "services/data_decoder/public/cpp/test_support/in_process_data_decoder.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
 #if BUILDFLAG(ENABLE_EXTENSIONS)
-#include "chrome/browser/extensions/mv2_experiment_stage.h"
+#include "extensions/browser/mv2_experiment_stage.h"
 #endif
 
 #if !BUILDFLAG(IS_ANDROID)

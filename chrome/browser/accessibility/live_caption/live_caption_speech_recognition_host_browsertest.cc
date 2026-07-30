@@ -10,7 +10,7 @@
 #include "chrome/browser/accessibility/live_caption/live_caption_controller_factory.h"
 #include "chrome/browser/accessibility/live_caption/live_caption_speech_recognition_host.h"
 #include "chrome/browser/accessibility/live_caption/live_caption_test_util.h"
-#include "chrome/browser/accessibility/live_translate_controller_factory.h"
+#include "chrome/browser/accessibility/live_caption/live_translate_controller_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -21,6 +21,8 @@
 #include "components/live_caption/pref_names.h"
 #include "components/live_caption/translation_dispatcher_on_device.h"
 #include "components/live_caption/translation_util.h"
+#include "components/on_device_translation/service/service_launcher.h"
+#include "components/on_device_translation/service_controller.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/test/browser_test.h"
@@ -65,7 +67,8 @@ MockLiveTranslateController::MockLiveTranslateController(
           std::make_unique<TranslationDispatcherOnDevice>(
               std::make_unique<
                   on_device_translation::OnDeviceTranslationServiceController>(
-                  profile_prefs,
+                  on_device_translation::
+                      CreateOnDeviceTranslationServiceLauncher(),
                   "")),
           std::make_unique<GoogleApiTranslationDispatcher>("dummy_api_key",
                                                            browser_context)) {}

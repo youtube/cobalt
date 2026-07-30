@@ -43,6 +43,7 @@
 #include "third_party/blink/renderer/bindings/core/v8/frozen_array.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_aria_notification_options.h"
+#include "third_party/blink/renderer/bindings/core/v8/v8_binding_for_core.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_check_visibility_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_get_animations_options.h"
 #include "third_party/blink/renderer/bindings/core/v8/v8_keyframe_animation_options.h"
@@ -5013,10 +5014,11 @@ void Element::MarkNonSlottedHostChildrenForStyleRecalc() {
 
 const ComputedStyle* Element::ParentComputedStyle() const {
   Element* parent = LayoutTreeBuilderTraversal::ParentElement(*this);
-  const bool is_rendered_as_sibling = IsBackdropPseudoElement() ||
-                                      IsScrollButtonPseudoElement() ||
-                                      IsScrollMarkerGroupPseudoElement();
-  if (parent && (parent->ChildrenCanHaveStyle() || is_rendered_as_sibling)) {
+  auto is_rendered_as_sibling = [this] {
+    return IsBackdropPseudoElement() || IsScrollButtonPseudoElement() ||
+           IsScrollMarkerGroupPseudoElement();
+  };
+  if (parent && (parent->ChildrenCanHaveStyle() || is_rendered_as_sibling())) {
     const ComputedStyle* parent_style = parent->GetComputedStyle();
     if (parent_style && !parent_style->IsEnsuredInDisplayNone()) {
       return parent_style;
@@ -5807,8 +5809,14 @@ StyleRecalcChange Element::RecalcOwnStyle(
       apply_changes = LayoutObject::ApplyStyleChanges::kYes;
     }
 
+    // Some style changes (when transitioning from in-flow to out-of-flow, and
+    // vice versa) require substantial changes to the layout-tree.
+    // To keep things "relatively" simple, we remove the object, set the new
+    // style, then reinsert it into the layout tree.
+    //
+    // This means that during LayoutObject::SetStyle the parent may be null, but
+    // typically we only need some additional nullptr checks to make this safe.
     const bool needs_reinsert =
-        RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled() &&
         ComputedStyle::NeedsReinsertLayoutTree(*old_style, *layout_style);
     if (needs_reinsert) {
       layout_object->Remove();
@@ -8102,9 +8110,21 @@ Element* Element::GetFocusDelegate(bool in_descendant_traversal) const {
 }
 
 void Element::focusForBindings(const FocusOptions* options) {
-  Focus(FocusParams(SelectionBehaviorOnFocus::kRestore,
-                    mojom::blink::FocusType::kScript,
-                    /*capabilities=*/nullptr, options));
+  FocusParams params(SelectionBehaviorOnFocus::kRestore,
+                     mojom::blink::FocusType::kScript,
+                     /*capabilities=*/nullptr, options);
+  // Capture the calling frame so IsFocusAllowed checks the
+  // focus-without-user-activation policy against the correct setter when the
+  // target element is in a different document (e.g.
+  // iframeC.contentDocument.getElementById('x').focus() called from frame B).
+  if (RuntimeEnabledFeatures::BlockingFocusWithoutUserActivationEnabled(
+          GetDocument().GetExecutionContext())) {
+    v8::Isolate* isolate = GetDocument().GetAgent().isolate();
+    if (LocalDOMWindow* incumbent_window = IncumbentDOMWindow(isolate)) {
+      params.initiator_frame = incumbent_window->GetFrame();
+    }
+  }
+  Focus(params);
 }
 
 void Element::Focus() {
@@ -8122,7 +8142,16 @@ void Element::Focus(const FocusParams& params) {
     return;
   }
 
-  if (!GetDocument().IsFocusAllowed(params.focus_trigger)) {
+  // Default initiator_frame to this element's document frame when not set.
+  // JS entry points (focusForBindings, DOMWindow::focus) set it explicitly to
+  // the calling frame. Internal C++ callers (dialog.showModal, reportValidity,
+  // etc.) leave it null but they always focus within their own document, so
+  // the element's frame is the correct focus setter.
+  LocalFrame* initiator = params.initiator_frame ? params.initiator_frame
+                                                 : GetDocument().GetFrame();
+
+  if (!initiator || !GetDocument().IsFocusAllowed(params.focus_trigger,
+                                                    *initiator)) {
     return;
   }
 
@@ -11451,7 +11480,8 @@ inline void Element::UpdateFocusgroup(const AtomicString& input) {
     shadow_root->SetHasFocusgroupAttributeOnDescendant(true);
   }
 
-  EnsureRareData().SetFocusgroupData(focusgroup::ParseFocusgroup(this, input));
+  data_ = EnsureRareData().SetFocusgroupData(
+      focusgroup::ParseFocusgroup(this, input));
 }
 
 void Element::UpdateFocusgroupInShadowRootIfNeeded() {
@@ -12682,22 +12712,12 @@ void Element::SetActive(bool active) {
 
   GetDocument().UserActionElements().SetActive(this, active);
 
-  if (!GetLayoutObject()) {
-    if (!ChildrenOrSiblingsAffectedByActive()) {
-      SetNeedsStyleRecalc(kLocalStyleChange,
-                          StyleChangeReasonForTracing::CreateWithExtraData(
-                              style_change_reason::kPseudoClass,
-                              style_change_extra_data::g_active));
+  const ComputedStyle* style = GetComputedStyle();
+  if (!style || style->AffectedByActive()) {
+    StyleChangeType change_type = kLocalStyleChange;
+    if (style && style->HasPseudoElementStyle(kPseudoIdFirstLetter)) {
+      change_type = kSubtreeStyleChange;
     }
-    PseudoStateChanged(CSSSelector::kPseudoActive);
-    return;
-  }
-
-  if (GetComputedStyle()->AffectedByActive()) {
-    StyleChangeType change_type =
-        GetComputedStyle()->HasPseudoElementStyle(kPseudoIdFirstLetter)
-            ? kSubtreeStyleChange
-            : kLocalStyleChange;
     SetNeedsStyleRecalc(change_type,
                         StyleChangeReasonForTracing::CreateWithExtraData(
                             style_change_reason::kPseudoClass,

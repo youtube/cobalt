@@ -38,10 +38,12 @@
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_constants.h"
 #include "extensions/common/manifest_handler.h"
+#include "extensions/common/manifest_handlers/app_urls_info.h"
 // TODO(crbug.com/324534603): Remove this.
 #include "extensions/common/manifest_handlers/description_info.h"
-#include "extensions/common/manifest_handlers/incognito_info.h"
 #include "extensions/common/manifest_handlers/permissions_parser.h"
+// TODO(crbug.com/324534603): Remove this.
+#include "extensions/common/manifest_handlers/version_name_info.h"
 #include "extensions/common/permissions/permission_set.h"
 #include "extensions/common/permissions/permissions_data.h"
 #include "extensions/common/permissions/permissions_info.h"
@@ -212,7 +214,7 @@ std::u16string InvalidManifestVersionError(const char* manifest_version_error,
 
 }  // namespace
 
-const int Extension::kInitFromValueFlagBits = 15;
+const int Extension::kInitFromValueFlagBits = 16;
 
 const char Extension::kMimeType[] = "application/x-chrome-extension";
 
@@ -539,9 +541,15 @@ std::string Extension::DifferentialFingerprint() const {
   return "2." + VersionString();
 }
 
+// TODO(crbug.com/324534603): Remove this.
+const std::string& Extension::version_name() const {
+  return VersionNameInfo::GetVersionName(*this);
+}
+
 std::string Extension::GetVersionForDisplay() const {
-  if (version_name_.size() > 0) {
-    return version_name_;
+  const std::string& version_name = VersionNameInfo::GetVersionName(*this);
+  if (version_name.size() > 0) {
+    return version_name;
   }
   return VersionString();
 }
@@ -636,10 +644,11 @@ bool Extension::InitFromValue(int flags, std::u16string* error) {
   extension_origin_ = Extension::CreateOriginFromExtensionId(id());
   extension_url_ = Extension::GetBaseURLFromExtensionId(id());
 
-  // Load App settings. LoadExtent at least has to be done before
+  // Load App settings. ParseAppURLs at least has to be done before
   // ParsePermissions(), because the valid permissions depend on what type of
   // package this is.
-  if (is_app() && !LoadAppFeatures(error)) {
+  // TODO(crbug.com/324534603): Change is_app() to is_hosted_app().
+  if (is_app() && !ParseAppURLs(*this, error)) {
     return false;
   }
 
@@ -711,91 +720,6 @@ bool Extension::LoadVersion(std::vector<InstallWarning>* install_warnings,
                            version_.GetString().c_str()),
         keys::kVersion);
   }
-  if (const base::Value* temp = manifest_->FindKey(keys::kVersionName)) {
-    if (!temp->is_string()) {
-      *error = errors::kInvalidVersionName;
-      return false;
-    }
-    version_name_ = temp->GetString();
-  }
-  return true;
-}
-
-bool Extension::LoadAppFeatures(std::u16string* error) {
-  if (!LoadExtent(keys::kWebURLs, &extent_,
-                  errors::kInvalidWebURLs, errors::kInvalidWebURL, error)) {
-    return false;
-  }
-  return true;
-}
-
-bool Extension::LoadExtent(const char* key,
-                           URLPatternSet* extent,
-                           const char* list_error,
-                           const char* value_error,
-                           std::u16string* error) {
-  const base::Value* temp_pattern_value = manifest_->FindPath(key);
-  if (temp_pattern_value == nullptr) {
-    return true;
-  }
-
-  if (!temp_pattern_value->is_list()) {
-    *error = base::ASCIIToUTF16(list_error);
-    return false;
-  }
-  const base::ListValue& pattern_list = temp_pattern_value->GetList();
-  for (size_t i = 0; i < pattern_list.size(); ++i) {
-    std::string pattern_string;
-    if (pattern_list[i].is_string()) {
-      pattern_string = pattern_list[i].GetString();
-    } else {
-      *error = ErrorUtils::FormatErrorMessageUTF16(
-          value_error, base::NumberToString(i), errors::kExpectString);
-      return false;
-    }
-
-    URLPattern pattern(kValidWebExtentSchemes);
-    URLPattern::ParseResult parse_result = pattern.Parse(pattern_string);
-    if (parse_result == URLPattern::ParseResult::kEmptyPath) {
-      pattern_string += "/";
-      parse_result = pattern.Parse(pattern_string);
-    }
-
-    if (parse_result != URLPattern::ParseResult::kSuccess) {
-      *error = ErrorUtils::FormatErrorMessageUTF16(
-          value_error, base::NumberToString(i),
-          URLPattern::GetParseResultString(parse_result));
-      return false;
-    }
-
-    // Do not allow authors to claim "<all_urls>".
-    if (pattern.match_all_urls()) {
-      *error = ErrorUtils::FormatErrorMessageUTF16(
-          value_error, base::NumberToString(i),
-          errors::kCannotClaimAllURLsInExtent);
-      return false;
-    }
-
-    // Do not allow authors to claim "*" for host.
-    if (pattern.host().empty()) {
-      *error = ErrorUtils::FormatErrorMessageUTF16(
-          value_error, base::NumberToString(i),
-          errors::kCannotClaimAllHostsInExtent);
-      return false;
-    }
-
-    // We do not allow authors to put wildcards in their paths. Instead, we
-    // imply one at the end.
-    if (pattern.path().contains('*')) {
-      *error = ErrorUtils::FormatErrorMessageUTF16(
-          value_error, base::NumberToString(i), errors::kNoWildCardsInPaths);
-      return false;
-    }
-    pattern.SetPath(pattern.path() + '*');
-
-    extent->AddPattern(pattern);
-  }
-
   return true;
 }
 

@@ -6,7 +6,6 @@ include_rules = [
   "+components/enterprise/buildflags",
   "+components/network_session_configurator",
   "+components/os_crypt/async",
-  "+components/os_crypt/sync",
   # Prefs are used to create an independent file with a persisted key:value
   # store for networking-related data (Like which servers support QUIC), rather
   # than to store user preferences.
@@ -15,6 +14,8 @@ include_rules = [
   "+components/unexportable_keys",
   "+components/url_matcher",
   "+components/url_pattern",
+  "+components/variations",
+  "+components/variations/net",
   "+components/version_info",
   "+components/web_package",
   # FakeSSLClientSocket

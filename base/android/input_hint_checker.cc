@@ -91,8 +91,7 @@ void InputHintChecker::SetView(JNIEnv* env,
     // j.l.reflect.Method via double-reflection.
     TransitionToState(InitState::kInProgress);
     view_class_ = ScopedJavaGlobalRef<jobject>(
-        env, ScopedJavaLocalRef<jobject>::Adopt(
-                 env, env->GetObjectClass(root_view.obj())));
+        env, jni_zero::AdoptRef(env, env->GetObjectClass(root_view.obj())));
     pthread_t new_thread;
     if (pthread_create(&new_thread, nullptr, OffThreadInitInvoker::Run,
                        nullptr) != 0) {
@@ -166,7 +165,7 @@ bool InputHintChecker::HasInputImplWithThrottlingForTesting(_JNIEnv* env) {
 }
 
 bool InputHintChecker::HasInputImpl(JNIEnv* env, jobject o) {
-  auto has_input_result = ScopedJavaLocalRef<jobject>::Adopt(
+  auto has_input_result = jni_zero::AdoptRef(
       env, env->CallObjectMethod(reflect_method_for_has_input_.obj(),
                                  invoke_id_, o, nullptr));
   if (ClearException(env)) {
@@ -239,8 +238,8 @@ void InputHintChecker::InitGlobalRefsAndMethodIds(JNIEnv* env) {
     return;
   }
   ScopedJavaLocalRef<jstring> has_input_string =
-      ConvertUTF8ToJavaString(env, "probablyHasInput");
-  auto method = ScopedJavaLocalRef<jobject>::Adopt(
+      jni_zero::NewAsciiString(env, "probablyHasInput");
+  ScopedJavaLocalRef<jobject> method = jni_zero::AdoptRef(
       env, env->CallObjectMethod(view_class_.obj(), get_method_id,
                                  has_input_string.obj(), nullptr));
   if (ClearException(env)) {

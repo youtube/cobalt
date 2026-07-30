@@ -49,11 +49,14 @@
 #include "extensions/browser/extensions_browser_client.h"
 #include "extensions/browser/forced_extensions/install_stage_tracker.h"
 #include "extensions/browser/install/crx_install_error.h"
+#include "extensions/browser/install/sandboxed_unpacker_failure_reason.h"
 #include "extensions/browser/install_approval.h"
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/install_stage.h"
 #include "extensions/browser/install_tracker.h"
 #include "extensions/browser/load_error_reporter.h"
+#include "extensions/browser/pending_extension_info.h"
+#include "extensions/browser/pending_extension_manager.h"
 #include "extensions/browser/permissions/permissions_updater.h"
 #include "extensions/browser/policy_check.h"
 #include "extensions/browser/preload_check_group.h"
@@ -319,36 +322,53 @@ void CrxInstaller::UpdateExtensionFromUnpackedCrx(
     return;
   }
 
+  is_update_ = true;
+  expected_id_ = extension_id;
   const Extension* extension = ExtensionRegistry::Get(browser_context_)
                                    ->GetInstalledExtension(extension_id);
-  if (!extension) {
-    LOG(WARNING) << "Will not update extension " << extension_id
-                 << " because it is not installed";
-    if (delete_source_) {
-      temp_dir_ = unpacked_dir;
-    }
-    if (installer_callbacks_.empty()) {
-      shared_file_task_runner_->PostTask(
-          FROM_HERE, base::BindOnce(&CrxInstaller::CleanupTempFiles, this));
+  if (extension) {
+    install_source_ = extension->location();
+    InitializeCreationFlagsForUpdate(extension, Extension::NO_FLAGS);
+    const ExtensionPrefs* extension_prefs =
+        ExtensionPrefs::Get(browser_context_);
+    CHECK(extension_prefs);
+    set_do_not_sync(extension_prefs->DoNotSync(extension_id));
+  } else {
+    // The extension is not installed. Is it pending?
+    const PendingExtensionManager* pending_manager =
+        PendingExtensionManager::Get(browser_context_);
+    CHECK(pending_manager);
+    if (const PendingExtensionInfo* pending_info =
+            pending_manager->GetById(extension_id)) {
+      set_install_source(pending_info->install_source());
+      int creation_flags = pending_info->creation_flags();
+      if (extension_urls::IsWebstoreUpdateUrl(pending_info->update_url())) {
+        creation_flags |= Extension::FROM_WEBSTORE;
+      }
+      set_creation_flags(creation_flags);
     } else {
-      shared_file_task_runner_->PostTaskAndReply(
-          FROM_HERE, base::BindOnce(&CrxInstaller::CleanupTempFiles, this),
-          base::BindOnce(
-              &CrxInstaller::RunInstallerCallbacks, this,
-              CrxInstallError(
-                  CrxInstallErrorType::OTHER,
-                  CrxInstallErrorDetail::UPDATE_NON_EXISTING_EXTENSION)));
+      // It is not pending. Abandon the installation, the extension was
+      // probably removed while the update was downloading.
+      LOG(WARNING) << "Will not update extension " << extension_id
+                   << " because it is not installed";
+      if (delete_source_) {
+        temp_dir_ = unpacked_dir;
+      }
+      if (installer_callbacks_.empty()) {
+        shared_file_task_runner_->PostTask(
+            FROM_HERE, base::BindOnce(&CrxInstaller::CleanupTempFiles, this));
+      } else {
+        shared_file_task_runner_->PostTaskAndReply(
+            FROM_HERE, base::BindOnce(&CrxInstaller::CleanupTempFiles, this),
+            base::BindOnce(
+                &CrxInstaller::RunInstallerCallbacks, this,
+                CrxInstallError(
+                    CrxInstallErrorType::OTHER,
+                    CrxInstallErrorDetail::UPDATE_NON_EXISTING_EXTENSION)));
+      }
+      return;
     }
-    return;
   }
-
-  expected_id_ = extension_id;
-  install_source_ = extension->location();
-  InitializeCreationFlagsForUpdate(extension, Extension::NO_FLAGS);
-
-  const ExtensionPrefs* extension_prefs = ExtensionPrefs::Get(browser_context_);
-  DCHECK(extension_prefs);
-  set_do_not_sync(extension_prefs->DoNotSync(extension_id));
 
   InstallUnpackedCrx(extension_id, public_key, unpacked_dir);
 }
@@ -1167,6 +1187,17 @@ void CrxInstaller::NotifyCrxInstallComplete(
                                                extension()->GetType());
   }
 
+  if (is_update_) {
+    if (success) {
+      base::UmaHistogramBoolean("Extensions.SandboxUnpackSuccessForUpdates",
+                                true);
+    } else if (error->type() ==
+               CrxInstallErrorType::SANDBOXED_UNPACKER_FAILURE) {
+      base::UmaHistogramBoolean("Extensions.SandboxUnpackSuccessForUpdates",
+                                false);
+    }
+  }
+
   if (!success && (!expected_id_.empty() || extension())) {
     switch (error->type()) {
       case CrxInstallErrorType::DECLINED:
@@ -1175,10 +1206,17 @@ void CrxInstaller::NotifyCrxInstallComplete(
             InstallStageTracker::FailureReason::CRX_INSTALL_ERROR_DECLINED,
             error->detail());
         break;
-      case CrxInstallErrorType::SANDBOXED_UNPACKER_FAILURE:
+      case CrxInstallErrorType::SANDBOXED_UNPACKER_FAILURE: {
         install_stage_tracker->ReportSandboxedUnpackerFailureReason(
             extension_id, error.value());
+        if (is_update_) {
+          base::UmaHistogramEnumeration(
+              "Extensions.SandboxUnpackFailureReasonForUpdates",
+              error->sandbox_failure_detail(),
+              SandboxedUnpackerFailureReason::NUM_FAILURE_REASONS);
+        }
         break;
+      }
       case CrxInstallErrorType::OTHER:
         install_stage_tracker->ReportCrxInstallError(
             extension_id,

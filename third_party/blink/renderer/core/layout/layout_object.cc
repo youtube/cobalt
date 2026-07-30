@@ -2238,37 +2238,6 @@ String LayoutObject::DebugName() const {
   return name.ToString();
 }
 
-void LayoutObject::DumpForBug478682594() const {
-  // Dump only once per instance. Might become noisy otherwise.
-  static bool has_dumped;
-
-  if (has_dumped) {
-    return;
-  }
-  has_dumped = true;
-
-  StringBuilder value_builder;
-  for (const LayoutObject* obj = this; obj; obj = obj->Parent()) {
-    unsigned needs_layout_flags =
-        obj->bitfields_.SelfNeedsFullLayout() |
-        (obj->bitfields_.ChildNeedsFullLayout() << 1) |
-        (obj->bitfields_.NeedsSimplifiedLayout() << 2);
-
-    value_builder.AppendNumber(needs_layout_flags);
-    value_builder.Append(" ");
-    value_builder.Append(obj->DecoratedName());
-    if (obj->IsRelayoutBoundary()) {
-      value_builder.Append("(RELAYOUT-BOUNDARY)");
-    }
-    value_builder.Append("; ");
-  }
-
-  auto* key = base::debug::AllocateCrashKeyString(
-      "Bug478682594-layout-tree", base::debug::CrashKeySize::Size1024);
-  base::debug::SetCrashKeyString(key, value_builder.ToString().Ascii().c_str());
-  base::debug::DumpWithoutCrashing();
-}
-
 DOMNodeId LayoutObject::OwnerNodeId(bool is_internal_content) const {
   NOT_DESTROYED();
   if (RuntimeEnabledFeatures::HTMLPrintingArtifactAnnotationsEnabled() &&
@@ -2776,30 +2745,6 @@ const ComputedStyle& LayoutObject::SlowEffectiveStyle(
   NOTREACHED();
 }
 
-// Called when an object that was floating or positioned becomes a normal flow
-// object again. We have to make sure the layout tree updates as needed to
-// accommodate the new normal flow object.
-static inline void HandleDynamicFloatPositionChange(LayoutObject* object) {
-  DCHECK(!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled());
-  // We have gone from not affecting the inline status of the parent flow to
-  // suddenly having an impact.  See if there is a mismatch between the parent
-  // flow's childrenInline() state and our state.
-  object->SetInline(object->StyleRef().IsDisplayInlineType());
-  if (object->IsInline() != object->Parent()->ChildrenInline()) {
-    if (!object->IsInline()) {
-      To<LayoutBoxModelObject>(object->Parent())->ChildBecameNonInline(object);
-    } else {
-      // An anonymous block must be made to wrap this inline.
-      LayoutBlock* block =
-          To<LayoutBlock>(object->Parent())->CreateAnonymousBlock();
-      LayoutObjectChildList* childlist = object->Parent()->VirtualChildren();
-      childlist->InsertChildNode(object->Parent(), block, object);
-      block->Children()->AppendChildNode(
-          block, childlist->RemoveChildNode(object->Parent(), object));
-    }
-  }
-}
-
 StyleDifference LayoutObject::AdjustStyleDifference(
     StyleDifference diff) const {
   NOT_DESTROYED();
@@ -3224,21 +3169,6 @@ void LayoutObject::StyleWillChange(StyleDifference diff,
       GetDocument().GetFrame()->GetInputMethodController().DidChangeVisibility(
           *this);
     }
-
-    style_change_context.became_normal_flow =
-        IsFloatingOrOutOfFlowPositioned() &&
-        ((!new_style.IsFloating() ||
-          new_style.IsInsideDisplayIgnoringFloatingChildren()) &&
-         !new_style.HasOutOfFlowPosition()) &&
-        Parent() &&
-        (Parent()->IsLayoutBlockFlow() || Parent()->IsLayoutInline());
-
-    // Clearing these bits is required to avoid leaving stale layoutObjects.
-    // FIXME: We shouldn't need that hack if our logic was totally correct.
-    if (diff.NeedsFullLayout()) {
-      SetFloating(false);
-      ClearPositionedState();
-    }
   }
 
   // Elements with non-auto touch-action will send a SetTouchAction message
@@ -3310,7 +3240,6 @@ static void ClearAncestorScrollAnchors(LayoutObject* layout_object) {
 
 void LayoutObject::UpdateAfterReinsert(const ComputedStyle& old_style) {
   NOT_DESTROYED();
-  DCHECK(RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled());
 
   // Now that we are in the layout-tree, disable scroll-anchoring on our scroll
   // container as per:
@@ -3363,45 +3292,7 @@ void LayoutObject::StyleDidChange(
   // it's not affected.
   SetOutlineMayBeAffectedByDescendants(style_->HasOutline());
 
-  if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled() &&
-      style_change_context.became_normal_flow) {
-    HandleDynamicFloatPositionChange(this);
-  }
-
   if (diff.NeedsFullLayout()) {
-    // If the in-flow state of an element is changed, disable scroll
-    // anchoring on the containing scroller.
-    //
-    // TODO(layout-dev): Move this code down to LayoutBox. Only those can become
-    // out-of-flow or spanners.
-    if (!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled()) {
-      if (old_style->HasOutOfFlowPosition() != style_->HasOutOfFlowPosition()) {
-        SetScrollAnchorDisablingStyleChangedOnAncestor();
-        MarkParentForSpannerOrOutOfFlowPositionedChange();
-        if (old_style->HasOutOfFlowPosition()) {
-          if (auto* box = DynamicTo<LayoutBox>(this)) {
-            box->NotifyContainingDisplayLocksForAnchorPositioning(
-                box->DisplayLocksAffectedByAnchors(), nullptr);
-          }
-        }
-      }
-    }
-
-    if (IsBox() &&
-        To<LayoutBox>(this)->IsValidColumnSpannerInTree(*old_style) !=
-            To<LayoutBox>(this)->IsValidColumnSpannerInTree(*style_)) {
-      MarkParentForSpannerOrOutOfFlowPositionedChange();
-    }
-
-    // If the object already needs layout, then setNeedsLayout won't do
-    // any work. But if the containing block has changed, then we may need
-    // to mark the new containing blocks for layout. The change that can
-    // directly affect the containing block of this object is a change to
-    // the position style.
-    if (NeedsLayout() && old_style->GetPosition() != style_->GetPosition()) {
-      MarkContainerChainForLayout();
-    }
-
     SetNeedsLayoutAndIntrinsicWidthsRecalc(
         layout_invalidation_reason::kStyleChange);
   } else if (diff.NeedsPositionedLayout()) {

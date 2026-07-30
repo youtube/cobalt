@@ -221,18 +221,6 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
       scoped_refptr<gpu::ClientSharedImage> shared_image,
       gpu::SyncToken sync_token,
       ReleaseMailboxCB shared_image_release_cb,
-      const gfx::Size& coded_size,
-      const gfx::Rect& visible_rect,
-      const gfx::Size& natural_size,
-      base::TimeDelta timestamp);
-
-  // Overload of above method that does not take coded_size param and instead
-  // passes the coded_size from `shared_image`.
-  static scoped_refptr<VideoFrame> WrapSharedImage(
-      VideoPixelFormat format,
-      scoped_refptr<gpu::ClientSharedImage> shared_image,
-      gpu::SyncToken sync_token,
-      ReleaseMailboxCB shared_image_release_cb,
       const gfx::Rect& visible_rect,
       const gfx::Size& natural_size,
       base::TimeDelta timestamp);
@@ -555,12 +543,14 @@ class MEDIA_EXPORT VideoFrame : public base::RefCountedThreadSafe<VideoFrame> {
   int row_bytes(size_t plane) const;
   int rows(size_t plane) const;
 
-  // Similar to row_bytes() and rows(), but instead refers to the visible area.
-  int GetVisibleRowBytes(size_t plane) const;
-  int GetVisibleRows(size_t plane) const;
-
   // Returns the number of columns for a given plane.
   int columns(size_t plane) const;
+
+  // Similar to row_bytes(), rows(), and columns(), but instead refers to the
+  // visible area.
+  int GetVisibleColumns(size_t plane) const;
+  int GetVisibleRowBytes(size_t plane) const;
+  int GetVisibleRows(size_t plane) const;
 
   // Returns pointer to the buffer for a given plane, if HasDirectCpuAccess() is
   // true. The memory is owned by VideoFrame object and must not be freed by the

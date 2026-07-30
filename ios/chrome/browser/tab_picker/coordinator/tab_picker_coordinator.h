@@ -9,14 +9,14 @@
 
 #import "ios/chrome/browser/shared/coordinator/chrome_coordinator/chrome_coordinator.h"
 #import "ios/chrome/browser/tab_picker/coordinator/tab_picker_mediator.h"
+#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_snackbar_presenter.h"
 #import "ios/web/public/web_state.h"
 
-@protocol ComposeboxTabPickerCommands;
-@protocol ComposeboxDebuggerLogger;
-@class ComposeboxTheme;
+@protocol TabPickerCommands;
+@protocol TabPickerLogger;
 
 // Responsible for processing the selection of tab picker.
-@protocol ComposeboxTabPickerSelectionDelegate
+@protocol TabPickerSelectionDelegate
 
 // Returns the associated IDs for all currently attached tabs.
 - (std::set<web::WebStateID>)allAttachedWebStateIDs;
@@ -38,26 +38,23 @@
 
 @end
 
-// The tab picker coordinator for AIM.
-@interface ComposeboxTabPickerCoordinator
-    : ChromeCoordinator <ComposeboxTabsAttachmentDelegate>
-
-- (instancetype)initWithBaseViewController:(UIViewController*)viewController
-                                   browser:(Browser*)browser
-                                     theme:(ComposeboxTheme*)theme;
+// The tab picker coordinator.
+@interface TabPickerCoordinator : ChromeCoordinator <TabsAttachmentDelegate>
 
 // Returns `YES` if the coordinator is started.
 @property(nonatomic, readonly) BOOL started;
 
 // Delegate for tab selection actions.
-@property(nonatomic, weak) id<ComposeboxTabPickerSelectionDelegate> delegate;
+@property(nonatomic, weak) id<TabPickerSelectionDelegate> delegate;
 
 // Delegate for logging events
-@property(nonatomic, weak) id<ComposeboxDebuggerLogger> debugLogger;
+@property(nonatomic, weak) id<TabPickerLogger> logger;
 
-// Handler for composebox tab picker commands.
-@property(nonatomic, weak) id<ComposeboxTabPickerCommands>
-    composeboxTabPickerHandler;
+// Presenter for snackbars
+@property(nonatomic, weak) id<TabPickerSnackbarPresenter> snackbarPresenter;
+
+// Handler for tab picker commands.
+@property(nonatomic, weak) id<TabPickerCommands> tabPickerHandler;
 
 @end
 #endif  // IOS_CHROME_BROWSER_TAB_PICKER_COORDINATOR_TAB_PICKER_COORDINATOR_H_

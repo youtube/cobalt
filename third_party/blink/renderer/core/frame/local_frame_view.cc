@@ -130,7 +130,6 @@
 #include "third_party/blink/renderer/core/layout/pagination_utils.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_root.h"
-#include "third_party/blink/renderer/core/layout/text_autosizer.h"
 #include "third_party/blink/renderer/core/layout/traced_layout_object.h"
 #include "third_party/blink/renderer/core/loader/document_loader.h"
 #include "third_party/blink/renderer/core/loader/frame_loader.h"
@@ -816,12 +815,6 @@ void LocalFrameView::PerformLayout() {
     InvalidateLayoutForViewportConstrainedObjects();
   }
 
-  if (frame_->IsMainFrame()) {
-    if (auto* text_autosizer = document->GetTextAutosizer()) {
-      if (text_autosizer->HasLayoutInlineSizeChanged())
-        text_autosizer->UpdatePageInfoInAllFrames(frame_);
-    }
-  }
 #if EXPENSIVE_DCHECKS_ARE_ON()
   DCHECK(!Lifecycle().LifecyclePostponed() && !ShouldThrottleRendering());
   document->AssertLayoutTreeUpdatedAfterLayout();
@@ -1646,8 +1639,6 @@ void LocalFrameView::ScheduleRelayoutOfSubtree(LayoutObject* relayout_root) {
 
     if (GetPage()->Animator().IsServicingAnimations())
       Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
-  } else {
-    relayout_root->DumpForBug478682594();
   }
   DEVTOOLS_TIMELINE_TRACE_EVENT_INSTANT_WITH_CATEGORIES(
       TRACE_DISABLED_BY_DEFAULT("devtools.timeline"), "InvalidateLayout",
@@ -3596,10 +3587,6 @@ void LocalFrameView::ForceLayoutForPagination(float maximum_shrink_factor) {
     layout_view->SetInitialContainingBlockSizeForPrinting(new_size);
     LayoutForPrinting();
   }
-
-  if (TextAutosizer* text_autosizer = document.GetTextAutosizer()) {
-    text_autosizer->UpdatePageInfo();
-  }
   AdjustViewSize();
   UpdateStyleAndLayout();
 }
@@ -4015,8 +4002,6 @@ void LocalFrameView::SetLayoutSizeInternal(const gfx::Size& size,
   if (!document || !document->IsActive())
     return;
   document->LayoutViewportWasResized(options);
-  if (frame_->IsMainFrame())
-    TextAutosizer::UpdatePageInfoInAllFrames(frame_);
 }
 
 void LocalFrameView::DidChangeScrollOffset() {

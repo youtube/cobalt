@@ -6,16 +6,13 @@
 
 #import "base/strings/string_number_conversions.h"
 #import "base/strings/sys_string_conversions.h"
-#import "base/strings/utf_string_conversions.h"
-#import "ios/chrome/browser/composebox/coordinator/composebox_constants.h"
-#import "ios/chrome/browser/composebox/debugger/composebox_debugger_logger.h"
-#import "ios/chrome/browser/composebox/public/features.h"
-#import "ios/chrome/browser/composebox/ui/composebox_snackbar_presenter.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/model/persist_tab_context_browser_agent.h"
 #import "ios/chrome/browser/ntp/model/new_tab_page_util.h"
 #import "ios/chrome/browser/shared/model/utils/web_state_deferred_executor.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
+#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_logger.h"
+#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_snackbar_presenter.h"
 #import "ios/chrome/browser/tab_picker/ui/tab_picker_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_collection_consumer.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_grid/grid/grid_item_identifier.h"
@@ -26,16 +23,16 @@
 #import "ios/chrome/browser/web/model/page_placeholder_tab_helper.h"
 #import "ios/web/public/web_state.h"
 
-@interface ComposeboxTabPickerMediator () <WebStateDeferredExecutorDelegate>
+@interface TabPickerMediator () <WebStateDeferredExecutorDelegate>
 @end
 
-@implementation ComposeboxTabPickerMediator {
+@implementation TabPickerMediator {
   /// The grid consumer.
   __weak id<TabCollectionConsumer> _gridConsumer;
   /// The tab picker consumer.
-  __weak id<ComposeboxTabPickerConsumer> _tabPickerConsumer;
+  __weak id<TabPickerConsumer> _tabPickerConsumer;
   /// The delegate for tabs attachment.
-  __weak id<ComposeboxTabsAttachmentDelegate> _tabsAttachmentDelegate;
+  __weak id<TabsAttachmentDelegate> _tabsAttachmentDelegate;
   /// Stores the unique identifiers of web states that have valid cached APC
   /// (Annotated Page Content) data.
   std::set<std::string> _validAPCwebStatesIDs;
@@ -46,10 +43,9 @@
 }
 
 - (instancetype)initWithGridConsumer:(id<TabCollectionConsumer>)gridConsumer
-                   tabPickerConsumer:
-                       (id<ComposeboxTabPickerConsumer>)tabPickerConsumer
+                   tabPickerConsumer:(id<TabPickerConsumer>)tabPickerConsumer
               tabsAttachmentDelegate:
-                  (id<ComposeboxTabsAttachmentDelegate>)tabsAttachmentDelegate {
+                  (id<TabsAttachmentDelegate>)tabsAttachmentDelegate {
   TabGridModeHolder* modeHolder =
       [[TabGridModeHolder alloc] initWithTabGridState:nil];
   modeHolder.mode = TabGridMode::kSelection;
@@ -117,22 +113,10 @@
 - (void)userTappedOnItemID:(GridItemIdentifier*)itemID {
   CHECK_EQ(self.modeHolder.mode, TabGridMode::kSelection);
   CHECK_EQ(itemID.type, GridItemType::kTab);
-  Browser* browser = self.browser;
   if ([self attachmentLimitReached:itemID]) {
-    if (!browser) {
-      return;
-    }
-    ComposeboxSnackbarPresenter* snackbar =
-        [[ComposeboxSnackbarPresenter alloc] initWithBrowser:browser];
-
-    if (EnableComposeboxServerSideState()) {
-      [snackbar showSnackbarForTabAttachmentLimit:[_tabsAttachmentDelegate
-                                                      maxTabAttachmentCount]];
-    } else {
-      [snackbar showSnackbarForAttachmentLimit:kAttachmentLimit];
-    }
-    [snackbar stop];
-
+    [self.snackbarPresenter
+        showSnackbarForTabAttachmentLimit:[_tabsAttachmentDelegate
+                                              maxTabAttachmentCount]];
     return;
   }
 
@@ -147,7 +131,7 @@
   if (webState && !webState->IsRealized() && !cached) {
     // If the web state is not realized, force it to realize in order to have
     // the latest content and updated snapshot.
-    __weak ComposeboxTabPickerMediator* weakSelf = self;
+    __weak TabPickerMediator* weakSelf = self;
     [_webStateDeferredExecutor
                    webState:webState
         executeOnceRealized:^{
@@ -187,7 +171,7 @@
       tabIdentifier:webStateList->GetWebStateAt(webStateIndex)];
 }
 
-#pragma mark - ComposeboxTabPickerMutator
+#pragma mark - TabPickerMutator
 
 - (void)attachSelectedTabs {
   BOOL selectionChanged = self.selectedEditingItems.allTabs !=
@@ -324,7 +308,7 @@
     [_failedLoadedItemIDs removeObject:itemID];
   }
 
-  __weak ComposeboxTabPickerMediator* weakSelf = self;
+  __weak TabPickerMediator* weakSelf = self;
   SnapshotTabHelper::FromWebState(webState)->UpdateSnapshotWithCallback(
       ^(UIImage* image) {
         [weakSelf reconfigureGridItem:itemID];
@@ -347,13 +331,7 @@
 
 /// Handles the scenario where a tab fails to load.
 - (void)handleFailedTabLoad:(GridItemIdentifier*)itemID {
-  Browser* browser = self.browser;
-  if (browser) {
-    ComposeboxSnackbarPresenter* snackbar =
-        [[ComposeboxSnackbarPresenter alloc] initWithBrowser:self.browser];
-    [snackbar showCannotReloadTabError];
-    [snackbar stop];
-  }
+  [self.snackbarPresenter showCannotReloadTabError];
   [_failedLoadedItemIDs addObject:itemID];
   [self removeFromSelectionItemID:itemID];
   [self reconfigureGridItem:itemID];
@@ -368,42 +346,44 @@
 
 - (void)webStateDeferredExecutor:(WebStateDeferredExecutor*)executor
                 willLoadWebState:(web::WebState*)webState {
-  ComposeboxDebuggerEvent* event = [ComposeboxDebuggerEvent
-       tabEvent:composebox_debugger::event::Tabs::kWillLoadTab
-      withTitle:base::SysUTF16ToNSString(webState->GetTitle())
-          tabID:webState->GetUniqueIdentifier().identifier()];
-  [self.debugLogger logEvent:event];
+  if ([self.logger respondsToSelector:@selector(logWillLoadTabWithTitle:
+                                                                  tabID:)]) {
+    [self.logger
+        logWillLoadTabWithTitle:base::SysUTF16ToNSString(webState->GetTitle())
+                          tabID:webState->GetUniqueIdentifier()];
+  }
 }
 
 - (void)webStateDeferredExecutor:(WebStateDeferredExecutor*)executor
                  didLoadWebState:(web::WebState*)webState
                          success:(BOOL)success {
-  composebox_debugger::event::Tabs tabEvent =
-      success ? composebox_debugger::event::Tabs::kDidLoadTab
-              : composebox_debugger::event::Tabs::kFailedToLoadTab;
-  ComposeboxDebuggerEvent* event = [ComposeboxDebuggerEvent
-       tabEvent:tabEvent
-      withTitle:base::SysUTF16ToNSString(webState->GetTitle())
-          tabID:webState->GetUniqueIdentifier().identifier()];
-  [self.debugLogger logEvent:event];
+  if ([self.logger respondsToSelector:@selector
+                   (logDidLoadTabWithSuccess:title:tabID:)]) {
+    [self.logger
+        logDidLoadTabWithSuccess:success
+                           title:base::SysUTF16ToNSString(webState->GetTitle())
+                           tabID:webState->GetUniqueIdentifier()];
+  }
 }
 
 - (void)webStateDeferredExecutor:(WebStateDeferredExecutor*)executor
         willForceRealizeWebState:(web::WebState*)webState {
-  ComposeboxDebuggerEvent* event = [ComposeboxDebuggerEvent
-       tabEvent:composebox_debugger::event::Tabs::kWillRealizeTab
-      withTitle:base::SysUTF16ToNSString(webState->GetTitle())
-          tabID:webState->GetUniqueIdentifier().identifier()];
-  [self.debugLogger logEvent:event];
+  if ([self.logger respondsToSelector:@selector(logWillRealizeTabWithTitle:
+                                                                     tabID:)]) {
+    [self.logger logWillRealizeTabWithTitle:base::SysUTF16ToNSString(
+                                                webState->GetTitle())
+                                      tabID:webState->GetUniqueIdentifier()];
+  }
 }
 
 - (void)webStateDeferredExecutor:(WebStateDeferredExecutor*)executor
          didForceRealizeWebState:(web::WebState*)webState {
-  ComposeboxDebuggerEvent* event = [ComposeboxDebuggerEvent
-       tabEvent:composebox_debugger::event::Tabs::kDidRealizeTab
-      withTitle:base::SysUTF16ToNSString(webState->GetTitle())
-          tabID:webState->GetUniqueIdentifier().identifier()];
-  [self.debugLogger logEvent:event];
+  if ([self.logger respondsToSelector:@selector(logDidRealizeTabWithTitle:
+                                                                    tabID:)]) {
+    [self.logger
+        logDidRealizeTabWithTitle:base::SysUTF16ToNSString(webState->GetTitle())
+                            tabID:webState->GetUniqueIdentifier()];
+  }
 }
 
 @end

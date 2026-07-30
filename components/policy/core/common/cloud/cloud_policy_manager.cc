@@ -27,7 +27,8 @@
 #include "components/prefs/pref_service.h"
 #include "device_management_backend.pb.h"
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#include "extensions/buildflags/buildflags.h"
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)) && !BUILDFLAG(IS_IOS)
 #include "components/policy/core/common/cloud/resource_cache.h"
 #endif
 
@@ -131,6 +132,14 @@ void CloudPolicyManager::InitExtensionInstallPolicies(
   }
 }
 
+void CloudPolicyManager::DisconnectAndRemovePolicy() {
+  core_.Disconnect();
+  if (extension_install_core_) {
+    extension_install_core_->Disconnect();
+  }
+  ClearAndDestroyComponentCloudPolicyService();
+}
+
 void CloudPolicyManager::Init(SchemaRegistry* registry) {
   ConfigurationPolicyProvider::Init(registry);
 
@@ -187,17 +196,13 @@ void CloudPolicyManager::RefreshPolicies(PolicyFetchReason reason) {
     OnRefreshComplete(false);
     return;
   }
-  if (service()) {
-    service()->RefreshPolicy(
-        base::BindOnce(&CloudPolicyManager::OnRefreshComplete,
-                       base::Unretained(this)),
-        reason);
-  }
-  if (extension_install_service()) {
-    extension_install_service()->RefreshPolicy(
-        base::BindOnce(&CloudPolicyManager::OnRefreshComplete,
-                       base::Unretained(this)),
-        reason);
+  for (CloudPolicyService* service : services) {
+    if (service) {
+      service->RefreshPolicy(
+          base::BindOnce(&CloudPolicyManager::OnRefreshComplete,
+                         base::Unretained(this)),
+          reason);
+    }
   }
 }
 
@@ -286,7 +291,7 @@ void CloudPolicyManager::CreateComponentCloudPolicyService(
     const base::FilePath& policy_cache_path,
     CloudPolicyClient* client,
     SchemaRegistry* schema_registry) {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)) && !BUILDFLAG(IS_IOS)
   // Init() must have been called.
   CHECK(schema_registry);
   // Called at most once.
@@ -315,7 +320,7 @@ void CloudPolicyManager::CreateComponentCloudPolicyService(
 }
 
 void CloudPolicyManager::ClearAndDestroyComponentCloudPolicyService() {
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
+#if (!BUILDFLAG(IS_ANDROID) || BUILDFLAG(ENABLE_EXTENSIONS_CORE)) && !BUILDFLAG(IS_IOS)
   if (component_policy_service_) {
     component_policy_service_->ClearCache();
     component_policy_service_.reset();

@@ -50,7 +50,7 @@ import {ParentTrustedDocumentProxy} from './modules/microsoft_auth_frame_connect
 import type {PageCallbackRouter, PageHandlerRemote, Theme} from './new_tab_page.mojom-webui.js';
 import {NtpBackgroundImageSource} from './new_tab_page.mojom-webui.js';
 import {NewTabPageProxy} from './new_tab_page_proxy.js';
-import type {MicrosoftAuthUntrustedDocumentRemote} from './ntp_microsoft_auth_shared_ui.mojom-webui.js';
+
 import {ShowNtpPromosResult} from './ntp_promo.mojom-webui.js';
 import type {NtpSearchboxElement} from './ntp_searchbox.js';
 import {$$} from './utils.js';
@@ -308,6 +308,7 @@ export class AppElement extends AppElementBase {
       },
 
       ntpNextFeaturesEnabled_: {type: Boolean},
+      ntpNextDisablementEnabled_: {type: Boolean},
       maxTilesInCollapsedState_: {type: Number},
       maxShortcutsInExpandedState_: {type: Number},
       maxMostVisitedTilesInExpandedState_: {type: Number},
@@ -415,6 +416,8 @@ export class AppElement extends AppElementBase {
       loadTimeData.getBoolean('searchboxCyclingPlaceholders');
   protected accessor ntpNextFeaturesEnabled_: boolean =
       loadTimeData.getBoolean('ntpNextFeaturesEnabled');
+  protected accessor ntpNextDisablementEnabled_: boolean =
+      loadTimeData.getBoolean('ntpNextDisablementEnabled');
   protected accessor maxTilesInCollapsedState_: number =
       loadTimeData.getInteger('maxTilesInCollapsedState');
   protected accessor maxShortcutsInExpandedState_: number =
@@ -426,7 +429,8 @@ export class AppElement extends AppElementBase {
   protected accessor containerFocused_: boolean = false;
   protected accessor showScrim_: boolean = false;
   protected accessor contextMenuGlifAnimationState_: GlifAnimationState =
-      this.ntpNextFeaturesEnabled_ && this.isActionChipsVisible_ ?
+      this.ntpNextFeaturesEnabled_ &&
+          (!this.ntpNextDisablementEnabled_ || this.isActionChipsVisible_) ?
       GlifAnimationState.SPINNER_ONLY :
       GlifAnimationState.INELIGIBLE;
   protected accessor undoToastCallback_: (() => void)|null = null;
@@ -518,12 +522,12 @@ export class AppElement extends AppElementBase {
     // connect to the NTP.
     this.connectMicrosoftAuthToParentDocumentListenerId_ =
         this.callbackRouter_.connectToParentDocument.addListener(
-            (childDocumentRemote: MicrosoftAuthUntrustedDocumentRemote) => {
+            childDocumentRemote => {
               ParentTrustedDocumentProxy.setInstance(childDocumentRemote);
             });
 
     this.setThemeListenerId_ =
-        this.callbackRouter_.setTheme.addListener((theme: Theme) => {
+        this.callbackRouter_.setTheme.addListener(theme => {
           if (!this.theme_) {
             this.onThemeLoaded_(theme);
           }
@@ -532,13 +536,12 @@ export class AppElement extends AppElementBase {
         });
     this.setCustomizeChromeSidePanelVisibilityListener_ =
         this.customizeButtonsCallbackRouter_
-            .setCustomizeChromeSidePanelVisibility.addListener(
-                (visible: boolean) => {
-                  this.showCustomize_ = visible;
-                  if (!visible) {
-                    this.showWallpaperSearch_ = false;
-                  }
-                });
+            .setCustomizeChromeSidePanelVisibility.addListener(visible => {
+              this.showCustomize_ = visible;
+              if (!visible) {
+                this.showWallpaperSearch_ = false;
+              }
+            });
     this.showWebstoreToastListenerId_ =
         this.callbackRouter_.showWebstoreToast.addListener(() => {
           if (this.showCustomize_) {
@@ -551,7 +554,7 @@ export class AppElement extends AppElementBase {
         });
     this.setWallpaperSearchButtonVisibilityListener_ =
         this.callbackRouter_.setWallpaperSearchButtonVisibility.addListener(
-            (visible: boolean) => {
+            visible => {
               // Hides the wallpaper search button if the browser indicates that
               // it should be hidden.
               // Note: We don't resurface the button later even if the browser
@@ -564,13 +567,12 @@ export class AppElement extends AppElementBase {
 
     this.setActionChipsVisibilityListenerId_ =
         this.callbackRouter_.setActionChipsVisibility.addListener(
-            (isVisible: boolean) => this.isActionChipsVisible_ = isVisible);
+            isVisible => this.isActionChipsVisible_ = isVisible);
 
     this.footerVisibilityUpdatedListener_ =
-        this.callbackRouter_.footerVisibilityUpdated.addListener(
-            (visible: boolean) => {
-              this.isFooterVisible_ = visible;
-            });
+        this.callbackRouter_.footerVisibilityUpdated.addListener(visible => {
+          this.isFooterVisible_ = visible;
+        });
     this.pageHandler_.updateFooterVisibility();
 
     // Open Customize Chrome if there are Customize Chrome URL params.
@@ -1248,7 +1250,6 @@ export class AppElement extends AppElementBase {
         recordShowBrowserPromosResult(ShowNtpPromosResult.kNotShownNoPromos);
         break;
       case 'simple':
-      case 'setuplist':
         recordShowBrowserPromosResult(ShowNtpPromosResult.kShown);
         break;
       default:

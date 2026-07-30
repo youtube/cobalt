@@ -714,6 +714,18 @@
   <message name="IDS_AUTOFILL_TRAVEL_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved travel info. Sentence-Cased." formatter_data="android_java">
     Travel
   </message>
+  <message name="IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_LABEL" desc="Label for a toggle allowing users to opt into Enhanced Autofill for travel-related data types. Sentence-Cased." formatter_data="android_java">
+    Save and fill travel info
+  </message>
+  <message name="IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_SUB_LABEL" desc="Sub-label for a toggle allowing users to opt into Enhanced Autofill for travel-related data types. Sentence-Cased." formatter_data="android_java">
+    Includes information such as flight bookings and vehicle info
+  </message>
+  <message name="IDS_AUTOFILL_IDENTITY_DOCS_OPT_IN_TOGGLE_LABEL" desc="Label for a toggle allowing users to opt into Enhanced Autofill for identity docs. Sentence-Cased." formatter_data="android_java">
+    Save and fill identity docs
+  </message>
+  <message name="IDS_AUTOFILL_IDENTITY_DOCS_OPT_IN_TOGGLE_SUB_LABEL" desc="Sub-label for a toggle allowing users to opt into Enhanced Autofill for identity docs. Sentence-Cased." formatter_data="android_java">
+    Includes information such as passports and driver's licenses
+  </message>
   <!-- TODO(crbug.com/498115758): Make Shopping strings translatable and add to Android and iOS. -->
   <if expr="not is_android and not is_ios">
     <message name="IDS_AUTOFILL_SHOPPING_TITLE" desc="Title for the Your saved info settings sub page that allows user to manage their list of saved shopping info. Sentence-Cased." formatter_data="android_java" translateable="false">
@@ -853,18 +865,6 @@
     <message name="IDS_PASSWORD_MANAGER_UI_PASSWORD_RECOVERY_SHOWN_A11Y_ANNOUNCEMENT" is_accessibility_with_no_ui="true" desc="Text announced after a proactive password recovery popup is shown">
       Recovery password shown
     </message>
-    <message name="IDS_AUTOFILL_IDENTITY_DOCS_OPT_IN_TOGGLE_LABEL" desc="Label for a toggle allowing users to opt into Enhanced Autofill for identity docs. Sentence-Cased." formatter_data="android_java">
-      Save and fill identity docs
-    </message>
-    <message name="IDS_AUTOFILL_IDENTITY_DOCS_OPT_IN_TOGGLE_SUB_LABEL" desc="Sub-label for a toggle allowing users to opt into Enhanced Autofill for identity docs. Sentence-Cased." formatter_data="android_java">
-      Includes information such as passports and driver's licenses
-    </message>
-    <message name="IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_LABEL" desc="Label for a toggle allowing users to opt into Enhanced Autofill for travel-related data types. Sentence-Cased." formatter_data="android_java">
-      Save and fill travel info
-    </message>
-    <message name="IDS_AUTOFILL_TRAVEL_OPT_IN_TOGGLE_SUB_LABEL" desc="Sub-label for a toggle allowing users to opt into Enhanced Autofill for travel-related data types. Sentence-Cased." formatter_data="android_java">
-      Includes information such as flight bookings and vehicle info
-    </message>
     <message name="IDS_AUTOFILL_SHOPPING_OPT_IN_TOGGLE_LABEL" desc="Label for a toggle allowing users to opt into Enhanced Autofill for shopping-related data types. Sentence-Cased." formatter_data="android_java" translateable="false">
       Fill shopping info
     </message>
@@ -872,6 +872,29 @@
       Includes information such as orders and shipments
     </message>
   </if>
+
+  <!-- TODO(crbug.com/481979475): Make strings translatable -->
+  <message name="IDS_AUTOFILL_AT_MEMORY_SOURCE_ATTRIBUTION_TITLE" desc="Title for the source information section in the flyout menu." translateable="false">
+    About
+  </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_SOURCE_ATTRIBUTION_DESCRIPTION" desc="Template for source attribution in the flyout menu. $1 is the data source name" translateable="false">
+    Chrome found this in your <ph name="SOURCE_NAME">$1<ex>Calendar</ex></ph>.
+  </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_SOURCE_GMAIL" desc="Data source name for Gmail in source attribution." translateable="false">
+    Gmail
+  </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_SOURCE_CALENDAR" desc="Data source name for Calendar in source attribution." translateable="false">
+    Calendar
+  </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_SOURCE_PHOTOS" desc="Data source name for Photos in source attribution." translateable="false">
+    Photos
+  </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_SOURCE_AMBIENT" desc="Data source name for Ambient Data in source attribution." translateable="false">
+    Ambient Data
+  </message>
+  <message name="IDS_AUTOFILL_AT_MEMORY_SOURCE_LIVETABS" desc="Data source name for Live Tabs in source attribution." translateable="false">
+    Live Tabs
+  </message>
 
   <!-- Autofill Address Edit Dialog -->
   <!-- Common on all platforms -->
@@ -1372,7 +1395,7 @@
     <message name="IDS_AUTOFILL_AI_SAVE_ENTITY_TO_WALLET_MESSAGE_SUBTITLE" desc="A description that appears beneath the Save title message prompting the user to save their data to Google Wallet. This sentence essentially defines Autofill in Chrome. We prompt the user to save their information with Google Wallet with the promise that Chrome can then help the user fill out forms across devices more quickly using their saved info.">
       In <ph name="IDS_AUTOFILL_GOOGLE_WALLET_TITLE">$1<ex>Google Wallet</ex></ph> for <ph name="ACCOUNT">$2<ex>alexpark@gmail.com</ex></ph>
     </message>
-    <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_LOCAL_ENTITY_SOURCE_NOTICE" desc="A description that appears beneath the entity details notifying the user that their data is going to be stored locally on device.">
+    <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_LOCAL_ENTITY_SOURCE_NOTICE" desc="A description that appears beneath the entity details notifying the user that their data is going to be stored locally on device." formatter_data="android_java">
       Your info is saved to your device
     </message>
     <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_IN_WALLET_SOURCE_NOTICE" desc="A description that appears beneath the entity details notifying the user that their data is going to be stored in Google Wallet." formatter_data="android_java">
@@ -1396,15 +1419,15 @@
     <message name="IDS_AUTOFILL_AI_SAVE_OR_UPDATE_ENTITY_FAILED_WALLET_SAVE_DIALOG_CONFIRMATION_BUTTON_LABEL" desc="The confirmation button text of the dialog shown when an entity (like passport, driver's license, etc) fails to be saved to Google Wallet." formatter_data="android_java">
       Got it
     </message>
+    <message name="IDS_AUTOFILL_AI_ENTITY_STORED_IN_GOOGLE_WALLET_ACCESSIBILITY_LABEL" desc="The accessibility label used for entities listed in settings that are stored in Google Wallet." formatter_data="android_java">
+      Stored in Google Wallet
+    </message>
   </if>
 
   <!-- Entity editor strings used on Android -->
   <if expr="is_android">
     <message name="IDS_AUTOFILL_AI_ENTITY_EDITOR_DELETE_LOCAL_ENTITY_DIALOG_TEXT" desc="The text that appears beneath a 'Delete object' title. We want the 'Autofill' keyword to be as prominent as possible because that word captures the value of saved information. 'On this device': helps the user understand that information is saved locally, not in the Cloud." formatter_data="android_java">
       Autofill won't have this info on this device to help fill out forms
-    </message>
-    <message name="IDS_AUTOFILL_AI_LOCAL_ENTITY_EDITOR_SOURCE_NOTICE" desc="The footer message in the editor dialog informing the user that their data will be stored locally on their device. 'To your device': helps the user understand that information is saved locally, not in the Cloud." formatter_data="android_java">
-      Your info is saved only to your device. You'll have the chance to save it to Wallet the next time you fill a relevant form.
     </message>
     <message name="IDS_AUTOFILL_AI_ENTITY_EDITOR_DATE_FIELD_MONTH_LABEL" desc="The default value in the date field month picker in the editor dialog." formatter_data="android_java">
       Month
@@ -1439,6 +1462,18 @@
   </message>
   <message name="IDS_SETTINGS_AUTOFILL_AI_AUTHENTICATION_TOGGLE_TITLE" desc="The title of the toggle shown in the settings page that allows managing the authentication requirement before seeings enhanced autofill settings sensitive fields, such as passport number and national id card number." formatter_data="android_java">
     Verify it’s you to autofill sensitive info
+  </message>
+  <message name="IDS_AT_MEMORY_PROMO_TITLE" desc="Title of the at-memory promo bubble.">
+    Type @@ in any form to recall and fill info without switching tabs
+  </message>
+  <message name="IDS_AT_MEMORY_PROMO_DESCRIPTION" desc="Description of the at-memory promo bubble.">
+    Gemini can now recall your personal info from across your Google apps and autofill it on the page you're viewing.
+  </message>
+  <message name="IDS_AT_MEMORY_PROMO_LEARN_MORE_BUTTON" desc="Label of the 'Learn more' button in the at-memory promo bubble.">
+    Learn more
+  </message>
+  <message name="IDS_AT_MEMORY_PROMO_GOT_IT_BUTTON" desc="Label of the 'Got it' button in the at-memory promo bubble.">
+    Got it
   </message>
   <message name="IDS_SETTINGS_AUTOFILL_AI_AUTHENTICATION_TOGGLE_SUBTITLE" desc="The subtitle of the toggle shown in the settings page that allows managing the authentication requirement before seeings enhanced autofill settings sensitive fields, such as passport number and natinal id card number." formatter_data="android_java">
     For added protection, always use your fingerprint, face, or other screen lock when you use sensitive info like travel and identity docs
@@ -1481,10 +1516,6 @@
       Chromium can autofill difficult fields that standard autofill might miss
     </message>
   </if>
-  <!-- TODO: crbug.com/499300722 - Move the string back to /chrome/app/settings_strings.grdp after Android-specific string is added. -->
-  <message name="IDS_SETTINGS_REMOTE_WALLET_PASSES_LINK_LABEL" desc="The title and ARIA (accessibility) label for a link in Chrome settings that opens the payment methods settings on https://wallet.google.com/wallet/passes or the Google Wallet icon used for entities stored in Google Wallet in Android settings. Note that the ARIA role and the link icon already convey that this is a link that will be opened when you click on it. Therefore, the message does not contain a verb." formatter_data="android_java">
-    Your Google Wallet passes
-  </message>
 
   <message name="IDS_AUTOFILL_WALLET_DATA_SHARING_PROMO_TITLE" desc="Title of the promo that encourages users to allow Wallet to share data with Chrome." formatter_data="android_java">
     Allow Wallet to share data

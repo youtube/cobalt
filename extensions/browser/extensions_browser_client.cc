@@ -367,4 +367,14 @@ base::FilePath ExtensionsBrowserClient::GetUserDataDir() {
   return temp_dir;
 }
 
+std::unique_ptr<image_fetcher::ImageDecoder>
+ExtensionsBrowserClient::CreateImageDecoder() {
+  return nullptr;
+}
+
+bool ExtensionsBrowserClient::CanUseNonComponentExtensions(
+    content::BrowserContext* context) {
+  return true;
+}
+
 }  // namespace extensions

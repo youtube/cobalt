@@ -245,4 +245,28 @@ public class HomeOfTransactionsFragmentTest {
         onView(withText(R.string.autofill_third_party_filling_default))
                 .check(matches(isDisplayed()));
     }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)
+    public void testClickIdentityDocsLaunchesIdentityDocs() {
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        onView(withText(R.string.autofill_identity_docs_title)).perform(click());
+
+        onView(withText(R.string.autofill_identity_docs_opt_in_toggle_label))
+               .check(matches(isDisplayed()));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID)
+    public void testClickTravelLaunchesTravel() {
+        mSettingsActivityTestRule.startSettingsActivity();
+
+        onView(withText(R.string.autofill_travel_title)).perform(click());
+
+        onView(withText(R.string.autofill_travel_opt_in_toggle_label))
+                .check(matches(isDisplayed()));
+    }
 }

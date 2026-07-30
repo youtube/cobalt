@@ -18,13 +18,15 @@ void FakeUnexportableKeyService::GenerateSigningKeySlowlyAsync(
     base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
         acceptable_algorithms,
     BackgroundTaskPriority priority,
-    base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)> callback) {
+    base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+        callback) {
   std::move(callback).Run(base::unexpected(ServiceError::kKeyNotFound));
 }
 void FakeUnexportableKeyService::FromWrappedSigningKeySlowlyAsync(
     base::span<const uint8_t> wrapped_key,
     BackgroundTaskPriority priority,
-    base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)> callback) {
+    base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+        callback) {
   std::move(callback).Run(base::unexpected(ServiceError::kKeyNotFound));
 }
 void FakeUnexportableKeyService::

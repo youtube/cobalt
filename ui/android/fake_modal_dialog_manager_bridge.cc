@@ -102,8 +102,8 @@ std::vector<SkBitmap> FakeModalDialogManagerBridge::GetMenuItemIcons() {
     icons.reserve(len);
     for (size_t i = 0; i < len; ++i) {
       base::android::ScopedJavaLocalRef<jobject> java_bitmap =
-          base::android::ScopedJavaLocalRef<jobject>::Adopt(
-              env, env->GetObjectArrayElement(java_icons.obj(), i));
+          jni_zero::AdoptRef(env,
+                             env->GetObjectArrayElement(java_icons.obj(), i));
       if (java_bitmap) {
         icons.push_back(
             gfx::CreateSkBitmapFromJavaBitmap(gfx::JavaBitmap(java_bitmap)));
@@ -130,6 +130,12 @@ bool FakeModalDialogManagerBridge::IsSuspend(
   JNIEnv* env = base::android::AttachCurrentThread();
   return static_cast<bool>(Java_FakeModalDialogManager_isSuspended(
       env, j_fake_manager_, static_cast<int>(dialog_type)));
+}
+
+void FakeModalDialogManagerBridge::DismissAllDialogs(int dismissal_cause) {
+  JNIEnv* env = base::android::AttachCurrentThread();
+  Java_FakeModalDialogManager_dismissAllDialogs(env, j_fake_manager_,
+                                                dismissal_cause);
 }
 
 // private.

@@ -5,6 +5,7 @@
 #include "third_party/blink/renderer/platform/graphics/paint/transform_paint_property_node.h"
 
 #include "base/memory/values_equivalent.h"
+#include "cc/trees/sticky_position_constraint.h"
 #include "third_party/blink/renderer/platform/graphics/paint/scroll_paint_property_node.h"
 #include "third_party/blink/renderer/platform/heap/persistent.h"
 #include "third_party/blink/renderer/platform/transforms/affine_transform.h"
@@ -158,6 +159,36 @@ void TransformPaintPropertyNodeOrAlias::ClearChangedToRoot(
       scroll->ClearChangedToRoot(sequence_number);
     }
   }
+}
+
+bool TransformPaintPropertyNode::CanMergeForFixedPosition(
+    const TransformPaintPropertyNode& other) const {
+  // A fixed-position transform node can have kFixedPosition and other
+  // fixed-position-specific compositing reasons such as kUndoOverscroll.
+  // The two nodes can be merged only if they have the exact same reasons.
+  return DirectCompositingReasons() == other.DirectCompositingReasons() &&
+         RequiresCompositingForFixedPositionOnly() &&
+         other.RequiresCompositingForFixedPositionOnly() &&
+         ScrollTranslationForFixed() == other.ScrollTranslationForFixed() &&
+         Parent() == other.Parent();
+}
+
+bool TransformPaintPropertyNode::CanMergeForStickyPosition(
+    const TransformPaintPropertyNode& other) const {
+  if (!RequiresCompositingForStickyPositionOnly() ||
+      !other.RequiresCompositingForStickyPositionOnly() ||
+      UnaliasedParent()->NearestDirectlyCompositedAncestor() !=
+          other.UnaliasedParent()->NearestDirectlyCompositedAncestor()) {
+    return false;
+  }
+
+  auto* constraint = GetStickyConstraint();
+  auto* other_constraint = other.GetStickyConstraint();
+  if (!constraint && !other_constraint) {
+    return true;
+  }
+  return constraint && other_constraint &&
+         constraint->CanMerge(*other_constraint);
 }
 
 std::unique_ptr<JSONObject> TransformPaintPropertyNode::ToJSON() const {

@@ -86,6 +86,13 @@ bool GlicDelegatingSharingManagerBase::IsTabPinned(
              : false;
 }
 
+bool GlicDelegatingSharingManagerBase::IsTabFocused(
+    tabs::TabHandle tab_handle) const {
+  return sharing_manager_delegate_
+             ? sharing_manager_delegate_->IsTabFocused(tab_handle)
+             : false;
+}
+
 base::CallbackListSubscription
 GlicDelegatingSharingManagerBase::AddFocusedBrowserChangedCallback(
     FocusedBrowserChangedCallback callback) {
@@ -99,12 +106,6 @@ BrowserWindowInterface* GlicDelegatingSharingManagerBase::GetFocusedBrowser()
              : nullptr;
 }
 
-GlicFocusedBrowserManager&
-GlicDelegatingSharingManagerBase::focused_browser_manager() {
-  // Exposing this directly would break delegation strategy.
-  // TODO(b:444463509): remove direct manager access from the interface.
-  NOTREACHED();
-}
 
 base::CallbackListSubscription
 GlicDelegatingSharingManagerBase::AddFocusedTabDataChangedCallback(
@@ -129,6 +130,17 @@ int32_t GlicDelegatingSharingManagerBase::SetMaxPinnedTabs(
   return sharing_manager_delegate_
              ? sharing_manager_delegate_->SetMaxPinnedTabs(max_pinned_tabs)
              : 0;
+}
+
+std::optional<GlicGetContextError>
+GlicDelegatingSharingManagerBase::CheckPreliminaryContextSharingEligibility(
+    tabs::TabHandle tab_handle) const {
+  return sharing_manager_delegate_
+             ? sharing_manager_delegate_
+                   ->CheckPreliminaryContextSharingEligibility(tab_handle)
+             : GlicGetContextError{
+                   GlicGetContextFromTabError::kPageContextNotEligible,
+                   "tab not eligible"};
 }
 
 void GlicDelegatingSharingManagerBase::GetContextFromTab(

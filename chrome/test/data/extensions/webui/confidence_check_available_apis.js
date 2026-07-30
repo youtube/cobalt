@@ -12,7 +12,7 @@
 // NOTE2: Apologies to other people putting things on chrome which aren't
 //        related and whose tests fail.
 
-var expected = [
+const expected = [
   'activityLogPrivate',
   'csi',
   'developerPrivate',
@@ -23,19 +23,21 @@ var expected = [
   'runtime',
   'send',
   'test',
-  'timeTicks'
+  'timeTicks',
 ];
-var actual = Object.keys(chrome).sort();
+const actual = Object.keys(chrome).sort();
 
-var isEqual = expected.length == actual.length;
-for (var i = 0; i < expected.length && isEqual; i++) {
-  if (expected[i] != actual[i])
+let isEqual = expected.length === actual.length;
+for (let i = 0; i < expected.length && isEqual; i++) {
+  if (expected[i] !== actual[i]) {
     isEqual = false;
+  }
 }
 
 if (!isEqual) {
-  console.error(window.location.href + ': ' +
-                'Expected: ' + JSON.stringify(expected) + ', ' +
-                'Actual: ' + JSON.stringify(actual));
+  console.error(
+      window.location.href + ': ' +
+      'Expected: ' + JSON.stringify(expected) + ', ' +
+      'Actual: ' + JSON.stringify(actual));
 }
 return isEqual;

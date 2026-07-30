@@ -43,6 +43,7 @@ message BlinkTaskScope {
     TASK_SCOPE_MISC_EVENT = 10;
     TASK_SCOPE_MICROTASK = 11;
     TASK_SCOPE_RESOURCE_TIMING = 12;
+    TASK_SCOPE_SCRIPT_TOOL_EXECUTION = 13;
   }
   optional TaskScopeType type = 1;
   optional int64 scope_task_id = 2;
@@ -2277,6 +2278,7 @@ message WebViewStartup {
     STATIC_GET_RENDERER_LIBRARY_PREFETCH_MODE = 106;
     GET_DEFAULT_COOKIE_MANAGER = 107;
     GET_PROFILE_STORE = 108;
+    WEBVIEW_INSTANCE_GET_SETTINGS = 109;
     // Remember to update WebViewStartupCallSite in enums.xml when adding new
     // values here.
   }
@@ -2624,7 +2626,7 @@ message EventTiming {
 // Frame information provided by Android's Choreographer.
 // See
 // https://developer.android.com/ndk/reference/group/choreographer#achoreographerframecallbackdata.
-// Next ID: 4
+// Next ID: 5
 message AndroidChoreographerFrameCallbackData {
   // The time in microseconds at which the frame started being rendered.
   // See
@@ -2662,6 +2664,9 @@ message AndroidChoreographerFrameCallbackData {
   // See
   // https://developer.android.com/ndk/reference/group/choreographer#achoreographerframecallbackdata_getpreferredframetimelineindex.
   optional int64 preferred_frame_timeline_index = 3;
+
+  // The chrome-preferred frame timeline.
+  optional FrameTimeline chrome_preferred_frame_timeline = 4;
 }
 
 message ChromeFrameReporter2 {

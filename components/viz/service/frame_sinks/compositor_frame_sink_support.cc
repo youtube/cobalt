@@ -443,12 +443,8 @@ void CompositorFrameSinkSupport::OnSurfacePresented(
     base::TimeTicks draw_start_timestamp,
     const gfx::SwapTimings& swap_timings,
     const gfx::PresentationFeedback& feedback) {
-  // If the frame was submitted locally (from inside viz), do not tell the
-  // client about it, since the client did not send it.
-  if (frame_token != kLocalFrameToken) {
-    DidPresentCompositorFrame(frame_token, draw_start_timestamp, swap_timings,
-                              feedback);
-  }
+  DidPresentCompositorFrame(frame_token, draw_start_timestamp, swap_timings,
+                            feedback);
 }
 
 void CompositorFrameSinkSupport::RefResources(
@@ -681,7 +677,7 @@ void CompositorFrameSinkSupport::DidNotProduceFrame(const BeginFrameAck& ack) {
 
   // We only check for a timeout if we are currently handling an interaction.
   if (is_handling_interaction_ &&
-      (last_interaction_time_ - last_begin_frame_args_.frame_time) >=
+      (last_begin_frame_args_.frame_time - last_interaction_time_) >=
           kInteractionTimeout) {
     SetIsHandlingInteraction(false);
   }
@@ -1071,7 +1067,6 @@ void CompositorFrameSinkSupport::DidPresentCompositorFrame(
     const gfx::SwapTimings& swap_timings,
     const gfx::PresentationFeedback& feedback) {
   CHECK_NE(frame_token, kInvalidFrameToken);
-  CHECK_NE(frame_token, kLocalFrameToken);
   DCHECK((feedback.flags & gfx::PresentationFeedback::kFailure) ||
          (!draw_start_timestamp.is_null() && !swap_timings.is_null()));
 
@@ -1508,6 +1503,7 @@ bool CompositorFrameSinkSupport::ShouldSendBeginFrame(
     // during the lifetime of the CompositorFrameSinkSupport, our active frame
     // index must be at least as large as our last drawn frame index.
     DCHECK_GE(active_frame_index, last_drawn_frame_index_);
+    DCHECK_NE(active_frame_index, kInvalidFrameToken);
 
     // Throttle clients that have submitted too many undrawn frames, unless the
     // active frame requests that it doesn't.

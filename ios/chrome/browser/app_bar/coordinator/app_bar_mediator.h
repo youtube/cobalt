@@ -11,18 +11,15 @@
 
 @protocol AppBarConsumer;
 class AuthenticationService;
-class BwgService;
-class ChromeAccountManagerService;
+class GeminiService;
 @class BrowserActionFactory;
 @protocol FullscreenBrowserAgentObserving;
 class FullscreenController;
 @protocol FullscreenUIElement;
 @class IncognitoState;
 class FullscreenBrowserAgent;
-namespace signin {
-class IdentityManager;
-}  // namespace signin
 class PrefService;
+@protocol LensCommands;
 @protocol SceneCommands;
 @protocol TabGridCommands;
 @protocol SettingsCommands;
@@ -48,6 +45,9 @@ class WebStateList;
 
 // Handler for the scene commands.
 @property(nonatomic, weak) id<SceneCommands> sceneHandler;
+
+// Handler for the lens commands.
+@property(nonatomic, weak) id<LensCommands> lensHandler;
 
 // Handler for the tab grid commands.
 @property(nonatomic, weak) id<TabGridCommands> tabGridHandler;
@@ -88,10 +88,7 @@ class WebStateList;
                  templateURLService:(TemplateURLService*)templateURLService
               authenticationService:
                   (AuthenticationService*)authenticationService
-                      geminiService:(BwgService*)geminiService
-              accountManagerService:
-                  (ChromeAccountManagerService*)accountManagerService
-                    identityManager:(signin::IdentityManager*)identityManager
+                      geminiService:(GeminiService*)geminiService
                           URLLoader:(UrlLoadingBrowserAgent*)URLLoader
                        tabGridState:(TabGridState*)tabGridState
                      incognitoState:(IncognitoState*)incognitoState;

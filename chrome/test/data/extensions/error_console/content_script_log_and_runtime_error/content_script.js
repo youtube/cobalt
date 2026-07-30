@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 function logMessage() {
-  console.log('logged message');
+  console.info('logged message');
 }
 
 function warnMessage() {
@@ -13,5 +13,5 @@ function warnMessage() {
 logMessage();
 warnMessage();
 
-var bar = undefined;
+const bar = undefined;
 bar.foo = 'baz';

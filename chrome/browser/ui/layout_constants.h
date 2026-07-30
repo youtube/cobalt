@@ -49,6 +49,9 @@ enum class LayoutConstant {
   // The internal padding to use inside children of the location bar.
   kLocationBarChildInteriorPadding,
 
+  // The internal spacing between the icon and text inside a location bar chip.
+  kLocationBarChildInternalSpacing,
+
   // The corner radius to use for children of the location bar.
   kLocationBarChildCornerRadius,
 
@@ -67,6 +70,17 @@ enum class LayoutConstant {
 
   // The vertical margins from the page info icon
   kLocationBarPageInfoIconVerticalPadding,
+
+  // Extra space between the page info icon's label and trailing edge.
+  kLocationBarPageInfoIconLabelExtraTrailingPadding,
+
+  // Extra space between the leading edge and label of the page info icon when
+  // it is dangerous.
+  kLocationBarPageInfoIconDangerousLeadingPadding,
+
+  // Extra space between the label and trailing edge of the page info icon when
+  // it is dangerous.
+  kLocationBarPageInfoIconDangerousTrailingPadding,
 
   // The leading edge space in the omnibox from the LHS icons used in Chrome
   // with the chrome refresh flag.
@@ -203,23 +217,21 @@ enum class LayoutConstant {
   // The width of the border stroke around pinned tabs in a vertical tab strip.
   kVerticalTabPinnedBorderThickness,
 
-  // The padding between the sides/bottom of the vertical tab strip and its
-  // content when in the uncollapsed state.
-  kVerticalTabStripUncollapsedPadding,
+  // The padding between the sides of the vertical tab strip and its content.
+  kVerticalTabStripHorizontalPadding,
 
-  // The padding between the sides of the vertical tab strip and its
-  // content when in the collapsed state.
-  kVerticalTabStripCollapsedHorizontalPadding,
+  // The padding between the bottom of the vertical tab strip and its content
+  // when in the uncollapsed state.
+  kVerticalTabStripUncollapsedVerticalPadding,
 
   // The padding between the top/bottom of the vertical tab strip and its
   // content when in the collapsed state.
   kVerticalTabStripCollapsedVerticalPadding,
 
-  // The padding between the sides of the vertical tab strip and the separator
-  // in the vertical tab strip when collapsed.
-  kVerticalTabStripCollapsedSeparatorPadding,
+  // The icon size of the combo buttons in the vertical tab strip.
+  kVerticalTabStripComboButtonIconSize,
 
-  // The icon size of buttons in the vertical tab strip.
+  // The icon size of the collapse and new tab button in the vertical tab strip.
   kVerticalTabStripButtonIconSize,
 
   // The padding between the buttons in the top container of the vertical tab

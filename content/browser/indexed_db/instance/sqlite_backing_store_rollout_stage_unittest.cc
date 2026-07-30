@@ -16,6 +16,7 @@
 #include "content/browser/indexed_db/indexed_db_data_format_version.h"
 #include "content/browser/indexed_db/indexed_db_test_base.h"
 #include "content/browser/indexed_db/instance/bucket_context.h"
+#include "content/browser/indexed_db/instance/sqlite/database_connection.h"
 #include "content/browser/indexed_db/mock_mojo_indexed_db_database_callbacks.h"
 #include "content/browser/indexed_db/mock_mojo_indexed_db_factory_client.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -192,6 +193,11 @@ class SqliteBackingStoreRolloutStageTest
   static constexpr const bool kIsLevelDb = false;
   static constexpr const std::string_view kExperimentalSuffix = ".Experimental";
 
+  // Some common expectations.
+  const Expectation kCreatedWithSqlite{StoreInitResult::kCreated, kIsSqlite};
+  const Expectation kCreatedWithLevelDb{StoreInitResult::kCreated, kIsLevelDb};
+  const Expectation kOpenedLevelDb{StoreInitResult::kOpened, kIsLevelDb};
+
   void ValidateExpectationsForStage(
       SqliteRolloutStage stage,
       std::map<StoreType, Expectation> expectations) {
@@ -253,12 +259,17 @@ class SqliteBackingStoreRolloutStageTest
               base::StrCat(
                   {"IndexedDB.BackingStore.CreateIfMissing", histogram_suffix}),
               0 /*Status::Type::kOk*/, 0);
-        } break;
+          break;
+        }
       }
     }
   }
 
   void CloseAllBackingStores() {
+    // The SQLite store has an added delay between when an individual database
+    // connection is dropped and when store shutdown is initiated.
+    task_environment_.FastForwardBy(
+        sqlite::DatabaseConnection::GetDestructionGracePeriodForTesting());
     task_environment_.FastForwardBy(
         BucketContext::GetBackingStoreGracePeriodForTesting());
   }
@@ -298,15 +309,13 @@ INSTANTIATE_TEST_SUITE_P(
 TEST_P(SqliteBackingStoreRolloutStageTest, UseLevelDbOnly) {
   ValidateExpectationsForStage(
       SqliteRolloutStage::kUseLevelDbOnly,
-      {{StoreType::kNone, {StoreInitResult::kCreated, kIsLevelDb}},
-       {StoreType::kLevelDb, {StoreInitResult::kOpened, kIsLevelDb}},
-       {StoreType::kSqlite, {StoreInitResult::kCreated, kIsLevelDb}},
-       {StoreType::kEmptyLevelDbDirectory,
-        {StoreInitResult::kCreated, kIsLevelDb}},
+      {{StoreType::kNone, kCreatedWithLevelDb},
+       {StoreType::kLevelDb, kOpenedLevelDb},
+       {StoreType::kSqlite, kCreatedWithLevelDb},
+       {StoreType::kEmptyLevelDbDirectory, kCreatedWithLevelDb},
        {StoreType::kLevelDbWithCorruptionInfo,
         {StoreInitResult::kDataLoss, kIsLevelDb}},
-       {StoreType::kLevelDbCurrentMissing,
-        {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDbCurrentMissing, kOpenedLevelDb},
        {StoreType::kLevelDbFilesMissing,
         {StoreInitResult::kFailed, kIsLevelDb}},
        {StoreType::kLevelDbInternalCorruption,
@@ -315,7 +324,6 @@ TEST_P(SqliteBackingStoreRolloutStageTest, UseLevelDbOnly) {
         {StoreInitResult::kDataLoss, kIsLevelDb}}});
   // SQLite stores should be deleted by the above stage.
   CloseAllBackingStores();
-  const Expectation kCreatedWithSqlite{StoreInitResult::kCreated, kIsSqlite};
   ValidateExpectationsForStage(
       SqliteRolloutStage::kUseSqliteOnly,
       {{StoreType::kNone, kCreatedWithSqlite},
@@ -334,15 +342,14 @@ TEST_P(SqliteBackingStoreRolloutStageTest, UseLevelDbAsControl) {
       SqliteRolloutStage::kUseLevelDbAsControl,
       {{StoreType::kNone,
         {StoreInitResult::kCreated, kIsLevelDb, kExperimentalSuffix}},
-       {StoreType::kLevelDb, {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDb, kOpenedLevelDb},
        {StoreType::kSqlite,
         {StoreInitResult::kCreated, kIsLevelDb, kExperimentalSuffix}},
        {StoreType::kEmptyLevelDbDirectory,
         {StoreInitResult::kCreated, kIsLevelDb, kExperimentalSuffix}},
        {StoreType::kLevelDbWithCorruptionInfo,
         {StoreInitResult::kDataLoss, kIsLevelDb, kExperimentalSuffix}},
-       {StoreType::kLevelDbCurrentMissing,
-        {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDbCurrentMissing, kOpenedLevelDb},
        {StoreType::kLevelDbFilesMissing,
         {StoreInitResult::kFailed, kIsLevelDb}},
        {StoreType::kLevelDbInternalCorruption,
@@ -355,21 +362,35 @@ TEST_P(SqliteBackingStoreRolloutStageTest, UseLevelDbAsControl) {
       SqliteRolloutStage::kUseLevelDbAsControl,
       {{StoreType::kNone,
         {StoreInitResult::kOpened, kIsLevelDb, kExperimentalSuffix}},
-       {StoreType::kLevelDb, {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDb, kOpenedLevelDb},
        {StoreType::kSqlite,
         {StoreInitResult::kOpened, kIsLevelDb, kExperimentalSuffix}},
        {StoreType::kEmptyLevelDbDirectory,
         {StoreInitResult::kOpened, kIsLevelDb, kExperimentalSuffix}},
        {StoreType::kLevelDbWithCorruptionInfo,
         {StoreInitResult::kOpened, kIsLevelDb, kExperimentalSuffix}},
-       {StoreType::kLevelDbCurrentMissing,
-        {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDbCurrentMissing, kOpenedLevelDb},
        {StoreType::kLevelDbFilesMissing,
         {StoreInitResult::kFailed, kIsLevelDb}},
        {StoreType::kLevelDbInternalCorruption,
         {StoreInitResult::kOpened, kIsLevelDb, kExperimentalSuffix}},
        {StoreType::kLevelDbBackingStoreCorruption,
         {StoreInitResult::kOpened, kIsLevelDb, kExperimentalSuffix}}});
+  // Rolling back to `kUseLevelDbOnly` should open all LevelDB stores normally,
+  // with histograms emitted to the default suffix.
+  CloseAllBackingStores();
+  ValidateExpectationsForStage(
+      SqliteRolloutStage::kUseLevelDbOnly,
+      {{StoreType::kNone, kOpenedLevelDb},
+       {StoreType::kLevelDb, kOpenedLevelDb},
+       {StoreType::kSqlite, kOpenedLevelDb},
+       {StoreType::kEmptyLevelDbDirectory, kOpenedLevelDb},
+       {StoreType::kLevelDbWithCorruptionInfo, kOpenedLevelDb},
+       {StoreType::kLevelDbCurrentMissing, kOpenedLevelDb},
+       {StoreType::kLevelDbFilesMissing,
+        {StoreInitResult::kFailed, kIsLevelDb}},
+       {StoreType::kLevelDbInternalCorruption, kOpenedLevelDb},
+       {StoreType::kLevelDbBackingStoreCorruption, kOpenedLevelDb}});
 }
 
 TEST_P(SqliteBackingStoreRolloutStageTest, UseSqliteForNewStores) {
@@ -377,15 +398,14 @@ TEST_P(SqliteBackingStoreRolloutStageTest, UseSqliteForNewStores) {
       SqliteRolloutStage::kUseSqliteForNewStores,
       {{StoreType::kNone,
         {StoreInitResult::kCreated, kIsSqlite, kExperimentalSuffix}},
-       {StoreType::kLevelDb, {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDb, kOpenedLevelDb},
        {StoreType::kSqlite,
         {StoreInitResult::kOpened, kIsSqlite, kExperimentalSuffix}},
        {StoreType::kEmptyLevelDbDirectory,
         {StoreInitResult::kCreated, kIsSqlite, kExperimentalSuffix}},
        {StoreType::kLevelDbWithCorruptionInfo,
         {StoreInitResult::kDataLoss, kIsSqlite, kExperimentalSuffix}},
-       {StoreType::kLevelDbCurrentMissing,
-        {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDbCurrentMissing, kOpenedLevelDb},
        {StoreType::kLevelDbFilesMissing,
         {StoreInitResult::kFailed, kIsLevelDb}},
        {StoreType::kLevelDbInternalCorruption,
@@ -398,25 +418,38 @@ TEST_P(SqliteBackingStoreRolloutStageTest, UseSqliteForNewStores) {
       SqliteRolloutStage::kUseSqliteForNewStores,
       {{StoreType::kNone,
         {StoreInitResult::kOpened, kIsSqlite, kExperimentalSuffix}},
-       {StoreType::kLevelDb, {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDb, kOpenedLevelDb},
        {StoreType::kSqlite,
         {StoreInitResult::kOpened, kIsSqlite, kExperimentalSuffix}},
        {StoreType::kEmptyLevelDbDirectory,
         {StoreInitResult::kOpened, kIsSqlite, kExperimentalSuffix}},
        {StoreType::kLevelDbWithCorruptionInfo,
         {StoreInitResult::kOpened, kIsSqlite, kExperimentalSuffix}},
-       {StoreType::kLevelDbCurrentMissing,
-        {StoreInitResult::kOpened, kIsLevelDb}},
+       {StoreType::kLevelDbCurrentMissing, kOpenedLevelDb},
        {StoreType::kLevelDbFilesMissing,
         {StoreInitResult::kFailed, kIsLevelDb}},
        {StoreType::kLevelDbInternalCorruption,
         {StoreInitResult::kOpened, kIsSqlite, kExperimentalSuffix}},
        {StoreType::kLevelDbBackingStoreCorruption,
         {StoreInitResult::kOpened, kIsSqlite, kExperimentalSuffix}}});
+  // Rolling back to `kUseLevelDbOnly` should delete SQLite stores and create
+  // fresh LevelDB stores. Stores that stayed on LevelDB should open normally.
+  CloseAllBackingStores();
+  ValidateExpectationsForStage(
+      SqliteRolloutStage::kUseLevelDbOnly,
+      {{StoreType::kNone, kCreatedWithLevelDb},
+       {StoreType::kLevelDb, kOpenedLevelDb},
+       {StoreType::kSqlite, kCreatedWithLevelDb},
+       {StoreType::kEmptyLevelDbDirectory, kCreatedWithLevelDb},
+       {StoreType::kLevelDbWithCorruptionInfo, kCreatedWithLevelDb},
+       {StoreType::kLevelDbCurrentMissing, kOpenedLevelDb},
+       {StoreType::kLevelDbFilesMissing,
+        {StoreInitResult::kFailed, kIsLevelDb}},
+       {StoreType::kLevelDbInternalCorruption, kCreatedWithLevelDb},
+       {StoreType::kLevelDbBackingStoreCorruption, kCreatedWithLevelDb}});
 }
 
 TEST_P(SqliteBackingStoreRolloutStageTest, UseSqliteOnly) {
-  const Expectation kCreatedWithSqlite{StoreInitResult::kCreated, kIsSqlite};
   ValidateExpectationsForStage(
       SqliteRolloutStage::kUseSqliteOnly,
       {{StoreType::kNone, kCreatedWithSqlite},
@@ -430,7 +463,6 @@ TEST_P(SqliteBackingStoreRolloutStageTest, UseSqliteOnly) {
        {StoreType::kLevelDbBackingStoreCorruption, kCreatedWithSqlite}});
   // LevelDB stores should be deleted by the above stage.
   CloseAllBackingStores();
-  const Expectation kCreatedWithLevelDb{StoreInitResult::kCreated, kIsLevelDb};
   ValidateExpectationsForStage(
       SqliteRolloutStage::kUseLevelDbOnly,
       {{StoreType::kNone, kCreatedWithLevelDb},

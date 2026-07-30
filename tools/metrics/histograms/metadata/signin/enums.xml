@@ -775,6 +775,9 @@ chromium-metrics-reviews@google.com.
   <int value="92" label="Actor Login Permission Service"/>
   <int value="93" label="Gapis Service"/>
   <int value="94" label="One Time Token Service"/>
+  <int value="95" label="Multistep Filter"/>
+  <int value="96" label="Indigo"/>
+  <int value="97" label="Glic Invoke API"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/signin/public/base/oauth_consumer_id.h:OAuthConsumerId) -->
@@ -835,10 +838,14 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="[Error] Empty primary accountid, with sync consent"/>
 </enum>
 
+<!-- LINT.IfChange(PendingResolutionSource) -->
+
 <enum name="PendingResolutionSource">
   <int value="0" label="Sign in (reauth)"/>
   <int value="1" label="Sign out"/>
 </enum>
+
+<!-- LINT.ThenChange(//components/signin/core/browser/signin_metrics_service.cc:PendingResolutionSource) -->
 
 <!-- LINT.IfChange(ProfileMenuAvatarButtonPromoType) -->
 
@@ -1503,6 +1510,11 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="The user has recently seen the mismatch notice"/>
   <int value="4" label="The user recently went through the FRE"/>
   <int value="5" label="The displayed CCT is off-the-record"/>
+  <int value="6"
+      label="The app is not allowlisted for the account mismatch notification"/>
+  <int value="7" label="Signin is not allowed"/>
+  <int value="8" label="The account mismatch type is not the right one"/>
+  <int value="9" label="The notification is not suppressed"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/customtabs/MismatchNotificationController.java:SuppressedReason) -->

@@ -62,7 +62,7 @@ bool OmniboxPopupUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
   return omnibox::IsAimPopupFeatureEnabled() ||
          base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) ||
-         base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopup) ||
+         omnibox::IsWebUIOmniboxPopupEnabled() ||
          features::IsWebUILocationBarEnabled();
 }
 
@@ -87,8 +87,8 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
 
   source->AddLocalizedStrings(SearchboxHandler::GetWebUIDataSourceDict(
       Profile::FromWebUI(web_ui),
-      /*enable_voice_search=*/true,
-      /*enable_lens_search=*/false, session_allows_drag_and_drop));
+      {.enable_voice_search = true,
+       .session_allows_drag_and_drop = session_allows_drag_and_drop}));
 
   source->AddBoolean("isTopChromeSearchbox", true);
   source->AddBoolean("omniboxAimPopupEnabled",
@@ -160,6 +160,8 @@ OmniboxPopupUI::OmniboxPopupUI(content::WebUI* web_ui)
                      omnibox::kShowSmartCompose.Get());
   source->AddBoolean("hideClassicContextButton",
                      omnibox::kHideClassicContextButton.Get());
+  source->AddBoolean("composeboxForkEnabled",
+                     omnibox::kUseComposeboxFork.Get());
   auto searchbox_layout_mode = AddContextButtonVariantToSearchboxLayoutMode(
       omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.Get());
   source->AddString("searchboxLayoutMode", searchbox_layout_mode);

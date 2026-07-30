@@ -67,7 +67,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerTest,
                        DisplayNewEntry) {
   ASSERT_TRUE(browser()->IsActive());
 
-  SendTabToSelfEntry entry("a", GURL("http://www.example-a.com"), "a site",
+  SendTabToSelfEntry entry("a", GURL("https://www.example-a.com"), "a site",
                            base::Time(), "device a", "device b", PageContext(),
                            NavigationHistory());
 
@@ -90,7 +90,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerTest,
   Browser* incognito_browser = CreateIncognitoBrowser();
   WaitUntilBrowserBecomeActiveOrLastActive(incognito_browser);
 
-  SendTabToSelfEntry entry("a", GURL("http://www.example-a.com"), "a site",
+  SendTabToSelfEntry entry("a", GURL("https://www.example-a.com"), "a site",
                            base::Time(), "device a", "device b", PageContext(),
                            NavigationHistory());
 
@@ -115,7 +115,7 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerTest,
   app_browser->GetBrowserView().Activate();
   WaitUntilBrowserBecomeActiveOrLastActive(app_browser);
 
-  SendTabToSelfEntry entry("a", GURL("http://www.example-a.com"), "a site",
+  SendTabToSelfEntry entry("a", GURL("https://www.example-a.com"), "a site",
                            base::Time(), "device a", "device b", PageContext(),
                            NavigationHistory());
 
@@ -133,9 +133,9 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerTest,
                        ReplaceExistingEntry) {
   controller()->set_ignore_active_for_testing(true);
   SendTabToSelfEntry existing_entry(
-      "a", GURL("http://www.example-a.com"), "a site", base::Time(), "device a",
-      "device b", PageContext(), NavigationHistory());
-  SendTabToSelfEntry new_entry("b", GURL("http://www.example-b.com"), "b site",
+      "a", GURL("https://www.example-a.com"), "a site", base::Time(),
+      "device a", "device b", PageContext(), NavigationHistory());
+  SendTabToSelfEntry new_entry("b", GURL("https://www.example-b.com"), "b site",
                                base::Time(), "device a", "device b",
                                PageContext(), NavigationHistory());
 
@@ -155,31 +155,45 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerTest,
 
 class SendTabToSelfToolbarIconControllerAutoOpenTest
     : public SendTabToSelfToolbarIconControllerTest {
+ public:
+  void SetUpOnMainThread() override {
+    SendTabToSelfToolbarIconControllerTest::SetUpOnMainThread();
+    browser_view()->Activate();
+    WaitUntilBrowserBecomeActiveOrLastActive(browser());
+  }
+
+ private:
   base::test::ScopedFeatureList feature_list_{kSendTabToSelfAutoOpen};
 };
 
 IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
-                       AutoOpenNewEntryIfActive) {
-  base::HistogramTester histogram_tester;
-
-  WaitUntilBrowserBecomeActiveOrLastActive(browser());
+                       AutoOpenNewEntriesInForegroundIfActive) {
   ASSERT_TRUE(browser()->IsActive());
 
-  GURL url("https://www.example-a.com");
-  SendTabToSelfEntry entry("new_entry", url, "a site", base::Time::Now(),
-                           "device a", "device b", PageContext(),
-                           NavigationHistory());
+  base::HistogramTester histogram_tester;
+
+  GURL url_1("https://www.example-a.com");
+  SendTabToSelfEntry entry_1("new_entry_1", url_1, "a site", base::Time::Now(),
+                             "device a", "device b", PageContext(),
+                             NavigationHistory());
+  GURL url_2("https://www.example-b.com");
+  SendTabToSelfEntry entry_2("new_entry_2", url_2, "b site", base::Time::Now(),
+                             "device a", "device b", PageContext(),
+                             NavigationHistory());
 
   int tab_count = browser()->tab_strip_model()->count();
-  controller()->DisplayNewEntries({&entry});
+  controller()->DisplayNewEntries({&entry_1, &entry_2});
 
   EXPECT_FALSE(bubble_controller()->IsBubbleShowing());
-  EXPECT_EQ(tab_count + 1, browser()->tab_strip_model()->count());
-  EXPECT_EQ(url,
-            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+  EXPECT_EQ(tab_count + 2, browser()->tab_strip_model()->count());
+  // The new tabs are opened in the foreground, with the first incoming tab
+  // (index 1) being the active one.
+  EXPECT_EQ(url_1, browser()->tab_strip_model()->GetWebContentsAt(1)->GetURL());
+  EXPECT_EQ(url_2, browser()->tab_strip_model()->GetWebContentsAt(2)->GetURL());
+  EXPECT_EQ(1, browser()->tab_strip_model()->active_index());
 
   histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.AutoOpenOutcome",
-                                      AutoOpenOutcome::kSuccess, 1);
+                                      AutoOpenOutcome::kSuccess, 2);
 
   EXPECT_EQ(browser()
                 ->browser_window_features()
@@ -193,39 +207,51 @@ IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
 // to position top level windows, activate them, and set focus.
 #if !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 IN_PROC_BROWSER_TEST_F(SendTabToSelfToolbarIconControllerAutoOpenTest,
-                       AutoOpenPendingEntryOnActivation) {
+                       AutoOpenPendingEntriesAsBackgroundTabsOnActivation) {
+  ASSERT_TRUE(browser()->IsActive());
+
   base::HistogramTester histogram_tester;
+
+  ASSERT_EQ(0, browser()->tab_strip_model()->active_index());
 
   // Create an incognito browser and remove the current browser from focus.
   Browser* incognito_browser = CreateIncognitoBrowser();
   WaitUntilBrowserBecomeActiveOrLastActive(incognito_browser);
   ASSERT_FALSE(browser()->IsActive());
 
-  GURL url("http://www.example-a.com");
-  SendTabToSelfEntry entry("new_entry", url, "a site", base::Time::Now(),
-                           "device a", "device b", PageContext(),
-                           NavigationHistory());
+  GURL url_1("https://www.example-a.com");
+  SendTabToSelfEntry entry_1("new_entry_1", url_1, "a site", base::Time::Now(),
+                             "device a", "device b", PageContext(),
+                             NavigationHistory());
+  GURL url_2("https://www.example-b.com");
+  SendTabToSelfEntry entry_2("new_entry_2", url_2, "b site", base::Time::Now(),
+                             "device a", "device b", PageContext(),
+                             NavigationHistory());
 
   int tab_count = browser()->tab_strip_model()->count();
-  controller()->DisplayNewEntries({&entry});
+  controller()->DisplayNewEntries({&entry_1, &entry_2});
 
   EXPECT_EQ(tab_count, browser()->tab_strip_model()->count());
 
   histogram_tester.ExpectUniqueSample("Sharing.SendTabToSelf.AutoOpenOutcome",
-                                      AutoOpenOutcome::kPending, 1);
+                                      AutoOpenOutcome::kPending, 2);
 
-  // Activate the browser and check that the entry is opened in a new tab and
-  // the auto-open outcome is recorded.
+  // Activate the browser and check that the entries are opened in the
+  // background and the auto-open outcome is recorded.
   browser_view()->Activate();
   WaitUntilBrowserBecomeActiveOrLastActive(browser());
 
   EXPECT_FALSE(bubble_controller()->IsBubbleShowing());
-  EXPECT_EQ(tab_count + 1, browser()->tab_strip_model()->count());
-  EXPECT_EQ(url,
-            browser()->tab_strip_model()->GetActiveWebContents()->GetURL());
+
+  EXPECT_EQ(tab_count + 2, browser()->tab_strip_model()->count());
+  // The new tabs are opened in the background (indices 1 and 2), and the active
+  // index remains 0.
+  EXPECT_EQ(url_1, browser()->tab_strip_model()->GetWebContentsAt(1)->GetURL());
+  EXPECT_EQ(url_2, browser()->tab_strip_model()->GetWebContentsAt(2)->GetURL());
+  EXPECT_EQ(0, browser()->tab_strip_model()->active_index());
 
   histogram_tester.ExpectBucketCount("Sharing.SendTabToSelf.AutoOpenOutcome",
-                                     AutoOpenOutcome::kOpenedPending, 1);
+                                     AutoOpenOutcome::kOpenedPending, 2);
 }
 #endif  // !BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 

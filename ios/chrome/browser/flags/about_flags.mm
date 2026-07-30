@@ -1002,6 +1002,32 @@ const FeatureEntry::FeatureVariation kBestOfAppFREVariations[] = {
      kBestOfAppFREArm4Upload, nullptr},
 };
 
+const FeatureEntry::FeatureParam kChromeNextIaLensHiddenShareHidden[] = {
+    {"chrome_next_ia_lens_icon_visible", "false"},
+    {"chrome_next_ia_share_icon_visible", "false"}};
+
+const FeatureEntry::FeatureParam kChromeNextIaLensVisibleShareHidden[] = {
+    {"chrome_next_ia_lens_icon_visible", "true"},
+    {"chrome_next_ia_share_icon_visible", "false"}};
+
+const FeatureEntry::FeatureParam kChromeNextIaLensHiddenShareVisible[] = {
+    {"chrome_next_ia_lens_icon_visible", "false"},
+    {"chrome_next_ia_share_icon_visible", "true"}};
+
+const FeatureEntry::FeatureParam kChromeNextIaLensVisibleShareVisible[] = {
+    {"chrome_next_ia_lens_icon_visible", "true"},
+    {"chrome_next_ia_share_icon_visible", "true"}};
+
+const FeatureEntry::FeatureVariation kChromeNextIaVariations[] = {
+    {"Lens Hidden, Share Hidden", kChromeNextIaLensHiddenShareHidden, nullptr},
+    {"Lens Visible, Share Hidden", kChromeNextIaLensVisibleShareHidden,
+     nullptr},
+    {"Lens Hidden, Share Visible", kChromeNextIaLensHiddenShareVisible,
+     nullptr},
+    {"Lens Visible, Share Visible", kChromeNextIaLensVisibleShareVisible,
+     nullptr},
+};
+
 const FeatureEntry::FeatureParam
     kInvalidateChoiceOnRestoreIsRetroactiveOption[] = {
         {"is_retroactive", "true"}};
@@ -1029,12 +1055,6 @@ const FeatureEntry::FeatureVariation kBWGPromoConsentVariations[] = {
     {"Skip FRE", kSkipBWGPromoConsent, nullptr},
     {"Force FRE", kForceBWGFirstTimeRun, nullptr},
     {"Skip new user delay", kSkipNewUserDelay, nullptr}};
-
-const FeatureEntry::FeatureParam kOmniboxMobileParityEnableFeedForGoogleOnly[] =
-    {{OmniboxFieldTrial::kMobileParityEnableFeedForGoogleOnly.name, "true"}};
-const FeatureEntry::FeatureVariation kOmniboxMobileParityVariations[] = {
-    {"- feed only when searching with Google",
-     kOmniboxMobileParityEnableFeedForGoogleOnly, nullptr}};
 
 const FeatureEntry::FeatureParam kPageActionMenuDirectEntryPoint[] = {
     {kPageActionMenuDirectEntryPointParam, "true"},
@@ -1430,6 +1450,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kNTPBackgroundColorSliderName,
      flag_descriptions::kNTPBackgroundColorSliderDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kNTPBackgroundColorSlider)},
+    {"ntp-background-downsample-image",
+     flag_descriptions::kNTPBackgroundDownsampleImageName,
+     flag_descriptions::kNTPBackgroundDownsampleImageDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kNTPBackgroundDownsampleImage)},
     {"ntp-background-image-cache",
      flag_descriptions::kEnableNTPBackgroundImageCacheName,
      flag_descriptions::kEnableNTPBackgroundImageCacheDescription,
@@ -1474,17 +1498,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kOmniboxLocalHistoryZeroSuggestBeyondNTPDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(omnibox::kLocalHistoryZeroSuggestBeyondNTP)},
-    {"omnibox-mobile-parity-update",
-     flag_descriptions::kOmniboxMobileParityUpdateName,
-     flag_descriptions::kOmniboxMobileParityUpdateDescription, flags_ui::kOsIos,
-     FEATURE_WITH_PARAMS_VALUE_TYPE(omnibox::kOmniboxMobileParityUpdate,
-                                    kOmniboxMobileParityVariations,
-                                    "OmniboxMobileParityUpdate")},
-    {"omnibox-mobile-parity-update-v2",
-     flag_descriptions::kOmniboxMobileParityUpdateV2Name,
-     flag_descriptions::kOmniboxMobileParityUpdateV2Description,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(omnibox::kOmniboxMobileParityUpdateV2)},
     {"force-startup-signin-promo",
      flag_descriptions::kForceStartupSigninPromoName,
      flag_descriptions::kForceStartupSigninPromoDescription, flags_ui::kOsIos,
@@ -2050,12 +2063,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kNotificationCollisionManagementName,
      flag_descriptions::kNotificationCollisionManagementDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kNotificationCollisionManagement)},
-    {"autofill-enable-support-for-home-and-work",
-     flag_descriptions::kAutofillEnableSupportForHomeAndWorkName,
-     flag_descriptions::kAutofillEnableSupportForHomeAndWorkDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(
-         autofill::features::kAutofillEnableSupportForHomeAndWork)},
     {"lens-overlay-navigation-history",
      flag_descriptions::kLensOverlayNavigationHistoryName,
      flag_descriptions::kLensOverlayNavigationHistoryDescription,
@@ -2554,7 +2561,9 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_VALUE_TYPE(kComposeboxIpad)},
     {"chrome-next-ia", flag_descriptions::kChromeNextIaName,
      flag_descriptions::kChromeNextIaDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kChromeNextIa)},
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kChromeNextIa,
+                                    kChromeNextIaVariations,
+                                    "ChromeNextIa")},
     {"gemini-image-remix-tool", flag_descriptions::kGeminiImageRemixToolName,
      flag_descriptions::kGeminiImageRemixToolDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(kGeminiImageRemixTool,
@@ -2645,6 +2654,9 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kGeminiRichAPCExtractionName,
      flag_descriptions::kGeminiRichAPCExtractionDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiRichAPCExtraction)},
+    {"gemini-multi-tab-context", flag_descriptions::kGeminiMultiTabContextName,
+     flag_descriptions::kGeminiMultiTabContextDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kGeminiMultiTabContext)},
     {"in-flow-trusted-vault-key-retrieval-ios",
      flag_descriptions::kInFlowTrustedVaultKeyRetrievalIosName,
      flag_descriptions::kInFlowTrustedVaultKeyRetrievalIosDescription,
@@ -2660,6 +2672,9 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"sync-ai-threads", flag_descriptions::kSyncAIThreadsName,
      flag_descriptions::kSyncAIThreadsDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(syncer::kSyncAIThread)},
+    {"sync-contextual-task", flag_descriptions::kSyncContextualTaskName,
+     flag_descriptions::kSyncContextualTaskDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(syncer::kSyncContextualTask)},
     {"sync-autofill-valuable", flag_descriptions::kSyncAutofillValuableName,
      flag_descriptions::kSyncAutofillValuableDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(syncer::kSyncAutofillValuable)},
@@ -2715,6 +2730,12 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kAutofillAiReauthRequiredName,
      flag_descriptions::kAutofillAiReauthRequiredDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(autofill::features::kAutofillAiReauthRequired)},
+    {"autofill-ai-no-filling-icons-experiment",
+     flag_descriptions::kAutofillAiNoFillingIconsExperimentName,
+     flag_descriptions::kAutofillAiNoFillingIconsExperimentDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         autofill::features::kAutofillAiNoFillingIconsExperiment)},
     {"autofill-ai-valuables-iph",
      flag_descriptions::kAutofillAiValuablesIPHName,
      flag_descriptions::kAutofillAiValuablesIPHDescription, flags_ui::kOsIos,
@@ -2810,6 +2831,15 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"synced-group-color", flag_descriptions::kSyncedGroupColorName,
      flag_descriptions::kSyncedGroupColorDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kSyncedGroupColor)},
+    {"cobrowse-aim-history", flag_descriptions::kCobrowseAimHistoryName,
+     flag_descriptions::kCobrowseAimHistoryDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kCobrowseAimHistory)},
+    {"autofill-upstream-enforce-strike-delay",
+     flag_descriptions::kAutofillUpstreamEnforceStrikeDelayName,
+     flag_descriptions::kAutofillUpstreamEnforceStrikeDelayDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         autofill::features::kAutofillUpstreamEnforceStrikeDelay)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

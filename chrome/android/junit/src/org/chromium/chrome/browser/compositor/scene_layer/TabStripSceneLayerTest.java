@@ -108,6 +108,7 @@ public class TabStripSceneLayerTest {
         mGlicButton =
                 new TintedCompositorTextButton(
                         mContext,
+                        false,
                         ButtonType.GLIC,
                         null,
                         32.f,
@@ -122,6 +123,7 @@ public class TabStripSceneLayerTest {
         mModelSelectorButton =
                 new TintedCompositorButton(
                         mContext,
+                        false,
                         ButtonType.INCOGNITO_SWITCHER,
                         null,
                         32.f,
@@ -130,10 +132,12 @@ public class TabStripSceneLayerTest {
                         mOnClickHandler,
                         mKeyboardFocusHandler,
                         R.drawable.ic_incognito,
+                        R.drawable.bg_circle_tab_strip_button,
                         8.f);
         mNewTabButton =
                 new TintedCompositorButton(
                         mContext,
+                        false,
                         ButtonType.NEW_TAB,
                         null,
                         32.f,
@@ -142,6 +146,7 @@ public class TabStripSceneLayerTest {
                         mOnClickHandler,
                         mKeyboardFocusHandler,
                         R.drawable.ic_new_tab_button,
+                        R.drawable.bg_circle_tab_strip_button,
                         8.f);
         mStripLayoutTab =
                 spy(
@@ -242,8 +247,24 @@ public class TabStripSceneLayerTest {
                         /* keyboardFocusRingColor= */ eq(
                                 MaterialColors.getColor(
                                         mContext, R.attr.colorPrimary, /* defaultValue= */ 0)));
-        verify(mTabStripSceneMock).updateTabStripLeftFade(1L, 0, 0.f, 0, leftPadding);
-        verify(mTabStripSceneMock).updateTabStripRightFade(1L, 0, 0.f, 0, rightPadding);
+        verify(mTabStripSceneMock)
+                .updateTabStripFade(
+                        /* nativeTabStripSceneLayer= */ 1L,
+                        /* isLeft= */ true,
+                        /* fadeColor= */ 0,
+                        /* opacity= */ 0.f,
+                        /* gradientWidthPx= */ 0.f,
+                        /* opaqueWidthPx= */ 0.f,
+                        leftPadding);
+        verify(mTabStripSceneMock)
+                .updateTabStripFade(
+                        /* nativeTabStripSceneLayer= */ 1L,
+                        /* isLeft= */ false,
+                        /* fadeColor= */ 0,
+                        /* opacity= */ 0.f,
+                        /* gradientWidthPx= */ 0.f,
+                        /* opaqueWidthPx= */ 0.f,
+                        rightPadding);
         verify(mTabStripSceneMock)
                 .updateTabStripLayer(
                         eq(1L),
@@ -292,6 +313,9 @@ public class TabStripSceneLayerTest {
                         anyInt(),
                         anyFloat(),
                         anyFloat(),
+                        anyFloat(),
+                        anyFloat(),
+                        anyInt(),
                         anyFloat(),
                         anyFloat(),
                         anyFloat(),
@@ -369,6 +393,9 @@ public class TabStripSceneLayerTest {
                         anyFloat(),
                         anyFloat(),
                         anyFloat(),
+                        anyInt(),
+                        anyFloat(),
+                        anyFloat(),
                         anyFloat(),
                         anyFloat(),
                         anyFloat(),
@@ -440,6 +467,9 @@ public class TabStripSceneLayerTest {
                         anyInt(),
                         anyFloat(),
                         anyFloat(),
+                        anyFloat(),
+                        anyFloat(),
+                        anyInt(),
                         anyFloat(),
                         anyFloat(),
                         anyFloat(),
@@ -514,6 +544,9 @@ public class TabStripSceneLayerTest {
                         anyInt(),
                         anyFloat(),
                         anyFloat(),
+                        anyFloat(),
+                        anyFloat(),
+                        anyInt(),
                         anyFloat(),
                         anyFloat(),
                         anyFloat(),
@@ -635,6 +668,7 @@ public class TabStripSceneLayerTest {
                         anyBoolean(),
                         anyBoolean(),
                         anyInt(),
+                        anyBoolean(),
                         anyInt(),
                         anyFloat(),
                         eq(true),

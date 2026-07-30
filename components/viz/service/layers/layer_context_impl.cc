@@ -532,10 +532,12 @@ DeserializeStickyPositionData(
   std::vector<cc::StickyPositionNodeData> sticky_position_node_data;
   sticky_position_node_data.reserve(wire_data.size());
   for (auto& wire : wire_data) {
-    if (!IsPropertyTreeIndexValid(trees.scroll_tree(),
-                                  wire->x_scroll_ancestor) &&
-        !IsPropertyTreeIndexValid(trees.scroll_tree(),
-                                  wire->y_scroll_ancestor)) {
+    if (!IsOptionalPropertyTreeIndexValid(trees.scroll_tree(),
+                                          wire->x_scroll_ancestor) ||
+        !IsOptionalPropertyTreeIndexValid(trees.scroll_tree(),
+                                          wire->y_scroll_ancestor) ||
+        (wire->x_scroll_ancestor == cc::kInvalidPropertyNodeId &&
+         wire->y_scroll_ancestor == cc::kInvalidPropertyNodeId)) {
       return base::unexpected("Invalid scroll ancestor ID");
     }
 
@@ -1449,7 +1451,8 @@ base::expected<void, std::string> DeserializeAnimationCurve(
   model->set_playback_rate(wire.playback_rate);
   model->set_iterations(wire.iterations);
   model->set_iteration_start(wire.iteration_start);
-  model->set_time_offset(wire.time_offset);
+  model->set_start_delay(wire.start_delay);
+  model->set_hold_time(wire.hold_time);
   model->set_element_id(wire.element_id);
   animation.keyframe_effect()->AddKeyframeModel(std::move(model));
   return base::ok();
@@ -1836,9 +1839,18 @@ void LayerContextImpl::UpdateDisplayTree(mojom::LayerTreeUpdatePtr update) {
   const BeginFrameArgs begin_frame_args = update->begin_frame_args;
   auto start_update_display_tree = base::TimeTicks::Now();
   const bool frame_has_damage = update->frame_has_damage;
+  const bool is_flush = update->is_flush;
   auto result = DoUpdateDisplayTree(std::move(update));
   if (!result.has_value()) {
     HandleBadMojoMessage("UpdateDisplayTree", result.error());
+    return;
+  }
+
+  // If this is a flush-only update, we only want to synchronize the state
+  // and return any resources that were released. We skip the draw and
+  // expensive post-sync recomputations.
+  if (is_flush) {
+    DoReturnResources();
     return;
   }
 
@@ -1853,16 +1865,21 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
     mojom::LayerTreeUpdatePtr update) {
   TRACE_EVENT0("viz", "LayerContextImpl::DoUpdateDisplayTree");
   cc::LayerTreeImpl& layers = *host_impl_->active_tree();
+  cc::PropertyTrees& property_trees = *layers.property_trees();
+
+  std::vector<std::unique_ptr<cc::RenderSurfaceImpl>> old_render_surfaces;
+  property_trees.effect_tree_mutable().TakeRenderSurfaces(&old_render_surfaces);
 
   // We resize all property trees first, as layers and property tree nodes
   // themselves may index one or more other property tree nodes. These indices
   // need to be validated, and the dependency can be cyclic (e.g. scroll nodes
   // may index transform nodes and transform nodes may index scroll nodes).
-  cc::PropertyTrees& property_trees = *layers.property_trees();
   const bool transform_size_changed = ResizePropertyTree(
       property_trees.transform_tree_mutable(), update->num_transform_nodes);
   const bool clip_size_changed = ResizePropertyTree(
       property_trees.clip_tree_mutable(), update->num_clip_nodes);
+  const bool effect_size_increased =
+      update->num_effect_nodes > property_trees.effect_tree().nodes().size();
   const bool effect_size_changed = ResizePropertyTree(
       property_trees.effect_tree_mutable(), update->num_effect_nodes);
   const bool scroll_size_changed = ResizePropertyTree(
@@ -1966,8 +1983,19 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
   if (update->local_surface_id_from_parent) {
     layers.SetLocalSurfaceIdFromParent(*update->local_surface_id_from_parent);
   }
-  host_impl_->set_current_local_surface_id_from_client(
-      update->current_local_surface_id);
+
+  // Regular updates (non-flush) must provide a valid current LocalSurfaceId.
+  // During backgrounding (flush updates), this may be omitted if the renderer
+  // no longer has a valid ID.
+  if (!update->is_flush) {
+    RETURN_IF_FALSE(update->current_local_surface_id,
+                    "Missing current_local_surface_id in non-flush update");
+  }
+
+  if (update->current_local_surface_id) {
+    host_impl_->set_current_local_surface_id_from_client(
+        *update->current_local_surface_id);
+  }
 
   RETURN_IF_FALSE(update->next_frame_token > 0, "invalid frame token");
   host_impl_->set_next_frame_token_from_client(update->next_frame_token);
@@ -2151,26 +2179,29 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTree(
       effect_size_changed || effect_nodes_changed ||
       property_trees.effect_tree().needs_update());
 
-  const bool any_tree_changed =
+  const bool any_tree_except_effect_size_changed =
       viewport_deltas_changed || transform_size_changed ||
       transform_nodes_changed || clip_size_changed || clip_nodes_changed ||
-      effect_size_changed || effect_nodes_changed || scroll_size_changed ||
-      scroll_nodes_changed;
+      effect_nodes_changed || scroll_size_changed || scroll_nodes_changed;
+  const bool any_tree_changed =
+      any_tree_except_effect_size_changed || effect_size_changed;
   property_trees.set_changed(any_tree_changed);
   if (any_tree_changed) {
     property_trees.ResetCachedData();
-    layers.set_needs_update_draw_properties();
+
+    // Any property tree change normally requires a draw property update.
+    // However, if the only change is that some effect nodes were removed, we
+    // can defer the update until we determine if any render surfaces were
+    // removed. This is handled below.
+    if (any_tree_except_effect_size_changed || effect_size_increased) {
+      layers.set_needs_update_draw_properties();
+    }
   }
 
-  std::vector<std::unique_ptr<cc::RenderSurfaceImpl>> old_render_surfaces;
-  property_trees.effect_tree_mutable().TakeRenderSurfaces(&old_render_surfaces);
   const bool render_surfaces_changed =
       property_trees.effect_tree_mutable().CreateOrReuseRenderSurfaces(
           &old_render_surfaces, &layers);
-  if (effect_size_changed || render_surfaces_changed) {
-    // TODO(rockot): Forcing draw property updates here isn't strictly necessary
-    // when `effect_size_changed` is true unless it's because we've removed at
-    // least one EffectNode that was inducing a render surface.
+  if (render_surfaces_changed) {
     layers.set_needs_update_draw_properties();
   }
   // Set this last, making sure renderer side state isn't overwritten by other
@@ -2281,11 +2312,6 @@ void LayerContextImpl::UpdateDisplayTiling(mojom::TilingPtr tiling) {
   }
 }
 
-void LayerContextImpl::SetTargetLocalSurfaceId(
-    const LocalSurfaceId& target_local_surface_id) {
-  host_impl_->SetTargetLocalSurfaceId(target_local_surface_id);
-}
-
 base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTiling(
     mojom::TilingPtr tiling) {
   cc::LayerTreeImpl& layers = *host_impl_->active_tree();
@@ -2301,12 +2327,21 @@ base::expected<void, std::string> LayerContextImpl::DoUpdateDisplayTiling(
   return base::ok();
 }
 
+void LayerContextImpl::SetTargetLocalSurfaceId(
+    const LocalSurfaceId& target_local_surface_id) {
+  CHECK(receiver_);
+  auto result = DoSetTargetLocalSurfaceId(target_local_surface_id);
+  if (!result.has_value()) {
+    HandleBadMojoMessage("SetTargetLocalSurfaceId", result.error());
+  }
+}
+
 base::expected<void, std::string> LayerContextImpl::DoSetTargetLocalSurfaceId(
     const LocalSurfaceId& target_local_surface_id) {
   if (!target_local_surface_id.is_valid()) {
     return base::unexpected("Invalid target_local_surface_id");
   }
-  SetTargetLocalSurfaceId(target_local_surface_id);
+  host_impl_->SetTargetLocalSurfaceId(target_local_surface_id);
   return base::ok();
 }
 

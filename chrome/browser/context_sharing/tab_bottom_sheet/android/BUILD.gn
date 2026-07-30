@@ -30,12 +30,16 @@ generate_jni("jni_headers") {
 android_resources("java_resources") {
   sources = [
     "java/res/layout/tab_bottom_sheet.xml",
-    "java/res/layout/tab_bottom_sheet_toolbar.xml",
+    "java/res/layout/tab_bottom_sheet_resizing_view.xml",
+    "java/res/values-night/colors.xml",
+    "java/res/values/colors.xml",
+    "java/res/values/dimens.xml",
   ]
   deps = [
     "//chrome/app:java_strings_grd",
     "//components/browser_ui/bottomsheet/android:java_resources",
     "//components/browser_ui/styles/android:java_resources",
+    "//ui/android:ui_java_resources",
   ]
 }
 
@@ -50,12 +54,11 @@ android_library("java") {
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetMediator.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetNativeInterface.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetProperties.java",
-    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetSimpleToolbar.java",
-    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetToolbar.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetUtils.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetViewBinder.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetWebUi.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetWebUiContainer.java",
+    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/WebViewResizingHelper.java",
   ]
   resources_package = "org.chromium.chrome.browser.context_sharing"
   deps = [
@@ -104,12 +107,14 @@ robolectric_library("junit") {
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetCoordinatorTest.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetMediatorTest.java",
     "java/src/org/chromium/chrome/browser/tab_bottom_sheet/TabBottomSheetWebUiTest.java",
+    "java/src/org/chromium/chrome/browser/tab_bottom_sheet/WebViewResizingHelperUnitTest.java",
   ]
   deps = [
     ":java",
     "//base:base_java",
     "//base:base_java_test_support",
     "//base:base_junit_test_support",
+    "//chrome/android:chrome_app_java_resources",
     "//chrome/android/javatests:common_unit_test_deps_java",
     "//chrome/browser/contextual_tasks/fusebox/android:java",
     "//components/browser_ui/bottomsheet/android:java",
@@ -123,6 +128,7 @@ robolectric_library("junit") {
     "//third_party/junit",
     "//third_party/mockito:mockito_java",
     "//ui/android:ui_java",
+    "//ui/android:ui_java_test_support",
   ]
 }
 
@@ -135,6 +141,7 @@ android_library("javatests") {
     "//base:base_java",
     "//base:base_java_test_support",
     "//chrome/android:chrome_java",
+    "//chrome/android/javatests:chrome_test_java_helper",
     "//chrome/browser/android/content:java",
     "//chrome/browser/android/lifecycle:java",
     "//chrome/browser/contextual_tasks/fusebox/android:java",
@@ -150,6 +157,7 @@ android_library("javatests") {
     "//components/browser_ui/widget/android:java",
     "//content/public/android:content_full_java",
     "//content/public/test/android:content_java_test_support",
+    "//services/device/public/java:geolocation_java_test_support",
     "//third_party/androidx:androidx_test_core_java",
     "//third_party/androidx:androidx_test_runner_java",
     "//third_party/hamcrest:hamcrest_core_java",

@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "build/build_config.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_accessibility_test.h"
@@ -164,16 +165,14 @@ IN_PROC_BROWSER_TEST_P(HomeButtonAccessibilityTest, AccessibilityNode) {
           l10n_util::GetStringUTF16(IDS_TOOLTIP_HOME)));
 }
 
-// TODO(crbug.com/500966638): Re-enable the test
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_ToggleHomeButtonVisibilityWithPref \
-  DISABLED_ToggleHomeButtonVisibilityWithPref
-#else
-#define MAYBE_ToggleHomeButtonVisibilityWithPref \
-  ToggleHomeButtonVisibilityWithPref
-#endif
 IN_PROC_BROWSER_TEST_P(HomeButtonAccessibilityTest,
-                       MAYBE_ToggleHomeButtonVisibilityWithPref) {
+                       ToggleHomeButtonVisibilityWithPref) {
+#if BUILDFLAG(IS_LINUX)
+  // TODO(https://crbug.com/500966638): Disabled on linux due to flakiness.
+  if (GetParam()) {
+    GTEST_SKIP() << "Skipping /1 version on Linux due to flakiness.";
+  }
+#endif
   RunTestSequence(
       // Start visible
       Do([this]() {

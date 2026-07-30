@@ -115,6 +115,9 @@ id<GREYMatcher> EnhancedSafeBrowsingInfobarButtonMatcher() {
 }
 
 // Enables the prefs needed for testing Enterprise Url Filtering.
+//
+// Tests that cover enterprise reporting and use HPRT lookups require these
+// prefs to be explicitly enabled.
 void EnableEnterpriseUrlFilteringPrefs() {
   [ChromeEarlGrey
       setIntegerValue:enterprise_connectors::
@@ -379,6 +382,7 @@ void EnableEnterpriseUrlFilteringPrefs() {
          [self isRunningTest:@selector
                (testEnterpriseWarningPageRefreshedThenBypass)];
 }
+
 - (void)waitForEnterpriseReports:(int)count {
   // Use metrics to detect that the report upload completed. This is the best
   // known way to wait because a task environment isn't available here for the
@@ -543,6 +547,8 @@ void EnableEnterpriseUrlFilteringPrefs() {
 // Tests expanding the details on a phishing warning, and proceeding past the
 // warning is reported to an enterprise connector.
 - (void)testProceedingPastPhishingWarningReported {
+  EnableEnterpriseUrlFilteringPrefs();
+
   [ChromeEarlGrey loadURL:_safeURL1];
   [ChromeEarlGrey waitForWebStateContainingText:_safeContent1];
 

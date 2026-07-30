@@ -154,7 +154,7 @@ ScopedJavaLocalRef<jobjectArray> ConvertToJavaAccounts(
     float device_scale_factor) {
   ScopedJavaLocalRef<jclass> account_clazz = base::android::GetClass(
       env, "org/chromium/chrome/browser/ui/android/webid/data/Account");
-  auto array = ScopedJavaLocalRef<jobjectArray>::Adopt(
+  auto array = jni_zero::AdoptRef(
       env, env->NewObjectArray(accounts.size(), account_clazz.obj(), nullptr));
 
   base::android::CheckException(env);
@@ -205,7 +205,7 @@ ScopedJavaLocalRef<jobjectArray> ConvertToJavaIdentityProvidersList(
   ScopedJavaLocalRef<jclass> identity_provider_clazz = base::android::GetClass(
       env,
       "org/chromium/chrome/browser/ui/android/webid/data/IdentityProviderData");
-  auto array = ScopedJavaLocalRef<jobjectArray>::Adopt(
+  auto array = jni_zero::AdoptRef(
       env, env->NewObjectArray(identity_providers_map.size(),
                                identity_provider_clazz.obj(), nullptr));
 
@@ -418,7 +418,9 @@ void AccountSelectionViewAndroid::ShowUrl(LinkType link_type, const GURL& url) {
 
 content::WebContents* AccountSelectionViewAndroid::ShowModalDialog(
     const GURL& url,
-    blink::mojom::RpMode rp_mode) {
+    blink::mojom::RpMode rp_mode,
+    content::IdentityRequestDialogController::ShownModalAsyncCallback
+        on_shown_async) {
   if (!MaybeCreateJavaObject(rp_mode)) {
     // The Java object is tied to the bottomsheet availability, so if we hadn't
     // created one and the bottomsheet is not available then the CCT will not be

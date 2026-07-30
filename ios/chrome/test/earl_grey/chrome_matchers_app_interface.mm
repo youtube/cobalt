@@ -10,6 +10,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "components/safe_browsing/core/common/features.h"
 #import "components/strings/grit/components_strings.h"
+#import "ios/chrome/browser/app_bar/ui/app_bar_constants.h"
 #import "ios/chrome/browser/authentication/ui_bundled/cells/signin_promo_view_constants.h"
 #import "ios/chrome/browser/autofill/model/form_suggestion_constants.h"
 #import "ios/chrome/browser/bookmarks/public/bookmarks_ui_constants.h"
@@ -30,12 +31,12 @@
 #import "ios/chrome/browser/popup_menu/public/popup_menu_constants.h"
 #import "ios/chrome/browser/recent_tabs/public/recent_tabs_constants.h"
 #import "ios/chrome/browser/settings/clear_browsing_data/public/quick_delete_constants.h"
-#import "ios/chrome/browser/settings/google_services/manage_accounts/public/manage_accounts_table_view_controller_constants.h"
+#import "ios/chrome/browser/settings/google_services/public/google_services_settings_constants.h"
+#import "ios/chrome/browser/settings/manage_accounts/public/manage_accounts_table_view_controller_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_add_credit_card_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_credit_card_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_profile_table_view_controller.h"
 #import "ios/chrome/browser/settings/ui_bundled/autofill/autofill_settings_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/google_services/google_services_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/notifications/notifications_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/notifications/tracking_price/tracking_price_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_settings/password_settings_constants.h"
@@ -65,6 +66,7 @@
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/buttons/buttons_constants.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/primary_toolbar_view.h"
 #import "ios/chrome/browser/toolbar/legacy/ui_bundled/public/toolbar_constants.h"
+#import "ios/chrome/browser/toolbar/ui/toolbar_constants.h"
 #import "ios/chrome/common/ui/button_stack/button_stack_constants.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/confirmation_alert/constants.h"
@@ -701,7 +703,20 @@ UIWindow* WindowWithAccessibilityIdentifier(NSString* accessibility_id) {
 }
 
 + (id<GREYMatcher>)showTabsButton {
-  return grey_allOf(grey_accessibilityID(kToolbarStackButtonIdentifier),
+  NSString* accessibilityIdentifier = kToolbarStackButtonIdentifier;
+  if (IsChromeNextIaEnabled()) {
+    UITraitCollection* traitCollection = [GetAnyKeyWindow() traitCollection];
+    BOOL isRegularXRegular =
+        traitCollection.verticalSizeClass == UIUserInterfaceSizeClassRegular &&
+        traitCollection.horizontalSizeClass == UIUserInterfaceSizeClassRegular;
+
+    if (isRegularXRegular) {
+      accessibilityIdentifier = kToolbarTabGridButtonIdentifier;
+    } else {
+      accessibilityIdentifier = kAppBarTabGridButtonIdentifier;
+    }
+  }
+  return grey_allOf(grey_accessibilityID(accessibilityIdentifier),
                     grey_sufficientlyVisible(), nil);
 }
 

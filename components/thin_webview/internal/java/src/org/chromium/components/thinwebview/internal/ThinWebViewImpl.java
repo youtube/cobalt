@@ -17,19 +17,21 @@ import org.chromium.build.annotations.DoNotInline;
 import org.chromium.build.annotations.Initializer;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
+import org.chromium.components.browser_ui.modaldialog.AppModalPresenter;
 import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulatorFactory;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.components.thinwebview.CompositorView;
 import org.chromium.components.thinwebview.ThinWebView;
+import org.chromium.components.thinwebview.ThinWebViewAttachParams;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
 import org.chromium.content_public.browser.SelectionClient;
 import org.chromium.content_public.browser.SelectionPopupController;
 import org.chromium.content_public.browser.Visibility;
 import org.chromium.content_public.browser.WebContents;
-import org.chromium.content_public.browser.selection.SelectionDropdownMenuDelegate;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.IntentRequestTracker;
 import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.modaldialog.ModalDialogManager;
 
 /**
  * An android view backed by a {@link Surface} that is able to display a live {@link WebContents}.
@@ -45,6 +47,8 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
     // reference is not optimized away by R8.
     @DoNotInline private @Nullable WebContentsDelegateAndroid mWebContentsDelegate;
     private final boolean mOwnsWindowAndroid;
+    private final boolean mEnablePermissionRequests;
+    private @Nullable ModalDialogManager mModalDialogManager;
 
     /**
      * Creates a {@link ThinWebViewImpl} backed by a {@link Surface}.
@@ -52,12 +56,22 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
      * @param context The Context to create this view.
      * @param constraints A set of constraints associated with this view.
      * @param intentRequestTracker The {@link IntentRequestTracker} of the current activity.
+     * @param enablePermissionRequests Whether to enable permission requests.
      */
     public ThinWebViewImpl(
             Context context,
             ThinWebViewConstraints constraints,
-            IntentRequestTracker intentRequestTracker) {
+            IntentRequestTracker intentRequestTracker,
+            boolean enablePermissionRequests) {
         super(context);
+        mEnablePermissionRequests = enablePermissionRequests;
+
+        if (mEnablePermissionRequests) {
+            mModalDialogManager =
+                    new ModalDialogManager(
+                            new AppModalPresenter(context), ModalDialogManager.ModalDialogType.APP);
+        }
+
         if (ContextUtils.activityFromContext(context) != null) {
             mWindowAndroid =
                     new ActivityWindowAndroid(
@@ -65,9 +79,24 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
                             /* listenToActivityState= */ true,
                             intentRequestTracker,
                             /* insetObserver= */ null,
-                            /* occlusionTrackingAllowed= */ true);
+                            /* occlusionTrackingAllowed= */ true) {
+                        @Override
+                        public @Nullable ModalDialogManager getModalDialogManager() {
+                            return mModalDialogManager != null
+                                    ? mModalDialogManager
+                                    : super.getModalDialogManager();
+                        }
+                    };
         } else {
-            mWindowAndroid = new WindowAndroid(context, /* occlusionTrackingAllowed= */ false);
+            mWindowAndroid =
+                    new WindowAndroid(context, /* occlusionTrackingAllowed= */ false) {
+                        @Override
+                        public @Nullable ModalDialogManager getModalDialogManager() {
+                            return mModalDialogManager != null
+                                    ? mModalDialogManager
+                                    : super.getModalDialogManager();
+                        }
+                    };
         }
 
         mOwnsWindowAndroid = true;
@@ -86,6 +115,7 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
         super(context);
         mWindowAndroid = windowAndroid;
         mOwnsWindowAndroid = false;
+        mEnablePermissionRequests = false;
         init(context, constraints);
     }
 
@@ -109,43 +139,33 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
 
     @Override
     public void attachWebContents(
-            WebContents webContents,
-            @Nullable View contentView,
-            @Nullable WebContentsDelegateAndroid delegate) {
-        attachWebContents(
-                webContents,
-                contentView,
-                delegate,
-                /* contextMenuPopulatorFactory= */ null,
-                /* selectionDropdownMenuDelegate= */ null);
-    }
-
-    @Override
-    public void attachWebContents(
-            WebContents webContents,
-            @Nullable View contentView,
-            @Nullable WebContentsDelegateAndroid delegate,
-            @Nullable ContextMenuPopulatorFactory contextMenuPopulatorFactory,
-            @Nullable SelectionDropdownMenuDelegate selectionDropdownMenuDelegate) {
+            WebContents webContents, View contentView, ThinWebViewAttachParams attachParams) {
         if (mNativeThinWebViewImpl == 0) return;
+
         // Native code holds only a weak reference to this object.
-        mWebContentsDelegate = delegate;
+        mWebContentsDelegate = attachParams.webContentsDelegate;
         setContentView(contentView);
-        ThinWebViewImplJni.get().setWebContents(mNativeThinWebViewImpl, webContents, delegate);
+        ThinWebViewImplJni.get()
+                .setWebContents(
+                        mNativeThinWebViewImpl,
+                        webContents,
+                        attachParams.webContentsDelegate,
+                        mEnablePermissionRequests,
+                        attachParams.supportTheming);
 
         // Allow highlighting text.
         SelectionPopupController controller = SelectionPopupController.fromWebContents(webContents);
-        if (selectionDropdownMenuDelegate != null) {
-            controller.setDropdownMenuDelegate(selectionDropdownMenuDelegate);
+        if (attachParams.selectionDropdownMenuDelegate != null) {
+            controller.setDropdownMenuDelegate(attachParams.selectionDropdownMenuDelegate);
         }
         controller.setActionModeCallback(new ThinWebViewActionModeCallback(webContents));
         controller.setSelectionClient(SelectionClient.createSmartSelectionClient(webContents));
 
         // Populate context menu.
-        if (contextMenuPopulatorFactory != null) {
+        if (attachParams.contextMenuPopulatorFactory != null) {
             ThinWebViewImplJni.get()
                     .setContextMenuPopulatorFactory(
-                            mNativeThinWebViewImpl, contextMenuPopulatorFactory);
+                            mNativeThinWebViewImpl, attachParams.contextMenuPopulatorFactory);
         }
 
         webContents.updateWebContentsVisibility(Visibility.VISIBLE);
@@ -164,6 +184,10 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
         if (mOwnsWindowAndroid) {
             mWindowAndroid.destroy();
         }
+        if (mModalDialogManager != null) {
+            mModalDialogManager.destroy();
+            mModalDialogManager = null;
+        }
     }
 
     @Override
@@ -179,7 +203,7 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
         }
     }
 
-    private void setContentView(@Nullable View contentView) {
+    private void setContentView(View contentView) {
         if (mContentView == contentView) return;
 
         if (mContentView != null) {
@@ -200,7 +224,9 @@ public class ThinWebViewImpl extends FrameLayout implements ThinWebView {
         void setWebContents(
                 long nativeThinWebView,
                 WebContents webContents,
-                @Nullable WebContentsDelegateAndroid delegate);
+                @Nullable WebContentsDelegateAndroid delegate,
+                boolean enablePermissionRequests,
+                boolean supportTheming);
 
         void setContextMenuPopulatorFactory(
                 long nativeThinWebView, ContextMenuPopulatorFactory factory);

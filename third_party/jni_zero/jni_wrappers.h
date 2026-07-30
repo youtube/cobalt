@@ -71,23 +71,56 @@ inline int32_t as_jint(const JniIntWrapper& wrapper) {
 #endif  // NDEBUG
 
 namespace jni_zero {
-// Wrapper for a jobjectArray which supports input iteration, allowing Java
-// arrays to be iterated over with a range-based for loop, or used with
-// <algorithm> functions that accept input iterators.
+
+// JArrayViewBase is the base class for both primitive and object JArrayView.
 //
-// The iterator returns each object in the array in turn, wrapped in a
-// ScopedJavaLocalRef<T>. T will usually be jobject, but if you know that the
-// array contains a more specific type (such as jstring) you can use that
-// instead. This does not check the type at runtime!
+// JArrayView is a wrapper for a jarray (e.g. jobjectArray, jbooleanArray, etc.)
+// which supports a few library functions that get the length of the array and
+// get one or all elements of the array.
+//
+// JArrayView also supports input iteration, allowing Java arrays to be iterated
+// over with a range-based for loop, or used with <algorithm> functions that
+// accept input iterators.
 //
 // The wrapper holds a local reference to the array and only queries the size of
 // the array once, so must only be used as a stack-based object from the current
 // thread.
 //
 // Note that this does *not* update the contents of the array if you mutate the
-// returned ScopedJavaLocalRef.
+// returned array elements.
 template <typename T>
-class JavaObjectArrayReader {
+class JArrayViewBase {
+ public:
+  JArrayViewBase(JNIEnv* env, JArray<T> array)
+      : env_(env), array_(array), length_(env->GetArrayLength(array)) {}
+
+  ~JArrayViewBase() = default;
+
+  // Get the number of elements in this JArray.
+  int32_t length() const noexcept { return length_; }
+
+  // Get the number of elements in this JArray.
+  size_t size() const noexcept { return static_cast<size_t>(length_); }
+
+  bool empty() const noexcept { return length_ == 0; }
+
+ protected:
+  JNIEnv* env_;
+  JArray<T> array_;
+  int32_t length_;
+};
+
+template <typename T>
+class JArrayView;
+
+// Wrapper for a jobjectArray.
+template <typename T>
+  requires internal::IsJobject<T>
+class JArrayView<T> : public JArrayViewBase<T> {
+  using JArrayViewBase<T>::env_;
+  using JArrayViewBase<T>::array_;
+  using JArrayViewBase<T>::length_;
+
  public:
   class iterator {
    public:
@@ -98,13 +131,14 @@ class JavaObjectArrayReader {
     using iterator_category = std::input_iterator_tag;
 
     using difference_type = ptrdiff_t;
+
     using value_type = ScopedJavaLocalRef<T>;
 
     // It doesn't make sense to return a reference type as the iterator creates
     // temporary wrapper objects when dereferenced. Fortunately, it's not
     // required that input iterators actually use references, and defining it
     // as value_type is valid.
-    using reference = value_type;
+    using reference = ScopedJavaLocalRef<T>;
 
     // This exists to make operator-> work as expected: its return value must
     // resolve to an actual pointer (otherwise the compiler just keeps calling
@@ -113,13 +147,13 @@ class JavaObjectArrayReader {
     // this version is adapted from base/value_iterators.h.
     class pointer {
      public:
-      explicit pointer(const reference& ref) : ref_(ref) {}
+      explicit pointer(const ScopedJavaLocalRef<T>& ref) : ref_(ref) {}
       pointer(const pointer& ptr) = default;
       pointer& operator=(const pointer& ptr) = delete;
-      reference* operator->() { return &ref_; }
+      ScopedJavaLocalRef<T>* operator->() { return &ref_; }
 
      private:
-      reference ref_;
+      ScopedJavaLocalRef<T> ref_;
     };
 
     iterator(const iterator&) = default;
@@ -128,29 +162,24 @@ class JavaObjectArrayReader {
     iterator& operator=(const iterator&) = default;
 
     bool operator==(const iterator& other) const {
-      JNI_ZERO_DCHECK(reader_ == other.reader_);
+      JNI_ZERO_DCHECK(jarray_view_ == other.jarray_view_);
       return i_ == other.i_;
     }
 
     bool operator!=(const iterator& other) const {
-      JNI_ZERO_DCHECK(reader_ == other.reader_);
+      JNI_ZERO_DCHECK(jarray_view_ == other.jarray_view_);
       return i_ != other.i_;
     }
 
-    reference operator*() const {
-      JNI_ZERO_DCHECK(i_ < reader_->size_);
-      // JNIEnv functions return unowned local references; take ownership with
-      // Adopt so that ~ScopedJavaLocalRef will release it automatically later.
-      return value_type::Adopt(
-          reader_->array_.env_,
-          static_cast<T>(reader_->array_.env_->GetObjectArrayElement(
-              reader_->array_.obj(), i_)));
+    ScopedJavaLocalRef<T> operator*() const {
+      JNI_ZERO_DCHECK(i_ < jarray_view_->length_);
+      return jarray_view_->Get(i_);
     }
 
     pointer operator->() const { return pointer(operator*()); }
 
     iterator& operator++() {
-      JNI_ZERO_DCHECK(i_ < reader_->size_);
+      JNI_ZERO_DCHECK(i_ < jarray_view_->length_);
       ++i_;
       return *this;
     }
@@ -162,119 +191,15 @@ class JavaObjectArrayReader {
     }
 
    private:
-    iterator(const JavaObjectArrayReader* reader, jsize i)
-        : reader_(reader), i_(i) {}
-    const JavaObjectArrayReader<T>* reader_;
-    jsize i_;
+    iterator(const JArrayView<T>* jarray_view, int32_t i)
+        : jarray_view_(jarray_view), i_(i) {}
 
-    friend JavaObjectArrayReader;
+    const JArrayView<T>* jarray_view_;
+    int32_t i_;
+
+    friend JArrayView;
   };
 
-  JavaObjectArrayReader(const JavaRef<jobjectArray>& array) : array_(array) {
-    size_ = array_.env_->GetArrayLength(array_.obj());
-  }
-
-  // Copy constructor to allow returning it from JavaRef::ReadElements().
-  JavaObjectArrayReader(const JavaObjectArrayReader& other) = default;
-
-  // Assignment operator for consistency with copy constructor.
-  JavaObjectArrayReader& operator=(const JavaObjectArrayReader& other) =
-      default;
-
-  // Allow move constructor and assignment since this owns a local ref.
-  JavaObjectArrayReader(JavaObjectArrayReader&& other) = default;
-  JavaObjectArrayReader& operator=(JavaObjectArrayReader&& other) = default;
-
-  bool empty() const { return size_ == 0; }
-
-  jsize size() const { return size_; }
-
-  iterator begin() const { return iterator(this, 0); }
-
-  iterator end() const { return iterator(this, size_); }
-
- private:
-  ScopedJavaLocalRef<jobjectArray> array_;
-  jsize size_;
-
-  friend iterator;
-};
-
-// Use as: @JniType("jni_zero::ByteArrayView") byte[].
-//
-// This requests a direct pointer to the array data rather than a copy of it,
-// so can be more efficient than std::vector<uint8_t> for large arrays.
-//
-// This helper needs to release the array via its destructor, and as a result
-// has more binary size overhead than using std::vector<uint8_t>. As such, you
-// should prefer std::vector for small arrays.
-//
-// Callers must ensure that the passed in array reference outlives this wrapper
-// (always the case when used with @JniType).
-class ByteArrayView {
- public:
-  ByteArrayView(JNIEnv* env, jbyteArray array)
-      : env_(env),
-        array_(array),
-        length_(env->GetArrayLength(array)),
-        bytes_(env->GetByteArrayElements(array, nullptr)) {}
-
-  ~ByteArrayView() {
-    env_->ReleaseByteArrayElements(array_, bytes_, JNI_ABORT);
-  }
-
-  ByteArrayView(const ByteArrayView&) = delete;
-  ByteArrayView(ByteArrayView&& other) = delete;
-  ByteArrayView& operator=(const ByteArrayView&) = delete;
-
-  size_t size() const { return static_cast<size_t>(length_); }
-  bool empty() const { return length_ == 0; }
-  const jbyte* bytes() const { return bytes_; }
-  const uint8_t* data() const { return reinterpret_cast<uint8_t*>(bytes_); }
-  const char* chars() const { return reinterpret_cast<char*>(bytes_); }
-  std::string_view string_view() const {
-    return std::string_view(chars(), size());
-  }
-
- private:
-  JNIEnv* env_;
-  jbyteArray array_;
-  jsize length_;
-  jbyte* bytes_;
-};
-
-// Base class for both primitive and object array views.
-template <typename T>
-class JArrayViewBase {
- public:
-  JArrayViewBase(JNIEnv* env, JArray<T> array)
-      : env_(env), array_(array), length_(env->GetArrayLength(array)) {}
-
-  ~JArrayViewBase() = default;
-
-  // Get the number of elements in this JArray.
-  int32_t GetLength() const noexcept { return length_; }
-
-  // Get the number of elements in this JArray.
-  size_t size() const noexcept { return static_cast<size_t>(length_); }
-
- protected:
-  JNIEnv* env_;
-  JArray<T> array_;
-  int32_t length_;
-};
-
-template <typename T>
-class JArrayView;
-
-template <typename T>
-  requires internal::IsJobject<T>
-class JArrayView<T> : public JArrayViewBase<T> {
-  using JArrayViewBase<T>::env_;
-  using JArrayViewBase<T>::array_;
-  using JArrayViewBase<T>::length_;
-
- public:
   JArrayView<T>(JNIEnv* env, JArray<T> array) : JArrayViewBase<T>(env, array) {}
 
   ~JArrayView<T>() = default;
@@ -284,7 +209,7 @@ class JArrayView<T> : public JArrayViewBase<T> {
 
   ScopedJavaLocalRef<T> Get(int32_t index) const {
     jobject obj = env_->GetObjectArrayElement(array_, index);
-    return ScopedJavaLocalRef<T>::Adopt(env_, static_cast<T>(obj));
+    return jni_zero::AdoptRef(env_, static_cast<T>(obj));
   }
 
   void CopyTo(std::vector<ScopedJavaLocalRef<T>>* buf) const {
@@ -293,6 +218,12 @@ class JArrayView<T> : public JArrayViewBase<T> {
       buf->push_back(ScopedJavaLocalRef<T>::Adopt(env_, static_cast<T>(obj)));
     }
   }
+
+  iterator begin() const { return iterator(this, 0); }
+
+  iterator end() const { return iterator(this, length_); }
+
+  friend iterator;
 };
 
 namespace internal {
@@ -488,6 +419,7 @@ struct _JniFuncMappings<double> {
 
 }  // namespace internal
 
+// Wrapper for a primitive jarray (e.g. jbooleanArray, jintArray, etc.).
 template <typename T>
   requires internal::IsPrimitiveType<T>
 class JArrayView<T> : public JArrayViewBase<T> {
@@ -524,6 +456,13 @@ class JArrayView<T> : public JArrayViewBase<T> {
 #pragma clang unsafe_buffer_usage end
   }
 
+  std::string_view as_string_view() const [[clang::lifetimebound]]
+    requires std::is_same_v<T, int8_t>
+  {
+    return std::string_view(reinterpret_cast<char*>(data_),
+                            static_cast<size_t>(length_));
+  }
+
  private:
   T* data_;
 };
@@ -538,7 +477,7 @@ NewArray(JNIEnv* env, std::span<const ScopedJavaLocalRef<T>> buf, jclass cls) {
   for (int32_t i = 0; i < length; i++) {
     env->SetObjectArrayElement(ret, i, buf[i].obj());
   }
-  return ScopedJavaLocalRef<JArray<T>>::Adopt(env, ret);
+  return jni_zero::AdoptRef(env, ret);
 }
 
 template <typename T, typename U>
@@ -552,7 +491,7 @@ static ScopedJavaLocalRef<JArray<T>> NewArray(JNIEnv* env,
   for (int32_t i = 0; i < length; i++) {
     env->SetObjectArrayElement(ret, i, ToJniType(env, buf[i]).obj());
   }
-  return ScopedJavaLocalRef<JArray<T>>::Adopt(env, ret);
+  return jni_zero::AdoptRef(env, ret);
 }
 
 template <typename T>
@@ -564,7 +503,7 @@ static ScopedJavaLocalRef<JArray<T>> NewArray(JNIEnv* env,
       internal::_JniFuncMappings<T>::NewArray(env, length));
   internal::_JniFuncMappings<T>::SetArrayRegion(env, ret, 0, length,
                                                 buf.data());
-  return ScopedJavaLocalRef<JArray<T>>::Adopt(env, ret);
+  return jni_zero::AdoptRef(env, ret);
 }
 
 extern jclass g_object_class;

@@ -197,15 +197,15 @@ const CGFloat kDividerWidth = 1.0;
 
 #pragma mark - UITextViewDelegate
 
-// TODO(crbug.com/493952956) Handle the link by opening the default search
-// engine settings.
 - (UIAction*)textView:(UITextView*)textView
     primaryActionForTextItem:(UITextItem*)textItem
                defaultAction:(UIAction*)defaultAction {
   NSString* actionIdentifier = textItem.link.absoluteString;
   if (actionIdentifier && textItem.contentType == UITextItemContentTypeLink) {
+    __weak __typeof(self) weakSelf = self;
     return [UIAction actionWithHandler:^(UIAction* action) {
-      NSLog(@"Attempting to open internal Chrome URL: %@", actionIdentifier);
+      [weakSelf.delegate viewController:weakSelf
+                   didTapFooterItemLink:kSearchEngineSettingsActionIdentifier];
     }];
   }
 
@@ -218,8 +218,7 @@ const CGFloat kDividerWidth = 1.0;
 - (UIMenu*)textView:(UITextView*)textView
     menuConfigurationForTextItem:(UITextItem*)textItem
                      defaultMenu:(UIMenu*)defaultMenu {
-  // TODO(crbug.com/493952956) Narrow the check for the supported action.
-  if (textItem.link) {
+  if (textItem.link && !textItem.link.scheme) {
     return nil;
   }
 
@@ -446,7 +445,8 @@ const CGFloat kDividerWidth = 1.0;
     [stackView addArrangedSubview:smartTabGroupingButton];
   }
 
-  if (IsReaderModeAvailable() && ![self.mutator isReaderModeActive]) {
+  if ([self.mutator isReaderModeAvailable] &&
+      ![self.mutator isReaderModeActive]) {
     UIImage* readerModeImage = DefaultSymbolWithPointSize(
         GetReaderModeSymbolName(), kSmallButtonIconSize);
 
@@ -521,7 +521,7 @@ const CGFloat kDividerWidth = 1.0;
                 action:@selector(handleGeminiTapped:)
       forControlEvents:UIControlEventTouchUpInside];
 
-  [self updateGeminiAvailability];
+  [self updateGeminiAvailabilityForButton:button];
 
   return button;
 }
@@ -736,8 +736,12 @@ const CGFloat kDividerWidth = 1.0;
 }
 
 - (void)updateGeminiAvailability {
+  [self updateGeminiAvailabilityForButton:_geminiButton];
+}
+
+- (void)updateGeminiAvailabilityForButton:(UIButton*)button {
   PageActionMenuContentEntryPoint* entryPoint = [self.mutator geminiEntryPoint];
-  [self updateButton:_geminiButton enabled:entryPoint.enabled];
+  [self updateButton:button enabled:entryPoint.enabled];
   [self updateFooterContent];
 }
 
@@ -805,7 +809,8 @@ const CGFloat kDividerWidth = 1.0;
     // If Reader Mode is available but inactive, we use a 3-button UI.
     // Otherwise, we just show the `buttonsStackView`, with an additional Reader
     // mode section (above) if Reader mode is available and active.
-    if (IsReaderModeAvailable() && ![self.mutator isReaderModeActive]) {
+    if ([self.mutator isReaderModeAvailable] &&
+        ![self.mutator isReaderModeActive]) {
       // Adds the large Gemini entry point button.
       _geminiButton = [self createGeminiButton];
       [_contentStackView addArrangedSubview:_geminiButton];

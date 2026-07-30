@@ -246,6 +246,7 @@ chromium-metrics-reviews@google.com.
   <int value="5" label="Server requested termination"/>
   <int value="6" label="Invalid session params"/>
   <int value="7" label="Fatal error during refresh"/>
+  <int value="8" label="Deleted via DevTools"/>
 </enum>
 
 <!-- LINT.ThenChange(//services/network/public/mojom/device_bound_sessions.mojom:DeviceBoundSessionDeletionReason) -->
@@ -274,6 +275,7 @@ chromium-metrics-reviews@google.com.
   <int value="4" label="Refresh quota exceeded"/>
   <int value="5" label="Fatal error"/>
   <int value="6" label="Signing exceeded"/>
+  <int value="7" label="Refreshed as waiter"/>
 </enum>
 
 <!-- LINT.ThenChange(//net/device_bound_sessions/refresh_result.h:DeviceBoundSessionRefreshResult) -->
@@ -2878,15 +2880,6 @@ Called by update_net_trust_anchors.py.-->
   <int value="0" label="SCT_EMBEDDED"/>
   <int value="1" label="SCT_FROM_TLS_EXTENSION"/>
   <int value="2" label="SCT_FROM_OCSP_RESPONSE"/>
-</enum>
-
-<enum name="SCTVerifyStatus">
-  <int value="0" label="SCT_STATUS_NONE"/>
-  <int value="1" label="SCT_STATUS_LOG_UNKNOWN"/>
-  <int value="2" label="DEPRECATED: SCT_STATUS_INVALID"/>
-  <int value="3" label="SCT_STATUS_OK"/>
-  <int value="4" label="SCT_STATUS_INVALID_SIGNATURE"/>
-  <int value="5" label="SCT_STATUS_INVALID_TIMESTAMP"/>
 </enum>
 
 <!-- LINT.IfChange(SecureDnsModeDetails) -->

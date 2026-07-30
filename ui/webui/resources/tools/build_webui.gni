@@ -616,6 +616,40 @@ template("build_webui") {
                          legacy_chrome_send_users) == [] && !is_ash_webui) {
         enable_no_chrome_send = true
       }
+
+      no_explicit_any_exceptions = [
+        # Note: DO NOT add new entries to the list below.
+        # TODO(crbug.com/494464740): Fix all violations below and turn on this
+        # check by default.
+        "//chrome/browser/resources/bluetooth_internals",
+        "//chrome/browser/resources/contextual_tasks",
+        "//chrome/browser/resources/glic",
+        "//chrome/browser/resources/history",
+        "//chrome/browser/resources/lens/shared",
+        "//chrome/browser/resources/new_tab_page",
+        "//chrome/browser/resources/new_tab_page/untrusted",
+        "//chrome/browser/resources/omnibox_popup",
+        "//chrome/browser/resources/pdf",
+        "//chrome/browser/resources/print_preview",
+        "//chrome/browser/resources/settings",
+        "//chrome/browser/resources/settings_shared",
+        "//chrome/browser/resources/side_panel/read_anything",
+        "//chrome/browser/resources/tab_search",
+        "//chrome/browser/resources/tab_strip",
+        "//chrome/browser/resources/updater",
+        "//ui/webui/resources/cr_components/composebox",
+        "//ui/webui/resources/cr_components/searchbox",
+        "//ui/webui/resources/cr_elements",
+        "//ui/webui/resources/js",
+      ]
+
+      if (!is_ash_webui && filter_include([ get_label_info(":lint_ts", "dir") ],
+                                          no_explicit_any_exceptions) == []) {
+        enable_no_explicit_any = true
+      } else {
+        # Prevent GN from throwing an error.
+        not_needed([ "no_explicit_any_exceptions" ])
+      }
     }
   }
 

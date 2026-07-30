@@ -23,6 +23,7 @@ public class BottomBarConfigUtils {
 
     /** Whether to include the home button in the bottom bar if the flag is enabled. */
     public static boolean shouldIncludeHomeButtonIfEnabled() {
+        if (ChromeFeatureList.sAndroidBottomBarRemoveHomeButton.getValue()) return false;
         return !ChromeFeatureList.sAndroidBottomBarKeepHomeButtonInToolbar.getValue();
     }
 
@@ -34,5 +35,10 @@ public class BottomBarConfigUtils {
     /** Whether to show the bottom bar on GTS if the flag is enabled. */
     public static boolean shouldShowOnGts() {
         return ChromeFeatureList.sAndroidBottomBarShowBottomBarOnGts.getValue();
+    }
+
+    /** Whether to disable the bottom bar on the regular NTP. */
+    public static boolean shouldDisableOnNtp() {
+        return ChromeFeatureList.sAndroidBottomBarDisableOnNtp.getValue();
     }
 }

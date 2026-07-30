@@ -76,7 +76,7 @@ class FormSubmission final : public GarbageCollected<FormSubmission> {
     static String MethodString(SubmitMethod);
 
     const String& Action() const { return action_; }
-    void ParseAction(const String&);
+    void ParseAction(const StringView&);
 
     const AtomicString& Target() const { return target_; }
     void SetTarget(const AtomicString& target) { target_ = target; }
@@ -168,6 +168,7 @@ class FormSubmission final : public GarbageCollected<FormSubmission> {
   LocalFrameToken initiator_frame_token_;
   bool has_rel_opener_ = false;
   base::TimeTicks input_start_time_;
+  std::optional<base::UnguessableToken> script_tool_invocation_id_;
 
   // Since form submissions are scheduled asynchronously, we need to store the
   // source location when we create the form submission and then pass it over to

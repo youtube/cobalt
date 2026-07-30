@@ -98,6 +98,7 @@ constexpr absl::Overload PreToolEventsFn{
     NoUiEvents<WaitToolRequest>,
     NoUiEvents<AttemptLoginToolRequest>,
     NoUiEvents<AttemptFormFillingToolRequest>,
+    NoUiEvents<AttemptOtpFillingToolRequest>,
     NoUiEvents<ScriptToolRequest>,
     NoUiEvents<ScrollToToolRequest>};
 
@@ -125,6 +126,7 @@ constexpr absl::Overload PostToolEventsFn{
     NoUiEvents<WaitToolRequest>,
     NoUiEvents<AttemptLoginToolRequest>,
     NoUiEvents<AttemptFormFillingToolRequest>,
+    NoUiEvents<AttemptOtpFillingToolRequest>,
     NoUiEvents<ScriptToolRequest>,
     NoUiEvents<ScrollToToolRequest>};
 
@@ -146,8 +148,9 @@ constexpr absl::Overload ActorTaskSyncChangeFn{
       return seq;
     },
     [](const UiEventDispatcher::StopTask& c) {
-      return EventSequence<SyncUiEvent>{StopTask(
-          c.task_id, c.final_state, c.title, c.last_acted_on_tab_handle)};
+      return EventSequence<SyncUiEvent>{
+          StopTask(c.task_id, c.final_state, c.title,
+                   c.last_acted_on_tab_handle, c.duration)};
     },
     [](const UiEventDispatcher::RemoveTab& c) {
       return EventSequence<SyncUiEvent>{StoppedActingOnTab(c.handle)};

@@ -656,6 +656,7 @@
     },
     {
       name: "ApproximateGeolocationPermissionAPI",
+      status: "experimental",
     },
     {
       name: "ApproximateGeolocationWebVisibleAPI",
@@ -891,6 +892,7 @@
     {
       name: "BlockingFocusWithoutUserActivation",
       status: "experimental",
+      origin_trial_feature_name: "BlockingFocusWithoutUserActivation",
     },
     {
       // Prevents the popup document for the select element from being opened
@@ -1435,7 +1437,13 @@
     {
       // The AccentColor And AccentColorText CSS system color keywords
       name: "CSSAccentColorKeyword",
-      status: "experimental",
+      status: {
+        "ChromeOS": "stable",
+        "Linux": "stable",
+        "Mac": "stable",
+        "Win": "stable",
+        "default": "experimental",
+      },
     },
     {
       // Maps deprecated ActiveCaption to Canvas instead of CanvasText.
@@ -1769,7 +1777,7 @@
     },
     {
       name: "CSSPseudoElementInterface",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "CSSPseudoElementViewTransitions",
@@ -1898,9 +1906,18 @@
       status: "experimental",
     },
     {
+      // path() and shape() basic shapes for shape-outside.
+      // https://drafts.csswg.org/css-shapes-1/#basic-shape-functions
+      // https://drafts.csswg.org/css-shapes/#shape-outside-property
+      // ChromeStatus: https://chromestatus.com/feature/5080980370096128
+      name: "CSSShapeOutsidePathAndShapeSupport",
+      status: "experimental",
+    },
+    {
       // rect() and xywh() basic shapes for shape-outside.
       // https://drafts.csswg.org/css-shapes-1/#basic-shape-functions
       // https://drafts.csswg.org/css-shapes/#shape-outside-property
+      // ChromeStatus: https://chromestatus.com/feature/6323071520735232
       name: "CSSShapeOutsideRectAndXywhSupport",
       status: "experimental",
     },
@@ -1931,6 +1948,7 @@
       name: "CSSSystemAccentColor",
       status: {
         "ChromeOS": "stable",
+        "Linux": "stable",
         "Mac": "stable",
         "Win": "stable",
         "default": "experimental",
@@ -2463,7 +2481,7 @@
     {
       // `event.pseudoTarget` property to represent pseudo-elements in events. Returns `CSSPseudoElement` or null.
       name: "EventPseudoTargetProperty",
-      status: "experimental",
+      status: "stable",
       depends_on: ["CSSPseudoElementInterface"],
     },
     {
@@ -2982,12 +3000,6 @@
       status: "stable",
     },
     {
-      name: "FontSrcLocalMatching",
-      base_feature: "none",
-      // No status, as the web platform runtime enabled feature is controlled by
-      // a Chromium level feature.
-    },
-    {
       // crbug.com/393391746
       name: "FontStyleObliqueZeroDegreeAsNormal",
       status: "stable",
@@ -3244,6 +3256,14 @@
       name: "HTMLImageElementActualNaturalSize",
       status: "test",
     },
+    // Remove support for `::-webkit-clear-button`.
+    // This shipped in M149 and the flag can be removed in M151.,
+    // NOTE: when this flag is removed, be sure to also remove "clear"
+    // from third_party/blink/renderer/core/html/shadow/shadow_element_names.json5.
+    {
+      name: "HTMLInputElementDropWebkitClearButton",
+      status: "stable"
+    },
     // Adds support for the `interestfor` attribute. See crbug.com/326681249.
     // https://open-ui.org/components/interest-invokers.explainer/
     // This shipped in M142 and the flag can be removed in M144.
@@ -3346,6 +3366,11 @@
     },
     {
       name: "InheritUserModifyWithoutContenteditable",
+      status: "stable",
+    },
+    {
+      // See crbug.com/40695399
+      name: "InlineBlockLineNavigation",
       status: "stable",
     },
     {
@@ -3507,10 +3532,6 @@
     },
     {
       name: "LayoutImageEmptyNaturalSizeBeforeSizeAvailable",
-      status: "stable",
-    },
-    {
-      name: "LayoutReinsertOnInFlowStateChange",
       status: "stable",
     },
     {
@@ -3832,6 +3853,14 @@
     },
     {
       name: "MenuElements",
+      status: "experimental",
+    },
+    {
+      name: "MergeFixedLayers",
+      status: "experimental",
+    },
+    {
+      name: "MergeStickyLayers",
       status: "experimental",
     },
     {
@@ -4353,6 +4382,12 @@
       status: "stable",
     },
     {
+      // Simplifies the behavior and stacking interactions of popover=hint and
+      // popover=auto. See https://crbug.com/499019927.
+      name: "PopoverHintNewBehavior",
+      status: "experimental",
+    },
+    {
       name: "PositionOutsideTabSpanCheckSiblingNode",
       status: "stable",
     },
@@ -4553,7 +4588,7 @@
       // Support hit-testing for ::after, ::before, ::marker
       // (e.g. for CSSPseudoElement).
       name: "PseudoElementsHitTestable",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Support :hover on ::after, ::before, ::marker.
@@ -5437,6 +5472,12 @@
       name: "SpecialRulesForNestedH1Elements",
     },
     {
+      // Exposes speculation measurement data (preloads, prefetches, prerenders)
+      // on performance.speculations.
+      name: "SpeculationMeasurement",
+      status: "experimental",
+    },
+    {
       // API for accessing the Custom Dictionary for spell checking purpose.
       // https://chromestatus.com/feature/6185007701557248
       name: "SpellCheckCustomDictionaryAPI",
@@ -5593,12 +5634,20 @@
       status: "experimental",
     },
     {
+      name: "SvgPointListClearOnParsingFailure",
+      status: "stable",
+    },
+    {
       name: "SvgScriptElementAsyncAttribute",
       status: "stable",
     },
     {
       name: "SvgSizingWithPreserveAspectRatioNone",
       status: "experimental",
+    },
+    {
+      name: "SvgSmilClockValueValidation",
+      status: "stable",
     },
     {
       name: "SvgTextPathPathAttribute",
@@ -5648,8 +5697,9 @@
     {
       // Remove <table>'s explicit `border-color: gray` UA stylesheet rule,
       // since it is non-standard. See crbug.com/494554835.
+      // This shipped in M149, and can be removed in M151.
       name: "TableDefaultBorderColorCurrentColor",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "TableIsAutoFixedLayout",
@@ -6090,8 +6140,9 @@
     {
       // Stops user action pseudo-classes from propagating out of top layer
       // elements. See https://crbug.com/407769114.
+      // This shipped in M149, and can be removed in M151.
       name: "UserActionPseudosStopAtTopLayer",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "UserDefinedEntryPointTiming",
@@ -6715,11 +6766,6 @@
       name: "WebXRVisibilityMask",
       depends_on: ["WebXR"],
       status: "stable",
-    },
-    {
-      name: "WindowControlsOverlay",
-      status: { "Android": "stable", "default": "stable" },
-      base_feature: "AndroidWindowControlsOverlay",
     },
     // If enabled, window.default[Ss]tatus will be supported. This is disabled
     // by default, and is here to allow this behavior to be re-enabled via Finch

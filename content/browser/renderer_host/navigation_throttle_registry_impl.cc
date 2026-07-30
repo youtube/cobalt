@@ -278,8 +278,9 @@ NavigationHandle& NavigationThrottleRegistryImpl::GetNavigationHandle() {
 void NavigationThrottleRegistryImpl::AddThrottle(
     std::unique_ptr<NavigationThrottle> navigation_throttle) {
   CHECK(navigation_throttle);
-  TRACE_EVENT1("navigation", "NavigationThrottleRegistryImpl::AddThrottle",
-               "navigation_throttle", navigation_throttle->GetNameForLogging());
+  TRACE_EVENT(TRACE_DISABLED_BY_DEFAULT("navigation"),
+              "NavigationThrottleRegistryImpl::AddThrottle",
+              "navigation_throttle", navigation_throttle->GetNameForLogging());
   CHECK(!navigation_request_->IsInitialWebUISyncNavigation());
   throttles_.push_back(std::move(navigation_throttle));
 }
@@ -295,24 +296,6 @@ bool NavigationThrottleRegistryImpl::EraseThrottleForTesting(
   return std::erase_if(throttles_, [name](const auto& throttle) {
     return throttle->GetNameForLogging() == name;
   });
-}
-
-bool NavigationThrottleRegistryImpl::IsHTTPOrHTTPS() {
-  static bool is_cache_enabled = base::FeatureList::IsEnabled(
-      features::kNavigationThrottleRegistryAttributeCache);
-  // The cached properties are only safe to access at throttle registration
-  // time, and not safe afterward because the URL could change (e.g., due to
-  // redirects).
-  CHECK_LE(navigation_request_->state(),
-           NavigationRequest::NavigationState::WILL_START_REQUEST);
-
-  if (!is_cache_enabled) {
-    return GetNavigationHandle().GetURL().SchemeIsHTTPOrHTTPS();
-  }
-  if (!is_http_or_https_.has_value()) {
-    is_http_or_https_ = GetNavigationHandle().GetURL().SchemeIsHTTPOrHTTPS();
-  }
-  return *is_http_or_https_;
 }
 
 void NavigationThrottleRegistryImpl::OnEventProcessed(

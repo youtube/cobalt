@@ -63,7 +63,7 @@ chromium-metrics-reviews@google.com.
   </int>
   <int value="9" label="Cue not shown: target surface not registered">
     Model response was for a known cue type, but the surface was not registered
-    with ContextualCueingService.
+    with ContextualCueingController.
   </int>
   <int value="10" label="Cue not shown: ineligible">
     Model response was for a registered cue type, but that feature reported
@@ -214,6 +214,18 @@ chromium-metrics-reviews@google.com.
     request) was invalid.
   </int>
 </enum>
+
+<!-- LINT.IfChange(GlicAutoOpenResult) -->
+
+<enum name="GlicAutoOpenResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Prevented From Split View"/>
+  <int value="2" label="Prevented From Vertical Tabs"/>
+  <int value="3" label="Prevented From Existing Side Panel Open"/>
+  <int value="4" label="Failed with unknown reason"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/suggestions/contextual_cueing_enums.h:GlicAutoOpenResult) -->
 
 </enums>
 

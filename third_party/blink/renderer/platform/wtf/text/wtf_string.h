@@ -28,6 +28,7 @@
 
 #include <array>
 #include <iosfwd>
+#include <optional>
 #include <string_view>
 #include <type_traits>
 
@@ -74,7 +75,12 @@ class WTF_EXPORT String {
     return StringImpl::CreateUninitialized(length, data);
   }
 
+  // Creates an 8-bit string from a 16-bit source by copying characters.
+  // All characters in the source must be Latin-1 (<= 0xFF).
+  // If the source contains characters > 0xFF, it crashes in debug builds,
+  // and yields undefined or platform-dependent results in release builds.
   [[nodiscard]] static String Make8BitFrom16BitSource(base::span<const UChar>);
+  // Creates a 16-bit string from an 8-bit source by copying characters.
   [[nodiscard]] static String Make16BitFrom8BitSource(base::span<const LChar>);
 
   // String::FromUtf8 will return a null string if
@@ -317,7 +323,15 @@ class WTF_EXPORT String {
     return impl_->RawByteSpan();
   }
 
+  // Returns a std::string containing the characters of this string.
+  // Printable ASCII characters (0x20 to 0x7F) and the null character (0x00)
+  // are preserved. Characters outside of this range (including control
+  // characters and non-ASCII characters) are converted to '?'.
   [[nodiscard]] std::string Ascii() const;
+
+  // Returns a std::string containing the characters of this string encoded as
+  // Latin-1. Characters in the Latin-1 range (0x00 to 0xFF) are preserved.
+  // Characters outside of this range (U+0100 and above) are converted to '?'.
   [[nodiscard]] std::string Latin1() const;
   [[nodiscard]] std::string Utf8(
       Utf8ConversionMode mode = Utf8ConversionMode::kLenient) const {
@@ -522,16 +536,34 @@ class WTF_EXPORT String {
   // This function copies the content of the string. Please consider if
   // StringView::Split() is applicable.
   //
-  // `StringView("a, , b").Split(", ")` produces ["a", "", "b"], and
-  // `StringView("").Split(",")` produces [""].
+  // `String("a, , b").Split(", ")` produces ["a", "", "b"], and
+  // `String("").Split(",")` produces [""].
   Vector<String> Split(const StringView& separator) const;
   // Returns a list of substrings of `this`, separated by `separator`.
   // This function copies the content of the string. Please consider if
   // StringView::Split() is applicable.
   //
-  // `StringView("a,,b").Split(',')` produces ["a", "", "b"], and
-  // `StringView("").Split(',')` produces [""].
+  // `String("a,,b").Split(',')` produces ["a", "", "b"], and
+  // `String("").Split(',')` produces [""].
   Vector<String> Split(UChar separator) const;
+
+  // Returns a list of substrings of `this`, separated by the positions where
+  // `finder` returns a length.
+  //
+  // `finder` should be a callable object that takes `StringView` and
+  // `size_type` and returns the length of the separator if the specified offset
+  // points to a separator, or std::nullopt otherwise.
+  template <typename Finder>
+    requires requires(Finder finder, const StringView& s, size_type pos) {
+      requires std::is_same_v<decltype(finder(s, pos)),
+                              std::optional<size_type>>;
+    }
+  Vector<String> Split(Finder finder) const {
+    return internal::SplitByFinder<String, Finder,
+                                   /* allow_empty_entries */ true>(*this,
+                                                                   finder);
+  }
+
   // Returns a list of substrings of `this`, separated by `separator`.
   // This doesn't produce empty substrings.
   // This function copies the content of the string. Please consider if
@@ -540,6 +572,23 @@ class WTF_EXPORT String {
   // `String(" a  b").SplitSkippingEmpty(' ')` produces ["a", "b"], and
   // `String("").SplitSkippingEmpty(',')` produces an empty list.
   Vector<String> SplitSkippingEmpty(UChar separator) const;
+
+  // Returns a list of substrings of `this`, separated by the positions where
+  // `finder` returns a length. This doesn't produce empty substrings.
+  //
+  // `finder` should be a callable object that takes `StringView` and
+  // `size_type` and returns the length of the separator if the specified offset
+  // points to a separator, or std::nullopt otherwise.
+  template <typename Finder>
+    requires requires(Finder finder, const StringView& s, size_type pos) {
+      requires std::is_same_v<decltype(finder(s, pos)),
+                              std::optional<size_type>>;
+    }
+  Vector<String> SplitSkippingEmpty(Finder finder) const {
+    return internal::SplitByFinder<String, Finder,
+                                   /* allow_empty_entries */ false>(*this,
+                                                                    finder);
+  }
 
 #ifdef __OBJC__
   String(NSString*);

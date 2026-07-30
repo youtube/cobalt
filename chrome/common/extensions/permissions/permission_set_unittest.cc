@@ -872,6 +872,7 @@ TEST(PermissionsTest, PermissionMessages) {
   skip.insert(APIPermissionID::kFirstRunPrivate);
 #endif
   skip.insert(APIPermissionID::kGlicPrivate);
+  skip.insert(APIPermissionID::kGlicPrivateInvoke);
   skip.insert(APIPermissionID::kImageLoaderPrivate);
   skip.insert(APIPermissionID::kInputMethodPrivate);
   skip.insert(APIPermissionID::kLanguageSettingsPrivate);
@@ -1056,8 +1057,8 @@ TEST(PermissionsTest, SuppressedPermissionMessages) {
   }
 }
 
-#if BUILDFLAG(ENABLE_PLATFORM_APPS)
-// "serial" is a platform app permission and not supported on desktop Android.
+#if BUILDFLAG(IS_CHROMEOS)
+// "serial" is a platform app permission only supported on ChromeOS.
 TEST(PermissionsTest, AccessToDevicesMessages) {
   {
     APIPermissionSet api_permissions;
@@ -1098,7 +1099,7 @@ TEST(PermissionsTest, AccessToDevicesMessages) {
             IDS_EXTENSION_PROMPT_WARNING_BLUETOOTH_SERIAL)));
   }
 }
-#endif  // BUILDFLAG(ENABLE_PLATFORM_APPS)
+#endif  // BUILDFLAG(IS_CHROMEOS)
 
 TEST(PermissionsTest, MergedFileSystemPermissionComparison) {
   APIPermissionSet write_api_permissions;

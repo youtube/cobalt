@@ -15,9 +15,11 @@ class Browser;
 class ProfileIOS;
 class TabHelperAttacher;
 @class UIViewController;
+@class ObservingSceneAgent;
 
 namespace web {
 class JavaScriptFeature;
+class CobaltController;
 }  // namespace web
 
 // Completion block for Cobalt alerts, called with `granted` set to true if the
@@ -59,6 +61,9 @@ ChromeCoordinator* CreateCobaltCoordinator(
 web::JavaScriptFeature* GetCobaltJavascriptFeatureForProfile(
     ProfileIOS* profile);
 
+// Returns the Cobalt controller for `profile`.
+web::CobaltController* GetCobaltController(ProfileIOS* profile);
+
 // Returns the coordinator for Cobalt alerts.
 ChromeCoordinator* CreateCobaltAlertCoordinator(
     UIViewController* base_view_controller,
@@ -73,6 +78,9 @@ ChromeCoordinator* CreateCobaltPopupCoordinator(
     Browser* browser,
     UIViewController* popup_view_controller,
     CobaltPopupCompletion completion);
+
+// Returns the Cobalt scene agent.
+ObservingSceneAgent* CreateCobaltSceneAgent();
 
 }  // namespace ios::provider
 

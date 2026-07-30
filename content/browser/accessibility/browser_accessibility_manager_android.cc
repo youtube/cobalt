@@ -306,15 +306,7 @@ void BrowserAccessibilityManagerAndroid::FireDocumentSelectionChangedEvent(
           static_cast<BrowserAccessibilityAndroid*>(
               GetFromAXNode(ax_tree()->root()));
       ClearNodeInfoCacheForGivenId(android_root_object->GetUniqueId());
-      if (selection.has_value()) {
-        wcax->HandleExtendedSelectionChanged(
-            android_root_object->GetUniqueId(),
-            selection->focus_object->GetUniqueId(), selection->focus_offset);
-      } else {
-        wcax->HandleExtendedSelectionChanged(
-            android_root_object->GetUniqueId(), ui::kAXAndroidInvalidViewId,
-            ui::kAXAndroidUndefinedSelectionIndex);
-      }
+      wcax->HandleTextSelectionChanged(android_root_object->GetUniqueId());
       return;
     }
   } else if (!selection.has_value()) {
@@ -325,6 +317,7 @@ void BrowserAccessibilityManagerAndroid::FireDocumentSelectionChangedEvent(
   }
 
   // Send event to the focus node.
+  CHECK(selection->focus_object);
   wcax->HandleTextSelectionChanged(selection->focus_object->GetUniqueId());
 }
 
@@ -523,6 +516,8 @@ void BrowserAccessibilityManagerAndroid::FireGeneratedEvent(
       break;
     }
     case ui::AXEventGenerator::Event::VALUE_IN_TEXT_FIELD_CHANGED:
+    case ui::AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_DECREMENTED:
+    case ui::AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_INCREMENTED:
       // Sometimes `RetargetForEvents` will walk up to the lowest platform leaf
       // and fire the same event on that node. However, in some rare cases the
       // leaf node might not be a text field. For example, in the unusual case
@@ -1038,9 +1033,16 @@ BrowserAccessibilityManagerAndroid::ConvertChromeSelectionPositionToAndroid(
   if (at_end_of_anchor) {
     offset++;
   }
-  return std::make_pair(static_cast<BrowserAccessibilityAndroid*>(
-                            GetFromAXNode(target_node->GetUnignoredParent())),
-                        offset);
+
+  BrowserAccessibilityAndroid* parent_node =
+      static_cast<BrowserAccessibilityAndroid*>(
+          GetFromAXNode(target_node->GetUnignoredParent()));
+  // TODO(crbug.com/498376490): Find a test case that triggers this behavior.
+  if (!parent_node) {
+    return std::nullopt;
+  }
+
+  return std::make_pair(parent_node, offset);
 }
 
 ui::BrowserAccessibility::AXPosition

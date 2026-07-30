@@ -190,6 +190,60 @@ public class ExtensionTestUtils {
     }
 
     /**
+     * Helper to create a {@link ExtensionsMenuTypes.ExtensionSitePermissionsState}. The returned
+     * state has the following defaults:
+     *
+     * <ul>
+     *   <li>All site access options (on click, on site, on all sites) are ENABLED.
+     *   <li>The "on all sites" option is toggled ON.
+     *   <li>The "show requests" toggle is ENABLED and toggled ON.
+     * </ul>
+     */
+    public static ExtensionsMenuTypes.ExtensionSitePermissionsState
+            createExtensionSitePermissionsState(
+                    String extensionName, @Nullable Bitmap extensionIcon) {
+        ExtensionsMenuTypes.ControlState onClickOption =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                        /* text= */ "",
+                        /* accessibleName= */ "",
+                        /* tooltipText= */ "",
+                        /* isOn= */ false,
+                        /* icon= */ null);
+        ExtensionsMenuTypes.ControlState onSiteOption =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                        /* text= */ "",
+                        /* accessibleName= */ "",
+                        /* tooltipText= */ "",
+                        /* isOn= */ false,
+                        /* icon= */ null);
+        ExtensionsMenuTypes.ControlState onAllSitesOption =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                        /* text= */ "",
+                        /* accessibleName= */ "",
+                        /* tooltipText= */ "",
+                        /* isOn= */ true,
+                        /* icon= */ null);
+        ExtensionsMenuTypes.ControlState toggleState =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                        /* text= */ "",
+                        /* accessibleName= */ "",
+                        /* tooltipText= */ "",
+                        /* isOn= */ true,
+                        /* icon= */ null);
+        return new ExtensionsMenuTypes.ExtensionSitePermissionsState(
+                extensionName,
+                extensionIcon,
+                onClickOption,
+                onSiteOption,
+                onAllSitesOption,
+                toggleState);
+    }
+
+    /**
      * Helper to create a {@link ExtensionsMenuTypes.MenuEntryState} for a simple extension without
      * host permissions. The entry will have a disabled action button, and hidden site access toggle
      * and site permissions button.

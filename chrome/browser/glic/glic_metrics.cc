@@ -302,9 +302,8 @@ void GlicMetrics::OnTrustFirstOnboardingAccept() {
   OnFreAccepted();
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Accept"));
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Accept.Onboarding"));
-  base::UmaHistogramEnumeration(
-      "Glic.Fre.Accept.Entrypoint",
-      glic::GetEntrypointFromInvocationSource(invocation_source_));
+  base::UmaHistogramEnumeration("Glic.Fre.Accept.InvocationSource",
+                                invocation_source_);
 
   if (!onboarding_shown_time_.is_null()) {
     base::UmaHistogramLongTimes(
@@ -322,9 +321,8 @@ void GlicMetrics::OnInstanceOpened() {
   if (enabling_->IsTrustFirstOnboardingEnabled()) {
     base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown"));
     base::RecordAction(base::UserMetricsAction("Glic.Fre.Shown.Onboarding"));
-    base::UmaHistogramEnumeration(
-        "Glic.Fre.Shown.Entrypoint",
-        glic::GetEntrypointFromInvocationSource(invocation_source_));
+    base::UmaHistogramEnumeration("Glic.Fre.Shown.InvocationSource",
+                                  invocation_source_);
     onboarding_shown_time_ = base::TimeTicks::Now();
   }
 }
@@ -335,9 +333,8 @@ void GlicMetrics::OnInstanceClosed() {
   }
 
   base::RecordAction(base::UserMetricsAction("Glic.Fre.Dismissed.Onboarding"));
-  base::UmaHistogramEnumeration(
-      "Glic.Fre.Dismissed.Entrypoint",
-      glic::GetEntrypointFromInvocationSource(invocation_source_));
+  base::UmaHistogramEnumeration("Glic.Fre.Dismissed.InvocationSource",
+                                invocation_source_);
   base::UmaHistogramLongTimes("Glic.Fre.TotalTime.Dismissed.Onboarding",
                               base::TimeTicks::Now() - onboarding_shown_time_);
   onboarding_shown_time_ = base::TimeTicks();
@@ -352,12 +349,12 @@ void GlicMetrics::OnFreAccepted() {
 void GlicMetrics::OnUserInputSubmitted(mojom::WebClientMode mode) {
   if (!fre_accepted_time_.is_null()) {
     base::TimeDelta delta = base::TimeTicks::Now() - fre_accepted_time_;
+    base::RecordAction(base::UserMetricsAction("Glic.Fre.InputSubmitted"));
     base::UmaHistogramLongTimes("Glic.FreToFirstQueryTime", delta);
     base::UmaHistogramCustomTimes("Glic.FreToFirstQueryTimeMax24H", delta,
                                   base::Milliseconds(1), base::Hours(24), 50);
-    base::UmaHistogramEnumeration(
-        "Glic.Fre.UserInput.Entrypoint",
-        glic::GetEntrypointFromInvocationSource(onboarding_invocation_source_));
+    base::UmaHistogramEnumeration("Glic.Fre.UserInput.InvocationSource",
+                                  onboarding_invocation_source_);
     fre_accepted_time_ = base::TimeTicks();
   }
 
@@ -548,15 +545,6 @@ void GlicMetrics::OnTurnCompleted(mojom::WebClientModel model,
                                     ? "Glic.Response.TurnDuration.Actor"
                                     : "Glic.Response.TurnDuration.Default",
                                 duration);
-}
-
-void GlicMetrics::OnRecordUseCounter(uint16_t counter) {
-  static_assert(1000u > static_cast<uint32_t>(mojom::WebUseCounter::kMaxValue));
-  // Since the front end can contain a newer version than what chrome is
-  // build against we use a sparse histogram.
-  base::UmaHistogramSparse(
-      "Glic.Api.UseCounter",
-      std::clamp(static_cast<uint32_t>(counter), 0u, 1000u));
 }
 
 void GlicMetrics::OnGlicWindowStartedOpening(bool attached,

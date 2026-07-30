@@ -88,7 +88,8 @@ class CORE_EXPORT StyleImage : public GarbageCollected<StyleImage> {
 
   // Is the <image> considered same-origin? `failing_url` is set to the
   // (potentially formatted) URL of the first non-same-origin <image>.
-  virtual bool IsAccessAllowed(String& failing_url) const = 0;
+  virtual bool IsCorsSameOrigin(String& failing_url) const = 0;
+  bool IsCorsSameOrigin() const;
 
   // Determine the natural dimensions (width, height, aspect ratio) of this
   // <image>, scaled by `multiplier`.
@@ -162,10 +163,8 @@ class CORE_EXPORT StyleImage : public GarbageCollected<StyleImage> {
 
   // Correct the image orientation preference for potentially cross-origin
   // content.
-  virtual RespectImageOrientationEnum ForceOrientationIfNecessary(
-      RespectImageOrientationEnum default_orientation) const {
-    return default_orientation;
-  }
+  RespectImageOrientationEnum ForceOrientationIfNecessary(
+      RespectImageOrientationEnum) const;
 
   // Whether this <image> depends on the current color.
   virtual bool DependsOnCurrentColor() const { return false; }

@@ -242,6 +242,9 @@ BrowserContext::StartPrefetchFromPrePrefetch(
   PrefetchService* prefetch_service =
       BrowserContextImpl::From(this)->GetPrefetchService();
   if (!prefetch_service) {
+    // TODO(crbug.com/452406598): Call `PrefetchRequestStatusListener`'s
+    // `OnPrefetchStartFailedGeneric()`, like `StartBrowserPrefetchRequest()`
+    // does.
     return nullptr;
   }
 

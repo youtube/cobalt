@@ -10,8 +10,8 @@
 #import "base/memory/weak_ptr.h"
 #import "base/values.h"
 #import "components/optimization_guide/proto/features/actions_data.pb.h"
-#import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_error.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/actor_tool_java_script_feature_util.h"
+#import "ios/chrome/browser/intelligence/actor/tools/public/actor_tool_error.h"
 #import "ios/web/public/js_messaging/web_frame.h"
 
 namespace {
@@ -40,9 +40,7 @@ ScrollToolJavaScriptFeature::~ScrollToolJavaScriptFeature() = default;
 void ScrollToolJavaScriptFeature::Scroll(
     base::WeakPtr<web::WebFrame> target_frame,
     const optimization_guide::proto::ScrollAction& action,
-    ActorTool::ToolExecutionCallback callback) {
-  // TODO: crbug.com/472289079 - Add support for ScrollAction with the target
-  // field unset.
+    ToolExecutionCallback callback) {
   CHECK(action.has_target());
   CHECK(action.has_direction() && action.has_distance());
   ExecuteScrollAction(target_frame, action.target(),
@@ -54,7 +52,7 @@ void ScrollToolJavaScriptFeature::Scroll(
 void ScrollToolJavaScriptFeature::ScrollTo(
     base::WeakPtr<web::WebFrame> target_frame,
     const optimization_guide::proto::ScrollToAction& action,
-    ActorTool::ToolExecutionCallback callback) {
+    ToolExecutionCallback callback) {
   CHECK(action.has_target());
   ExecuteScrollAction(target_frame, action.target(),
                       /*direction_and_distance=*/std::nullopt,
@@ -67,9 +65,7 @@ void ScrollToolJavaScriptFeature::ExecuteScrollAction(
     std::optional<
         std::pair<optimization_guide::proto::ScrollAction_ScrollDirection, int>>
         direction_and_distance,
-    ActorTool::ToolExecutionCallback callback) {
-  // TODO: crbug.com/472289079 - Add support for ActionTarget with the target
-  // field unset.
+    ToolExecutionCallback callback) {
   CHECK(target.has_coordinate() ||
         (target.has_content_node_id() && target.has_document_identifier()));
 

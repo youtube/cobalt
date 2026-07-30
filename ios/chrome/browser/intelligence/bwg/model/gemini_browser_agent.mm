@@ -25,19 +25,21 @@
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_link_opening_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_link_opening_handler.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_session_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_actuation_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_camera_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_configuration.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_state_change_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_scroll_observer.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_session_delegate.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_session_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_startup_configuration.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_suggestion_delegate.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_suggestion_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_view_state_change_handler.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_feature_availability.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
@@ -167,7 +169,7 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
         initWithPrefService:browser_->GetProfile()->GetPrefs()];
     bwg_gateway_.pageStateChangeHandler = gemini_page_state_change_handler_;
 
-    bwg_session_handler_ = [[BWGSessionHandler alloc]
+    bwg_session_handler_ = [[GeminiSessionHandler alloc]
         initWithWebStateList:browser_->GetWebStateList()];
     if (IsGeminiCopresenceEnabled()) {
       gemini_view_state_handler_ = [[GeminiViewStateChangeHandler alloc]
@@ -183,10 +185,18 @@ GeminiBrowserAgent::GeminiBrowserAgent(Browser* browser)
         initWithWebStateList:browser_->GetWebStateList()];
     bwg_gateway_.suggestionHandler = gemini_suggestion_handler_;
 
-    if (IsGeminiImageRemixToolEnabled()) {
+    if (gemini::IsFeatureAvailable(gemini::Feature::kImageRemix,
+                                   browser_->GetProfile())) {
       gemini_camera_handler_ = [[GeminiCameraHandler alloc]
           initWithPrefService:browser_->GetProfile()->GetPrefs()];
       bwg_gateway_.cameraHandler = gemini_camera_handler_;
+    }
+
+    if (IsGeminiActorEnabled() && IsActorEnabled()) {
+      gemini_actuation_handler_ = [[GeminiActuationHandler alloc]
+          initWithActorService:actor::ActorServiceFactory::GetForProfile(
+                                   browser_->GetProfile())];
+      bwg_gateway_.actuationHandler = gemini_actuation_handler_;
     }
 
     ConfigureGemini();
@@ -242,6 +252,8 @@ GeminiBrowserAgent::~GeminiBrowserAgent() {
   [bwg_link_opening_handler_ disconnect];
   bwg_link_opening_handler_ = nil;
 
+  gemini_actuation_handler_ = nil;
+
   if (keyboard_show_observer_) {
     [[NSNotificationCenter defaultCenter]
         removeObserver:keyboard_show_observer_];
@@ -276,6 +288,8 @@ GeminiBrowserAgent::~GeminiBrowserAgent() {
 void GeminiBrowserAgent::BrowserDestroyed(Browser* browser) {
   [bwg_link_opening_handler_ disconnect];
   bwg_link_opening_handler_ = nil;
+
+  gemini_actuation_handler_ = nil;
 
   if (identity_manager_) {
     identity_manager_->RemoveObserver(this);
@@ -1113,7 +1127,8 @@ void GeminiBrowserAgent::PresentFloatyWithState(
   config.responseViewDynamicSizeEnabled =
       IsGeminiResponseViewDynamicResizingEnabled();
   config.geminiChatPersistenceEnabled = IsGeminiChatPersistenceEnabled();
-
+  config.imageRemixEnabled = gemini::IsFeatureAvailable(
+      gemini::Feature::kImageRemix, browser_->GetProfile());
   // Set the location permission state.
   // TODO(crbug.com/426207968): Populate with actual value.
   config.geminiLocationPermissionState =

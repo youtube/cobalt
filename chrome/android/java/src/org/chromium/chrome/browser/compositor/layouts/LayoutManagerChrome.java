@@ -24,7 +24,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.browser_controls.BrowserControlsStateProvider;
 import org.chromium.chrome.browser.device.DeviceClassManager;
-import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.hub.HubLayout;
 import org.chromium.chrome.browser.hub.HubLayoutDependencyHolder;
@@ -44,9 +43,9 @@ import org.chromium.chrome.browser.toolbar.ToolbarPositionController;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.ScrollDirection;
 import org.chromium.components.browser_ui.widget.gesture.SwipeGestureListener.SwipeHandler;
-import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.resources.dynamics.DynamicResourceLoader;
 import org.chromium.ui.util.AccessibilityUtil;
+import org.chromium.ui.util.MotionEventUtils;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -407,7 +406,7 @@ public class LayoutManagerChrome extends LayoutManagerImpl implements Accessibil
         }
 
         @Override
-        public void onSwipeStarted(@ScrollDirection int direction, MotionEvent ev) {
+        public void onSwipeStarted(@ScrollDirection int direction, MotionEvent triggerEvent) {
             mScrollDirection = ScrollDirection.UNKNOWN;
         }
 
@@ -494,11 +493,16 @@ public class LayoutManagerChrome extends LayoutManagerImpl implements Accessibil
         }
 
         @Override
-        public boolean isSwipeEnabled(@ScrollDirection int direction) {
+        public boolean isSwipeEnabled(@ScrollDirection int direction, MotionEvent triggerEvent) {
             FullscreenManager manager = mHost.getFullscreenManager();
             if (!DeviceClassManager.enableToolbarSwipe()
                     || getActiveLayout() != mStaticLayout
                     || (manager != null && manager.getPersistentFullscreenMode())) {
+                return false;
+            }
+
+            if (MotionEventUtils.isPointerEvent(triggerEvent)) {
+                // Dragging on the toolbar with the pointer should not cause swipes.
                 return false;
             }
 
@@ -508,22 +512,9 @@ public class LayoutManagerChrome extends LayoutManagerImpl implements Accessibil
             int showTabSwitcherScrollDirection =
                     toolbarShownOnTop ? ScrollDirection.DOWN : ScrollDirection.UP;
 
-            if (direction == showTabSwitcherScrollDirection) {
-                // TODO(crbug.com/493270994): Revisit whether we should enable swipe to show tab
-                // switcher on LFF.
-                return true;
-            }
-
-            // TODO(crbug.com/493270994): Remove {@code isDesktop()} check and replace it with a
-            // proper solution that handles all formfactors.
-            if (ChromeFeatureList.isEnabled(
-                            ChromeFeatureList.ENABLE_TOOLBAR_SWIPE_ON_NON_DESKTOP_LFF)
-                    ? DeviceInfo.isDesktop()
-                    : DeviceFormFactor.isNonMultiDisplayContextOnTablet(mHost.getContext())) {
-                return false;
-            }
-
-            return direction == ScrollDirection.LEFT || direction == ScrollDirection.RIGHT;
+            return direction == showTabSwitcherScrollDirection
+                    || direction == ScrollDirection.LEFT
+                    || direction == ScrollDirection.RIGHT;
         }
     }
 

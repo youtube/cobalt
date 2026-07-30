@@ -179,6 +179,7 @@ struct WebPreferences {
   // Disallow user opt-in for blockable mixed content.
   bool strictly_block_blockable_mixed_content;
   bool block_mixed_plugin_content;
+  bool highlight_ads;
   bool password_echo_enabled_physical;
   bool password_echo_enabled_touch;
   bool should_clear_document_background;
@@ -275,7 +276,6 @@ struct WebPreferences {
 
   bool fullscreen_supported;
 
-  bool text_autosizing_enabled;
   bool text_size_adjust_enabled;
 
   // Representation of the Web App Manifest scope if any.
@@ -293,9 +293,6 @@ struct WebPreferences {
 
   [EnableIf=is_android]
   int32 text_size_contrast_factor;
-
-  [EnableIf=is_android]
-  float device_scale_adjustment;
 
   [EnableIf=is_android]
   bool force_enable_zoom;

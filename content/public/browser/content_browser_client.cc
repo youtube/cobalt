@@ -231,14 +231,14 @@ bool ContentBrowserClient::DoesWebUIUrlRequireProcessLock(const GURL& url) {
   return true;
 }
 
-bool ContentBrowserClient::ShouldTreatURLSchemeAsFirstPartyWhenTopLevel(
-    std::string_view scheme,
+bool ContentBrowserClient::ShouldTreatAsFirstPartyWhenTopLevel(
+    const url::Origin& top_frame_origin,
     bool is_embedded_origin_secure) {
   return false;
 }
 
 bool ContentBrowserClient::ShouldIgnoreSameSiteCookieRestrictionsWhenTopLevel(
-    std::string_view scheme,
+    const url::Origin& top_frame_origin,
     bool is_embedded_origin_secure) {
   return false;
 }
@@ -533,6 +533,12 @@ bool ContentBrowserClient::IsServiceWorkerAutoPreloadAllowed(
 bool ContentBrowserClient::AllowSharedWorkerBlobURLFix(
     BrowserContext* context) {
   return true;
+}
+
+bool ContentBrowserClient::IsDataUrlInWebWorkerOpaqueOriginEnabled(
+    BrowserContext* context) {
+  return base::FeatureList::IsEnabled(
+      blink::features::kDataUrlWorkerOpaqueOrigin);
 }
 
 bool ContentBrowserClient::AllowSharedWorkerExtendedLifetime(

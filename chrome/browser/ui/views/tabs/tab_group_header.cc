@@ -29,14 +29,13 @@
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_tracker.h"
 #include "chrome/browser/ui/views/tabs/groups/tab_group_editor_bubble_view.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
 #include "chrome/browser/ui/views/tabs/tab_group_style.h"
 #include "chrome/browser/ui/views/tabs/tab_group_underline.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
-#include "chrome/browser/ui/views/tabs/tab_strip_layout.h"
-#include "chrome/browser/ui/views/tabs/tab_strip_types.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/data_sharing/public/features.h"
 #include "components/saved_tab_groups/public/features.h"
@@ -389,6 +388,10 @@ bool TabGroupHeader::IsValidHoverCardTarget() const {
   DCHECK(features::IsTabGroupHoverCardsEnabled());
   return group().has_value() &&
          tab_slot_controller_->GetTabGroup(group().value()) != nullptr;
+}
+
+views::BubbleAnchor TabGroupHeader::GetAnchor() {
+  return views::BubbleAnchor(this);
 }
 
 views::BubbleBorder::Arrow TabGroupHeader::GetAnchorPosition() const {

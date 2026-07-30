@@ -88,7 +88,7 @@ proto::RedactionDecision ConvertAutofillFieldRedactionReason(
                        REDACTION_DECISION_REDACTED_IS_SENSITIVE_PAYMENT_FIELD;
     case AutofillFieldRedactionReason::kShouldRedactForOtp:
       return form_control_data.field_value().empty()
-                 ? proto::REDACTION_DECISION_NO_REDACTION_NECESSARY
+                 ? proto::REDACTION_DECISION_UNREDACTED_EMPTY_OTP_FIELD
                  : proto::REDACTION_DECISION_REDACTED_IS_OTP;
   }
 }
@@ -116,6 +116,7 @@ bool ShouldRedactContent(proto::RedactionDecision redaction_decision) {
     case proto::REDACTION_DECISION_NO_REDACTION_NECESSARY:
     case proto::REDACTION_DECISION_UNREDACTED_EMPTY_PASSWORD:
     case proto::REDACTION_DECISION_UNREDACTED_EMPTY_PAYMENT_FIELD:
+    case proto::REDACTION_DECISION_UNREDACTED_EMPTY_OTP_FIELD:
       return false;
 
     case proto::REDACTION_DECISION_REDACTED_HAS_BEEN_PASSWORD:
@@ -1415,15 +1416,13 @@ base::expected<void, std::string> ConvertAIPageContentToProto(
         page_content_result.proto.mutable_page_interaction_info());
   }
 
-  auto version = optimization_guide::proto::ANNOTATED_PAGE_CONTENT_VERSION_1_0;
   auto mode = optimization_guide::proto::ANNOTATED_PAGE_CONTENT_MODE_DEFAULT;
   if (converter.actionable_mode()) {
-    version = optimization_guide::proto::
-        ANNOTATED_PAGE_CONTENT_VERSION_ONLY_ACTIONABLE_ELEMENTS_1_0;
     mode = optimization_guide::proto::
         ANNOTATED_PAGE_CONTENT_MODE_ACTIONABLE_ELEMENTS;
   }
-  page_content_result.proto.set_version(version);
+  page_content_result.proto.set_version(
+      optimization_guide::proto::ANNOTATED_PAGE_CONTENT_VERSION_1_0);
   page_content_result.proto.set_mode(mode);
 
   // If the page had a popup open, provide that popup to APC as well.

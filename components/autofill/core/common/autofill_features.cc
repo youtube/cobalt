@@ -161,7 +161,9 @@ BASE_FEATURE(kAutofillAiAlwaysTriggerServerModel,
 // If enabled Autofill AI becomes available by default and the previous enable
 // toggle controls whether online model runs and MQLS logging are allowed.
 // TODO(crbug.com/440488776): Remove once clean up happens.
-BASE_FEATURE(kAutofillAiAvailableByDefault, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiAvailableByDefault,
+             IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
+                                     : base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Kill switch. If enabled, the EntityDataManager is created irrespective of
 // whether other features are enabled. This is necessary so that cleaning up the
@@ -210,6 +212,10 @@ BASE_FEATURE_PARAM(std::string,
 // both the previous and the new value of an updated entity attribute.
 BASE_FEATURE(kAutofillAiNewUpdatePrompt, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, Autofill AI filling suggestion do not have an icon.
+BASE_FEATURE(kAutofillAiNoFillingIconsExperiment,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, AutofillAi supports order entities.
 BASE_FEATURE(kAutofillAiOrder, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -217,7 +223,9 @@ BASE_FEATURE(kAutofillAiOrder, base::FEATURE_DISABLED_BY_DEFAULT);
 // fields. As part of this feature sensitive fields are also obfuscated during
 // suggestion generation time.
 // TODO(crbug.com/468236932): Remove once feature is launched.
-BASE_FEATURE(kAutofillAiReauthRequired, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAutofillAiReauthRequired,
+             IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
+                                     : base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, a HaTS survey is shown after the save prompt for a walletable
 // entity was interacted with.
@@ -395,7 +403,7 @@ BASE_FEATURE(kAutofillBetterLocalHeuristicPlaceholderSupport,
 // If enabled, our `FormEventLogger` will start emitting events for fields
 // annotated with an unrecognized HTML "autocomplete" attribute.
 BASE_FEATURE(kAutofillConsiderAutocompleteUnrecognizedFieldsInMetrics,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Same as `kAutofillAddressUserPerceptionSurvey` but for credit card forms.
 BASE_FEATURE(kAutofillCreditCardUserPerceptionSurvey,
@@ -898,7 +906,7 @@ BASE_FEATURE(kAutofillServerUploadMoreData, base::FEATURE_ENABLED_BY_DEFAULT);
 // the priorities of the bubbles.
 // TODO(crbug.com/432429605): Remove when launched.
 BASE_FEATURE(kAutofillShowBubblesBasedOnPriorities,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, a pre-filled field will not be filled.
 BASE_FEATURE(kAutofillSkipPreFilledFields, base::FEATURE_ENABLED_BY_DEFAULT);

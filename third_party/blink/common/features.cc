@@ -480,6 +480,34 @@ BASE_FEATURE(kDeclarativeCSSModulesUseDataURI,
 
 BASE_FEATURE(kDataUrlWorkerOpaqueOrigin, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, HTMLTreeBuilder::Flush() will be throttled in kTextMode
+// to reduce O(n^2) string copies.
+// The first flush will always be allowed to complete immediately, then
+// subsequent flushes will be throttled and will backoff exponentially up to a
+// "max_interval". The "initial_interval" is the delay introduced after the
+// first flush and is increased by "multiplier" for each subsequent flushes.
+// See https://crbug.com/500385603 for more context and how the numbers were
+// selected.
+BASE_FEATURE(kDeferTreeBuilderFlush, base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kDeferTreeBuilderFlushInitialInterval,
+                   &kDeferTreeBuilderFlush,
+                   "initial_interval",
+                   base::Milliseconds(16));
+
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kDeferTreeBuilderFlushMaxInterval,
+                   &kDeferTreeBuilderFlush,
+                   "max_interval",
+                   base::Seconds(2));
+
+BASE_FEATURE_PARAM(double,
+                   kDeferTreeBuilderFlushMultiplier,
+                   &kDeferTreeBuilderFlush,
+                   "multiplier",
+                   2.0);
+
 BASE_FEATURE(kDeferRendererTasksAfterInput, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const char kDeferRendererTasksAfterInputPolicyParamName[] = "policy";
@@ -953,11 +981,7 @@ BASE_FEATURE(kFledgeTruncateSelectableBuyerAndSellerReportingIdsToKAnonLimit,
 BASE_FEATURE(kForceHighPerformanceGPUForWebGL,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Text autosizing uses heuristics to inflate text sizes on devices with
-// small screens. This feature is for disabling these heuristics.
-BASE_FEATURE(kForceOffTextAutosizing, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kForceSkcmsICCParsing, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kForceSkcmsICCParsing, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kForceSkExifCppParsing, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1861,6 +1885,13 @@ BASE_FEATURE(kMemoryPurgeOnFreeze,
 
 BASE_FEATURE(kMemoryPurgeOnFreezeLimit, base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kDataURIMemoryCache, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(int,
+                   kDataURIMemoryCacheTotalSizeThresholdParam,
+                   &kDataURIMemoryCache,
+                   "data_uri_memory_cache_total_size_threshold",
+                   512 * 1024);
+
 BASE_FEATURE(kMemorySaverModeRenderTuning, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(int,
                    kAvailableMemoryThresholdParamMb,
@@ -2545,10 +2576,6 @@ BASE_FEATURE(kUrgentMainFrameForInput,
 // to canonicalize URL properties. See https://crbug.com/409350827
 BASE_FEATURE(kURLPatternDummyURLCanonicalization,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Uses page viewport instead of frame viewport in the Largest Contentful Paint
-// heuristic where images occupying the full viewport are ignored.
-BASE_FEATURE(kUsePageViewportInLCP, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Use PersistentCache on either side of blink.mojom.CodeCacheHost. This feature
 // is dependent on net::HttpCache::IsSplitCacheEnabled() being true. Always use

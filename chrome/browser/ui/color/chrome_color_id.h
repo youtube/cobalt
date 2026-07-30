@@ -205,6 +205,7 @@
   E_CPONLY(kColorGlicInactiveTabUnderlineGradient1) \
   E_CPONLY(kColorGlicInactiveTabUnderlineGradient2) \
   E_CPONLY(kColorGlicInactiveTabUnderlineGradient3) \
+  E_CPONLY(kColorGlicSelectionOverlayToast) \
   /* Hover Button colors */ \
   E_CPONLY(kColorHoverButtonBackgroundHovered) \
   /* Lens overlay colors. */ \
@@ -402,6 +403,7 @@
   E_CPONLY(kColorOmniboxChipOnSystemBlockedActivityIndicatorBackground) \
   E_CPONLY(kColorOmniboxChipOnSystemBlockedActivityIndicatorForeground) \
   E_CPONLY(kColorOmniboxComposeboxChipBackground) \
+  E_CPONLY(kColorOmniboxComposeboxResultsBackgroundHovered) \
   E_CPONLY(kColorOmniboxComposeboxDivider) \
   E_CPONLY(kColorOmniboxComposeboxFaviconBackground) \
   E_CPONLY(kColorOmniboxComposeboxFileThumbnailOverlay) \

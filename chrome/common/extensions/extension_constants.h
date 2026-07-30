@@ -70,6 +70,16 @@ inline constexpr char kInAppPaymentsSupportAppId[] =
 inline constexpr char kKeyboardExtensionId[] =
     "mppnpdlheglhdfmldimlhpnegondlapf";
 
+// The extension id of the Gemini transition extension.
+inline constexpr char kGlicExtensionId[] = "admccjkmockfdflocgggjfgdacdodkdf";
+
+// The public key of the Gemini transition extension.
+inline constexpr char kGlicPublicKey[] =
+    "MIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDZI0bgiASzP89xOCIcg2Ej0S4/"
+    "2Xoi8htu1qh4M1o4V0Q8GiqJ2nU2xJ9dJYxpMQff9OtNJ3giNman1xodSImQEWtm+"
+    "YVUWJKu8V5ZyGWRJTtyo0tQiyNOx/kf3/"
+    "f43CtsAKtsbFqJy9i9ux7JmF+KoORP1fjBJs0zpOGXWHbqIQIDAQAB";
+
 // The buckets used for app launches.
 enum AppLaunchBucket {
   // Launch from NTP apps section while maximized.
@@ -316,14 +326,6 @@ inline constexpr char kAppStateReadyToRun[] = "ready_to_run";
 
 // The path part of the file system url used for media file systems.
 inline constexpr char kMediaFileSystemPathPart[] = "_";
-
-// The key name of extension request timestamp used by the
-// prefs::kCloudExtensionRequestIds preference.
-inline constexpr char kExtensionRequestTimestamp[] = "timestamp";
-
-// The key name of the extension workflow request justification used by the
-// prefs::kCloudExtensionRequestIds preference.
-inline constexpr char kExtensionWorkflowJustification[] = "justification";
 
 inline constexpr auto kBuiltInFirstPartyExtensionIds =
     std::to_array<const std::string_view>({

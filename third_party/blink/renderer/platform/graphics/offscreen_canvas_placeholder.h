@@ -11,14 +11,13 @@
 #include "base/memory/weak_ptr.h"
 #include "base/task/single_thread_task_runner.h"
 #include "cc/paint/paint_flags.h"
-#include "components/viz/common/resources/resource_id.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_dispatcher.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/wtf/allocator/allocator.h"
 
 namespace blink {
 
-class CanvasResource;
+class ExportedCanvasResource;
 
 class PLATFORM_EXPORT OffscreenCanvasPlaceholder {
   DISALLOW_NEW();
@@ -26,8 +25,8 @@ class PLATFORM_EXPORT OffscreenCanvasPlaceholder {
  public:
   ~OffscreenCanvasPlaceholder();
 
-  virtual void SetOffscreenCanvasResource(scoped_refptr<CanvasResource>&&,
-                                          viz::ResourceId resource_id);
+  virtual void SetOffscreenCanvasResource(
+      scoped_refptr<ExportedCanvasResource>&&);
   void SetOffscreenCanvasDispatcher(
       base::WeakPtr<CanvasResourceDispatcher>,
       scoped_refptr<base::SingleThreadTaskRunner>);
@@ -41,7 +40,7 @@ class PLATFORM_EXPORT OffscreenCanvasPlaceholder {
   void RegisterPlaceholderCanvas(unsigned placeholder_id);
   void UnregisterPlaceholderCanvas();
   bool HasOffscreenCanvasFrame() const { return !!placeholder_frame_; }
-  CanvasResource* OffscreenCanvasFrame() const {
+  ExportedCanvasResource* OffscreenCanvasFrame() const {
     return placeholder_frame_.get();
   }
 
@@ -60,7 +59,7 @@ class PLATFORM_EXPORT OffscreenCanvasPlaceholder {
       CanvasResourceDispatcher::AnimationState animation_state);
 
   // Information about the Offscreen Canvas:
-  scoped_refptr<CanvasResource> placeholder_frame_;
+  scoped_refptr<ExportedCanvasResource> placeholder_frame_;
   base::WeakPtr<CanvasResourceDispatcher> frame_dispatcher_;
   scoped_refptr<base::SingleThreadTaskRunner> frame_dispatcher_task_runner_;
 

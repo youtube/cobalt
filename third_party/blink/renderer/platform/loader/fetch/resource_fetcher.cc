@@ -1026,6 +1026,10 @@ Resource* ResourceFetcher::CreateResourceForStaticData(
       // There's no reason to re-parse if we saved the data from the previous
       // parse.
       if (params.Options().data_buffering_policy != kDoNotBufferData) {
+        if (url.ProtocolIsData()) {
+          // Touch the strong reference to update LRU on cache hit.
+          MemoryCache::Get()->SaveDataURIStrongReference(old_resource);
+        }
         return old_resource;
       }
       MemoryCache::Get()->Remove(old_resource);
@@ -1124,6 +1128,13 @@ Resource* ResourceFetcher::CreateResourceForStaticData(
   }
 
   AddToMemoryCacheIfNeeded(params, resource);
+  if (url.ProtocolIsData()) {
+    // Keep a strong reference to data URI resources so they survive GC across
+    // navigations. Data URIs are immutable, so caching is always safe.
+    if (IsMainThread()) {
+      MemoryCache::Get()->SaveDataURIStrongReference(resource);
+    }
+  }
   return resource;
 }
 
@@ -1891,6 +1902,14 @@ Resource* ResourceFetcher::MatchPreload(
   resource->MatchPreload(params);
   preloads_.erase(it);
   matched_preloads_.push_back(resource);
+
+  if (RuntimeEnabledFeatures::SpeculationMeasurementEnabled()) {
+    auto record_it = preload_records_.find(resource->Url());
+    if (record_it != preload_records_.end()) {
+      record_it->value.used_time = base::TimeTicks::Now();
+    }
+  }
+
   return resource;
 }
 
@@ -1975,6 +1994,20 @@ void ResourceFetcher::InsertAsPreloadIfNecessary(Resource* resource,
   resource->MarkAsPreload();
   if (preloaded_urls_for_test_) {
     preloaded_urls_for_test_->insert(resource->Url().GetString());
+  }
+
+  // Only track <link rel=preload> in `preload_records_` for the
+  // SpeculationMeasurement API. Speculative preloads from the HTML parser
+  // are not developer-initiated and should not be reported.
+  if (RuntimeEnabledFeatures::SpeculationMeasurementEnabled() &&
+      params.IsLinkPreload()) {
+    const KURL& url = resource->Url();
+    if (!preload_records_.Contains(url)) {
+      PreloadInfo info;
+      info.resource_type = resource->GetType();
+      info.crossorigin = params.GetCrossOriginAttributeValue();
+      preload_records_.insert(url, std::move(info));
+    }
   }
 }
 

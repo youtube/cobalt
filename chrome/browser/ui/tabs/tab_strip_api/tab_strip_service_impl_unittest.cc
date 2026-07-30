@@ -11,6 +11,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/browser_adapter.h"
+#include "chrome/browser/ui/tabs/tab_strip_api/adapters/experimental_platform_adapters_provider.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/adapters/tab_strip_model_adapter.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/testing/injector.h"
 #include "chrome/browser/ui/tabs/tab_strip_api/testing/toy_tab_strip.h"
@@ -38,7 +39,7 @@ class TabStripServiceImplTest : public ::testing::Test {
   void SetUp() override {
     tab_strip_ = std::make_unique<testing::ToyTabStrip>();
     service_ = std::make_unique<TabStripServiceImpl>(
-        std::make_unique<testing::Injector>(*tab_strip_));
+        std::make_unique<testing::Injector>(*tab_strip_), nullptr);
   }
 
  protected:
@@ -341,7 +342,7 @@ TEST_F(TabStripServiceImplTest, UpdateTabGroup) {
 
   auto data = mojom::Data::NewTabGroup(std::move(tab_group_mojom));
 
-  auto result = service_->Update(std::move(data));
+  auto result = service_->Update(std::move(data), std::nullopt);
   ASSERT_TRUE(result.has_value());
   ASSERT_TRUE(result.value()->is_tab_group());
   ASSERT_EQ(result.value()->get_tab_group()->data.title(),
@@ -361,10 +362,43 @@ TEST_F(TabStripServiceImplTest, Update_Unimplemented) {
   tab_mojom->id = tab_id;
 
   auto data = mojom::Data::NewTab(std::move(tab_mojom));
-  auto result = service_->Update(std::move(data));
+  auto result = service_->Update(std::move(data), std::nullopt);
 
   ASSERT_FALSE(result.has_value());
   ASSERT_EQ(result.error()->code, mojo_base::mojom::Code::kUnimplemented);
+}
+
+TEST_F(TabStripServiceImplTest, UpdateTabGroupPartial) {
+  tab_groups::TabGroupVisualData initial_visuals(
+      u"group", tab_groups::TabGroupColorId::kGrey, false);
+  auto group_handle = tab_strip_->AddGroup(initial_visuals);
+  NodeId group_node = NodeId::FromTabCollectionHandle(group_handle);
+
+  mojom::TabGroupPtr tab_group_mojom = mojom::TabGroup::New();
+  tab_group_mojom->id = group_node;
+  // We want to update title but NOT color or collapsed state.
+  tab_group_mojom->data = tab_groups::TabGroupVisualData(
+      u"super duper group", tab_groups::TabGroupColorId::kBlue, true);
+
+  auto data = mojom::Data::NewTabGroup(std::move(tab_group_mojom));
+  std::vector<std::string> mask = {"title"};
+
+  auto result = service_->Update(std::move(data), mask);
+  ASSERT_TRUE(result.has_value());
+  ASSERT_TRUE(result.value()->is_tab_group());
+  ASSERT_EQ(result.value()->get_tab_group()->data.title(),
+            u"super duper group");
+  // Color should still be grey.
+  ASSERT_EQ(result.value()->get_tab_group()->data.color(),
+            tab_groups::TabGroupColorId::kGrey);
+  // Is collapsed should still be false.
+  ASSERT_FALSE(result.value()->get_tab_group()->data.is_collapsed());
+
+  const auto* updated_visuals = tab_strip_->GetGroupVisualData(group_handle);
+  ASSERT_NE(nullptr, updated_visuals);
+  ASSERT_EQ(u"super duper group", updated_visuals->title());
+  ASSERT_EQ(tab_groups::TabGroupColorId::kGrey, updated_visuals->color());
+  ASSERT_FALSE(updated_visuals->is_collapsed());
 }
 
 }  // namespace

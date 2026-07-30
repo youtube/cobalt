@@ -14,8 +14,8 @@
 // Opens Lens View Finder.
 - (void)openLensViewFinder;
 
-// Opens the MIA experience.
-- (void)openMIA;
+// Opens the AIM experience.
+- (void)openAIM;
 
 // Preload views and view controllers needed for voice search.
 - (void)preloadVoiceSearch;
@@ -26,6 +26,9 @@
 
 // Opens a new incognito search.
 - (void)openIncognitoSearch;
+
+// Opens the multimodal actions menu.
+- (void)openMultimodalActionsMenu;
 
 @end
 

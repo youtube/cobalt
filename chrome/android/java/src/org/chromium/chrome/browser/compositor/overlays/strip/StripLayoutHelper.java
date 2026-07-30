@@ -42,6 +42,7 @@ import androidx.annotation.ColorInt;
 import androidx.annotation.IntDef;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
+import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.view.ViewCompat;
 
 import org.chromium.base.Callback;
@@ -181,6 +182,12 @@ public class StripLayoutHelper
     private static final int ANIM_TAB_RESIZE_MS = 200;
     private static final int ANIM_TAB_DRAW_X_MS = 250;
     private static final int ANIM_BUTTONS_FADE_MS = 150;
+
+    // Fade constants.
+    static final float NO_BUTTON_FADE_OPAQUE_WIDTH_DP = 8;
+    static final float NO_BUTTON_FADE_GRADIENT_WIDTH_DP = 52;
+    static final float BUTTON_FADE_GRADIENT_SHORT_WIDTH_DP = 24;
+    static final float BUTTON_FADE_GRADIENT_LONG_WIDTH_DP = 32;
 
     // Visibility Constants
     private static final float NEW_TAB_BUTTON_BACKGROUND_Y_OFFSET_DP = 3.f;
@@ -574,12 +581,15 @@ public class StripLayoutHelper
     private float mWidth;
     private float mHeight;
     private long mLastSpinnerUpdate;
+    // TODO(crbug.com/501549791): Consider simplifying/merging some of the logic for the left/right
+    //  paddings/fades/margins.
     // The margins on the tab strip used when positioning tabs. Tabs within these margins are not
     // touchable, but other strip widgets (e.g new tab button) could be.
     private float mLeftMargin;
     private float mRightMargin;
     private float mLeftFadeWidth;
     private float mRightFadeWidth;
+    private float mButtonSideFadeGradientWidth;
     // Padding regions on the edges of the strip where strip touch events are blocked. Different
     // from margins, no strip widgets should be drawn within the padding regions.
     private float mLeftPadding;
@@ -587,6 +597,7 @@ public class StripLayoutHelper
     private float mTopPadding;
 
     // New tab button with tab strip end padding
+    private final float mButtonSideFadePadding;
     private final float mFixedEndPadding;
     private float mReservedEndMargin;
 
@@ -760,10 +771,13 @@ public class StripLayoutHelper
         mScrollDelegate = new ScrollDelegate(context);
 
         // Use toolbar menu button padding to align NTB with menu button.
-        mFixedEndPadding =
+        float buttonEndPadding =
                 context.getResources().getDimension(R.dimen.button_end_padding)
                         / context.getResources().getDisplayMetrics().density;
+        mButtonSideFadePadding = buttonEndPadding;
+        mFixedEndPadding = buttonEndPadding;
         mReservedEndMargin = mFixedEndPadding + mNewTabButtonWidth;
+        updateFades(/* stripButtonsTouchTargetSize= */ 0);
         updateMargins(false);
 
         mSceneOverlay = manager;
@@ -775,6 +789,7 @@ public class StripLayoutHelper
         mNewTabButton =
                 new TintedCompositorButton(
                         context,
+                        incognito,
                         ButtonType.NEW_TAB,
                         null,
                         BUTTON_BACKGROUND_SIZE_DP,
@@ -783,78 +798,65 @@ public class StripLayoutHelper
                         /* clickHandler= */ this,
                         /* keyboardFocusHandler= */ this,
                         R.drawable.ic_new_tab_button,
+                        R.drawable.bg_circle_tab_strip_button,
                         NEW_TAB_BUTTON_CLICK_SLOP_DP);
-        mNewTabButton.setBackgroundResourceId(R.drawable.bg_circle_tab_strip_button);
 
-        int apsBackgroundHoveredTint =
+        int backgroundHoverTint =
                 ColorUtils.setAlphaComponentWithFloat(
                         SemanticColorUtils.getDefaultTextColor(context),
                         NEW_TAB_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY);
-        int apsBackgroundPressedTint =
+        int backgroundPeripheralPressedTint =
                 ColorUtils.setAlphaComponentWithFloat(
                         SemanticColorUtils.getDefaultTextColor(context),
-                        NEW_TAB_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY);
-
-        int apsBackgroundIncognitoHoveredTint =
-                ColorUtils.setAlphaComponentWithFloat(
-                        context.getColor(R.color.tab_strip_button_hover_bg_color),
-                        NEW_TAB_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY);
-        int apsBackgroundIncognitoPressedTint =
-                ColorUtils.setAlphaComponentWithFloat(
-                        context.getColor(R.color.tab_strip_button_hover_bg_color),
                         NEW_TAB_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY);
 
         // Primary container for default bg color.
-        int backgroundDefaultTint = TabUiThemeProvider.getDefaultNtbContainerColor(context);
-
+        int backgroundTint = TabUiThemeProvider.getDefaultNtbContainerColor(context);
         // Primary @ 20% for default pressed bg color.
         int backgroundPressedTint =
                 ColorUtils.setAlphaComponentWithFloat(
                         SemanticColorUtils.getDefaultIconColorAccent1(context),
                         NEW_TAB_BUTTON_DEFAULT_PRESSED_OPACITY);
 
-        // gm3_baseline_surface_container_dark for incognito bg color.
-        int backgroundIncognitoDefaultTint =
-                context.getColor(R.color.tab_strip_bg_incognito_default_tint);
-
-        // gm3_baseline_surface_container_highest_dark for incognito pressed bg color
-        int backgroundIncognitoPressedTint =
-                context.getColor(R.color.tab_strip_bg_incognito_pressed_tint);
-
         // Tab strip redesign new tab button night mode bg color.
         if (ColorUtils.inNightMode(context)) {
             // colorSurfaceContainerLow for night mode bg color.
-            backgroundDefaultTint = SemanticColorUtils.getColorSurfaceContainerLow(context);
-
+            backgroundTint = SemanticColorUtils.getColorSurfaceContainerLow(context);
             // colorSurfaceContainerHighest for pressed night mode bg color.
-            backgroundPressedTint = SemanticColorUtils.getColorSurfaceContainerHighest(context);
+            backgroundPeripheralPressedTint =
+                    SemanticColorUtils.getColorSurfaceContainerHighest(context);
+        } else if (incognito) {
+            backgroundTint = context.getColor(R.color.tab_strip_bg_incognito_default_tint);
+            backgroundPressedTint = context.getColor(R.color.tab_strip_bg_incognito_pressed_tint);
+            backgroundHoverTint =
+                    ColorUtils.setAlphaComponentWithFloat(
+                            context.getColor(R.color.tab_strip_button_hover_bg_color),
+                            NEW_TAB_BUTTON_HOVER_BACKGROUND_DEFAULT_OPACITY);
+            backgroundPeripheralPressedTint =
+                    ColorUtils.setAlphaComponentWithFloat(
+                            context.getColor(R.color.tab_strip_button_hover_bg_color),
+                            NEW_TAB_BUTTON_HOVER_BACKGROUND_PRESSED_OPACITY);
         }
+
         mNewTabButton.setBackgroundTint(
-                backgroundDefaultTint,
+                backgroundTint,
+                backgroundHoverTint,
                 backgroundPressedTint,
-                backgroundIncognitoDefaultTint,
-                backgroundIncognitoPressedTint,
-                apsBackgroundHoveredTint,
-                apsBackgroundPressedTint,
-                apsBackgroundIncognitoHoveredTint,
-                apsBackgroundIncognitoPressedTint);
+                backgroundPeripheralPressedTint);
 
         // No pressed state color change for new tab button icon.
-        mNewTabButton.setTintResources(
-                R.color.default_icon_color_tint_list,
-                R.color.default_icon_color_tint_list,
-                R.color.modern_white,
-                R.color.modern_white);
+        int iconTint = incognito ? R.color.modern_white : R.color.default_icon_color_tint_list;
+        int iconColor = AppCompatResources.getColorStateList(context, iconTint).getDefaultColor();
+        mNewTabButton.setTint(iconColor);
 
         // y-offset  = lowered tab container + (tab container size - bg size)/2 -
         // Tab title y-offset = 2 + (38 - 32)/2 - 2 = 3dp
         mNewTabButton.setDrawY(NEW_TAB_BUTTON_BACKGROUND_Y_OFFSET_DP);
-
-        mNewTabButton.setIncognito(incognito);
         Resources res = context.getResources();
         mNewTabButton.setAccessibilityDescription(
-                res.getString(R.string.accessibility_toolbar_btn_new_tab),
-                res.getString(R.string.accessibility_toolbar_btn_new_incognito_tab));
+                incognito
+                        ? res.getString(R.string.accessibility_toolbar_btn_new_incognito_tab)
+                        : res.getString(R.string.accessibility_toolbar_btn_new_tab));
         mContext = context;
         mIncognito = incognito;
 
@@ -1075,6 +1077,38 @@ public class StripLayoutHelper
         }
     }
 
+    public float getLeftFadeGradientWidth() {
+        return LocalizationUtils.isLayoutRtl()
+                ? mButtonSideFadeGradientWidth
+                : NO_BUTTON_FADE_GRADIENT_WIDTH_DP;
+    }
+
+    public float getRightFadeGradientWidth() {
+        return LocalizationUtils.isLayoutRtl()
+                ? NO_BUTTON_FADE_GRADIENT_WIDTH_DP
+                : mButtonSideFadeGradientWidth;
+    }
+
+    public float getLeftFadeOpaqueWidth() {
+        return LocalizationUtils.isLayoutRtl()
+                ? mLeftFadeWidth - mButtonSideFadeGradientWidth
+                : NO_BUTTON_FADE_OPAQUE_WIDTH_DP;
+    }
+
+    public float getRightFadeOpaqueWidth() {
+        return LocalizationUtils.isLayoutRtl()
+                ? NO_BUTTON_FADE_OPAQUE_WIDTH_DP
+                : mRightFadeWidth - mButtonSideFadeGradientWidth;
+    }
+
+    float getLeftFadeWidthForTesting() {
+        return mLeftFadeWidth;
+    }
+
+    float getRightFadeWidthForTesting() {
+        return mRightFadeWidth;
+    }
+
     private boolean doPinnedTabsOccupyEntireVisibleArea() {
         // Return false if tab strip is still initializing and `mWidth` is 0.
         if (mWidth == 0) return false;
@@ -1137,7 +1171,6 @@ public class StripLayoutHelper
      * @param glicTouchTargetSize The touch target size for the Glic button.
      * @param msbTouchTargetSize The touch target size for the model selector button.
      */
-    // TODO(crbug.com/483119043): Fading assets only support 2 buttons (NTB and MSB)
     public void updateEndMarginForStripButtons(
             float glicTouchTargetSize, float msbTouchTargetSize) {
         // There are two additional tab strip buttons: Glic & MSB
@@ -1150,6 +1183,8 @@ public class StripLayoutHelper
                         ? NEW_TAB_BUTTON_WITH_STRIP_BUTTON_PADDING
                         : mFixedEndPadding;
         mReservedEndMargin = stripButtonsTouchTargetSize + mNewTabButtonWidth + padding;
+
+        updateFades(stripButtonsTouchTargetSize);
         updateMargins(true);
     }
 
@@ -1167,27 +1202,21 @@ public class StripLayoutHelper
         }
     }
 
-    /**
-     * Sets the left fade width based on which fade is showing.
-     *
-     * @param fadeWidth The width of the left fade.
-     */
-    public void setLeftFadeWidth(float fadeWidth) {
-        if (mLeftFadeWidth != fadeWidth) {
-            mLeftFadeWidth = fadeWidth;
-            bringSelectedTabToVisibleArea(LayoutManagerImpl.time(), false);
-        }
-    }
+    private void updateFades(float stripButtonsTouchTargetSize) {
+        mButtonSideFadeGradientWidth =
+                stripButtonsTouchTargetSize > 0
+                        ? BUTTON_FADE_GRADIENT_LONG_WIDTH_DP
+                        : BUTTON_FADE_GRADIENT_SHORT_WIDTH_DP;
 
-    /**
-     * Sets the right fade width based on which fade is showing.
-     *
-     * @param fadeWidth The width of the right fade.
-     */
-    public void setRightFadeWidth(float fadeWidth) {
-        if (mRightFadeWidth != fadeWidth) {
-            mRightFadeWidth = fadeWidth;
-            bringSelectedTabToVisibleArea(LayoutManagerImpl.time(), false);
+        float startFadeWidth = NO_BUTTON_FADE_GRADIENT_WIDTH_DP + NO_BUTTON_FADE_OPAQUE_WIDTH_DP;
+        float endFadeWidth =
+                mReservedEndMargin + mButtonSideFadePadding + mButtonSideFadeGradientWidth;
+        if (LocalizationUtils.isLayoutRtl()) {
+            mRightFadeWidth = startFadeWidth;
+            mLeftFadeWidth = endFadeWidth;
+        } else {
+            mLeftFadeWidth = startFadeWidth;
+            mRightFadeWidth = endFadeWidth;
         }
     }
 
@@ -3855,17 +3884,21 @@ public class StripLayoutHelper
     private void updateSpinners(long time) {
         long diff = time - mLastSpinnerUpdate;
         float degrees = diff * SPINNER_DPMS;
-        boolean tabsToLoad = false;
+        boolean tabHasSpinner = false;
         for (int i = 0; i < mStripTabs.length; i++) {
             StripLayoutTab tab = mStripTabs[i];
             // TODO(clholgat): Only update if the tab is visible.
             if (tab.isLoading()) {
                 tab.addLoadingSpinnerRotation(degrees);
-                tabsToLoad = true;
+                tabHasSpinner = true;
+            }
+            if (tab.getTabIndicatorStatus() == TabIndicatorStatus.DYNAMIC) {
+                tab.addTabIndicatorOverlayRotation(degrees);
+                tabHasSpinner = true;
             }
         }
         mLastSpinnerUpdate = time;
-        if (tabsToLoad) {
+        if (tabHasSpinner) {
             mStripTabEventHandler.removeMessages(MESSAGE_UPDATE_SPINNER);
             mStripTabEventHandler.sendEmptyMessageDelayed(
                     MESSAGE_UPDATE_SPINNER, SPINNER_UPDATE_DELAY_MS);
@@ -5349,13 +5382,15 @@ public class StripLayoutHelper
      * @param anchorView The Glic button the menu will be anchored to
      */
     private void showGlicButtonMenu(StripLayoutView anchorView) {
-        if (mGlicButtonContextMenuCoordinator == null) return;
+        if (mGlicButtonContextMenuCoordinator == null
+                || mModel == null
+                || mModel.getProfile() == null) return;
         RectProvider anchorRectProvider = new RectProvider();
         anchorView.getAnchorRect(anchorRectProvider.getRect());
         getAdjustedAnchorRect(anchorRectProvider);
         var activity = assertNonNull(mWindowAndroid.getActivity().get());
         mGlicButtonContextMenuCoordinator.showMenu(
-                anchorRectProvider, activity, mCachedTabWidthSupplier.get());
+                anchorRectProvider, activity, mModel.getProfile(), mCachedTabWidthSupplier.get());
     }
 
     /**

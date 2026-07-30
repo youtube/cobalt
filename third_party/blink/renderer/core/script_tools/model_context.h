@@ -37,6 +37,7 @@ class DeclarativeWebMCPTool : public GarbageCollectedMixin {
   // if the execution resulted in a navigation, or an error if the execution
   // failed.
   virtual void ExecuteTool(
+      const base::UnguessableToken& invocation_id,
       String input_arguments,
       base::OnceCallback<void(base::expected<String, ScriptToolError>)>
           done_callback) = 0;
@@ -90,7 +91,7 @@ class CORE_EXPORT ToolData : public GarbageCollected<ToolData> {
   }
   DeclarativeWebMCPTool* DeclarativeTool() const { return declarative_tool_; }
 
-  void RefreshDeclarativeInputSchema();
+  bool RefreshDeclarativeInputSchema();
 
   mojo::StructPtr<mojom::blink::ScriptTool> script_tool_;
   // A JS-provided MCP tool:
@@ -121,17 +122,17 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   std::optional<ScriptToolDeclaration> GetScriptToolDeclaration(
       const String& name) const;
 
-  std::optional<base::UnguessableToken> ExecuteTool(
-      const String& name,
-      const String& input_arguments,
-      AbortSignal* signal,
-      ScriptToolExecutedCallback tool_executed_cb);
+  bool ExecuteTool(const base::UnguessableToken& invocation_id,
+                   const String& name,
+                   const String& input_arguments,
+                   AbortSignal* signal,
+                   ScriptToolExecutedCallback tool_executed_cb);
   using CrossDocumentScriptToolResultCallback =
       base::OnceCallback<void(String)>;
   void GetCrossDocumentScriptToolResult(
       CrossDocumentScriptToolResultCallback result_callback);
 
-  void CancelTool(const base::UnguessableToken& execution_id);
+  bool CancelTool(const base::UnguessableToken& invocation_id);
 
   void SetToolChangeCallback(std::optional<base::RepeatingClosure> cb) {
     tool_change_closure_ = std::move(cb);
@@ -141,7 +142,10 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
                                String description,
                                DeclarativeWebMCPTool* tool);
   void PauseExecution();
+
   void DidFinishParsing();
+
+  void MaybeNotifyToolChanged();
 
   // Returns registered tools, sorted by CodeUnitCompareLessThan().
   HeapVector<Member<const ToolData>> ListTools() const;
@@ -155,25 +159,27 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   class ToolUnregisterAbortAlgorithm;
 
   bool ExecuteV8Tool(V8ToolExecuteCallback* tool_function,
-                     const base::UnguessableToken& execution_id,
+                     const base::UnguessableToken& invocation_id,
                      const String& name,
                      const String& input_arguments,
                      AbortSignal* signal,
                      ScriptToolExecutedCallback tool_executed_cb);
   void ExecuteDeclarativeTool(DeclarativeWebMCPTool* tool,
-                              const base::UnguessableToken& execution_id,
+                              const base::UnguessableToken& invocation_id,
                               const String& input_arguments,
                               ScriptToolExecutedCallback tool_executed_cb);
 
   void OnToolFailed(ScriptToolExecutedCallback callback,
-                    const base::UnguessableToken& execution_id,
+                    const base::UnguessableToken& invocation_id,
                     ScriptToolError&& error);
 
   void OnToolExecuted(
-      const base::UnguessableToken& execution_id,
+      const base::UnguessableToken& invocation_id,
       base::expected<String, std::pair<ScriptValue, ScriptState*>> result);
 
-  void OnToolChange();
+  void OnToolChange(bool force);
+  void InvokeToolChangeClosure(bool force);
+
   void MaybeRecordToolCount();
 
   HeapHashMap<String, Member<ToolData>> tool_map_;
@@ -181,6 +187,7 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   struct PendingExecution {
     String tool_name;
     ScriptToolExecutedCallback callback;
+    base::UnguessableToken invocation_id;
   };
   HashMap<String, PendingExecution> pending_executions_;
 
@@ -191,6 +198,10 @@ class CORE_EXPORT ModelContext : public ScriptWrappable {
   Member<Document> document_;
   scoped_refptr<base::SingleThreadTaskRunner> task_runner_;
   HeapMojoRemote<mojom::blink::ScriptToolHost> script_tool_host_remote_;
+
+  // True when a task to invoke tool_change_closure_ is pending.
+  // This batches multiple synchronous tool changes into a single notification.
+  bool tool_change_task_pending_ = false;
 
   // true when there is a pending or completed task to record the number
   // of registered tools.

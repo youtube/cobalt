@@ -26,8 +26,6 @@
 #include "chrome/browser/devtools/devtools_ui_controller.h"
 #include "chrome/browser/enterprise/data_protection/data_protection_ui_controller.h"
 #include "chrome/browser/extensions/browser_extension_window_controller.h"
-#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
-#include "chrome/browser/extensions/mv2_experiment_stage.h"
 #include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_iph_controller.h"
 #include "chrome/browser/glic/browser_ui/glic_nudge_controller.h"
@@ -177,6 +175,8 @@
 #include "components/search/ntp_features.h"
 #include "components/search/search.h"
 #include "content/public/common/content_constants.h"
+#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/mv2_experiment_stage.h"
 #include "extensions/common/extension_features.h"
 #include "ui/views/interaction/element_highlighter_views.h"
 
@@ -320,6 +320,12 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           std::make_unique<tab_groups::MostRecentSharedTabUpdateStore>(browser);
     }
 
+    if (base::FeatureList::IsEnabled(contextual_cueing::kContextualCueingV2)) {
+      contextual_cueing_controller_ =
+          std::make_unique<contextual_cueing::ContextualCueingController>(
+              browser, tab_list_bridge_.get());
+    }
+
     if (glic::GlicEnabling::IsProfileEligible(profile)) {
       glic_iph_controller_ = std::make_unique<glic::GlicIphController>(
           browser, *glic::GlicKeyedService::Get(profile));
@@ -369,12 +375,6 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           GetUserDataFactory().CreateInstance<ttc::AiOverlayDialogController>(
               *browser, browser);
     }
-
-    if (base::FeatureList::IsEnabled(contextual_cueing::kContextualCueingV2)) {
-      contextual_cueing_controller_ =
-          std::make_unique<contextual_cueing::ContextualCueingController>(
-              browser, tab_list_bridge_.get());
-    }
   }
 
   // The LensOverlayEntryPointController is constructed for all browser types
@@ -389,7 +389,10 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
 
   tab_strip_service_feature_ = std::make_unique<TabStripServiceFeature>(
       std::make_unique<tabs_api::tab_strip_model::TabStripModelInjector>(
-          browser, tab_strip_model_));
+          browser, tab_strip_model_),
+      std::make_unique<
+          tabs_api::tab_strip_model::TabStripModelExperimentalInjector>(
+          browser));
 
   memory_saver_bubble_controller_ =
       std::make_unique<memory_saver::MemorySaverBubbleController>(browser);
@@ -449,12 +452,10 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
         GetUserDataFactory().CreateInstance<pdf::infobar::PdfInfoBarController>(
             *browser, browser);
   }
-  if (base::FeatureList::IsEnabled(features::kOfferPinToTaskbarInfoBar)) {
-    pin_infobar_controller_ =
-        GetUserDataFactory()
-            .CreateInstance<default_browser::PinInfoBarController>(*browser,
-                                                                   browser);
-  }
+  pin_infobar_controller_ =
+      GetUserDataFactory()
+          .CreateInstance<default_browser::PinInfoBarController>(*browser,
+                                                                 browser);
 #endif
 
   data_sharing_bubble_controller_ =
@@ -714,6 +715,8 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
     // BrowserView is an AcceleratorProvider.
     accelerator_provider_ = browser_view;
+
+    bookmark_bar_controller_->SetDelegate(browser_view);
   }
 
   if (auto* const provider =
@@ -730,6 +733,8 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
 
     // WebUIBrowserWindow is an AcceleratorProvider.
     accelerator_provider_ = webui_browser_window;
+
+    bookmark_bar_controller_->SetDelegate(webui_browser_window);
 
     find_bar_owner_ =
         std::make_unique<FindBarOwnerWebUIBrowser>(webui_browser_window);
@@ -756,7 +761,6 @@ void BrowserWindowFeatures::InitPostWindowConstruction(Browser* browser) {
             std::make_unique<ExtensionKeybindingRegistryDelegateTabStrip>(
                 *browser->GetTabStripModel()));
   }
-
 
   // Initialize post-window dependent embedder features last.
   embedder_browser_window_features_->InitPostWindowConstruction(browser);
@@ -937,7 +941,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
 
 #if !BUILDFLAG(IS_CHROMEOS)
   download_toolbar_ui_controller_ =
-      std::make_unique<DownloadToolbarUIController>(browser_view);
+      GetUserDataFactory().CreateInstance<DownloadToolbarUIController>(
+          *browser_view->browser(), browser_view);
 #endif
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
@@ -1087,6 +1092,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   if (user_education_) {
     user_education_->TearDown();
   }
+
+  bookmark_bar_controller_->SetDelegate(nullptr);
 
   immersive_mode_controller_.reset();
 

@@ -16,14 +16,12 @@
 #include "base/types/strong_alias.h"
 #include "build/build_config.h"
 #include "components/os_crypt/async/common/encryptor.h"
-#include "components/password_manager/core/browser/password_form.h"
 #include "components/password_manager/core/browser/password_store/encrypt_decrypt_interface.h"
 #include "components/password_manager/core/browser/password_store/insecure_credentials_table.h"
 #include "components/password_manager/core/browser/password_store/password_notes_table.h"
-#include "components/password_manager/core/browser/password_store/password_store.h"
-#include "components/password_manager/core/browser/password_store/password_store_change.h"
 #include "components/password_manager/core/browser/password_store/psl_matching_helper.h"
 #include "components/password_manager/core/browser/password_store/statistics_table.h"
+#include "components/password_manager/core/browser/password_store/stored_credential.h"
 #include "components/password_manager/core/browser/sync/password_store_sync.h"
 #include "components/sync/protocol/data_type_state.pb.h"
 #include "sql/database.h"
@@ -42,6 +40,8 @@ class MetadataBatch;
 }
 
 namespace password_manager {
+
+struct PasswordFormDigest;
 
 extern const int kCurrentVersionNumber;
 extern const int kCompatibleVersionNumber;
@@ -83,49 +83,50 @@ class LoginDatabase : public EncryptDecryptInterface {
   // Reports metrics regarding inaccessible passwords and bubble usages to UMA.
   void ReportMetrics();
 
-  // Adds |form| to the list of remembered password forms. Returns the list of
+  // Adds |cred| to the list of remembered credentials. Returns the list of
   // changes applied ({}, {ADD}, {REMOVE, ADD}). If it returns {REMOVE, ADD}
-  // then the REMOVE is associated with the form that was added. Thus only the
-  // primary key columns contain the values associated with the removed form. In
-  // case of error, it sets |error| if |error| isn't null.
+  // then the REMOVE is associated with the credential that was added. Thus only
+  // the primary key columns contain the values associated with the removed
+  // credential. In case of error, it sets |error| if |error| isn't null.
   [[nodiscard]] PasswordStoreChangeList AddLogin(
-      const PasswordForm& form,
+      StoredCredential cred,
       AddCredentialError* error = nullptr);
 
-  // Updates existing password form. Returns the list of applied changes ({},
+  // Updates existing credential. Returns the list of applied changes ({},
   // {UPDATE}). The password is looked up by the tuple {origin,
   // username_element, username_value, password_element, signon_realm}. These
   // columns stay intact. In case of error, it sets |error| if |error| isn't
   // null.
   [[nodiscard]] PasswordStoreChangeList UpdateLogin(
-      const PasswordForm& form,
+      const StoredCredential& cred,
       UpdateCredentialError* error = nullptr);
 
-  // Removes |form| from the list of remembered password forms. Returns true if
-  // |form| was successfully removed from the database. If |changes| is not be
-  // null, it will be used to populate the change list of the removed forms if
-  // any.
-  [[nodiscard]] bool RemoveLogin(const PasswordForm& form,
+  // Removes |cred| from the list of remembered credentials. Returns true if
+  // |cred| was successfully removed from the database. If |changes| is not be
+  // null, it will be used to populate the change list of the removed
+  // credentials if any.
+  [[nodiscard]] bool RemoveLogin(const StoredCredential& cred,
                                  PasswordStoreChangeList* changes);
 
-  // Removes the form with |primary_key| from the list of remembered password
-  // forms. Returns true if the form was successfully removed from the database.
+  // Removes the credential with |primary_key| from the list of remembered
+  // credentials. Returns true if the credential was successfully removed from
+  // the database.
   [[nodiscard]] bool RemoveLoginByPrimaryKey(FormPrimaryKey primary_key,
                                              PasswordStoreChangeList* changes);
 
   // Removes all logins created from |delete_begin| onwards (inclusive) and
   // before |delete_end|. You may use a null Time value to do an unbounded
   // delete in either direction. If |changes| is not be null, it will be used to
-  // populate the change list of the removed forms if any.
+  // populate the change list of the removed credentials if any.
   bool RemoveLoginsCreatedBetween(base::Time delete_begin,
                                   base::Time delete_end,
                                   PasswordStoreChangeList* changes);
 
-  // Sets the 'skip_zero_click' flag on all forms on |origin| to 'true'.
+  // Sets the 'skip_zero_click' flag on all credentials on |origin| to 'true'.
   bool DisableAutoSignInForOrigin(const GURL& origin);
 
-  // All Get* methods below overwrite |forms| with the returned credentials. On
-  // success, those methods return true.
+  // All Get* methods below overwrite |credentials| with the returned
+  // credentials. On success, those methods return true.
 
   // Gets a list of credentials matching |form|, including blocklisted matches
   // and federated credentials.
@@ -133,34 +134,38 @@ class LoginDatabase : public EncryptDecryptInterface {
   // only the exact matches.
   [[nodiscard]] bool GetLogins(const PasswordFormDigest& form,
                                bool should_PSL_matching_apply,
-                               std::vector<PasswordForm>* forms);
+                               std::vector<StoredCredential>* credentials);
 
   // Gets all logins created from |begin| onwards (inclusive) and before |end|.
   // You may use a null Time value to do an unbounded search in either
-  // direction. |forms| must not be null and will be used to return
+  // direction. |credentials| must not be null and will be used to return
   // the results.
-  [[nodiscard]] bool GetLoginsCreatedBetween(base::Time begin,
-                                             base::Time end,
-                                             std::vector<PasswordForm>* forms);
+  [[nodiscard]] bool GetLoginsCreatedBetween(
+      base::Time begin,
+      base::Time end,
+      std::vector<StoredCredential>* credentials);
 
   // Gets the complete list of all credentials.
   [[nodiscard]] FormRetrievalResult GetAllLogins(
-      std::vector<PasswordForm>* forms);
+      std::vector<StoredCredential>* credentials);
 
   // Gets list of logins which match |signon_realm| and |username|.
   [[nodiscard]] FormRetrievalResult GetLoginsBySignonRealmAndUsername(
       const std::string& signon_realm,
       const std::u16string& username,
-      std::vector<PasswordForm>* forms);
+      std::vector<StoredCredential>* credentials);
 
   // Gets the complete list of not blocklisted credentials.
-  [[nodiscard]] bool GetAutofillableLogins(std::vector<PasswordForm>* forms);
+  [[nodiscard]] bool GetAutofillableLogins(
+      std::vector<StoredCredential>* credentials);
 
   // Gets the complete list of blocklisted credentials.
-  [[nodiscard]] bool GetBlocklistLogins(std::vector<PasswordForm>* forms);
+  [[nodiscard]] bool GetBlocklistLogins(
+      std::vector<StoredCredential>* credentials);
 
   // Gets the list of auto-sign-inable credentials.
-  [[nodiscard]] bool GetAutoSignInLogins(std::vector<PasswordForm>* forms);
+  [[nodiscard]] bool GetAutoSignInLogins(
+      std::vector<StoredCredential>* credentials);
 
   // Deletes the login database file on disk, and creates a new, empty database.
   // This can be used after migrating passwords to some other store, to ensure
@@ -301,43 +306,40 @@ class LoginDatabase : public EncryptDecryptInterface {
   void ReportInaccessiblePasswordsMetrics();
   void ReportDuplicateCredentialsMetrics();
 
-  // Fills |form| from the values in the given statement (which is assumed to be
-  // of the form used by the Get*Logins methods).
+  // Returns a `StoredCredential` filled from the values in the given statement
+  // (which is assumed to be of the form used by the Get*Logins methods).
   // WARNING: Password value itself is absent, callers have to decrypt it if
   // needed.
-  [[nodiscard]] PasswordForm GetFormWithoutPasswordFromStatement(
+  [[nodiscard]] StoredCredential GetFormWithoutPasswordFromStatement(
       sql::Statement& s) const;
 
   // Gets all blocklisted or all non-blocklisted (depending on |blocklisted|)
-  // credentials. On success returns true and overwrites |forms| with the
+  // credentials. On success returns true and overwrites |credentials| with the
   // result.
-  bool GetAllLoginsWithBlocklistSetting(bool blocklisted,
-                                        std::vector<PasswordForm>* forms);
+  bool GetAllLoginsWithBlocklistSetting(
+      bool blocklisted,
+      std::vector<StoredCredential>* credentials);
 
-  // Returns the DB primary key for the specified |form| and decrypted/encrypted
-  // password. Returns {-1, "", ""} if the row for this |form| is not found.
+  // Returns the DB primary key for the specified |cred| and decrypted/encrypted
+  // password. Returns {-1, "", ""} if the row for this |cred| is not found.
   PrimaryKeyAndPassword GetPrimaryKeyAndPassword(
-      const PasswordForm& form) const;
+      const StoredCredential& cred) const;
 
-  // Overwrites |key_to_form_map| with credentials retrieved from |statement|.
+  // Overwrites |credentials| with credentials retrieved from |statement|.
   // If |matched_form| is not null, filters out all results but those
   // PSL-matching |*matched_form| or federated credentials for it. If feature
   // for recovering passwords is enabled, it removes all passwords that couldn't
   // be decrypted when encryption was available from the database. On success
   // returns true.
-  // |forms| must not be null and will be used to return the results.
-  [[nodiscard]] FormRetrievalResult StatementToForms(
+  // |credentials| must not be null and will be used to return the results.
+  [[nodiscard]] FormRetrievalResult StatementToStoredCredentials(
       sql::Statement* statement,
       const PasswordFormDigest* matched_form,
-      std::vector<PasswordForm>* forms);
+      std::vector<StoredCredential>* credentials);
 
   // Initializes all the *_statement_ data members with appropriate SQL
   // fragments based on |builder|.
   void InitializeStatementStrings(const affiliations::SQLTableBuilder& builder);
-
-  // Returns either kProfileStore or kAccountStore depending on the value of
-  // `is_account_store_`.
-  PasswordForm::Store GetStore() const;
 
   // Returns insecure credentials corresponding to the `primary_key`.
   base::flat_map<InsecureType, InsecurityMetadata> GetPasswordIssues(

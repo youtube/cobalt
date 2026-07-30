@@ -16,6 +16,10 @@
 
 class BrowserWindowInterface;
 
+namespace views {
+class DialogDelegate;
+}
+
 // This class represents the abstract interface for the Profile Avatar Button,
 // which can be implemented by both Views and WebUI.
 class AvatarToolbarButtonInterface {
@@ -33,6 +37,10 @@ class AvatarToolbarButtonInterface {
 
   virtual bool IsMouseHovered() const = 0;
   virtual bool HasFocus() const = 0;
+
+  // Returns the dialog delegate for any dialog currently anchored to the avatar
+  // button, or nullptr if none exists.
+  virtual views::DialogDelegate* GetDialogDelegate() = 0;
 
   // Returns the anchor to use for avatar button bubbles.
   views::BubbleAnchor GetBubbleAnchor(BrowserWindowInterface& browser);
@@ -120,7 +128,9 @@ class AvatarToolbarButtonInterface {
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
 
  protected:
-  static base::TimeDelta iph_min_delay_after_creation_;
+  // Do not show the IPH right when creating the window, so that the IPH has a
+  // separate animation.
+  static base::TimeDelta g_iph_min_delay_after_creation;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_TOOLBAR_AVATAR_TOOLBAR_BUTTON_INTERFACE_H_

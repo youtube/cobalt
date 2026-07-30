@@ -10,6 +10,7 @@ import {CustomElement} from 'chrome://resources/js/custom_element.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 
 import type {Conflict} from './policy_conflict.js';
+import {copyValue, stringifyPolicyValue} from './policy_conflict.js';
 import {getTemplate} from './policy_row.html.js';
 
 export interface Policy {
@@ -22,7 +23,7 @@ export interface Policy {
   error: string;
   warning: string;
   info: string;
-  value: any;
+  value: unknown;
   deprecated?: boolean;
   future?: boolean;
   allSourcesMerged?: boolean;
@@ -127,22 +128,10 @@ export class PolicyRowElement extends CustomElement {
 
     const sourceDisplay = this.shadowRoot!.querySelector('.source');
     sourceDisplay!.textContent = loadTimeData.getString(policy.source);
+
     // Reduces load on the DOM for long values;
-
-    const convertValue = (value: string, format?: boolean) => {
-      // Skip 'string' policy to avoid unnecessary conversions.
-      if (typeof value === 'string') {
-        return value;
-      }
-      if (format) {
-        return JSON.stringify(value, null, 2);
-      } else {
-        return JSON.stringify(value, null);
-      }
-    };
-
     // If value is longer than 256 characters, truncate and add ellipsis.
-    const policyValueStr = convertValue(policy.value);
+    const policyValueStr = stringifyPolicyValue(policy.value);
     const truncatedValue = policyValueStr.length > 256 ?
         `${policyValueStr.substring(0, 256)}\u2026` :
         policyValueStr;
@@ -157,7 +146,7 @@ export class PolicyRowElement extends CustomElement {
         this.shadowRoot!.querySelector('.value.row .value');
     // Expanded policy value is formatted.
     valueRowContentDisplay!.textContent =
-        convertValue(policy.value, /*format=*/ true);
+        stringifyPolicyValue(policy.value, /*format=*/ true);
 
     const errorRowContentDisplay =
         this.shadowRoot!.querySelector('.errors.row .value');
@@ -223,7 +212,7 @@ export class PolicyRowElement extends CustomElement {
     if (policy.conflicts) {
       policy.conflicts.forEach(conflict => {
         const row = document.createElement('policy-conflict');
-        row.initialize(conflict, 'conflictValue');
+        row.initialize(conflict, 'conflictValue', this.policy.name);
         row.classList.add('policy-conflict-data');
         this.shadowRoot!.appendChild(row);
       });
@@ -231,7 +220,7 @@ export class PolicyRowElement extends CustomElement {
     if (policy.superseded) {
       policy.superseded.forEach(superseded => {
         const row = document.createElement('policy-conflict');
-        row.initialize(superseded, 'supersededValue');
+        row.initialize(superseded, 'supersededValue', this.policy.name);
         row.classList.add('policy-superseded-data');
         this.shadowRoot!.appendChild(row);
       });
@@ -242,20 +231,9 @@ export class PolicyRowElement extends CustomElement {
   private copyValue_() {
     const policyValueDisplay =
         this.shadowRoot!.querySelector('.value.row .value');
-
-    // Select the text that will be copied.
-    const selection = window.getSelection();
-    const range = window.document.createRange();
-    range.selectNodeContents(policyValueDisplay as Node);
-    selection!.removeAllRanges();
-    selection!.addRange(range);
-
-    // Copy the policy value to the clipboard.
-    navigator.clipboard
-        .writeText((policyValueDisplay as CustomElement).innerText)
-        .catch(error => {
-          console.error('Unable to copy policy value to clipboard:', error);
-        });
+    if (policyValueDisplay) {
+      copyValue(policyValueDisplay as CustomElement);
+    }
   }
 
   // Toggle the visibility of an additional row containing the complete text.

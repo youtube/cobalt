@@ -6,6 +6,7 @@
 #define CHROME_BROWSER_CONTEXTUAL_TASKS_CONTEXTUAL_TASKS_UI_SERVICE_H_
 
 #include <map>
+#include <set>
 #include <utility>
 #include <vector>
 
@@ -48,7 +49,13 @@ namespace tabs {
 class TabInterface;
 }  // namespace tabs
 
+namespace lens {
+class LensMediaLinkHandler;
+}  // namespace lens
+
 namespace contextual_tasks {
+inline constexpr char kTaskQueryParam[] = "chrome_task_id";
+
 class ContextualTasksService;
 class ContextualTasksUIInterface;
 
@@ -137,6 +144,10 @@ class ContextualTasksUiService : public KeyedService {
   // Returns the URL that a task was created for. Once this is retrieved, the
   // entry is removed from the cache.
   virtual std::optional<GURL> GetInitialUrlForTask(const base::Uuid& uuid);
+
+  // Returns the URL that a task should be created for. This function does
+  // not clear the entry from the cache.
+  virtual std::optional<GURL> GetCreationUrlForTask(const base::Uuid& task_id);
 
   // Adds a callback to be run when the URL for a task becomes available.
   // This is only used in cases where the side panel is "warmed up" (i.e. using
@@ -305,6 +316,13 @@ class ContextualTasksUiService : public KeyedService {
   virtual void LoadUrlInWebContents(const GURL& url,
                                     content::WebContents* web_contents);
 
+  // Creates a LensMediaLinkHandler for the given WebContents.
+  // Virtual to allow overriding in tests to mock the handler.
+#if !BUILDFLAG(IS_ANDROID)
+  virtual std::unique_ptr<lens::LensMediaLinkHandler> CreateMediaLinkHandler(
+      content::WebContents* web_contents);
+#endif
+
  private:
   void StartAccessTokenFetch();
 
@@ -329,6 +347,12 @@ class ContextualTasksUiService : public KeyedService {
   tabs::TabInterface* MaybeFocusExistingOpenTab(const GURL& url,
                                                 TabListInterface* tab_list,
                                                 const base::Uuid& task_id);
+
+  // Handles video citation links by seeking existing video if applicable.
+  // Returns true if handled.
+  bool MaybeHandleVideoCitation(const GURL& url,
+                                tabs::TabInterface* tab,
+                                const base::Uuid& task_id);
 
   // A callback for checking whether text fragments from a URL are on a page.
   void OnTextFinderLookupComplete(
