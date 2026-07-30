@@ -115,11 +115,6 @@ BASE_FEATURE(kBorealis, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enable project Crostini, Linux VMs on Chrome OS.
 BASE_FEATURE(kCrostini, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables infrastructure for generating Ansible playbooks for the default
-// Crostini container from software configurations in JSON schema.
-BASE_FEATURE(kCrostiniAnsibleSoftwareManagement,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 // Enables stricter cryptography settings for CNSA2 compliance. This is not
@@ -138,15 +133,6 @@ BASE_FEATURE(kPreinstalledWebAppInstallation,
 BASE_FEATURE(kPreinstalledWebAppAlwaysMigrateForTesting,
              base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-
-#if BUILDFLAG(IS_CHROMEOS)
-// If enabled, specified extensions cannot be closed via the task manager.
-BASE_FEATURE(kDesktopTaskManagerEndProcessDisabledForExtension,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_CHROMEOS)
-
-// Enables the chrome://chrome-finds-internals page.
-BASE_FEATURE(kChromeFindsInternals, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls the enablement of structured metrics on Windows, Linux, and Mac.
 BASE_FEATURE(kChromeStructuredMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -196,16 +182,6 @@ BASE_FEATURE(kShowResetProfileBannerV2, base::FEATURE_ENABLED_BY_DEFAULT);
 // If the feature is disabled, Chrome Apps continue to work. If enabled, Chrome
 // Apps will not launch and will be marked in the UI as deprecated.
 BASE_FEATURE(kChromeAppsDeprecation, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables the new create shortcut flow where fire and forget entities are
-// created from three dot menu > Save and Share > Create Shortcut instead of
-// PWAs.
-BASE_FEATURE(kShortcutsNotApps, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables the opening of the desktop and highlighting of the shortcut created
-// as part of the new Create Shortcut flow. Requires kShortcutsNotApps to be
-// enabled to work.
-BASE_FEATURE(kShortcutsNotAppsRevealDesktop, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -519,15 +495,6 @@ const base::FeatureParam<int> kGlicMultiInstanceFloatyWidth{
     &kGlicMultiInstance, "glic-multi-instance-floaty-width", 400};
 const base::FeatureParam<int> kGlicMultiInstanceFloatyHeight{
     &kGlicMultiInstance, "glic-multi-instance-floaty-height", 400};
-
-// Controls whether multiple instances for Glic should be enabled for users of
-// an eligible G1 subscription tier, regardless of whether `kGlicMultiInstance`
-// is enabled.
-BASE_FEATURE(kGlicEnableMultiInstanceBasedOnTier,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kGlicDefaultToLastActiveConversation,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the Glic feature's z order changes based on the webclient
 // mode.
@@ -1325,10 +1292,6 @@ BASE_FEATURE(kUseManagedPrintJobOptionsInPrintPreview,
 BASE_FEATURE(kUserValueDefaultBrowserStrings,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables or disables push subscriptions keeping Chrome running in the
-// background when closed.
-BASE_FEATURE(kPushMessagingBackgroundMode, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Shows a confirmation dialog when updates to a PWAs icon has been detected.
 BASE_FEATURE(kPwaUpdateDialogForIcon, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1343,12 +1306,6 @@ BASE_FEATURE(kRecordWebAppDebugInfo, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAbusiveNotificationPermissionRevocation,
              "AbusiveOriginNotificationPermissionRevocation",
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_CHROMEOS)
-// Enables permanent removal of Legacy Supervised Users on startup.
-BASE_FEATURE(kRemoveSupervisedUsersOnStartup,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 BASE_FEATURE(kSafetyHubExtensionsUwSTrigger, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1528,8 +1485,6 @@ BASE_FEATURE(kCameraCloudStorage, base::FEATURE_ENABLED_BY_DEFAULT);
 // the cloud, and related UX changes, primarily in the Files App.
 BASE_FEATURE(kSkyVault, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables or disables chrome://sys-internals.
-BASE_FEATURE(kSysInternals, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
@@ -1796,6 +1751,10 @@ const base::FeatureParam<bool> kWebUIReloadButtonRestartUnresponsive{
 // has finished loading.
 const base::FeatureParam<bool> kWebUIReloadButtonDeferBrowserViewShow{
     &kWebUIReloadButton, "WebUIReloadButtonDeferBrowserViewShow", true};
+// When this is enabled, the reload button will be marked as visible until its
+// first non-empty paint.
+const base::FeatureParam<bool> kWebUIReloadButtonKeepVisibleUntilPaint{
+    &kWebUIReloadButton, "WebUIReloadButtonKeepVisibleUntilPaint", false};
 const base::FeatureParam<base::TimeDelta>
     kWebUIReloadButtonRestartUnresponsiveRenderersTimeout{
         &kWebUIReloadButton,
@@ -1848,18 +1807,11 @@ BASE_FEATURE(kWinPinPWAShortcutWithLAF, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
-// A feature to enable periodic log upload migration. This includes using new
-// mechanism for collecting, exporting and uploading logs. See
-// go/legacy-log-upload-migration.
-BASE_FEATURE(kPeriodicLogUploadMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A feature to enable periodic log class management enabled policy.
 BASE_FEATURE(kClassManagementEnabledMetricsProvider,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables reporting Chrome app activity for supervised users.
-BASE_FEATURE(kUnicornChromeActivityReporting,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if !BUILDFLAG(IS_ANDROID)

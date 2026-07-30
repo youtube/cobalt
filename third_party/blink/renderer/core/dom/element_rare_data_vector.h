@@ -20,6 +20,10 @@
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
 #include "third_party/blink/renderer/platform/wtf/type_traits.h"
 
+namespace viz {
+enum class TrackedElementFeature;
+}  // namespace viz
+
 namespace blink {
 
 class CSSStyleDeclaration;
@@ -202,6 +206,7 @@ class CORE_EXPORT ElementRareDataVector final
   PseudoElement* GetPseudoElement(
       PseudoId,
       const AtomicString& document_transition_tag = g_null_atom) const;
+  bool HasAnyPseudos() const;
   bool HasScrollButtonOrMarkerGroupPseudos() const;
   PseudoElementData::PseudoElementVector GetPseudoElements() const;
 
@@ -304,10 +309,14 @@ class CORE_EXPORT ElementRareDataVector final
   [[nodiscard]] ElementRareDataVector* SetRegionCaptureCropId(
       std::unique_ptr<RegionCaptureCropId> crop_id);
 
-  const TrackedElementRect* GetTrackedElementRect() const;
-  [[nodiscard]] ElementRareDataVector* SetTrackedElementRect(
-      std::unique_ptr<TrackedElementRect> rect);
-  void ClearTrackedElementRect();
+  const TrackedElementSubRect* GetTrackedElementSubRect(
+      viz::TrackedElementFeature feature) const;
+  [[nodiscard]] ElementRareDataVector* SetTrackedElementSubRect(
+      viz::TrackedElementFeature feature,
+      const TrackedElementSubRect& rect);
+  void ClearTrackedElementSubRect(viz::TrackedElementFeature feature);
+
+  const TrackedElementSubRects* GetTrackedElementSubRects() const;
 
   // Returns the ID backing a RestrictionTarget if one was set on the Element,
   // or nullptr otherwise.

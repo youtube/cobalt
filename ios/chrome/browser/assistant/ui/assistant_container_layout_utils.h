@@ -13,6 +13,8 @@ extern const CGFloat kMorphingBaseMargin;
 extern const CGFloat kMorphingMediumMargin;
 // Default corner radius for standard states.
 extern const CGFloat kMorphingBaseCornerRadius;
+// Corner radius for the bottom of the container in the Medium state.
+extern const CGFloat kMorphingMediumBottomCornerRadius;
 // Maximum alpha for the background dimming view.
 extern const CGFloat kMaxBackgroundDimmingAlpha;
 
@@ -22,8 +24,8 @@ struct ContainerMorphingConstraints {
   CGFloat actual_height;
   CGFloat side_margin;
   CGFloat bottom_margin;
-  CGFloat corner_radius;
-  CACornerMask masked_corners;
+  CGFloat top_corner_radius;
+  CGFloat bottom_corner_radius;
   CGFloat background_dimming_alpha;
 };
 

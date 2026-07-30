@@ -188,5 +188,6 @@ TEST_F(TranslationMetricsTest, RecordOnDeviceTranslationLength) {
       "Translate.OnDeviceTranslation.TargetLanguage.es.TranslationLength", 100,
       1);
 }
+
 }  // namespace
 }  // namespace on_device_translation

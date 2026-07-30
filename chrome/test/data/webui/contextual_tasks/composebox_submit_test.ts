@@ -17,12 +17,13 @@ import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageCallbackRouter as SearchboxPageCallbackRouter, PageHandlerRemote as SearchboxPageHandlerRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {PageRemote as SearchboxPageRemote} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {MockInputState} from 'chrome://webui-test/cr_components/searchbox/searchbox_test_utils.js';
 import {MockTimer} from 'chrome://webui-test/mock_timer.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {isVisible, microtasksFinished} from 'chrome://webui-test/test_util.js';
 
 import {TestContextualTasksBrowserProxy} from './test_contextual_tasks_browser_proxy.js';
-import {ADD_TAB_CONTEXT_FN, assertStyle, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, mockInputState, setupAutocompleteResults, simulateUserInput, uploadFileAndVerify} from './test_utils.js';
+import {ADD_TAB_CONTEXT_FN, assertStyle, FAKE_TOKEN_STRING, FAKE_TOKEN_STRING_2, fixtureUrl, getSubmitButton, getSubmitContainer, installMock, setupAutocompleteResults, simulateUserInput, uploadFileAndVerify} from './test_utils.js';
 
 function pressEnter(element: HTMLElement) {
   element.dispatchEvent(new KeyboardEvent('keydown', {
@@ -94,7 +95,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
     mockComposeboxPageHandler = TestMock.fromClass(ComposeboxPageHandlerRemote);
     mockSearchboxPageHandler = TestMock.fromClass(SearchboxPageHandlerRemote);
     mockSearchboxPageHandler.setResultFor(
-        'getInputState', Promise.resolve({state: mockInputState}));
+        'getInputState', Promise.resolve({state: new MockInputState()}));
 
     const searchboxCallbackRouter = new SearchboxPageCallbackRouter();
     searchboxCallbackRouterRemote =
@@ -122,7 +123,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
                                             removeEventListener() {},
                                             }));
 
-    searchboxCallbackRouterRemote.onInputStateChanged(mockInputState);
+    searchboxCallbackRouterRemote.onInputStateChanged(new MockInputState());
     await microtasksFinished();
   });
 
@@ -149,7 +150,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
         'Submit query should not be called when button is disabled');
 
     // Change tool to Deep Search
-    const inputState = Object.assign({}, mockInputState, {
+    const inputState = Object.assign({}, new MockInputState(), {
       activeTool: ToolMode.kDeepSearch,
     });
     searchboxCallbackRouterRemote.onInputStateChanged(inputState);
@@ -464,7 +465,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
     await composebox.updateComplete;
     await microtasksFinished();
 
-    assertEquals(0, composebox.files_.size);
+    assertEquals(0, composebox.files.size);
 
     // Should be no longer `EXPANDING` after successful upload and submit click.
     assertNotEquals(composebox.animationState, GlowAnimationState.EXPANDING);
@@ -480,7 +481,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
         ContextUploadStatus.kProcessingSuggestSignalsReady,
         /*error_type=*/ null,
     );
-    composebox.input_ = 'test';
+    composebox.input = 'test';
     await searchboxCallbackRouterRemote.$.flushForTesting();
     await microtasksFinished();
     await composebox.updateComplete;
@@ -667,7 +668,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
     await composebox.updateComplete;
     await microtasksFinished();
 
-    assertEquals(0, composebox.files_.size);
+    assertEquals(0, composebox.files.size);
 
     // Should be no longer `EXPANDING` after successful upload and submit click.
     assertNotEquals(composebox.animationState, GlowAnimationState.EXPANDING);
@@ -675,7 +676,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
 
   test('Composebox submit button disabled when uploading tabs', async () => {
     const callback = (file: ComposeboxFile) => {
-      composebox.files_.set(file.uuid, file);
+      composebox.files.set(file.uuid, file);
       composebox.contextFilesSize_ += 1;
       composebox.submitEnabled_ = composebox.computeSubmitEnabled_();
       composebox.requestUpdate();
@@ -766,7 +767,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
     await composebox.updateComplete;
     await microtasksFinished();
 
-    assertEquals(0, composebox.files_.size);
+    assertEquals(0, composebox.files.size);
 
     // Should be no longer `EXPANDING` after successful upload and submit click.
     assertNotEquals(composebox.animationState, GlowAnimationState.EXPANDING);
@@ -825,12 +826,12 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
         composebox.animationState, GlowAnimationState.SUBMITTING,
         'Query is submitted via submitQuery_()');
 
-    assertEquals(0, composebox.files_.size);
+    assertEquals(0, composebox.files.size);
   });
 
   test('delayed tabs do not delay submission', async () => {
     const callback = (file: any) => {
-      composebox.files_.set(file.uuid, file);
+      composebox.files.set(file.uuid, file);
       composebox.contextFilesSize_ = 1;
       composebox.submitEnabled_ = composebox.computeSubmitEnabled_();
       composebox.requestUpdate();
@@ -1100,7 +1101,7 @@ suite('ContextualTasksComposeboxSubmitTest', () => {
             /*supportsUnimodal=*/ false);
         searchboxCallbackRouterRemote.onContextualInputStatusChanged(
             FAKE_TOKEN_STRING, ContextUploadStatus.kUploadSuccessful, null);
-        composebox.input_ = 'test';
+        composebox.input = 'test';
 
         // Multiple calls needed to avoid flaking.
         // TODO(crbug.com/490496860): Investigate removing.

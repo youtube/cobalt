@@ -21,10 +21,6 @@ BASE_FEATURE(kSyncAccountSettings,
              IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
                                      : base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enabled by default, intended as a kill switch.
-BASE_FEATURE(kSyncMakeAutofillValuableNonEncryptable,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kSyncAutofillValuableMetadata,
              IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
                                      : base::FEATURE_DISABLED_BY_DEFAULT);
@@ -92,16 +88,15 @@ BASE_FEATURE(kReplaceSyncPromosWithSignInPromos,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
-BASE_FEATURE_PARAM(bool,
-                   kExplicitSigninForExtensions,
-                   &kReplaceSyncPromosWithSignInPromos,
-                   "explicit_signin_for_extensions",
-                   false);
-BASE_FEATURE_PARAM(bool,
-                   kExplicitSigninForBookmarks,
-                   &kReplaceSyncPromosWithSignInPromos,
-                   "explicit_signin_for_bookmarks",
-                   false);
+
+BASE_FEATURE(kReplaceSyncPromosWithSigninPromosNewSignin,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsReplaceSyncPromosWithSignInPromosEnabled() {
+  return base::FeatureList::IsEnabled(kReplaceSyncPromosWithSignInPromos) ||
+         base::FeatureList::IsEnabled(
+             kReplaceSyncPromosWithSigninPromosNewSignin);
+}
 
 BASE_FEATURE(kSyncSupportAlwaysSyncingPriorityPreferences,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -213,5 +208,8 @@ BASE_FEATURE(kSyncDeviceInfoUseWallClockTimer,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncValidateAccessToken, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSyncInvalidationsBypassScheduler,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace syncer

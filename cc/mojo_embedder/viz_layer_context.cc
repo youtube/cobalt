@@ -370,7 +370,8 @@ std::vector<viz::mojom::StickyPositionNodeDataPtr> SerializeStickyPositionData(
   std::vector<viz::mojom::StickyPositionNodeDataPtr> wire_data;
   for (const auto& data : entries) {
     auto wire = viz::mojom::StickyPositionNodeData::New();
-    wire->scroll_ancestor = data.scroll_ancestor;
+    wire->x_scroll_ancestor = data.x_scroll_ancestor;
+    wire->y_scroll_ancestor = data.y_scroll_ancestor;
     wire->is_anchored_left = data.constraints.is_anchored_left;
     wire->is_anchored_right = data.constraints.is_anchored_right;
     wire->is_anchored_top = data.constraints.is_anchored_top;
@@ -837,6 +838,7 @@ void SerializeSurfaceLayerExtra(SurfaceLayerImpl& layer,
   extra->surface_hit_testable = layer.surface_hit_testable();
   extra->has_pointer_events_none = layer.has_pointer_events_none();
   extra->is_reflection = layer.is_reflection();
+  // TODO(zmo): This is never `true` on the active tree
   extra->will_draw_needs_reset = layer.will_draw_needs_reset();
   extra->override_child_paint_flags = layer.override_child_paint_flags();
 }
@@ -1364,12 +1366,16 @@ void VizLayerContext::SetVisible(bool visible) {
   service_->SetVisible(visible);
 }
 
+void VizLayerContext::SetTargetLocalSurfaceId(
+    const viz::LocalSurfaceId& target_local_surface_id) {
+  service_->SetTargetLocalSurfaceId(target_local_surface_id);
+}
+
 base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
     LayerTreeImpl& tree,
     viz::ClientResourceProvider& resource_provider,
     gpu::SharedImageInterface* shared_image_interface,
     const gfx::Rect& viewport_damage_rect,
-    const viz::LocalSurfaceId& target_local_surface_id,
     bool frame_has_damage,
     std::vector<ui::LatencyInfo> latency_info) {
   TRACE_EVENT0("viz", "VizLayerContext::UpdateDisplayTreeFrom");
@@ -1410,9 +1416,6 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
     update->local_surface_id_from_parent = tree.local_surface_id_from_parent();
   }
   update->current_local_surface_id = host_impl_->GetCurrentLocalSurfaceId();
-  if (target_local_surface_id.is_valid()) {
-    update->target_local_surface_id = target_local_surface_id;
-  }
   DCHECK_NE(host_impl_->next_frame_token(), viz::kInvalidFrameToken);
   update->next_frame_token = host_impl_->next_frame_token();
   update->send_frame_token_to_embedder =
@@ -1434,6 +1437,8 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
       host_impl_->may_throttle_if_undrawn_frames();
   update->is_viewport_mobile_optimized =
       host_impl_->viewport_mobile_optimized();
+  update->browser_controls_shrink_blink_size =
+      tree.browser_controls_shrink_blink_size();
   update->is_animating_hud_contents = tree.IsAnimatingHUDContents();
   update->max_safe_area_inset_bottom = tree.max_safe_area_inset_bottom();
   update->browser_controls_params = tree.browser_controls_params();
@@ -1500,7 +1505,8 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
                        /*needs_full_sync=*/true);
       }
     } else {
-      for (LayerImpl* layer : tree.LayersThatShouldPushProperties()) {
+      for (auto* layer : tree.LayersThatShouldPushProperties()) {
+        DCHECK(layer);
         SerializeLayer(*layer, resource_provider, shared_image_interface,
                        *update,
                        /*needs_full_sync=*/false);

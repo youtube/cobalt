@@ -10,7 +10,9 @@
 #include <vector>
 
 #include "base/functional/callback.h"
+#include "base/gtest_prod_util.h"
 #include "base/memory/weak_ptr.h"
+#include "base/observer_list.h"
 #include "base/timer/timer.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
@@ -53,7 +55,16 @@ class ContextualTasksUIInterface;
 // thread. Events like tab switching and Intercepted navigations from both the
 // sidepanel and omnibox will be routed here.
 class ContextualTasksUiService : public KeyedService {
+  FRIEND_TEST_ALL_PREFIXES(ContextualTasksUiServiceTest,
+                           IsAllowedHost_WithOverride);
+
  public:
+  class Observer : public base::CheckedObserver {
+   public:
+    virtual void OnContextualTasksUiServiceShutdown(
+        ContextualTasksUiService* service) {}
+  };
+
   ContextualTasksUiService(
       Profile* profile,
       contextual_tasks::ContextualTasksService* contextual_tasks_service,
@@ -65,6 +76,9 @@ class ContextualTasksUiService : public KeyedService {
 
   // KeyedService:
   void Shutdown() override;
+
+  void AddObserver(Observer* observer);
+  void RemoveObserver(Observer* observer);
 
   // A notification that the browser attempted to navigate to the AI page. If
   // this method is being called, it means the navigation was blocked and it
@@ -184,9 +198,10 @@ class ContextualTasksUiService : public KeyedService {
   // correct params and isn't a shopping query.
   bool IsValidSearchResultsPage(const GURL& url);
 
-  // Returns AIM URL found in the search param of the contextual tasks URL.
-  // Returns empty URL if not found or not from AIM.
-  static GURL GetAimUrlFromContextualTasksUrl(const GURL& url);
+  // Returns a copy of base_url with the URL params from webui_url applied to
+  // it. This will exclude chrome webui-specific params, specifically "task".
+  static GURL CopyParamsFromWebUIUrl(const GURL& base_url,
+                                     const GURL& webui_url);
 
   // Called when the Lens overlay is shown/hidden. No-op if the active UI is not
   // in the side panel since the Lens button is always hidden in a tab.
@@ -279,8 +294,6 @@ class ContextualTasksUiService : public KeyedService {
   // compared without text selection directives as they don't change the page
   // content and only tell the browser what text to highlight on the page. A
   // pointer to the selected tab is returned if found.
-  // TODO(crbug.com/483442073): Remove the ifdef block once we remove
-  // TabStripModel from MaybeFocusExistingOpenTab.
   tabs::TabInterface* MaybeFocusExistingOpenTab(const GURL& url,
                                                 TabListInterface* tab_list,
                                                 const base::Uuid& task_id);
@@ -306,6 +319,8 @@ class ContextualTasksUiService : public KeyedService {
 
   // Checks if the provided URL matches any of the allowed hosts.
   static bool IsAllowedHost(const GURL& url);
+
+  base::ObserverList<Observer> observers_;
 
   const raw_ptr<Profile> profile_;
 

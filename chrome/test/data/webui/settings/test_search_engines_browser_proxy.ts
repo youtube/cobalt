@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // clang-format off
-import type {SearchEngine, SearchEnginesBrowserProxy, SearchEnginesInfo, SearchEnginesInteractions, ChoiceMadeLocation} from 'chrome://settings/settings.js';
+import type {SearchEngine, SearchEnginesBrowserProxy, SearchEnginesInfo, CategorizedTemplateUrls, SearchEnginesInteractions, ChoiceMadeLocation} from 'chrome://settings/settings.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 // clang-format on
@@ -15,11 +15,21 @@ import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
  */
 export class TestSearchEnginesBrowserProxy extends TestBrowserProxy implements
     SearchEnginesBrowserProxy {
-  private searchEnginesInfo_: SearchEnginesInfo;
-  private saveGuestChoice_: boolean|null;
+  private categorizedTemplateUrls_: CategorizedTemplateUrls = {
+    activeSiteShortcuts: [],
+    inactiveSiteShortcuts: [],
+    activeFeatureShortcuts: [],
+    inactiveFeatureShortcuts: [],
+  };
+
+  private searchEnginesInfo_: SearchEnginesInfo =
+      {defaults: [], actives: [], others: [], extensions: []};
+
+  private saveGuestChoice_: boolean|null = null;
 
   constructor() {
     super([
+      'getCategorizedTemplateUrls',
       'getSearchEnginesList',
       'getSaveGuestChoice',
       'removeSearchEngine',
@@ -31,30 +41,25 @@ export class TestSearchEnginesBrowserProxy extends TestBrowserProxy implements
       'validateSearchEngineInput',
       'recordSearchEnginesPageHistogram',
     ]);
-
-    this.searchEnginesInfo_ =
-        {defaults: [], actives: [], others: [], extensions: []};
-    this.saveGuestChoice_ = null;
   }
 
   setDefaultSearchEngine(
-      modelIndex: number, choiceMadeLocation: ChoiceMadeLocation,
+      id: number, choiceMadeLocation: ChoiceMadeLocation,
       saveGuestChoice?: boolean|null) {
     this.methodCalled(
-        'setDefaultSearchEngine', modelIndex, choiceMadeLocation,
-        saveGuestChoice);
+        'setDefaultSearchEngine', id, choiceMadeLocation, saveGuestChoice);
   }
 
-  setIsActiveSearchEngine(modelIndex: number, isActive: boolean) {
-    this.methodCalled('setIsActiveSearchEngine', [modelIndex, isActive]);
+  setIsActiveSearchEngine(id: number, isActive: boolean) {
+    this.methodCalled('setIsActiveSearchEngine', [id, isActive]);
   }
 
-  removeSearchEngine(modelIndex: number) {
-    this.methodCalled('removeSearchEngine', modelIndex);
+  removeSearchEngine(id: number) {
+    this.methodCalled('removeSearchEngine', id);
   }
 
-  searchEngineEditStarted(modelIndex: number) {
-    this.methodCalled('searchEngineEditStarted', modelIndex);
+  searchEngineEditStarted(id: number) {
+    this.methodCalled('searchEngineEditStarted', id);
   }
 
   searchEngineEditCancelled() {
@@ -65,6 +70,11 @@ export class TestSearchEnginesBrowserProxy extends TestBrowserProxy implements
       searchEngine: string, keyword: string, queryUrl: string) {
     this.methodCalled(
         'searchEngineEditCompleted', [searchEngine, keyword, queryUrl]);
+  }
+
+  getCategorizedTemplateUrls() {
+    this.methodCalled('getCategorizedTemplateUrls');
+    return Promise.resolve(this.categorizedTemplateUrls_);
   }
 
   getSearchEnginesList() {
@@ -87,7 +97,14 @@ export class TestSearchEnginesBrowserProxy extends TestBrowserProxy implements
   }
 
   /**
-   * Sets the response to be returned by |getSearchEnginesList|.
+   * Sets the response to be returned by `getCategorizedTemplateUrls`.
+   */
+  setCategorizedTemplateUrls(categorizedTemplateUrls: CategorizedTemplateUrls) {
+    this.categorizedTemplateUrls_ = categorizedTemplateUrls;
+  }
+
+  /**
+   * Sets the response to be returned by `getSearchEnginesList`.
    */
   setSearchEnginesInfo(searchEnginesInfo: SearchEnginesInfo) {
     this.searchEnginesInfo_ = searchEnginesInfo;
@@ -123,7 +140,6 @@ export function createSampleSearchEngine(override?: Partial<SearchEngine>):
         isPrepopulated: false,
         isStarterPack: false,
         keyword: 'google.com',
-        modelIndex: 0,
         name: 'Google',
         shouldConfirmRemoval: false,
         url: 'https://search.foo.com/search?p=%s',
@@ -154,7 +170,6 @@ export function createSampleOmniboxExtension(): SearchEngine {
     isPrepopulated: false,
     isStarterPack: false,
     keyword: 'oe',
-    modelIndex: 6,
     name: 'Omnibox extension',
     shouldConfirmRemoval: false,
     url: 'chrome-extension://dummyextensionid/?q=%s',

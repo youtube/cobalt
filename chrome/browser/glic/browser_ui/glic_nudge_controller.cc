@@ -8,21 +8,25 @@
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
+#include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/call_to_action/call_to_action_lock.h"
-#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "components/prefs/pref_service.h"
 #include "content/public/browser/web_contents.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#endif
 
 namespace glic {
 
 GlicNudgeController::GlicNudgeController(
-    BrowserWindowInterface* browser_window_interface)
-    : browser_window_interface_(browser_window_interface) {
-  browser_subscriptions_.push_back(
-      browser_window_interface->RegisterActiveTabDidChange(base::BindRepeating(
-          &GlicNudgeController::OnActiveTabChanged, base::Unretained(this))));
+    BrowserWindowInterface* browser_window_interface,
+    TabListInterface* tab_list)
+    : browser_window_interface_(browser_window_interface), tab_list_(tab_list) {
+  CHECK(tab_list_);
+  tab_list_observation_.Observe(tab_list);
 }
 
 GlicNudgeController::~GlicNudgeController() = default;
@@ -31,17 +35,19 @@ void GlicNudgeController::UpdateNudgeLabel(
     content::WebContents* web_contents,
     const std::string& nudge_label,
     std::optional<std::string> prompt_suggestion,
+    const std::string& anchored_message_text,
     std::optional<GlicNudgeActivity> activity,
     GlicNudgeActivityCallback callback) {
-  auto* const tab_interface =
-      browser_window_interface_->GetActiveTabInterface();
-  if (tab_interface->GetContents() != web_contents) {
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(std::move(callback),
-                       GlicNudgeActivity::kNudgeNotShownWebContents));
-    return;
+  if (auto* active_tab = tab_list_->GetActiveTab()) {
+    if (active_tab->GetContents() != web_contents) {
+      base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+          FROM_HERE,
+          base::BindOnce(std::move(callback),
+                         GlicNudgeActivity::kNudgeNotShownWebContents));
+      return;
+    }
   }
+
   // Empty nudge labels close the nudge, allow those to bypass the
   // CanAcquireLock check.
   if (!nudge_label.empty() && !scoped_call_to_action_lock_ &&
@@ -67,12 +73,21 @@ void GlicNudgeController::UpdateNudgeLabel(
   }
 
   nudge_activity_callback_ = callback;
+  prompt_suggestion_ = prompt_suggestion;
+
   PrefService* const pref_service =
       browser_window_interface_->GetProfile()->GetPrefs();
   if (pref_service->GetBoolean(glic::prefs::kGlicPinnedToTabstrip)) {
+    // TODO: The delegate is currently TabStripActionContainer, which is a view
+    // and shouldn't contain browser business logic. Refactor to use a proper
+    // BrowserDelegate instead.
     if (delegate) {
       if (nudge_label.empty() && delegate->GetIsShowingGlicNudge()) {
         delegate->OnHideGlicNudgeUI();
+      } else if (base::FeatureList::IsEnabled(kUseAnchoredMessage) &&
+                 !anchored_message_text.empty()) {
+        delegate->OnTriggerAnchoredMessage(nudge_label, anchored_message_text,
+                                           prompt_suggestion);
       } else {
         delegate->OnTriggerGlicNudgeUI(nudge_label);
       }
@@ -85,8 +100,6 @@ void GlicNudgeController::UpdateNudgeLabel(
   } else {
     OnNudgeActivity(glic::GlicNudgeActivity::kNudgeShown);
   }
-
-  prompt_suggestion_ = prompt_suggestion;
 }
 
 void GlicNudgeController::OnNudgeActivity(GlicNudgeActivity activity) {
@@ -128,8 +141,8 @@ void GlicNudgeController::SetNudgeActivityCallbackForTesting() {
   nudge_activity_callback_ = base::DoNothing();
 }
 
-void GlicNudgeController::OnActiveTabChanged(
-    BrowserWindowInterface* browser_interface) {
+void GlicNudgeController::OnActiveTabChanged(TabListInterface& tab_list,
+                                             tabs::TabInterface* tab) {
   GlicNudgeDelegate* delegate = GetActiveDelegate();
   if (delegate && delegate->GetIsShowingGlicNudge()) {
     delegate->OnHideGlicNudgeUI();
@@ -138,6 +151,7 @@ void GlicNudgeController::OnActiveTabChanged(
 }
 
 GlicNudgeDelegate* GlicNudgeController::GetActiveDelegate() {
+#if !BUILDFLAG(IS_ANDROID)
   auto* vertical_tab_strip_state_controller =
       tabs::VerticalTabStripStateController::From(browser_window_interface_);
 
@@ -146,6 +160,9 @@ GlicNudgeDelegate* GlicNudgeController::GetActiveDelegate() {
                      ->ShouldDisplayVerticalTabs()
              ? toolbar_delegate_
              : tab_strip_delegate_;
+#else
+  return tab_strip_delegate_;
+#endif
 }
 
 }  // namespace glic

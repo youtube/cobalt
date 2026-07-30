@@ -286,7 +286,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CastStreaming.Sender.Video.Bitrate" units="kbps"
-    expires_after="2026-07-19">
+    expires_after="2026-09-20">
   <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -455,7 +455,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="CastStreaming.Sender.{CastStreamingSender}.FrameDropped"
-    enum="CastStreamingFrameDropReason" expires_after="2026-07-19">
+    enum="CastStreamingFrameDropReason" expires_after="2026-09-20">
   <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -466,7 +466,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="CastStreaming.Sender.{CastStreamingSender}.PercentDroppedFrames"
-    units="%" expires_after="2026-07-19">
+    units="%" expires_after="2026-09-20">
   <owner>jophba@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -1303,6 +1303,28 @@ chromium-metrics-reviews@google.com.
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
     Logged at each call to CrasUnifiedStream::Start to indicate any errors.
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.Decode.OpusCodecDelayMismatch" units="packets"
+    expires_after="2026-09-17">
+  <owner>jophba@chromium.org</owner>
+  <owner>dalecurtis@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    When there is a codec delay mismatch between the container and the decoder
+    for the OpusAudioDecoder, reports the absolute difference in value.
+  </summary>
+</histogram>
+
+<histogram name="Media.Audio.Decode.SymphoniaOversizedPcmPacket" units="frames"
+    expires_after="2026-07-23">
+  <owner>jophba@chromium.org</owner>
+  <owner>dalecurtis@chromium.org</owner>
+  <owner>media-dev-uma@chromium.org</owner>
+  <summary>
+    Reports the number of frames in a PCM packet that was larger than the static
+    buffer used for decoding.
   </summary>
 </histogram>
 
@@ -3307,7 +3329,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.ElementCapture.RestrictTo.Result"
-    enum="ApplySubCaptureTargetResult" expires_after="2026-03-25">
+    enum="ApplySubCaptureTargetResult" expires_after="2027-03-25">
   <owner>eladalon@chromium.org</owner>
   <owner>jophba@chromium.org</owner>
   <owner>mfoltz@chromium.org</owner>
@@ -5151,6 +5173,20 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Media.MediaDevices.FindExistingRequestedDevice.NameMatched"
+    enum="Boolean" expires_after="2026-07-17">
+  <owner>agpalak@chromium.org</owner>
+  <owner>olka@chromium.org</owner>
+  <owner>rtc-meet-in-chrome@google.com</owner>
+  <summary>
+    Records whether the device name matched when searching for an existing
+    opened device during the processing of getUserMedia request. The search is
+    done so that a device is opened only once per render frame. Logged for every
+    device that matches the requested ID and type. True means the names matched,
+    False means they differed.
+  </summary>
+</histogram>
+
 <histogram name="Media.MediaDevices.GetAllScreensMedia.Latency" units="ms"
     expires_after="2023-05-01">
   <owner>simonha@google.com</owner>
@@ -6494,7 +6530,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.RegionCapture.CropTo.Latency" units="ms"
-    expires_after="2026-03-25">
+    expires_after="2027-03-25">
   <owner>eladalon@chromium.org</owner>
   <owner>jophba@chromium.org</owner>
   <owner>mfoltz@chromium.org</owner>
@@ -6510,7 +6546,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.RegionCapture.CropTo.Result2"
-    enum="ApplySubCaptureTargetResult" expires_after="2026-03-25">
+    enum="ApplySubCaptureTargetResult" expires_after="2027-03-25">
   <owner>eladalon@chromium.org</owner>
   <owner>jophba@chromium.org</owner>
   <owner>mfoltz@chromium.org</owner>
@@ -6524,7 +6560,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.RegionCapture.ProduceCropTarget.Function.Result"
-    enum="ProduceTargetFunctionResult" expires_after="2026-03-25">
+    enum="ProduceTargetFunctionResult" expires_after="2027-03-25">
   <owner>eladalon@chromium.org</owner>
   <owner>jophba@chromium.org</owner>
   <owner>mfoltz@chromium.org</owner>
@@ -6540,7 +6576,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.RegionCapture.ProduceCropTarget.Promise.Result"
-    enum="ProduceTargetPromiseResult" expires_after="2026-03-25">
+    enum="ProduceTargetPromiseResult" expires_after="2027-03-25">
   <owner>eladalon@chromium.org</owner>
   <owner>jophba@chromium.org</owner>
   <owner>mfoltz@chromium.org</owner>
@@ -8098,7 +8134,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.Win.Device.IsSharedTexture" enum="Boolean"
-    expires_after="2026-04-28">
+    expires_after="2027-04-28">
   <owner>ilnik@google.com</owner>
   <owner>video-cmi-mpp@google.com</owner>
   <summary>

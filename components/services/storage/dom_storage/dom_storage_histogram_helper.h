@@ -36,7 +36,11 @@ enum class DomStorageDatabaseRecoveryOutcome {
   // error threshold.
   kOngoingErrorsAfterAttemptedRecovery = 10,
 
-  kMaxValue = kOngoingErrorsAfterAttemptedRecovery,
+  // After a previous recovery, some commit errors occurred but then we had a
+  // successful commit.
+  kTransientErrorsAfterAttemptedRecovery = 11,
+
+  kMaxValue = kTransientErrorsAfterAttemptedRecovery,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/storage/enums.xml:DomStorageDatabaseRecoveryOutcome)
 
@@ -76,6 +80,11 @@ void LogDomStorageRecoveryOutcome(std::string_view storage_type_prefix,
                                   const DomStorageRecoveryState& state,
                                   bool has_database,
                                   bool is_in_memory);
+
+// Records `Storage.{Local,Session}Storage.CommitErrorCountAtReset` if
+// `commit_error_count` > 0.
+void RecordCommitErrorCountAtReset(std::string_view storage_type_prefix,
+                                   int commit_error_count);
 
 }  // namespace storage
 

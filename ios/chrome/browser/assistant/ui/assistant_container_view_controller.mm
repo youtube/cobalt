@@ -35,12 +35,9 @@ constexpr CGFloat kMomentumProjectionSeconds = 0.2;
 constexpr CGFloat kGestureTopAreaHeight = 44.0;
 
 // The maximum width of the container on iPad devices.
-constexpr CGFloat kMaxWidthRegularSizeClass = 450.0;
+constexpr CGFloat kMaxWidthRegularSizeClass = 700.0;
 // The multiplier for the width of the container relative to the parent view.
-constexpr CGFloat kWidthMultiplierRegularSizeClass = 0.5;
-
-// The padding added to the sides of the container in landscape compact mode.
-constexpr CGFloat kLandscapeSidePadding = 20.0;
+constexpr CGFloat kWidthMultiplierRegularSizeClass = 2.0 / 3.0;
 
 // The absolute minimum padding between the top of the container and the top of
 // the screen if no safe area insets exist (e.g. iPad full screen, iPhone
@@ -87,8 +84,8 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   NSLayoutConstraint* _trailingConstraint;
   NSLayoutConstraint* _bottomConstraint;
 
-  // Layout constraints for iPad.
-  NSArray<NSLayoutConstraint*>* _ipadConstraints;
+  // Layout constraints for width-restricted contexts (iPad/Landscape).
+  NSArray<NSLayoutConstraint*>* _widthRestrictedConstraints;
 
   // Constraints pinning the container to the parent view.
   NSArray<NSLayoutConstraint*>* _parentConstraints;
@@ -183,8 +180,8 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   _trailingConstraint = [_assistantContainerView.trailingAnchor
       constraintEqualToAnchor:self.view.safeAreaLayoutGuide.trailingAnchor];
 
-  // Set up iPad constraints, inactive by default.
-  _ipadConstraints = @[
+  // Set up width-restricted constraints, inactive by default.
+  _widthRestrictedConstraints = @[
     [_assistantContainerView.centerXAnchor
         constraintEqualToAnchor:self.view.safeAreaLayoutGuide.centerXAnchor],
     [_assistantContainerView.widthAnchor
@@ -320,7 +317,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
               return a < b;
             });
   [self updateDetentHeights];
-  [self updatePanGestureEnabledState];
+  [self updateInteractionEnabledState];
   [self.view setNeedsLayout];
 }
 
@@ -344,7 +341,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
     return;
   }
   _isAnimating = isAnimating;
-  [self updatePanGestureEnabledState];
+  [self updateInteractionEnabledState];
 }
 
 - (UIView*)dimmingView {
@@ -363,7 +360,7 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
     return YES;
   }
   CGPoint location = [touch locationInView:_assistantContainerView];
-  // Restrict the pan gesture to the top area.
+  // Restrict the gesture to the top area.
   return location.y <= kGestureTopAreaHeight;
 }
 
@@ -424,24 +421,18 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
   if (IsiPadLayout(self.traitCollection)) {
     // iPad floating sheet always has 4 rounded corners and a bottom margin.
-    constraints.corner_radius = kMorphingBaseCornerRadius;
+    constraints.top_corner_radius = kMorphingBaseCornerRadius;
+    constraints.bottom_corner_radius = kMorphingBaseCornerRadius;
     constraints.bottom_margin = kMorphingBaseMargin;
-    constraints.masked_corners =
-        kCALayerMinXMinYCorner | kCALayerMaxXMinYCorner |
-        kCALayerMinXMaxYCorner | kCALayerMaxXMaxYCorner;
-  }
-
-  CGFloat extraSidePadding = 0.0;
-  if (IsiPhoneLandscapeLayout(self.traitCollection)) {
-    extraSidePadding = kLandscapeSidePadding;
   }
 
   _heightConstraint.constant = constraints.actual_height;
-  _leadingConstraint.constant = constraints.side_margin + extraSidePadding;
-  _trailingConstraint.constant = -(constraints.side_margin + extraSidePadding);
+  _leadingConstraint.constant = constraints.side_margin;
+  _trailingConstraint.constant = -constraints.side_margin;
   _bottomConstraint.constant = -constraints.bottom_margin;
-  [_assistantContainerView updateCornerRadius:constraints.corner_radius
-                                maskedCorners:constraints.masked_corners];
+  [_assistantContainerView
+      updateTopCornerRadius:constraints.top_corner_radius
+         bottomCornerRadius:constraints.bottom_corner_radius];
   _dimmingView.alpha = constraints.background_dimming_alpha;
 }
 
@@ -460,12 +451,19 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
 // Adds gesture recognizers to the view.
 - (void)setUpGestures {
+  // Pan gesture for resizing the container.
   _headerPanGesture = [[UIPanGestureRecognizer alloc]
       initWithTarget:self
               action:@selector(handlePanGesture:)];
   _headerPanGesture.delegate = self;
   [_assistantContainerView addGestureRecognizer:_headerPanGesture];
-  [self updatePanGestureEnabledState];
+
+  // Configure the grabber button action for toggling container size.
+  [_assistantContainerView.grabberButton
+             addTarget:self
+                action:@selector(handleGrabberButtonTapped:)
+      forControlEvents:UIControlEventTouchUpInside];
+  [self updateInteractionEnabledState];
 }
 
 // Called when the animation to a detent completes.
@@ -486,15 +484,38 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
   }
 }
 
-// Updates the pan gesture enabled state based on animation and detents.
-- (void)updatePanGestureEnabledState {
-  // Prevent the gesture recognizer from interfering with the animation.
+// Updates the interaction enabled state based on animation and detents.
+- (void)updateInteractionEnabledState {
+  // Prevent interactions from interfering with the animation.
   if (self.isAnimating) {
     _headerPanGesture.enabled = NO;
+    _assistantContainerView.grabberButton.enabled = NO;
     return;
   }
 
   _headerPanGesture.enabled = YES;
+  _assistantContainerView.grabberButton.enabled = YES;
+}
+
+// Handles the tap on the grabber button to toggle container size.
+- (void)handleGrabberButtonTapped:(UIButton*)sender {
+  if (self.isAnimating) {
+    return;
+  }
+
+  AssistantContainerDetent minDetent = self.detents.front();
+  AssistantContainerDetent maxDetent = self.detents.back();
+
+  if (minDetent == maxDetent) {
+    return;
+  }
+
+  AssistantContainerDetent targetDetent =
+      _activeDetent.value() == maxDetent ? minDetent : maxDetent;
+
+  [self animateToDetent:targetDetent
+               duration:kSpringDuration
+                  curve:UIViewAnimationCurveEaseInOut];
 }
 
 // Handles the pan gesture on the header to resize the container.
@@ -562,8 +583,8 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 
 // Converts a physical pixel height mathematically into an expansion percentage.
 - (CGFloat)expandPercentageForHeight:(CGFloat)height {
-  CGFloat minHeight = [self effectiveMinHeight];
-  CGFloat maxHeight = [self effectiveMaxHeight];
+  CGFloat minHeight = self.minimizedDetentHeight;
+  CGFloat maxHeight = [self absoluteMaxHeight];
   if (maxHeight <= minHeight) {
     return 0.0;
   }
@@ -768,12 +789,13 @@ NSInteger GetMediumDetentHeight(NSInteger absoluteMax) {
 // Updates layout constants and constraints based on the current trait
 // collection.
 - (void)updateLayoutForCurrentTraitCollection {
-  if (IsiPadLayout(self.traitCollection)) {
+  if (IsiPadLayout(self.traitCollection) ||
+      IsiPhoneLandscapeLayout(self.traitCollection)) {
     [NSLayoutConstraint
         deactivateConstraints:@[ _leadingConstraint, _trailingConstraint ]];
-    [NSLayoutConstraint activateConstraints:_ipadConstraints];
+    [NSLayoutConstraint activateConstraints:_widthRestrictedConstraints];
   } else {
-    [NSLayoutConstraint deactivateConstraints:_ipadConstraints];
+    [NSLayoutConstraint deactivateConstraints:_widthRestrictedConstraints];
     [NSLayoutConstraint
         activateConstraints:@[ _leadingConstraint, _trailingConstraint ]];
   }

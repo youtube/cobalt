@@ -257,6 +257,8 @@ chromium-metrics-reviews@google.com.
       summary="engagement with Fusebox attachments"/>
   <variant name="IPH_GenericAlwaysTriggerHelpUiFeature"
       summary="generic feature to always show help Ui whenever asked"/>
+  <variant name="IPH_GestureUserEducation"
+      summary="IPH for gesture user education"/>
   <variant name="IPH_GlicPromo" summary="Glic promotion"/>
   <variant name="IPH_GlicPromoAndroid" summary="Glic promotion on Android"/>
   <variant name="IPH_GlicTrustFirstOnboardingShortcutSnoozePromo"
@@ -666,6 +668,8 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_TabSwitcherButtonSwitchIncognito"
       summary="Switch to incognito via tab switcher button"/>
   <variant name="IPH_TabSwitcherFloatingActionButton"
+      summary="tab switcher floating action button"/>
+  <variant name="IPH_ThreeDotMenuBackButton"
       summary="tab switcher floating action button"/>
   <variant name="IPH_ToolbarManagementButton"
       summary="toolbar management button"/>

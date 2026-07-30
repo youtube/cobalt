@@ -177,6 +177,7 @@ public abstract class ChromeFeatureList {
     public static final String ANDROID_APP_INTEGRATION_MODULE = "AndroidAppIntegrationModule";
     public static final String ANDROID_APP_INTEGRATION_MULTI_DATA_SOURCE =
             "AndroidAppIntegrationMultiDataSource";
+    public static final String ANDROID_APP_RATING_PROMPT = "AndroidAppRatingPrompt";
     public static final String ANDROID_AUTOFILL_SUPPORT_FOR_HTTP_AUTH =
             "AndroidAutofillSupportForHttpAuth";
     public static final String ANDROID_AUTO_MINTED_TWA = "AndroidAutoMintedTWA";
@@ -225,6 +226,7 @@ public abstract class ChromeFeatureList {
             "AndroidWindowPopupPredictFinalBounds";
     public static final String ANDROID_WINDOW_POPUP_RESIZE_AFTER_SPAWN =
             "AndroidWindowPopupResizeAfterSpawn";
+    public static final String ANDROID_XR_IMMERSIVE_PLAYER = "AndroidXrImmersivePlayer";
     public static final String ANDROID_XR_USES_SURFACE_CONTROL = "AndroidXRUsesSurfaceControl";
     public static final String ANIMATED_GIF_REFACTOR = "AnimatedGifRefactor";
     public static final String ANIMATED_IMAGE_DRAG_SHADOW = "AnimatedImageDragShadow";
@@ -233,6 +235,10 @@ public abstract class ChromeFeatureList {
     public static final String APB144_PATCH1 = "Apb144Patch1";
     public static final String APB144_PATCH2 = "Apb144Patch2";
     public static final String APB144_PATCH3 = "Apb144Patch3";
+    public static final String APB144_PATCH4 = "Apb144Patch4";
+    public static final String APB144_PATCH5 = "Apb144Patch5";
+    public static final String APB144_PATCH6 = "Apb144Patch6";
+    public static final String APB144_PATCH7 = "Apb144Patch7";
     public static final String APP_SPECIFIC_HISTORY = "AppSpecificHistory";
     public static final String APP_SPECIFIC_HISTORY_VIEW_INTENT = "AppSpecificHistoryViewIntent";
     public static final String ASYNC_NOTIFICATION_MANAGER = "AsyncNotificationManager";
@@ -604,6 +610,7 @@ public abstract class ChromeFeatureList {
     public static final String SAFE_BROWSING_DELAYED_WARNINGS = "SafeBrowsingDelayedWarnings";
     public static final String SAFE_BROWSING_EXTENDED_REPORTING_REMOVE_PREF_DEPENDENCY =
             "ExtendedReportingRemovePrefDependency";
+    public static final String SCHEDULE_WINDOW_CLEANING = "ScheduleWindowCleaning";
     public static final String SEARCH_IN_CCT = "SearchInCCT";
     public static final String SEARCH_IN_CCT_ALTERNATE_TAP_HANDLING =
             "SearchInCCTAlternateTapHandling";
@@ -675,6 +682,7 @@ public abstract class ChromeFeatureList {
     public static final String TASK_MANAGER_CLANK = "TaskManagerClank";
     public static final String TEST_DEFAULT_DISABLED = "TestDefaultDisabled";
     public static final String TEST_DEFAULT_ENABLED = "TestDefaultEnabled";
+    public static final String THREE_DOT_MENU_BACK_BUTTON = "ThreeDotMenuBackButton";
     public static final String TOOLBAR_PHONE_ANIMATION_REFACTOR = "ToolbarPhoneAnimationRefactor";
     public static final String TOOLBAR_SCROLL_ABLATION = "AndroidToolbarScrollAblation";
     public static final String TOOLBAR_SNAPSHOT_REFACTOR = "ToolbarSnapshotRefactor";
@@ -726,10 +734,16 @@ public abstract class ChromeFeatureList {
     public static final CachedFlag sAndroidApb144Patch1 = newCachedFlag(APB144_PATCH1, true);
     public static final CachedFlag sAndroidApb144Patch2 = newCachedFlag(APB144_PATCH2, true);
     public static final CachedFlag sAndroidApb144Patch3 = newCachedFlag(APB144_PATCH3, true);
+    public static final CachedFlag sAndroidApb144Patch4 = newCachedFlag(APB144_PATCH4, true);
+    public static final CachedFlag sAndroidApb144Patch5 = newCachedFlag(APB144_PATCH5, true);
+    public static final CachedFlag sAndroidApb144Patch6 = newCachedFlag(APB144_PATCH6, true);
+    public static final CachedFlag sAndroidApb144Patch7 = newCachedFlag(APB144_PATCH7, true);
     public static final CachedFlag sAndroidAppIntegrationModule =
             newCachedFlag(ANDROID_APP_INTEGRATION_MODULE, true);
     public static final CachedFlag sAndroidAppIntegrationMultiDataSource =
             newCachedFlag(ANDROID_APP_INTEGRATION_MULTI_DATA_SOURCE, true);
+    public static final CachedFlag sAndroidAppRatingPrompt =
+            newCachedFlag(ANDROID_APP_RATING_PROMPT, false);
     public static final CachedFlag sAndroidAutoMintedTwa =
             newCachedFlag(ANDROID_AUTO_MINTED_TWA, false);
     public static final CachedFlag sAndroidBottomBar =
@@ -797,6 +811,8 @@ public abstract class ChromeFeatureList {
             newCachedFlag(ANDROID_WINDOW_POPUP_PREDICT_FINAL_BOUNDS, false, true);
     public static final CachedFlag sAndroidWindowPopupResizeAfterSpawn =
             newCachedFlag(ANDROID_WINDOW_POPUP_RESIZE_AFTER_SPAWN, false, true);
+    public static final CachedFlag sAndroidXrImmersivePlayer =
+            newCachedFlag(ANDROID_XR_IMMERSIVE_PLAYER, false);
     public static final CachedFlag sAppSpecificHistory = newCachedFlag(APP_SPECIFIC_HISTORY, true);
     public static final CachedFlag sAppSpecificHistoryViewIntent =
             newCachedFlag(APP_SPECIFIC_HISTORY_VIEW_INTENT, true);
@@ -1101,6 +1117,11 @@ public abstract class ChromeFeatureList {
     public static final CachedFlag sTestDefaultDisabled =
             newCachedFlag(TEST_DEFAULT_DISABLED, false);
     public static final CachedFlag sTestDefaultEnabled = newCachedFlag(TEST_DEFAULT_ENABLED, true);
+    public static final CachedFlag sThreeDotMenuBackButton =
+            newCachedFlag(
+                    THREE_DOT_MENU_BACK_BUTTON,
+                    /* defaultValue= */ false,
+                    /* defaultValueInTests= */ false);
     public static final CachedFlag sToolbarPhoneAnimationRefactor =
             newCachedFlag(
                     TOOLBAR_PHONE_ANIMATION_REFACTOR,
@@ -1155,8 +1176,13 @@ public abstract class ChromeFeatureList {
                     sAndroidApb144Patch1,
                     sAndroidApb144Patch2,
                     sAndroidApb144Patch3,
+                    sAndroidApb144Patch4,
+                    sAndroidApb144Patch5,
+                    sAndroidApb144Patch6,
+                    sAndroidApb144Patch7,
                     sAndroidAppIntegrationModule,
                     sAndroidAppIntegrationMultiDataSource,
+                    sAndroidAppRatingPrompt,
                     sAndroidAutoMintedTwa,
                     sAndroidBottomBar,
                     sAndroidBottomToolbarV2,
@@ -1185,6 +1211,7 @@ public abstract class ChromeFeatureList {
                     sAndroidWindowPopupLargeScreen,
                     sAndroidWindowPopupPredictFinalBounds,
                     sAndroidWindowPopupResizeAfterSpawn,
+                    sAndroidXrImmersivePlayer,
                     sAppSpecificHistory,
                     sAppSpecificHistoryViewIntent,
                     sAsyncNotificationManager,
@@ -1304,6 +1331,7 @@ public abstract class ChromeFeatureList {
                     sTabStorageSqlitePrototype,
                     sTabStripDensityChangeAndroid,
                     sTabWindowManagerReportIndicesMismatch,
+                    sThreeDotMenuBackButton,
                     sToolbarPhoneAnimationRefactor,
                     sToolbarSnapshotRefactor,
                     sToolbarStaleCaptureBugFix,
@@ -1399,6 +1427,8 @@ public abstract class ChromeFeatureList {
             newMutableFlagWithSafeDefault(RECORD_SUPPRESSION_METRICS, true);
     public static final MutableFlagWithSafeDefault sRobustWindowManagement =
             newMutableFlagWithSafeDefault(ROBUST_WINDOW_MANAGEMENT, true);
+    public static final MutableFlagWithSafeDefault sScheduleWindowCleaning =
+            newMutableFlagWithSafeDefault(SCHEDULE_WINDOW_CLEANING, false);
     public static final MutableFlagWithSafeDefault sShowTabListAnimations =
             newMutableFlagWithSafeDefault(SHOW_TAB_LIST_ANIMATIONS, false);
     public static final MutableFlagWithSafeDefault sSuppressToolbarCapturesAtGestureEnd =

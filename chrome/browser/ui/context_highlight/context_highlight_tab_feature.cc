@@ -9,6 +9,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/context_highlight/context_highlight_window_feature.h"
 #include "components/tabs/public/tab_interface.h"
+#include "components/viz/common/surfaces/tracked_element_rects.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/web_contents.h"
@@ -44,14 +45,14 @@ content::RenderWidgetHost* ContextHighlightTabFeature::GetRenderWidgetHost()
   return rvh->GetWidget();
 }
 
-void ContextHighlightTabFeature::OnTrackedElementBoundsChanged(
-    const cc::TrackedElementBounds& bounds,
+void ContextHighlightTabFeature::OnTrackedElementRectsChanged(
+    const viz::TrackedElementRects& rects,
     float device_scale_factor) {
-  latest_bounds_ = bounds;
+  latest_rects_ = rects;
   latest_scale_factor_ = device_scale_factor;
   if (tab_->IsActivated()) {
     ContextHighlightWindowFeature* window_feature = GetWindowFeature();
-    window_feature->CheckAndUpdateTrackedElementBounds();
+    window_feature->CheckAndUpdateTrackedElementRects();
   }
 }
 
@@ -75,7 +76,7 @@ void ContextHighlightTabFeature::OnWillDiscardContents(
     TabInterface* tab,
     content::WebContents* old_contents,
     content::WebContents* new_contents) {
-  latest_bounds_ = cc::TrackedElementBounds();
+  latest_rects_ = viz::TrackedElementRects();
   UnregisterObserverFromHost(current_host_);
   Observe(new_contents);
 

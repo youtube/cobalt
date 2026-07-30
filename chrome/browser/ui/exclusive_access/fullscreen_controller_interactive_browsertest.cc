@@ -792,18 +792,16 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
   ASSERT_FALSE(fullscreen_controller->IsTabFullscreen());
 
   // While bubble is showing, tab fullscreen cannot be entered.
-  EXPECT_THAT(content::EvalJs(web_contents,
-                              "document.documentElement.requestFullscreen()"),
-              content::EvalJsResult::IsError());
+  EXPECT_FALSE(content::ExecJs(web_contents,
+                               "document.documentElement.requestFullscreen()"));
   ASSERT_FALSE(fullscreen_controller->IsTabFullscreen());
 
   // Accept the permission request to close the bubble.
   permission_request_manager->Accept(/*prompt_options=*/std::monostate());
 
   // Now we should be able to enter tab fullscreen again.
-  EXPECT_THAT(content::EvalJs(web_contents,
-                              "document.documentElement.requestFullscreen()"),
-              content::EvalJsResult::IsOk());
+  EXPECT_TRUE(content::ExecJs(web_contents,
+                              "document.documentElement.requestFullscreen()"));
   ASSERT_TRUE(fullscreen_controller->IsTabFullscreen());
 }
 
@@ -833,18 +831,16 @@ IN_PROC_BROWSER_TEST_F(FullscreenControllerInteractiveTest,
   EXPECT_FALSE(fullscreen_controller->IsTabFullscreen());
 
   // While bubble is showing, tab fullscreen cannot be entered.
-  EXPECT_THAT(content::EvalJs(web_contents,
-                              "document.documentElement.requestFullscreen()"),
-              content::EvalJsResult::IsError());
+  EXPECT_FALSE(content::ExecJs(web_contents,
+                               "document.documentElement.requestFullscreen()"));
   EXPECT_FALSE(fullscreen_controller->IsTabFullscreen());
 
   // Close the chooser bubble.
   std::move(close_chooser).Run();
 
   // Now we should be able to enter tab fullscreen again.
-  EXPECT_THAT(content::EvalJs(web_contents,
-                              "document.documentElement.requestFullscreen()"),
-              content::EvalJsResult::IsOk());
+  EXPECT_TRUE(content::ExecJs(web_contents,
+                              "document.documentElement.requestFullscreen()"));
   EXPECT_TRUE(fullscreen_controller->IsTabFullscreen());
 }
 

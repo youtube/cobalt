@@ -4,19 +4,28 @@
 
 static_library("core") {
   sources = [
+    "finds_features.cc",
+    "finds_features.h",
+    "finds_pref_names.cc",
+    "finds_pref_names.h",
     "finds_service.cc",
     "finds_service.h",
     "finds_tab_helper.cc",
     "finds_tab_helper.h",
+    "finds_utils.cc",
+    "finds_utils.h",
   ]
 
   deps = [
     "//base",
+    "//chrome/browser/notifications/scheduler/public",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/profiles:profile",
     "//components/history/core/browser",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/pref_registry",
+    "//components/prefs",
     "//content/public/browser",
   ]
 }
@@ -28,10 +37,12 @@ source_set("unit_tests") {
     ":core",
     "//base",
     "//base/test:test_support",
+    "//chrome/browser/notifications/scheduler/test:test_support",
     "//chrome/browser/optimization_guide:test_support",
     "//chrome/test:test_support",
     "//components/history/core/browser",
     "//components/optimization_guide/core:test_support",
+    "//components/prefs:test_support",
     "//content/test:test_support",
     "//testing/gmock",
     "//testing/gtest",

@@ -61,6 +61,12 @@ void ExtensionsToolbarAndroid::TriggerPopup(
       reinterpret_cast<int64_t>(host.release()));
 }
 
+void ExtensionsToolbarAndroid::ShowContextMenu(
+    const ToolbarActionsModel::ActionId& action_id) {
+  Java_ExtensionsToolbarBridge_showContextMenu(AttachCurrentThread(),
+                                               java_object_, action_id);
+}
+
 std::unique_ptr<ExtensionActionViewModel>
 ExtensionsToolbarAndroid::CreateActionViewModel(
     const ToolbarActionsModel::ActionId& action_id,
@@ -88,8 +94,8 @@ void ExtensionsToolbarAndroid::OnRequestAccessButtonParamsChanged(
 }
 
 void ExtensionsToolbarAndroid::HideActivePopup() {
-  // TODO(crbug.com/461981075)
-  NOTIMPLEMENTED();
+  return Java_ExtensionsToolbarBridge_hideActivePopup(AttachCurrentThread(),
+                                                      java_object_);
 }
 
 bool ExtensionsToolbarAndroid::CloseOverflowMenuIfOpen() {
@@ -100,9 +106,8 @@ bool ExtensionsToolbarAndroid::CloseOverflowMenuIfOpen() {
 
 bool ExtensionsToolbarAndroid::CanShowToolbarActionPopupForAPICall(
     const std::string& action_id) {
-  // TODO(crbug.com/461981075)
-  NOTIMPLEMENTED();
-  return false;
+  return Java_ExtensionsToolbarBridge_hasPoppedOutAction(AttachCurrentThread(),
+                                                         java_object_);
 }
 
 void ExtensionsToolbarAndroid::ToggleExtensionsMenu() {
@@ -144,9 +149,10 @@ void ExtensionsToolbarAndroid::OnPinnedActionsChanged() {
 }
 
 void ExtensionsToolbarAndroid::OnActiveWebContentsChanged(
-    bool /*is_same_document*/) {
-  Java_ExtensionsToolbarBridge_onActiveWebContentsChanged(AttachCurrentThread(),
-                                                          java_object_);
+    bool /*is_same_document*/,
+    content::WebContents* web_contents) {
+  Java_ExtensionsToolbarBridge_onActiveWebContentsChanged(
+      AttachCurrentThread(), java_object_, web_contents->GetJavaWebContents());
 }
 
 void ExtensionsToolbarAndroid::OnToolbarControlStateUpdated() {
@@ -215,6 +221,12 @@ int ExtensionsToolbarAndroid::GetExtensionsMenuButtonState(
     JNIEnv* env,
     content::WebContents* web_contents) {
   return static_cast<int>(toolbar_view_model_->GetButtonState(*web_contents));
+}
+
+bool ExtensionsToolbarAndroid::IsActionDraggable(
+    JNIEnv* env,
+    const ToolbarActionsModel::ActionId& action_id) {
+  return toolbar_view_model_->IsActionDraggable(action_id);
 }
 
 void ExtensionsToolbarAndroid::ExecuteUserAction(

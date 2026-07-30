@@ -546,6 +546,12 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_SITE_SEARCH_EXTENSIONS_DESCRIPTION" desc="Explanation for 'Extensions' section">
         Some extensions can add search engines to Chrome
       </message>
+      <message name="IDS_SITE_SEARCH_EXTENSIONS_MENU_MANAGE" desc="Menu item to manage extensions">
+        Manage
+      </message>
+      <message name="IDS_SITE_SEARCH_EXTENSIONS_MENU_DISABLE" desc="Menu item to disable the extension">
+        Disable
+      </message>
       <message name="IDS_SITE_SEARCH_DIALOG_TITLE_ADD" desc="Title for the Add Site Search dialog.">
         Add site search
       </message>
@@ -943,6 +949,11 @@ For more settings that use data to improve your Chrome experience, go to <ph nam
       <message name="IDS_BOOKMARK_BAR_SETTING_SUBTITLE" desc="Subtitle hint for the bookmark bar setting.">
         Hidden on narrow screens
       </message>
+      <if expr="enable_extensions_core">
+        <message name="IDS_EXTENSIONS_PIN_TO_TOOLBAR_SETTING" desc="Title Text of the button that pins the extensions menu icon (the puzzle piece icon) to the toolbar.">
+          Pin to toolbar
+        </message>
+      </if>
 
       <!-- Themes settings -->
       <message name="IDS_THEME_SETTINGS" desc="Title for the Theme settings. [CHAR_LIMIT=32]">
@@ -2951,6 +2962,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_TOAST_DISALLOW_PRINT" desc="Toast message shown when a user tries to print a native page that doesn't support printing.">
         This page can't be printed
       </message>
+      <message name="IDS_ACCESSIBILITY_MENU_BACK" desc="Content description for the backward navigation button.">
+        Go back
+      </message>
       <message name="IDS_ACCESSIBILITY_MENU_BOOKMARK" desc="Content description for the bookmark button when the page is not currently bookmarked.">
         Bookmark this page
       </message>
@@ -4307,6 +4321,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_MENU_MANAGE_ALL_WINDOWS" desc="Menu item for bringing up instance switcher UI. [CHAR_LIMIT=27]">
         Manage windows
+      </message>
+      <message name="IDS_MENU_BACK" desc="Tooltip for the button to advance to the previous web page. Verb. [CHAR_LIMIT=27]">
+        Back
       </message>
       <message name="IDS_MENU_FORWARD" desc="Tooltip for the button to advance to the next web page. Verb. [CHAR_LIMIT=27]">
         Forward
@@ -6086,12 +6103,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
 
       <!-- Multi-instance message strings -->
-      <message name="IDS_MULTI_INSTANCE_RESTORATION_MESSAGE_TITLE" desc="Title of the message shown when the number of persisted instances exceeds the max instance count after an instance limit downgrade.">
-        Only <ph name="MAX_INSTANCE_COUNT">%1$s<ex>5</ex></ph> windows can be shown
-      </message>
-      <message name="IDS_MULTI_INSTANCE_RESTORATION_MESSAGE_DESCRIPTION" desc="Description of the message shown when the number of persisted instances exceeds the max instance count after an instance limit downgrade.">
-        Select manage to see all windows
-      </message>
       <message name="IDS_MULTI_INSTANCE_MESSAGE_BUTTON" desc="Text on the button that will open the instance switcher dialog.">
         Manage
       </message>
@@ -7760,6 +7771,10 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_CHROME_FINDS_OPT_IN_SNACKBAR_ACTION_TEXT" desc="Action button of the Chrome Finds snackbar on user opt-in. [CHAR_LIMIT=10]">
         Manage
+      </message>
+    <!-- Glic strings -->
+      <message name="IDS_GLIC_ACTOR_TASK_IN_PROGRESS" desc="Snackbar message shown when a Glic actor task is still in progress.">
+        Your task is still in progress
       </message>
     </messages>
   </release>

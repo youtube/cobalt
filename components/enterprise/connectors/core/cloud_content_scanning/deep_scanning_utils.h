@@ -11,6 +11,8 @@
 
 namespace enterprise_connectors {
 
+class BinaryUploadRequest;
+
 // Helper function to examine a ContentAnalysisResponse and report the
 // appropriate events to the enterprise admin. |download_digest_sha256| must be
 // encoded using base::HexEncode.  |event_result| indicates whether the user was
@@ -30,6 +32,27 @@ void MaybeReportDeepScanningVerdict(
     ScanRequestUploadResult result,
     const ContentAnalysisResponse& response,
     EventResult event_result);
+
+// Returns true for consumer scans and not on enterprise scans.
+bool IsConsumerScanRequest(const BinaryUploadRequest& request);
+
+// Returns true if the request will use the scotty resumable upload
+// protocol for sending scans to the server.
+bool IsResumableUpload(const BinaryUploadRequest& request);
+
+// Returns true if `result` as returned by BinaryUploadService is considered a
+// a failed result when attempting a cloud-based multipart content analysis.
+bool CloudMultipartResultIsFailure(ScanRequestUploadResult result);
+
+// Returns true if `result` as returned by BinaryUploadService is considered a
+// a failed result when attempting a cloud-based resumable content analysis.
+bool CloudResumableResultIsFailure(ScanRequestUploadResult result,
+                                   bool block_large_files,
+                                   bool block_password_protected_files);
+
+// Returns true if `result` as returned by BinaryUploadService is considered a
+// a failed result when attempting a local content analysis.
+bool LocalResultIsFailure(ScanRequestUploadResult result);
 
 }  // namespace enterprise_connectors
 

@@ -8,6 +8,7 @@
 #include "base/functional/callback_forward.h"
 #include "base/observer_list.h"
 #include "components/keyed_service/core/keyed_service.h"
+#include "components/trusted_vault/trusted_vault_connection.h"
 
 class EnclaveManager;
 
@@ -51,12 +52,6 @@ class EnclaveManagerInterface : public KeyedService {
     // The key has been ignored because the device has been already registered
     // with the enclave.
     kStoreKeysFromOpportunisticFlowIgnoredRedundant,
-    // The key has been ignored because neither system UV nor GPM PIN is
-    // available.
-    // TODO(crbug.com/488975473): Remove this bucket (because we will introduce
-    // a separate metric for reporting failures of out-of-context recovery
-    // flow).
-    kStoreKeysFromOpportunisticFlowIgnoredNoUV,
   };
 
   class Observer : public base::CheckedObserver {
@@ -103,7 +98,12 @@ class EnclaveManagerInterface : public KeyedService {
   // any state and is a no-op if no registration exists.
   virtual void Unenroll(Callback callback) = 0;
 
-  virtual void CheckGpmPinAvailability(GpmPinAvailabilityCallback callback) = 0;
+  // Asynchronously checks if the current user has a GPM PIN. The caller must
+  // keep the returned Request object alive until the callback is run.
+  // Destroying the Request object will cancel the operation.
+  [[nodiscard]] virtual std::unique_ptr<
+      trusted_vault::TrustedVaultConnection::Request>
+  CheckGpmPinAvailability(GpmPinAvailabilityCallback callback) = 0;
 
   virtual void LoadAfterDelay(base::TimeDelta delay,
                               base::OnceClosure closure) = 0;

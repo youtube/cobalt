@@ -36,9 +36,9 @@
 #include "content/public/common/origin_util.h"
 #include "content/public/test/back_forward_cache_util.h"
 #include "content/public/test/browser_task_environment.h"
+#include "content/public/test/test_content_browser_client.h"
+#include "content/public/test/test_content_client.h"
 #include "content/public/test/test_utils.h"
-#include "content/test/test_content_browser_client.h"
-#include "content/test/test_content_client.h"
 #include "mojo/public/cpp/system/functions.h"
 #include "net/cookies/site_for_cookies.h"
 #include "services/network/public/cpp/is_potentially_trustworthy.h"
@@ -1007,7 +1007,6 @@ class ServiceWorkerContainerHostTestByClientType
  public:
   ServiceWorkerContainerHostTestByClientType() = default;
 
-  // TODO(crbug.com/379869738) Remove FromUnsafeValue.
   ScopedServiceWorkerClient CreateClient() {
     switch (GetParam()) {
       case ClientType::kWindow:
@@ -1017,16 +1016,14 @@ class ServiceWorkerContainerHostTestByClientType
             helper_->context()
                 ->service_worker_client_owner()
                 .CreateServiceWorkerClientForWorker(
-                    ChildProcessId::FromUnsafeValue(
-                        helper_->mock_render_process_id()),
+                    helper_->mock_render_process_id(),
                     ServiceWorkerClientInfo(blink::DedicatedWorkerToken())));
       case ClientType::kSharedWorker:
         return ScopedServiceWorkerClient(
             helper_->context()
                 ->service_worker_client_owner()
                 .CreateServiceWorkerClientForWorker(
-                    ChildProcessId::FromUnsafeValue(
-                        helper_->mock_render_process_id()),
+                    helper_->mock_render_process_id(),
                     ServiceWorkerClientInfo(blink::SharedWorkerToken())));
     }
   }

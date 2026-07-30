@@ -39,3 +39,8 @@ Local modifications:
 - 009-clone-absl-demangle.patch: Clone the demangling implementation from
   abseil-cpp, which is itself a fork of https://github.com/google/glog/.
 - 010-clang-format.patch: format the source files using Chrome formatting rules.
+- 011-expose-end-address.patch: expose the end address to improve speed of the
+  line number parser.
+- 012-buffered-readers.patch: cherry-pick CachingFile from Abseil's fork of the
+  symbolizer to significantly improve performance. Expose CachingFile in the
+  header so Chrome's bespoke parsing code can reuse it too.

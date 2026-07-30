@@ -123,6 +123,7 @@ DEFINE_VARIATION_PARAM(kIPHFeedCardMenuFeature, "IPH_FeedCardMenu");
 DEFINE_VARIATION_PARAM(kIPHFuseboxAttachmentFeature, "IPH_FuseboxAttachment");
 DEFINE_VARIATION_PARAM(kIPHGenericAlwaysTriggerHelpUiFeature,
                        "IPH_GenericAlwaysTriggerHelpUiFeature");
+DEFINE_VARIATION_PARAM(kIPHGestureUserEducation, "IPH_GestureUserEducation");
 DEFINE_VARIATION_PARAM(kIPHGlicPromoAndroidFeature, "IPH_GlicPromoAndroid");
 DEFINE_VARIATION_PARAM(kIPHIdentityDiscFeature, "IPH_IdentityDisc");
 DEFINE_VARIATION_PARAM(kIPHInstanceSwitcherFeature, "IPH_InstanceSwitcher");
@@ -196,6 +197,8 @@ DEFINE_VARIATION_PARAM(kIPHTabSwitcherAddToGroup, "IPH_TabSwitcherAddToGroup");
 DEFINE_VARIATION_PARAM(kIPHTabSwitcherButtonFeature, "IPH_TabSwitcherButton");
 DEFINE_VARIATION_PARAM(kIPHTabSwitcherButtonSwitchIncognitoFeature,
                        "IPH_TabSwitcherButtonSwitchIncognito");
+DEFINE_VARIATION_PARAM(kIPHThreeDotMenuBackButton,
+                       "IPH_ThreeDotMenuBackButton");
 DEFINE_VARIATION_PARAM(kIPHTouchToSearchCalloutFeature,
                        "IPH_TouchToSearchCallout");
 DEFINE_VARIATION_PARAM(kIPHTranslateMenuButtonFeature,

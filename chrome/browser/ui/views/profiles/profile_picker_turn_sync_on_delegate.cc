@@ -7,7 +7,6 @@
 #include <optional>
 
 #include "base/debug/dump_without_crashing.h"
-#include "base/feature_list.h"
 #include "base/logging.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
 #include "chrome/browser/profiles/profile.h"
@@ -140,8 +139,13 @@ void ProfilePickerTurnSyncOnDelegate::ShowSyncConfirmation(
   if (enterprise_account_) {
     // First show the notice screen and only after that (if the user proceeds
     // with the flow) the sync consent.
-    ShowManagedUserNotice(
-        ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncEnabled);
+    ManagedUserProfileNoticeUI::ScreenType screen_type =
+        adapter_ && adapter_->signin_access_point() ==
+                        signin_metrics::AccessPoint::kForYouFre
+            ? ManagedUserProfileNoticeUI::ScreenType::kFirstRun
+            : ManagedUserProfileNoticeUI::ScreenType::
+                  kEntepriseAccountSyncEnabled;
+    ShowManagedUserNotice(screen_type);
     return;
   }
 
@@ -184,8 +188,7 @@ void ProfilePickerTurnSyncOnDelegate::OnSyncConfirmationUIClosed(
       LoginUIServiceFactory::GetForProfile(profile_)));
   scoped_login_ui_service_observation_.Reset();
 
-  if (!base::FeatureList::IsEnabled(
-          syncer::kReplaceSyncPromosWithSignInPromos)) {
+  if (!syncer::IsReplaceSyncPromosWithSignInPromosEnabled()) {
     // If the user declines enabling sync while browser sign-in is forced,
     // prevent them from going further by cancelling the creation of this
     // profile. It does not apply to managed accounts.
@@ -269,6 +272,7 @@ void ProfilePickerTurnSyncOnDelegate::OnManagedUserNoticeClosed(
 
   switch (type) {
     case ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncEnabled:
+    case ManagedUserProfileNoticeUI::ScreenType::kFirstRun:
       ShowSyncConfirmationScreen();
       return;
     case ManagedUserProfileNoticeUI::ScreenType::kEntepriseAccountSyncDisabled:
@@ -289,7 +293,6 @@ void ProfilePickerTurnSyncOnDelegate::OnManagedUserNoticeClosed(
       NOTREACHED() << "The profile picker should not show a managed user "
                       "notice that prompts for profile creation";
     case ManagedUserProfileNoticeUI::ScreenType::kProfilePicker:
-    case ManagedUserProfileNoticeUI::ScreenType::kFirstRun:
       NOTREACHED() << "Screen type is used only on the revamped history sync "
                       "helper flow";
   }

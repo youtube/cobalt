@@ -20,17 +20,13 @@ namespace webui_toolbar {
 struct TabSplitStatus {
   bool is_split = false;
   toolbar_ui_api::mojom::SplitTabActiveLocation location =
-      toolbar_ui_api::mojom::SplitTabActiveLocation::kStart;
+      toolbar_ui_api::mojom::SplitTabActiveLocation::kUnspecified;
 
   bool operator==(const TabSplitStatus& other) const = default;
 };
 
 // Calculates the split status of the active tab.
 TabSplitStatus ComputeTabSplitStatus(BrowserWindowInterface* browser_interface);
-
-// Gets the pin state from user prefs.
-bool IsButtonPinned(BrowserWindowInterface* browser_interface,
-                    toolbar_ui_api::mojom::ToolbarButtonType type);
 
 // Populates the WebUI data source with split tabs specific strings and initial
 // state.

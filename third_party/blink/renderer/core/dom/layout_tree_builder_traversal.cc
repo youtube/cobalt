@@ -47,26 +47,6 @@ inline static bool HasDisplayContentsStyle(const Node& node) {
   return element && element->HasDisplayContentsStyle();
 }
 
-static bool IsLayoutObjectReparented(const LayoutObject* layout_object) {
-  return layout_object->IsInTopOrViewTransitionLayer() ||
-         layout_object->Style()->IsInternalOverscrollPositionAuto();
-}
-
-static Node* PreviousLayoutSiblingOfElement(Element& element) {
-  Node* originating_prev = LayoutTreeBuilderTraversal::PreviousSibling(element);
-  Element* originating_prev_element = DynamicTo<Element>(originating_prev);
-  if (originating_prev_element &&
-      originating_prev_element->GetComputedStyle() &&
-      originating_prev_element->GetComputedStyle()
-          ->HasScrollMarkerGroupAfter()) {
-    if (Element* pseudo = originating_prev_element->GetPseudoElement(
-            kPseudoIdScrollMarkerGroupAfter)) {
-      return pseudo;
-    }
-  }
-  return originating_prev;
-}
-
 ContainerNode* LayoutTreeBuilderTraversal::Parent(const Node& node) {
   // TODO(hayato): Uncomment this once we can be sure
   // LayoutTreeBuilderTraversal::parent() is used only for a node which is
@@ -224,6 +204,11 @@ Node* LayoutTreeBuilderTraversal::NextSibling(const Node& node) {
       }
       [[fallthrough]];
     case kPseudoIdAfter:
+      if (Node* next = parent_element->GetPseudoElement(kPseudoIdExpandIcon)) {
+        return next;
+      }
+      [[fallthrough]];
+    case kPseudoIdExpandIcon:
       if (Node* next = parent_element->GetPseudoElement(kPseudoIdPickerIcon)) {
         return next;
       }
@@ -325,6 +310,12 @@ Node* LayoutTreeBuilderTraversal::PreviousSibling(const Node& node) {
       }
       [[fallthrough]];
     case kPseudoIdPickerIcon:
+      if (Node* previous =
+              parent_element->GetPseudoElement(kPseudoIdExpandIcon)) {
+        return previous;
+      }
+      [[fallthrough]];
+    case kPseudoIdExpandIcon:
       if (Node* previous = parent_element->GetPseudoElement(kPseudoIdAfter)) {
         return previous;
       }
@@ -433,6 +424,9 @@ Node* LayoutTreeBuilderTraversal::LastChild(const Node& node) {
   if (Node* last = current_element->GetPseudoElement(kPseudoIdPickerIcon)) {
     return last;
   }
+  if (Node* last = current_element->GetPseudoElement(kPseudoIdExpandIcon)) {
+    return last;
+  }
   if (Node* last = current_element->GetPseudoElement(kPseudoIdAfter))
     return last;
   if (Node* last = FlatTreeTraversal::LastChild(*current_element))
@@ -536,6 +530,9 @@ Node* LayoutTreeBuilderTraversal::FirstChild(const Node& node) {
   if (Node* first = FlatTreeTraversal::FirstChild(node))
     return first;
   if (Node* first = current_element->GetPseudoElement(kPseudoIdAfter)) {
+    return first;
+  }
+  if (Node* first = current_element->GetPseudoElement(kPseudoIdExpandIcon)) {
     return first;
   }
   if (Node* first = current_element->GetPseudoElement(kPseudoIdPickerIcon)) {
@@ -709,132 +706,31 @@ static Node* NextLayoutSiblingInBoxTreeOrder(const Node& node) {
   return next;
 }
 
-static Node* NextLayoutSiblingInternal(Node* node, int32_t& limit) {
-  for (Node* sibling = node; sibling && limit-- != 0;
+static Node* NextLayoutSiblingInternal(Node* node) {
+  for (Node* sibling = node; sibling;
        sibling = NextLayoutSiblingInBoxTreeOrder(*sibling)) {
     if (!HasDisplayContentsStyle(*sibling))
       return sibling;
 
     if (Node* inner = NextLayoutSiblingInternal(
-            LayoutTreeBuilderTraversal::FirstChild(*sibling), limit))
+            LayoutTreeBuilderTraversal::FirstChild(*sibling))) {
       return inner;
-
-    if (limit == -1)
-      return nullptr;
+    }
   }
 
   return nullptr;
 }
 
-Node* LayoutTreeBuilderTraversal::NextLayoutSibling(const Node& node,
-                                                    int32_t& limit) {
-  DCHECK_NE(limit, -1);
-  if (Node* sibling = NextLayoutSiblingInternal(
-          NextLayoutSiblingInBoxTreeOrder(node), limit)) {
+Node* LayoutTreeBuilderTraversal::NextLayoutSibling(const Node& node) {
+  if (Node* sibling =
+          NextLayoutSiblingInternal(NextLayoutSiblingInBoxTreeOrder(node))) {
     return sibling;
   }
 
   Node* parent = LayoutTreeBuilderTraversal::Parent(node);
-  while (limit != -1 && parent && HasDisplayContentsStyle(*parent)) {
+  while (parent && HasDisplayContentsStyle(*parent)) {
     if (Node* sibling = NextLayoutSiblingInternal(
-            NextLayoutSiblingInBoxTreeOrder(*parent), limit)) {
-      return sibling;
-    }
-    parent = LayoutTreeBuilderTraversal::Parent(*parent);
-  }
-
-  return nullptr;
-}
-
-// See comments in NextLayoutSiblingInBoxTreeOrder.
-static Node* PreviousLayoutSiblingInBoxTreeOrder(const Node& node) {
-  Node* previous = LayoutTreeBuilderTraversal::PreviousSibling(node);
-  if (AreBoxTreeOrderSiblings(node, previous)) {
-    return previous;
-  }
-  Element* previous_element = DynamicTo<Element>(previous);
-  if (previous_element && previous_element->GetComputedStyle() &&
-      previous_element->GetComputedStyle()->HasScrollMarkerGroupAfter()) {
-    if (Element* pseudo = previous_element->GetPseudoElement(
-            kPseudoIdScrollMarkerGroupAfter)) {
-      return pseudo;
-    }
-  }
-  if (previous_element &&
-      previous_element->IsScrollMarkerGroupPseudoElement()) {
-    return LayoutTreeBuilderTraversal::PreviousSibling(*previous_element);
-  }
-  const Element* element = DynamicTo<Element>(node);
-  if (!element) {
-    return previous;
-  }
-  if (element->IsScrollMarkerGroupAfterPseudoElement()) {
-    return element->parentNode();
-  }
-  if (Element* pseudo =
-          element->GetPseudoElement(kPseudoIdScrollButtonBlockEnd)) {
-    return pseudo;
-  }
-  if (Element* pseudo =
-          element->GetPseudoElement(kPseudoIdScrollButtonInlineEnd)) {
-    return pseudo;
-  }
-  if (Element* pseudo =
-          element->GetPseudoElement(kPseudoIdScrollButtonInlineStart)) {
-    return pseudo;
-  }
-  if (Element* pseudo =
-          element->GetPseudoElement(kPseudoIdScrollButtonBlockStart)) {
-    return pseudo;
-  }
-  if (element->GetComputedStyle() &&
-      element->GetComputedStyle()->HasScrollMarkerGroupBefore()) {
-    if (Element* pseudo =
-            element->GetPseudoElement(kPseudoIdScrollMarkerGroupBefore)) {
-      return pseudo;
-    }
-  }
-  if (element->IsScrollButtonPseudoElement()) {
-    if (previous && previous->IsScrollMarkerGroupBeforePseudoElement()) {
-      return previous;
-    }
-    return PreviousLayoutSiblingOfElement(*element->parentElement());
-  }
-  if (element->IsScrollMarkerGroupBeforePseudoElement()) {
-    return PreviousLayoutSiblingOfElement(*element->parentElement());
-  }
-  return previous;
-}
-
-static Node* PreviousLayoutSiblingInternal(Node* node, int32_t& limit) {
-  for (Node* sibling = node; sibling && limit-- != 0;
-       sibling = PreviousLayoutSiblingInBoxTreeOrder(*sibling)) {
-    if (!HasDisplayContentsStyle(*sibling))
-      return sibling;
-
-    if (Node* inner = PreviousLayoutSiblingInternal(
-            LayoutTreeBuilderTraversal::LastChild(*sibling), limit))
-      return inner;
-
-    if (limit == -1)
-      return nullptr;
-  }
-
-  return nullptr;
-}
-
-Node* LayoutTreeBuilderTraversal::PreviousLayoutSibling(const Node& node,
-                                                        int32_t& limit) {
-  DCHECK_NE(limit, -1);
-  if (Node* sibling = PreviousLayoutSiblingInternal(
-          PreviousLayoutSiblingInBoxTreeOrder(node), limit)) {
-    return sibling;
-  }
-
-  Node* parent = LayoutTreeBuilderTraversal::Parent(node);
-  while (limit != -1 && parent && HasDisplayContentsStyle(*parent)) {
-    if (Node* sibling = PreviousLayoutSiblingInternal(
-            PreviousLayoutSiblingInBoxTreeOrder(*parent), limit)) {
+            NextLayoutSiblingInBoxTreeOrder(*parent))) {
       return sibling;
     }
     parent = LayoutTreeBuilderTraversal::Parent(*parent);
@@ -844,35 +740,62 @@ Node* LayoutTreeBuilderTraversal::PreviousLayoutSibling(const Node& node,
 }
 
 Node* LayoutTreeBuilderTraversal::FirstLayoutChild(const Node& node) {
-  int32_t limit = kTraverseAllSiblings;
-  return NextLayoutSiblingInternal(FirstChild(node), limit);
+  return NextLayoutSiblingInternal(FirstChild(node));
 }
+
+namespace {
+
+bool IsLayoutObjectReparented(const LayoutObject* layout_object) {
+  return layout_object->IsInTopOrViewTransitionLayer() ||
+         layout_object->Style()->IsInternalOverscrollPositionAuto();
+}
+
+LayoutObject* NextSiblingLayoutObjectInternal(const Node& node) {
+  for (Node* sibling = LayoutTreeBuilderTraversal::NextLayoutSibling(node);
+       sibling;
+       sibling = LayoutTreeBuilderTraversal::NextLayoutSibling(*sibling)) {
+    LayoutObject* layout_object = sibling->GetLayoutObject();
+    if (layout_object && !IsLayoutObjectReparented(layout_object))
+      return layout_object;
+  }
+  return nullptr;
+}
+
+bool IsAnonymousInline(const LayoutObject* object) {
+  return object && object->IsAnonymous() && object->IsInline();
+}
+
+}  // namespace
 
 LayoutObject* LayoutTreeBuilderTraversal::NextSiblingLayoutObject(
-    const Node& node,
-    int32_t limit) {
-  DCHECK(limit == kTraverseAllSiblings || limit >= 0) << limit;
-  for (Node* sibling = NextLayoutSibling(node, limit); sibling && limit != -1;
-       sibling = NextLayoutSibling(*sibling, limit)) {
-    LayoutObject* layout_object = sibling->GetLayoutObject();
-    if (layout_object && !IsLayoutObjectReparented(layout_object))
-      return layout_object;
+    const Node& node) {
+  LayoutObject* next = NextSiblingLayoutObjectInternal(node);
+  // If a text node is wrapped in an anonymous inline for display:contents (see
+  // CreateInlineWrapperForDisplayContents()), use the wrapper as the next
+  // layout object. Otherwise we would need to add code to various AddChild()
+  // implementations to walk up the tree to find the correct layout tree
+  // parent/siblings.
+  if (!next || !next->IsText()) {
+    return next;
   }
-  return nullptr;
-}
 
-LayoutObject* LayoutTreeBuilderTraversal::PreviousSiblingLayoutObject(
-    const Node& node,
-    int32_t limit) {
-  DCHECK(limit == kTraverseAllSiblings || limit >= 0) << limit;
-  for (Node* sibling = PreviousLayoutSibling(node, limit);
-       sibling && limit != -1;
-       sibling = PreviousLayoutSibling(*sibling, limit)) {
-    LayoutObject* layout_object = sibling->GetLayoutObject();
-    if (layout_object && !IsLayoutObjectReparented(layout_object))
-      return layout_object;
+  auto* const parent = next->Parent();
+  if (!IsAnonymousInline(parent)) {
+    return next;
   }
-  return nullptr;
+  // Should return a normal result for display:ruby though it can be an
+  // anonymous inline.
+  if (parent->IsInlineRuby()) [[unlikely]] {
+    return next;
+  }
+  if (!parent->IsLayoutTextCombine()) [[unlikely]] {
+    return parent;
+  }
+  auto* const text_combine_parent = parent->Parent();
+  if (IsAnonymousInline(text_combine_parent)) {
+    return text_combine_parent;
+  }
+  return parent;
 }
 
 LayoutObject* LayoutTreeBuilderTraversal::NextInTopLayer(

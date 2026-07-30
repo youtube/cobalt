@@ -1073,6 +1073,7 @@
 <translation id="2673968385134502798">ゲーム</translation>
 <translation id="2674170444375937751">履歴からこれらのページを削除してもよろしいですか？</translation>
 <translation id="2674524144218093528">家屋塗装、仕上げ</translation>
+<translation id="2675716371350192683">AI を改善するためにコンテンツが使用されることはありません。組織はこれらの設定をいつでも変更できます。</translation>
 <translation id="26774279487328902"><ph name="GROUP_COUNT" /> 個のタブグループはご利用いただけなくなりました</translation>
 <translation id="2677748264148917807">このページを離れる</translation>
 <translation id="2679216653373462289">モーション センサーと光センサーの使用</translation>
@@ -2657,6 +2658,7 @@
 <translation id="5190835502935405962">ブックマーク バー</translation>
 <translation id="5191315092027169558">お使いのプロフィールは <ph name="DOMAIN" /> によって管理されています</translation>
 <translation id="51918995459521422"><ph name="ORIGIN" /> で複数のファイルがダウンロードされようとしています</translation>
+<translation id="519528950056409240">ウォレットにデータの共有を許可する</translation>
 <translation id="5199121357983849992">ID カードを保存しますか？</translation>
 <translation id="5200063972779787617">アカウントに住所を保存</translation>
 <translation id="5201306358585911203">このページに埋め込まれているページの内容</translation>
@@ -3104,6 +3106,7 @@
 <translation id="5910140988253729859">自動入力を取り消す</translation>
 <translation id="5911020115933784199">イベント情報</translation>
 <translation id="5911110632211230665">開けないようブロックされました</translation>
+<translation id="5912796581727968237">Google ウォレットを開く</translation>
 <translation id="5914465277418006379"><ph name="MEMBER_FIRST_NAME" /> さんがこのタブを追加しました</translation>
 <translation id="5915189366813702112">フレックス タイム制</translation>
 <translation id="59174027418879706">有効</translation>
@@ -3374,6 +3377,7 @@
 <translation id="6326947323444967009">iOS 設定で Chrome をシステムの既定のブラウザとして設定します</translation>
 <translation id="6327065120806001832">ローカル ネットワークへのアクセス</translation>
 <translation id="6328639280570009161">ネットワーク予測を無効にしてみてください</translation>
+<translation id="6329742260390895689">情報を自動入力するには、ウォレットの設定で [Google の各種サービスでパスを使用する] をオンにしてください</translation>
 <translation id="6329815962353376655">&lt;質問を入力&gt;</translation>
 <translation id="6331597954316706229">最もパーソナライズされた回答を取得するには、開いている関連タブの参照をすべてのスレッドに許可してください。</translation>
 <translation id="633348045801643466">購入手続き時に<ph name="PAY_LATER_OPTIONS_HELP_LINK_BEGIN" />後払い<ph name="PAY_LATER_OPTIONS_HELP_LINK_END" />オプションを表示する</translation>
@@ -3461,6 +3465,7 @@
 <translation id="6436994298828707228">公開ページでローカル ネットワーク上のデバイスまたはサーバーへの接続が開始されたため、接続がブロックされました。</translation>
 <translation id="6437647869369934905">Google 図形描画</translation>
 <translation id="643917412048333145">ドレス</translation>
+<translation id="6440450906295708112">バリエーションのソース</translation>
 <translation id="6440503408713884761">除外されました</translation>
 <translation id="6443406338865242315">インストールした拡張機能とプラグイン</translation>
 <translation id="6444329331928531170">老後、年金</translation>
@@ -4566,6 +4571,7 @@
 <translation id="8175796834047840627">ログインしている場合は、その Google アカウントにカードを保存できます。この動作は設定で変更できます。</translation>
 <translation id="8176440868214972690">このデバイスの管理者は、次のウェブサイトに設定やポリシーなどの情報を送信するよう設定しています。</translation>
 <translation id="817820454357658398">女性向け衛生用品</translation>
+<translation id="8182470873445638343"><ph name="BEGIN_BOLD" />購入手続きページのコンテンツは、これらのオプションを提供するために Google と共有されます。<ph name="END_BOLD" />お支払いプランは、ご利用条件を満たしていることが条件となります。後払いオプションを非表示にするには、<ph name="BEGIN_LINK" />お支払い設定<ph name="END_LINK" />に移動してください。</translation>
 <translation id="818254048113802060">{0,plural, =1{コンテンツが原因で <ph name="FILE_NAME" /> がブロックされました}other{コンテンツが原因で <ph name="FILE_COUNT" /> 個のファイルがブロックされました}}</translation>
 <translation id="8183800802493617952">家族向けゲーム、アクティビティ</translation>
 <translation id="8184538546369750125">グローバルのデフォルト値（[許可]）を使用</translation>

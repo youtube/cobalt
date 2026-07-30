@@ -199,28 +199,6 @@ bool AcceleratedStaticBitmapImage::CopyToTexture(
   return true;
 }
 
-bool AcceleratedStaticBitmapImage::CopyToResourceProvider(
-    CanvasNon2DResourceProviderSharedImage* resource_provider,
-    const gfx::Rect& copy_rect) {
-  DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
-  DCHECK(resource_provider);
-
-  if (!IsValid())
-    return false;
-
-  const gpu::SyncToken& ready_sync_token = mailbox_ref_->sync_token();
-  gpu::SyncToken completion_sync_token;
-  if (!resource_provider->CopyToBackingSharedImage(
-          shared_image_, copy_rect, ready_sync_token, completion_sync_token)) {
-    return false;
-  }
-
-  // We need to update the texture holder's sync token to ensure that when this
-  // mailbox is recycled or deleted, it is done after the copy operation above.
-  mailbox_ref_->set_sync_token(completion_sync_token);
-  return true;
-}
-
 PaintImage AcceleratedStaticBitmapImage::PaintImageForCurrentFrame() {
   // TODO(ccameron): This function should not ignore |colorBehavior|.
   // https://crbug.com/672306

@@ -1661,7 +1661,9 @@ protocol::Response InspectorCSSAgent::getMatchedStylesForNode(
       *css_function_rules =
           std::make_unique<protocol::Array<protocol::CSS::CSSFunctionRule>>();
       for (const auto& [scoped_name, rule] : function_hash_map) {
-        (*css_function_rules)->emplace_back(BuildObjectForFunctionRule(rule));
+        (*css_function_rules)
+            ->emplace_back(
+                BuildObjectForFunctionRule(rule, scoped_name->GetTreeScope()));
       }
     }
   }
@@ -3480,7 +3482,7 @@ std::unique_ptr<protocol::CSS::CSSMedia> InspectorCSSAgent::BuildMediaObject(
       continue;
     std::unique_ptr<protocol::CSS::MediaQuery> media_query =
         protocol::CSS::MediaQuery::create()
-            .setActive(media_evaluator->Eval(query))
+            .setActive(media_evaluator->Eval(query) == KleeneValue::kTrue)
             .setExpressions(std::move(expression_array))
             .build();
     media_list_array->emplace_back(std::move(media_query));
@@ -3975,7 +3977,8 @@ InspectorCSSAgent::BuildArrayForFunctionNodeChildren(CSSRuleList* rule_list) {
 }
 
 std::unique_ptr<protocol::CSS::CSSFunctionRule>
-InspectorCSSAgent::BuildObjectForFunctionRule(CSSFunctionRule* function_rule) {
+InspectorCSSAgent::BuildObjectForFunctionRule(CSSFunctionRule* function_rule,
+                                              const TreeScope* tree_scope) {
   InspectorStyleSheet* inspector_style_sheet =
       BindStyleSheet(function_rule->parentStyleSheet());
   std::unique_ptr<protocol::CSS::Value> name =
@@ -4008,6 +4011,10 @@ InspectorCSSAgent::BuildObjectForFunctionRule(CSSFunctionRule* function_rule) {
       !inspector_style_sheet->Id().empty()) {
     result->setStyleSheetId(inspector_style_sheet->Id());
   }
+  if (tree_scope) {
+    result->setOriginTreeScopeNodeId(tree_scope->RootNode().GetDomNodeId());
+  }
+
   return result;
 }
 

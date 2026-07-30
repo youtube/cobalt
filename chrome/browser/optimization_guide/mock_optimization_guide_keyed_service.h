@@ -76,10 +76,6 @@ class MockOptimizationGuideKeyedService : public OptimizationGuideKeyedService {
               (optimization_guide::mojom::OnDeviceFeature feature,
                optimization_guide::OnDeviceModelAvailabilityObserver* observer),
               (override));
-  MOCK_METHOD(on_device_model::Capabilities,
-              GetOnDeviceCapabilities,
-              (),
-              (override));
   MOCK_METHOD(bool,
               ShouldFeatureBeCurrentlyEnabledForUser,
               (optimization_guide::UserVisibleFeatureKey),
@@ -131,16 +127,6 @@ class MockOptimizationGuideKeyedService : public OptimizationGuideKeyedService {
                const on_device_model::Capabilities&,
                base::OnceCallback<
                    void(optimization_guide::OnDeviceModelEligibilityReason)>),
-              (override));
-
-  MOCK_METHOD(std::optional<optimization_guide::SamplingParamsConfig>,
-              GetSamplingParamsConfig,
-              (optimization_guide::mojom::OnDeviceFeature),
-              (override));
-
-  MOCK_METHOD(std::optional<const optimization_guide::proto::Any>,
-              GetFeatureMetadata,
-              (optimization_guide::mojom::OnDeviceFeature),
               (override));
 };
 

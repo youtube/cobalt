@@ -55,6 +55,7 @@
 <translation id="1594928384848033697">Chromium vil slette Passordlagring-dataene dine. Skriv inn Windows-passordet ditt for å tillate dette.</translation>
 <translation id="1607715478322902680">{COUNT,plural, =0{Administratoren din krever at du starter Chromium på nytt for å ta i bruk en oppdatering}=1{Administratoren din krever at du starter Chromium på nytt for å ta i bruk en oppdatering. Inkognitovinduet ditt blir ikke gjenåpnet.}other{Administratoren din krever at du starter Chromium på nytt for å ta i bruk en oppdatering. De # inkognitovinduene dine blir ikke gjenåpnet.}}</translation>
 <translation id="1625909126243026060">Gjennomgå viktige personvern- og sikkerhetskontroller i Chromium</translation>
+<translation id="1639380494700489405">For å spørre AI-modus om fanen din uten å forlate siden, logg på Chromium. Du får også passordene dine med mer på alle enhetene dine.</translation>
 <translation id="1640672724030957280">Laster ned …</translation>
 <translation id="1680687534629375545">Spør Bildesøk om denne siden</translation>
 <translation id="1709772298389099340">Gir overordnet rettighet til <ph name="BROWSER_NAME" />.</translation>
@@ -196,6 +197,7 @@
 <translation id="3045032126857188731">Oversatt språk: <ph name="LANGUAGE" /></translation>
 <translation id="3047590466164881923">Lukk dialogboksen for tilbakemeldinger</translation>
 <translation id="3068187312562070417">Andre Chromium-profiler</translation>
+<translation id="3068290154869370196">Utvidelser er tillegg som lar deg tilpasse Chromium. Med utvidelser kan du gjøre Chromium til ditt eget – fra å holde orden til å forenkle hverdagsoppgaver.</translation>
 <translation id="3068515742935458733">Bidra til å gjøre Chromium bedre ved å sende programstopprapporter og <ph name="UMA_LINK" /> til Google</translation>
 <translation id="3079753320517721795">{NUM_DEVICES,plural, =0{1 USB-enhet ble brukt av en eller flere Chromium-utvidelser}=1{1 USB-enhet brukes av en eller flere Chromium-utvidelser}other{# USB-enheter brukes av en eller flere Chromium-utvidelser}}</translation>
 <translation id="3095811995836568724">Chromium-logg</translation>
@@ -430,6 +432,7 @@
 <translation id="5821520528363214608">Oppdater Chromium for å bruke og lagre Chromium-data i Google-kontoen din.</translation>
 <translation id="5824893331272123205">Kunne ikke laste inn dette panelet – prøv på nytt</translation>
 <translation id="5862307444128926510">Velkommen til Chromium</translation>
+<translation id="5867606647614813312">Slår på flere funksjoner for å gi Chromium den sterkeste beskyttelsen</translation>
 <translation id="5871205389137001634">Klikk for å avslutte bildesøk</translation>
 <translation id="5883558403894052917">Chromium har oppdaget at disse elementene inneholder skadelig programvare:</translation>
 <translation id="5889361821821684993">Chromium sjekker regelmessig at nettleseren din har de tryggeste innstillingene. Vi gir deg beskjed hvis det er noe du må se nærmere på.</translation>

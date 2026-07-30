@@ -44,7 +44,6 @@
 namespace glic {
 
 namespace {
-constexpr base::TimeDelta kSidePanelMaxRecency = base::Minutes(20);
 constexpr base::TimeDelta kFloatyMaxRecency = base::Hours(3);
 
 BASE_FEATURE(kGlicMaxRecency, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -106,7 +105,7 @@ GlicInstanceCoordinatorImpl::GlicInstanceCoordinatorImpl(
     signin::IdentityManager* identity_manager,
     GlicKeyedService* service,
     GlicEnabling* enabling,
-    contextual_cueing::ContextualCueingService* contextual_cueing_service)
+    ContextualCueingService* contextual_cueing_service)
     : profile_(profile),
       service_(service),
       contextual_cueing_service_(contextual_cueing_service),
@@ -569,7 +568,8 @@ GlicInstanceCoordinatorImpl::GetOrCreateGlicInstanceImplForTab(
   if (base::FeatureList::IsEnabled(
           features::kGlicDefaultToLastActiveConversation) &&
       last_active_instance_ &&
-      last_active_instance_->GetTimeSinceLastActive() < kSidePanelMaxRecency) {
+      last_active_instance_->GetTimeSinceLastActive() <
+          features::kGlicDefaultToLastActiveConversationMaxRecency.Get()) {
     return last_active_instance_;
   }
 
@@ -755,14 +755,6 @@ void GlicInstanceCoordinatorImpl::ToggleSidePanel(
   // newly created instance, so we provide the instance creation trigger.
   ShowOptions options = ShowOptions::ForSidePanel(
       *tab, GlicPinTrigger::kInstanceCreation, source);
-
-  // If the user has not consented, don't pin the tab.
-  if (GlicEnabling::ShouldBypassFreUi(profile_, tab->GetContents())) {
-    if (auto* side_panel_options =
-            std::get_if<SidePanelShowOptions>(&options.embedder_options)) {
-      side_panel_options->pin_on_bind = false;
-    }
-  }
 
   instance->Toggle(std::move(options), prevent_close, source, prompt_suggestion,
                    auto_send);

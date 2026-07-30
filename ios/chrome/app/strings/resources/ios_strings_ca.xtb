@@ -480,6 +480,7 @@
 <translation id="2691653761409724435">No disponible sense connexió</translation>
 <translation id="2697530870203420261">Àlies no vàlid</translation>
 <translation id="269819437389494246">Pots veure les pàgines que has visitat o suprimir-les de l'historial</translation>
+<translation id="2704295676501803339">Mou a l'esquerra</translation>
 <translation id="2704606927547763573">Copiada</translation>
 <translation id="2708051474374549906">Protecció proactiva en temps real contra baixades, extensions i llocs web perillosos basada en les teves dades de navegació enviades a Google</translation>
 <translation id="2709516037105925701">Emplenament automàtic</translation>
@@ -1662,6 +1663,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="6899890595581608884">S'han desactivat les notificacions de la comprovació de seguretat</translation>
 <translation id="6900532703269623216">Protecció millorada</translation>
 <translation id="6900702165119149418">No has iniciat la sessió</translation>
+<translation id="6903282483217634857">Mou a la dreta</translation>
 <translation id="6903907808598579934">Activa la sincronització</translation>
 <translation id="6906448540340261898">Assegura't de poder utilitzar sempre les contrasenyes al teu Compte de Google</translation>
 <translation id="6908734251759299256">Actualitza el navegador</translation>
@@ -1724,6 +1726,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="7149893636342594995">24 darreres hores</translation>
 <translation id="7154417656353909837">Suprimeix les adreces</translation>
 <translation id="7161230316646448869">Sincronitza les adreces d'interès, l'historial i altres elements en tots els dispositius</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">Obre Configuració</translation>
 <translation id="7173721738069475737">{count,plural, =1{S'ha desat l'adreça d'interès}other{S'han desat {count} adreces d'interès}}</translation>
 <translation id="7176183551031110427">Redueix el zoom</translation>
@@ -2218,6 +2221,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="8863067612494559785">S'està enviant a <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">Obtén indicacions i informació local de Google Maps</translation>
 <translation id="8871974300055371298">Configuració del contingut</translation>
+<translation id="8876661425082386199">Comprova la connexió</translation>
 <translation id="8877788021141246043">Configura un recordatori</translation>
 <translation id="8879604564928138696">Fes doble toc per provar-ho</translation>
 <translation id="8879952635974818770">Contingut personalitzat</translation>
@@ -2319,7 +2323,6 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="926455622548529175">Canvia i suprimeix</translation>
 <translation id="929748059769569925">Text marcat</translation>
 <translation id="932305336591073205">{count,plural, =1{Tanca la pestanya}other{Tanca les pestanyes}}</translation>
-<translation id="932327136139879170">Inici</translation>
 <translation id="939472100615258482">Lloc web actual</translation>
 <translation id="939598580284253335">Introduïu la frase de contrasenya</translation>
 <translation id="939736085109172342">Carpeta nova</translation>

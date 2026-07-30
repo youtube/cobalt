@@ -348,6 +348,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="2496180316473517155">閲覧履歴</translation>
 <translation id="2497852260688568942">同期は管理者により無効にされています</translation>
 <translation id="250020030759455918">Chrome での <ph name="SITE_NAME" /> のログイン ステータス、閲覧データ、サイトデータが表示されます。</translation>
+<translation id="2501278716633472235">戻る</translation>
 <translation id="2510106555128151389">「<ph name="WEBAPK_NAME" />」をインストールしています...</translation>
 <translation id="2512234228327349533">購入オプションを検索</translation>
 <translation id="2513403576141822879">プライバシー、セキュリティ、データ収集に関連するその他の設定については、<ph name="BEGIN_LINK" />同期と Google サービス<ph name="END_LINK" />をご覧ください</translation>
@@ -797,6 +798,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4384468725000734951">検索に Sogou を使用します</translation>
 <translation id="4387647248986092471">車のプロフィールのロックを作成</translation>
 <translation id="4387817230000841154">ダウンロードを開く</translation>
+<translation id="4394049700291259645">無効にする</translation>
 <translation id="4395046795145457714">Chrome Finds のオプトイン メッセージが画面全体に表示されています</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />、選択された録画中の固定のシークレット タブ</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - ダウンロードしています…</translation>
@@ -821,7 +823,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4478161224666880173">このサイトでは <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> アカウントを使用できます。続行するには、<ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> にログインしてください。</translation>
 <translation id="4479972344484327217">Chrome 用の <ph name="MODULE" /> をインストールしています…</translation>
 <translation id="4487967297491345095">Chrome のすべてのアプリデータを完全に削除します。削除されるデータには、すべてのファイル、設定、アカウント、データベースなどが含まれます。</translation>
-<translation id="4494315997125191493">[管理] を選択するとすべてのウィンドウが表示されます</translation>
 <translation id="4494806687727322324">パスワードの保存は管理者によって有効にされています</translation>
 <translation id="4508528996305412043">フィードカード メニューが開いています</translation>
 <translation id="4509741852167209430">広告のパフォーマンスを測定するため、サイトにアクセスした後に購入したかどうかなど、限定的な種類のデータがサイト間で共有されます</translation>
@@ -869,7 +870,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="4673702426794876519">シークレット ウィンドウ</translation>
 <translation id="4675298276894277358">このサイトは今後表示されません</translation>
 <translation id="4678082183394354975">Chrome でサイトのダークモードがオンになっています</translation>
-<translation id="4682306524980568490">表示できるウィンドウは <ph name="MAX_INSTANCE_COUNT" /> 個までです</translation>
 <translation id="4684427112815847243">すべてを同期する</translation>
 <translation id="4685741273709472646">プルダウン リストから選択します</translation>
 <translation id="4687718960473379118">ウェブサイトによる広告の提案</translation>
@@ -1063,7 +1063,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="544776284582297024">タブを開いて複数のページに同時にアクセスするには、タブを開くボタンをタップします</translation>
 <translation id="5456381639095306749">ページをダウンロード</translation>
 <translation id="5465437530117042974">タブのボトムシートが閉じられました。</translation>
-<translation id="5469852975082458401">テキスト カーソルを使ってページ間を移動できます。オフにするには F7 キーを押します。</translation>
+<translation id="5469852975082458401">テキスト カーソルを使ってページ内を移動できます。オフにするには F7 キーを押します。</translation>
 <translation id="5471273988133666918">タブ <ph name="TAB_TITLE" /> を移動できません</translation>
 <translation id="548278423535722844">マップアプリで開く</translation>
 <translation id="5489222148748465285">Chrome で検索を続けますか？</translation>
@@ -1392,7 +1392,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="6738867403308150051">ダウンロードしています…</translation>
 <translation id="6745063744988317486">Mono</translation>
 <translation id="6746338529702829275">アカウントのデータを確認します</translation>
-<translation id="6746834324024491643">すべてのデバイスで同じパスワードやその他の設定を利用するには、<ph name="EMAIL" /> としてログインしてください</translation>
+<translation id="6746834324024491643">すべてのデバイスでパスワードやその他の設定を使用するには、<ph name="EMAIL" /> としてログインしてください</translation>
 <translation id="6751521182688001123">新しいタブをすばやく開きます。このショートカットを編集するには、長押ししてください。</translation>
 <translation id="6752130751133944215">新しいウィンドウを復元するには、アクティブなウィンドウとアクティブでないウィンドウの合計数を <ph name="MAX_WINDOW_COUNT_MINUS_ONE" /> 個以下に減らしてください。アクティブでないウィンドウは 6 か月後に削除されます。</translation>
 <translation id="6754359471209693699">新しい検索を開始</translation>
@@ -1492,7 +1492,6 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="7057969023583258980">Chrome の全履歴を開く</translation>
 <translation id="7063006564040364415">同期サーバーに接続できませんでした。</translation>
 <translation id="7063106218165698546">タブグループをカスタマイズして [完了] をクリック</translation>
-<translation id="7071521146534760487">アカウントを管理</translation>
 <translation id="707155805709242880">同期するデータを下から選択してください</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />、複数選択されたピクチャー イン ピクチャーの固定シークレット タブ</translation>
 <translation id="7077143737582773186">SD カード</translation>
@@ -1821,6 +1820,7 @@ Chrome を使いやすくするためにデータを使用するその他の設�
 <translation id="8282950411412455249">セキュリティ設定に移動</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{1 個のシークレット ウィンドウを閉じる}other{# 個のシークレット ウィンドウを閉じる}}</translation>
 <translation id="831192587911042850">現在のウェブサイトを、フォローしているウェブサイトのリストに追加します。</translation>
+<translation id="8313599942510782709">タスクはまだ進行中です</translation>
 <translation id="8317318757008452355">印刷オプションを開く</translation>
 <translation id="8320212361750431956">最近のアクティビティ</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />New<ph name="END_NEW" /></translation>

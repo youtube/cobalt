@@ -115,6 +115,7 @@ public class LocationBarCoordinator
             mDeferredIMEWindowInsetApplicationCallback;
 
     private OmniboxSuggestionsDropdownEmbedderImpl mOmniboxDropdownEmbedderImpl;
+    private int mPreviousFuseboxState = FuseboxState.DISABLED;
 
     /** Identifies coordinators with methods specific to a device type. */
     public interface SubCoordinator {
@@ -268,7 +269,6 @@ public class LocationBarCoordinator
                         context,
                         windowAndroid,
                         mLocationBarLayout,
-                        profileObservableSupplier,
                         tabModelSelectorSupplier,
                         templateUrlServiceSupplier,
                         snackbarManager);
@@ -412,7 +412,7 @@ public class LocationBarCoordinator
         mInstallButton = mLocationBarLayout.findViewById(R.id.install_button);
         mInstallButton.setOnClickListener(mLocationBarMediator::installButtonClicked);
 
-        mUrlCoordinator.setTextChangeListener(mAutocompleteCoordinator::onTextChanged);
+        mUrlCoordinator.setTextChangeListener(mLocationBarMediator::onUrlTextChanged);
         mUrlCoordinator.setKeyDownListener(mLocationBarMediator);
 
         // The LocationBar's direction is tied to the UrlBar's text direction. Icons inside the
@@ -679,11 +679,6 @@ public class LocationBarCoordinator
 
     // AutocompleteDelegate implementation.
     @Override
-    public void onUrlTextChanged() {
-        mLocationBarMediator.onUrlTextChanged();
-    }
-
-    @Override
     public void onSuggestionsChanged(
             @Nullable AutocompleteMatch defaultMatch, boolean hasSuggestions) {
         assert defaultMatch == null || defaultMatch.allowedToBeDefaultMatch();
@@ -738,6 +733,15 @@ public class LocationBarCoordinator
         mUrlCoordinator.setUrlBarData(
                 UrlBarData.forNonUrlText(text), UrlBar.ScrollType.NO_SCROLL, UrlBarData.SELECT_END);
         updateButtonVisibility();
+    }
+
+    /**
+     * Returns whether the url bar is in the special "focused without animation" state, a special
+     * case where we show a blinking cursor in the UrlBar on the NTP in order to accept keyboard
+     * input from an attached keyboard, but otherwise do not treat the UrlBar as focused.
+     */
+    public boolean isUrlBarFocusedWithoutAnimation() {
+        return mLocationBarMediator.isUrlBarFocusedWithoutAnimation();
     }
 
     /**
@@ -857,6 +861,14 @@ public class LocationBarCoordinator
         View addButton = mLocationBarLayout.findViewById(R.id.location_bar_attachments_add);
         if (addButton == null) return;
 
+        // The Fade and and ChangeBounds anims below are only intended for animating between compact
+        // <--> expanded; they don't look good otherwise.
+        if (mPreviousFuseboxState == FuseboxState.DISABLED || state == FuseboxState.DISABLED) {
+            mPreviousFuseboxState = state;
+            return;
+        }
+
+        mPreviousFuseboxState = state;
         ChangeBounds changeBounds = new ChangeBounds();
         changeBounds
                 .setDuration(COMPACT_MODE_ANIMATION_DURATION_MS)

@@ -150,7 +150,7 @@ function createElem(
 export interface Data {
   description: string;
   id?: string;
-  value: string;
+  value: string|boolean|number;
 }
 
 export interface ArrayData {
@@ -268,7 +268,7 @@ function createLinkPair(textContent: string, href: string) {
 function getDataValue(data: Data|ArrayData): string {
   return Array.isArray(data.value) ?
       data.value.map(data => getDataValue(data)).join(',') :
-      data.value;
+      data.value.toString();
 }
 
 /**

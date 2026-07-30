@@ -337,7 +337,7 @@ Alleen iemand met je wachtwoordzin kan je versleutelde gegevens lezen. De wachtw
 <translation id="2450083983707403292">Wil je het downloaden van <ph name="FILE_NAME" /> opnieuw starten?</translation>
 <translation id="2451607499823206582">Volgen</translation>
 <translation id="2453860139492968684">Voltooien</translation>
-<translation id="2461378706168271257">Zoek op je tabbladen</translation>
+<translation id="2461378706168271257">Zoek je tabbladen</translation>
 <translation id="2466378451804467735"><ph name="TAB_TITLE" />, meervoudig geselecteerd tabblad met geluid uit</translation>
 <translation id="2468444275314013497">Je browser ziet er goed uit</translation>
 <translation id="2471632347767899461">Zoek in het Helpcentrum</translation>
@@ -348,6 +348,7 @@ Alleen iemand met je wachtwoordzin kan je versleutelde gegevens lezen. De wachtw
 <translation id="2496180316473517155">Browsegeschiedenis</translation>
 <translation id="2497852260688568942">Synchronisatie is uitgezet door je beheerder</translation>
 <translation id="250020030759455918">Je ziet je inlogstatus, browsegegevens en sitegegevens van <ph name="SITE_NAME" /> in Chrome</translation>
+<translation id="2501278716633472235">Terug</translation>
 <translation id="2510106555128151389"><ph name="WEBAPK_NAME" /> installeren...</translation>
 <translation id="2512234228327349533">Koopopties zoeken</translation>
 <translation id="2513403576141822879">Bekijk <ph name="BEGIN_LINK" />Synchronisatie en Google-services<ph name="END_LINK" /> voor meer instellingen die verband houden met privacy, beveiliging en gegevensverzameling.</translation>
@@ -560,7 +561,7 @@ Alleen iemand met je wachtwoordzin kan je versleutelde gegevens lezen. De wachtw
 <translation id="3384347053049321195">Afbeelding delen</translation>
 <translation id="3387650086002190359">Downloaden van <ph name="FILE_NAME" /> is mislukt door fouten in het bestandssysteem.</translation>
 <translation id="3414952576877147120">Grootte:</translation>
-<translation id="3417835166382867856">Tabbladen doorzoeken</translation>
+<translation id="3417835166382867856">Tabbladen zoeken</translation>
 <translation id="3430670036890315772">Als je de profielvergrendeling uitzet, worden je opgeslagen gegevens verwijderd</translation>
 <translation id="3435465986463792564">Heb je veel vensters open? Beheer ze hier.</translation>
 <translation id="3435575784518354875">Als je toegang wilt houden tot je wachtwoorden, exporteer je ze nu, update je Google Play-services en importeer je ze terug naar Google Wachtwoordmanager. <ph name="BEGIN_LINK" />Bekijk de volledige instructies<ph name="END_LINK" />.</translation>
@@ -797,6 +798,7 @@ Alleen iemand met je wachtwoordzin kan je versleutelde gegevens lezen. De wachtw
 <translation id="4384468725000734951">Sogou wordt gebruikt om te zoeken</translation>
 <translation id="4387647248986092471">Profielvergrendeling voor auto instellen</translation>
 <translation id="4387817230000841154">Downloads openen</translation>
+<translation id="4394049700291259645">Uitzetten</translation>
 <translation id="4395046795145457714">Aanmelding voor Chrome Finds is op volledige hoogte geopend</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, geselecteerd vastgezet incognitotabblad voor opname</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> - Downloaden…</translation>
@@ -821,7 +823,6 @@ Alleen iemand met je wachtwoordzin kan je versleutelde gegevens lezen. De wachtw
 <translation id="4478161224666880173">Je kunt je <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />-account gebruiken op deze site. Als je wilt doorgaan, log je in op <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />.</translation>
 <translation id="4479972344484327217"><ph name="MODULE" /> installeren voor Chrome…</translation>
 <translation id="4487967297491345095">Alle app-gegevens voor Chrome worden definitief verwijderd. Dit omvat alle bestanden, instellingen, accounts, databases, enzovoort.</translation>
-<translation id="4494315997125191493">Selecteer Beheren om alle vensters te bekijken</translation>
 <translation id="4494806687727322324">Wachtwoord opslaan is aangezet door je beheerder</translation>
 <translation id="4508528996305412043">Feedkaartmenu is geopend</translation>
 <translation id="4509741852167209430">Beperkte typen gegevens worden gedeeld tussen sites om de prestaties van hun advertenties te meten. Denk bijvoorbeeld aan informatie over of je een aankoop hebt gedaan na bezoek aan een site.</translation>
@@ -869,7 +870,6 @@ Voor je Google-account kunnen andere vormen van browsegeschiedenis (zoals zoekop
 <translation id="4673702426794876519">Incognitovenster</translation>
 <translation id="4675298276894277358">Deze site wordt niet meer getoond</translation>
 <translation id="4678082183394354975">Donker thema voor sites staat aan in Chrome</translation>
-<translation id="4682306524980568490">Er kunnen maar <ph name="MAX_INSTANCE_COUNT" /> vensters worden getoond</translation>
 <translation id="4684427112815847243">Alles synchroniseren</translation>
 <translation id="4685741273709472646">Selecteren in het dropdownmenu</translation>
 <translation id="4687718960473379118">Door sites voorgestelde advertenties</translation>
@@ -1492,7 +1492,6 @@ Zo kunnen sommige websites op dit verzoek reageren door advertenties te bekijken
 <translation id="7057969023583258980">Hele Chrome-geschiedenis openen</translation>
 <translation id="7063006564040364415">Kan geen verbinding maken met synchronisatieserver.</translation>
 <translation id="7063106218165698546">Pas de tabbladgroep aan en tik op Klaar</translation>
-<translation id="7071521146534760487">Account beheren</translation>
 <translation id="707155805709242880">Kies hieronder wat je wilt synchroniseren</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />, meervoudig geselecteerd vastgezet incognitotabblad voor scherm-in-scherm</translation>
 <translation id="7077143737582773186">SD-kaart</translation>
@@ -1821,6 +1820,7 @@ Als je deze instelling wilt wijzigen, <ph name="BEGIN_LINK" />verwijder je de Ch
 <translation id="8282950411412455249">Naar beveiligingsinstellingen</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{1 incognitovenster sluiten}other{# incognitovensters sluiten}}</translation>
 <translation id="831192587911042850">Hiermee voeg je de huidige website toe aan de lijst met websites die je volgt.</translation>
+<translation id="8313599942510782709">Je taak is nog in behandeling</translation>
 <translation id="8317318757008452355">Opties openen om af te drukken</translation>
 <translation id="8320212361750431956">Recente activiteit</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Nieuw<ph name="END_NEW" /></translation>

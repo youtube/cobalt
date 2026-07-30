@@ -17,7 +17,7 @@ export interface SettingsRoutes {
   ADDRESSES: Route;
   ADVANCED: Route;
   AI: Route;
-  AI_TAB_ORGANIZATION: Route;
+  AI_MODE_SEARCH: Route;
   APPEARANCE: Route;
   AUTOFILL: Route;
   AUTOFILL_AI: Route;

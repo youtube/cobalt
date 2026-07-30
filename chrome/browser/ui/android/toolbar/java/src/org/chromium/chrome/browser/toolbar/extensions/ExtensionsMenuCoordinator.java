@@ -30,6 +30,7 @@ import org.chromium.chrome.browser.ui.extensions.R;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.content_public.browser.LoadUrlParams;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.PageTransition;
 import org.chromium.ui.listmenu.ListMenu;
 import org.chromium.ui.listmenu.ListMenuButton;
@@ -204,14 +205,7 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
 
         LoadUrlParams params = new LoadUrlParams(url, PageTransition.AUTO_TOPLEVEL);
 
-        // We want to open the URL in the current tab if possible to match the behaviors of other
-        // menu options (e.g. history).
-        Tab currentTab = mCurrentTabSupplier.get();
-        if (currentTab == null) {
-            mTabCreator.createNewTab(params, TabLaunchType.FROM_CHROME_UI, null);
-        } else {
-            currentTab.loadUrl(params);
-        }
+        mTabCreator.createNewTab(params, TabLaunchType.FROM_CHROME_UI, null);
     }
 
     public void onTintChanged(
@@ -239,6 +233,32 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
                 .with(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, true)
                 .with(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, true)
                 .with(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "")
+                .with(
+                        ExtensionsMenuProperties.OPTIONAL_SECTION_TYPE,
+                        org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes
+                                .OptionalSectionType.NONE)
+                .with(ExtensionsMenuProperties.HOST_ACCESS_REQUESTS, new java.util.ArrayList<>())
+                .with(
+                        ExtensionsMenuProperties.ALLOW_EXTENSION_CLICK_LISTENER,
+                        (extensionId) -> {
+                            if (mMediator != null) {
+                                mMediator.onAllowExtensionClicked(extensionId);
+                            }
+                        })
+                .with(
+                        ExtensionsMenuProperties.DISMISS_EXTENSION_CLICK_LISTENER,
+                        (extensionId) -> {
+                            if (mMediator != null) {
+                                mMediator.onDismissExtensionClicked(extensionId);
+                            }
+                        })
+                .with(
+                        ExtensionsMenuProperties.RELOAD_CLICK_LISTENER,
+                        (view) -> {
+                            if (mMediator != null) {
+                                mMediator.onReloadPageButtonClicked();
+                            }
+                        })
                 .build();
     }
 
@@ -299,7 +319,7 @@ public class ExtensionsMenuCoordinator implements Destroyable, ExtensionsToolbar
     }
 
     @Override
-    public void onActiveWebContentsChanged() {
+    public void onActiveWebContentsChanged(WebContents webContents) {
         updateButtonState();
     }
 

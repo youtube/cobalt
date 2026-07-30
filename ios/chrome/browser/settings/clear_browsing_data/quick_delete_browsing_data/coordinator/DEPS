@@ -1,0 +1,9 @@
+include_rules = [
+  # keep-sorted start
+  "+ios/chrome/browser/authentication/ui_bundled",
+  "+ios/chrome/browser/browsing_data/model",
+  "+ios/chrome/browser/discover_feed/model",
+  "+ios/chrome/browser/feature_engagement/model",
+  "+ios/chrome/browser/signin/model",
+  # keep-sorted end
+]

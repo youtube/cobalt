@@ -204,6 +204,10 @@ class MockLensSearchController : public LensSearchController {
               CloseLensSync,
               (lens::LensOverlayDismissalSource dismissal_source),
               (override));
+  MOCK_METHOD(void,
+              CloseLensAsync,
+              (lens::LensOverlayDismissalSource dismissal_source),
+              (override));
 
   lens::LensQueryFlowRouter* query_router() override {
     return mock_router_.get();
@@ -295,6 +299,9 @@ class ContextualTasksComposeboxHandlerTest
         base::BindRepeating(&ContextualTasksUI::TakeInputStateModel,
                             base::Unretained(mock_ui_.get())));
     handler_->SetMockContextualTasksService(mock_contextual_tasks_service_ptr_);
+    handler_->recontextualizer_ =
+        std::make_unique<contextual_tasks::QueryContextualizer>(
+            mock_contextual_tasks_service_ptr_, handler_.get());
 
     // Default to calling the real implementation for
     // OnContextUploadStatusChanged.
@@ -387,8 +394,22 @@ TEST_F(ContextualTasksComposeboxHandlerTest, SubmitQuery) {
   EXPECT_CALL(*mock_controller_, CreateClientToAimRequest(testing::_))
       .WillOnce(testing::Return(lens::ClientToAimMessage()));
   EXPECT_CALL(*mock_ui_, PostMessageToWebview(testing::_));
+  EXPECT_CALL(
+      *mock_lens_controller_,
+      CloseLensSync(
+          lens::LensOverlayDismissalSource::kContextualTasksQuerySubmitted));
 
   handler_->SubmitQuery("test query", 0, false, false, false, false);
+}
+
+TEST_F(ContextualTasksComposeboxHandlerTest, CloseLensOverlayFromWebUI) {
+  EXPECT_CALL(*mock_lens_controller_,
+              CloseLensAsync(lens::LensOverlayDismissalSource::
+                                 kContextualTasksImageUploadsDisabled));
+
+  handler_->CloseLensOverlayFromWebUI(
+      composebox::mojom::LensOverlayDismissalSource::
+          kContextualTasksImageUploadsDisabled);
 }
 
 TEST_F(ContextualTasksComposeboxHandlerTest, CreateAndSendQueryMessage) {
@@ -1280,7 +1301,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest, AddTabContext_Delayed) {
           [](int32_t tab_id, std::optional<int64_t> context_id,
              std::unique_ptr<lens::ContextualInputData> data,
              ContextualSearchboxHandler::RecontextualizeTabCallback callback) {
-            EXPECT_TRUE(data->is_implicit_upload);
+            // The delay-upload tab is not an implicit upload.
+            EXPECT_FALSE(data->is_implicit_upload);
             std::move(callback).Run(true);
           });
 
@@ -1859,7 +1881,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
           [](int32_t tab_id, std::optional<int64_t> context_id,
              std::unique_ptr<lens::ContextualInputData> data,
              ContextualSearchboxHandler::RecontextualizeTabCallback callback) {
-            EXPECT_TRUE(data->is_implicit_upload);
+            // The delay-upload tab is not an implicit upload.
+            EXPECT_FALSE(data->is_implicit_upload);
             std::move(callback).Run(true);
           });
 
@@ -2035,7 +2058,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest,
           [](int32_t tab_id, std::optional<int64_t> context_id,
              std::unique_ptr<lens::ContextualInputData> data,
              ContextualSearchboxHandler::RecontextualizeTabCallback callback) {
-            EXPECT_TRUE(data->is_implicit_upload);
+            // The delay-upload tab is not an implicit upload.
+            EXPECT_FALSE(data->is_implicit_upload);
             std::move(callback).Run(true);
           });
 

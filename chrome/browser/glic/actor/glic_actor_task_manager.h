@@ -44,7 +44,7 @@ class GlicActorTaskManager {
   ~GlicActorTaskManager();
 
   void CreateTask(base::WeakPtr<actor::ActorTaskDelegate> delegate,
-                  std::string_view conversation_id,
+                  std::optional<std::string> conversation_id,
                   actor::webui::mojom::TaskOptionsPtr options,
                   mojom::WebClientHandler::CreateTaskCallback callback);
   void PerformActions(const std::vector<uint8_t>& actions_proto,
@@ -107,8 +107,7 @@ class GlicActorTaskManager {
   void ReloadObserverDone(tabs::TabHandle tab_handle,
                           base::OnceClosure callback,
                           actor::ObservationDelayController::Result result);
-  void NotifyActorTaskStateChanged(actor::TaskId task_id,
-                                   actor::ActorTask::State task_state);
+  void NotifyActorTaskStateChanged(actor::ActorTask& task);
   void StopTaskImpl(actor::TaskId task_id,
                     actor::ActorTask::StoppedReason reason);
 

@@ -169,18 +169,6 @@ bool HasMultimodalInputCapabilities(
          capabilities.Has(on_device_model::CapabilityFlags::kAudioInput);
 }
 
-// Returns whether the model supports the given capabilities. Tool use is
-// assumed supported since it is gated by RuntimeEnabledFeatures in Blink.
-// TODO(crbug.com/422803232): Expose actual model tool use capability from
-// model metadata instead of assuming support.
-bool ModelSupportsCapabilities(
-    OptimizationGuideKeyedService* service,
-    const on_device_model::Capabilities& capabilities) {
-  auto model_caps = service->GetOnDeviceCapabilities();
-  model_caps.Put(on_device_model::CapabilityFlags::kToolUse);
-  return model_caps.HasAll(capabilities);
-}
-
 // Checks if the expected outputs contain any invalid types.
 // Models can generate text and tool calls, but not images, audio, or tool
 // responses.
@@ -516,7 +504,7 @@ void AIManager::CreateLanguageModelInternal(
   }
 
   blink::mojom::AILanguageModelParamsPtr language_model_params =
-      GetLanguageModelParams();
+      GetLanguageModelParams(model_client.get());
   blink::mojom::AILanguageModelSamplingParamsPtr sampling_params =
       std::move(options->sampling_params);
   auto params = on_device_model::mojom::SessionParams::New();
@@ -556,7 +544,7 @@ void AIManager::CreateLanguageModelInternal(
     if ((HasMultimodalInputCapabilities(params->capabilities) &&
          !base::FeatureList::IsEnabled(
              blink::features::kAIPromptAPIMultimodalInput)) ||
-        !ModelSupportsCapabilities(service, params->capabilities)) {
+        !model_client->capabilities().HasAll(params->capabilities)) {
       mojo::Remote<blink::mojom::AIManagerCreateLanguageModelClient>
           client_remote(std::move(client));
       on_device_ai::SendClientRemoteError(
@@ -747,15 +735,12 @@ void AIManager::CreateProofreader(
       ::optimization_guide::SessionConfigParams{}, std::move(callback));
 }
 
-blink::mojom::AILanguageModelParamsPtr AIManager::GetLanguageModelParams() {
-  auto* service = OptimizationGuideKeyedServiceFactory::GetForProfile(
-      Profile::FromBrowserContext(browser_context_));
-  if (!service) {
+blink::mojom::AILanguageModelParamsPtr AIManager::GetLanguageModelParams(
+    optimization_guide::ModelClient* model_client) {
+  if (!model_client) {
     return nullptr;
   }
-  auto sampling_params_config = service->GetSamplingParamsConfig(
-      optimization_guide::mojom::OnDeviceFeature::kPromptApi);
-
+  auto sampling_params_config = model_client->GetSamplingParamsConfig();
   if (!sampling_params_config.has_value()) {
     return nullptr;
   }
@@ -773,8 +758,7 @@ blink::mojom::AILanguageModelParamsPtr AIManager::GetLanguageModelParams() {
       optimization_guide::features::GetOnDeviceModelMaxTopK();
   model_info->max_sampling_params->temperature = kDefaultMaxTemperature;
 
-  auto metadata = service->GetFeatureMetadata(
-      optimization_guide::mojom::OnDeviceFeature::kPromptApi);
+  auto metadata = model_client->GetFeatureMetadata();
   if (metadata.has_value()) {
     auto parsed_metadata = AILanguageModel::ParseMetadata(metadata.value());
     if (parsed_metadata.has_max_sampling_params()) {
@@ -795,7 +779,16 @@ blink::mojom::AILanguageModelParamsPtr AIManager::GetLanguageModelParams() {
 // This is the method to get the info for AILanguageModel.
 void AIManager::GetLanguageModelParams(
     GetLanguageModelParamsCallback callback) {
-  std::move(callback).Run(GetLanguageModelParams());
+  if (!model_broker_client_) {
+    std::move(callback).Run(nullptr);
+    return;
+  }
+
+  auto& subscriber = model_broker_client_->GetSubscriber(
+      optimization_guide::mojom::OnDeviceFeature::kPromptApi);
+  optimization_guide::ModelClient* client =
+      subscriber.client().has_value() ? &subscriber.client().value() : nullptr;
+  std::move(callback).Run(GetLanguageModelParams(client));
 }
 
 void AIManager::CanCreateWriter(blink::mojom::AIWriterCreateOptionsPtr options,

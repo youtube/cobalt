@@ -146,6 +146,39 @@ chromium-metrics-reviews@google.com.
                version number."/>
 </variants>
 
+<variants name="PageContextConfigVariants">
+  <variant name="InnerTextOnly" summary="innerText extraction"/>
+  <variant name="Rich" summary="Rich sparse DOM extraction"/>
+  <variant name="RichAndActionable"
+      summary="Rich sparse DOM extraction including actionable elements"/>
+</variants>
+
+<!-- LINT.IfChange(PageContextStatusVariants) -->
+
+<variants name="PageContextStatusVariants">
+  <variant name="Failure"/>
+  <variant name="NotExtractable"/>
+  <variant name="PageProtected"/>
+  <variant name="Success"/>
+  <variant name="Timeout"/>
+</variants>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper_metrics.h:PageContextStatusVariants) -->
+
+<!-- LINT.IfChange(PageContextTaskVariants) -->
+
+<variants name="PageContextTaskVariants">
+  <variant name="AnnotatedPageContent"
+      summary="Deprecated as of M148. Moved to
+               IOS.PageContext.AnnotatedPageContent.{Status}.{Config}.Latency."/>
+  <variant name="InnerText"/>
+  <variant name="Overall"/>
+  <variant name="PDF"/>
+  <variant name="Screenshot"/>
+</variants>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper_metrics.h:PageContextTaskVariants) -->
+
 <!-- LINT.IfChange(PictureInPictureFeature) -->
 
 <variants name="PictureInPictureFeature">
@@ -1314,7 +1347,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.GenericPromoDisplayCount"
-    units="count" expires_after="2026-08-16">
+    units="count" expires_after="2026-10-16">
   <owner>gayane@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -1325,7 +1358,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.NonModal.OnScreenTime" units="ms"
-    expires_after="2026-08-23">
+    expires_after="2026-10-16">
   <owner>rkgibson@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -1334,8 +1367,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.NonModal.{Impression}"
-    enum="IOSDefaultBrowserPromoNonModalAction" expires_after="2026-08-23">
-  <owner>sebsg@chromium.org</owner>
+    enum="IOSDefaultBrowserPromoNonModalAction" expires_after="2026-10-16">
+  <owner>pabouchard@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
     Logged when an action happens on the {Impression} impression of a non modal
@@ -1356,7 +1389,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.NonModal.{PromoType}"
-    enum="IOSDefaultBrowserPromoNonModalAction" expires_after="2026-08-23">
+    enum="IOSDefaultBrowserPromoNonModalAction" expires_after="2026-10-16">
   <owner>sebsg@chromium.org</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
@@ -1371,8 +1404,8 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.SetUpList.Action"
-    enum="IOSDefaultBrowserFullscreenPromoAction" expires_after="2026-07-26">
-  <owner>sebsg@chromium.org</owner>
+    enum="IOSDefaultBrowserFullscreenPromoAction" expires_after="2026-10-16">
+  <owner>pabouchard@google.com</owner>
   <owner>scottyoder@google.com</owner>
   <owner>bling-pandamonium@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
@@ -1383,15 +1416,17 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.Shown"
-    enum="IOSDefaultBrowserPromoType" expires_after="2026-08-23">
-  <owner>gayane@chromium.org</owner>
+    enum="IOSDefaultBrowserPromoType" expires_after="2026-10-16">
+  <owner>gujen@google.com</owner>
+  <owner>rkgibson@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>The default browser promo type shown to the user.</summary>
 </histogram>
 
 <histogram name="IOS.DefaultBrowserPromo.TailoredPromoDisplayCount"
-    units="count" expires_after="2026-08-23">
+    units="count" expires_after="2026-10-16">
   <owner>gayane@google.com</owner>
+  <owner>gujen@google.com</owner>
   <owner>bling-mony-pod@google.com</owner>
   <summary>
     Represents number of tailored default browser promos displayed to the user.
@@ -4641,6 +4676,22 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.OverflowMenu.ActionTriggered" enum="IOSOverflowMenuAction"
+    expires_after="2027-03-31">
+  <owner>gambard@chromium.org</owner>
+  <owner>bling-meridian@google.com</owner>
+  <summary>The action taken by the user on the overflow menu.</summary>
+</histogram>
+
+<histogram name="IOS.OverflowMenu.ActionTriggeredOnNTP"
+    enum="IOSOverflowMenuAction" expires_after="2027-03-31">
+  <owner>gambard@chromium.org</owner>
+  <owner>bling-meridian@google.com</owner>
+  <summary>
+    The action taken by the user on the overflow menu when on NTP.
+  </summary>
+</histogram>
+
 <histogram name="IOS.OverflowMenu.ActionType" enum="IOSOverflowMenuActionType"
     expires_after="2027-01-31">
   <owner>rkgibson@google.com</owner>
@@ -4878,8 +4929,33 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="IOS.PageContext.AnnotatedPageContent.{Config}.ByteSize"
+    units="bytes" expires_after="2026-10-31">
+  <owner>nicolasmacbeth@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    The total size of the AnnotatedPageContent proto in bytes, broken down by
+    configuration extraction mode. Logged when extraction finishes successfully.
+  </summary>
+  <token key="Config" variants="PageContextConfigVariants"/>
+</histogram>
+
+<histogram
+    name="IOS.PageContext.AnnotatedPageContent.{Status}.{Config}.Latency"
+    units="ms" expires_after="2026-07-21">
+  <owner>nicolasmacbeth@google.com</owner>
+  <owner>bling-alchemy-eng@google.com</owner>
+  <summary>
+    The latency of extracting AnnotatedPageContent data in milliseconds, broken
+    down per completion status and configuration extraction mode. Logged when
+    overall PageContext execution is complete.
+  </summary>
+  <token key="Status" variants="PageContextStatusVariants"/>
+  <token key="Config" variants="PageContextConfigVariants"/>
+</histogram>
+
 <histogram name="IOS.PageContext.{Task}.{Status}.Latency" units="ms"
-    expires_after="2026-07-21">
+    expires_after="2026-10-31">
   <owner>nicolasmacbeth@google.com</owner>
   <owner>bling-alchemy-eng@google.com</owner>
   <summary>
@@ -4887,19 +4963,8 @@ chromium-metrics-reviews@google.com.
     task (or overall execution), and per completion status. Logged when overall
     execution is complete. Each task has its own completion status.
   </summary>
-  <token key="Task">
-    <variant name="AnnotatedPageContent"/>
-    <variant name="Overall"/>
-    <variant name="PDF"/>
-    <variant name="Screenshot"/>
-  </token>
-  <token key="Status">
-    <variant name="Failure"/>
-    <variant name="NotExtractable"/>
-    <variant name="PageProtected"/>
-    <variant name="Success"/>
-    <variant name="Timeout"/>
-  </token>
+  <token key="Task" variants="PageContextTaskVariants"/>
+  <token key="Status" variants="PageContextStatusVariants"/>
 </histogram>
 
 <histogram name="IOS.PageLoad.DefaultModeMobile" enum="Boolean"

@@ -25,7 +25,7 @@
 <translation id="1094555143448724771">Teiste seadmete vahelehtede nägemiseks sünkroonige oma vahelehed ja ajalugu</translation>
 <translation id="1095761715416917775">Veenduge, et pääseksite alati oma sünkroonitud andmetele juurde</translation>
 <translation id="1096091316906284742">Chrome Findsi lubamise alumine leht</translation>
-<translation id="1100066534610197918">Ava rühmas uuel vahelehel</translation>
+<translation id="1100066534610197918">Ava grupis uuel vahelehel</translation>
 <translation id="1103142993930332957">Kas soovite aidata Chrome'i täiustada?</translation>
 <translation id="1105960400813249514">Kuva jäädvustamine</translation>
 <translation id="1108214977745280468">Kuva lehe statistika</translation>
@@ -81,7 +81,7 @@
 <translation id="129553762522093515">Viimati suletud</translation>
 <translation id="1298077576058087471">Säästke kuni 60% andmemahtu, lugege tänaseid uudiseid</translation>
 <translation id="1303507811548703290"><ph name="DOMAIN" /> – saadetud seadmest <ph name="DEVICE_NAME" /></translation>
-<translation id="1310482092992808703">Vahelehtede grupeerimine</translation>
+<translation id="1310482092992808703">Grupeeri vahelehed</translation>
 <translation id="1318262688555255786">Jagage veebilehe <ph name="PAGE_TITLE" /> linki. Allikas: <ph name="PAGE_URL" /></translation>
 <translation id="1320912611264252795">Järjehoidja salvestamise voo kaustad on avatud täiskõrgusel</translation>
 <translation id="1327257854815634930">Navigeerimisajalugu on avatud</translation>
@@ -348,6 +348,7 @@ Teie krüpteeritud andmeid saab lugeda ainult isik, kes teab teie parooli. Paroo
 <translation id="2496180316473517155">Sirvimise ajalugu</translation>
 <translation id="2497852260688568942">Administraator on sünkroonimise keelanud</translation>
 <translation id="250020030759455918">Näete Chrome'is oma saidi <ph name="SITE_NAME" /> sisselogimise olekut, sirvimisandmeid ja saidi andmeid</translation>
+<translation id="2501278716633472235">Mine tagasi</translation>
 <translation id="2510106555128151389">Rakenduse <ph name="WEBAPK_NAME" /> installimine …</translation>
 <translation id="2512234228327349533">Otsi ostuvõimalusi</translation>
 <translation id="2513403576141822879">Privaatsuse, turvalisuse ning andmete kogumisega seotud lisaseadete nägemiseks avage valik <ph name="BEGIN_LINK" />Sünkroonimine ja Google'i teenused<ph name="END_LINK" /></translation>
@@ -797,6 +798,7 @@ Teie krüpteeritud andmeid saab lugeda ainult isik, kes teab teie parooli. Paroo
 <translation id="4384468725000734951">Otsimiseks kasutatakse teenust Sogou</translation>
 <translation id="4387647248986092471">Looge auto profiililukk</translation>
 <translation id="4387817230000841154">Ava kaust Allalaadimised</translation>
+<translation id="4394049700291259645">Keela</translation>
 <translation id="4395046795145457714">Chrome Findsi lubamine on avatud täiskõrgusel</translation>
 <translation id="4398561997852463382"><ph name="TAB_TITLE" />, valitud kinnitatud salvestav inkognito vaheleht</translation>
 <translation id="4402611456429872546"><ph name="LANG" /> – allalaadimine …</translation>
@@ -821,7 +823,6 @@ Teie krüpteeritud andmeid saab lugeda ainult isik, kes teab teie parooli. Paroo
 <translation id="4478161224666880173">Võite sellel saidil kasutada oma teenuse <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> kontot. Jätkamiseks logige sisse aadressile <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" />.</translation>
 <translation id="4479972344484327217">Chrome'i jaoks installitakse moodulit <ph name="MODULE" /> …</translation>
 <translation id="4487967297491345095">Kõik Chrome'i rakenduse andmed kustutatakse jäädavalt. See hõlmab kõiki faile, seadeid, kontosid, andmebaase jms.</translation>
-<translation id="4494315997125191493">Kõigi akende nägemiseks valige haldamine</translation>
 <translation id="4494806687727322324">Administraator on paroolide salvestamise sisse lülitanud</translation>
 <translation id="4508528996305412043">Voo kaardimenüü on avatud</translation>
 <translation id="4509741852167209430">Reklaamide toimivuse mõõtmiseks jagatakse saitide vahel piiratud andmetüüpe, näiteks kas sooritasite ostu pärast saidi külastamist</translation>
@@ -869,7 +870,6 @@ Veebisaidil <ph name="BEGIN_LINK" />myactivity.google.com<ph name="END_LINK" /> 
 <translation id="4673702426794876519">Inkognito aken</translation>
 <translation id="4675298276894277358">Seda saiti ei kuvata enam</translation>
 <translation id="4678082183394354975">Saitide tume teema on Chrome'is sisse lülitatud</translation>
-<translation id="4682306524980568490">Kuvada saab kuni <ph name="MAX_INSTANCE_COUNT" /> akent</translation>
 <translation id="4684427112815847243">Sünkrooni kõik</translation>
 <translation id="4685741273709472646">Valige ripploendist</translation>
 <translation id="4687718960473379118">Saitide soovitatud reklaamid</translation>
@@ -1492,7 +1492,6 @@ Näiteks võivad mõned veebisaidid taotlusele reageerida nii, et näitavad teil
 <translation id="7057969023583258980">Ava Chrome'i täielik ajalugu</translation>
 <translation id="7063006564040364415">Sünkroonimisserveriga ei saanud ühendust.</translation>
 <translation id="7063106218165698546">Kohandage vahelehegruppi ja tehke valik Valmis.</translation>
-<translation id="7071521146534760487">Konto haldamine</translation>
 <translation id="707155805709242880">Valige allpool, mis sünkroonida</translation>
 <translation id="7072949719501323344"><ph name="TAB_TITLE" />, mitmikvalikuga kinnitatud pilt-pildis inkognito vaheleht</translation>
 <translation id="7077143737582773186">SD-kaart</translation>
@@ -1821,6 +1820,7 @@ Selle seade muutmiseks <ph name="BEGIN_LINK" />kustutage oma kontol Chrome'i and
 <translation id="8282950411412455249">Avage turvaseaded</translation>
 <translation id="8288688997999490824">{NUM_WINDOWS,plural, =1{Sule 1 inkognito aken}other{Sule # inkognito akent}}</translation>
 <translation id="831192587911042850">Lisab praeguse veebisaidi teie jälgitavate veebisaitide loendisse.</translation>
+<translation id="8313599942510782709">Teie ülesanne on endiselt pooleli</translation>
 <translation id="8317318757008452355">Printimisvalikute avamine</translation>
 <translation id="8320212361750431956">Hiljutised toimingud</translation>
 <translation id="832514020744584629"><ph name="PREF_TITLE" />  <ph name="BEGIN_NEW" />Uus<ph name="END_NEW" /></translation>

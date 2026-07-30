@@ -126,6 +126,7 @@
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/animating_layout_manager_test_util.h"
 #include "ui/views/test/views_test_utils.h"
+#include "ui/views/test/widget_activation_waiter.h"
 #include "ui/views/view.h"
 #include "ui/views/view_observer.h"
 #include "ui/views/widget/any_widget_observer.h"
@@ -246,7 +247,6 @@ class WebAppFrameToolbarBrowserTest : public web_app::WebAppBrowserTestBase {
         /*enabled_features=*/
         {{features::kPageActionsMigration,
           {{features::kPageActionsMigrationZoom.name, "true"}}},
-         {features::kWebAppPredictableAppUpdating, {}},
          {blink::features::kWebAppMigrationApi, {}}},
         /*disabled_features=*/{});
   }
@@ -471,11 +471,13 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest,
   const GURL app_url("https://test.org");
   helper()->InstallAndLaunchWebApp(browser(), app_url);
 
+  CHECK(!features::IsWebUIPinnedToolbarActionsEnabled())
+      << "Test needs modification to support WebUIPinnedToolbarActions";
   int button_count = 0;
-  for (views::View* child : helper()
-                                ->web_app_frame_toolbar()
-                                ->GetPinnedToolbarActionsContainer()
-                                ->children()) {
+  for (views::View* child :
+       static_cast<PinnedToolbarActionsContainer*>(
+           helper()->web_app_frame_toolbar()->GetPinnedToolbarActions())
+           ->children()) {
     if (views::Button::AsButton(child)) {
       button_count++;
     }
@@ -2026,10 +2028,13 @@ IN_PROC_BROWSER_TEST_F(WebAppFrameToolbarBrowserTest_WindowControlsOverlay,
       chrome_test_utils::GetTestUrl(
           base::FilePath().AppendASCII("downloads"),
           base::FilePath().AppendASCII("a_zip_file.zip")));
+  CHECK(!features::IsWebUIPinnedToolbarActionsEnabled())
+      << "Test needs modification to support WebUIPinnedToolbarActions";
   views::test::WaitForAnimatingLayoutManager(
-      BrowserView::GetBrowserViewForBrowser(helper()->app_browser())
-          ->toolbar_button_provider()
-          ->GetPinnedToolbarActionsContainer());
+      static_cast<PinnedToolbarActionsContainer*>(
+          BrowserView::GetBrowserViewForBrowser(helper()->app_browser())
+              ->toolbar_button_provider()
+              ->GetPinnedToolbarActions()));
 
   // The download button is visible in the app browser.
   EXPECT_TRUE(toolbar_button_container->GetDownloadButton()->GetVisible());
@@ -2506,16 +2511,9 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(helper()->browser_view()->IsMaximized());
 }
 
-// TODO(crbug.com/458526513): Flaky on Linux.
-#if BUILDFLAG(IS_LINUX)
-#define MAYBE_MaximizeAndRestoreWindowWithApi \
-  DISABLED_MaximizeAndRestoreWindowWithApi
-#else
-#define MAYBE_MaximizeAndRestoreWindowWithApi MaximizeAndRestoreWindowWithApi
-#endif
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    MAYBE_MaximizeAndRestoreWindowWithApi) {
+    MaximizeAndRestoreWindowWithApi) {
   InstallAndLaunchWebApp();
   helper()->GrantWindowManagementPermission();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
@@ -2524,6 +2522,8 @@ IN_PROC_BROWSER_TEST_F(
   helper()->browser_view()->SetCanMaximize(true);
   EXPECT_TRUE(helper()->browser_view()->CanMaximize());
   content::WaitForLoadStop(web_contents);
+  views::Widget* widget = helper()->browser_view()->GetWidget();
+  views::test::WaitForWidgetActive(widget, true);
 
   EXPECT_EQ(EvalDisplayStateChange(web_contents, "maximize", "maximized"),
             "window.maximize() succeeded.");
@@ -2588,21 +2588,15 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_FALSE(helper()->browser_view()->IsMaximized());
 }
 
-// TODO(crbug.com/459532445): Flaky on Linux Wayland and mac.
-#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND) || BUILDFLAG(IS_MAC)
-#define MAYBE_FullscreenAndRestoreWindowWithApi \
-  DISABLED_FullscreenAndRestoreWindowWithApi
-#else
-#define MAYBE_FullscreenAndRestoreWindowWithApi \
-  FullscreenAndRestoreWindowWithApi
-#endif
 IN_PROC_BROWSER_TEST_F(
     WebAppFrameToolbarBrowserTest_AdditionalWindowingControls,
-    MAYBE_FullscreenAndRestoreWindowWithApi) {
+    FullscreenAndRestoreWindowWithApi) {
   InstallAndLaunchWebApp();
   helper()->GrantWindowManagementPermission();
   auto* web_contents = helper()->browser_view()->GetActiveWebContents();
   content::WaitForLoadStop(web_contents);
+  views::Widget* widget = helper()->browser_view()->GetWidget();
+  views::test::WaitForWidgetActive(widget, true);
 
   // Enter fullscreen
   EXPECT_EQ(EvalFullscreenRequest(web_contents),

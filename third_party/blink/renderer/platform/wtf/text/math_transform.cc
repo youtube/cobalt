@@ -65,18 +65,18 @@ UChar32 ItalicMathVariant(UChar32 code_point) {
   UChar32 base_char = 0;
   enum CharacterType { kLatin, kGreekish };
   CharacterType var_type;
-  const UChar32 kASCIIUpperStart = 'A';
-  const UChar32 kASCIILowerStart = 'a';
-  if (IsASCIIUpper(code_point)) {
-    base_char = code_point - kASCIIUpperStart;
+  const UChar32 kAsciiUpperStart = 'A';
+  const UChar32 kAsciiLowerStart = 'a';
+  if (IsAsciiUpper(code_point)) {
+    base_char = code_point - kAsciiUpperStart;
     var_type = kLatin;
-  } else if (IsASCIILower(code_point)) {
+  } else if (IsAsciiLower(code_point)) {
     // Lowercase characters are placed immediately after the uppercase
     // characters in the Unicode mathematical block. The constant subtraction
     // represents the number of characters between the start of the sequence
     // (capital A) and the first lowercase letter.
     base_char = uchar::kMathBoldSmallA - uchar::kMathBoldUpperA + code_point -
-                kASCIILowerStart;
+                kAsciiLowerStart;
     var_type = kLatin;
   } else if (uchar::kGreekUpperAlpha <= code_point &&
              code_point <= uchar::kGreekUpperOmega) {

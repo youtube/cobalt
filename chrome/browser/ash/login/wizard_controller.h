@@ -41,6 +41,7 @@
 #include "chrome/browser/ash/login/screens/enable_debugging_screen.h"
 #include "chrome/browser/ash/login/screens/family_link_notice_screen.h"
 #include "chrome/browser/ash/login/screens/fingerprint_setup_screen.h"
+#include "chrome/browser/ash/login/screens/fjord_image_selection_screen.h"
 #include "chrome/browser/ash/login/screens/gaia_info_screen.h"
 #include "chrome/browser/ash/login/screens/gaia_screen.h"
 #include "chrome/browser/ash/login/screens/gemini_intro_screen.h"
@@ -66,6 +67,7 @@
 #include "chrome/browser/ash/login/screens/osauth/osauth_error_screen.h"
 #include "chrome/browser/ash/login/screens/osauth/password_selection_screen.h"
 #include "chrome/browser/ash/login/screens/osauth/recovery_eligibility_screen.h"
+#include "chrome/browser/ash/login/screens/osauth/remove_local_auth_factors_screen.h"
 #include "chrome/browser/ash/login/screens/packaged_license_screen.h"
 #include "chrome/browser/ash/login/screens/parental_handoff_screen.h"
 #include "chrome/browser/ash/login/screens/perks_discovery_screen.h"
@@ -520,11 +522,14 @@ class WizardController : public OobeUI::Observer {
       PersonalizedRecommendAppsScreen::Result result);
   void OnPerksDiscoveryScreenExit(PerksDiscoveryScreen::Result result);
   void OnAppLaunchSplashScreenExit();
-  void OnFjordImageSelectionScreenExit();
+  void OnFjordImageSelectionScreenExit(
+      FjordImageSelectionScreen::Result result);
   void OnFjordImageDownloadScreenExit();
   void OnFjordTouchControllerScreenExit();
   void OnFjordStationSetupScreenExit();
   void OnFjordFwUpdateScreenExit();
+  void OnRemoveLocalAuthFactorsScreenExit(
+      RemoveLocalAuthFactorsScreen::Result result);
 
   // Callback invoked once it has been determined whether the device is disabled
   // or not.

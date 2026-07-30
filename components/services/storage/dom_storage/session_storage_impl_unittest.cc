@@ -23,9 +23,10 @@
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
-#include "base/test/with_feature_override.h"
+#include "base/test/test_future.h"
 #include "base/token.h"
 #include "base/uuid.h"
+#include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/dom_storage_histogram_helper.h"
 #include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/test_support/dom_storage_database_testing.h"
@@ -48,27 +49,25 @@ std::vector<uint8_t> StringViewToUint8Vector(std::string_view s) {
   return std::vector<uint8_t>(s.begin(), s.end());
 }
 
-class SessionStorageImplTest : public base::test::WithFeatureOverride,
-                               public testing::Test {
+// Base test fixture for `SessionStorageImpl` tests. Provides common setup
+// including database initialization, storage area binding, and helper methods.
+// Subclasses can parameterize tests to run on SQLite or LevelDB using
+// `is_sqlite_enabled`.
+class SessionStorageImplTestBase : public testing::Test {
  public:
-  SessionStorageImplTest()
-      : base::test::WithFeatureOverride(kDomStorageSqlite) {
-    // Match the state of `kDomStorageSqliteInMemory` to the top level
-    // kDomStorageSqlite. That way in-memory databases will use the backend
-    // expected by the param state.
-    if (IsSqliteEnabled()) {
-      feature_list_.InitAndEnableFeature(kDomStorageSqliteInMemory);
-    } else {
-      feature_list_.InitAndDisableFeature(kDomStorageSqliteInMemory);
-    }
+  explicit SessionStorageImplTestBase(bool is_sqlite_enabled) {
+    feature_list_.InitWithFeatureStates(
+        {{kDomStorageSqlite, is_sqlite_enabled},
+         {kDomStorageSqliteInMemory, is_sqlite_enabled}});
     task_environment_ = std::make_unique<base::test::TaskEnvironment>();
     CHECK(temp_dir_.CreateUniqueTempDir());
   }
 
-  SessionStorageImplTest(const SessionStorageImplTest&) = delete;
-  SessionStorageImplTest& operator=(const SessionStorageImplTest&) = delete;
+  SessionStorageImplTestBase(const SessionStorageImplTestBase&) = delete;
+  SessionStorageImplTestBase& operator=(const SessionStorageImplTestBase&) =
+      delete;
 
-  ~SessionStorageImplTest() override {
+  ~SessionStorageImplTestBase() override {
     // Flush all tasks to make sure the database is fully closed.
     RunUntilIdle();
     EXPECT_TRUE(temp_dir_.Delete());
@@ -76,7 +75,7 @@ class SessionStorageImplTest : public base::test::WithFeatureOverride,
 
   void SetUp() override {
     mojo::SetDefaultProcessErrorHandler(base::BindRepeating(
-        &SessionStorageImplTest::OnBadMessage, base::Unretained(this)));
+        &SessionStorageImplTestBase::OnBadMessage, base::Unretained(this)));
   }
 
   void TearDown() override {
@@ -84,8 +83,6 @@ class SessionStorageImplTest : public base::test::WithFeatureOverride,
       ShutDownSessionStorage();
     mojo::SetDefaultProcessErrorHandler(base::NullCallback());
   }
-
-  bool IsSqliteEnabled() const { return GetParam(); }
 
   void OnBadMessage(const std::string& reason) { bad_message_called_ = true; }
 
@@ -195,6 +192,17 @@ class SessionStorageImplTest : public base::test::WithFeatureOverride,
   mojo::Remote<mojom::SessionStorageControl> remote_session_storage_;
 };
 
+class SessionStorageImplTest
+    : public testing::WithParamInterface</*is_sqlite_enabled=*/bool>,
+      public SessionStorageImplTestBase {
+ public:
+  SessionStorageImplTest()
+      : SessionStorageImplTestBase(/*is_sqlite_enabled=*/GetParam()) {}
+  ~SessionStorageImplTest() override = default;
+
+  bool IsSqliteEnabled() const { return GetParam(); }
+};
+
 INSTANTIATE_TEST_SUITE_P(
     /*no prefix*/,
     SessionStorageImplTest,
@@ -243,6 +251,10 @@ TEST_P(SessionStorageImplTest, CommitRecordsUpdateMapsHistogram) {
   WaitForDatabaseTasks();
   histograms.ExpectUniqueSample("Storage.SessionStorage.UpdateMaps.OnDisk", 0,
                                 1);
+
+  // Verify duration histograms were recorded for the commit operations.
+  histograms.ExpectTotalCount(
+      "Storage.SessionStorage.Duration.InitiateCommit.OnDisk", 1);
 }
 
 TEST_P(SessionStorageImplTest, StartupShutdownSave) {
@@ -319,6 +331,13 @@ TEST_P(SessionStorageImplTest, StartupShutdownSave) {
   histograms.ExpectUniqueSample(
       "Storage.SessionStorage.ReadMapKeyValues.OnDisk",
       /*sample=*/0, 1);
+
+  // Verify duration histograms. OpenDatabase duration fires for each open.
+  histograms.ExpectTotalCount(
+      "Storage.SessionStorage.Duration.OpenDatabase.OnDisk", 3);
+  // GetAll duration fires for each ReadMapKeyValues async round-trip.
+  histograms.ExpectTotalCount("Storage.SessionStorage.Duration.GetAll.OnDisk",
+                              1);
 }
 
 TEST_P(SessionStorageImplTest, CloneBeforeBrowserClone) {
@@ -582,7 +601,7 @@ TEST_P(SessionStorageImplTest, Scavenging) {
   EXPECT_EQ(0ul, data.size());
 }
 
-void SessionStorageImplTest::TestInvalidVersionOnDisk(
+void SessionStorageImplTestBase::TestInvalidVersionOnDisk(
     std::string invalid_version_string) {
   base::HistogramTester histograms;
   std::string namespace_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
@@ -711,6 +730,9 @@ TEST_P(SessionStorageImplTest, CorruptionOnDisk) {
   histograms.ExpectUniqueSample(
       "Storage.SessionStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToDiskDestroySucceeded, 1);
+  // Verify DestroyDatabase histogram recorded success during recovery.
+  histograms.ExpectUniqueSample("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 1);
 }
 
 TEST_P(SessionStorageImplTest, RecreateOnCommitFailure) {
@@ -852,6 +874,16 @@ TEST_P(SessionStorageImplTest, RecreateOnCommitFailure) {
   histograms.ExpectUniqueSample(
       "Storage.SessionStorage.Recovery.CommitErrorThresholdExceeded",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToDiskDestroySucceeded, 1);
+
+  // Verify DestroyDatabase histogram recorded success during recovery.
+  histograms.ExpectUniqueSample("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 1);
+
+  // Verify the commit error count was recorded when the counter was reset
+  // during recovery.
+  histograms.ExpectUniqueSample(
+      "Storage.SessionStorage.CommitErrorCountAtReset",
+      kCommitErrorThreshold + 1, 1);
 }
 
 TEST_P(SessionStorageImplTest, DontRecreateOnRepeatedCommitFailure) {
@@ -974,12 +1006,144 @@ TEST_P(SessionStorageImplTest, DontRecreateOnRepeatedCommitFailure) {
                     kOngoingErrorsAfterAttemptedRecovery),
             1);
 
+  // Verify the commit error count was recorded during the first recovery.
+  histograms.ExpectBucketCount("Storage.SessionStorage.CommitErrorCountAtReset",
+                               kCommitErrorThreshold + 1, 1);
+
   session_storage()->DeleteNamespace(namespace_id, false);
   ShutDownSessionStorage();
 }
 
+// Test fixture for tests that use fake database implementations. These tests
+// do not depend on the real SQLite/LevelDB backend and run only once.
+class SessionStorageImplFakeDbTest : public SessionStorageImplTestBase {
+ public:
+  SessionStorageImplFakeDbTest()
+      : SessionStorageImplTestBase(/*is_sqlite_enabled=*/false) {}
+};
+
+// After recovery, some commit errors occur but resolve via a successful commit.
+// Verifies the kTransientErrorsAfterAttemptedRecovery histogram is emitted.
+TEST_F(SessionStorageImplFakeDbTest, TransientErrorsAfterRecovery) {
+  base::HistogramTester histograms;
+
+  // Each database starts with UpdateMaps returning IOError. The test switches
+  // the second database to OK mid-flight to simulate transient errors.
+  ScopedDomStorageDatabaseFactoryForTesting scoped_factory(
+      base::BindLambdaForTesting(
+          [](StorageType, bool, scoped_refptr<base::SequencedTaskRunner> runner)
+              -> base::SequenceBound<DomStorageDatabase> {
+            auto fake = base::SequenceBound<FakeDomStorageDatabase>(
+                std::move(runner), DbStatus::OK());
+            fake.AsyncCall(&FakeDomStorageDatabase::SetUpdateMapsStatus)
+                .WithArgs(DbStatus::IOError("test"));
+            return fake;
+          }));
+
+  std::optional<base::RunLoop> open_loop;
+  size_t num_database_open_requests = 0;
+  session_storage_impl()->SetDatabaseOpenCallbackForTesting(
+      base::BindLambdaForTesting([&] {
+        ++num_database_open_requests;
+        open_loop->Quit();
+      }));
+  open_loop.emplace();
+
+  std::string namespace_id = base::Uuid::GenerateRandomV4().AsLowercaseString();
+  blink::StorageKey storage_key1 =
+      blink::StorageKey::CreateFromStringForTesting("http://foobar.com");
+
+  // Wait for the first database to open, then bind a storage area.
+  session_storage()->CreateNamespace(namespace_id);
+  open_loop->Run();
+  ASSERT_EQ(1u, num_database_open_requests);
+  mojo::Remote<blink::mojom::StorageArea> area;
+  session_storage()->BindStorageArea(storage_key1, namespace_id,
+                                     area.BindNewPipeAndPassReceiver());
+
+  // Setup a new RunLoop to wait for the database to be recreated.
+  open_loop.emplace();
+  session_storage_impl()->SetDatabaseOpenCallbackForTesting(
+      base::BindLambdaForTesting([&] {
+        ++num_database_open_requests;
+        open_loop->Quit();
+      }));
+
+  // Repeatedly write data to trigger enough commit errors for recovery.
+  auto value = StringViewToUint8Vector("avalue");
+  std::optional<std::vector<uint8_t>> old_value = std::nullopt;
+  while (area.is_connected()) {
+    area->Put(StringViewToUint8Vector("key"), value, old_value,
+              test::MakeStorageAreaSource(),
+              base::BindOnce([](bool success) { EXPECT_TRUE(success); }));
+    area.FlushForTesting();
+    session_storage_impl()->FlushAreaForTesting(namespace_id, storage_key1);
+
+    old_value = value;
+    value[0]++;
+  }
+  area.reset();
+
+  // Wait for the database to be recreated. The second database's UpdateMaps
+  // also returns IOError (set at creation above).
+  open_loop->Run();
+  EXPECT_EQ(2u, num_database_open_requests);
+
+  // Reconnect and write a few times to accumulate some errors (fewer than the
+  // threshold).
+  session_storage()->BindStorageArea(storage_key1, namespace_id,
+                                     area.BindNewPipeAndPassReceiver());
+  old_value = std::nullopt;
+  for (int i = 0; i < 3; ++i) {
+    // Every write needs to be different to make sure there actually is a
+    // change to commit.
+    base::test::TestFuture<bool> success_future;
+    area->Put(StringViewToUint8Vector("key"), value, old_value,
+              test::MakeStorageAreaSource(), success_future.GetCallback());
+    EXPECT_TRUE(success_future.Take());
+    session_storage_impl()->FlushAreaForTesting(namespace_id, storage_key1);
+
+    old_value = value;
+    value[0]++;
+  }
+
+  // Stop failing commits and do one more write so the successful commit
+  // triggers the transient errors histogram.
+  session_storage_impl()
+      ->GetDatabaseForTesting()
+      ->database()
+      .PostTaskWithThisObject(
+          base::BindLambdaForTesting([](DomStorageDatabase* db) {
+            static_cast<FakeDomStorageDatabase*>(db)->SetUpdateMapsStatus(
+                DbStatus::OK());
+          }));
+  {
+    base::test::TestFuture<bool> success_future;
+    area->Put(StringViewToUint8Vector("key"), value, old_value,
+              test::MakeStorageAreaSource(), success_future.GetCallback());
+    EXPECT_TRUE(success_future.Take());
+  }
+  session_storage_impl()->FlushAreaForTesting(namespace_id, storage_key1);
+  WaitForDatabaseTasks();
+  EXPECT_TRUE(area.is_connected());
+
+  // Verify the transient errors histogram was emitted exactly once.
+  histograms.ExpectBucketCount(
+      "Storage.SessionStorage.Recovery.CommitErrorThresholdExceeded",
+      DomStorageDatabaseRecoveryOutcome::kTransientErrorsAfterAttemptedRecovery,
+      1);
+
+  // Verify the commit error count was recorded: once during the initial
+  // recovery (kCommitErrorThreshold + 1) and once when the successful commit
+  // reset the 3 transient errors.
+  histograms.ExpectBucketCount("Storage.SessionStorage.CommitErrorCountAtReset",
+                               kCommitErrorThreshold + 1, 1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.CommitErrorCountAtReset",
+                               3, 1);
+}
+
 // Both disk opens fail, destroy succeeds, in-memory open succeeds.
-TEST_P(SessionStorageImplTest, FallbackToInMemory_DestroySucceeded) {
+TEST_F(SessionStorageImplFakeDbTest, FallbackToInMemory_DestroySucceeded) {
   base::HistogramTester histograms;
   FakeDomStorageDatabaseFactory fake_factory(/*num_open_failures=*/2,
                                              /*num_destroy_failures=*/0);
@@ -990,10 +1154,13 @@ TEST_P(SessionStorageImplTest, FallbackToInMemory_DestroySucceeded) {
                                 DomStorageDatabaseRecoveryOutcome::
                                     kRecoveredToInMemoryBothDestroysSucceeded,
                                 1);
+  // Two successful destroys during recovery (one per failed open attempt).
+  histograms.ExpectUniqueSample("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 2);
 }
 
 // Both disk opens fail, destroy also fails, in-memory open succeeds.
-TEST_P(SessionStorageImplTest, FallbackToInMemory_DestroyFailed) {
+TEST_F(SessionStorageImplFakeDbTest, FallbackToInMemory_DestroyFailed) {
   base::HistogramTester histograms;
   FakeDomStorageDatabaseFactory fake_factory(/*num_open_failures=*/2,
                                              /*num_destroy_failures=*/2);
@@ -1004,10 +1171,13 @@ TEST_P(SessionStorageImplTest, FallbackToInMemory_DestroyFailed) {
       "Storage.SessionStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToInMemoryBothDestroysFailed,
       1);
+  // Sample 5 = DbStatus::Type::kIoError.
+  histograms.ExpectUniqueSample("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/5, 2);
 }
 
 // All three opens fail (disk, disk retry, in-memory), destroys succeed.
-TEST_P(SessionStorageImplTest, GaveUp_DestroySucceeded) {
+TEST_F(SessionStorageImplFakeDbTest, GaveUp_DestroySucceeded) {
   base::HistogramTester histograms;
   FakeDomStorageDatabaseFactory fake_factory(/*num_open_failures=*/3,
                                              /*num_destroy_failures=*/0);
@@ -1017,10 +1187,13 @@ TEST_P(SessionStorageImplTest, GaveUp_DestroySucceeded) {
   histograms.ExpectUniqueSample(
       "Storage.SessionStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kGaveUpBothDestroysSucceeded, 1);
+  // Two successful destroys during recovery (one per failed open attempt).
+  histograms.ExpectUniqueSample("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 2);
 }
 
 // All three opens fail, destroy also fails.
-TEST_P(SessionStorageImplTest, GaveUp_DestroyFailed) {
+TEST_F(SessionStorageImplFakeDbTest, GaveUp_DestroyFailed) {
   base::HistogramTester histograms;
   FakeDomStorageDatabaseFactory fake_factory(/*num_open_failures=*/3,
                                              /*num_destroy_failures=*/1);
@@ -1033,7 +1206,7 @@ TEST_P(SessionStorageImplTest, GaveUp_DestroyFailed) {
 }
 
 // First open fails, destroy fails, second open succeeds on disk.
-TEST_P(SessionStorageImplTest, RecoveredToDisk_DestroyFailed) {
+TEST_F(SessionStorageImplFakeDbTest, RecoveredToDisk_DestroyFailed) {
   base::HistogramTester histograms;
   FakeDomStorageDatabaseFactory fake_factory(
       /*num_open_failures=*/1,
@@ -1044,11 +1217,13 @@ TEST_P(SessionStorageImplTest, RecoveredToDisk_DestroyFailed) {
   histograms.ExpectUniqueSample(
       "Storage.SessionStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToDiskDestroyFailed, 1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/5, 1);
 }
 
 // Both disk opens fail, first destroy fails, second succeeds, in-memory open
 // succeeds.
-TEST_P(SessionStorageImplTest, FallbackToInMemory_FirstDestroyFailed) {
+TEST_F(SessionStorageImplFakeDbTest, FallbackToInMemory_FirstDestroyFailed) {
   base::HistogramTester histograms;
   FakeDomStorageDatabaseFactory fake_factory(/*num_open_failures=*/2,
                                              /*num_destroy_failures=*/1);
@@ -1059,11 +1234,15 @@ TEST_P(SessionStorageImplTest, FallbackToInMemory_FirstDestroyFailed) {
       "Storage.SessionStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToInMemoryFirstDestroyFailed,
       1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/0, 1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/5, 1);
 }
 
 // Both disk opens fail, first destroy succeeds, second fails, in-memory open
 // succeeds.
-TEST_P(SessionStorageImplTest, FallbackToInMemory_SecondDestroyFailed) {
+TEST_F(SessionStorageImplFakeDbTest, FallbackToInMemory_SecondDestroyFailed) {
   base::HistogramTester histograms;
   // First destroy succeeds, second fails.
   int destroy_count = 0;
@@ -1085,10 +1264,14 @@ TEST_P(SessionStorageImplTest, FallbackToInMemory_SecondDestroyFailed) {
                                 DomStorageDatabaseRecoveryOutcome::
                                     kRecoveredToInMemorySecondDestroyFailed,
                                 1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/0, 1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/5, 1);
 }
 
 // All three opens fail, first destroy succeeds, second fails.
-TEST_P(SessionStorageImplTest, GaveUp_SecondDestroyFailed) {
+TEST_F(SessionStorageImplFakeDbTest, GaveUp_SecondDestroyFailed) {
   base::HistogramTester histograms;
   // First destroy succeeds, second fails.
   int destroy_count = 0;
@@ -1109,10 +1292,14 @@ TEST_P(SessionStorageImplTest, GaveUp_SecondDestroyFailed) {
   histograms.ExpectUniqueSample(
       "Storage.SessionStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kGaveUpSecondDestroyFailed, 1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/0, 1);
+  histograms.ExpectBucketCount("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                               /*sample=*/5, 1);
 }
 
 // All three opens fail, both destroys fail.
-TEST_P(SessionStorageImplTest, GaveUp_BothDestroysFailed) {
+TEST_F(SessionStorageImplFakeDbTest, GaveUp_BothDestroysFailed) {
   base::HistogramTester histograms;
   FakeDomStorageDatabaseFactory fake_factory(
       /*num_open_failures=*/3,
@@ -1123,11 +1310,13 @@ TEST_P(SessionStorageImplTest, GaveUp_BothDestroysFailed) {
   histograms.ExpectUniqueSample(
       "Storage.SessionStorage.Recovery.OpenFailure",
       DomStorageDatabaseRecoveryOutcome::kGaveUpBothDestroysFailed, 1);
+  histograms.ExpectUniqueSample("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/5, 2);
 }
 
 // In-memory open fails, retry succeeds. No Destroy() because there is nothing
 // on disk.
-TEST_P(SessionStorageImplTest, InMemoryRecovery_Succeeded) {
+TEST_F(SessionStorageImplFakeDbTest, InMemoryRecovery_Succeeded) {
   base::HistogramTester histograms;
   SetBackingMode(SessionStorageImpl::BackingMode::kNoDisk);
 
@@ -1144,7 +1333,7 @@ TEST_P(SessionStorageImplTest, InMemoryRecovery_Succeeded) {
 
 // Both in-memory opens fail, gave up. No Destroy() because there is nothing on
 // disk.
-TEST_P(SessionStorageImplTest, InMemoryRecovery_GaveUp) {
+TEST_F(SessionStorageImplFakeDbTest, InMemoryRecovery_GaveUp) {
   base::HistogramTester histograms;
   SetBackingMode(SessionStorageImpl::BackingMode::kNoDisk);
 
@@ -1161,7 +1350,7 @@ TEST_P(SessionStorageImplTest, InMemoryRecovery_GaveUp) {
 
 // ReadAllMetadata fails after a successful open, triggering recovery via the
 // MetadataReadFailure path.
-TEST_P(SessionStorageImplTest, MetadataReadFailure) {
+TEST_F(SessionStorageImplFakeDbTest, MetadataReadFailure) {
   base::HistogramTester histograms;
   bool first_create = true;
   ScopedDomStorageDatabaseFactoryForTesting scoped_factory(
@@ -1177,12 +1366,6 @@ TEST_P(SessionStorageImplTest, MetadataReadFailure) {
                   .WithArgs(base::unexpected(DbStatus::Corruption("test")));
             }
             return fake;
-          }),
-      base::BindRepeating(
-          [](const base::FilePath&,
-             DomStorageDatabaseFactory::StatusCallback callback) {
-            base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-                FROM_HERE, base::BindOnce(std::move(callback), DbStatus::OK()));
           }));
 
   EnsureDatabaseOpen();
@@ -1190,6 +1373,8 @@ TEST_P(SessionStorageImplTest, MetadataReadFailure) {
   histograms.ExpectUniqueSample(
       "Storage.SessionStorage.Recovery.MetadataReadFailure",
       DomStorageDatabaseRecoveryOutcome::kRecoveredToDiskDestroySucceeded, 1);
+  histograms.ExpectUniqueSample("Storage.SessionStorage.DestroyDatabase.OnDisk",
+                                /*sample=*/0, 1);
 }
 
 TEST_P(SessionStorageImplTest, GetUsage) {

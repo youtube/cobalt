@@ -110,6 +110,7 @@
 <translation id="4031910098617850788">F5</translation>
 <translation id="40579289237549812">{UNREAD_NOTIFICATIONS,plural, =1{1 չկարդացված ծանուցում}one{# չկարդացված ծանուցում}other{# չկարդացված ծանուցում}}</translation>
 <translation id="41501027364808384">{COUNT,plural, =1{Միացրեք հետևյալ ընդլայնումը ինկոգնիտո ռեժիմում՝}one{Միացրեք հետևյալ ընդլայնումը ինկոգնիտո ռեժիմում՝}other{Միացրեք հետևյալ ընդլայնումները ինկոգնիտո ռեժիմում՝}}</translation>
+<translation id="4230098358142093034">Գլխավոր էջ</translation>
 <translation id="4266252015790371705">{MONTHS,plural, =1{1 ամիս առաջ}one{# ամիս առաջ}other{# ամիս առաջ}}</translation>
 <translation id="4277033906326892359">«<ph name="COLUMN_NAME" />» սյունակի արժեքները դասավորված են աճման կարգով</translation>
 <translation id="4289300219472526559">Start Speaking</translation>
@@ -247,7 +248,6 @@
 <translation id="9170848237812810038">&amp;Հետարկել</translation>
 <translation id="9195990613383871904">Վաղը</translation>
 <translation id="928628199082367701">Super</translation>
-<translation id="932327136139879170">Գլխավոր էջ</translation>
 <translation id="944069440740578670">Չկարդացված ծանուցումներ</translation>
 <translation id="966963601246348639">{SECONDS,plural, =1{1 վայրկյան առաջ}one{# վայրկյան առաջ}other{# վայրկյան առաջ}}</translation>
 </translationbundle>

@@ -61,6 +61,9 @@ BASE_DECLARE_FEATURE(kContextualTasksInsertWebContentsAt);
 // If enabled, animates the caret.
 BASE_DECLARE_FEATURE(kContextualTasksAnimatedCaret);
 
+// Fixes the composebox jump.
+BASE_DECLARE_FEATURE(kContextualTasksComposeboxJumpFix);
+
 // Enum denoting which entry point can show when enabled.
 enum class EntryPointOption {
   kNoEntryPoint,
@@ -117,9 +120,6 @@ extern const base::FeatureParam<std::string>
 // The maximum size of a file that can be attached to a Nextbox.
 extern const base::FeatureParam<int> kContextualTasksNextboxMaxFileSize;
 
-// The maximum number of files that can be attached to a Nextbox.
-extern const base::FeatureParam<int> kContextualTasksNextboxMaxFileCount;
-
 // The user agent suffix to use for requests from the contextual tasks UI.
 extern const base::FeatureParam<std::string> kContextualTasksUserAgentSuffix;
 
@@ -149,12 +149,6 @@ extern int GetContextualTasksOnboardingTooltipImpressionDelay();
 // The number of seconds inactive side panel WebContents should keep in cache.
 // Expired side panel WebContents will be destroyed.
 extern int ContextualTasksInactiveSidePanelKeepInCacheMinutes();
-
-// Returns if voice search is allowed in expanded composebox.
-extern bool GetIsExpandedComposeboxVoiceSearchEnabled();
-
-// Returns if voice search is allowed in base steady composebox.
-extern bool GetIsSteadyComposeboxVoiceSearchEnabled();
 
 // Returns if voice search queries should be auto submitted.
 extern bool GetAutoSubmitVoiceSearchQuery();
@@ -194,6 +188,9 @@ extern bool ShouldShowExpandedSecurityChip();
 // Returns the host that all URLs loaded in the embedded page in the Contextual
 // Tasks WebUi should be routed to.
 extern std::string GetForcedEmbeddedPageHost();
+
+// Allows overriding the embedded page host at runtime for debugging.
+extern void SetForcedEmbeddedPageHostOverride(const std::string& host);
 
 // Returns the domains for the sign in page.
 extern std::vector<std::string> GetContextualTasksSignInDomains();
@@ -261,6 +258,9 @@ extern bool ShouldUseStratusDarkModeColors();
 
 // Returns whether the file hint is enabled in the composebox.
 extern bool GetEnableFileHint();
+
+// Returns whether the composebox jump fix is enabled.
+extern bool GetEnableComposeboxJumpFix();
 
 // Returns the UI option to expand contextual tasks side panel to tab.
 extern ExpandButtonOption GetExpandButtonOption();

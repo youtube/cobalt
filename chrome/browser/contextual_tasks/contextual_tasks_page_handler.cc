@@ -12,6 +12,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_tasks/ai_mode_context_library_converter.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks.mojom-shared.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/feedback/public/feedback_source.h"
@@ -45,18 +46,16 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
-#endif
-
 namespace {
 constexpr char kMyActivityUrl[] = "https://myactivity.google.com/myactivity";
 
 void OpenUrlWithDisposition(Profile* profile,
                             const GURL& url,
-                            WindowOpenDisposition disposition) {
+                            WindowOpenDisposition disposition,
+                            BrowserWindowInterface* browser) {
   NavigateParams params(profile, url, ui::PAGE_TRANSITION_LINK);
   params.disposition = disposition;
+  params.browser = browser;
   Navigate(&params);
 }
 
@@ -202,20 +201,18 @@ void ContextualTasksPageHandler::GetUrlForTask(const base::Uuid& uuid,
     return;
   }
 
-  GURL aim_url = web_ui_controller_->GetAimUrl();
-  if (!aim_url.is_empty()) {
-    std::move(callback).Run(aim_url);
-    return;
-  }
-
   // There's a slight difference in the callback signature between the mojo
   // api (wants a reference) and the ui service (provided a moved object).
   // The latter can't provide a reference since we're not keeping it
   // long-term, hence wrapping this in a base::BindOnce.
   ui_service_->GetThreadUrlFromTaskId(
-      uuid, base::BindOnce([](GetUrlForTaskCallback callback,
-                              GURL url) { std::move(callback).Run(url); },
-                           std::move(callback)));
+      uuid,
+      base::BindOnce(
+          [](GetUrlForTaskCallback callback, GURL webui_url, GURL url) {
+            std::move(callback).Run(contextual_tasks::ContextualTasksUiService::
+                                        CopyParamsFromWebUIUrl(url, webui_url));
+          },
+          std::move(callback), web_ui_controller_->GetWebUiUrl()));
 }
 
 void ContextualTasksPageHandler::SetTaskId(const base::Uuid& uuid) {
@@ -231,11 +228,7 @@ void ContextualTasksPageHandler::SetThreadTitle(const std::string& title) {
 
 void ContextualTasksPageHandler::IsZeroState(const GURL& url,
                                              IsZeroStateCallback callback) {
-#if !BUILDFLAG(IS_ANDROID)
   std::move(callback).Run(ContextualTasksUI::IsZeroState(url, ui_service_));
-#else
-  std::move(callback).Run(false);
-#endif
 }
 
 void ContextualTasksPageHandler::IsAiPage(const GURL& url,
@@ -266,7 +259,8 @@ void ContextualTasksPageHandler::IsShownInTab(IsShownInTabCallback callback) {
 
 void ContextualTasksPageHandler::OpenMyActivityUi() {
   OpenUrlWithDisposition(web_ui_controller_->GetProfile(), GURL(kMyActivityUrl),
-                         WindowOpenDisposition::NEW_FOREGROUND_TAB);
+                         WindowOpenDisposition::NEW_FOREGROUND_TAB,
+                         web_ui_controller_->GetBrowser());
 }
 
 void ContextualTasksPageHandler::OpenHelpUi() {
@@ -297,12 +291,14 @@ void ContextualTasksPageHandler::OpenOnboardingHelpUi() {
   OpenUrlWithDisposition(
       web_ui_controller_->GetProfile(),
       GURL(contextual_tasks::GetContextualTasksOnboardingTooltipHelpUrl()),
-      WindowOpenDisposition::NEW_FOREGROUND_TAB);
+      WindowOpenDisposition::NEW_FOREGROUND_TAB,
+      web_ui_controller_->GetBrowser());
 }
 
 void ContextualTasksPageHandler::OpenUrl(const GURL& url,
                                          WindowOpenDisposition disposition) {
-  OpenUrlWithDisposition(web_ui_controller_->GetProfile(), url, disposition);
+  OpenUrlWithDisposition(web_ui_controller_->GetProfile(), url, disposition,
+                         web_ui_controller_->GetBrowser());
 }
 
 void ContextualTasksPageHandler::MoveTaskUiToNewTab() {

@@ -144,6 +144,7 @@ public class FeedSurfaceCoordinator
     // Feed RecyclerView/xSurface fields.
     private FeedListContentManager mContentManager;
     private final RecyclerView mRecyclerView;
+    private final FeedStreamViewResizer mFeedStreamViewResizer;
     private @Nullable ImageView mRecyclerViewSnapshotOverlay;
     private @Nullable FeedSurfaceScope mSurfaceScope;
     private @Nullable FeedSurfaceScopeDependencyProviderImpl mDependencyProvider;
@@ -171,6 +172,7 @@ public class FeedSurfaceCoordinator
     private @Nullable NtpCustomizationConfigManager mNtpCustomizationConfigManager;
     private @Nullable NtpBackgroundImageCoordinator mNtpBackgroundImageCoordinator;
     private NtpCustomizationConfigManager.@Nullable HomepageStateListener mHomepageStateListener;
+    private RecyclerView.@Nullable ItemDecoration mItemDecoration;
 
     /** Provides the additional capabilities needed for the container view. */
     private class RootView extends FrameLayout {
@@ -457,7 +459,8 @@ public class FeedSurfaceCoordinator
 
         mUiConfig = new UiConfig(mRootView);
         mRecyclerView = setUpView();
-        FeedStreamViewResizer.createAndAttach(mActivity, mRecyclerView, mUiConfig);
+        mFeedStreamViewResizer =
+                FeedStreamViewResizer.createAndAttach(mActivity, mRecyclerView, mUiConfig);
 
         mIsNtpCustomizationV2Enabled = NtpCustomizationUtils.isNtpThemeCustomizationEnabled();
         if (mIsNewTabPageCustomizationV2Enabled) {
@@ -714,6 +717,11 @@ public class FeedSurfaceCoordinator
     @Override
     @SuppressWarnings("NullAway")
     public void destroy() {
+        mRecyclerView.setItemAnimator(null);
+        if (mItemDecoration != null) {
+            mRecyclerView.removeItemDecoration(mItemDecoration);
+        }
+
         if (mSwipeRefreshLayout != null) {
             if (mSwipeRefreshLayout.isRefreshing()) {
                 mSwipeRefreshLayout.setRefreshing(false);
@@ -748,6 +756,8 @@ public class FeedSurfaceCoordinator
         if (mNtpBackgroundImageCoordinator != null) {
             mNtpBackgroundImageCoordinator.destroy();
         }
+
+        mFeedStreamViewResizer.destroy();
 
         mActionDelegate.destroy();
     }
@@ -961,14 +971,15 @@ public class FeedSurfaceCoordinator
 
         if (ChromeFeatureList.isEnabled(ChromeFeatureList.FEED_CONTAINMENT)) {
             // Used to draw containment background.
-            view.addItemDecoration(
+            mItemDecoration =
                     new FeedItemDecoration(
                             mActivity,
                             this,
                             (resId) -> {
                                 return AppCompatResources.getDrawable(mActivity, resId);
                             },
-                            gutterPadding));
+                            gutterPadding);
+            view.addItemDecoration(mItemDecoration);
         }
 
         // Work around https://crbug.com/943873 where default focus highlight shows up after

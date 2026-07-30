@@ -82,6 +82,7 @@ MockActorLoginService::~MockActorLoginService() = default;
 
 void MockActorLoginService::GetCredentials(
     tabs::TabInterface* tab,
+    bool has_sign_in_with_google_button,
     base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
     actor_login::CredentialsOrErrorReply callback) {
   std::move(callback).Run(credentials_);
@@ -93,7 +94,8 @@ void MockActorLoginService::AttemptLogin(
     bool should_store_permission,
     base::WeakPtr<actor_login::ActorLoginQualityLoggerInterface> mqls_logger,
     base::TimeTicks attempt_login_tool_start_time,
-    actor_login::LoginStatusResultOrErrorReply callback) {
+    actor_login::LoginStatusResultOrErrorReply callback,
+    actor_login::LoginStatusResultCallback federated_login_callback) {
   last_credential_used_ = credential;
   last_permission_was_permanent_ = should_store_permission;
   std::move(callback).Run(login_status_);

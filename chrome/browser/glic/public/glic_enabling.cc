@@ -31,8 +31,6 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/startup_data.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
-#include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
@@ -626,17 +624,37 @@ bool GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(Profile* profile) {
          base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding);
 }
 
-bool GlicEnabling::ShouldBypassFreUi(Profile* profile,
-                                     content::WebContents* web_contents) {
-  return web_contents->GetContentsMimeType() == pdf::kPDFMimeType &&
-         IsAutoOpenForPdfEnabled(profile) && !HasConsentedForProfile(profile);
+bool GlicEnabling::IsAutoOpenForPdfEnabled(Profile* profile) {
+  return IsTrustFirstOnboardingGatedFeatureEnabled(
+      profile, features::kAutoOpenGlicForPdf,
+      features::kAutoOpenGlicForPdfWithOnboarding);
 }
 
-bool GlicEnabling::IsAutoOpenForPdfEnabled(Profile* profile) {
-  if (!IsTrustFirstOnboardingEnabledForProfile(profile)) {
+bool GlicEnabling::IsContextualMenuItemEnabled(Profile* profile) {
+  return IsTrustFirstOnboardingGatedFeatureEnabled(
+      profile, features::kGlicContextMenu,
+      features::kGlicContextMenuWithOnboarding);
+}
+
+// static
+bool GlicEnabling::IsTrustFirstOnboardingGatedFeatureEnabled(
+    Profile* profile,
+    const base::Feature& feature,
+    const base::FeatureParam<bool>& onboarding_param) {
+  if (!IsMultiInstanceEnabled() || !base::FeatureList::IsEnabled(feature)) {
     return false;
   }
-  return base::FeatureList::IsEnabled(features::kAutoOpenGlicForPdf);
+
+  if (HasConsentedForProfile(profile)) {
+    return true;
+  }
+
+  // If the user has not consented and the onboarding gate is enabled,
+  // the behavior is gated by the Trust First onboarding feature.
+  if (onboarding_param.Get()) {
+    return base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding);
+  }
+  return false;
 }
 
 bool GlicEnabling::IsMultiInstanceEnabledByFlags() {
@@ -665,96 +683,7 @@ bool GlicEnabling::IsShareImageEnabledForProfile(Profile* profile) {
 }
 
 bool GlicEnabling::IsMultiInstanceEnabled() {
-  if (IsMultiInstanceEnabledByFlags()) {
-    return true;
-  }
-
-  if (!base::FeatureList::IsEnabled(
-          features::kGlicEnableMultiInstanceBasedOnTier)) {
-    return false;
-  }
-
-  // MultiTab feaure enablement should still gate multi-instance enablement when
-  // considering subscription tier.
-  if (!base::FeatureList::IsEnabled(mojom::features::kGlicMultiTab) ||
-      !base::FeatureList::IsEnabled(features::kGlicMultitabUnderlines)) {
-    LOG(ERROR) << "Multi-instance functions cannot be enabled without the "
-                  "kGlicMultiTab and kGlicMultitabUnderlines features. These "
-                  "features must be enabled to ensure proper behavior.";
-    return false;
-  }
-
-  return IsEligibleForGlicMultiInstanceTieredRolloutThisRun();
-}
-
-bool GlicEnabling::IsEligibleForGlicMultiInstanceTieredRolloutThisRun() {
-  // It is necessary that `is_eligible` does not change after the first call to
-  // this function during a run of Chrome, as multi-instance cannot be
-  // enabled/disabled dynamically.
-  static bool is_eligible =
-      GetAndUpdateEligibilityForGlicMultiInstanceTieredRollout(nullptr);
-
-  return is_eligible;
-}
-
-bool GlicEnabling::GetAndUpdateEligibilityForGlicMultiInstanceTieredRollout(
-    Profile* additional_profile) {
-  if (!g_browser_process->local_state() ||
-      !g_browser_process->profile_manager()) {
-    return false;
-  }
-
-  // Reset local state enablement pref if corresponding command line flag is
-  // set. Intended for manual testing only.
-  auto* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(
-          ::switches::kGlicResetMultiInstanceEnabledByTier)) {
-    g_browser_process->local_state()->SetBoolean(
-        prefs::kGlicMultiInstanceEnabledBySubscriptionTier, false);
-  }
-
-  // If multi-instance was ever enabled by tier, ensure that it stays enabled.
-  if (g_browser_process->local_state()->GetBoolean(
-          prefs::kGlicMultiInstanceEnabledBySubscriptionTier)) {
-    return true;
-  }
-
-  // G1 status command line flag supersedes actual tier check from eligibility
-  // service. Intended for manual testing only.
-  bool flag_overrides_tier =
-      command_line->HasSwitch(::switches::kGlicForceG1StatusForMultiInstance);
-  if (flag_overrides_tier) {
-    std::string flag_value = command_line->GetSwitchValueASCII(
-        ::switches::kGlicForceG1StatusForMultiInstance);
-    bool is_g1_via_flag = flag_value == "true" ? true : false;
-    if (is_g1_via_flag) {
-      g_browser_process->local_state()->SetBoolean(
-          prefs::kGlicMultiInstanceEnabledBySubscriptionTier, true);
-    }
-    return is_g1_via_flag;
-  }
-
-  // If `additional_profile` was specified, also check it.
-  std::vector<Profile*> available_profiles =
-      g_browser_process->profile_manager()->GetLoadedProfiles();
-  if (additional_profile) {
-    available_profiles.emplace_back(additional_profile);
-  }
-
-  for (Profile* profile : available_profiles) {
-    auto* subscription_eligibility_service = subscription_eligibility::
-        SubscriptionEligibilityServiceFactory::GetForProfile(profile);
-    int32_t profile_subscription_tier =
-        subscription_eligibility_service
-            ? subscription_eligibility_service->GetAiSubscriptionTier()
-            : 0;
-    if (profile_subscription_tier == 1 || profile_subscription_tier == 2) {
-      g_browser_process->local_state()->SetBoolean(
-          prefs::kGlicMultiInstanceEnabledBySubscriptionTier, true);
-      return true;
-    }
-  }
-  return false;
+  return IsMultiInstanceEnabledByFlags();
 }
 
 GlicEnabling::GlicEnabling(Profile* profile,

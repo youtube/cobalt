@@ -65,16 +65,29 @@ bool IsPageActionMenuEnabled() {
   return base::FeatureList::IsEnabled(kPageActionMenu);
 }
 
+BASE_FEATURE(kPageActionMenuAuthFlow, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsPageActionMenuAuthFlowEnabled() {
+  return IsPageActionMenuEnabled() &&
+
+         base::FeatureList::IsEnabled(kPageActionMenuAuthFlow);
+}
+
 BASE_FEATURE(kProactiveSuggestionsFramework, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsProactiveSuggestionsFrameworkEnabled() {
-  return IsPageActionMenuEnabled() &&
-         base::FeatureList::IsEnabled(kProactiveSuggestionsFramework);
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
+  return base::FeatureList::IsEnabled(kProactiveSuggestionsFramework);
 }
 
 const char kProactiveSuggestionsFrameworkPopupBlocker[] = "PopupBlocker";
 
 bool IsProactiveSuggestionsFrameworkPopupBlockerEnabled() {
+  if (!IsProactiveSuggestionsFrameworkEnabled()) {
+    return false;
+  }
   return base::GetFieldTrialParamByFeatureAsBool(
       kProactiveSuggestionsFramework,
       kProactiveSuggestionsFrameworkPopupBlocker, false);
@@ -93,10 +106,16 @@ const char kAskGeminiChipAllowNonconsentedUsers[] =
     "AskGeminiChipAllowNonconsentedUsers";
 
 bool IsAskGeminiChipEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kAskGeminiChip);
 }
 
 bool IsAskGeminiChipIgnoreCriteria() {
+  if (!IsAskGeminiChipEnabled()) {
+    return false;
+  }
   if (base::GetFieldTrialParamByFeatureAsBool(
           kAskGeminiChip, kAskGeminiChipPrepopulateAndIgnoreCriteria, false)) {
     return true;
@@ -106,6 +125,9 @@ bool IsAskGeminiChipIgnoreCriteria() {
 }
 
 bool IsAskGeminiChipPrepopulateFloatyEnabled() {
+  if (!IsAskGeminiChipEnabled()) {
+    return false;
+  }
   if (base::GetFieldTrialParamByFeatureAsBool(
           kAskGeminiChip, kAskGeminiChipPrepopulateAndIgnoreCriteria, false)) {
     return true;
@@ -115,6 +137,9 @@ bool IsAskGeminiChipPrepopulateFloatyEnabled() {
 }
 
 bool IsAskGeminiChipAllowNonconsentedUsersEnabled() {
+  if (!IsAskGeminiChipEnabled()) {
+    return false;
+  }
   return base::GetFieldTrialParamByFeatureAsBool(
       kAskGeminiChip, kAskGeminiChipAllowNonconsentedUsers, false);
 }
@@ -171,6 +196,9 @@ BWGPromoConsentVariations BWGPromoConsentVariationsParam() {
 }
 
 bool ShouldForceBWGPromo() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return BWGPromoConsentVariationsParam() ==
          BWGPromoConsentVariations::kForceFRE;
 }
@@ -191,6 +219,10 @@ BASE_FEATURE_PARAM(int,
                    0);
 
 PositionForExplainGeminiEditMenu ExplainGeminiEditMenuPosition() {
+  if (!IsPageActionMenuEnabled()) {
+    return PositionForExplainGeminiEditMenu::kDisabled;
+  }
+
   int param = kExplainGeminiEditMenuFeatureParam.Get();
   if (param == 1) {
     return PositionForExplainGeminiEditMenu::kAfterEdit;
@@ -206,7 +238,9 @@ BASE_FEATURE(kExplainGeminiEditMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kBWGPreciseLocation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsBWGPreciseLocationEnabled() {
-  CHECK(IsPageActionMenuEnabled());
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kBWGPreciseLocation);
 }
 
@@ -328,6 +362,9 @@ bool IsGeminiNavigationPromoEnabled() {
 BASE_FEATURE(kZeroStateSuggestions, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsZeroStateSuggestionsEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kZeroStateSuggestions);
 }
 
@@ -337,11 +374,17 @@ const char kZeroStateSuggestionsPlacementAskGemini[] =
     "ZeroStateSuggestionsPlacementAskGemini";
 
 bool IsZeroStateSuggestionsAIHubEnabled() {
+  if (!IsZeroStateSuggestionsEnabled()) {
+    return false;
+  }
   return base::GetFieldTrialParamByFeatureAsBool(
       kZeroStateSuggestions, kZeroStateSuggestionsPlacementAIHub, false);
 }
 
 bool IsZeroStateSuggestionsAskGeminiEnabled() {
+  if (!IsZeroStateSuggestionsEnabled()) {
+    return false;
+  }
   return base::GetFieldTrialParamByFeatureAsBool(
       kZeroStateSuggestions, kZeroStateSuggestionsPlacementAskGemini, false);
 }
@@ -355,19 +398,25 @@ bool IsPageContextExtractorRefactoredEnabled() {
 BASE_FEATURE(kGeminiRefactoredFRE, base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsGeminiRefactoredFREEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiRefactoredFRE);
 }
 
 BASE_FEATURE(kGeminiUpdatedEligibility, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiUpdatedEligibilityEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiUpdatedEligibility);
 }
 
 BASE_FEATURE(kGeminiImageRemixTool, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiImageRemixToolEnabled() {
-  if (!IsGeminiRefactoredFREEnabled()) {
+  if (!IsPageActionMenuEnabled() || !IsGeminiRefactoredFREEnabled()) {
     return false;
   }
   return base::FeatureList::IsEnabled(kGeminiImageRemixTool);
@@ -416,18 +465,27 @@ bool IsGeminiImageRemixToolRemovePageContextEnabled() {
 BASE_FEATURE(kGeminiEligibilityAblation, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiEligibilityAblationEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiEligibilityAblation);
 }
 
 BASE_FEATURE(kGeminiLive, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiLiveEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiLive);
 }
 
 BASE_FEATURE(kGeminiCopresence, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiCopresenceEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiCopresence);
 }
 
@@ -446,6 +504,9 @@ double GetGeminiCopresenceResponseReadyInterval() {
 BASE_FEATURE(kGeminiChatPersistence, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiChatPersistenceEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiChatPersistence);
 }
 
@@ -476,12 +537,18 @@ BASE_FEATURE(kGeminiResponseViewDynamicResizing,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiResponseViewDynamicResizingEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiResponseViewDynamicResizing);
 }
 
 BASE_FEATURE(kGeminiDynamicSettings, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiDynamicSettingsEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiDynamicSettings);
 }
 
@@ -577,19 +644,26 @@ PageActionMenuIconVariations GetPageActionMenuIcon() {
 BASE_FEATURE(kGeminiBackendMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiBackendMigrationEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiBackendMigration);
 }
 
 BASE_FEATURE(kGeminiActor, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiActorEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiActor);
 }
 
 BASE_FEATURE(kGeminiRichAPCExtraction, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiRichAPCExtractionEnabled() {
-  if (!IsPageContextExtractorRefactoredEnabled()) {
+  if (!IsPageActionMenuEnabled() ||
+      !IsPageContextExtractorRefactoredEnabled()) {
     return false;
   }
 
@@ -599,23 +673,48 @@ bool IsGeminiRichAPCExtractionEnabled() {
 BASE_FEATURE(kGeminiFloatyAllPages, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiFloatyAllPagesEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiFloatyAllPages);
 }
 
 BASE_FEATURE(kGeminiMapsRichUI, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiMapsRichUIEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiMapsRichUI);
 }
 
 BASE_FEATURE(kGeminiUnaryMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiUnaryMigrationEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiUnaryMigration);
 }
 
 BASE_FEATURE(kGeminiBinaryMigration, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsGeminiBinaryMigrationEnabled() {
+  if (!IsPageActionMenuEnabled()) {
+    return false;
+  }
   return base::FeatureList::IsEnabled(kGeminiBinaryMigration);
+}
+
+BASE_FEATURE(kPersistTabContextRichExtraction,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsPersistTabContextRichExtractionEnabled() {
+  return base::FeatureList::IsEnabled(kPersistTabContextRichExtraction);
+}
+
+BASE_FEATURE(kPageContextIPCOptimization, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsPageContextIPCOptimizationEnabled() {
+  return base::FeatureList::IsEnabled(kPageContextIPCOptimization);
 }

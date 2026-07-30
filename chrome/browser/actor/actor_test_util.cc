@@ -688,6 +688,24 @@ std::unique_ptr<ToolRequest> MakeAttemptLoginRequest(
       tab.GetHandle(), password_button, sign_in_with_google_button);
 }
 
+std::unique_ptr<ToolRequest> MakeAttemptLoginRequestByNodeIds(
+    tabs::TabInterface& tab,
+    std::optional<int> password_button_id,
+    std::optional<int> sign_in_with_google_button_id) {
+  content::RenderFrameHost& rfh = *tab.GetContents()->GetPrimaryMainFrame();
+  std::optional<PageTarget> password_button;
+  if (password_button_id) {
+    password_button = MakeTarget(rfh, *password_button_id);
+  }
+  std::optional<PageTarget> sign_in_with_google_button;
+  if (sign_in_with_google_button_id) {
+    sign_in_with_google_button =
+        MakeTarget(rfh, *sign_in_with_google_button_id);
+  }
+  return MakeAttemptLoginRequest(tab, password_button,
+                                 sign_in_with_google_button);
+}
+
 std::unique_ptr<ToolRequest> MakeScriptToolRequest(
     content::RenderFrameHost& rfh,
     const std::string& name,
@@ -805,13 +823,12 @@ ActorTaskStateWaiter::ActorTaskStateWaiter(base::OnceClosure callback,
 
 ActorTaskStateWaiter::~ActorTaskStateWaiter() = default;
 
-void ActorTaskStateWaiter::StateChanged(TaskId task_id,
-                                        ActorTask::State state) {
+void ActorTaskStateWaiter::StateChanged(ActorTask& task) {
   if (!callback_) {
     return;
   }
 
-  if (task_id_ == task_id && target_state_ == state) {
+  if (task_id_ == task.id() && target_state_ == task.GetState()) {
     std::move(callback_).Run();
   }
 }

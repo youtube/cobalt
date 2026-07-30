@@ -66,6 +66,7 @@
 #include "chromeos/ash/components/settings/cros_settings_names.h"
 #include "chromeos/ash/components/system/statistics_provider.h"
 #include "chromeos/ash/components/timezone/timezone_resolver.h"
+#include "chromeos/ash/experiences/frozen_update/frozen_update_notification.h"
 #include "chromeos/components/disks/disks_prefs.h"
 #include "chromeos/components/magic_boost/public/cpp/magic_boost_state.h"
 #include "chromeos/constants/pref_names.h"
@@ -552,10 +553,10 @@ void Preferences::RegisterProfilePrefs(
       ::prefs::kFingerprintUnlockFeatureNotificationShown, false);
 
   // We don't sync EOL related prefs because they are device specific.
-  registry->RegisterBooleanPref(::prefs::kEolNotificationDismissed, false);
-  registry->RegisterTimePref(::prefs::kEndOfLifeDate, base::Time());
-  registry->RegisterBooleanPref(::prefs::kFirstEolWarningDismissed, false);
-  registry->RegisterBooleanPref(::prefs::kSecondEolWarningDismissed, false);
+  registry->RegisterBooleanPref(ash::prefs::kEolNotificationDismissed, false);
+  registry->RegisterTimePref(ash::prefs::kEndOfLifeDate, base::Time());
+  registry->RegisterBooleanPref(ash::prefs::kFirstEolWarningDismissed, false);
+  registry->RegisterBooleanPref(ash::prefs::kSecondEolWarningDismissed, false);
 
   // Extended Updates prefs.
   registry->RegisterBooleanPref(prefs::kExtendedUpdatesNotificationDismissed,
@@ -688,6 +689,7 @@ void Preferences::RegisterProfilePrefs(
                              base::Time());
   registry->RegisterTimePref(::prefs::kSkyVaultMigrationStartTime,
                              base::Time());
+  FrozenUpdateNotification::RegisterProfilePrefs(registry);
 }
 
 void Preferences::InitUserPrefs(sync_preferences::PrefServiceSyncable* prefs) {

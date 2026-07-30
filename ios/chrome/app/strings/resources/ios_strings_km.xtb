@@ -209,6 +209,7 @@
 <translation id="1740468249224277719">ប៉ះពីរដងដើម្បីដំឡើង</translation>
 <translation id="1740650426894359238">ប្ដូរទៅ​កម្រងព័ត៌មាន​ផ្សេងទៀត</translation>
 <translation id="1741219894094057085">នាឡិកា​ឆ្លាតវៃ</translation>
+<translation id="1742773766788162541">ស្កេន​កាត និង​បំពេញស្វ័យប្រវត្តិ</translation>
 <translation id="1743244221910283364">លុបចោល​ការផ្លាស់ប្ដូរ</translation>
 <translation id="1748975028205587434">ជ្រើសរើស​ឯកសារ​របស់អ្នក</translation>
 <translation id="1749733017156547309">តម្រូវឱ្យបញ្ចូលពាក្យសម្ងាត់​</translation>
@@ -393,6 +394,7 @@
 <translation id="2359808026110333948">បន្ត</translation>
 <translation id="2360196772093551345">ស្នើគេហ​ទំព័រ​សម្រាប់ឧបករណ៍​ចល័ត</translation>
 <translation id="2362083820973145409">បានចូលគណនី​ជា <ph name="USER_NAME" />។ <ph name="USER_EMAIL" />។ បើកការកំណត់។</translation>
+<translation id="2367025302166767427">មានបញ្ហា​ក្នុងការ​បំពេញ​ព័ត៌មាន​របស់អ្នក</translation>
 <translation id="2371084566192454134">ផ្ទាំង និង​ក្រុមផ្ទាំង</translation>
 <translation id="2371303771137626249">ថ្មី</translation>
 <translation id="2381405137052800939">មូលដ្ឋាន</translation>
@@ -480,6 +482,7 @@
 <translation id="2691653761409724435">មិន​អាច​ប្រើ​បាន​ពេល​គ្មាន​អ៊ីនធឺណិត</translation>
 <translation id="2697530870203420261">ឈ្មោះហៅក្រៅ​មិនត្រឹមត្រូវ</translation>
 <translation id="269819437389494246">អ្នកអាច​មើលឃើញ​ទំព័រ​ដែលអ្នក​បានចូលមើល ឬ​លុប​ទំព័រ​ទាំងនោះ​ចេញពី​ប្រវត្តិ​របស់អ្នក</translation>
+<translation id="2704295676501803339">ផ្លាស់ទីទៅឆ្វេង</translation>
 <translation id="2704606927547763573">បានថតចម្លង</translation>
 <translation id="2708051474374549906">ការការពារដែលសកម្មជាមុន និងក្នុងពេលជាក់ស្ដែងប្រឆាំងនឹងការទាញ​យក កម្មវិធីបន្ថែម និងគេហទំព័រ​គ្រោះថ្នាក់ដែលផ្អែកលើទិន្នន័យរុករករបស់អ្នកដែលត្រូវបានផ្ញើទៅ Google</translation>
 <translation id="2709516037105925701">បំពេញស្វ័យប្រវត្តិ</translation>
@@ -708,6 +711,7 @@
 <translation id="3578866308944526475"><ph name="EMAIL" /> ដែលស្ថិត​ក្រោម​ការ​គ្រប់គ្រង​របស់ស្ថាប័ន​អ្នក។</translation>
 <translation id="3580448612293054698">ធ្វើបច្ចុប្បន្នភាព <ph name="ENTITY_TYPE" /> ឬ?</translation>
 <translation id="3581564640715911333">ផ្តល់ជូន​ការ​បកប្រែ​ទំព័រ​ជាភាសា​ផ្សេងទៀត</translation>
+<translation id="3583726884554296148">រក្សាទុក​កាតរបស់អ្នក​នៅក្នុង​គណនី Google របស់អ្នក ដើម្បី​បំពេញវា​ដោយ​ស្វ័យប្រវត្តិ​សម្រាប់​ការទិញនេះ និងការទិញ​នាពេលអនាគត​ដែល​ធ្វើឡើង​នៅលើ Chrome</translation>
 <translation id="3587482841069643663">ទាំងអស់</translation>
 <translation id="3587885837929752825">ស្ថាប័ន​របស់អ្នក​ដាក់កំហិត​លើអ្វីដែលអ្នកអាច​រក្សាទុក​នៅក្នុង​គណនី Google របស់អ្នក។</translation>
 <translation id="3588820906588687999">បើករូបភាពនៅក្នុងផ្ទាំងថ្មី</translation>
@@ -1554,6 +1558,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="6532106788206463496">រក្សាទុក​ការ​ផ្លាស់ប្ដូរ</translation>
 <translation id="6536759809440150308">បើក <ph name="GROUP_TITLE" />, ក្រុមដែលមាន <ph name="NUMBER_OF_TABS" />, <ph name="CREATION_TEXT" /></translation>
 <translation id="6537746030088321027">example.com</translation>
+<translation id="6543899060872618437">បង់ប្រាក់​ចេញបាន​កាន់តែរហ័ស​ដោយប្រើ​ការបំពេញស្វ័យប្រវត្តិ​នៅលើ​ឧបករណ៍​របស់អ្នក</translation>
 <translation id="6550675742724504774">ជម្រើស</translation>
 <translation id="6550891580932862748">មិនការពារអ្នក​ពីការទាញយក កម្មវិធី​បន្ថែម និងគេហទំព័រគ្រោះថ្នាក់ទេ។ ការកំណត់ការរុករកដោយសុវត្ថិភាពរបស់អ្នកនៅក្នុងផលិតផល Google ផ្សេងទៀតនឹងមិនរងផលប៉ះពាល់ទេ។</translation>
 <translation id="6556501700899673703">Lexend</translation>
@@ -1662,6 +1667,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="6899890595581608884">ការជូន​ដំណឹង​អំពី​ការពិនិត្យ​សុវត្ថិភាព​ត្រូវបានបិទ</translation>
 <translation id="6900532703269623216">ការការពារ​ដែលប្រសើរជាងមុន</translation>
 <translation id="6900702165119149418">អ្នក​បានចេញ​ពី​គណនី</translation>
+<translation id="6903282483217634857">ផ្លាស់ទីទៅស្តាំ</translation>
 <translation id="6903907808598579934">បើកសមកាលកម្ម</translation>
 <translation id="6906448540340261898">សូមប្រាកដថា អ្នកអាចប្រើពាក្យ​សម្ងាត់នៅក្នុងគណនី Google របស់អ្នកបានជានិច្ច</translation>
 <translation id="6908734251759299256">ដំឡើងកំណែ​កម្មវិធីរុករកតាមអ៊ីនធឺណិតរបស់អ្នក</translation>
@@ -1724,6 +1730,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="7149893636342594995">24 ម៉ោងមុន</translation>
 <translation id="7154417656353909837">ដក​អាសយដ្ឋាន​ចេញ</translation>
 <translation id="7161230316646448869">ធ្វើសម​កាល​កម្មចំណាំ ប្រវត្តិរបស់អ្នក និងអ្វីៗ​ជាច្រើនទៀត​នៅលើ​ឧបករណ៍​ទាំងអស់</translation>
+<translation id="7165323152084385463">VIN</translation>
 <translation id="7173114856073700355">បើកការកំណត់</translation>
 <translation id="7173721738069475737">{count,plural, =1{បាន​រក្សាទុក​ចំណាំ}other{បាន​រក្សាទុក​ចំណាំចំនួន {count}}}</translation>
 <translation id="7176183551031110427">បង្រួម</translation>
@@ -2218,6 +2225,7 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="8863067612494559785">កំពុងផ្ញើទៅ <ph name="DEVICE_NAME" />…</translation>
 <translation id="8863431381414769983">មើល​ទិសដៅ និង​ព័ត៌មាន​ក្នុងតំបន់ពី Google ផែនទី</translation>
 <translation id="8871974300055371298">ការកំណត់មាតិកា</translation>
+<translation id="8876661425082386199">សូមពិនិត្យមើលការតភ្ជាប់របស់អ្នក</translation>
 <translation id="8877788021141246043">កំណត់​ការរំលឹក</translation>
 <translation id="8879604564928138696">ចុចពីរដងដើម្បីសាកល្បងប្រើ</translation>
 <translation id="8879952635974818770">ខ្លឹមសារ​ដែលមានលក្ខណៈផ្ទាល់ខ្លួន</translation>
@@ -2319,7 +2327,6 @@ Handoff ត្រូវបើកដំណើរការនៅក្នុងផ
 <translation id="926455622548529175">ប្ដូរ ហើយលុប</translation>
 <translation id="929748059769569925">អក្សរដែល​បាន​រំលេច</translation>
 <translation id="932305336591073205">{count,plural, =1{បិទផ្ទាំង}other{បិទផ្ទាំង}}</translation>
-<translation id="932327136139879170">ទំព័រដើម</translation>
 <translation id="939472100615258482">គេហទំព័របច្ចុប្បន្ន</translation>
 <translation id="939598580284253335">បញ្ចូលឃ្លាសម្ងាត់</translation>
 <translation id="939736085109172342">ថតឯកសារថ្មី</translation>

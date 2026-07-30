@@ -14,8 +14,10 @@
 
 #include "base/barrier_closure.h"
 #include "base/containers/flat_map.h"
+#include "base/files/file_enumerator.h"
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback.h"
 #include "base/functional/callback_helpers.h"
@@ -37,6 +39,10 @@
 #include "chrome/updater/mojom/updater_service.mojom.h"
 #include "chrome/updater/updater_scope.h"
 #include "chrome/updater/util/util.h"
+#include "components/services/unzip/content/unzip_service.h"
+#include "components/services/unzip/public/cpp/unzip.h"
+#include "components/services/unzip/public/mojom/unzipper.mojom.h"
+#include "mojo/public/cpp/base/big_buffer.h"
 
 namespace {
 
@@ -85,6 +91,10 @@ class DefaultUpdaterPageHandlerDelegate final
       base::OnceCallback<void(const std::vector<updater::mojom::AppState>&)>
           callback) const override {
     updater::GetUserUpdaterAppStates(std::move(callback));
+  }
+
+  mojo::PendingRemote<unzip::mojom::Unzipper> CreateUnzipper() const override {
+    return unzip::LaunchUnzipper();
   }
 
  private:
@@ -202,6 +212,78 @@ void PopulateUiAppStates(
                          });
 }
 
+void UnzipUpdaterHistoryFilesImpl(
+    mojo::PendingRemote<unzip::mojom::Unzipper> unzipper,
+    mojo_base::BigBuffer zip_data,
+    UpdaterPageHandler::UnzipUpdaterHistoryFilesCallback callback) {
+  base::ScopedTempDir temp_dir;
+  if (!temp_dir.CreateUniqueTempDir()) {
+    std::move(callback).Run(
+        base::unexpected(updater_ui::mojom::UnzipUpdaterHistoryFilesError::New(
+            "Failed to create temporary directory")));
+    return;
+  }
+
+  base::FilePath archive_path = temp_dir.GetPath().AppendASCII("input.zip");
+  if (!base::WriteFile(archive_path, zip_data)) {
+    std::move(callback).Run(
+        base::unexpected(updater_ui::mojom::UnzipUpdaterHistoryFilesError::New(
+            "Failed to write user-supplied zip data to storage")));
+    return;
+  }
+
+  const base::FilePath output_path = temp_dir.GetPath().AppendASCII("output");
+  if (!base::CreateDirectory(output_path)) {
+    std::move(callback).Run(
+        base::unexpected(updater_ui::mojom::UnzipUpdaterHistoryFilesError::New(
+            "Failed to create output path in temporary directory")));
+    return;
+  }
+
+  unzip::Unzip(
+      std::move(unzipper), archive_path, output_path,
+      unzip::mojom::UnzipOptions::New(),
+      base::BindRepeating([](const base::FilePath& path) {
+        return base::FilePath::CompareEqualIgnoreCase(
+                   path.BaseName().value(),
+                   FILE_PATH_LITERAL("updater_history.jsonl")) ||
+               base::FilePath::CompareEqualIgnoreCase(
+                   path.BaseName().value(),
+                   FILE_PATH_LITERAL("updater_history.jsonl.old"));
+      }),
+      /*listener_callback=*/base::DoNothing(),
+      base::BindOnce(
+          [](base::ScopedTempDir, const base::FilePath& output_path,
+             UpdaterPageHandler::UnzipUpdaterHistoryFilesCallback callback,
+             bool result) {
+            if (!result) {
+              std::move(callback).Run(base::unexpected(
+                  updater_ui::mojom::UnzipUpdaterHistoryFilesError::New(
+                      "Failed to unzip user-supplied archive")));
+              return;
+            }
+
+            base::FileEnumerator it(output_path, /*recursive=*/true,
+                                    base::FileEnumerator::FILES);
+            auto response =
+                updater_ui::mojom::UnzipUpdaterHistoryFilesResponse::New();
+            for (base::FilePath path = it.Next(); !path.empty();
+                 path = it.Next()) {
+              std::string contents;
+              if (!base::ReadFileToString(path, &contents)) {
+                std::move(callback).Run(base::unexpected(
+                    updater_ui::mojom::UnzipUpdaterHistoryFilesError::New(
+                        base::StrCat(
+                            {"Failed to read ", path.AsUTF8Unsafe()}))));
+                return;
+              }
+              response->history_file_contents.push_back(std::move(contents));
+            }
+            std::move(callback).Run(std::move(response));
+          },
+          std::move(temp_dir), output_path, std::move(callback)));
+}
+
 }  // namespace
 
 scoped_refptr<UpdaterPageHandler::Delegate>
@@ -256,7 +338,8 @@ void UpdaterPageHandler::GetUpdaterStates(GetUpdaterStatesCallback callback) {
         FROM_HERE,
         base::BindOnce(
             std::move(callback),
-            base::unexpected(updater_ui::mojom::GetUpdaterStatesError::New())));
+            base::unexpected(updater_ui::mojom::GetUpdaterStatesError::New(
+                "Failed to determine updater installation directories"))));
     return;
   }
 
@@ -357,7 +440,9 @@ void UpdaterPageHandler::GetEnterpriseCompanionState(
             std::optional<base::FilePath> install_dir =
                 delegate->GetEnterpriseCompanionInstallDirectory();
             if (!install_dir) {
-              return base::unexpected(GetEnterpriseCompanionStateError::New());
+              return base::unexpected(GetEnterpriseCompanionStateError::New(
+                  "Failed to determine Chrome Enterprise Companion App "
+                  "installation directory"));
             }
 
             return GetEnterpriseCompanionStateResponse::New(
@@ -413,4 +498,16 @@ void UpdaterPageHandler::ShowDirectory(
   platform_util::OpenItem(profile_, *install_dir,
                           platform_util::OpenItemType::OPEN_FOLDER,
                           base::DoNothing());
+}
+
+void UpdaterPageHandler::UnzipUpdaterHistoryFiles(
+    mojo_base::BigBuffer zip_data,
+    UnzipUpdaterHistoryFilesCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()})
+      ->PostTask(FROM_HERE,
+                 base::BindOnce(
+                     &UnzipUpdaterHistoryFilesImpl, delegate_->CreateUnzipper(),
+                     std::move(zip_data),
+                     base::BindPostTaskToCurrentDefault(std::move(callback))));
 }

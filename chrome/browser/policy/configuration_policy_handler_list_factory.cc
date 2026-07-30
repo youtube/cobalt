@@ -446,7 +446,10 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
     base::Value::Type::BOOLEAN},
   { key::kSharedWorkerBlobURLFixEnabled,
     prefs::kSharedWorkerBlobURLFixEnabled,
-    base::Value::Type::BOOLEAN},
+    base::Value::Type::BOOLEAN },
+  { key::kSharedWorkerExtendedLifetimeEnabled,
+    prefs::kSharedWorkerExtendedLifetimeEnabled,
+    base::Value::Type::BOOLEAN },
   { key::kGeminiSettings,
     prefs::kGeminiSettings,
     base::Value::Type::INTEGER },
@@ -471,6 +474,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kLocalNetworkAccessPermissionsPolicyDefaultEnabled,
     policy_prefs::kLocalNetworkAccessPermissionsPolicyDefaultEnabled,
     base::Value::Type::BOOLEAN },
+  { key::kMaxConnectionsPerProxy,
+    prefs::kMaxConnectionsPerProxy,
+    base::Value::Type::INTEGER },
+  { key::kMaxConnectionsPerProxyForWebSocket,
+    prefs::kMaxConnectionsPerProxyForWebSocket,
+    base::Value::Type::INTEGER },
 // Policies for all platforms - End
 #if BUILDFLAG(IS_ANDROID)
   { key::kAccessibilityPerformanceFilteringAllowed,
@@ -710,9 +719,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kLocalFontsBlockedForUrls,
     prefs::kManagedLocalFontsBlockedForUrls,
     base::Value::Type::LIST },
-  { key::kMaxConnectionsPerProxy,
-    prefs::kMaxConnectionsPerProxy,
-    base::Value::Type::INTEGER },
   { key::kMediaRouterCastAllowAllIPs,
     media_router::prefs::kMediaRouterCastAllowAllIPs,
     base::Value::Type::BOOLEAN },
@@ -2347,9 +2353,6 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
 #endif // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #endif // BUILDFLAG(ENABLE_EXTENSIONS)
 #if !BUILDFLAG(IS_ANDROID)
-  { key::kAutofillPredictionSettings,
-    optimization_guide::prefs::kAutofillPredictionImprovementsEnterprisePolicyAllowed,
-    base::Value::Type::INTEGER},
   { key::kHelpMeWriteSettings,
     optimization_guide::prefs::kComposeEnterprisePolicyAllowed,
     base::Value::Type::INTEGER},
@@ -2359,9 +2362,12 @@ const PolicyToPreferenceMapEntry kSimplePolicyMap[] = {
   { key::kHistorySearchSettings,
     optimization_guide::prefs::kHistorySearchEnterprisePolicyAllowed,
     base::Value::Type::INTEGER},
-#endif
+#endif // !BUILDFLAG(IS_ANDROID)
   { key::kTabCompareSettings,
     optimization_guide::prefs::kProductSpecificationsEnterprisePolicyAllowed,
+    base::Value::Type::INTEGER},
+  { key::kAutofillPredictionSettings,
+    optimization_guide::prefs::kAutofillPredictionImprovementsEnterprisePolicyAllowed,
     base::Value::Type::INTEGER},
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_ANDROID)
   { key::kChromeForTestingAllowed,
@@ -2864,9 +2870,9 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
   handlers->AddHandler(std::make_unique<ForceYouTubeSafetyModePolicyHandler>());
   handlers->AddHandler(std::make_unique<HomepageLocationPolicyHandler>());
   handlers->AddHandler(std::make_unique<proxy_config::ProxyPolicyHandler>());
-  handlers->AddHandler(std::make_unique<CloudOnlyPolicyChecker>(
+  handlers->AddHandler(
       std::make_unique<proxy_config::ProxyOverrideRulesPolicyHandler>(
-          chrome_schema)));
+          chrome_schema));
   handlers->AddHandler(std::make_unique<SecureDnsPolicyHandler>());
   handlers->AddHandler(std::make_unique<SimpleSchemaValidatingPolicyHandler>(
       key::kCertificateTransparencyEnforcementDisabledForUrls,
@@ -2965,10 +2971,9 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           policy::SimpleSchemaValidatingPolicyHandler::RECOMMENDED_PROHIBITED,
           policy::SimpleSchemaValidatingPolicyHandler::MANDATORY_ALLOWED));
 
-  handlers->AddHandler(std::make_unique<CloudOnlyPolicyChecker>(
-      std::make_unique<URLSchemeListPolicyHandler>(
-          key::kSaasUsageReportingDomainUrlsForBrowsers,
-          enterprise_reporting::kSaasUsageDomainUrlsForBrowser)));
+  handlers->AddHandler(std::make_unique<URLSchemeListPolicyHandler>(
+      key::kSaasUsageReportingDomainUrlsForBrowsers,
+      enterprise_reporting::kSaasUsageDomainUrlsForBrowser));
   handlers->AddHandler(std::make_unique<CloudUserOnlyPolicyChecker>(
       std::make_unique<URLSchemeListPolicyHandler>(
           key::kSaasUsageReportingDomainUrlsForProfiles,
@@ -3454,10 +3459,6 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
   gen_ai_default_policies.emplace_back(
-      key::kAutofillPredictionSettings,
-      optimization_guide::prefs::
-          kAutofillPredictionImprovementsEnterprisePolicyAllowed);
-  gen_ai_default_policies.emplace_back(
       key::kHelpMeWriteSettings,
       optimization_guide::prefs::kComposeEnterprisePolicyAllowed);
   gen_ai_default_policies.emplace_back(
@@ -3481,6 +3482,10 @@ std::unique_ptr<ConfigurationPolicyHandlerList> BuildHandlerList(
           kAutomatedPasswordChangeEnterprisePolicyAllowed);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) ||
         // BUILDFLAG(IS_CHROMEOS)
+  gen_ai_default_policies.emplace_back(
+      key::kAutofillPredictionSettings,
+      optimization_guide::prefs::
+          kAutofillPredictionImprovementsEnterprisePolicyAllowed);
 #if BUILDFLAG(IS_CHROMEOS)
   gen_ai_default_policies.emplace_back(key::kGenAIWallpaperSettings,
                                        ash::prefs::kGenAIWallpaperSettings);

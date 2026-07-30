@@ -24,12 +24,13 @@ ct::CTRequirementsStatus RequireCTDelegate::CheckCTRequirements(
   // build is outdated. Other statuses are not considered compliant; this
   // includes COMPLIANCE_DETAILS_NOT_AVAILABLE because compliance must have been
   // evaluated in order to determine that the connection is compliant.
-  bool complies =
-      (policy_compliance ==
-           ct::CTPolicyCompliance::CT_POLICY_COMPLIES_VIA_SCTS ||
-       policy_compliance == ct::CTPolicyCompliance::CT_POLICY_BUILD_NOT_TIMELY);
+  if (policy_compliance ==
+          ct::CTPolicyCompliance::CT_POLICY_COMPLIES_VIA_SCTS ||
+      policy_compliance == ct::CTPolicyCompliance::CT_POLICY_BUILD_NOT_TIMELY) {
+    return ct::CTRequirementsStatus::CT_REQUIREMENTS_MET;
+  }
 
-  CTRequirementLevel ct_required = CTRequirementLevel::NOT_REQUIRED;
+  CTRequirementLevel ct_required = CTRequirementLevel::REQUIRED;
   if (delegate) {
     // Allow the delegate to override the CT requirement state.
     ct_required = delegate->IsCTRequiredForHost(
@@ -37,10 +38,12 @@ ct::CTRequirementsStatus RequireCTDelegate::CheckCTRequirements(
   }
   switch (ct_required) {
     case CTRequirementLevel::REQUIRED:
-      return complies ? ct::CTRequirementsStatus::CT_REQUIREMENTS_MET
-                      : ct::CTRequirementsStatus::CT_REQUIREMENTS_NOT_MET;
+      return ct::CTRequirementsStatus::CT_REQUIREMENTS_NOT_MET;
     case CTRequirementLevel::NOT_REQUIRED:
-      return ct::CTRequirementsStatus::CT_NOT_REQUIRED;
+      return ct::CTRequirementsStatus::CT_REQUIREMENT_OVERRIDDEN;
+    case CTRequirementLevel::NOT_REQUIRED_APPLIES_ACROSS_NAMES:
+      return ct::CTRequirementsStatus::
+          CT_REQUIREMENT_OVERRIDDEN_APPLIES_ACROSS_NAMES;
   }
 }
 

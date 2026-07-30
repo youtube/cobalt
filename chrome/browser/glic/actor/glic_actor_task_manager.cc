@@ -102,7 +102,7 @@ GlicActorTaskManager::~GlicActorTaskManager() = default;
 
 void GlicActorTaskManager::CreateTask(
     base::WeakPtr<actor::ActorTaskDelegate> delegate,
-    std::string_view conversation_id,
+    std::optional<std::string> conversation_id,
     actor::webui::mojom::TaskOptionsPtr options,
     mojom::WebClientHandler::CreateTaskCallback callback) {
   if (!base::FeatureList::IsEnabled(features::kGlicActor)) {
@@ -137,7 +137,7 @@ void GlicActorTaskManager::CreateTask(
   actor::RecordActorTaskCreated(true);
   current_task_id_ = actor_keyed_service_->CreateTaskWithOptions(
       actor::TaskSourceInfo(actor::TaskSourceInfo::Client::kGlic,
-                            std::string(conversation_id)),
+                            conversation_id),
       &actor_policy_checker_.get(), std::move(options), std::move(delegate));
   CHECK(!current_task_id_.is_null());
 
@@ -671,15 +671,13 @@ void GlicActorTaskManager::CanActOnWebChanged(bool can_act_on_web) {
   }
 }
 
-void GlicActorTaskManager::NotifyActorTaskStateChanged(
-    actor::TaskId task_id,
-    actor::ActorTask::State task_state) {
-  CHECK(!task_id.is_null());
-  if (current_task_id_ != task_id) {
+void GlicActorTaskManager::NotifyActorTaskStateChanged(actor::ActorTask& task) {
+  CHECK(!task.id().is_null());
+  if (current_task_id_ != task.id()) {
     return;
   }
 
-  if (actor::ActorTask::IsCompletedState(task_state)) {
+  if (task.IsCompleted()) {
     current_task_id_ = actor::TaskId();
     attempted_reload_after_crash_ = false;
     reload_observer_.reset();

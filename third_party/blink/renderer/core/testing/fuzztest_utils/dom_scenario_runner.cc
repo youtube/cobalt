@@ -74,7 +74,7 @@ void DomScenarioRunner::CreateInitialDOM(
   if (!input.stylesheet.empty()) {
     Element* style = document.CreateRawElement(
         html_names::TagToQualifiedName(html_names::HTMLTag::kStyle));
-    style->setTextContent(AtomicString::FromUTF8(input.stylesheet));
+    style->setTextContent(AtomicString::FromUtf8(input.stylesheet));
     document.head()->appendChild(style);
   }
 
@@ -318,8 +318,8 @@ void DomScenarioRunner::SerializeNode(Node* node,
         base::StrAppend(&result, {"\n"});
         has_children = true;
       }
-      if (is_style_element && DynamicTo<Text>(child)) {
-        String css_text = DynamicTo<Text>(child)->data();
+      if (is_style_element && IsA<Text>(child)) {
+        String css_text = To<Text>(*child).data();
         css_text = StrCat({"    ", css_text});
         css_text.Replace("} ", "}\n    ");
         base::StrAppend(&result, {css_text.Utf8()});

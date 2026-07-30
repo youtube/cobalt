@@ -130,6 +130,13 @@ public class SetupListManager
     /** The current UI layout phase of the Setup List. */
     private @SetupListActiveLayout int mActiveLayout = SetupListActiveLayout.SINGLE_CELL;
 
+    /**
+     * Whether the Setup List was active at the start of the session. This is used to maintain a
+     * consistent set of "Setup List modules" for ranking purposes, even if the feature becomes
+     * inactive during the session (e.g., after a celebration).
+     */
+    private final boolean mIsActiveAtStart;
+
     private static final @ModuleType int TWO_CELL_CONTAINER_MODULE_TYPE =
             ModuleType.SETUP_LIST_TWO_CELL_CONTAINER;
 
@@ -159,8 +166,9 @@ public class SetupListManager
     SetupListManager() {
         initializePrefMapping();
         reconcileState();
+        mIsActiveAtStart = mActiveLayout != SetupListActiveLayout.INACTIVE;
 
-        if (mActiveLayout != SetupListActiveLayout.INACTIVE) {
+        if (mIsActiveAtStart) {
             ContextUtils.getAppSharedPreferences().registerOnSharedPreferenceChangeListener(this);
             DefaultBrowserPromoUtils.setDelegate(this);
         }
@@ -389,7 +397,7 @@ public class SetupListManager
 
     /** Returns whether a given module type is a setup list module. */
     public boolean isSetupListModule(@ModuleType int moduleType) {
-        if (!isSetupListActive()) {
+        if (!mIsActiveAtStart) {
             return false;
         }
         return moduleType == TWO_CELL_CONTAINER_MODULE_TYPE
@@ -408,22 +416,19 @@ public class SetupListManager
      */
     @Nullable
     public Integer getManualRank(@ModuleType int moduleType) {
-        if (!isSetupListActive()) {
+        if (!isSetupListModule(moduleType)) {
             return null;
         }
 
-        switch (mActiveLayout) {
-            case SetupListActiveLayout.CELEBRATION:
-                return moduleType == CELEBRATORY_PROMO_MODULE_TYPE ? SETUP_LIST_RANK_OFFSET : null;
-            case SetupListActiveLayout.TWO_CELL:
-                return moduleType == TWO_CELL_CONTAINER_MODULE_TYPE ? SETUP_LIST_RANK_OFFSET : null;
-            case SetupListActiveLayout.SINGLE_CELL:
-                Integer rank = mModuleRankMap.get(moduleType);
-                return rank != null ? rank + SETUP_LIST_RANK_OFFSET : null;
-            case SetupListActiveLayout.INACTIVE:
-            default:
-                return null;
+        if (moduleType == CELEBRATORY_PROMO_MODULE_TYPE
+                || moduleType == TWO_CELL_CONTAINER_MODULE_TYPE) {
+            return SETUP_LIST_RANK_OFFSET;
         }
+
+        Integer rank = mModuleRankMap.get(moduleType);
+        return rank != null
+                ? rank + SETUP_LIST_RANK_OFFSET
+                : SETUP_LIST_RANK_OFFSET + BASE_SETUP_LIST_ORDER.size();
     }
 
     /**

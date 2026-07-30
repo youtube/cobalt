@@ -18,6 +18,7 @@
 #import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_consumer.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
+#import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
@@ -408,6 +409,10 @@
       [self.geminiHandler startGeminiFlowWithStartupState:startupState];
       break;
     }
+    case AppBarAssistantButtonState::kAIM: {
+      [self.sceneHandler showAssistant];
+      break;
+    }
   }
 }
 
@@ -508,6 +513,8 @@
 
   if (IsPageActionMenuEnabled()) {
     state = AppBarAssistantButtonState::kAsk;
+  } else if (IsAimCobrowseEnabled() && IsAssistantContainerEnabled()) {
+    state = AppBarAssistantButtonState::kAIM;
   } else if (_authenticationService->HasPrimaryIdentity(
                  signin::ConsentLevel::kSignin)) {
     state = AppBarAssistantButtonState::kAccount;

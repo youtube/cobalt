@@ -69,6 +69,7 @@ suite('NewTabPageActionChipsTest', () => {
     windowTimestampStart: number;
     windowTimestampEnd: number;
     prefersReducedMotion: boolean;
+    disablementContextMenuEnabled: boolean;
   }
 
   async function initializeChips(
@@ -78,6 +79,7 @@ suite('NewTabPageActionChipsTest', () => {
       windowTimestampStart: Date.now().valueOf(),
       windowTimestampEnd: Date.now().valueOf() + 1,
       prefersReducedMotion: false,
+      disablementContextMenuEnabled: true,
     };
     const options = {...defaultOptions, ...providedOptions};
     handler.setResultMapperFor('startActionChipsRetrieval', () => {
@@ -90,6 +92,8 @@ suite('NewTabPageActionChipsTest', () => {
 
     loadTimeData.overrideValues({
       addTabUploadDelayOnActionChipClick: true,
+      ntpNextDisablementContextMenuEnabled:
+          options.disablementContextMenuEnabled,
     });
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
     if (options.prefersReducedMotion) {
@@ -163,10 +167,10 @@ suite('NewTabPageActionChipsTest', () => {
       origin: TabUploadOrigin.ACTION_CHIP,
     };
 
-    assertEquals('Suggestion for recent tab', event.detail.searchboxText);
-    assertTrue(!!event.detail.contextFiles);
-    assertEquals(1, event.detail.contextFiles.length);
-    assertDeepEquals(expectedTab, event.detail.contextFiles[0]);
+    assertEquals('Suggestion for recent tab', event.detail.text);
+    assertTrue(!!event.detail.files);
+    assertEquals(1, event.detail.files.length);
+    assertDeepEquals(expectedTab, event.detail.files[0]);
   });
 
   test('recent tab chip renders favicon', async () => {
@@ -241,7 +245,7 @@ suite('NewTabPageActionChipsTest', () => {
       // Assert.
       const event = await whenActionChipClicked;
 
-      assertEquals('Suggestion for image', event.detail.searchboxText);
+      assertEquals('Suggestion for image', event.detail.text);
       assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
           1, metrics.count('NewTabPage.ActionChips.Click2', IconType.kBanana));
@@ -259,7 +263,7 @@ suite('NewTabPageActionChipsTest', () => {
       // Assert.
       const event = await whenActionChipClicked;
 
-      assertEquals('Suggestion for deep search', event.detail.searchboxText);
+      assertEquals('Suggestion for deep search', event.detail.text);
       assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
           1,
@@ -279,7 +283,7 @@ suite('NewTabPageActionChipsTest', () => {
       // Assert.
       const event = await whenActionChipClicked;
 
-      assertEquals('Suggestion for recent tab', event.detail.searchboxText);
+      assertEquals('Suggestion for recent tab', event.detail.text);
       assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
           1, metrics.count('NewTabPage.ActionChips.Click2', IconType.kFavicon));
@@ -317,7 +321,7 @@ suite('NewTabPageActionChipsTest', () => {
       // Assert.
       const event = await whenActionChipClicked;
 
-      assertEquals('Suggestion for deep dive', event.detail.searchboxText);
+      assertEquals('Suggestion for deep dive', event.detail.text);
       assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
           1,
@@ -352,7 +356,7 @@ suite('NewTabPageActionChipsTest', () => {
       // Assert.
       const event = await whenActionChipClicked;
 
-      assertEquals('Suggestion for canvas', event.detail.searchboxText);
+      assertEquals('Suggestion for canvas', event.detail.text);
       assertEquals(1, metrics.count('NewTabPage.ActionChips.Click2'));
       assertEquals(
           1,
@@ -640,6 +644,40 @@ suite('NewTabPageActionChipsTest', () => {
           assertFalse(actionMenu.open);
         });
 
+    test('does not show context menu when killswitch is disabled', async () => {
+      loadTimeData.overrideValues({
+        ntpNextShowSimplificationUIEnabled: true,
+      });
+      await initializeChips({
+        disablementContextMenuEnabled: false,
+      });
+      chips.showBackground = true;
+      await microtasksFinished();
+
+      const container = chips.shadowRoot.querySelector<HTMLElement>(
+          '.action-chips-container');
+      assertTrue(!!container);
+
+      const actionMenu =
+          chips.shadowRoot.querySelector<CrActionMenuElement>('#actionMenu');
+      assertTrue(!!actionMenu);
+
+      container.dispatchEvent(
+          new MouseEvent('contextmenu', {cancelable: true}));
+      await microtasksFinished();
+
+      assertFalse(actionMenu.open);
+
+      const allChips =
+          chips.shadowRoot.querySelectorAll<HTMLButtonElement>('.action-chip');
+      const firstChip = allChips[0]!;
+      firstChip.dispatchEvent(
+          new MouseEvent('contextmenu', {cancelable: true}));
+      await microtasksFinished();
+
+      assertFalse(actionMenu.open);
+    });
+
     test(
         'disables action chips when context menu option is clicked',
         async () => {
@@ -716,6 +754,69 @@ suite('NewTabPageActionChipsTest', () => {
           assertEquals(
               'none',
               window.getComputedStyle(chip).getPropertyValue('animation-name'));
+        });
+  });
+
+  suite('title', () => {
+    test('renders title when a11y_text is provided', async () => {
+      await initializeChips({
+        actionChips: [{
+          suggestTemplateInfo: {
+            typeIcon: IconType.kFavicon,
+            primaryText: {text: 'Example Tab', a11yText: 'A11y Title'},
+            secondaryText: {text: 'Subtitle', a11yText: 'A11y Subtitle'},
+            preselectedTool: ToolMode.kUnspecified,
+          },
+          suggestion: 'Suggestion',
+          tab: null,
+        }],
+      });
+      const chip =
+          chips.shadowRoot.querySelector<HTMLButtonElement>('.action-chip');
+      assertTrue(!!chip);
+      assertEquals('A11y Title A11y Subtitle', chip.getAttribute('title'));
+    });
+
+    test(
+        'renders title using visible text when a11y_text is missing',
+        async () => {
+          await initializeChips({
+            actionChips: [{
+              suggestTemplateInfo: {
+                typeIcon: IconType.kFavicon,
+                primaryText: {text: 'Example Tab', a11yText: null},
+                secondaryText: {text: 'Subtitle', a11yText: null},
+                preselectedTool: ToolMode.kUnspecified,
+              },
+              suggestion: 'Suggestion',
+              tab: null,
+            }],
+          });
+          const chip =
+              chips.shadowRoot.querySelector<HTMLButtonElement>('.action-chip');
+          assertTrue(!!chip);
+          assertEquals('Example Tab Subtitle', chip.getAttribute('title'));
+        });
+
+    test(
+        'falls back to visible text when one a11y_text is missing',
+        async () => {
+          await initializeChips({
+            actionChips: [{
+              suggestTemplateInfo: {
+                typeIcon: IconType.kFavicon,
+                primaryText: {text: 'Example Tab', a11yText: null},
+                secondaryText: {text: 'Subtitle', a11yText: 'A11y Subtitle'},
+                preselectedTool: ToolMode.kUnspecified,
+              },
+              suggestion: 'Suggestion',
+              tab: null,
+            }],
+          });
+          const chip =
+              chips.shadowRoot.querySelector<HTMLButtonElement>('.action-chip');
+          assertTrue(!!chip);
+          assertEquals('Example Tab A11y Subtitle', chip.getAttribute('title'));
         });
   });
 });

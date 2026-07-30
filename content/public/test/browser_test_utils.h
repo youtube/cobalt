@@ -868,13 +868,15 @@ class EvalJsResult {
   ~EvalJsResult();
 
   // Matchers for successful & unsuccessful runs.
-  static auto IsOk() { return testing::Property(&EvalJsResult::is_ok, true); }
+  //
+  // Note: `IsOk` and `IsError` are intentionally not provided. If you find
+  // yourself looking for `IsOk` or `IsError`, prefer to use `ExecJs(...)` with
+  // `EXPECT_TRUE` or `EXPECT_FALSE` instead.
   template <typename M>
   static auto IsOkAndHolds(M m) {
     return testing::Field("data_", &EvalJsResult::data_,
                           testing::VariantWith<base::Value>(m));
   }
-  static auto IsError() { return testing::Not(IsOk()); }
   template <typename M>
   static auto ErrorIs(M m) {
     return testing::Field("data_", &EvalJsResult::data_,
@@ -1128,7 +1130,7 @@ std::vector<net::CanonicalCookie> GetCanonicalCookies(
 [[nodiscard]] bool SetCookie(
     BrowserContext* browser_context,
     const GURL& url,
-    const std::string& value,
+    std::string_view value,
     net::CookieOptions::SameSiteCookieContext context =
         net::CookieOptions::SameSiteCookieContext::MakeInclusive(),
     base::optional_ref<const net::CookiePartitionKey> cookie_partition_key =

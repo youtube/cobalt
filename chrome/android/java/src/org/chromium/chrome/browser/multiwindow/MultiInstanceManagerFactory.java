@@ -6,28 +6,21 @@ package org.chromium.chrome.browser.multiwindow;
 
 import android.app.Activity;
 
-import org.chromium.base.UnownedUserDataHost;
-import org.chromium.base.UnownedUserDataKey;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.app.tabmodel.TabModelOrchestrator;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.MenuOrKeyboardActionController;
-import org.chromium.ui.base.WindowAndroid;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.function.Supplier;
 
 /** Creates {@link MultiInstanceManager}. */
 @NullMarked
-public class MultiInstanceManagerFactory {
-
-    private static final UnownedUserDataKey<MultiInstanceManager> KEY = new UnownedUserDataKey<>();
-
+public class MultiInstanceManagerFactory extends MultiInstanceOrchestratorFactory {
     /**
-     * Create a new {@link MultiInstanceManager}.
+     * Creates a new {@link MultiInstanceManager}.
      *
      * @param activity The activity.
      * @param tabModelOrchestratorSupplier A supplier for the {@link TabModelOrchestrator} for the
@@ -59,8 +52,7 @@ public class MultiInstanceManagerFactory {
                     activityLifecycleDispatcher,
                     modalDialogManagerSupplier,
                     menuOrKeyboardActionController,
-                    desktopWindowStateManagerSupplier,
-                    new TabReparentingDelegate(activity, tabModelOrchestratorSupplier));
+                    desktopWindowStateManagerSupplier);
         } else {
             return new MultiInstanceManagerImpl(
                     activity,
@@ -71,18 +63,8 @@ public class MultiInstanceManagerFactory {
         }
     }
 
-    /** Return {@link MultiInstanceManager} associated with the given {@link WindowAndroid}. */
-    public static @Nullable MultiInstanceManager from(@Nullable WindowAndroid windowAndroid) {
-        if (windowAndroid == null) return null;
-        return KEY.retrieveDataFromHost(windowAndroid.getUnownedUserDataHost());
-    }
-
-    /* package */ static void attachToHost(
-            UnownedUserDataHost host, MultiInstanceManager multiInstanceManager) {
-        KEY.attachToHost(host, multiInstanceManager);
-    }
-
-    /* package */ static void detachFromAllHosts(MultiInstanceManager multiInstanceManager) {
-        KEY.detachFromAllHosts(multiInstanceManager);
+    /** Instantiates the {@link MultiInstanceOrchestrator} singleton. */
+    public static void initializeMultiInstanceOrchestrator() {
+        setInstance(MultiInstanceOrchestratorImpl.getInstance());
     }
 }
