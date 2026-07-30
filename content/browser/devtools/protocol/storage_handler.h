@@ -293,7 +293,7 @@ class StorageHandler
       std::unique_ptr<Storage::Backend::GetCookiesCallback> callback,
       const std::vector<net::CanonicalCookie>& cookies);
 
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(IS_COBALT)
   Response SerializeStorageKey(RenderFrameHostImpl* rfh,
                                std::string* serialized_storage_key) const;
 #endif

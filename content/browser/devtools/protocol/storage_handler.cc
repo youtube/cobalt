@@ -547,7 +547,7 @@ void StorageHandler::ClearCookies(
                      std::move(callback)));
 }
 
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(IS_COBALT)
 Response StorageHandler::SerializeStorageKey(
     RenderFrameHostImpl* rfh,
     std::string* serialized_storage_key) const {
@@ -576,7 +576,7 @@ Response StorageHandler::GetStorageKeyForFrame(
   if (!node) {
     return Response::InvalidParams("Frame tree node for given frame not found");
   }
-#if BUILDFLAG(IS_COBALT) && CHROMIUM_MILESTONE_LE_138
+#if BUILDFLAG(IS_COBALT)
   return SerializeStorageKey(node->current_frame_host(),
                              serialized_storage_key);
 #else
