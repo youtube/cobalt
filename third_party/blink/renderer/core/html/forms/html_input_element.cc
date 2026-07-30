@@ -112,6 +112,19 @@ namespace {
 
 static bool is_default_font_prewarmed_ = false;
 
+String ConvertSanitizedValueToStateValue(const InputType& input_type,
+                                         const String& sanitized_value) {
+  if (RuntimeEnabledFeatures::SanitizeIDNEmailFormInputEnabled() &&
+      input_type.IsEmailInputType()) {
+    // `sanitized_value` is already in canonical state-value form. Running
+    // visible-value conversion for non-email types can corrupt it, e.g.
+    // locale-aware number parsing may reinterpret "." in "1.5". The IDN
+    // domain normalization is email-specific.
+    return input_type.ConvertFromVisibleValue(sanitized_value);
+  }
+  return sanitized_value;
+}
+
 }  // namespace
 
 using ValueMode = InputType::ValueMode;
@@ -165,6 +178,8 @@ void HTMLInputElement::Trace(Visitor* visitor) const {
   visitor->Trace(input_type_view_);
   visitor->Trace(list_attribute_target_observer_);
   visitor->Trace(image_loader_);
+  visitor->Trace(nearest_ancestor_select_);
+  visitor->Trace(nearest_ancestor_select_child_);
   TextControlElement::Trace(visitor);
 }
 
@@ -403,8 +418,10 @@ void HTMLInputElement::InitializeTypeInParsing() {
   input_type_ = InputType::Create(*this, new_type_name);
   input_type_view_ = input_type_->CreateView();
   String default_value = FastGetAttribute(html_names::kValueAttr);
-  if (input_type_->GetValueMode() == ValueMode::kValue)
-    non_attribute_value_ = SanitizeValue(default_value);
+  if (input_type_->GetValueMode() == ValueMode::kValue) {
+    non_attribute_value_ = ConvertSanitizedValueToStateValue(
+        *input_type_, SanitizeValue(default_value));
+  }
 
   UpdateHasBeenPasswordField(new_type_name);
 
@@ -554,7 +571,8 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
            new_value_mode == ValueMode::kValue) {
     AtomicString value_string = FastGetAttribute(html_names::kValueAttr);
     input_type_->WarnIfValueIsInvalid(value_string);
-    non_attribute_value_ = SanitizeValue(value_string);
+    non_attribute_value_ = ConvertSanitizedValueToStateValue(
+        *input_type_, SanitizeValue(value_string));
     has_dirty_value_ = false;
   }
   // 3. Otherwise, if the previous state of the element's type attribute put the
@@ -576,6 +594,9 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
 
     if (new_value_mode == ValueMode::kValue) {
       String new_value = SanitizeValue(non_attribute_value_);
+      if (!HasDirtyValue()) {
+        new_value = ConvertSanitizedValueToStateValue(*input_type_, new_value);
+      }
       if (!EqualIgnoringNullity(new_value, non_attribute_value_)) {
         if (HasDirtyValue())
           SetValue(new_value);
@@ -593,17 +614,17 @@ void HTMLInputElement::UpdateType(const AtomicString& type_attribute_value) {
     DCHECK(HasElementData());
     AttributeCollection attributes = AttributesWithoutUpdate();
     if (const Attribute* height = attributes.Find(html_names::kHeightAttr)) {
-      TextControlElement::AttributeChanged(AttributeModificationParams(
+      AttributeChangedWithInvalidations(AttributeModificationParams(
           html_names::kHeightAttr, height->Value(), height->Value(),
           AttributeModificationReason::kDirectly));
     }
     if (const Attribute* width = attributes.Find(html_names::kWidthAttr)) {
-      TextControlElement::AttributeChanged(AttributeModificationParams(
+      AttributeChangedWithInvalidations(AttributeModificationParams(
           html_names::kWidthAttr, width->Value(), width->Value(),
           AttributeModificationReason::kDirectly));
     }
     if (const Attribute* align = attributes.Find(html_names::kAlignAttr)) {
-      TextControlElement::AttributeChanged(AttributeModificationParams(
+      AttributeChangedWithInvalidations(AttributeModificationParams(
           html_names::kAlignAttr, align->Value(), align->Value(),
           AttributeModificationReason::kDirectly));
     }
@@ -893,8 +914,10 @@ void HTMLInputElement::ParseAttribute(
     // We only need to setChanged if the form is looking at the default value
     // right now.
     if (!HasDirtyValue()) {
-      if (input_type_->GetValueMode() == ValueMode::kValue)
-        non_attribute_value_ = SanitizeValue(value);
+      if (input_type_->GetValueMode() == ValueMode::kValue) {
+        non_attribute_value_ = ConvertSanitizedValueToStateValue(
+            *input_type_, SanitizeValue(value));
+      }
       UpdatePlaceholderVisibility();
       SetNeedsStyleRecalc(
           kSubtreeStyleChange,
@@ -1844,6 +1867,23 @@ Node::InsertionNotificationRequest HTMLInputElement::InsertedInto(
   ResetListAttributeTargetObserver();
   LogAddElementIfIsolatedWorldAndInDocument("input", html_names::kTypeAttr,
                                             html_names::kFormactionAttr);
+
+  if (RuntimeEnabledFeatures::FilterableSelectEnabled()) {
+    // TODO(crbug.com/402429384): This walk is expensive, but when an input
+    // element is inserted we are already walking through all ancestor elements
+    // to find a nearest ancestor form element via ListedElement::InsertedInto
+    // -> ListedElement::ResetFormOwner. If we combine this ancestor walk
+    // with the one for form elements, it could improve performance.
+    HTMLSelectElement::SelectOptgroupDatalist result =
+        HTMLSelectElement::WalkAncestorsForRelatedParts(*this);
+    if (result.select != nearest_ancestor_select_) {
+      CHECK(!nearest_ancestor_select_);
+      nearest_ancestor_select_child_ = result.select_child;
+      nearest_ancestor_select_ = result.select;
+      nearest_ancestor_select_->InputInserted(this, result.select_child);
+    }
+  }
+
   return kInsertionShouldCallDidNotifySubtreeInsertions;
 }
 
@@ -1861,6 +1901,18 @@ void HTMLInputElement::RemovedFrom(ContainerNode& insertion_point) {
   TextControlElement::RemovedFrom(insertion_point);
   DCHECK(!isConnected());
   ResetListAttributeTargetObserver();
+
+  if (RuntimeEnabledFeatures::FilterableSelectEnabled()) {
+    HTMLSelectElement::SelectOptgroupDatalist result =
+        HTMLSelectElement::WalkAncestorsForRelatedParts(*this);
+    if (result.select != nearest_ancestor_select_) {
+      CHECK(!result.select);
+      nearest_ancestor_select_->InputRemoved(this,
+                                             nearest_ancestor_select_child_);
+      nearest_ancestor_select_ = nullptr;
+      nearest_ancestor_select_child_ = nullptr;
+    }
+  }
 }
 
 void HTMLInputElement::DidMoveToNewDocument(Document& old_document) {

@@ -16,7 +16,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
@@ -317,8 +316,8 @@ views::BubbleDialogDelegate* CookieControlsIconView::GetBubble() const {
 
 const gfx::VectorIcon& CookieControlsIconView::GetVectorIcon() const {
   return controls_state_ == CookieControlsState::kBlocked3pc
-             ? views::kEyeCrossedRefreshIcon
-             : views::kEyeRefreshIcon;
+             ? views::kEyeCrossedRefreshOldIcon
+             : views::kEyeRefreshOldIcon;
 }
 
 void CookieControlsIconView::UpdateTooltipForFocus() {}

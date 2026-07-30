@@ -1195,6 +1195,13 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 <translation id="1858775210076906272">事前に指定された Kerberos 設定</translation>
 <translation id="1861206724856734193">データ漏洩防止ルールのリストを設定します。</translation>
 <translation id="1862267110714201519">ゴースト ウィンドウ機能を無効にする</translation>
+<translation id="1862749749551522146">ソケット プールサイズのランダム化は、攻撃者が固定された容量制限を悪用して、サイト間の情報を推測するのを防ぐセキュリティ メカニズムです。プールの容量が通常 128 ソケットの場合、このメカニズムにより、プールの容量が 128～256 の間でランダムに制限されます。
+これにより、プロキシへの接続数が最大 2 倍になりますが、実際には 1.2 倍程度になることが想定されます。
+
+この機能は、<ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> と <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> の設定に影響します。
+これらのポリシーによって上限が定義されるのではなく、それらの値の 2 倍が上限として適用されます（ただし、実際には 1.2 倍程度になることが想定されます）。
+
+この機能はデフォルトですべてのプールで有効になっていますが、このポリシーを使用すると、プロキシプールに限定してこの機能を無効にできます。</translation>
 <translation id="1865417998205858223">キーの権限</translation>
 <translation id="1865867000796030567">このポリシーを有効に設定した場合、遅延なしで自動開始されるキオスクアプリの <ph name="REQUIRED_PLATFORM_VERSION" /> マニフェスト キーの値が、自動更新対象バージョンの接頭辞として使用されます。
 
@@ -1822,6 +1829,25 @@ URI テンプレートに <ph name="HTTP_VARIABLE_DNS" /> 変数が含まれて�
 <translation id="225340736558643885">安全でないフォームの警告を有効にする</translation>
 <translation id="2258126710006312594">リモート アクセスのユーザーにホストとのファイルの転送を許可します</translation>
 <translation id="225830954785359083">アンロード中にページでポップアップを表示することを許可しない</translation>
+<translation id="2260635608598936994"><ph name="PRODUCT_NAME" /> のセキュリティ シグナル レポートに含めるクライアント証明書を選択するフィルタを構成します。これらのレポートは、ブラウザとデバイスのポスチャー情報を <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> に送信します。管理者はこの情報を使用して <ph name="GOOGLE_CONTEXT_AWARE_ACCESS" /> のルールを構成できます。
+
+このポリシーでは、発行者やサブジェクトの識別名など、クライアント証明書の属性に基づいてフィルタを定義できます。<ph name="PRODUCT_NAME" /> では、指定されたフィルタのいずれかに一致する証明書のみをシグナル レポートに含めます。
+
+     <ph name="SELECTOR_PLACEHOLDER" /> セクションの使用例:
+
+      * <ph name="SELECTOR_PLACEHOLDER" /> に <ph name="SECURITY_SIGNALS_CLIENT_CERTIFICATE_SELECTORS_FILTER_EXAMPLE" /> を設定した場合、発行元の CommonName が <ph name="ISSUER_CN_PLACEHOLDER" /> であるクライアント証明書のみが選択されます。
+
+      * <ph name="SELECTOR_PLACEHOLDER" /> に <ph name="ISSUER_STRING_VALUE" /> と <ph name="SUBJECT_STRING_VALUE" /> の両方のセクションを含めた場合は、両方の条件を満たすクライアント証明書のみが選択されます。
+
+      * <ph name="SELECTOR_PLACEHOLDER" /> に <ph name="SUBJECT_STRING_VALUE" /> セクションと <ph name="FILTER_STRING_ORGANIZATION" /> の値を含めた場合は、指定した値に一致する組織を少なくとも 1 つ含む証明書が選択されます。
+
+      * <ph name="SELECTOR_PLACEHOLDER" /> に <ph name="SUBJECT_STRING_VALUE" /> セクションと <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" /> の値を含めた場合は、指定した値に一致する組織部門を少なくとも 1 つ含む証明書が選択されます。
+
+      * <ph name="SELECTOR_PLACEHOLDER" /> が <ph name="EMPTY_DICTIONARY" /> に設定されている場合、このポリシーでは空の詳細情報は無視されます。
+
+      このポリシーを未設定のままにした場合、シグナル レポート作成時にクライアント証明書は選択されません。
+
+*重要:* このポリシーは、Chrome からのセキュア シグナルの送信に関する全体的な機能を制御する <ph name="USER_SECURITY_SIGNALS_REPORTING_POLICY_NAME" /> ポリシーが有効になっている場合にのみ有効になります。</translation>
 <translation id="2261648512244797294">サポートが終了している Privet 印刷を無効にする</translation>
 <translation id="2262701937800507517"><ph name="PRODUCT_OS_NAME" /> のデフォルトの暗号化順序を使用する</translation>
 <translation id="2263881357524831360"><ph name="ANDROID_NAME" /> の <ph name="PRODUCT_NAME" /> でサードパーティのパスワード マネージャーの使用を許可する</translation>
@@ -2221,6 +2247,24 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_ALLOWED_FO
 <translation id="252742292004421898">Direct Sockets API を許可するサイトを指定する</translation>
 <translation id="2528762900096510743">自動ログアウト サービスを有効にする</translation>
 <translation id="2529880111512635313">自動インストールするアプリと拡張機能のリストの設定</translation>
+<translation id="2530090617700835618">このポリシーでは、WebSocket リクエストのプロキシ サーバーごとの最大同時接続数を指定できます。
+
+WebSocket 以外のリクエストの上限を変更するには、<ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> をご確認ください。
+
+このポリシーを未設定のままにした場合、デフォルト値の 128 が使用されます。
+
+ウェブアプリの中には、GET リクエストを開いたまま接続を多数保持するものがあります。そのため、128 未満の値を設定した場合、もし多数のウェブアプリでこのような接続が開いたままになると、ブラウザのネットワーク接続が停止してしまう可能性があります。
+プロキシ サーバーによっては 1 クライアントに対して多数の同時接続を処理できない場合があります。この問題を解決するには、このポリシーを小さい値に設定します。
+
+値は 6 以上にする必要があります。
+この制限を下回る値を設定すると、6 が使用されます。
+なお、デフォルト値（128）より小さい値を設定する場合は、ご自身の責任において行ってください。
+
+値は 256 以下にする必要があります。
+この制限を超える値を設定すると、256 が使用されます。
+なお、デフォルト値（128）より大きい値を設定する場合は、ご自身の責任において行ってください。
+
+適用される上限は <ph name="ALLOW_SOCKET_POOL_SIZE_RANDOMIZATION_FOR_PROXIES_POLICY_NAME" /> の影響を受けることにご注意ください。</translation>
 <translation id="253135976343875019">警告を表示するまでのアイドル待機時間（AC 電源での実行時）</translation>
 <translation id="2532480434098051405">インライン画像と AI モデルの改善を許可する。</translation>
 <translation id="2535370400681639351">このポリシーを有効に設定した場合、gnubby 認証リクエストはリモートホスト接続でプロキシ送信されます。
@@ -2593,6 +2637,15 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_ALLOWED_FO
 このポリシーを有効に設定するか未設定のままにした場合、ユーザーは Kerberos 設定ページの Kerberos アカウント設定で Kerberos アカウントを追加できます。ユーザーは追加したアカウントを完全に管理でき、変更や削除も行えます。
 
 このポリシーが無効に設定されている場合、ユーザーは Kerberos アカウントを追加できません。アカウントは「Kerberos アカウントを設定する」ポリシーからのみ追加できます。アカウントをロックするにはこの方法が便利です。</translation>
+<translation id="2771222727845689796">このポリシーでは、URL パターンのリストを指定できます。これらのパターンに一致するバックグラウンドのウェブ コンテンツには、フォアグラウンドの優先度が強制的に適用されます。
+
+<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> ポリシーを有効にしている場合、すべてのタブにフォアグラウンドの優先度が強制的に適用されるため、このリストは無視されます。
+
+<ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> を無効にするか未設定のままにしている場合、このリストのパターンに一致するコンテンツにのみ、フォアグラウンドの優先度が強制的に適用されます。
+
+有効な <ph name="URL_LABEL" /> パターンについて詳しくは、https://support.google.com/chrome/a?p=url_blocklist_filter_format をご覧ください。
+
+リストを空白にするか未設定のままにした場合、バックグラウンドのコンテンツにフォアグラウンドの優先度が強制的に適用されることはありません。</translation>
 <translation id="2772231477628401250">更新版のダウンロードに HTTP を使用する</translation>
 <translation id="2772955711376920612">このポリシーを有効に設定して、<ph name="DEVICE_POWER_PEAK_SHIFT_BATTERY_THRESHOLD_POLICY_NAME" /> と <ph name="DEVICE_POWER_PEAK_SHIFT_DAY_CONFIG_POLICY_NAME" /> を設定した場合、デバイスが対応していれば電力ピークシフトが有効になります。電力ピークシフトの電力管理ポリシーは、ピーク使用時に交流電流の使用量を最小限に抑える省電力ポリシーです。各平日に、電力ピークシフト モードの開始時刻と終了時刻を設定できます。バッテリー残量が指定したしきい値を上回っている限り、この時間帯は、交流電流が接続されている場合でもデバイスの実行にはバッテリーが使用されます。指定した終了時刻を過ぎると、電源に接続されている場合、デバイスの実行には交流電流が使用されますが、バッテリーは充電されません。指定した開始時刻を過ぎると、デバイスは再び、交流電流を使って通常どおりに動作し、バッテリーが充電されます。
 
@@ -4576,15 +4629,6 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 
           このポリシーを設定しない場合、音声フィードバックは初期設定ではログイン画面で無効ですが、ユーザーはいつでも有効にできます。</translation>
 <translation id="4173974507809462880">ログイン時にタッチパッドのスクロール方向の画面を表示する</translation>
-<translation id="4175770453187201981">このポリシーでは、アドレスバーと新しいタブページの検索ボックスに Google AI モードを統合するかどうかを制御します。
-
-この機能にアクセスするには、Google をユーザーのデフォルトの検索エンジンに設定する必要があります。
-
-0 / 未設定 = ユーザーはこの機能を使用できます。
-
-1 = ユーザーはこの機能を使用できません。
-
-このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。</translation>
 <translation id="417956245902013347">ログイン画面で「テキストカーソルによるハイライト表示」ユーザー補助機能を有効にします。
 
           このポリシーを true に設定した場合、テキストカーソルによるハイライト表示はログイン画面で常に有効になります。
@@ -4714,6 +4758,7 @@ URL パターンは、<ph name="DIRECT_SOCKETS_ALLOWED_FOR_URLS_POLICY_NAME" /> 
       <ph name="PRODUCT_NAME" /> 77 以降であれば、ワイルドカードを使用し、分離する発行元の範囲を指定できます。たとえば、https://[*.]corp.example.com を指定した場合、https://corp.example.com 以下の発行元に対して同じ独自プロセスが適用されます。これには https://corp.example.com 自体が該当するほか、https://a1.corp.example.com や https://a2.a1.corp.example.com も含まれます。
 
       <ph name="SITE_PER_PROCESS_POLICY_NAME" /> ポリシーで言及されているとおり、すべてのサイト（https://example.com のような、スキームと eTLD+1 の組み合わせ）は、デスクトップ プラットフォームではデフォルトで分離されます。この <ph name="ISOLATE_ORIGINS_POLICY_NAME" /> ポリシーは、発行元をより細かいレベル（例: https://a.example.com）で指定して分離するのに有効です。このポリシーで分離した発行元では、同一サイト内の他の発行元をスクリプト化することはできません。ただし、同じサイトの 2 つのドキュメント内で、document.domain の値が同一のものに変更されれば、このスクリプト化は可能になります。これは一般には行いません。管理者は、発行元の分離前にこのような操作が行われないよう管理する必要があります。このポリシーを無効に設定するか未設定のままにした場合、ユーザーはこの設定を変更できます。注: Android では代わりに <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" /> ポリシーを使用してください。</translation>
+<translation id="4261641564041253502"><ph name="PRODUCT_NAME" /> のセキュリティ シグナル レポートのフィルタに一致するクライアント証明書を自動的に選択する。</translation>
 <translation id="4261820385751181068">デバイスのログイン画面の言語 / 地域</translation>
 <translation id="4263788921751326798">デバイスの障害レポート情報の報告を無効にする</translation>
 <translation id="4268586991084547853">Microsoft IE / Edge エンタープライズ モードのサイトリストとの互換性を高める。</translation>
@@ -5090,6 +5135,22 @@ WebSQL は M112 で削除されました。</translation>
 
 <ph name="IP_PROTECTION_NAME" /> は M139 以降にリリースされます。</translation>
 <translation id="4525328580251166229">Bruschetta サブシステムに関連するポリシーを制御します。</translation>
+<translation id="452801090660038046">このポリシーでは、WebSocket 以外のリクエストのプロキシ サーバーごとの最大同時接続数を指定できます。WebSocket リクエストの上限を変更するには、<ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> をご確認ください。
+
+このポリシーを未設定のままにした場合、デフォルト値の 128 が使用されます。
+
+ウェブアプリの中には、GET リクエストを開いたまま接続を多数保持するものがあります。そのため、128 未満の値を設定した場合、もし多数のウェブアプリでこのような接続が開いたままになると、ブラウザのネットワーク接続が停止してしまう可能性があります。
+プロキシ サーバーによっては 1 クライアントに対して多数の同時接続を処理できない場合があります。この問題を解決するには、このポリシーを小さい値に設定します。
+
+値は 6 以上にする必要があります。
+この制限を下回る値を設定すると、6 が使用されます。
+なお、デフォルト値（128）より小さい値を設定する場合は、ご自身の責任において行ってください。
+
+値は 256 以下にする必要があります（<ph name="PRODUCT_NAME" /> 147 以前では 99 以下）。
+この制限を超える値を設定すると、256（<ph name="PRODUCT_NAME" /> 147 以前では 99）が使用されます。
+なお、デフォルト値（128）より大きい値を設定する場合は、ご自身の責任において行ってください。
+
+適用される上限は <ph name="ALLOW_SOCKET_POOL_SIZE_RANDOMIZATION_FOR_PROXIES_POLICY_NAME" /> の影響を受けることにご注意ください。</translation>
 <translation id="4528981768990874684"><ph name="IP_PROTECTION_NAME" /> 機能を無効にする。</translation>
 <translation id="453031441196755904">このポリシーはサポートを終了しました。</translation>
 <translation id="4531706050939927436">Android アプリを強制的にインストールするには、Google 管理コンソールで Google Play からのインストールを指定します。Android アプリでこのポリシーは使用されません。</translation>
@@ -5497,23 +5558,6 @@ JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（
       有効に設定した場合、Gemini の紹介画面が表示されます。
 
       未設定の場合、Gemini の紹介画面は企業の管理対象ユーザーに対してはスキップされ、管理対象外ユーザーには表示されます。</translation>
-<translation id="4781685421378746692">このポリシーでは、<ph name="PRODUCT_NAME" /> のサイドパネルやタブでページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> や <ph name="GOOGLE_LENS_PRODUCT_NAME" /> と共有できるようにするかどうかを制御します。
-
-なお、このポリシーはウェブ上の <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> には影響しません。このポリシーは、ユーザーが <ph name="PRODUCT_NAME" /> の使用時に情報を共有するかどうかのみを制御します。
-
-0 / 未設定 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できます。
-
-1 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できません。コンテキストを共有するためのエントリ ポイントとサイドパネルは無効になるか、非表示になります。
-
-<ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> がユーザーのデフォルトの検索エンジンでない場合、この機能は無効になっているため、このポリシーは無視されます。
-
-このポリシーは、<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーとは関係なく動作します。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーはアドレスバーまたは新しいタブページの検索ボックスのエントリ ポイントのみを制御し、このポリシーはサイドパネルやタブでのコンテキストの共有を制御します。
-
-また、このポリシーは、<ph name="GEMINI_SETTINGS_POLICY_NAME" /> を使用して無効にできる組み込みの <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> にも影響しません。
-
-このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
-
-生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="4783415902268741066">ブラウザのサイドパネルにデフォルトの検索エンジンの最新の検索結果ページを表示することを許可します</translation>
 <translation id="4786784434769279324">パソコンがアイドル状態になったときに行う動作</translation>
 <translation id="4787763197941188108">デフォルトの印刷ページサイズをオーバーライドします。
@@ -6299,20 +6343,6 @@ Attribution Reporting API のサポート終了により、このポリシーは
 <translation id="5293285950307241933">すべてのローカル ユーザー データを消去する</translation>
 <translation id="5293619885162445352"><ph name="PEPPER_NAME" /> で新しい動画デコーダの使用を許可する。</translation>
 <translation id="529457411593078576">CCT の初回実行時の利用規約を有効にする</translation>
-<translation id="529718811410033393">このポリシーでは、WebSocket 以外のリクエストのプロキシ サーバーごとの最大同時接続数を指定できます。WebSocket リクエストの上限を変更するには、<ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" /> をご確認ください。
-
-このポリシーを未設定のままにした場合、デフォルト値の 32 が使用されます。
-
-ウェブアプリの中には、GET リクエストを開いたまま接続を多数保持するものがあります。そのため、32 未満の値を設定した場合、もし多数のウェブアプリでこのような接続が開いたままになると、ブラウザのネットワーク接続が停止してしまう可能性があります。
-プロキシ サーバーによっては 1 クライアントに対して多数の同時接続を処理できない場合があります。この問題を解決するには、このポリシーを小さい値に設定します。
-
-値は 6 以上にする必要があります。
-この制限を下回る値を設定すると、6 が使用されます。
-なお、デフォルト値（32）より小さい値を設定する場合は、ご自身の責任において行ってください。
-
-値は 256 以下にする必要があります（<ph name="PRODUCT_NAME" /> 147 以前では 99 以下）。
-この制限を超える値を設定すると、256（<ph name="PRODUCT_NAME" /> 147 以前では 99）が使用されます。
-なお、デフォルト値（32）より大きい値を設定する場合は、ご自身の責任において行ってください。</translation>
 <translation id="5297873769621042075">このポリシーでは、HTTPS へのアップグレードを行わず、HTTPS 優先モードが有効になっている場合にエラー インタースティシャルを表示しないホスト名のリストまたはホスト名のパターン（「[*.]example.com」など）を指定できます。このポリシーを使用すると、HTTPS へのアップグレードや HTTPS 優先モードを無効にすることなく、HTTPS をサポートしていないサーバーへのアクセスを維持できます。
 
 指定するホスト名は正規化する必要があります。IDN はすべて A ラベル形式に変換し、ASCII 文字列はすべて小文字にする必要があります。
@@ -6586,15 +6616,6 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="5481873128882951841">Krisp ノイズ キャンセリングをオフにする</translation>
 <translation id="5483012943408894695">保護されていない発行元に関する制限の適用対象外となる発行元またはホスト名パターン</translation>
 <translation id="5483065054530244863">ローカルの信頼済みアンカーが発行した SHA-1 署名証明書を許可する</translation>
-<translation id="5485491014653571963">この設定では、Gemini アプリの統合を許可します。
-
-0 / 未設定 = ユーザーは Gemini の統合を使用できます。
-
-1 = ユーザーは Gemini の統合を使用できません。
-
-このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
-
-詳しくは、ヘルプセンター記事（https://support.google.com/chrome/a?p=gemini_in_chrome）をご覧ください。</translation>
 <translation id="5486917900445838803">このポリシーを有効に設定するか未設定のままにした場合、グラフィック アクセラレーションがオンになります（可能な場合）。
 
       このポリシーを無効に設定した場合、グラフィック アクセラレーションはオフになります。</translation>
@@ -6842,29 +6863,6 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="5622924058222112599">デフォルトの CECPQ2 導入プロセスを有効にする</translation>
 <translation id="5623304306796942802">複数の証明書が一致した場合にメッセージを表示する</translation>
 <translation id="5624310713789233422">ツールバーでの企業プロフィール バッジの公開設定を管理する</translation>
-<translation id="5624334866248253262">データ漏洩を防止するためのデータ管理ルールのリストを設定します。
-
-      各ルールは以下で構成されます。
-      - ルールをトリガーする条件フィールド。ルールがトリガーされるのは、<ph name="DATA_CONTROLS_SOURCES" />、<ph name="DATA_CONTROLS_DESTINATIONS" />、<ph name="DATA_CONTROLS_AND" />、<ph name="DATA_CONTROLS_OR" />、<ph name="DATA_CONTROLS_NOT" /> フィールドに入力された全フィールドにユーザー アクションが一致する場合のみです。リストのサブフィールドでは、一致するエントリが 1 つあれば（例: 1 つの URL パターンが一致すれば）、ルールがトリガーされる条件が満たされます。
-      - 適用する制限のリスト。制限に応じて、<ph name="DATA_CONTROLS_SOURCES" /> 条件または <ph name="DATA_CONTROLS_DESTINATIONS" /> 条件のみを使用できます。
-
-      ルールでは次の項目を管理できます。
-      - 参照元と参照先の間で共有するクリップボード データ。
-      - ソースタブに基づくスクリーンショットのブロック。
-
-      <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> ポリシーが True に設定されている場合、トリガーされたルールは管理者に報告されます。
-      制限レベルは「BLOCK」、「WARN」、「REPORT」に設定できます。
-      - 制限レベルを「BLOCK」に設定した場合、アクションは許可されません。
-      - 制限レベルを「WARN」に設定した場合、ユーザーに警告が表示されます。ユーザーはアクションを実行するかキャンセルするかを選択できます。
-      - 制限レベルを「REPORT」に設定した場合、ユーザー アクションは中断されませんが、<ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> ポリシーが有効であればレポートが送信されます。
-
-      注:
-      - URL パターンは、https://support.google.com/chrome/a?p=url_blocklist_filter_format の形式で指定します。
-      - <ph name="PRODUCT_OS_NAME" /> 固有のデータ漏洩防止ルールについては、<ph name="DATA_LEAK_PREVENTION_RULES_LIST" /> ポリシーもご覧ください。
-
-      このポリシーを未設定のままにした場合、制限は適用されません。
-
-      このポリシーは、Chrome Enterprise Premium ライセンスが割り当てられているユーザーのみが使用できます。</translation>
 <translation id="5625771176514429288">指定プラットフォームで Chrome アプリを実行できる。</translation>
 <translation id="5627270992026554674">教師に Google Classroom のクラス名簿の使用を許可しない。</translation>
 <translation id="5630352020869108293">最後のセッションを復元する</translation>
@@ -7915,6 +7913,7 @@ Origin-Agent-Cluster HTTP ヘッダーは、オリジンキー エージェン�
 
       このポリシーを設定したかどうかに関係なく、ユーザーは WPAD の最適化設定を変更できません。</translation>
 <translation id="6363485842496031347">Delete キーのショートカットの設定で Alt 修飾キーを含むショートカットを使用する</translation>
+<translation id="6364336078281746235">フォアグラウンドの優先度を強制的に適用する URL を指定する</translation>
 <translation id="6366574325767783825">このポリシーを True に設定するか未設定のままにした場合、<ph name="PRODUCT_NAME" /> では Signed HTTP Exchange として配信されるウェブ コンテンツが許可されます。
 
       このポリシーを False に設定した場合、Signed HTTP Exchange は読み込まれません。</translation>
@@ -9735,22 +9734,6 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FO
 
       ユーザーのデバイスが管理対象でない場合、この機能を使用できるかどうかは、ユーザーがデバイスの所有者かどうかにもよります。</translation>
 <translation id="7570291542739287032">クラウドのみ</translation>
-<translation id="7571158727244273239">このポリシーでは、WebSocket リクエストのプロキシ サーバーごとの最大同時接続数を指定できます。
-
-WebSocket 以外のリクエストの上限を変更するには、<ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> をご確認ください。
-
-このポリシーを未設定のままにした場合、デフォルト値の 32 が使用されます。
-
-ウェブアプリの中には、GET リクエストを開いたまま接続を多数保持するものがあります。そのため、32 未満の値を設定した場合、もし多数のウェブアプリでこのような接続が開いたままになると、ブラウザのネットワーク接続が停止してしまう可能性があります。
-プロキシ サーバーによっては 1 クライアントに対して多数の同時接続を処理できない場合があります。この問題を解決するには、このポリシーを小さい値に設定します。
-
-値は 6 以上にする必要があります。
-この制限を下回る値を設定すると、6 が使用されます。
-なお、デフォルト値（32）より小さい値を設定する場合は、ご自身の責任において行ってください。
-
-値は 256 以下にする必要があります。
-この制限を超える値を設定すると、256 が使用されます。
-なお、デフォルト値（32）より大きい値を設定する場合は、ご自身の責任において行ってください。</translation>
 <translation id="7572641760104970905">複雑さのレベル: なし</translation>
 <translation id="757395965347379751">この設定が有効になっていると、SHA-1 署名証明書が検証され、ローカルにインストールされた CA 証明書に関連付けされている限り、<ph name="PRODUCT_NAME" /> は SHA-1 署名証明書を許可します。
 
@@ -10307,6 +10290,7 @@ Topics API のサポート終了により、このポリシーは <ph name="PROD
 <translation id="7941975817681987555">ネットワーク接続でネットワーク動作を予測しない</translation>
 <translation id="794447754389837404">Direct Sockets API でプライベート ネットワーク アクセスをブロックするサイトを指定する</translation>
 <translation id="7945445169067895719">デバイスが一時停止されるかディスプレイが閉じられたときのロックを有効にする</translation>
+<translation id="7945744599423774764">プロキシのソケット プールサイズのランダム化を許可する</translation>
 <translation id="7946350455013548764">このポリシーを 3 に設定した場合、ウェブサイトは、HID デバイスへのアクセスを要求できます。このポリシーを 2 に設定した場合、HID デバイスへのアクセスは許可されません。
 
       このポリシーを未設定のままにした場合、ウェブサイトによるアクセス要求は許可されますが、ユーザーはこの設定を変更できます。
@@ -10869,6 +10853,7 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8337114537412769126"><ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" /> がオンの場合に、<ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" /> では、POST を使ったキーワード候補の検索に使用するパラメータを指定できます。名前と値のペアをカンマで区切って指定します。テンプレート パラメータ（<ph name="SEARCH_TERM_MARKER" /> など）の値は、実際の検索キーワードのデータに置き換えられます。
 
       <ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" /> を未設定のままにした場合、キーワードの候補による検索リクエストは GET メソッドを使用して送信されます。</translation>
+<translation id="8337200442224446773">プロキシのソケットプールのランダム化を許可しない</translation>
 <translation id="8337961007759352651">ワーカー（Web Worker、Service Worker など）のスクリプトで JavaScript MIME タイプ（<ph name="MIMETYPE_TEXT_JAVASCRIPT" /> など）を必須にする。従来の MIME タイプ（<ph name="MIMETYPE_TEXT_ASCII" /> など）のワーカー スクリプトは拒否する。</translation>
 <translation id="8339089771335211509">WebRTC は公開インターネットに接続されているインターフェースのみを使用し、接続にプライベート IP アドレスを使用できない。</translation>
 <translation id="8339420913453596618">2 段階認証プロセスを無効にする</translation>
@@ -11290,6 +11275,7 @@ false に設定した場合、管理対象のネットワークに接続され�
 <ph name="PRODUCT_NAME" /> の場合、このポリシーは <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> で登録されたマシンでのみ有効です。
 <ph name="PRODUCT_OS_NAME" /> の場合、このポリシーは常に有効です。</translation>
 <translation id="8619748440665904084">初回実行時の自動入力フォームのデータのインポートを無効にする</translation>
+<translation id="8621146428060651659">プロキシのソケットプールのランダム化を許可する</translation>
 <translation id="862621549134406761">RSA 鍵用途の確認を有効にする</translation>
 <translation id="8626826495474944836">すべてのサイトに対してサイト分離を必須にする</translation>
 <translation id="8630797597241896082">生成 AI ビデオ通話背景と AI モデルの改善を許可する</translation>

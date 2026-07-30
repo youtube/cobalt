@@ -65,24 +65,6 @@ enum class DisplayPosition {
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:DisplayPosition)
 
-// LINT.IfChange(PercentOverlap)
-enum class PercentOverlap {
-  k0 = 0,
-  k10 = 1,
-  k20 = 2,
-  k30 = 3,
-  k40 = 4,
-  k50 = 5,
-  k60 = 6,
-  k70 = 7,
-  k80 = 8,
-  k90 = 9,
-  k100 = 10,
-  kNoVisibleChromeBrowser = 11,
-  kMaxValue = kNoVisibleChromeBrowser,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:PercentOverlap)
-
 // LINT.IfChange(ShareImageResult)
 enum class ShareImageResult {
   kSentImageToClient = 0,
@@ -105,7 +87,13 @@ enum class ShareImageResult {
   kFailedTimedOutDidNotCompleteOnboarding = 17,
   kFailedLostInstance = 18,
   kFailedSawNavigationDidNotCompleteOnboarding = 19,
-  kMaxValue = kFailedSawNavigationDidNotCompleteOnboarding,
+  kFailedUnknown = 20,
+  kFailedInvalidConversationId = 21,
+  kFailedInvokeInProgress = 22,
+  kFailedInvalidConfiguration = 23,
+  kFailedNoClientFrame = 24,
+  kFailedNoClipboardMetadata = 25,
+  kMaxValue = kFailedNoClipboardMetadata,
 };
 
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:ShareImageResult)
@@ -145,19 +133,6 @@ enum class InputModesUsed {
   kMaxValue = kTextAndAudio,
 };
 // LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicInputModesUsed)
-
-// LINT.IfChange(AttachChangeReason)
-enum class AttachChangeReason {
-  // Attach state changed because of a drag gesture.
-  kDrag = 0,
-  // Attach state changed because of a menu click.
-  kMenu = 1,
-  // Attachment state initialized.
-  kInit = 2,
-
-  kMaxValue = kInit,
-};
-// LINT.ThenChange(//tools/metrics/histograms/metadata/glic/enums.xml:GlicAttachChangeReason)
 
 // Events related to requests to the Glic API from the web client.
 // LINT.IfChange(GlicRequestEvent)
@@ -222,9 +197,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   void OnContextUploadCompleted();
   void OnSessionTerminated();
   void OnResponseRated(bool positive);
-
-  void OnAttachedToBrowser(AttachChangeReason reason);
-  void OnDetachedFromBrowser(AttachChangeReason reason);
 
   // ----Public API called by other glic classes-----
   // Called when the user completes the onboarding flow (consents).
@@ -338,10 +310,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   ChromeRelativePosition GetChromeRelativePositionOfPoint(
       Browser* browser,
       const gfx::Point& glic_center_point);
-  // Returns the percent overlap of the given glic bounds and the given chrome
-  // browser.
-  PercentOverlap GetPercentOverlapWithBrowser(Browser* browser,
-                                              const gfx::Rect& glic_bounds);
 #endif
 
   base::TimeTicks fre_accepted_time_;
@@ -365,7 +333,6 @@ class GlicMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   // The last web client input mode used by the user.
   mojom::WebClientMode input_mode_ = mojom::WebClientMode::kUnknown;
   std::set<mojom::WebClientMode> inputs_modes_used_;
-  int attach_change_count_ = 0;
 
   // Tracks the source ID from the latest tab context requested by the web
   // client. It is reset when user input is submitted.

@@ -15,6 +15,7 @@ import android.view.View;
 
 import org.jni_zero.CalledByNative;
 import org.jni_zero.JNINamespace;
+import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 import org.chromium.build.annotations.NullMarked;
@@ -99,6 +100,12 @@ public class CompositorViewImpl implements CompositorView {
         if (mNativeCompositorViewImpl != 0) {
             CompositorViewImplJni.get().setNeedsComposite(mNativeCompositorViewImpl);
         }
+    }
+
+    @Override
+    public void runOnNextFrame(Runnable runnable) {
+        if (mNativeCompositorViewImpl == 0) return;
+        CompositorViewImplJni.get().runOnNextFrame(mNativeCompositorViewImpl, runnable);
     }
 
     @Override
@@ -280,5 +287,8 @@ public class CompositorViewImpl implements CompositorView {
         void setNeedsComposite(long nativeCompositorViewImpl);
 
         boolean shouldUseSurfaceView();
+
+        void runOnNextFrame(
+                long nativeCompositorViewImpl, @JniType("base::OnceClosure") Runnable runnable);
     }
 }

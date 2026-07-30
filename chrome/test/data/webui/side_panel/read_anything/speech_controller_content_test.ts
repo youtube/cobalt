@@ -5,6 +5,8 @@ import {BrowserProxy, ContentController, NodeStore, playFromSelectionTimeout, Re
 import type {AppElement, Segment} from 'chrome-untrusted://read-anything-side-panel.top-chrome/read_anything.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome-untrusted://webui-test/chai_assert.js';
 import {MockTimer} from 'chrome-untrusted://webui-test/mock_timer.js';
+// import {microtasksFinished} from
+// 'chrome-untrusted://webui-test/test_util.js';
 
 import {createApp, createSpeechSynthesisVoice, setContent, stubAnimationFrame} from './common.js';
 import {FakeReadingMode} from './fake_reading_mode.js';
@@ -308,6 +310,8 @@ suite('SpeechController', () => {
     range.setEnd(textNode, text1.length + text2.length + 8);
     selection.addRange(range);
     selectionController.onSelectionChange(selection);
+    speechController.onSelectionChange(
+        selectionController.getCurrentSelectionStart());
     readAloudModel.setInitialized(true);
     readAloudModel.setCurrentTextContent(text3);
     const node = ReadAloudNode.create(textNode);
@@ -381,6 +385,8 @@ suite('SpeechController', () => {
     range.setEnd(newTextNode, text1.length + text2.length + 8);
     selection.addRange(range);
     selectionController.onSelectionChange(selection);
+    speechController.onSelectionChange(
+        selectionController.getCurrentSelectionStart());
     readAloudModel.setCurrentTextContent(text3);
 
     let calls = 0;

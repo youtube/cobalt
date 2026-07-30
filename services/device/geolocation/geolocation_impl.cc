@@ -23,12 +23,12 @@ void RecordUmaGeolocationImplClientId(mojom::GeolocationClientId client_id) {
 }  // namespace
 
 GeolocationImpl::GeolocationImpl(mojo::PendingReceiver<Geolocation> receiver,
-                                 const GURL& requesting_url,
+                                 const url::Origin& requesting_origin,
                                  mojom::GeolocationClientId client_id,
                                  GeolocationContext* context,
                                  bool has_precise_permission)
     : receiver_(this, std::move(receiver)),
-      url_(requesting_url),
+      origin_(requesting_origin),
       client_id_(client_id),
       context_(context),
       high_accuracy_hint_(false),
@@ -110,6 +110,25 @@ void GeolocationImpl::QueryNextPosition(QueryNextPositionCallback callback) {
     ReportCurrentPosition();
   }
   RecordUmaGeolocationImplClientId(client_id_);
+}
+
+void GeolocationImpl::QueryCachedPosition(
+    QueryCachedPositionCallback callback) {
+  if (position_override_) {
+    std::move(callback).Run(position_override_.Clone());
+    return;
+  }
+
+  mojom::GeopositionResultPtr result =
+      GeolocationProvider::GetInstance()->GetCachedPosition();
+  if (result) {
+    std::move(callback).Run(std::move(result));
+    return;
+  }
+
+  std::move(callback).Run(
+      mojom::GeopositionResult::NewError(mojom::GeopositionError::New(
+          mojom::GeopositionErrorCode::kPositionUnavailable, "", "")));
 }
 
 void GeolocationImpl::SetOverride(const mojom::GeopositionResult& result) {

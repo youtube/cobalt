@@ -912,7 +912,8 @@ static_library("test_support") {
 if (is_fuchsia) {
   # TODO(crbug.com/40830160): Split this test suite into chrome/WebEngine
   # versions.
-  # TODO(crbug.com/40829930): Move WebEngine-specific suites to //fuchsia_web/webengine/
+  # TODO(crbug.com/40829930): Move WebEngine-specific suites to
+  # //fuchsia_web/webengine/
   group("performance_web_engine_test_suite") {
     testonly = true
     data = [ "//content/test/gpu/run_telemetry_benchmark_fuchsia.py" ]
@@ -1060,10 +1061,10 @@ group("telemetry_gpu_integration_test_data") {
   data_deps = [ ":telemetry_gpu_common_data" ]
 }
 
-# Instead of implicitly depends on the main function from libbrowsertest_support.a,
-# executables should now depend on 'default_content_test_launcher' if they want to
-# use the main function from content_test_launcher.cc.
-# see b/324126269 for detailes.
+# Instead of implicitly depends on the main function from
+# libbrowsertest_support.a, executables should now depend on
+# 'default_content_test_launcher' if they want to use the main function from
+# content_test_launcher.cc. see b/324126269 for details.
 source_set("default_content_test_launcher") {
   testonly = true
   sources = [ "content_test_launcher.cc" ]
@@ -1682,6 +1683,7 @@ test("content_browsertests") {
     "../browser/renderer_host/blocked_scheme_navigation_browsertest.cc",
     "../browser/renderer_host/browsing_context_group_swap_browsertest.cc",
     "../browser/renderer_host/cookie_browsertest.cc",
+    "../browser/renderer_host/cspee_histogram_browsertest.cc",
     "../browser/renderer_host/document_service_browsertest.cc",
     "../browser/renderer_host/document_token_browsertest.cc",
     "../browser/renderer_host/document_user_data_browsertest.cc",
@@ -1860,6 +1862,7 @@ test("content_browsertests") {
     "../renderer/render_widget_browsertest.cc",
     "../renderer/visual_state_browsertest.cc",
     "../renderer/webclipboard_impl_browsertest.cc",
+    "../shell/browser/mojo_bindings_test_browsertest.cc",
     "../shell/browser/rust_mojo_test_browsertest.cc",
     "../test/browser_test_utils_browsertest.cc",
     "../test/content_browser_test_test.cc",
@@ -1914,6 +1917,10 @@ test("content_browsertests") {
   }
 
   defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  if (enable_mojom_fuzzer) {
+    defines += [ "MOJOM_FUZZER_BUILD_MODE" ]
+  }
 
   configs += [ "//build/config:precompiled_headers" ]
 
@@ -2084,21 +2091,27 @@ test("content_browsertests") {
     deps += [ "//components/variations" ]
   }
 
-  data_deps = [ "//content/shell:pak" ]
+  data_deps = [
+    "//content/shell:pak",
+    "//mojo/public/js:bindings_lite",
+    "//url/mojom:url_mojom_scheme_host_port_js_data_deps",
+  ]
 
   data = [
     "data/",
     "//media/test/data/",
     "//mojo/public/interfaces/bindings/tests/data/validation/",
-    "$root_gen_dir/third_party/perfetto/protos/perfetto/config/chrome/scenario_config.descriptor",
-    "$root_gen_dir/mojo/public/js/mojo_bindings_lite.js",
     "$root_gen_dir/content/shell/common/rust_test.test-mojom-lite.js",
+    "$root_gen_dir/mojo/public/js/mojo_bindings_lite.js",
+    "$root_gen_dir/third_party/perfetto/protos/perfetto/config/chrome/scenario_config.descriptor",
+    "$root_gen_dir/url/mojom/scheme_host_port.mojom-lite.js",
   ]
 
   if (!is_ios && !is_android) {
     sources += [ "../browser/file_system_access/file_system_access_observer_browsertest.cc" ]
 
-    # Add Material Design components for accessibility tests on desktop platforms
+    # Add Material Design components for accessibility tests on desktop
+    # platforms
     data += [ "//third_party/material_web_components/" ]
   }
 
@@ -2672,6 +2685,7 @@ test("content_unittests") {
     "../browser/devtools/protocol_unittest.cc",
     "../browser/devtools/request_body_collector_unittest.cc",
     "../browser/devtools/shared_storage_worklet_devtools_agent_host_unittest.cc",
+    "../browser/devtools/shared_worker_devtools_agent_host_unittest.cc",
     "../browser/digital_credentials/digital_credential_environment_unittest.cc",
     "../browser/digital_credentials/digital_identity_request_impl_unittest.cc",
     "../browser/digital_credentials/virtual_wallet_unittest.cc",
@@ -2860,6 +2874,7 @@ test("content_unittests") {
     "../browser/private_aggregation/private_aggregation_manager_impl_unittest.cc",
     "../browser/private_aggregation/private_aggregation_pending_contributions_unittest.cc",
     "../browser/private_aggregation/private_aggregation_report_golden_unittest.cc",
+    "../browser/push_messaging/push_messaging_manager_unittest.cc",
     "../browser/reduce_accept_language/reduce_accept_language_utils_unittest.cc",
     "../browser/renderer_host/ancestor_throttle_unittest.cc",
     "../browser/renderer_host/browsing_context_group_swap_unittest.cc",
@@ -3157,7 +3172,6 @@ test("content_unittests") {
       "../browser/child_process_task_port_provider_mac_unittest.cc",
       "../browser/cocoa/system_hotkey_map_unittest.mm",
       "../browser/file_system_access/file_path_watcher/file_path_watcher_fsevents_change_tracker_unittest.cc",
-      "../browser/media/capture/capture_util_mac_unittest.mm",
       "../browser/media/capture/native_screen_capture_picker_mac_unittest.mm",
       "../browser/media/capture/screen_capture_kit_device_mac_unittest.mm",
       "../browser/media/capture/screen_capture_kit_fullscreen_module_unittest.mm",
@@ -3536,6 +3550,7 @@ test("content_unittests") {
   # Screen capture unit tests.
   if (enable_screen_capture) {
     sources += [
+      "../browser/media/capture/desktop_media_id_unittest.cc",
       "../browser/media/capture/frame_sink_video_capture_device_unittest.cc",
       "../browser/media/capture/web_contents_auto_scaler_unittest.cc",
       "../browser/media/capture/web_contents_frame_tracker_unittest.cc",
@@ -3543,6 +3558,7 @@ test("content_unittests") {
     ]
     if (is_mac) {
       sources += [
+        "../browser/media/capture/desktop_capture_util_mac_unittest.mm",
         "../browser/media/capture/pip_screen_capture_coordinator_impl_unittest.cc",
         "../browser/media/capture/pip_screen_capture_coordinator_proxy_impl_unittest.cc",
       ]
@@ -3665,6 +3681,7 @@ test("content_unittests") {
       "//components/download/internal/common:internal_java",
       "//content/browser:fontations_name_table_ffi",
       "//content/public/android:content_java",
+      "//content/public/android:jar_jni",
       "//gin:v8_snapshot_assets",
       "//gpu/command_buffer/service:android_texture_owner_test_support",
       "//third_party/blink/public/common",
@@ -3857,7 +3874,8 @@ group("fuzzers") {
 # test_buildbucket_api_gpu_cases.py on bots. This also tells the build system
 # when the tests should be re-run - when one of the dependent files changes.
 #
-# TODO(crbug.com/40130215): Remove once power testing is migrated to perf waterfall.
+# TODO(crbug.com/40130215): Remove once power testing is migrated to perf
+# waterfall.
 group("test_buildbucket_api_gpu_use_cases") {
   data = [
     # The test runner and its dependencies.

@@ -63,6 +63,7 @@ public class BottomSheetUnitTest {
     @Mock private TouchRestrictingFrameLayout mToolbarHolder;
     @Mock private InsetObserver mInsetObserver;
     @Mock private KeyboardVisibilityDelegate mKeyboardDelegate;
+    @Mock private BottomSheetObserver mBottomSheetObserver;
 
     @Captor
     private ArgumentCaptor<InsetObserver.WindowInsetsAnimationListener>
@@ -568,5 +569,35 @@ public class BottomSheetUnitTest {
 
         mKeyboardInsetSupplier.set(150);
         observer.onInsetChanged();
+    }
+
+    @Test
+    public void triggerObserverOnInsetChange() {
+        mBottomSheet.addObserver(mBottomSheetObserver);
+        verify(mInsetObserver)
+                .addWindowInsetsAnimationListener(mInsetsAnimationListenerCaptor.capture());
+        InsetObserver.WindowInsetsAnimationListener listener =
+                mInsetsAnimationListenerCaptor.getValue();
+
+        listener.onPrepare(null);
+        verify(mBottomSheetObserver).beforeInsetAnimationStart();
+
+        listener.onEnd(null);
+        verify(mBottomSheetObserver).onInsetAnimationEnd();
+    }
+
+    @Test
+    public void testUpdateA11yPaneTitle() {
+        int stringId = android.R.string.ok;
+        doReturn(stringId).when(mSheetContent).getSheetFullHeightAccessibilityStringId();
+
+        mBottomSheet.showContent(mSheetContent);
+        mBottomSheet.setSheetState(SheetState.FULL, false);
+
+        CharSequence expectedTitle = mActivity.getResources().getString(stringId);
+        assertEquals(
+                "Accessibility pane title should be set on the BottomSheet itself",
+                expectedTitle,
+                androidx.core.view.ViewCompat.getAccessibilityPaneTitle(mBottomSheet));
     }
 }

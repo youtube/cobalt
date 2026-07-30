@@ -93,7 +93,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".Unknown" summary="Unknown drag and drop type"/>
 </variants>
 
-<!-- LINT.ThenChange(//ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h:ComposeboxDragAndDropType, //tools/metrics/histograms/metadata/omnibox/enums.xml:ComposeboxDragAndDropType) -->
+<!-- LINT.ThenChange(//ios/chrome/browser/composebox/shared/metrics/composebox_metrics_recorder.h:ComposeboxDragAndDropType, //tools/metrics/histograms/metadata/omnibox/enums.xml:ComposeboxDragAndDropType) -->
 
 <variants name="DsePreloadTriggerType">
   <variant name=".OnPress" summary="on-press trigger"/>
@@ -1312,7 +1312,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.ContextualSearchSuggestion.Precision" enum="Boolean"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1335,7 +1335,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.ContextualSearchSuggestion.Recall" enum="Boolean"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1355,7 +1355,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.ContextualSearchSuggestion.Usage" enum="Boolean"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -1375,7 +1375,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.CutOrCopyAllText" units="count"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>jdonnelly@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -2229,7 +2229,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LensAction.Recall" enum="Boolean"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2250,7 +2250,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.LensAction.Usage" enum="Boolean"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>khalidpeer@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -3194,6 +3194,10 @@ Keep consistent with active providers. Doesn't need to include every provider in
     this metric can be seen as a time budget for the AI Mode WebUI page remote
     to be bound and ready to receive calls. Recorded at most once per browser
     window.
+
+    Recorded the very first time the AI Mode WebUI Omnibox popup is shown to the
+    user during the course of a browser session (i.e. subsequent show-popup
+    operations in the same browser window DO NOT log this histogram).
   </summary>
 </histogram>
 
@@ -3205,6 +3209,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     Records whether the renderer process has crashed and the contents is being
     reloaded before showing the WebUI AI Mode popup.
+
+    Recorded every time the AI Mode WebUI Omnibox popup web content is shown.
   </summary>
 </histogram>
 
@@ -3240,6 +3246,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     Record the time between the request of the AIM popup widget to show and when
     the first frame is painted by the widget on the screen.
+
+    Recorded every time the native widget hosting the AIM popup is shown.
   </summary>
 </histogram>
 
@@ -3250,7 +3258,94 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
     Records the termination status of the AI Mode Popup WebUI renderer process
-    when it goes away. This helps monitor crash rates and types.
+    when it goes away, whether due to normal termination or a process crash.
+    This helps monitor crash rates and types.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.FullWebUI.ConstructionToFirstShownDuration"
+    units="ms" expires_after="2026-12-22">
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>mahmadi@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Records the time between the Full WebUI page load which happens when the
+    omnibox popup presenter is constructed and the first time the popup widget
+    is shown. Given that the Full WebUI page begins the asynchronous process of
+    loading its resources, initialization, and binding immediately after it is
+    loaded, this metric can be seen as a time budget for the WebUI page remote
+    to be bound and ready to receive calls. Recorded at most once per browser
+    window.
+
+    Recorded the very first time the full WebUI Omnibox popup is shown to the
+    user during the course of a browser session (i.e. subsequent show-popup
+    operations in the same browser window DO NOT log this histogram).
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.FullWebUI.CrashRecovery" enum="Boolean"
+    expires_after="2026-12-22">
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>avivkiss@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records whether the renderer process has crashed and the contents is being
+    reloaded before showing the Full WebUI Omnibox popup.
+
+    Recorded every time the full WebUI Omnibox popup web content is shown.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.FullWebUI.DeferredShowVisualStateReadyDuration"
+    units="ms" expires_after="2026-12-22">
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>avivkiss@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the duration it took for the visual state callback to be called (or
+    fallback timeout to be reached) during a deferred show of the Full WebUI
+    popup. Logged every time the popup show is triggered.
+  </summary>
+</histogram>
+
+<histogram
+    name="Omnibox.Popup.FullWebUI.DeferredShowVisualStateReadyFromTimeout"
+    enum="Boolean" expires_after="2026-12-22">
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>avivkiss@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records whether the deferred show of the Full WebUI popup was triggered by
+    the fallback timer task (True) or the visual state callback (False). Logged
+    every time the popup show is triggered.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.FullWebUI.PresenterShowLatency.ToPaint"
+    units="ms" expires_after="2026-12-22">
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>mahmadi@chromium.org</owner>
+  <owner>kylixrd@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Record the time between the request of the Full WebUI popup widget to show
+    and when the first frame is painted by the widget on the screen.
+
+    Recorded every time the native widget hosting the full WebUI popup is shown.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.FullWebUI.RendererProcessGoneStatus"
+    enum="OmniboxWebUIRendererProcessGoneStatus" expires_after="2026-12-22">
+  <owner>khalidpeer@chromium.org</owner>
+  <owner>avivkiss@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the termination status of the Full WebUI Omnibox Popup renderer
+    process when it goes away, whether due to normal termination or a process
+    crash. This helps monitor crash rates and types.
   </summary>
 </histogram>
 
@@ -3308,6 +3403,10 @@ Keep consistent with active providers. Doesn't need to include every provider in
     resources, initialization, and binding immediately after it is loaded, this
     metric can be seen as a time budget for the WebUI page remote to be bound
     and ready to receive calls. Recorded at most once per browser window.
+
+    Recorded the very first time the classic WebUI Omnibox popup is shown to the
+    user during the course of a browser session (i.e. subsequent show-popup
+    operations in the same browser window DO NOT log this histogram).
   </summary>
 </histogram>
 
@@ -3317,7 +3416,9 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
     Records whether the renderer process has crashed and the contents is being
-    reloaded before showing the WebUI Omnibox popup.
+    reloaded before showing the classic WebUI Omnibox popup.
+
+    Recorded every time the classic WebUI Omnibox popup web content is shown.
   </summary>
 </histogram>
 
@@ -3362,6 +3463,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <summary>
     Record the time between the request of the classic popup widget to show and
     when the first frame is painted by the widget on the screen.
+
+    Recorded every time the native widget hosting the classic popup is shown.
   </summary>
 </histogram>
 
@@ -3371,7 +3474,8 @@ Keep consistent with active providers. Doesn't need to include every provider in
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
     Records the termination status of the Omnibox WebUI renderer process when it
-    goes away. This helps monitor crash rates and types.
+    goes away, whether due to normal termination or a process crash. This helps
+    monitor crash rates and types.
   </summary>
 </histogram>
 
@@ -4145,7 +4249,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SuggestionUsed.URL.Experimental.NavigationToFirstMeaningfulPaint"
-    units="ms" expires_after="2026-08-30">
+    units="ms" expires_after="2026-11-01">
   <owner>jdonnelly@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -4519,6 +4623,36 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.TemplateUrl.DBRefresh.MigrationMatch"
+    enum="MigrationMatch" expires_after="2026-12-31">
+  <owner>dgn@google.com</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    The match or mismatch reason found while comparing prepopulated engines and
+    keywords DB engines during prepopulated engines migration.
+
+    A &quot;match&quot; (e.g., exact or host match) indicates that an engine in
+    the keywords database corresponds to a prepopulated engine definition and
+    can be migrated. A &quot;mismatch&quot; (e.g., URL mismatch or invalid URL)
+    indicates that the existing engine does not sufficiently match the
+    prepopulated one, and thus cannot be safely migrated.
+
+    Recorded for each engine under migration that matches an existing engine,
+    during the keywords DB refresh that is done on profile load after a database
+    version update, country change, or migration feature flag flip.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.TemplateUrl.DBRefresh.TotalDuplicates" units="units"
+    expires_after="2026-12-31">
+  <owner>dgn@google.com</owner>
+  <owner>chrome-regionalcapabilities@google.com</owner>
+  <summary>
+    The total number of duplicate prepopulated engine IDs found in the search
+    engine database during a refresh.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.TemplateUrl.DBRefresh.UnmatchedDefaultSearchCount"
     units="count" expires_after="2026-09-20">
   <owner>dgn@google.com</owner>
@@ -4536,8 +4670,19 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.TemplateUrl.DseReconciler.MigrationMatch"
+    enum="MigrationMatch" expires_after="2026-12-31">
+  <owner>dgn@google.com</owner>
+  <owner>chrome-reg-cap@google.com</owner>
+  <summary>
+    The type of match found during prepopulated engine migration in the DSE
+    reconciler. Recorded for each engine under migration that matches an
+    existing engine.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.TemplateUrl.Reconciliation.Type"
-    enum="ReconciliationType" expires_after="2026-08-30">
+    enum="ReconciliationType" expires_after="2026-11-01">
   <owner>ender@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -4588,7 +4733,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.TemplateUrl.RegulatoryExtension.SuggestVariant"
-    enum="RegulatoryExtensionVariant" expires_after="2026-08-30">
+    enum="RegulatoryExtensionVariant" expires_after="2026-11-01">
   <owner>ender@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>

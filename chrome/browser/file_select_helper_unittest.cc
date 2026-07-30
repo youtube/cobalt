@@ -22,8 +22,12 @@
 #include "build/build_config.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "content/public/browser/file_select_listener.h"
+#include "content/public/browser/web_contents_user_data.h"
 #include "content/public/test/browser_task_environment.h"
+#include "content/public/test/test_web_contents_factory.h"
+#include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/base/models/dialog_model.h"
 #include "ui/base/test/test_dialog_model_host.h"
@@ -42,17 +46,22 @@ class TestFileSelectListener : public content::FileSelectListener {
       std::vector<blink::mojom::FileChooserFileInfoPtr>* files)
       : files_(files) {}
 
+  bool canceled() const { return canceled_; }
+
  private:
   ~TestFileSelectListener() override = default;
   // content::FileSelectListener overrides.
   void FileSelected(std::vector<blink::mojom::FileChooserFileInfoPtr> files,
                     const base::FilePath& base_dir,
                     blink::mojom::FileChooserParams::Mode mode) override {
-    *files_ = std::move(files);
+    if (files_) {
+      *files_ = std::move(files);
+    }
   }
-  void FileSelectionCanceled() override {}
+  void FileSelectionCanceled() override { canceled_ = true; }
 
   raw_ptr<std::vector<blink::mojom::FileChooserFileInfoPtr>> files_;
+  bool canceled_ = false;
 };
 
 // Fill in the arguments to be passed to the ContentAnalysisCompletionCallback()
@@ -356,6 +365,7 @@ TEST_F(FileSelectHelperTest, ContentAnalysisCompletionCallback_TwoBadFiles) {
 
   file_select_helper->ContentAnalysisCompletionCallback(std::move(orig_files),
                                                         data, result);
+
   EXPECT_EQ(0u, files.size());
 }
 
@@ -534,6 +544,88 @@ TEST_F(FileSelectHelperTest,
   // Files should be cleared.
   EXPECT_EQ(0u, files.size());
 }
+
+// Tests that closing the WebContents while a content analysis task is running
+// does not cause a double release (https://crbug.com/500416901).
+TEST_F(FileSelectHelperTest, WebContentsDestroyedDuringAsyncFileProcessing) {
+  content::BrowserTaskEnvironment task_environment;
+  TestingProfile profile;
+  scoped_refptr<FileSelectHelper> file_select_helper =
+      new FileSelectHelper(&profile);
+
+  base::WeakPtr<FileSelectHelper> weak_ptr =
+      file_select_helper->weak_ptr_factory_.GetWeakPtr();
+
+  auto listener = base::MakeRefCounted<TestFileSelectListener>(nullptr);
+  file_select_helper->SetFileSelectListenerForTesting(std::move(listener));
+
+  // Simulate FileSelectHelper::RunFileChooser setting self_ptr_
+  file_select_helper->self_ptr_ = file_select_helper;
+
+  // Simuluate a background content analysis task that zips files (e.g. when
+  // selecting a macOS package).
+  std::vector<base::FilePath> temporary_files;
+  temporary_files.emplace_back(FILE_PATH_LITERAL("fake.zip"));
+
+  // While the background task is running, the WebContents is
+  // destroyed (e.g. user closes the tab).
+  // This schedules the deletion of temporary files and drops the internal
+  // reference.
+  file_select_helper->WebContentsDestroyed();
+
+  // The background zipping task completes and returns to the UI thread.
+  // In a real scenario, the BindOnce in ProcessSelectedFilesMac would hold
+  // a scoped_refptr to 'this', keeping it alive for this call.
+  std::vector<ui::SelectedFileInfo> files;
+#if BUILDFLAG(IS_MAC)
+  file_select_helper->ProcessSelectedFilesMacOnUIThread(files, temporary_files);
+#else
+  // On non-mac platforms, there is no background zipping task, so simulate the
+  // end of the operation directly.
+  file_select_helper->temporary_files_ = std::move(temporary_files);
+  file_select_helper->DeleteTemporaryFiles();
+  file_select_helper->RunFileChooserEnd();
+#endif
+
+  // The helper should be kept alive by file_select_helper.
+  EXPECT_TRUE(weak_ptr);
+
+  // Drop the last reference and ensure it's destroyed.
+  file_select_helper = nullptr;
+  task_environment.RunUntilIdle();
+  EXPECT_FALSE(weak_ptr);
+}
+
+TEST_F(FileSelectHelperTest, EnumerateDirectory_TabDeactivated) {
+  content::BrowserTaskEnvironment task_environment;
+  TestingProfile profile;
+  content::TestWebContentsFactory web_contents_factory;
+  content::WebContents* web_contents =
+      web_contents_factory.CreateWebContents(&profile);
+
+  tabs::MockTabInterface mock_tab;
+  EXPECT_CALL(mock_tab, GetContents())
+      .WillRepeatedly(testing::Return(web_contents));
+  tabs::TabLookupFromWebContents::CreateForWebContents(web_contents, &mock_tab);
+
+  base::RepeatingCallback<void(tabs::TabInterface*)> deactivation_callback;
+  EXPECT_CALL(mock_tab, RegisterWillDeactivate(testing::_))
+      .WillOnce([&](base::RepeatingCallback<void(tabs::TabInterface*)> cb) {
+        deactivation_callback = std::move(cb);
+        return base::CallbackListSubscription();
+      });
+
+  std::vector<blink::mojom::FileChooserFileInfoPtr> files;
+  auto listener = base::MakeRefCounted<TestFileSelectListener>(&files);
+
+  FileSelectHelper::EnumerateDirectory(web_contents, listener,
+                                       base::FilePath(FILE_PATH_LITERAL("/")));
+
+  ASSERT_FALSE(deactivation_callback.is_null());
+  deactivation_callback.Run(&mock_tab);
+
+  EXPECT_TRUE(listener->canceled());
+}
 #endif  // BUILDFLAG(ENTERPRISE_CLOUD_CONTENT_ANALYSIS)
 
 TEST_F(FileSelectHelperTest, GetFileTypesFromAcceptType) {
@@ -627,42 +719,4 @@ TEST_F(FileSelectHelperTest, ConfirmationDialog) {
   ui::TestDialogModelHost::Close(std::move(host));
   EXPECT_EQ(callback_count_, 3);
   EXPECT_EQ(selected_files_.size(), 0u);
-}
-
-// Tests that a pending asynchronous operation (like content analysis) will
-// keep the helper alive until it completes, even if the tab is destroyed.
-TEST_F(FileSelectHelperTest, TaskKeepsAlive) {
-  content::BrowserTaskEnvironment task_environment;
-  TestingProfile profile;
-  auto web_contents = content::WebContents::Create(
-      content::WebContents::CreateParams(&profile));
-
-  scoped_refptr<FileSelectHelper> helper = new FileSelectHelper(&profile);
-  base::WeakPtr<FileSelectHelper> weak_helper = helper->GetWeakPtr();
-
-  // Register with the manager to keep the helper alive.
-  FileSelectHelper::ActiveHelpers::Add(web_contents.get(), helper);
-
-  // Simulate a background task holding a reference.
-  base::OnceClosure task;
-  base::RunLoop run_loop;
-  task = base::BindOnce(
-      [](scoped_refptr<FileSelectHelper> helper,
-         base::OnceClosure quit_closure) {
-        // Do nothing, just hold the reference.
-        std::move(quit_closure).Run();
-      },
-      helper, run_loop.QuitClosure());
-
-  // Drop our local reference and destroy the WebContents.
-  helper = nullptr;
-  web_contents.reset();
-
-  // The helper should be kept alive by the pending task.
-  EXPECT_TRUE(weak_helper);
-
-  // Once the task finishes, the helper should be destroyed.
-  std::move(task).Run();
-  run_loop.Run();
-  EXPECT_FALSE(weak_helper);
 }

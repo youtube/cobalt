@@ -94,7 +94,6 @@ disallowed_extension_deps_ = [
   "//extensions/common:core_api_provider",
   "//extensions/common/api/*",
   "//extensions/renderer/*",
-  "//extensions/shell/*",
   "//extensions/components/*",
   "//extensions/strings/*",
 ]
@@ -301,6 +300,7 @@ test("components_unittests") {
     "//components/password_manager/services/csv_password:unit_tests",
     "//components/payments/core:unit_tests",
     "//components/persistent_cache:unit_tests",
+    "//components/personal_context/core:unit_tests",
     "//components/plus_addresses/core/browser:unit_tests",
     "//components/plus_addresses/core/browser/metrics:unit_tests",
     "//components/plus_addresses/core/browser/settings:unit_tests",
@@ -407,6 +407,7 @@ test("components_unittests") {
       "//components/enterprise/connectors/core:cloud_content_scanning_unittests",
       "//components/enterprise/connectors/core:unit_tests",
       "//components/enterprise/data_protection:unit_tests",
+      "//components/enterprise/isolated_mode:unit_tests",
       "//components/enterprise/obfuscation/core:unit_tests",
     ]
   }
@@ -478,6 +479,7 @@ test("components_unittests") {
       "//components/browsing_topics:unit_tests",
       "//components/browsing_topics/common:unit_tests",
       "//components/captive_portal/content:unit_tests",
+      "//components/capture_mode:unit_tests",
       "//components/cast_receiver:unit_tests",
       "//components/cast_streaming:unit_tests",
       "//components/certificate_transparency:unit_tests",
@@ -550,6 +552,7 @@ test("components_unittests") {
       "//components/policy/content:unit_tests",
       "//components/push_messaging:unit_tests",
       "//components/record_replay/content/browser:unit_tests",
+      "//components/record_replay/core/browser:unit_tests",
       "//components/reduce_accept_language/browser:unit_tests",
       "//components/reporting/resources:unit_tests",
       "//components/services/heap_profiling:unit_tests",
@@ -1408,6 +1411,7 @@ if (use_blink) {
       "//components/omnibox/browser",
       "//components/omnibox/browser:test_support",
       "//components/subresource_filter/core/common",
+      "//components/subresource_filter/core/common:test_support",
       "//components/subresource_filter/tools:tools_lib",
       "//components/test:test_support",
       "//components/visitedlink/browser",

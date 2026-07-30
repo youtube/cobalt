@@ -159,11 +159,25 @@ void CanvasResourceDispatcher::DispatchFrame(
     const gfx::Rect& damage_rect,
     bool is_opaque) {
   TRACE_EVENT0("blink", "CanvasResourceDispatcher::DispatchFrame");
-  viz::CompositorFrame frame;
-  if (!PrepareFrame(std::move(canvas_resource), damage_rect, is_opaque,
-                    &frame)) {
+  if (!canvas_resource) {
     return;
   }
+
+  auto exported_resource =
+      base::MakeRefCounted<ExportedCanvasResource>(std::move(canvas_resource));
+
+  // This takes another ref and sends it to the placeholder. The
+  // ExternalCanvasResource will be destroyed when both display compositor and
+  // placeholder are done with it, returning underlying memory to the owner.
+  PostImageToPlaceholderIfNotBlocked(exported_resource);
+
+  // For frameless canvas, we don't get a valid frame_sink_id and should drop.
+  if (!frame_sink_id_.is_valid()) {
+    return;
+  }
+
+  viz::CompositorFrame frame;
+  PrepareFrame(std::move(exported_resource), damage_rect, is_opaque, &frame);
 
   pending_compositor_frames_++;
   sink_->SubmitCompositorFrame(
@@ -171,26 +185,12 @@ void CanvasResourceDispatcher::DispatchFrame(
       std::move(frame), std::nullopt, 0);
 }
 
-bool CanvasResourceDispatcher::PrepareFrame(
-    scoped_refptr<CanvasResource>&& canvas_resource,
+void CanvasResourceDispatcher::PrepareFrame(
+    scoped_refptr<ExportedCanvasResource>&& exported_resource,
     const gfx::Rect& damage_rect,
     bool is_opaque,
     viz::CompositorFrame* frame) {
   TRACE_EVENT0("blink", "CanvasResourceDispatcher::PrepareFrame");
-  if (!canvas_resource) {
-    return false;
-  }
-
-  auto exported_resource =
-      base::MakeRefCounted<ExportedCanvasResource>(std::move(canvas_resource));
-
-  auto next_resource_id = id_generator_.GenerateNextId();
-
-  // For frameless canvas, we don't get a valid frame_sink_id and should drop.
-  if (!frame_sink_id_.is_valid()) {
-    PostImageToPlaceholderIfNotBlocked(std::move(exported_resource));
-    return false;
-  }
 
   // TODO(crbug.com/652931): update the device_scale_factor
   frame->metadata.device_scale_factor = 1.0f;
@@ -236,15 +236,10 @@ bool CanvasResourceDispatcher::PrepareFrame(
       &resource,
       /*needs_verified_synctoken=*/true);
 
-  const viz::ResourceId resource_id = next_resource_id;
+  const viz::ResourceId resource_id = id_generator_.GenerateNextId();
   resource.id = resource_id;
 
   const gfx::Size resource_size = resource.GetSize();
-
-  // This takes another ref and sends it to the placeholder. The
-  // ExternalCanvasResource will be destroyed when both display compositor and
-  // placeholder is done with it, returning underlying memory to the owner.
-  PostImageToPlaceholderIfNotBlocked(exported_resource);
 
   // Now store our ref to ensure that the resource remains valid for the
   // duration of the compositor's usage (we'll drop our ref when the compositor
@@ -274,8 +269,6 @@ bool CanvasResourceDispatcher::PrepareFrame(
         parent_local_surface_id_allocator_.GetCurrentLocalSurfaceId());
     change_size_for_next_commit_ = false;
   }
-
-  return true;
 }
 
 void CanvasResourceDispatcher::DidReceiveCompositorFrameAck(

@@ -83,7 +83,6 @@
 
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/android/features/dev_ui/buildflags.h"
-#include "chrome/browser/download/android/intercept_oma_download_navigation_throttle.h"
 #include "components/navigation_interception/intercept_navigation_delegate.h"
 
 #if BUILDFLAG(DFMIFY_DEV_UI)
@@ -122,7 +121,6 @@
 #endif  // BUILDFLAG(ENABLE_PLATFORM_APPS)
 
 #if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -312,7 +310,6 @@ void CreateAndAddChromeThrottlesForNavigation(
     navigation_interception::InterceptNavigationDelegate::MaybeCreateAndAdd(
         registry, navigation_interception::SynchronyMode::kAsync);
   }
-  InterceptOMADownloadNavigationThrottle::CreateAndAdd(registry);
 
 #if BUILDFLAG(DFMIFY_DEV_UI)
   // If the DevUI DFM is already installed, then this is a no-op, except for the

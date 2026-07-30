@@ -52,6 +52,7 @@
 #include "components/translate/core/browser/translate_manager.h"
 #include "components/vector_icons/vector_icons.h"
 #include "ui/menus/simple_menu_model.h"
+#include "ui/strings/grit/ui_strings.h"
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #include "components/plus_addresses/core/browser/resources/vector_icons.h"
@@ -400,7 +401,7 @@ void ToastService::RegisterToasts(
   if (base::FeatureList::IsEnabled(toast_features::kTranslateToast)) {
     toast_registry_->RegisterToast(
         ToastId::kTranslate,
-        ToastSpecification::Builder(vector_icons::kTranslateIcon,
+        ToastSpecification::Builder(vector_icons::kGTranslateIcon,
                                     IDS_TRANSLATE_TOAST_BODY)
             .AddActionButton(
                 IDS_TRANSLATE_TOAST_UNDO_BUTTON,
@@ -512,10 +513,25 @@ void ToastService::RegisterToasts(
       ToastId::kSendTabToSelfSuccess,
       ToastSpecification::Builder(vector_icons::kDevicesIcon,
                                   IDS_SEND_TAB_TO_SELF_POST_SEND_SUCCESS_TOAST)
-          .AddGlobalScoped()
           .AddCloseButton()
           .Build());
 
+  toast_registry_->RegisterToast(
+      ToastId::kSendTabToSelfSuccessThrottled,
+      ToastSpecification::Builder(
+          vector_icons::kDevicesIcon,
+          IDS_SEND_TAB_TO_SELF_POST_SEND_THROTTLED_TOAST)
+          .AddCloseButton()
+          .Build());
+
+  // TODO(crbug.com/492072882): Update design, it is temporary.
+  toast_registry_->RegisterToast(
+      ToastId::kSendTabToSelfFailure,
+      ToastSpecification::Builder(
+          vector_icons::kWarningIcon,
+          IDS_MESSAGE_NOTIFICATION_SEND_TAB_TO_SELF_CONFIRMATION_FAILURE_MESSAGE)
+          .AddCloseButton()
+          .Build());
   // Report a scam confirmation toast.
   toast_registry_->RegisterToast(
       ToastId::kReportUnsafeSiteConfirmation,

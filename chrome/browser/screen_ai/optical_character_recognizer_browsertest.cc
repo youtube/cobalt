@@ -720,7 +720,8 @@ INSTANTIATE_TEST_SUITE_P(All,
 
 // This test is slow and most probably failing on debug builds and ASAN builds
 // which are slower than the other tests.
-#if !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
+// TODO(crbug.com/509294498): Re-enable this test on Linux and ASan/Debug.
+#if BUILDFLAG(IS_LINUX) || !defined(NDEBUG) || defined(ADDRESS_SANITIZER)
 #define MAYBE_PerformOCRLargeImage DISABLED_PerformOCRLargeImage
 #else
 #define MAYBE_PerformOCRLargeImage PerformOCRLargeImage
@@ -929,8 +930,14 @@ IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
   histograms.ExpectUniqueSample("Accessibility.ScreenAI.OCR.ModeSwitch", 0, 1);
 }
 
+// TODO(crbug.com/509294498): Re-enable this test on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_PerformOCRLightModeEnglish DISABLED_PerformOCRLightModeEnglish
+#else
+#define MAYBE_PerformOCRLightModeEnglish PerformOCRLightModeEnglish
+#endif
 IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
-                       PerformOCRLightModeEnglish) {
+                       MAYBE_PerformOCRLightModeEnglish) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   SkBitmap bitmap =
       LoadImageFromTestFile(base::FilePath(FILE_PATH_LITERAL("ocr"))
@@ -986,8 +993,14 @@ IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
   }
 }
 
+// TODO(crbug.com/509294498): Re-enable this test on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_PerformOCRLightModeChinese DISABLED_PerformOCRLightModeChinese
+#else
+#define MAYBE_PerformOCRLightModeChinese PerformOCRLightModeChinese
+#endif
 IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
-                       PerformOCRLightModeChinese) {
+                       MAYBE_PerformOCRLightModeChinese) {
   base::ScopedAllowBlockingForTesting allow_blocking;
   SkBitmap bitmap = LoadImageFromTestFile(
       base::FilePath(FILE_PATH_LITERAL("ocr")).AppendASCII("chinese.png"));
@@ -1044,8 +1057,16 @@ IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
   }
 }
 
+// TODO(crbug.com/509669183): Re-enable this test on Linux.
+#if BUILDFLAG(IS_LINUX)
+#define MAYBE_PerformOCRMultipleClientsLightMode \
+  DISABLED_PerformOCRMultipleClientsLightMode
+#else
+#define MAYBE_PerformOCRMultipleClientsLightMode \
+  PerformOCRMultipleClientsLightMode
+#endif
 IN_PROC_BROWSER_TEST_F(OpticalCharacterRecognizerResultsTest,
-                       PerformOCRMultipleClientsLightMode) {
+                       MAYBE_PerformOCRMultipleClientsLightMode) {
   base::HistogramTester histograms;
   base::ScopedAllowBlockingForTesting allow_blocking;
 

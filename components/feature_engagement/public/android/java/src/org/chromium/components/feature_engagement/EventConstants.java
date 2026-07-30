@@ -182,10 +182,6 @@ public final class EventConstants {
     public static final String KEYBOARD_ACCESSORY_PAYMENT_CARD_INFO_RETRIEVAL_AUTOFILLED =
             "autofill_card_info_retrieval_suggestion_accepted";
 
-    /** The keyboard accessory was used to create a new plus address. */
-    public static final String KEYBOARD_ACCESSORY_PLUS_ADDRESS_CREATE_SUGGESTION =
-            "plus_address_create_suggestion_feature_used";
-
     /** Voice search button click on NTP. */
     public static final String NTP_VOICE_SEARCH_BUTTON_CLICKED = "ntp_voice_search_button_clicked";
 
@@ -238,6 +234,9 @@ public final class EventConstants {
     /** The option to track the price of a product was selected from the main menu. */
     public static final String SHOPPING_LIST_PRICE_TRACK_FROM_MENU =
             "shopping_list_track_price_from_menu";
+
+    /** The user clicked the site controls item in the app menu. */
+    public static final String SITE_CONTROLS_MENU_ITEM_CLICKED = "site_controls_menu_item_clicked";
 
     /** Reengagement events. */
     public static final String STARTED_FROM_MAIN_INTENT = "started_from_main_intent";

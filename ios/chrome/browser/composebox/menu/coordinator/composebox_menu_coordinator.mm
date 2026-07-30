@@ -6,6 +6,7 @@
 
 #import <memory>
 #import <set>
+#import <vector>
 
 #import "components/contextual_search/contextual_search_service.h"
 #import "components/contextual_search/contextual_search_session_handle.h"
@@ -19,6 +20,7 @@
 #import "ios/chrome/browser/composebox/public/composebox_attachment_selection.h"
 #import "ios/chrome/browser/composebox/public/composebox_focus_params.h"
 #import "ios/chrome/browser/composebox/shared/coordinator/composebox_picker_presenter.h"
+#import "ios/chrome/browser/composebox/shared/metrics/composebox_metrics_recorder.h"
 #import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
 #import "ios/chrome/browser/search_engines/model/template_url_service_factory.h"
 #import "ios/chrome/browser/shared/model/browser/browser.h"
@@ -26,6 +28,7 @@
 #import "ios/chrome/browser/shared/public/commands/browser_coordinator_commands.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
+#import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
 #import "ios/web/public/web_state_id.h"
 #import "third_party/omnibox_proto/searchbox_config.pb.h"
 
@@ -35,10 +38,16 @@ namespace {
 // the `preferredContentSize`.
 NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
 
+/// Top padding above the sheet. Allows the user to drag the sheet down without
+/// conflicting with system behavior.
+CGFloat const kSheetTopPadding = 40.0f;
+
 }  // namespace
 
 @interface ComposeboxMenuCoordinator () <ComposeboxMenuMediatorDelegate,
+                                         ComposeboxMenuViewControllerDelegate,
                                          ComposeboxPickerPresenterDelegate,
+                                         ComposeboxPickerPresenterDataSource,
                                          UISheetPresentationControllerDelegate>
 @end
 
@@ -55,6 +64,9 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
   ComposeboxInputStateManager* _stateManager;
   std::unique_ptr<contextual_search::ContextualSearchSessionHandle>
       _sessionHandle;
+
+  // Metrics recorder
+  ComposeboxMetricsRecorder* _metricsRecorder;
 }
 
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
@@ -62,6 +74,8 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
                     preselectedAttachments:
                         (ComposeboxAttachmentSelection*)preselectedAttachments
                                 inputState:(ComposeboxUIInputState*)inputState
+                           metricsRecorder:
+                               (ComposeboxMetricsRecorder*)metricsRecorder
                                 entrypoint:(ComposeboxEntrypoint)entrypoint {
   self = [super initWithBaseViewController:viewController browser:browser];
   if (self) {
@@ -69,6 +83,7 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
     _preselection = preselectedAttachments;
     _inputState = inputState;
     _isStandaloneMenu = (inputState == nil);
+    _metricsRecorder = metricsRecorder;
   }
   return self;
 }
@@ -76,15 +91,18 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
 - (instancetype)initWithBaseViewController:(UIViewController*)viewController
                                    browser:(Browser*)browser
                                 entrypoint:(ComposeboxEntrypoint)entrypoint {
-  return [self initWithBaseViewController:viewController
-                                  browser:browser
-                   preselectedAttachments:nil
-                               inputState:nil
-                               entrypoint:entrypoint];
+  return
+      [self initWithBaseViewController:viewController
+                               browser:browser
+                preselectedAttachments:nil
+                            inputState:nil
+                       metricsRecorder:[[ComposeboxMetricsRecorder alloc] init]
+                            entrypoint:entrypoint];
 }
 
 - (void)start {
   _viewController = [[ComposeboxMenuViewController alloc] init];
+  _viewController.delegate = self;
 
   if (_isStandaloneMenu) {
     ProfileIOS* profile = self.browser->GetProfile();
@@ -121,26 +139,17 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
                    entrypoint:_entrypoint
                   isIncognito:profile->IsOffTheRecord()];
 
-    if (aimEligibilityService) {
-      const omnibox::SearchboxConfig* config =
-          aimEligibilityService->GetSearchboxConfig();
-      if (config) {
-        [_stateManager setSearchboxConfig:*config];
-      }
-    }
-
     std::set<web::WebStateID> emptySet;
-    ComposeboxUIInputState* inputState =
-        [_stateManager computeUIInputStateWithFavicon:nil
-                                  attachedWebStateIDs:emptySet];
-
-    _mediator = [[ComposeboxMenuMediator alloc] initWithEntrypoint:_entrypoint
-                                                        inputState:inputState];
-  } else {
-    CHECK(_inputState);
-    _mediator = [[ComposeboxMenuMediator alloc] initWithEntrypoint:_entrypoint
-                                                        inputState:_inputState];
+    _inputState = [_stateManager computeUIInputStateWithFavicon:nil
+                                            attachedWebStateIDs:emptySet];
   }
+
+  CHECK(_inputState);
+  _mediator = [[ComposeboxMenuMediator alloc]
+          initWithEntrypoint:_entrypoint
+                  inputState:_inputState
+                webStateList:self.browser->GetWebStateList()
+      preselectedAttachments:_preselection];
   _mediator.delegate = self;
 
   _viewController.sheetPresentationController.prefersGrabberVisible = YES;
@@ -148,10 +157,18 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
   _viewController.sheetPresentationController
       .prefersEdgeAttachedInCompactHeight = YES;
 
+  if ([UIDevice currentDevice].userInterfaceIdiom ==
+      UIUserInterfaceIdiomPhone) {
+    _viewController.sheetPresentationController
+        .widthFollowsPreferredContentSizeWhenEdgeAttached = YES;
+  }
+
   __weak UIViewController* weakVC = _viewController;
   auto detentResolver = ^CGFloat(
       id<UISheetPresentationControllerDetentResolutionContext> context) {
-    return weakVC.preferredContentSize.height;
+    CGFloat contentHeight = weakVC.preferredContentSize.height;
+    CGFloat maxAllowedHeight = context.maximumDetentValue - kSheetTopPadding;
+    return contentHeight < maxAllowedHeight ? contentHeight : maxAllowedHeight;
   };
   _viewController.sheetPresentationController.detents =
       @[ [UISheetPresentationControllerDetent
@@ -161,6 +178,7 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
   _viewController.mutator = _mediator;
   _mediator.consumer = _viewController;
 
+  [self recordAttachmentsMenuOpen];
   [self.baseViewController presentViewController:_viewController
                                         animated:YES
                                       completion:nil];
@@ -169,6 +187,7 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
       initWithBaseViewController:_viewController
                          browser:self.browser];
   _pickerPresenter.delegate = self;
+  _pickerPresenter.dataSource = self;
 }
 
 - (void)stop {
@@ -200,21 +219,16 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
                   toolMode:toolMode
                  modelMode:ComposeboxModelOption::kNone
             attachmentList:nil];
-    __weak id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
-        self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+    __weak __typeof(self) weakSelf = self;
     [_viewController.presentingViewController
         dismissViewControllerAnimated:YES
                            completion:^{
-                             [commands showComposeboxWithParams:focusParams];
+                             [weakSelf showComposeboxWithParams:focusParams];
                            }];
   } else {
-    [_viewController
-        dismissViewControllerAnimated:YES
-                           completion:^{
-                             [self.inputPlateDelegate
-                                 composeboxMenuCoordinator:self
-                                                didTapTool:toolMode];
-                           }];
+    [self.inputPlateDelegate composeboxMenuCoordinator:self
+                                            didTapTool:toolMode];
+    [_viewController dismissViewControllerAnimated:YES completion:nil];
   }
 }
 
@@ -227,21 +241,16 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
                   toolMode:ComposeboxMode::kRegularSearch
                  modelMode:modelMode
             attachmentList:nil];
-    __weak id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
-        self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+    __weak __typeof(self) weakSelf = self;
     [_viewController.presentingViewController
         dismissViewControllerAnimated:YES
                            completion:^{
-                             [commands showComposeboxWithParams:focusParams];
+                             [weakSelf showComposeboxWithParams:focusParams];
                            }];
   } else {
-    [_viewController
-        dismissViewControllerAnimated:YES
-                           completion:^{
-                             [self.inputPlateDelegate
-                                 composeboxMenuCoordinator:self
-                                               didTapModel:modelMode];
-                           }];
+    [self.inputPlateDelegate composeboxMenuCoordinator:self
+                                           didTapModel:modelMode];
+    [_viewController dismissViewControllerAnimated:YES completion:nil];
   }
 }
 
@@ -254,27 +263,23 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
                   toolMode:ComposeboxMode::kRegularSearch
                  modelMode:ComposeboxModelOption::kNone
             attachmentList:attachments];
-    __weak id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
-        self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+    __weak __typeof(self) weakSelf = self;
     [_viewController.presentingViewController
         dismissViewControllerAnimated:YES
                            completion:^{
-                             [commands showComposeboxWithParams:focusParams];
+                             [weakSelf showComposeboxWithParams:focusParams];
                            }];
   } else {
-    [_viewController
-        dismissViewControllerAnimated:YES
-                           completion:^{
-                             [self.inputPlateDelegate
-                                 composeboxMenuCoordinator:self
-                                      didUpdateAttachments:attachments];
-                           }];
+    [self.inputPlateDelegate composeboxMenuCoordinator:self
+                                  didUpdateAttachments:attachments];
+    [_viewController dismissViewControllerAnimated:YES completion:nil];
   }
 }
 
 - (void)composeboxMenuMediatorDidRequestCameraSelection:
     (ComposeboxMenuMediator*)mediator {
-  // TODO(crbug.com/506955766): Unify metrics recording and record this action.
+  [_metricsRecorder
+      recordAttachmentButtonUsed:FuseboxAttachmentButtonType::kCamera];
 
   if (![_mediator canAddMoreAttachments]) {
     [self showMaxAttachmentSnackbarError];
@@ -286,7 +291,8 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
 
 - (void)composeboxMenuMediatorDidRequestGallerySelection:
     (ComposeboxMenuMediator*)mediator {
-  // TODO(crbug.com/506955766): Unify metrics recording and record this action.
+  [_metricsRecorder
+      recordAttachmentButtonUsed:FuseboxAttachmentButtonType::kGallery];
 
   if (![_mediator canAddMoreAttachments]) {
     [self showMaxAttachmentSnackbarError];
@@ -299,7 +305,8 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
 
 - (void)composeboxMenuMediatorDidRequestFileSelection:
     (ComposeboxMenuMediator*)mediator {
-  // TODO(crbug.com/506955766): Unify metrics recording and record this action.
+  [_metricsRecorder
+      recordAttachmentButtonUsed:FuseboxAttachmentButtonType::kFiles];
 
   if (![_mediator canAddMoreAttachments]) {
     [self showMaxAttachmentSnackbarError];
@@ -310,7 +317,8 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
 
 - (void)composeboxMenuMediatorDidRequestTabSelection:
     (ComposeboxMenuMediator*)mediator {
-  // TODO(crbug.com/506955766): Unify metrics recording and record this action.
+  [_metricsRecorder
+      recordAttachmentButtonUsed:FuseboxAttachmentButtonType::kTabPicker];
 
   if (![_mediator canAddMoreAttachments]) {
     [self showMaxAttachmentSnackbarError];
@@ -324,6 +332,8 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
 - (void)composeboxPickerPresenter:(ComposeboxPickerPresenter*)presenter
                     didPickImages:
                         (NSArray<ComposeboxPickerImageResult*>*)results {
+  [_metricsRecorder recordImagesAttached:results.count];
+
   [_mediator processImageItems:results];
 }
 
@@ -334,6 +344,8 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
 
 - (void)composeboxPickerPresenter:(ComposeboxPickerPresenter*)presenter
              didPickFilesWithURLs:(NSArray<NSURL*>*)urls {
+  [_metricsRecorder recordFilesAttached:urls.count];
+
   [_mediator processFileURLs:urls];
 }
 
@@ -346,12 +358,70 @@ NSString* const kCustomFittingDetentIdentifier = @"kFittingDetentIdentifier";
               cachedWebStateIDs:cachedWebStateIDs];
 }
 
+#pragma mark - ComposeboxPickerPresenterDataSource
+
+- (std::set<web::WebStateID>)allAttachedWebStateIDsForPresenter:
+    (ComposeboxPickerPresenter*)presenter {
+  return [_mediator allAttachedWebStateIDs];
+}
+
+- (std::set<web::WebStateID>)attachedWebStateIDsInCurrentContextForPresenter:
+    (ComposeboxPickerPresenter*)presenter {
+  return [_mediator attachedWebStateIDsInCurrentContext];
+}
+
+- (NSUInteger)maxTabAttachmentCountForPresenter:
+    (ComposeboxPickerPresenter*)presenter {
+  CHECK(_inputState);
+  return _inputState.maxTabAttachmentCount;
+}
+
 #pragma mark - Private
 
 /// Displays a snackbar error indicating the maximum number of attachments has
 /// been reached.
 - (void)showMaxAttachmentSnackbarError {
   // TODO(crbug.com/506956765): Implement.
+}
+
+// Records the menu open with visible buttons.
+- (void)recordAttachmentsMenuOpen {
+  using enum ComposeboxAttachmentOption;
+
+  std::vector<FuseboxAttachmentButtonType> visibleButtons;
+  if (![_inputState isAttachmentHidden:kCurrentTab]) {
+    visibleButtons.push_back(FuseboxAttachmentButtonType::kCurrentTab);
+  }
+  if (![_inputState isAttachmentHidden:kTab]) {
+    visibleButtons.push_back(FuseboxAttachmentButtonType::kTabPicker);
+  }
+  if (![_inputState isAttachmentHidden:kCamera]) {
+    visibleButtons.push_back(FuseboxAttachmentButtonType::kCamera);
+  }
+  if (![_inputState isAttachmentHidden:kGallery]) {
+    visibleButtons.push_back(FuseboxAttachmentButtonType::kGallery);
+  }
+  if (![_inputState isAttachmentHidden:kFile]) {
+    visibleButtons.push_back(FuseboxAttachmentButtonType::kFiles);
+  }
+
+  [_metricsRecorder
+      recordAttachmentsMenuOpenedWithVisibleButtons:visibleButtons];
+}
+
+- (void)showComposeboxWithParams:(ComposeboxFocusParams*)params {
+  id<BrowserCoordinatorCommands> commands = HandlerForProtocol(
+      self.browser->GetCommandDispatcher(), BrowserCoordinatorCommands);
+  params.metricsRecorder = _metricsRecorder;
+  [commands showComposeboxWithParams:params];
+}
+
+#pragma mark - ComposeboxMenuViewControllerDelegate
+
+- (void)composeboxMenuViewControllerDidRequestClose:
+    (ComposeboxMenuViewController*)composeboxMenuViewController {
+  [_viewController.presentingViewController dismissViewControllerAnimated:YES
+                                                               completion:nil];
 }
 
 @end

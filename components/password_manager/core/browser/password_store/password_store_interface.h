@@ -28,8 +28,6 @@ class SyncService;
 
 namespace password_manager {
 
-struct PasswordForm;
-
 class PasswordStoreBackend;
 class PasswordStoreConsumer;
 class SmartBubbleStatsStore;
@@ -63,12 +61,12 @@ class PasswordStoreInterface : public RefcountedKeyedService {
                                  const PasswordStoreChangeList& changes) = 0;
 
     // Notifies the observer that password data changed. Will be called from
-    // the UI thread. The `retained_passwords` are a complete list of passwords
-    // and blocklisted sites. The passed `store` issued the observer
+    // the UI thread. The `retained_credentials` are a complete list of
+    // passwords and blocklisted sites. The passed `store` issued the observer
     // notification in case there might be multiple ones.
     virtual void OnLoginsRetained(
         PasswordStoreInterface* store,
-        const std::vector<PasswordForm>& retained_passwords) = 0;
+        const std::vector<StoredCredential>& retained_credentials) = 0;
 
     // Notifies the observer that error state of the password store may have
     // changed. This happens when the store backend receives a notification
@@ -87,41 +85,42 @@ class PasswordStoreInterface : public RefcountedKeyedService {
   // Necessary condition to offer saving passwords.
   virtual ActionableError GetError() const = 0;
 
-  // Adds the given PasswordForm to the secure password store asynchronously.
-  // `completion` will be run after the form is added.
-  virtual void AddLogin(const PasswordForm& form,
+  // Adds the given StoredCredential to the secure password store
+  // asynchronously. `completion` will be run after the form is added.
+  virtual void AddLogin(StoredCredential form,
                         base::OnceClosure completion = base::DoNothing()) = 0;
 
-  // Adds all forms in the given vector of PasswordForm to the secure password
-  // store asynchronously. `completion` will be run after the forms are added.
-  virtual void AddLogins(const std::vector<PasswordForm>& forms,
+  // Adds all forms in the given vector of StoredCredential to the secure
+  // password store asynchronously. `completion` will be run after the forms are
+  // added.
+  virtual void AddLogins(std::vector<StoredCredential> forms,
                          base::OnceClosure completion = base::DoNothing()) = 0;
 
-  // Updates the matching PasswordForm in the secure password store (async).
+  // Updates the matching StoredCredential in the secure password store (async).
   // If any of the primary key fields (signon_realm, url, username_element,
   // username_value, password_element) are updated, then the second version of
   // the method must be used that takes `old_primary_key`, i.e., the old values
   // for the primary key fields (the rest of the fields are ignored).
   // completion will be run after the form is updated.
   virtual void UpdateLogin(
-      const PasswordForm& form,
+      StoredCredential form,
       base::OnceClosure completion = base::DoNothing()) = 0;
 
-  // Updates all matching forms in the given vector of PasswordForm in the
+  // Updates all matching forms in the given vector of StoredCredential in the
   // secure password store (async). Completion will be run after the forms are
   // updated.
-  virtual void UpdateLogins(const std::vector<PasswordForm>& forms,
+  virtual void UpdateLogins(std::vector<StoredCredential> forms,
                             base::OnceClosure completion) = 0;
 
   virtual void UpdateLoginWithPrimaryKey(
-      const PasswordForm& new_form,
-      const PasswordForm& old_primary_key,
+      StoredCredential new_form,
+      const StoredCredential& old_primary_key,
       base::OnceClosure completion = base::DoNothing()) = 0;
 
-  // Removes the matching PasswordForm from the secure password store (async).
-  // `location` is used for logging purposes and investigations.
+  // Removes the matching StoredCredential from the secure password store
+  // (async). `location` is used for logging purposes and investigations.
   virtual void RemoveLogin(const base::Location& location,
-                           const PasswordForm& form) = 0;
+                           const StoredCredential& form) = 0;
 
   // Removes all logins created in the given date range. `completion` is run
   // after deletions have been completed and notifications have been sent out.
@@ -148,24 +147,24 @@ class PasswordStoreInterface : public RefcountedKeyedService {
       const PasswordFormDigest& form_digest,
       base::OnceClosure completion = base::NullCallback()) = 0;
 
-  // Searches for a matching PasswordForm, and notifies `consumer` on
+  // Searches for a matching StoredCredential, and notifies `consumer` on
   // completion.
   // TODO(crbug.com/40185049): Use a smart pointer for consumer.
   virtual void GetLogins(const PasswordFormDigest& form,
                          base::WeakPtr<PasswordStoreConsumer> consumer) = 0;
 
-  // Gets the complete list of non-blocklist PasswordForms.`consumer` will be
-  // notified on completion.
+  // Gets the complete list of non-blocklist StoredCredentials. `consumer` will
+  // be notified on completion.
   // TODO(crbug.com/40185049): Use a smart pointer for consumer.
   virtual void GetAutofillableLogins(
       base::WeakPtr<PasswordStoreConsumer> consumer) = 0;
 
-  // Gets the complete list of PasswordForms (regardless of their blocklist
+  // Gets the complete list of StoredCredentials (regardless of their blocklist
   // status) and notify `consumer` on completion.
   // TODO(crbug.com/40185049): Use a smart pointer for consumer.
   virtual void GetAllLogins(base::WeakPtr<PasswordStoreConsumer> consumer) = 0;
 
-  // Gets the complete list of PasswordForms, regardless of their blocklist
+  // Gets the complete list of StoredCredentials, regardless of their blocklist
   // status. Also fills in affiliation and branding information for Android
   // credentials.
   // TODO(crbug.com/40185049): Use a smart pointer for consumer.

@@ -194,76 +194,46 @@ ExternalVkImageBackingFactory::~ExternalVkImageBackingFactory() {
 }
 
 std::unique_ptr<SharedImageBacking>
-ExternalVkImageBackingFactory::CreateSharedImage(
-    const Mailbox& mailbox,
-    viz::SharedImageFormat format,
-    SurfaceHandle surface_handle,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label,
-    bool is_thread_safe) {
+ExternalVkImageBackingFactory::CreateSharedImage(const Mailbox& mailbox,
+                                                 const SharedImageInfo& si_info,
+                                                 SurfaceHandle surface_handle,
+                                                 bool is_thread_safe) {
   CHECK(!is_thread_safe);
   return ExternalVkImageBacking::Create(
       context_state_, enable_webgpu_on_vk_via_gl_interop_, command_pool_.get(),
-      mailbox, format, size, color_space, surface_origin, alpha_type,
-      SharedImageUsageSet(usage), std::move(debug_label), image_usage_cache_,
-      base::span<const uint8_t>());
+      mailbox, si_info, image_usage_cache_, base::span<const uint8_t>());
 }
 
 std::unique_ptr<SharedImageBacking>
 ExternalVkImageBackingFactory::CreateSharedImage(
     const Mailbox& mailbox,
-    viz::SharedImageFormat format,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label,
+    const SharedImageInfo& si_info,
     bool is_thread_safe,
     base::span<const uint8_t> pixel_data) {
   CHECK(!is_thread_safe);
   return ExternalVkImageBacking::Create(
       context_state_, enable_webgpu_on_vk_via_gl_interop_, command_pool_.get(),
-      mailbox, format, size, color_space, surface_origin, alpha_type,
-      SharedImageUsageSet(usage), std::move(debug_label), image_usage_cache_,
-      pixel_data);
+      mailbox, si_info, image_usage_cache_, pixel_data);
 }
 
 std::unique_ptr<SharedImageBacking>
 ExternalVkImageBackingFactory::CreateSharedImage(
     const Mailbox& mailbox,
-    viz::SharedImageFormat format,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label,
+    const SharedImageInfo& si_info,
     bool is_thread_safe,
     gfx::GpuMemoryBufferHandle handle) {
   DCHECK(!is_thread_safe);
   CHECK(CanImportGpuMemoryBuffer(handle.type));
   return ExternalVkImageBacking::CreateFromGMB(
       context_state_, enable_webgpu_on_vk_via_gl_interop_, command_pool_.get(),
-      mailbox, std::move(handle), format, size, color_space, surface_origin,
-      alpha_type, usage, std::move(debug_label));
+      mailbox, si_info, std::move(handle));
 }
 
 std::unique_ptr<SharedImageBacking>
 ExternalVkImageBackingFactory::CreateSharedImage(
     const Mailbox& mailbox,
-    viz::SharedImageFormat format,
+    const SharedImageInfo& si_info,
     SurfaceHandle surface_handle,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label,
     bool is_thread_safe,
     gfx::BufferUsage buffer_usage) {
   DCHECK(!is_thread_safe);
@@ -271,8 +241,7 @@ ExternalVkImageBackingFactory::CreateSharedImage(
   // Creating the backing with a native pixmap so that it can be CPU mappable.
   return ExternalVkImageBacking::CreateWithPixmap(
       context_state_, enable_webgpu_on_vk_via_gl_interop_, command_pool_.get(),
-      mailbox, format, surface_handle, size, color_space, surface_origin,
-      alpha_type, usage, std::move(debug_label), buffer_usage);
+      mailbox, si_info, surface_handle, buffer_usage);
 #else
   // A CPU mappable backing of this type can only be requested for OZONE
   // platforms.

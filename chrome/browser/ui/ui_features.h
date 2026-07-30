@@ -49,9 +49,6 @@ BASE_DECLARE_FEATURE(kExtensionsCollapseMainMenu);
 
 #endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
-// Controls whether the refreshed infobar is enabled.
-BASE_DECLARE_FEATURE(kInfobarRefresh);
-
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 BASE_DECLARE_FEATURE(kPdfInfoBar);
 BASE_DECLARE_FEATURE(kSeparateDefaultAndPinPrompt);
@@ -219,6 +216,9 @@ BASE_DECLARE_FEATURE(kTearOffWebAppTabOpensWebAppWindow);
 // Enables a three-button password save dialog variant (essentially adding a
 // "not now" button alongside "never").
 BASE_DECLARE_FEATURE(kThreeButtonPasswordSaveDialog);
+
+// Enables a split button for the "Cancel" action in the Password Save bubble.
+BASE_DECLARE_FEATURE(kPasswordSaveUpdateDropdownMenuExperiment);
 #endif
 
 // Feature which uses a flyover animation for animating side panels (and
@@ -230,6 +230,7 @@ BASE_DECLARE_FEATURE(kSidePanelFlyoverAnimation);
 bool UseSidePanelFlyoverAnimation();
 
 BASE_DECLARE_FEATURE_PARAM(int, kSidePanelFlyoverDurationMs);
+BASE_DECLARE_FEATURE_PARAM(bool, kSidePanelFlyoverUseDefaultDeadline);
 
 // TODO(crbug.com/460764864): Cleanup all the enterprise badging feature flags.
 BASE_DECLARE_FEATURE(kEnterpriseProfileBadgingForMenu);
@@ -298,6 +299,10 @@ BASE_DECLARE_FEATURE(kByDateHistoryInSidePanel);
 // If enabled, the "Tabs from other devices" side panel will be available.
 BASE_DECLARE_FEATURE(kTabsFromOtherDevicesSidePanel);
 
+// If enabled, Stable-channel instances of Chrome will be hidden from the "Tabs
+// from other devices" side panel.
+BASE_DECLARE_FEATURE(kTabsFromOtherDevicesSidePanelExcludeStableChannel);
+
 // If enabled, the "Tabs from other devices" toolbar button will be pinned by
 // default.
 BASE_DECLARE_FEATURE(kTabsFromOtherDevicesSidePanelPinnedByDefault);
@@ -354,6 +359,9 @@ BASE_DECLARE_FEATURE(kTabGroupsFocusing);
 BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingPinnedTabs);
 BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingAutoClose);
 BASE_DECLARE_FEATURE_PARAM(bool, kTabGroupsFocusingDefaultToFocused);
+
+BASE_DECLARE_FEATURE(kVerticalTabsGrabHandleRemoval);
+BASE_DECLARE_FEATURE_PARAM(bool, kVerticalTabsGrabHandleRemovalAlways);
 
 }  // namespace features
 

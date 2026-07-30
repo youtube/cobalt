@@ -5,6 +5,8 @@
 #ifndef CHROME_BROWSER_AUTOFILL_ANDROID_ENTITY_METADATA_ANDROID_H_
 #define CHROME_BROWSER_AUTOFILL_ANDROID_ENTITY_METADATA_ANDROID_H_
 
+#include <cstdint>
+
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/time/time.h"
@@ -23,15 +25,20 @@ struct EntityMetadataAndroid {
       JNIEnv* env,
       const jni_zero::JavaRef<jobject>& j_metadata);
 
-  EntityMetadataAndroid(base::Time date_modified, int use_count);
+  EntityMetadataAndroid(std::string guid,
+                        base::Time date_modified,
+                        int64_t use_count,
+                        base::Time use_date);
   EntityMetadataAndroid(const EntityMetadataAndroid&);
   EntityMetadataAndroid& operator=(const EntityMetadataAndroid&);
   EntityMetadataAndroid(EntityMetadataAndroid&&);
   EntityMetadataAndroid& operator=(EntityMetadataAndroid&&);
   ~EntityMetadataAndroid();
 
+  std::string guid;
   base::Time date_modified;
-  int use_count;
+  int64_t use_count;
+  base::Time use_date;
 };
 
 }  // namespace autofill

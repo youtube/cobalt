@@ -51,6 +51,9 @@ constexpr std::string kComplexPassword = "abcDEF123+-%";
 // checking that the length was at least 8.
 constexpr std::string kSimplePassword = "simplepassword";
 
+// A short password of length 5.
+constexpr std::string kShortPassword = "short";
+
 // An invalid token.
 constexpr std::string kInvalidToken = "invalid_token";
 
@@ -331,8 +334,6 @@ IN_PROC_BROWSER_TEST_F(AuthFactorConfigTestWithGaiaPassword,
 // to enforce appropriate complexity.
 IN_PROC_BROWSER_TEST_F(AuthFactorConfigTestWithGaiaPassword,
                        UpdateOnlinePasswordNoComplexityCheck) {
-  static const std::string kShortPassword = "short";
-
   std::optional<std::string> auth_token = MakeAuthToken(test::kGaiaPassword);
   ASSERT_TRUE(auth_token.has_value());
   mojom::PasswordFactorEditor& password_editor =
@@ -439,7 +440,7 @@ IN_PROC_BROWSER_TEST_F(
   std::optional<std::string> auth_token = MakeAuthToken(test::kLocalPassword);
   ASSERT_TRUE(auth_token.has_value());
 
-  auto result = CheckLocalPasswordComplexity(*auth_token, kSimplePassword);
+  auto result = CheckLocalPasswordComplexity(*auth_token, kShortPassword);
 
   EXPECT_EQ(result, mojom::PasswordComplexity::kTooShort);
 }
@@ -626,22 +627,15 @@ IN_PROC_BROWSER_TEST_F(
 }
 
 // Checks that SetPin enforces the complexity policy.
-// TODO(crbug.com/495853054): Test is flaky on ChromeOS.
-#if BUILDFLAG(IS_CHROMEOS)
-#define MAYBE_SetPin_EnforcesPolicy DISABLED_SetPin_EnforcesPolicy
-#else
-#define MAYBE_SetPin_EnforcesPolicy SetPin_EnforcesPolicy
-#endif
 IN_PROC_BROWSER_TEST_F(
     AuthFactorConfigTestWithLocalPasswordAndLocalAuthFactorsComplexity,
-    MAYBE_SetPin_EnforcesPolicy) {
+    SetPin_EnforcesPolicy) {
   SetComplexityPolicy(ash::LocalAuthFactorsComplexity::kHigh);
   std::optional<std::string> auth_token = MakeAuthToken(test::kLocalPassword);
   ASSERT_TRUE(auth_token.has_value());
 
   // 1. Verify SetPin rejects weak PIN.
-  EXPECT_DEATH_IF_SUPPORTED(SetPin(*auth_token, kWeakPin),
-                            "Compromised C\\+\\+ client detected outside Mojo");
+  EXPECT_EQ(SetPin(*auth_token, kWeakPin), mojom::ConfigureResult::kFatalError);
 
   // 2. Verify SetPin accepts strong PIN.
   auto accept_result = SetPin(*auth_token, kStrongPin);

@@ -182,12 +182,6 @@ targets.binaries.windowed_test_launcher(
 )
 
 targets.binaries.windowed_test_launcher(
-    name = "app_shell_unittests",
-    label = "//extensions/shell:app_shell_unittests",
-    module_scheme = "gtest",
-)
-
-targets.binaries.windowed_test_launcher(
     name = "ash_components_unittests",
     label = "//chromeos/ash/experiences:ash_components_unittests",
     module_scheme = "gtest",
@@ -854,6 +848,18 @@ targets.binaries.script(
     name = "content_shell_crash_test",
     label = "//content/shell:content_shell_crash_test",
     script = "//testing/scripts/content_shell_crash_test.py",
+    resultdb = targets.resultdb(
+        enable = True,
+        result_format = "single",
+    ),
+    module_scheme = "single",
+)
+
+targets.binaries.script(
+    name = "content_shell_freeze_test",
+    label = "//content/shell:content_shell_freeze_test",
+    script = "//content/shell/tools/aaudio_freezer_integration_test.py",
+    skip_usage_check = True,
     resultdb = targets.resultdb(
         enable = True,
         result_format = "single",
@@ -1792,6 +1798,12 @@ targets.binaries.generated_script(
 targets.binaries.generated_script(
     name = "litert_e2e_tests",
     label = "//components/optimization_guide/internal/testing:litert_e2e_tests",
+    module_scheme = "flat",
+)
+
+targets.binaries.generated_script(
+    name = "litert_lm_advanced_main_legacy_tests",
+    label = "//components/optimization_guide/internal/testing:litert_lm_advanced_main_legacy_tests",
     module_scheme = "flat",
 )
 

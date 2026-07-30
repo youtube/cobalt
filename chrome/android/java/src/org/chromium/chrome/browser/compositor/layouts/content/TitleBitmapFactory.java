@@ -19,7 +19,6 @@ import android.view.InflateException;
 import androidx.annotation.ColorInt;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
-import androidx.appcompat.content.res.AppCompatResources;
 
 import org.chromium.base.Log;
 import org.chromium.base.Token;
@@ -30,7 +29,7 @@ import org.chromium.chrome.R;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutGroupTitle;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutTrailingButtonsCoordinator;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
+import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.components.tab_groups.TabGroupColorPickerUtils;
 import org.chromium.ui.util.StyleUtils;
@@ -82,8 +81,7 @@ public class TitleBitmapFactory {
         mTabTextPaint = new TextPaint(Paint.ANTI_ALIAS_FLAG);
         if (mIncognito) {
             int incognitoTabTextColor =
-                    AppCompatResources.getColorStateList(
-                                    context, R.color.compositor_tab_title_bar_text_incognito)
+                    context.getColorStateList(R.color.compositor_tab_title_bar_text_incognito)
                             .getDefaultColor();
             mTabTextPaint.setColor(incognitoTabTextColor);
         }
@@ -211,16 +209,16 @@ public class TitleBitmapFactory {
     /**
      * Generates the group title bitmap.
      *
-     * @param filter To fetch tab information from.
+     * @param tabModel To fetch tab information from.
      * @param context The current Android's context.
      * @param groupId The group ID.
      * @param title The title of the group.
      * @return The Bitmap with the title. {@code null} if it cannot be generated.
      */
     public @Nullable Bitmap getGroupTitleBitmap(
-            TabGroupModelFilter filter, Context context, Token groupId, String title) {
-        if (!filter.tabGroupExists(groupId)) return null;
-        @TabGroupColorId int colorId = filter.getTabGroupColor(groupId);
+            TabModel tabModel, Context context, Token groupId, String title) {
+        if (!tabModel.tabGroupExists(groupId)) return null;
+        @TabGroupColorId int colorId = tabModel.getTabGroupColor(groupId);
         @ColorInt
         int color =
                 TabGroupColorPickerUtils.getTabGroupColorPickerItemTextColor(

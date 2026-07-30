@@ -1244,6 +1244,14 @@ Khả năng sử dụng tiện ích vẫn chịu sự kiểm soát của các ch
 <translation id="1858775210076906272">Cấu hình điền sẵn của Kerberos</translation>
 <translation id="1861206724856734193">Đặt danh sách các quy tắc ngăn rò rỉ dữ liệu.</translation>
 <translation id="1862267110714201519">Tắt tính năng cửa sổ ảo.</translation>
+<translation id="1862749749551522146">Ngẫu nhiên hoá kích thước nhóm socket là một cơ chế bảo mật ngăn chặn kẻ tấn công khai thác giới hạn dung lượng cố định để tìm hiểu thông tin chéo giữa các trang web.
+Nếu dung lượng của một nhóm thường là 128 socket, cơ chế này sẽ ngẫu nhiên giới hạn kích thước nhóm trong khoảng từ 128 đến 256.
+Với giới hạn này, số lượng kết nối đến máy chủ proxy có thể tăng gấp 2 lần, nhưng trên thực tế, số lượng kết nối dự kiến chỉ tăng gấp 1,2 lần.
+
+Tính năng này ảnh hưởng đến cài đặt trong <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" /> và <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
+Thay vì các chính sách đã nêu xác định giới hạn trên, thì giới hạn trên sẽ gấp 2 lần giá trị ban đầu (mặc dù trên thực tế, số lượng kết nối dự kiến chỉ tăng gấp 1,2 lần).
+
+Theo mặc định, tính năng ngẫu nhiên hoá được bật cho tất cả các nhóm. Tuy nhiên, chính sách này cho phép tắt tính năng ngẫu nhiên hoá đối với các nhóm máy chủ proxy cụ thể.</translation>
 <translation id="1865417998205858223">Quyền khóa</translation>
 <translation id="1865867000796030567">Nếu bạn đặt chính sách này thành Enabled (Bật), thì giá trị của khoá tệp kê khai <ph name="REQUIRED_PLATFORM_VERSION" /> của ứng dụng kiosk tự động chạy với độ trễ bằng 0 sẽ được dùng làm tiền tố của phiên bản đích tự động cập nhật.
 
@@ -1897,6 +1905,25 @@ Nếu bạn không đặt chính sách này hoặc đặt thành Tắt, người
 <translation id="225340736558643885">Bật cảnh báo đối với biểu mẫu không an toàn</translation>
 <translation id="2258126710006312594">Cho phép người dùng truy cập từ xa chuyển tệp từ/đến máy chủ</translation>
 <translation id="225830954785359083">Ngăn các trang hiển thị cửa sổ bật lên trong khi huỷ tải</translation>
+<translation id="2260635608598936994">Định cấu hình bộ lọc để chọn những chứng chỉ máy khách được đưa vào báo cáo tín hiệu bảo mật của <ph name="PRODUCT_NAME" />. Những báo cáo này sẽ gửi thông tin về trạng thái của trình duyệt và thiết bị đến <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />. Quản trị viên có thể sử dụng thông tin này để định cấu hình các quy tắc <ph name="GOOGLE_CONTEXT_AWARE_ACCESS" />.
+
+Chính sách này cho phép bạn xác định bộ lọc dựa trên các thuộc tính của chứng chỉ máy khách, chẳng hạn như tên phân biệt của ISSUER (TỔ CHỨC PHÁT HÀNH) và/hoặc SUBJECT (CHỦ THỂ). <ph name="PRODUCT_NAME" /> sẽ chỉ đưa vào báo cáo tín hiệu những chứng chỉ khớp với ít nhất một trong các bộ lọc được chỉ định.
+
+     Ví dụ về cách sử dụng mục <ph name="SELECTOR_PLACEHOLDER" />:
+
+      * Khi bạn đặt <ph name="SELECTOR_PLACEHOLDER" /> thành <ph name="SECURITY_SIGNALS_CLIENT_CERTIFICATE_SELECTORS_FILTER_EXAMPLE" />, chỉ những chứng chỉ máy khách do chứng chỉ có CommonName <ph name="ISSUER_CN_PLACEHOLDER" /> cấp mới được chọn.
+
+      * Khi <ph name="SELECTOR_PLACEHOLDER" /> chứa cả mục <ph name="ISSUER_STRING_VALUE" /> và <ph name="SUBJECT_STRING_VALUE" />, chỉ những chứng chỉ máy khách đáp ứng cả hai điều kiện mới được chọn.
+
+      * Khi <ph name="SELECTOR_PLACEHOLDER" /> chứa mục <ph name="SUBJECT_STRING_VALUE" /> với giá trị <ph name="FILTER_STRING_ORGANIZATION" />, chứng chỉ phải có ít nhất một tổ chức khớp với giá trị đã chỉ định thì mới được chọn.
+
+      * Khi <ph name="SELECTOR_PLACEHOLDER" /> chứa mục <ph name="SUBJECT_STRING_VALUE" /> với giá trị <ph name="FILTER_STRING_ORGANIZATIONAL_UNIT" />, chứng chỉ phải có ít nhất một đơn vị tổ chức khớp với giá trị đã chỉ định thì mới được chọn.
+
+      * Khi bạn đặt <ph name="SELECTOR_PLACEHOLDER" /> thành <ph name="EMPTY_DICTIONARY" />, phần thông tin trống sẽ bị bỏ qua đối với chính sách này.
+
+      Nếu bạn không đặt chính sách này thì sẽ không có chứng chỉ máy khách nào được chọn trong quá trình báo cáo tín hiệu.
+
+*Quan trọng*: Chính sách này chỉ có hiệu lực nếu bạn đã bật chính sách <ph name="USER_SECURITY_SIGNALS_REPORTING_POLICY_NAME" />, tức là chính sách kiểm soát toàn bộ tính năng cho phép gửi tín hiệu bảo mật từ Chrome.</translation>
 <translation id="2261648512244797294">Tắt tính năng in privet đã ngừng hoạt động</translation>
 <translation id="2262701937800507517">Sử dụng thứ tự thuật toán mật mã mặc định của <ph name="PRODUCT_OS_NAME" /></translation>
 <translation id="2263881357524831360">Cho phép dùng Trình quản lý mật khẩu bên thứ ba trong <ph name="PRODUCT_NAME" /> trên <ph name="ANDROID_NAME" /></translation>
@@ -2322,6 +2349,24 @@ Chính sách này chỉ áp dụng cho những lần kết nối mới và khôn
 <translation id="252742292004421898">Cho phép Direct Sockets API trên các trang web này</translation>
 <translation id="2528762900096510743">Bật dịch vụ tự động đăng xuất</translation>
 <translation id="2529880111512635313">Định cấu hình danh sách các ứng dụng và tiện ích buộc phải cài đặt</translation>
+<translation id="2530090617700835618">Việc đặt chính sách này sẽ chỉ định số lượng tối đa kết nối đồng thời trên mỗi máy chủ proxy áp dụng cho yêu cầu sử dụng giao thức WebSocket.
+
+Để sửa đổi giới hạn yêu cầu không sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
+
+Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 128.
+
+Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 128 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
+Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
+
+Giá trị phải bằng hoặc cao hơn 6.
+Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
+Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (128).
+
+Giá trị phải bằng hoặc thấp hơn 256.
+Nếu bạn đặt giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256.
+Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (128).
+
+Xin lưu ý rằng các giới hạn được áp dụng chịu ảnh hưởng bởi <ph name="ALLOW_SOCKET_POOL_SIZE_RANDOMIZATION_FOR_PROXIES_POLICY_NAME" />.</translation>
 <translation id="253135976343875019">Thời gian chờ cảnh báo trạng thái không sử dụng khi chạy trên nguồn AC</translation>
 <translation id="2532480434098051405">Cho phép tính năng Inline Image và tham gia cải tiến mô hình AI.</translation>
 <translation id="2535370400681639351">Nếu bạn đặt chính sách này thành Bật, các yêu cầu xác thực gnubby sẽ được chuyển tiếp qua proxy trên một đường kết nối máy chủ từ xa.
@@ -2704,6 +2749,15 @@ Khi chính sách này được đặt thành false hoặc không được địn
 Nếu bạn bật hoặc không đặt chính sách này, thì người dùng có thể thêm tài khoản Kerberos thông qua phần Cài đặt tài khoản Kerberos trên trang Cài đặt Kerberos. Người dùng có toàn quyền kiểm soát các tài khoản mà họ thêm, cũng như có thể sửa đổi hoặc xoá các tài khoản này.
 
 Nếu bạn tắt chính sách này, người dùng sẽ không thể thêm tài khoản Kerberos. Người dùng chỉ có thể thêm tài khoản thông qua chính sách "Định cấu hình các tài khoản Kerberos". Đây là một cách hiệu quả để khoá các tài khoản.</translation>
+<translation id="2771222727845689796">Chính sách này cho phép bạn chỉ định danh sách các mẫu URL. Nội dung trên web chạy trong nền khớp với các mẫu này sẽ bị buộc phải chạy ở chế độ ưu tiên nền trước.
+
+Nếu bạn bật chính sách <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> thì danh sách này sẽ bị bỏ qua vì tất cả các thẻ sẽ bị buộc phải chạy ở chế độ ưu tiên nền trước.
+
+Nếu bạn tắt hoặc không đặt chính sách <ph name="FORCE_FOREGROUND_PRIORITY_FOR_ALL_TABS_POLICY_NAME" /> thì chỉ nội dung khớp với các mẫu trong danh sách này sẽ bị buộc phải chạy ở chế độ ưu tiên nền trước.
+
+Để biết thông tin chi tiết về các mẫu <ph name="URL_LABEL" /> hợp lệ, vui lòng xem tại https://support.google.com/chrome/a?p=url_blocklist_filter_format.
+
+Nếu danh sách này trống hoặc bạn không đặt danh sách này, thì không có nội dung chạy nền nào bị buộc phải chạy ở chế độ ưu tiên nền trước.</translation>
 <translation id="2772231477628401250">Sử dụng HTTP cho các lượt tải bản cập nhật xuống</translation>
 <translation id="2772955711376920612">Nếu bạn bật chính sách này, đồng thời đặt <ph name="DEVICE_POWER_PEAK_SHIFT_BATTERY_THRESHOLD_POLICY_NAME" /> và <ph name="DEVICE_POWER_PEAK_SHIFT_DAY_CONFIG_POLICY_NAME" />, thì hệ thống sẽ luôn bật chế độ chuyển đổi nguồn điện vào giờ cao điểm nếu được hỗ trợ trên thiết bị. Chính sách quản lý nguồn điện khi chuyển đổi vào giờ cao điểm là một chính sách tiết kiệm điện năng giúp giảm thiểu việc sử dụng dòng điện xoay chiều trong những thời điểm có mức sử dụng cao điểm. Bạn có thể đặt thời gian bắt đầu và thời gian kết thúc để chạy trong chế độ chuyển đổi nguồn điện vào giờ cao điểm cho từng ngày trong tuần. Thiết bị sẽ chạy bằng pin (ngay cả khi được kết nối với dòng điện xoay chiều) trong những thời điểm này miễn là pin ở trên ngưỡng được chỉ định. Sau thời gian kết thúc chỉ định, thiết bị sẽ chạy bằng dòng điện xoay chiều (nếu được kết nối) nhưng sẽ không sạc pin. Thiết bị sẽ hoạt động bình thường trở lại bằng dòng điện xoay chiều và sạc lại pin sau thời gian bắt đầu sạc được chỉ định.
 
@@ -4740,15 +4794,6 @@ Nếu bạn đặt chính sách này thành <ph name="DISABLE_UNPUBLISHED" /> (1
 
           Nếu bạn không đặt chính sách này, thì ban đầu, tính năng phản hồi bằng giọng nói sẽ tắt trên màn hình đăng nhập nhưng người dùng có thể bật bất cứ lúc nào.</translation>
 <translation id="4173974507809462880">Hiển thị màn hình hướng cuộn của bàn di chuột trong khi đăng nhập</translation>
-<translation id="4175770453187201981">Chính sách này kiểm soát phần tích hợp chế độ AI của Google trong thanh địa chỉ và hộp tìm kiếm trên trang Thẻ mới.
-
-Để truy cập tính năng này, người dùng phải đặt Google làm công cụ tìm kiếm mặc định.
-
-0/chưa đặt = Người dùng sẽ có thể sử dụng tính năng này.
-
-1 = Người dùng sẽ không thể sử dụng tính năng này.
-
-Nếu bạn không đặt chính sách này thì hành vi của chính sách sẽ do chính sách <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> xác định.</translation>
 <translation id="417956245902013347">Bật tính năng hỗ trợ tiếp cận về làm nổi bật dấu chèn trên màn hình đăng nhập.
 
           Nếu bạn đặt chính sách này thành true, thì tính năng làm nổi bật dấu chèn sẽ luôn bật trên màn hình đăng nhập.
@@ -4895,6 +4940,7 @@ Chính sách này dùng để tắt tính năng tự động nâng cấp nội d
       Nếu bạn tắt hoặc không đặt chính sách này, thì người dùng có thể thay đổi chế độ cài đặt của chính sách.
 
       Xin lưu ý: Đối với Android, hãy dùng chính sách <ph name="ISOLATE_ORIGINS_ANDROID_POLICY_NAME" />.</translation>
+<translation id="4261641564041253502">Tự động chọn chứng chỉ máy khách khớp với bộ lọc cho báo cáo tín hiệu bảo mật của <ph name="PRODUCT_NAME" />.</translation>
 <translation id="4261820385751181068">Ngôn ngữ màn hình đăng nhập thiết bị</translation>
 <translation id="4263788921751326798">Tắt tính năng báo cáo thông tin trong báo cáo sự cố của thiết bị</translation>
 <translation id="4268586991084547853">Tương thích tốt hơn với danh sách trang web ở chế độ doanh nghiệp (enterprise mode sitelists) của Microsoft IE/Edge.</translation>
@@ -5281,6 +5327,24 @@ Một số yếu tố cần cân nhắc liên quan đến việc doanh nghiệp 
 
 <ph name="IP_PROTECTION_NAME" /> sẽ được ra mắt sớm nhất vào phiên bản M139.</translation>
 <translation id="4525328580251166229">Kiểm soát các chính sách liên quan đến hệ thống con Bruschetta.</translation>
+<translation id="452801090660038046">Việc đặt chính sách này sẽ chỉ định số lượng tối đa kết nối đồng thời trên mỗi máy chủ proxy áp dụng cho yêu cầu không sử dụng giao thức WebSocket.
+
+Để sửa đổi giới hạn yêu cầu sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
+
+Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 128.
+
+Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 128 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
+Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
+
+Giá trị phải bằng hoặc cao hơn 6.
+Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
+Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (128).
+
+Giá trị phải bằng hoặc thấp hơn 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
+Nếu bạn đặt một giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
+Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (128).
+
+Xin lưu ý rằng các giới hạn được áp dụng chịu ảnh hưởng bởi <ph name="ALLOW_SOCKET_POOL_SIZE_RANDOMIZATION_FOR_PROXIES_POLICY_NAME" />.</translation>
 <translation id="4528981768990874684">Tắt tính năng <ph name="IP_PROTECTION_NAME" />.</translation>
 <translation id="453031441196755904">Chính sách này không còn dùng nữa.</translation>
 <translation id="4531706050939927436">Các ứng dụng Android có thể bị buộc cài đặt từ Bảng điều khiển dành cho quản trị viên của Google bằng Google Play. Các ứng dụng đó không sử dụng chính sách này.</translation>
@@ -5708,23 +5772,6 @@ Khi bạn đặt chính sách này thành Tắt, người dùng sẽ không th�
       Nếu bạn đặt chính sách này thành bật, màn hình giới thiệu Gemini sẽ hiển thị.
 
       Nếu bạn không đặt chính sách này, màn hình giới thiệu Gemini sẽ bị bỏ qua đối với người dùng do doanh nghiệp quản lý và sẽ hiển thị với người dùng không được quản lý.</translation>
-<translation id="4781685421378746692">Chính sách này kiểm soát việc chia sẻ nội dung của trang và tệp với <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> và <ph name="GOOGLE_LENS_PRODUCT_NAME" /> thông qua bảng điều khiển bên hoặc các thẻ của <ph name="PRODUCT_NAME" />.
-
-Xin lưu ý rằng chính sách này không ảnh hưởng đến <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> trên web. Chính sách này chỉ kiểm soát cách người dùng có thể chia sẻ thông tin khi sử dụng <ph name="PRODUCT_NAME" />.
-
-0/chưa đặt = người dùng có thể chia sẻ nội dung của trang hoặc tệp với <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
-
-1 = người dùng không thể chia sẻ nội dung của trang hoặc tệp với <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Các điểm truy cập để chia sẻ ngữ cảnh và bảng điều khiển bên sẽ bị tắt hoặc ẩn.
-
-Chính sách này sẽ bị bỏ qua khi <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> không phải là công cụ tìm kiếm mặc định của người dùng vì tính năng này bị tắt.
-
-Chính sách này không phụ thuộc vào chính sách <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. Chính sách <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> chỉ kiểm soát các điểm truy cập trên thanh địa chỉ hoặc hộp tìm kiếm trên NTP trong khi chính sách này kiểm soát việc chia sẻ ngữ cảnh thông qua bảng điều khiển bên hoặc các thẻ.
-
-Chính sách này cũng không kiểm soát công cụ tích hợp <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />. Bạn có thể tắt công cụ tích hợp này bằng <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
-
-Nếu bạn không đặt chính sách này, hành vi của chính sách sẽ do chính sách <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> xác định.
-
-Để biết thêm thông tin về cách xử lý dữ liệu cho các tính năng AI tạo sinh, vui lòng truy cập https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="4783415902268741066">Cho phép hiện các trang kết quả mới đây nhất của công cụ tìm kiếm mặc định trong bảng điều khiển bên của Trình duyệt</translation>
 <translation id="4786784434769279324">Các thao tác sẽ diễn ra khi máy tính ở trạng thái rảnh</translation>
 <translation id="4787763197941188108">Ghi đè kích thước trang in mặc định.
@@ -6607,22 +6654,6 @@ Nếu bạn không đặt chính sách này, thì giá trị mặc định là 0
 <translation id="5293285950307241933">Xoá tất cả dữ liệu người dùng cục bộ</translation>
 <translation id="5293619885162445352">Cho phép <ph name="PEPPER_NAME" /> sử dụng bộ giải mã video mới.</translation>
 <translation id="529457411593078576">Bật Điều khoản dịch vụ trong lần chạy đầu tiên của CCT</translation>
-<translation id="529718811410033393">Việc đặt chính sách này sẽ chỉ định số lượng tối đa kết nối đồng thời trên mỗi máy chủ proxy áp dụng cho yêu cầu không sử dụng giao thức WebSocket.
-
-Để sửa đổi giới hạn yêu cầu sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_FOR_WEBSOCKET_POLICY_NAME" />.
-
-Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 32.
-
-Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 32 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
-Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
-
-Giá trị phải bằng hoặc cao hơn 6.
-Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
-Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (32).
-
-Giá trị phải bằng hoặc thấp hơn 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
-Nếu bạn đặt một giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256 (99 trong <ph name="PRODUCT_NAME" /> 147 trở xuống).
-Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (32).</translation>
 <translation id="5297873769621042075">Khi bạn đặt chính sách này, hệ thống sẽ chỉ định một danh sách tên máy chủ hoặc mẫu tên máy chủ (chẳng hạn như
 "[*.]vidu.com") sẽ không được nâng cấp lên HTTPS và sẽ không hiển thị
 khoảng xen kẽ lỗi nếu chế độ Ưu tiên HTTPS được bật. Các tổ chức có thể sử dụng
@@ -6921,15 +6952,6 @@ Có nhiều chính sách liệt kê những nguồn gốc ảnh hưởng đến 
 <translation id="5481873128882951841">Tắt tính năng khử tiếng ồn của Krisp</translation>
 <translation id="5483012943408894695">Nguồn gốc hoặc mẫu tên máy chủ mà các hạn chế đối với nguồn gốc không an toàn không được áp dụng</translation>
 <translation id="5483065054530244863">Cho phép các chứng chỉ SHA-1 có chữ ký do neo tin cậy cục bộ phát hành</translation>
-<translation id="5485491014653571963">Chế độ cài đặt này cho phép tích hợp ứng dụng Gemini.
-
-0/chưa đặt = người dùng có thể sử dụng tính năng tích hợp Gemini.
-
-1 = Người dùng không thể sử dụng tính năng tích hợp Gemini.
-
-Nếu bạn không đặt chính sách này thì hành vi của chính sách sẽ do chính sách <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> xác định.
-
-Để biết thêm thông tin, vui lòng xem bài viết này trên Trung tâm trợ giúp https://support.google.com/chrome/a?p=gemini_in_chrome.</translation>
 <translation id="5486917900445838803">Nếu bạn đặt chính sách này thành Enabled (Bật) hoặc không đặt thì tính năng tăng tốc đồ hoạ sẽ bật (nếu có).
 
       Nếu bạn đặt chính sách này thành Disabled (Tắt) thì tính năng tăng tốc đồ hoạ sẽ tắt.</translation>
@@ -7186,29 +7208,6 @@ Khi bạn đặt chính sách này cho Kiosk <ph name="PRODUCT_OS_NAME" />, chí
 <translation id="5622924058222112599">Cho phép thực hiện quy trình phát hành mặc định đối với thuật toán CECPQ2</translation>
 <translation id="5623304306796942802">Lời nhắc khi có nhiều chứng chỉ khớp</translation>
 <translation id="5624310713789233422">Kiểm soát chế độ hiển thị huy hiệu hồ sơ doanh nghiệp trên thanh công cụ</translation>
-<translation id="5624334866248253262">Định cấu hình danh sách các quy tắc Kiểm soát dữ liệu để ngăn chặn rò rỉ dữ liệu.
-
-      Mỗi quy tắc đều bao gồm nội dung sau:
-      – Trường điều kiện để kích hoạt quy tắc đó. Một quy tắc sẽ chỉ kích hoạt nếu thao tác của người dùng khớp với tất cả các trường được điền sẵn trong trường <ph name="DATA_CONTROLS_SOURCES" />, <ph name="DATA_CONTROLS_DESTINATIONS" />, <ph name="DATA_CONTROLS_AND" />, <ph name="DATA_CONTROLS_OR" /> và <ph name="DATA_CONTROLS_NOT" />. Đối với trường phụ của danh sách, chỉ cần khớp với một mục nhập (ví dụ: chỉ cần khớp với một mẫu URL để kích hoạt quy tắc).
-      – Danh sách các quy định hạn chế sẽ được áp dụng. Tuỳ thuộc vào quy định hạn chế, bạn chỉ có thể sử dụng điều kiện <ph name="DATA_CONTROLS_SOURCES" /> hoặc <ph name="DATA_CONTROLS_DESTINATIONS" />.
-
-      Bạn có thể thêm các quy tắc để:
-      – Kiểm soát dữ liệu trong bảng nhớ tạm được chia sẻ giữa các nguồn và đích đến.
-      – Kiểm soát việc chặn ảnh chụp màn hình dựa trên thẻ nguồn.
-
-      Nếu bạn đặt chính sách <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" /> thành True, thì các quy tắc đã kích hoạt sẽ được báo cáo cho quản trị viên.
-      Bạn có thể đặt mức hạn chế thành BLOCK (CHẶN), WARN (CẢNH BÁO) hoặc REPORT (BÁO CÁO).
-      – Nếu bạn đặt thành BLOCK, mức hạn chế này sẽ không cho phép thực hiện thao tác.
-      – Nếu bạn đặt mức hạn chế này thành WARN, người dùng sẽ nhận được cảnh báo và họ có thể chọn tiếp tục hoặc huỷ thao tác.
-      – Nếu bạn đặt mức hạn chế thành REPORT, thao tác của người dùng sẽ không bị gián đoạn. Tuy nhiên, hệ thống sẽ gửi báo cáo nếu bạn bật chính sách <ph name="ON_SECURITY_EVENT_ENTERPRISE_CONNECTOR" />.
-
-      Lưu ý:
-      – Định dạng mẫu URL theo định dạng sau (https://support.google.com/chrome/a?p=url_blocklist_filter_format).
-      – Đối với các quy tắc ngăn chặn rò rỉ dữ liệu dành riêng cho <ph name="PRODUCT_OS_NAME" />, hãy xem thêm chính sách <ph name="DATA_LEAK_PREVENTION_RULES_LIST" />.
-
-      Nếu bạn không đặt chính sách này, sẽ không có mức hạn chế nào được áp dụng.
-
-      Chính sách này chỉ dành cho những người dùng có giấy phép Chrome Enterprise Premium được chỉ định.</translation>
 <translation id="5625771176514429288">Ứng dụng Chrome sẽ được phép chạy trên các nền tảng này.</translation>
 <translation id="5627270992026554674">Không cho phép giáo viên sử dụng danh sách học viên trên Google Lớp học.</translation>
 <translation id="5630352020869108293">Khôi phục phiên trước đó</translation>
@@ -8344,6 +8343,7 @@ Lưu ý: Chính sách này chỉ áp dụng cho những nền tảng hỗ trợ 
 
       Cho dù bạn có đặt chính sách này hay không thì người dùng cũng không thể thay đổi tùy chọn cài đặt tối ưu hóa WPAD.</translation>
 <translation id="6363485842496031347">Chế độ cài đặt phím tắt Delete sử dụng phím tắt chứa phím bổ trợ alt</translation>
+<translation id="6364336078281746235">Buộc các URL cụ thể chạy ở chế độ ưu tiên nền trước</translation>
 <translation id="6366574325767783825">Nếu bạn không đặt hoặc đặt chính sách này thành True, thì <ph name="PRODUCT_NAME" /> sẽ chấp nhận nội dung web được phân phối dưới dạng Signed HTTP Exchanges.
 
       Nếu bạn đặt chính sách này thành False, thì Signed HTTP Exchanges sẽ không tải được.</translation>
@@ -10292,22 +10292,6 @@ Nếu bạn để trống chính sách này, <ph name="FLOATING_SSO_DOMAIN_BLOCK
 
       Nếu người dùng sử dụng thiết bị không được quản lý, thì khả năng đặt chính sách này sẽ còn phụ thuộc vào việc người dùng có phải là chủ sở hữu thiết bị hay không.</translation>
 <translation id="7570291542739287032">Chỉ trên đám mây</translation>
-<translation id="7571158727244273239">Việc đặt chính sách này sẽ chỉ định số lượng tối đa kết nối đồng thời trên mỗi máy chủ proxy áp dụng cho yêu cầu sử dụng giao thức WebSocket.
-
-Để sửa đổi giới hạn yêu cầu không sử dụng giao thức WebSocket, vui lòng xem <ph name="MAX_CONNECTIONS_PER_PROXY_POLICY_NAME" />.
-
-Nếu bạn không đặt chính sách này, giá trị mặc định được dùng sẽ là 32.
-
-Một số ứng dụng web tiêu hao lượng lớn lượt kết nối khi có các lệnh GET bị treo. Vì vậy, việc đặt giá trị dưới 32 có thể khiến mạng của trình duyệt bị treo nếu có quá nhiều ứng dụng web (với các lượt kết nối bị treo) đang mở.
-Một số máy chủ proxy không thể xử lý lượng lớn lượt kết nối đồng thời trên mỗi máy khách. Tuy nhiên, bạn có thể giải quyết vấn đề đó bằng cách đặt chính sách này về giá trị thấp hơn.
-
-Giá trị phải bằng hoặc cao hơn 6.
-Nếu bạn đặt giá trị thấp hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 6.
-Bạn phải tự chịu rủi ro khi đặt giá trị thấp hơn giá trị mặc định (32).
-
-Giá trị phải bằng hoặc thấp hơn 256.
-Nếu bạn đặt giá trị cao hơn giới hạn đó, thì hệ thống sẽ sử dụng giá trị 256.
-Bạn phải tự chịu rủi ro khi đặt giá trị cao hơn giá trị mặc định (32).</translation>
 <translation id="7572641760104970905">Không phức tạp</translation>
 <translation id="757395965347379751">Khi bạn bật cài đặt này, <ph name="PRODUCT_NAME" /> sẽ cho phép các chứng chỉ có chữ ký SHA-1 miễn là các chứng chỉ xác thực thành công và cung cấp đến chứng chỉ CA được cài đặt cục bộ.
 
@@ -10892,6 +10876,7 @@ Bạn chỉ nên tắt chính sách này nếu đang sử dụng giải pháp b�
 <translation id="7941975817681987555">Không dự đoán tác vụ mạng trên kết nối mạng bất kỳ</translation>
 <translation id="794447754389837404">Chặn quyền truy cập vào mạng riêng tư trong Direct Sockets API trên các trang web này</translation>
 <translation id="7945445169067895719">Bật khoá khi thiết bị tạm ngưng hoặc đóng nắp</translation>
+<translation id="7945744599423774764">Cho phép ngẫu nhiên hoá kích thước nhóm socket cho các máy chủ proxy</translation>
 <translation id="7946350455013548764">Khi bạn đặt chính sách này thành 3, các trang web có thể yêu cầu quyền truy cập vào thiết bị HID. Khi bạn đặt chính sách này thành 2, các trang web sẽ không truy cập được vào các thiết bị HID.
 
       Khi bạn không đặt chính sách này, các trang web có thể yêu cầu quyền truy cập nhưng người dùng có thể thay đổi chế độ cài đặt này.
@@ -11484,6 +11469,7 @@ Nếu bạn không đặt chính sách này, thì ban đầu, tính năng điề
 <translation id="8337114537412769126">Nếu bạn bật <ph name="DEFAULT_SEARCH_PROVIDER_ENABLED_POLICY_NAME" />, thì thao tác đặt <ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" /> sẽ chỉ định thông số khi thực hiện tìm kiếm theo đề xuất bằng yêu cầu POST. Thông số này bao gồm các cặp tên/giá trị phân tách bằng dấu phẩy. Nếu một giá trị là thông số mẫu, chẳng hạn như<ph name="SEARCH_TERM_MARKER" />, thì dữ liệu cụm từ tìm kiếm thực sẽ thay thế thông số này.
 
       Nếu bạn không đặt <ph name="DEFAULT_SEARCH_PROVIDER_SUGGEST_URL_POST_PARAMS_POLICY_NAME" />, thì yêu cầu tìm kiếm theo đề xuất sẽ được gửi bằng phương thức GET.</translation>
+<translation id="8337200442224446773">Không cho phép ngẫu nhiên hoá nhóm socket cho các máy chủ proxy</translation>
 <translation id="8337961007759352651">Tập lệnh dành cho trình chạy (Trình chạy web, Trình chạy dịch vụ, v.v.) yêu cầu loại MIME JavaScript, như <ph name="MIMETYPE_TEXT_JAVASCRIPT" />. Tập lệnh trình chạy có loại MIME cũ, chẳng hạn như <ph name="MIMETYPE_TEXT_ASCII" />, sẽ bị từ chối.</translation>
 <translation id="8339089771335211509">WebRTC sẽ chỉ dùng giao diện kết nối với Internet công cộng và không kết nối bằng địa chỉ IP riêng tư.</translation>
 <translation id="8339420913453596618">Đã tắt hai yếu tố</translation>
@@ -11917,6 +11903,7 @@ Khi bạn đặt chính sách này thành False, thì dữ liệu về chính s�
 Chính sách này chỉ có hiệu lực khi máy đã đăng ký bằng <ph name="CLOUD_MANAGEMENT_ENROLLMENT_TOKEN" /> đối với <ph name="PRODUCT_NAME" />.
 Chính sách này luôn có hiệu lực đối với <ph name="PRODUCT_OS_NAME" />.</translation>
 <translation id="8619748440665904084">Tắt chính sách nhập dữ liệu từ biểu mẫu tự động điền trong lần chạy đầu tiên</translation>
+<translation id="8621146428060651659">Cho phép ngẫu nhiên hoá nhóm socket cho các máy chủ proxy</translation>
 <translation id="862621549134406761">Bật tuỳ chọn kiểm tra việc sử dụng khoá RSA</translation>
 <translation id="8626826495474944836">Yêu cầu tính năng Tách biệt trang web cho mọi trang web</translation>
 <translation id="8630797597241896082">Cho phép dùng Nền AI tạo sinh cho hội nghị truyền hình và cải thiện mô hình AI</translation>

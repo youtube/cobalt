@@ -225,6 +225,10 @@ MATCHER_P(EqualsIgnorePrimaryKey, expected_form, "") {
                             result_listener);
 }
 
+MATCHER_P(EqStoredCredential, expected_form, "") {
+  return arg == password_manager::FromPasswordForm(expected_form);
+}
+
 // Matcher for `forms` that ignores PasswordForm::primary_key and
 // PasswordForm::keychain_identifier.
 std::vector<::testing::Matcher<PasswordForm>> FormsIgnoringPrimaryKey(
@@ -243,7 +247,7 @@ class MockPasswordStoreObserver : public PasswordStoreInterface::Observer {
   MOCK_METHOD((void),
               OnLoginsRetained,
               (PasswordStoreInterface * store,
-               const std::vector<PasswordForm>& retained_passwords),
+               const std::vector<StoredCredential>& retained_credentials),
               (override));
   MOCK_METHOD((void),
               OnErrorStateChanged,
@@ -271,7 +275,7 @@ class PasswordStoreWaiter : public PasswordStoreInterface::Observer {
   // PasswordStoreInterface::Observer:
   void OnLoginsRetained(
       PasswordStoreInterface* store,
-      const std::vector<PasswordForm>& retained_passwords) override {}
+      const std::vector<StoredCredential>& retained_credentials) override {}
 
   void OnErrorStateChanged(PasswordStoreInterface* store,
                            ActionableError error) override {}

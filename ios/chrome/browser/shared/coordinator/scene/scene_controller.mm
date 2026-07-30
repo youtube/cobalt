@@ -76,6 +76,7 @@
 #import "ios/chrome/browser/intents/model/user_activity_compatibility_util.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/lens_overlay/model/lens_overlay_tab_helper.h"
+#import "ios/chrome/browser/level_up/model/level_up_scene_agent.h"
 #import "ios/chrome/browser/main/ui_bundled/browser_lifecycle_manager.h"
 #import "ios/chrome/browser/main/ui_bundled/default_browser_promo_scene_agent.h"
 #import "ios/chrome/browser/main/ui_bundled/incognito_blocker_scene_agent.h"
@@ -1475,6 +1476,10 @@ bool IsProfileUnmanaged(ProfileIOS* profile) {
 
   [sceneState addAgent:[[WhatsNewSceneAgent alloc]
                            initWithPromosManager:promosManager]];
+
+  if (IsLevelUpEnabled()) {
+    [sceneState addAgent:[[LevelUpSceneAgent alloc] init]];
+  }
 
   if (IsDockingPromoV2Enabled()) {
     [sceneState addAgent:[[DockingPromoSceneAgent alloc]

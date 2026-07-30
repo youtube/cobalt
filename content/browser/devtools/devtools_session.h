@@ -140,6 +140,17 @@ class DevToolsSession : public protocol::FrontendChannel,
 
   friend class FlattenedDevToolsProtocolTest;
 
+  blink::mojom::BrowserOriginatingSessionState* browser_agent_state() {
+    return session_state_cookie_->browser_originating_session_state.get();
+  }
+
+  void AddScriptToEvaluateOnNewDocument(
+      const std::string& identifier,
+      blink::mojom::ScriptToEvaluateOnNewDocumentPtr script,
+      bool run_immediately,
+      base::OnceClosure callback);
+  void RemoveScriptToEvaluateOnNewDocument(const std::string& identifier);
+
   base::RepeatingCallback<void(std::string)> MakePrepareForReloadCallback() {
     return base::BindRepeating(&DevToolsSession::PrepareForReload,
                                base::Unretained(this));
@@ -203,10 +214,10 @@ class DevToolsSession : public protocol::FrontendChannel,
   void DispatchProtocolResponse(
       blink::mojom::DevToolsMessagePtr message,
       int call_id,
-      blink::mojom::DevToolsSessionStatePtr updates) override;
+      blink::mojom::RendererOriginatingSessionStatePtr updates) override;
   void DispatchProtocolNotification(
       blink::mojom::DevToolsMessagePtr message,
-      blink::mojom::DevToolsSessionStatePtr updates) override;
+      blink::mojom::RendererOriginatingSessionStatePtr updates) override;
 
   // DevToolsExternalAgentProxy implementation.
   void DispatchOnClientHost(base::span<const uint8_t> message) override;
@@ -219,7 +230,8 @@ class DevToolsSession : public protocol::FrontendChannel,
       const std::string& session_id);
 
   // Merges the |updates| received from the renderer into session_state_cookie_.
-  void ApplySessionStateUpdates(blink::mojom::DevToolsSessionStatePtr updates);
+  void ApplySessionStateUpdates(
+      blink::mojom::RendererOriginatingSessionStatePtr updates);
 
   template <typename T>
   bool IsDomainAvailableToUntrustedClient() {

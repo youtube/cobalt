@@ -23,7 +23,6 @@
 #include "ui/views/view_utils.h"
 
 class BrowserView;
-class SidePanelAnimationPerfReporter;
 
 class SidePanel : public views::AccessiblePaneView,
                   public views::ResizeAreaDelegate {
@@ -186,16 +185,8 @@ class SidePanel : public views::AccessiblePaneView,
   // Subscription for animation updates.
   base::CallbackListSubscription animation_subscription_;
 
-  // Animation perf reporter.
-  std::unique_ptr<SidePanelAnimationPerfReporter> animation_perf_reporter_;
-
   // Cache of recent animation values.
   std::map<BrowserAnimationSequence, double> last_animation_values_;
-
-  // Starting point for opening animations. This is updated any time the side
-  // panel animates other than during the open animation, so that if a close is
-  // interrupted, the open animation starts from there.
-  double open_starting_point_ = 0.0;
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_SIDE_PANEL_SIDE_PANEL_H_

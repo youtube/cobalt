@@ -1,5 +1,10 @@
 {
   "linux-arm64-dbg": {
+    "additional_compile_targets": [
+      "all"
+    ]
+  },
+  "linux-arm64-dbg-tests": {
     "gtest_tests": [
       {
         "merge": {
@@ -58,25 +63,6 @@
         "test": "angle_unittests",
         "test_id_prefix": "ninja://third_party/angle/src/tests:angle_unittests/",
         "use_isolated_scripts_api": true
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "module_name": "//extensions/shell:app_shell_unittests",
-        "module_scheme": "gtest",
-        "name": "app_shell_unittests",
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "gce": "1",
-            "os": "Ubuntu-22.04"
-          },
-          "expiration": 43200,
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "app_shell_unittests",
-        "test_id_prefix": "ninja://extensions/shell:app_shell_unittests/"
       },
       {
         "merge": {
@@ -1346,7 +1332,7 @@
           },
           "expiration": 43200,
           "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 3
+          "shards": 5
         },
         "test": "sync_integration_tests",
         "test_id_prefix": "ninja://chrome/test:sync_integration_tests/"

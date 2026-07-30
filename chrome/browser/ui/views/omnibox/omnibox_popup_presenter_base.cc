@@ -158,7 +158,8 @@ void OmniboxPopupPresenterBase::ShowWidget(base::TimeTicks show_request_time) {
 
 void OmniboxPopupPresenterBase::LogResultToContentReadyMetric(
     content::WebContents* web_contents) {
-  if (GetPopupMetricPrefix() != kWebUIPopupMetricPrefix) {
+  if (GetPopupMetricPrefix() != kWebUIPopupMetricPrefix &&
+      GetPopupMetricPrefix() != kFullWebUIPopupMetricPrefix) {
     // TODO(crbug.com/491337216): Measure this for the AIM popup as well, with a
     // consistent metric prefix for both popup types.
     // Skipping AIM popups for now to maintain parity with the Views popups.
@@ -206,6 +207,10 @@ void OmniboxPopupPresenterBase::Hide() {
   if (widget_ && widget_->ShouldHandleNativeWidgetActivationChanged(false)) {
     widget_->Hide();
     if (auto* content = GetWebUIContent()) {
+      if (base::FeatureList::IsEnabled(
+              omnibox::kOmniboxWebUIPopupMarkAsHidden)) {
+        content->GetWebContents()->WasHidden();
+      }
       content->Clear();
     }
   }

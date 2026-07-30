@@ -86,6 +86,8 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
   contents_view_ = AddChildView(
       std::make_unique<ContentsWebView>(browser_view->GetProfile()));
   contents_view_->SetID(VIEW_ID_TAB_CONTAINER);
+  contents_view_->set_use_default_deadline_when_animating_bounds(
+      features::kSidePanelFlyoverUseDefaultDeadline.Get());
 
   if (base::FeatureList::IsEnabled(ntp_features::kNtpFooter)) {
     new_tab_footer_view_separator_ =
@@ -137,16 +139,14 @@ ContentsContainerView::ContentsContainerView(BrowserView* browser_view)
     actor_overlay_web_view_ = AddChildView(std::move(actor_overlay_web_view));
   }
 
-  if (base::FeatureList::IsEnabled(features::kGlicRegionSelectionNew)) {
-    auto glic_selection_overlay_view = std::make_unique<views::WebView>();
-    glic_selection_overlay_view->SetProperty(
-        views::kElementIdentifierKey, kGlicSelectionOverlayViewElementId);
-    glic_selection_overlay_view->SetVisible(false);
-    glic_selection_overlay_view->SetLayoutManager(
-        std::make_unique<views::FillLayout>());
-    glic_selection_overlay_view_ =
-        AddChildView(std::move(glic_selection_overlay_view));
-  }
+  auto glic_selection_overlay_view = std::make_unique<views::WebView>();
+  glic_selection_overlay_view->SetProperty(views::kElementIdentifierKey,
+                                           kGlicSelectionOverlayViewElementId);
+  glic_selection_overlay_view->SetVisible(false);
+  glic_selection_overlay_view->SetLayoutManager(
+      std::make_unique<views::FillLayout>());
+  glic_selection_overlay_view_ =
+      AddChildView(std::move(glic_selection_overlay_view));
 
   if (glic::GlicEnabling::IsProfileEligible(browser_view->GetProfile())) {
     glic_border_ = AddChildView(
@@ -388,8 +388,8 @@ void ContentsContainerView::ApplyWatermarkSettings(
     SkColor fill_color,
     SkColor outline_color,
     int font_size) {
-  data_protection_overlay_view_->SetString(watermark_text, fill_color,
-                                           outline_color, font_size);
+  data_protection_overlay_view_->SetWatermarkText(watermark_text, fill_color,
+                                                  outline_color, font_size);
 }
 
 void ContentsContainerView::UpdateDevToolsDockedPlacement() {

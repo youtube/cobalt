@@ -14,10 +14,13 @@
 #include "testing/gtest/include/gtest/gtest.h"
 #include "ui/accessibility/ax_enums.mojom.h"
 #include "ui/base/l10n/l10n_util.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/vector_icon_types.h"
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)  // nocheck
+#include "chrome/grit/theme_resources.h"
 #include "components/vector_icons/vector_icons.h"
+#include "ui/base/resource/resource_bundle.h"
 #endif
 
 using location_bar::SecurityChipIcon;
@@ -26,7 +29,6 @@ using location_bar::GetSecurityChipAccessibilityState;
 using location_bar::GetSecurityChipIconEnum;
 using location_bar::GetSecurityChipText;
 using location_bar::GetSecurityChipTooltipText;
-using location_bar::IsSecurityChipInteractive;
 using location_bar::ShouldAnimateSecurityChipTextChange;
 using location_bar::ShouldShowSecurityChipText;
 
@@ -117,24 +119,6 @@ TEST_F(SecurityChipStateHelperTest, SecurityChipIconEnum) {
   EXPECT_EQ(
       SecurityChipIcon::kDangerous,
       GetSecurityChipIconEnum(model(), /*is_add_context_button_shown=*/false));
-
-#if BUILDFLAG(GOOGLE_CHROME_BRANDING)  // nocheck
-  model()->set_icon(vector_icons::kGoogleSuperGIcon);
-  EXPECT_EQ(
-      SecurityChipIcon::kGoogleSuperG,
-      GetSecurityChipIconEnum(model(), /*is_add_context_button_shown=*/false));
-#endif
-}
-
-TEST_F(SecurityChipStateHelperTest, SecurityChipInteractivity) {
-  EXPECT_FALSE(IsSecurityChipInteractive(
-      /*is_editing_or_empty=*/true, SecurityChipIcon::kHttp));
-  EXPECT_TRUE(IsSecurityChipInteractive(
-      /*is_editing_or_empty=*/false, SecurityChipIcon::kHttp));
-  EXPECT_FALSE(IsSecurityChipInteractive(
-      /*is_editing_or_empty=*/false, SecurityChipIcon::kGoogleSuperG));
-  EXPECT_FALSE(IsSecurityChipInteractive(
-      /*is_editing_or_empty=*/false, SecurityChipIcon::kGoogleGMonochrome));
 }
 
 TEST_F(SecurityChipStateHelperTest, AccessibilityState) {
@@ -169,3 +153,26 @@ TEST_F(SecurityChipStateHelperTest, TooltipText) {
             GetSecurityChipTooltipText(
                 /*is_editing_or_empty=*/false));
 }
+
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)  // nocheck
+TEST_F(SecurityChipStateHelperTest, IsGradientGoogleSuperGIcon) {
+  ui::ImageModel empty_icon = ui::ImageModel();
+  EXPECT_FALSE(location_bar::IsGradientGoogleSuperGIcon(empty_icon));
+
+  ui::ImageModel vector_icon =
+      ui::ImageModel::FromVectorIcon(omnibox::kHttpIcon);
+  EXPECT_FALSE(location_bar::IsGradientGoogleSuperGIcon(vector_icon));
+
+  gfx::ImageSkia target_16 =
+      *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+          IDR_GOOGLE_G_GRADIENT_16_ALT);
+  ui::ImageModel gradient_icon = ui::ImageModel::FromImageSkia(target_16);
+  EXPECT_TRUE(location_bar::IsGradientGoogleSuperGIcon(gradient_icon));
+
+  gfx::ImageSkia target_20 =
+      *ui::ResourceBundle::GetSharedInstance().GetImageSkiaNamed(
+          IDR_GOOGLE_G_GRADIENT_20);
+  ui::ImageModel gradient_icon_20 = ui::ImageModel::FromImageSkia(target_20);
+  EXPECT_TRUE(location_bar::IsGradientGoogleSuperGIcon(gradient_icon_20));
+}
+#endif

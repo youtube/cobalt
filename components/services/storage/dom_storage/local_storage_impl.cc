@@ -18,7 +18,6 @@
 #include "base/functional/bind.h"
 #include "base/memory/raw_ptr.h"
 #include "base/metrics/histogram_functions.h"
-#include "base/metrics/histogram_macros.h"
 #include "base/strings/stringprintf.h"
 #include "base/system/sys_info.h"
 #include "base/task/thread_pool.h"
@@ -28,6 +27,7 @@
 #include "components/services/storage/dom_storage/db_status.h"
 #include "components/services/storage/dom_storage/dom_storage_constants.h"
 #include "components/services/storage/dom_storage/dom_storage_database.h"
+#include "components/services/storage/dom_storage/features.h"
 #include "components/services/storage/dom_storage/leveldb_status_helper.h"
 #include "components/services/storage/dom_storage/storage_area_impl.h"
 #include "storage/common/database/database_identifier.h"
@@ -290,6 +290,24 @@ void LocalStorageImpl::FlushStorageKeyForTesting(
   it->second->storage_area()->ScheduleImmediateCommit();
 }
 
+void LocalStorageImpl::PutValueForTesting(
+    const blink::StorageKey& storage_key,
+    const std::vector<uint8_t>& key,
+    const std::vector<uint8_t>& value,
+    base::OnceCallback<void(bool)> callback) {
+  if (connection_state_ != CONNECTION_FINISHED) {
+    return;
+  }
+
+  const auto& it = areas_.find(storage_key);
+  if (it == areas_.end()) {
+    return;
+  }
+
+  it->second->storage_area()->Put(key, value, /*client_old_value=*/std::nullopt,
+                                  /*source=*/nullptr, std::move(callback));
+}
+
 base::FilePath LocalStorageImpl::GetDatabasePath() const {
   return DomStorageDatabase::GetPath(StorageType::kLocalStorage,
                                      storage_partition_directory_);
@@ -303,12 +321,11 @@ void LocalStorageImpl::ShutDown() {
     // Flush any uncommitted data.
     for (const auto& it : areas_) {
       auto* area = it.second->storage_area();
-      LOCAL_HISTOGRAM_BOOLEAN(
-          "LocalStorageContext.ShutDown.MaybeDroppedChanges",
-          area->has_pending_load_tasks());
+      base::UmaHistogramBoolean("Storage.LocalStorage.ShutdownDroppedChanges",
+                                area->has_pending_load_read_write_tasks());
       area->ScheduleImmediateCommit();
-      // TODO(dmurph): Monitor the above histogram, and if dropping changes is
-      // common then handle that here.
+      // TODO(crbug.com/503422295): Monitor the above histogram, and if dropping
+      // changes is common then handle that here.
       area->CancelAllPendingRequests();
     }
 
@@ -379,13 +396,16 @@ bool LocalStorageImpl::OnMemoryDump(
       base::StringPrintf("site_storage/localstorage/0x%" PRIXPTR,
                          reinterpret_cast<uintptr_t>(this));
 
-  // Account for leveldb memory usage, which actually lives in the file service.
+  // Account for database memory usage, which actually lives in the file
+  // service.
   auto* global_dump = pmd->CreateSharedGlobalAllocatorDump(memory_dump_id_);
-  // The size of the leveldb dump will be added by the leveldb service.
-  auto* leveldb_mad = pmd->CreateAllocatorDump(context_name + "/leveldb");
+  // The size of the database dump will be added by the database service.
+  auto* db_mad = pmd->CreateAllocatorDump(
+      context_name +
+      (ShouldUseSqliteBackend(in_memory_) ? "/sqlite" : "/leveldb"));
   // Specifies that the current context is responsible for keeping memory alive.
   int kImportance = 2;
-  pmd->AddOwnershipEdge(leveldb_mad->guid(), global_dump->guid(), kImportance);
+  pmd->AddOwnershipEdge(db_mad->guid(), global_dump->guid(), kImportance);
 
   if (args.level_of_detail ==
       base::trace_event::MemoryDumpLevelOfDetail::kBackground) {

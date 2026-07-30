@@ -39,15 +39,23 @@ TEST_F(SharedImageCopyManagerTest, CopyUsingCpuFallbackStrategy) {
   copy_manager_->AddStrategy(std::make_unique<CPUReadbackUploadCopyStrategy>());
 
   auto src_backing = std::make_unique<TestImageBacking>(
-      Mailbox::Generate(), viz::SinglePlaneFormat::kRGBA_8888,
-      gfx::Size(100, 100), gfx::ColorSpace::CreateSRGB(),
-      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
-      SHARED_IMAGE_USAGE_CPU_READ | SHARED_IMAGE_USAGE_CPU_WRITE_ONLY, 1024);
+      Mailbox::Generate(),
+      SharedImageInfo(
+          viz::SinglePlaneFormat::kRGBA_8888, gfx::Size(100, 100),
+          gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
+          kPremul_SkAlphaType,
+          SHARED_IMAGE_USAGE_CPU_READ | SHARED_IMAGE_USAGE_CPU_WRITE_ONLY,
+          "TestLabel"),
+      1024);
   auto dst_backing = std::make_unique<TestImageBacking>(
-      Mailbox::Generate(), viz::SinglePlaneFormat::kRGBA_8888,
-      gfx::Size(100, 100), gfx::ColorSpace::CreateSRGB(),
-      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType,
-      SHARED_IMAGE_USAGE_CPU_READ | SHARED_IMAGE_USAGE_CPU_WRITE_ONLY, 1024);
+      Mailbox::Generate(),
+      SharedImageInfo(
+          viz::SinglePlaneFormat::kRGBA_8888, gfx::Size(100, 100),
+          gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
+          kPremul_SkAlphaType,
+          SHARED_IMAGE_USAGE_CPU_READ | SHARED_IMAGE_USAGE_CPU_WRITE_ONLY,
+          "TestLabel"),
+      1024);
 
   EXPECT_TRUE(copy_manager_->CopyImage(src_backing.get(), dst_backing.get()));
 
@@ -65,15 +73,19 @@ TEST_F(SharedImageCopyManagerTest, CopyUsingSharedMemoryStrategy) {
 
   // Create a shared memory backing.
   auto shm_backing = SharedMemoryImageBackingFactory().CreateSharedImage(
-      Mailbox::Generate(), format, kNullSurfaceHandle, size,
-      gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
-      kPremul_SkAlphaType, usage, "TestLabel",
+      Mailbox::Generate(),
+      {format, size, gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
+       kPremul_SkAlphaType, usage, "TestLabel"},
+      kNullSurfaceHandle,
       /*is_thread_safe=*/false, gfx::BufferUsage::GPU_READ_CPU_READ_WRITE);
 
   // Create a generic test backing.
   auto test_backing = std::make_unique<TestImageBacking>(
-      Mailbox::Generate(), format, size, gfx::ColorSpace::CreateSRGB(),
-      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, usage, 1024);
+      Mailbox::Generate(),
+      SharedImageInfo(format, size, gfx::ColorSpace::CreateSRGB(),
+                      kTopLeft_GrSurfaceOrigin, kPremul_SkAlphaType, usage,
+                      "TestLabel"),
+      1024);
 
   // Test copy from Shared Memory to Test backing.
   EXPECT_TRUE(copy_manager_->CopyImage(shm_backing.get(), test_backing.get()));
@@ -113,10 +125,10 @@ TEST_F(SharedImageCopyManagerTestWithGraphiteDawn, CopyUsingDawnStrategy) {
   // Create a Dawn backing.
   DawnImageBackingFactory dawn_factory;
   auto dawn_backing = dawn_factory.CreateSharedImage(
-      Mailbox::Generate(), format, kNullSurfaceHandle, size,
-      gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
-      kPremul_SkAlphaType, dawn_backing_usage, "dawn_backing",
-      /*is_thread_safe=*/false);
+      Mailbox::Generate(),
+      {format, size, gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
+       kPremul_SkAlphaType, dawn_backing_usage, "dawn_backing"},
+      kNullSurfaceHandle, /*is_thread_safe=*/false);
   ASSERT_TRUE(dawn_backing);
 
   static_cast<DawnImageBacking*>(dawn_backing.get())
@@ -125,10 +137,10 @@ TEST_F(SharedImageCopyManagerTestWithGraphiteDawn, CopyUsingDawnStrategy) {
   // Create a Graphite backing.
   WrappedSkImageBackingFactory sk_image_factory(context_state_);
   auto graphite_backing = sk_image_factory.CreateSharedImage(
-      Mailbox::Generate(), format, kNullSurfaceHandle, size,
-      gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
-      kPremul_SkAlphaType, graphite_backing_usage, "graphite_backing",
-      /*is_thread_safe=*/false);
+      Mailbox::Generate(),
+      {format, size, gfx::ColorSpace::CreateSRGB(), kTopLeft_GrSurfaceOrigin,
+       kPremul_SkAlphaType, graphite_backing_usage, "graphite_backing"},
+      kNullSurfaceHandle, /*is_thread_safe=*/false);
   ASSERT_TRUE(graphite_backing);
 
   // Test copy from Graphite to Dawn.

@@ -1099,7 +1099,7 @@ void ReadAnythingUntrustedPageHandler::SendPinStateRequest() {
 void ReadAnythingUntrustedPageHandler::TogglePresentation() {
   if (features::IsImmersiveReadAnythingEnabled()) {
     CHECK(read_anything_controller_);
-    read_anything_controller_->TogglePresentation();
+    read_anything_controller_->TogglePresentation(/*is_user_initiated=*/true);
   }
 }
 
@@ -1201,7 +1201,8 @@ void ReadAnythingUntrustedPageHandler::SetDefaultLanguageCode(
 
 void ReadAnythingUntrustedPageHandler::Activate(
     bool active,
-    std::optional<ReadAnythingOpenTrigger> open_trigger) {
+    std::optional<ReadAnythingOpenTrigger> open_trigger,
+    std::optional<base::TimeDelta> completed_session_duration) {
   active_ = active;
   if (active_) {
     last_open_trigger_ = open_trigger;

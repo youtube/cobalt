@@ -14,15 +14,11 @@
 
 @protocol AssistantContainerDelegate;
 enum class AssistantContainerDetent : NSInteger;
-class FullscreenController;
 @class LayoutState;
 
 // View Controller for the Assistant Container.
 @interface AssistantContainerViewController
     : UIViewController <AssistantContainerAnimatable>
-
-// Sets up observation of the given fullscreen controller.
-- (void)setUpFullscreenObservation:(FullscreenController*)fullscreenController;
 
 // The available detents for the container. Can't be empty.
 @property(nonatomic, assign) std::vector<AssistantContainerDetent> detents;
@@ -42,6 +38,10 @@ class FullscreenController;
 
 // The layout state.
 @property(nonatomic, weak) LayoutState* layoutState;
+
+// Accessibility property. Whether to only announce the arrival of the assistant
+// instead of moving VoiceOver focus to it.
+@property(nonatomic, assign) BOOL announceArrivalOnly;
 
 // Animates the container to a specific detent.
 // If the detent is not found, acts as a no-op.

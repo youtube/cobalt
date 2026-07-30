@@ -20,6 +20,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "components/autofill/core/browser/at_memory/at_memory_manager.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
 #include "components/autofill/core/browser/crowdsourcing/votes_uploader.h"
 #include "components/autofill/core/browser/data_manager/addresses/account_name_email_strike_manager.h"
@@ -215,7 +216,9 @@ class BrowserAutofillManager : public AutofillManager {
                           const FormGlobalId& form_id,
                           const FieldGlobalId& field_id,
                           AutofillExternalDelegate::UpdateSuggestionsCallback
-                              update_suggestions_callback);
+                              update_suggestions_callback,
+                          AutofillSuggestionTriggerSource trigger_source =
+                              AutofillSuggestionTriggerSource::kUnspecified);
 
   // Invoked when the user selected the `suggestion` in a suggestions list from
   // single field filling.
@@ -232,6 +235,13 @@ class BrowserAutofillManager : public AutofillManager {
 
   CreditCardAccessManager* GetCreditCardAccessManager() override;
   const CreditCardAccessManager* GetCreditCardAccessManager() const override;
+
+  // Gets the `AtMemoryManager` owned by `this`. This will be used to handle
+  // queries to the `AccessibilityQueryService`.
+  AtMemoryManager& GetAtMemoryManager();
+
+  // Triggers suggestions for @memory.
+  void TriggerAtMemorySuggestions(const FieldGlobalId& field_id);
 
   // Gets the payments BNPL manager owned by `this`. This will be used to
   // handle BNPL flows. May return nullptr if BNPL is not supported on the
@@ -659,6 +669,10 @@ class BrowserAutofillManager : public AutofillManager {
       std::make_unique<FormFiller>(*this);
 
   std::unique_ptr<OtpManager> otp_manager_;
+
+  // The `AtMemoryManager`, used to handle queries to the
+  // `AccessibilityQueryService` and manage session-based metrics.
+  std::unique_ptr<AtMemoryManager> at_memory_manager_;
 
   std::unique_ptr<AccountNameEmailStrikeManager>
       account_name_email_strike_manager_;

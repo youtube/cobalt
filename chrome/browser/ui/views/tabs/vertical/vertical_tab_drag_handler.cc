@@ -75,6 +75,19 @@ class VerticalTabSlotView : public TabSlotView {
     }
   }
 
+  // Updates the bounds of the slot view to match the bounds of the real view
+  // being dragged, skipping animations.
+  // Accurate bounds are necessary for the core `TabDragController` to determine
+  // the offset from the mouse when detaching into a new window.
+  void UpdateBounds() {
+    auto* view = node().view();
+    CHECK(view->parent());
+    gfx::Rect bounds = view->GetLocalBounds();
+    bounds.set_size(
+        view->GetPreferredSize(views::SizeBounds(view->parent()->size())));
+    SetBoundsRect(bounds);
+  }
+
   TabSizeInfo GetTabSizeInfo() const override { return TabSizeInfo(); }
 
   const TabCollectionNode& node() const { return node_.get(); }
@@ -251,7 +264,6 @@ VerticalTabDragHandlerImpl::GetDragInitDataForTabDrag(
         root_node_->GetNodeForHandle(tab->GetHandle());
     CHECK(selected_node);
     auto* slot_view = &GetOrCreateSlotViewForNode(*selected_node);
-    slot_view->SetBoundsRect(selected_node->view()->GetLocalBounds());
     drag_init_data.dragged_views.push_back(slot_view);
     if (selected_node == &source_node) {
       drag_init_data.source_dragged_view = slot_view;
@@ -299,7 +311,6 @@ VerticalTabDragHandlerImpl::GetFullySelectedGroups(
     if (group->tab_count() == dragged_tab_count) {
       auto* selected_node = GetNodeForTabGroup(group_id);
       auto& slot_view = GetOrCreateSlotViewForNode(*selected_node);
-      slot_view.SetBoundsRect(selected_node->view()->GetLocalBounds());
       selected_groups.insert({group_id, &slot_view});
     }
   }
@@ -328,7 +339,13 @@ bool VerticalTabDragHandlerImpl::ContinueDrag(views::View& event_source_view,
 }
 
 void VerticalTabDragHandlerImpl::EndDrag(EndDragReason reason) {
-  if (TabDragController::IsSystemDnDSessionRunning()) {
+  // Note: we avoid ending the SystemDnD if the `EndDragReason` is "capture
+  // lost" because some window managers on Wayland don't send exit events to tab
+  // strips, which would cause this to incorrectly end the SystemDnD while the
+  // drag is attaching to a new tab strip. See http://crbug.com/505023370 for an
+  // example of this.
+  if (TabDragController::IsSystemDnDSessionRunning() &&
+      reason != EndDragReason::kCaptureLost) {
     TabDragController::OnSystemDnDEnded();
     return;
   }
@@ -680,9 +697,15 @@ void VerticalTabDragHandlerImpl::StartedDragging(
   if (gfx::NativeWindow source_window = GetWidget()->GetNativeWindow()) {
     const BrowserView* browser_view =
         BrowserView::GetBrowserViewForNativeWindow(source_window);
-    expand_on_hover_lock_ =
-        browser_view->tab_strip_view()->GetExpandOnHoverLock(
-            ExpandOnHoverLockType::kKeepExpanded);
+
+    const auto* state_controller =
+        tabs::VerticalTabStripStateController::From(browser_view->browser());
+
+    if (state_controller && state_controller->IsExpandOnHoverEnabled()) {
+      expand_on_hover_lock_ =
+          browser_view->tab_strip_view()->GetExpandOnHoverLock(
+              ExpandOnHoverLockType::kKeepExpanded);
+    }
   }
 
   CHECK(drag_controller_);
@@ -705,12 +728,7 @@ void VerticalTabDragHandlerImpl::StartedDragging(
                            source_view_origin_in_screen;
     dragged_view->SetProperty(kOffsetAtTabDragStart, offset);
 
-    // Update the height to use preferred size because newly added tabs will
-    // animate in from 0, which affects the window offset for newly-detached
-    // windows.
-    gfx::Rect bounds = slot_view->node().view()->GetLocalBounds();
-    bounds.set_height(slot_view->node().view()->GetPreferredSize({}).height());
-    slot_view->SetBoundsRect(bounds);
+    slot_view->UpdateBounds();
   }
 }
 
@@ -794,21 +812,23 @@ const TabCollectionNode* VerticalTabDragHandlerImpl::GetNodeForTabGroup(
 TabSlotView& VerticalTabDragHandlerImpl::GetOrCreateSlotViewForNode(
     TabCollectionNode& node) {
   auto update_tab_slot_view = [&node](TabSlotView& slot_view) -> void {
+    VerticalTabSlotView& vertical_slot_view =
+        static_cast<VerticalTabSlotView&>(slot_view);
     switch (node.type()) {
       case TabCollectionNode::Type::TAB: {
         const tabs::TabInterface* tab =
             std::get<const tabs::TabInterface*>(node.GetNodeData());
         CHECK(tab);
-        slot_view.SetGroup(tab->GetGroup());
-        slot_view.SetSplit(tab->GetSplit());
+        vertical_slot_view.SetGroup(tab->GetGroup());
+        vertical_slot_view.SetSplit(tab->GetSplit());
       } break;
       case TabCollectionNode::Type::GROUP:
-        slot_view.SetGroup(TabGroupDataFromNode(node).id());
+        vertical_slot_view.SetGroup(TabGroupDataFromNode(node).id());
         break;
       default:
         NOTREACHED();
     }
-    slot_view.SetBoundsRect(node.view()->GetLocalBounds());
+    vertical_slot_view.UpdateBounds();
   };
 
   CHECK(node.view());

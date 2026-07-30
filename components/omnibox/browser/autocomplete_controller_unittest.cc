@@ -2300,8 +2300,7 @@ TEST_F(AutocompleteControllerTest, ShouldRunProvider_StarterPack) {
   }
 
   // Enter keyword mode.
-  controller_.input_.set_keyword_mode_entry_method(
-      metrics::OmniboxEventProto_KeywordModeEntryMethod_TAB);
+  controller_.input_.set_in_keyword_mode(true);
 
   // In @tabs, run search, keyword, and open tab provider only.
   controller_.input_.UpdateText(u"@tabs", 0, {});
@@ -2375,8 +2374,7 @@ TEST_F(AutocompleteControllerTest,
   // In keyword mode, all limit provider params on by default, limit document
   // and history cluster suggestions as well.
   controller_.input_.UpdateText(u"keyword", 0, {});
-  controller_.input_.set_keyword_mode_entry_method(
-      metrics::OmniboxEventProto_KeywordModeEntryMethod_TAB);
+  controller_.input_.set_in_keyword_mode(true);
   excluded_provider_types = {
       AutocompleteProvider::TYPE_OPEN_TAB,
       AutocompleteProvider::TYPE_HISTORY_CLUSTER_PROVIDER,
@@ -2523,8 +2521,7 @@ TEST_F(AutocompleteControllerTest,
   EXPECT_TRUE(controller_.ShouldRunProvider(document_provider.get()));
 
   // Enter keyword mode.
-  controller_.input_.set_keyword_mode_entry_method(
-      metrics::OmniboxEventProto_KeywordModeEntryMethod_TAB);
+  controller_.input_.set_in_keyword_mode(true);
 
   // Aggregator not ran when in site search mode, regardless of
   // `enterprise_search_aggregator_settings.require_shortcut` pref value.
@@ -2713,8 +2710,7 @@ TEST_F(AutocompleteControllerTest,
   controller_.input_ =
       AutocompleteInput(u"@page Summar", metrics::OmniboxEventProto::OTHER,
                         TestSchemeClassifier());
-  controller_.input_.set_keyword_mode_entry_method(
-      metrics::OmniboxEventProto::SPACE_AT_END);
+  controller_.input_.set_in_keyword_mode(true);
 
   SetAutocompleteMatches({CreateContextualSearchMatch(u"Summary"),
                           CreateContextualSearchMatch(u"Summarize this page")});
@@ -3247,8 +3243,7 @@ TEST_F(AutocompleteControllerTest,
   controller_.input_ =
       AutocompleteInput(u"@page Summar", metrics::OmniboxEventProto::OTHER,
                         TestSchemeClassifier());
-  controller_.input_.set_keyword_mode_entry_method(
-      metrics::OmniboxEventProto::SPACE_AT_END);
+  controller_.input_.set_in_keyword_mode(true);
 
   AutocompleteMatch match1 = CreateContextualSearchMatch(u"Summary");
   match1.suggest_template = omnibox::SuggestTemplateInfo();
@@ -3396,4 +3391,33 @@ TEST_F(AutocompleteControllerTest,
     // The destination URL must remain unmodified.
     EXPECT_EQ(url_match.destination_url.spec(), "https://example.com/");
   }
+}
+
+TEST_F(AutocompleteControllerTest, IncludesSmartComposeStatsInAdditionalStats) {
+  omnibox::metrics::SmartComposeStats stats;
+  stats.set_enabled(true);
+  stats.set_shown_count(1);
+  stats.set_accepted_count(2);
+  stats.set_characters_accepted(3);
+  stats.set_shown_length(4);
+  controller_.SetSmartComposeStats(stats);
+
+  TemplateURLRef::SearchTermsArgs search_terms_args(u"test");
+  controller_.UpdateSearchTermsArgsWithAdditionalSearchboxStats(
+      base::TimeDelta(), search_terms_args);
+
+  ASSERT_TRUE(search_terms_args.searchbox_stats.has_smart_compose_stats());
+  EXPECT_TRUE(
+      search_terms_args.searchbox_stats.smart_compose_stats().enabled());
+  EXPECT_EQ(
+      search_terms_args.searchbox_stats.smart_compose_stats().shown_count(), 1);
+  EXPECT_EQ(
+      search_terms_args.searchbox_stats.smart_compose_stats().accepted_count(),
+      2);
+  EXPECT_EQ(search_terms_args.searchbox_stats.smart_compose_stats()
+                .characters_accepted(),
+            3);
+  EXPECT_EQ(
+      search_terms_args.searchbox_stats.smart_compose_stats().shown_length(),
+      4);
 }

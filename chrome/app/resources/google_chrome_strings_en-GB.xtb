@@ -100,7 +100,6 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="2018528049276128029">Each profile holds its own Chrome info, like bookmarks, history, passwords and more</translation>
 <translation id="2018879682492276940">Installation failed. Please try again.</translation>
 <translation id="2024959665595762054">To use and save Chrome data in your Google Account, verify that it's you</translation>
-<translation id="2026377840141807639">Chrome profiles let you keep personal browsing and work apart. Add a new profile now.</translation>
 <translation id="2034233344106846793">Chrome upgrades insecure connections to HTTPS automatically when possible</translation>
 <translation id="2039417478970545937">Settings.</translation>
 <translation id="2066690553719545730">Always show AI Mode</translation>
@@ -123,7 +122,6 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="2174917724755363426">Installation is not complete. Are you sure that you want to cancel?</translation>
 <translation id="2186206192313702726">Google Lens</translation>
 <translation id="2190166659037789668">Update check error: <ph name="UPDATE_CHECK_ERROR" />.</translation>
-<translation id="2199691482078155239">Chrome gives you more control over the ads that you see and limits what sites can learn about you when they show you personalised ads</translation>
 <translation id="2216543877350048334">To remove your Google Account from Chrome, sign out</translation>
 <translation id="2236949375853147973">My Activity</translation>
 <translation id="22791603784558743">Close Gemini in Chrome Dev</translation>
@@ -150,6 +148,9 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="2569974318947988067">Chrome will try to upgrade navigations to HTTPS</translation>
 <translation id="2571392474191184472">Your organisation manages Chrome</translation>
 <translation id="2574930892358684005"><ph name="EXISTING_USER" /> is already signed in to this Chrome profile. To keep your browsing separate, Chrome can create your own profile for you.</translation>
+<translation id="2575799939951057838">For security, Chrome turns off JavaScript optimisation when you visit a site for the first time.
+
+If this page isn't working as expected, try allowing optimisation.</translation>
 <translation id="2580411288591421699">Cannot install the same Google Chrome version that is currently running. Please close Google Chrome and try again.</translation>
 <translation id="2586406160782125153">This will delete your browsing data from this device. To retrieve your data later, sign in to Chrome as <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Failed to cache the downloaded installer. Error: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -383,7 +384,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="5003967926796347400">Click 'Google Password Manager'</translation>
 <translation id="5043786843026425788">Learn more about searching with Google Lens in Chrome</translation>
 <translation id="504867494566807945">Open links in Chrome from any app. Plus for easy access, it gets pinned to your taskbar.</translation>
-<translation id="5105120510934353742">To get future Google Chrome updates, you'll need macOS 13 or later. This computer is using macOS 11.</translation>
+<translation id="5105120510934353742">To get future Google Chrome updates, you'll need macOS 13 or later. This computer is using macOS 12.</translation>
 <translation id="5114340746415930644">Enter your passphrase to use and save Chrome data in your account, <ph name="USER_EMAIL" /></translation>
 <translation id="5120334927898581447">Sign in to Chrome when you sign in to other Google services</translation>
 <translation id="5126049312684316860">Chrome preloads even more pages that you're likely to visit, so that they load more quickly when you visit them.</translation>
@@ -456,7 +457,6 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="5736850870166430177">If a site tries to steal your password, or when you download a harmful file, Chrome may also send URLs, including bits of page content, to Safe Browsing</translation>
 <translation id="5756509061973259733">A Chrome profile with this account already exists on this device</translation>
 <translation id="5759947850379142561">Select any text or image to search with Google Lens or press Escape to exit Google Lens</translation>
-<translation id="5762867845020858790">Add a new Chrome profile to keep bookmarks, passwords and settings apart.</translation>
 <translation id="5779427581965287859">Set Chrome as default and pin it to taskbar</translation>
 <translation id="5795887333006832406"><ph name="PAGE_TITLE" /> – Google Chrome Canary</translation>
 <translation id="5804318322022881572">Couldn't launch Chrome. Try again.</translation>
@@ -570,7 +570,6 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="6800285125190089494">Sign in faster to sites using saved passwords for Chrome on iOS</translation>
 <translation id="6831043979455480757">Translate</translation>
 <translation id="683440813066116847">Inbound rule for Google Chrome Canary to allow mDNS traffic.</translation>
-<translation id="6841242485723266823">Chrome profiles help you separate different parts of your life. Add a new profile now.</translation>
 <translation id="684888714667046800">Unable to connect to the Internet. If you use a firewall, please ensure that <ph name="PRODUCT_EXE_NAME" /> is in the allowlist.</translation>
 <translation id="6859580922007887573">Tab to continue</translation>
 <translation id="6877155553248388166">bottom-right corner of search area: right <ph name="RIGHT" />%, bottom <ph name="BOTTOM" />%</translation>
@@ -660,7 +659,6 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="7655472416356262023">Remove account from Chrome</translation>
 <translation id="7658239707568436148">Cancel</translation>
 <translation id="7670287553302121848">Chrome account requires re-authentication</translation>
-<translation id="7675756456029023637">Ask Chrome</translation>
 <translation id="769538538642757151">Chrome will let you know if anything needs your review</translation>
 <translation id="769906121737764913">Close Gemini in Chrome Beta</translation>
 <translation id="7716950018788545737">Task(s) ended.</translation>
@@ -762,7 +760,6 @@ New bookmarks can't be saved in your account until you delete some. If you sign 
 <translation id="8625237574518804553">{0,plural, =1{Chrome will relaunch in 1 minute}other{Chrome will relaunch in # minutes}}</translation>
 <translation id="8637932705841171563">To share your window, allow screen recording for Chrome in System Settings</translation>
 <translation id="8641606876632989680">Chrome will notify you when you sign in with a compromised password</translation>
-<translation id="8647930742055103497">Keep everything in Chrome</translation>
 <translation id="8656634243791296665">Open Gemini in Chrome Dev</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">It also controls what page is shown when you start Chrome.</translation>

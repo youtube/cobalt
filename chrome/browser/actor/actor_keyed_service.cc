@@ -493,7 +493,8 @@ void ActorKeyedService::RequestTabObservation(
 
               if (tab) {
                 actor::ActorTabData::From(tab.get())->DidObserveContent(
-                    fetch_result.annotated_page_content_result->proto);
+                    fetch_result.annotated_page_content_result->proto,
+                    actor::ApcSource::kActor);
               }
             }
 
@@ -565,6 +566,9 @@ void ActorKeyedService::PerformActions(
 
   task->GetExecutionEngine().AddWritableMainframeOrigins(
       task_metadata.added_writable_mainframe_origins());
+  task->GetExecutionEngine().actor_container_config().Assign(
+      task_metadata.actor_container_config());
+
   task->Act(
       std::move(actions),
       base::BindOnce(&ActorKeyedService::OnActionsFinished,

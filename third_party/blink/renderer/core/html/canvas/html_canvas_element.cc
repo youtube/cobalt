@@ -47,6 +47,7 @@
 #include "base/trace_event/typed_macros.h"
 #include "build/build_config.h"
 #include "cc/layers/texture_layer.h"
+#include "cc/trees/layer_tree_host.h"
 #include "services/metrics/public/cpp/ukm_recorder.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "third_party/blink/public/common/features.h"
@@ -225,41 +226,6 @@ class DisabledAccelerationCounterSupplement final
 const char DisabledAccelerationCounterSupplement::kSupplementName[] =
     "DisabledAccelerationCounterSupplement";
 
-// Tracks whether `transferToGPUTexture()` has been invoked on any canvas
-// element created within the associated Document.
-class TransferToGPUTextureInvokedSupplement final
-    : public GarbageCollected<TransferToGPUTextureInvokedSupplement>,
-      public Supplement<Document> {
- public:
-  static constexpr char kSupplementName[] =
-      "TransferToGPUTextureInvokedSupplement";
-
-  static TransferToGPUTextureInvokedSupplement& From(Document& d) {
-    TransferToGPUTextureInvokedSupplement* supplement =
-        Supplement<Document>::From<TransferToGPUTextureInvokedSupplement>(d);
-    if (!supplement) {
-      supplement =
-          MakeGarbageCollected<TransferToGPUTextureInvokedSupplement>(d);
-      ProvideTo(d, supplement);
-    }
-    return *supplement;
-  }
-
-  explicit TransferToGPUTextureInvokedSupplement(Document& d)
-      : Supplement<Document>(d) {}
-
-  void SetTransferToGPUTextureWasInvoked() {
-    transfer_to_gpu_texture_was_invoked_ = true;
-  }
-
-  bool TransferToGPUTextureWasInvoked() {
-    return transfer_to_gpu_texture_was_invoked_;
-  }
-
- private:
-  bool transfer_to_gpu_texture_was_invoked_ = false;
-};
-
 // viz::ReleaseCallback for CanvasResource
 void ReleaseCanvasResource(scoped_refptr<CanvasResource> canvas_resource,
                            const gpu::SyncToken& sync_token,
@@ -335,7 +301,6 @@ HTMLCanvasElement::HTMLCanvasElement(Document& document)
   // Create supplements now, as they may be needed at a
   // time when garbage collected objects can not be created.
   DisabledAccelerationCounterSupplement::From(GetDocument());
-  TransferToGPUTextureInvokedSupplement::From(GetDocument());
   GetDocument().IncrementNumberOfCanvases();
   auto* execution_context = GetExecutionContext();
   if (execution_context) {
@@ -937,7 +902,17 @@ void HTMLCanvasElement::OnWidthOrHeightAssigned() {
 }
 
 void HTMLCanvasElement::ResetLayer() {
-  if (cc_layer_) {
+  if (!cc_layer_) {
+    return;
+  }
+
+  bool in_will_commit = false;
+  if (auto* host = cc_layer_->layer_tree_host()) {
+    in_will_commit = host->in_will_commit();
+  }
+
+  // In commit, we cannot modify cc::Layers, see: crbug.com/510426944.
+  if (!in_will_commit) {
     // Orphaning the layer is required to trigger the recreation of a new
     // layer in the case where destruction is caused by a canvas resize. Test:
     // virtual/gpu/fast/canvas/canvas-resize-after-paint-without-layout.html
@@ -972,8 +947,9 @@ DOMMatrix* HTMLCanvasElement::getElementTransform(
     return nullptr;
   }
 
-  return MakeGarbageCollected<DOMMatrix>(
-      GetElementTransform(*paint_state, Size(), draw_transform->Matrix()));
+  gfx::Transform transform =
+      GetElementTransform(*paint_state, Size(), draw_transform->Matrix());
+  return MakeGarbageCollected<DOMMatrix>(transform, transform.Is2dTransform());
 }
 
 bool HTMLCanvasElement::VerifyDrawElementImageEligibility(
@@ -2072,14 +2048,5 @@ RespectImageOrientationEnum HTMLCanvasElement::RespectImageOrientation() const {
   return LayoutObject::GetImageOrientation(GetLayoutObject());
 }
 
-void HTMLCanvasElement::SetTransferToGPUTextureWasInvoked() {
-  TransferToGPUTextureInvokedSupplement::From(GetDocument())
-      .SetTransferToGPUTextureWasInvoked();
-}
-
-bool HTMLCanvasElement::TransferToGPUTextureWasInvoked() {
-  return TransferToGPUTextureInvokedSupplement::From(GetDocument())
-      .TransferToGPUTextureWasInvoked();
-}
 
 }  // namespace blink

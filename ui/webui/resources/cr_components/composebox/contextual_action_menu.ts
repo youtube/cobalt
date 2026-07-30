@@ -25,9 +25,13 @@ import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/ung
 import {getLoadTimeBoolean, recordContextAdditionMethod, TabUploadOrigin} from './common.js';
 import {getCss} from './contextual_action_menu.css.js';
 import {getHtml} from './contextual_action_menu.html.js';
+import {WindowProxy} from './window_proxy.js';
 
 /** The width of the dropdown menu in pixels. */
 const MENU_WIDTH_PX = 190;
+
+const SHARE_TABS_MENU_WIDTH_PX = 320;
+const SHARE_TABS_FLYOUT_CLOSE_DELAY_MS = 300;
 
 export interface ContextualActionMenuElement {
   $: {
@@ -67,6 +71,8 @@ export class ContextualActionMenuElement extends
       showContextMenuHeaders_: {type: Boolean},
       smartTabSharingVisible_: {type: Boolean},
       disableAutoReposition: {type: Boolean},
+      contextManagementInComposeboxEnabled_: {type: Boolean},
+      shareTabsFlyoutOpen_: {type: Boolean},
     };
   }
 
@@ -89,6 +95,14 @@ export class ContextualActionMenuElement extends
       loadTimeData.getBoolean('ShowContextMenuHeaders');
   protected accessor smartTabSharingVisible_: boolean =
       getLoadTimeBoolean('composeboxSmartTabSharingVisible', false);
+  protected accessor contextManagementInComposeboxEnabled_: boolean =
+      getLoadTimeBoolean('contextManagementInComposeboxEnabled', false);
+  protected accessor shareTabsFlyoutOpen_: boolean = false;
+
+  private closeTimer_: number|null = null;
+  private pointerOverTrigger_: boolean = false;
+  private pointerOverFlyout_: boolean = false;
+
   protected get supportedTools_(): Map<ToolMode, {
     icon: string,
   }> {
@@ -151,6 +165,11 @@ export class ContextualActionMenuElement extends
     ]);
   }
 
+  override disconnectedCallback() {
+    super.disconnectedCallback();
+    this.resetShareTabsFlyout_();
+  }
+
   get open(): boolean {
     return this.$.menu.open;
   }
@@ -159,11 +178,15 @@ export class ContextualActionMenuElement extends
     this.$.menu.close();
   }
 
+  getDialog(): HTMLDialogElement {
+    return this.$.menu.getDialog();
+  }
+
   private onWindowBlur_ = this.close.bind(this);
 
   showAt(anchor: HTMLElement) {
     this.$.menu.showAt(anchor, {
-      width: MENU_WIDTH_PX,
+      width: this.contextManagementInComposeboxEnabled_ ? SHARE_TABS_MENU_WIDTH_PX : MENU_WIDTH_PX,
       anchorAlignmentX: AnchorAlignment.AFTER_START,
       anchorAlignmentY: AnchorAlignment.AFTER_END,
       noOffset: true,
@@ -337,6 +360,10 @@ export class ContextualActionMenuElement extends
     return false;
   }
 
+  protected isMultiTabSelectionEnabledForShareTabsMode_(): boolean {
+    return this.contextManagementInComposeboxEnabled_ && this.enableMultiTabSelection_;
+  }
+
   // Checks if a tab item in the context menu should be disabled.
   protected isTabDisabled_(tab: TabInfo): boolean {
     let noNewContextAllowed = this.fileNum >= this.maxFileCount_;
@@ -349,7 +376,7 @@ export class ContextualActionMenuElement extends
     // no more context can be added and the tab has not yet been added as
     // context already. Otherwise, don't disable the tab, since we want to allow
     // users to unselect the tab, and remove it from the context.
-    if (this.enableMultiTabSelection_) {
+    if (this.isMultiTabSelectionEnabledForShareTabsMode_()) {
       return noNewContextAllowed && !isTabInContext;
     }
     return noNewContextAllowed || isTabInContext;
@@ -370,7 +397,13 @@ export class ContextualActionMenuElement extends
   private toggleSmartTabSharing_() {
     const toggle = this.shadowRoot.querySelector<CrToggleElement>(
         '#smartTabSharingToggle')!;
-    toggle.checked = !toggle.checked;
+    this.setSmartTabSharingToggle(!toggle.checked);
+  }
+
+  setSmartTabSharingToggle(active: boolean) {
+    const toggle = this.shadowRoot.querySelector<CrToggleElement>(
+        '#smartTabSharingToggle')!;
+    toggle.checked = active;
     this.fire('smart-tab-sharing-active-changed', {active: toggle.checked});
   }
 
@@ -382,7 +415,7 @@ export class ContextualActionMenuElement extends
 
     assert(tabInfo);
 
-    if (this.enableMultiTabSelection_ &&
+    if (this.isMultiTabSelectionEnabledForShareTabsMode_() &&
         this.disabledTabIds.has(tabInfo.tabId)) {
       this.deleteTabContext_(this.disabledTabIds.get(tabInfo.tabId)!);
       return;
@@ -404,9 +437,54 @@ export class ContextualActionMenuElement extends
       delayUpload: false,
       origin: TabUploadOrigin.CONTEXT_MENU,
     });
-    if (!this.enableMultiTabSelection_) {
+    if (!this.isMultiTabSelectionEnabledForShareTabsMode_()) {
       this.$.menu.close();
     }
+  }
+
+  protected onShareTabsRowPointerenter_() {
+    this.pointerOverTrigger_ = true;
+    this.cancelCloseTimer_();
+    this.shareTabsFlyoutOpen_ = true;
+  }
+
+  protected onShareTabsRowPointerleave_() {
+    this.pointerOverTrigger_ = false;
+    this.scheduleCloseTimer_();
+  }
+
+  protected onShareTabsFlyoutPointerenter_() {
+    this.pointerOverFlyout_ = true;
+    this.cancelCloseTimer_();
+  }
+
+  protected onShareTabsFlyoutPointerleave_() {
+    this.pointerOverFlyout_ = false;
+    this.scheduleCloseTimer_();
+  }
+
+  private scheduleCloseTimer_() {
+    this.cancelCloseTimer_();
+    this.closeTimer_ = WindowProxy.getInstance().setTimeout(() => {
+      this.closeTimer_ = null;
+      if (!this.pointerOverTrigger_ && !this.pointerOverFlyout_) {
+        this.shareTabsFlyoutOpen_ = false;
+      }
+    }, SHARE_TABS_FLYOUT_CLOSE_DELAY_MS);
+  }
+
+  private cancelCloseTimer_() {
+    if (this.closeTimer_ !== null) {
+      WindowProxy.getInstance().clearTimeout(this.closeTimer_);
+      this.closeTimer_ = null;
+    }
+  }
+
+  private resetShareTabsFlyout_() {
+    this.cancelCloseTimer_();
+    this.pointerOverTrigger_ = false;
+    this.pointerOverFlyout_ = false;
+    this.shareTabsFlyoutOpen_ = false;
   }
 
   protected onTabPointerenter_(e: Event) {
@@ -463,6 +541,7 @@ export class ContextualActionMenuElement extends
 
   protected onMenuClose_() {
     window.removeEventListener('blur', this.onWindowBlur_);
+    this.resetShareTabsFlyout_();
     this.fire('close');
   }
 

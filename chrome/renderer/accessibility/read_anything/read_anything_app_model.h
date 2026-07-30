@@ -5,10 +5,13 @@
 #ifndef CHROME_RENDERER_ACCESSIBILITY_READ_ANYTHING_READ_ANYTHING_APP_MODEL_H_
 #define CHROME_RENDERER_ACCESSIBILITY_READ_ANYTHING_READ_ANYTHING_APP_MODEL_H_
 
+#include <algorithm>
 #include <map>
 #include <memory>
+#include <numeric>
 #include <set>
 #include <string>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -411,10 +414,10 @@ class ReadAnythingAppModel {
     return ax_tree_anchors_;
   }
 
-  const std::vector<std::string>& readability_text_blocks() const {
+  const std::vector<std::u16string>& readability_text_blocks() const {
     return readability_text_blocks_;
   }
-  void set_readability_text_blocks(std::vector<std::string> blocks) {
+  void set_readability_text_blocks(std::vector<std::u16string> blocks) {
     readability_text_blocks_ = std::move(blocks);
   }
 
@@ -427,24 +430,20 @@ class ReadAnythingAppModel {
         should_map_rendered_text_to_tree_for_readability;
   }
 
-  const std::map<std::string, std::vector<std::vector<MappingSegment>>>&
-  text_to_ax_map() const {
+  const std::vector<std::vector<MappingSegment>>& text_to_ax_map() const {
     return text_to_ax_map_;
-  }
-  const std::map<std::string, size_t>& text_to_ax_map_index() const {
-    return text_to_ax_map_index_;
   }
 
   // Maps the distilled rendered text from the WebUI with the AXtree.
   // Returns true if the AXtree was successfully processed and we can
   // notify the frontend that the mapping is ready.
-  bool MapRenderedTextToTree(const std::vector<std::string>& blocks);
+  bool MapRenderedTextToTree(const std::vector<std::u16string>& blocks);
 
-  // Returns the AX mapping for the given text. This is the primary interface
-  // for the WebUI to consume the results of the mapping algorithm. It ensures
-  // sequential consumption of identical strings.
-  std::vector<MappingSegment> GetAXMappingForText(
-      const std::string& text) const;
+  // Returns the AX mapping for the given index. This is the primary interface
+  // for the WebUI to consume the results of the mapping algorithm. The index
+  // corresponds to the index of the block in readability_text_blocks_ and
+  // text_to_ax_map_.
+  std::vector<MappingSegment> GetAXMapping(size_t index) const;
 
   const std::u16string& global_ax_tree_text() const {
     return global_ax_tree_text_;
@@ -646,7 +645,48 @@ class ReadAnythingAppModel {
     return side_panel_distillation_mode_;
   }
 
+  bool has_pending_selection() const { return has_pending_selection_; }
+
  private:
+  // An index for searching substrings within the flattened
+  // |global_ax_tree_text_|. It uses a Suffix Array to find any string in O(log
+  // N) time, where N is the length of the article.
+  struct SuffixArray {
+    SuffixArray();
+    ~SuffixArray();
+
+    // A non-owning reference to the text being indexed.
+    std::u16string_view text;
+
+    // A list of starting indices of all suffixes in |text|, sorted
+    // lexicographically.
+    std::vector<uint32_t> suffix_array;
+
+    // Build the index for the given text. This must be called before FindRange.
+    void Build(std::u16string_view text);
+
+    // Finds the range of all occurrences of |query| within the indexed text.
+    // Returns a pair of iterators into |suffix_array| defining the range
+    // [begin, end). The number of occurrences is std::distance(begin, end).
+    std::pair<std::vector<uint32_t>::const_iterator,
+              std::vector<uint32_t>::const_iterator>
+    FindRange(std::u16string_view query) const;
+  };
+
+  // Identifies all AXNodes that contribute to a given range from
+  // |global_ax_tree_text_| and creates MappingSegments with offsets relative to
+  // the distilled block.
+  // Args:
+  //  |ax_start|:  The start index of the match in |global_ax_tree_text|.
+  //  |ax_end|:    The end index (exclusive) in |global_ax_tree_text|.
+  //  |block_internal_offset|: The starting character position of this match
+  //                          within the rendered Readability block (usually 0
+  //                          for whole-block matches).
+  std::vector<MappingSegment> CreateSegmentsForMatch(
+      size_t ax_start,
+      size_t ax_end,
+      size_t block_internal_offset);
+
   struct SelectionEndpoint {
     enum class Source {
       kAnchor,
@@ -692,6 +732,13 @@ class ReadAnythingAppModel {
   void SetUkmSourceId(ukm::SourceId ukm_source_id);
   std::map<std::string, std::vector<AnchorData>> CollectAnchorsFromAXTree(
       ui::AXSerializableTree* tree);
+
+  // Identifies blocks that appear exactly once in both the original AXTree
+  // and the distilled Readability output.
+  void FindGloballyUniqueBlocks(
+      const std::vector<std::u16string>& blocks,
+      const SuffixArray& index,
+      const base::flat_map<std::u16string_view, int>& block_counts);
 
   // Traverses the AXTree to create a flattened text representation for the text
   // selection mapping algorithm.
@@ -785,6 +832,7 @@ class ReadAnythingAppModel {
   bool requires_distillation_ = false;
   bool reset_draw_timer_ = false;
   bool requires_post_process_selection_ = false;
+  bool has_pending_selection_ = false;
   int selections_from_reading_mode_ = 0;
   int words_seen_ = 0;
   int words_heard_ = 0;
@@ -822,32 +870,25 @@ class ReadAnythingAppModel {
   // the WebUI. Blocks are used as one of the inputs along with the AXTree for
   // the select text mapping algorithm. This algorithm maps these rendered
   // blocks back to their source AXNodes.
-  std::vector<std::string> readability_text_blocks_;
+  std::vector<std::u16string> readability_text_blocks_;
 
   // Whether we should execute the mapping algorithm between the rendered text
   // and the AXtree that is used to populate the nodestore for a readability
   // distillation.
   bool should_map_rendered_text_to_tree_for_readability_ = false;
 
-  // A mapping from a distilled Readability text block (normalized string) to
-  // its corresponding AXTree segments.
+  // A mapping from a distilled Readability text block (by index) to its
+  // corresponding AXTree segments.
   //
   // Structure:
-  // Key: The exact text content of a Readability block (normalized).
-  // Value: A vector of "occurrences".
-  //   - Since a page may contain multiple identical text blocks (e.g., "Read
-  //     more"), we store a vector for every time that string appears.
-  //   - Each "occurrence" is itself a vector of MappingSegments, because one
-  //     distilled block might correspond to multiple underlying AXNodes.
-  std::map<std::string, std::vector<std::vector<MappingSegment>>>
-      text_to_ax_map_;
-
-  // Tracks which occurrence of a string was last requested by the WebUI
-  // to ensure sequential mapping. When the WebUI processes the distilled
-  // content, it walks the DOM and requests the mapping for each block in order.
-  // This index ensures that if "Hello" appears twice, the first call gets the
-  // first occurrence and the second call gets the second.
-  mutable std::map<std::string, size_t> text_to_ax_map_index_;
+  // The index of this vector matches the index of the block in
+  // readability_text_blocks_.
+  //   - Each entry is a vector of MappingSegments, because one distilled block
+  //     might correspond to multiple underlying AXNodes (e.g., a paragraph
+  //     containing a link).
+  //   - If a block fails to map, the entry at that index will be an empty
+  //     vector.
+  std::vector<std::vector<MappingSegment>> text_to_ax_map_;
 
   // A contiguous string representation of all leaf text nodes in the original
   // page's AXTree, in reading order. This serves as the global "search space"

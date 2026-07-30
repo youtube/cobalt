@@ -333,10 +333,11 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
             mUiConfig.updateDisplayStyle();
         }
 
+        ViewStub searchBoxStub = mNewTabPageLayout.findViewById(R.id.search_box_stub);
         mNtpSearchBox =
                 NtpSearchBoxFactory.createSearchBox(
                         mActivity,
-                        mNewTabPageLayout,
+                        searchBoxStub,
                         mIsTablet,
                         lifecycleDispatcher,
                         mProfile.isOffTheRecord(),
@@ -359,7 +360,6 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
         initializeSearchBoxTextView();
 
         initializeComposeplateFlags(mProfile);
-        mNtpSearchBox.setIsFuseboxEligible(Boolean.TRUE.equals(mIsComposeplateEnabled));
         if (assumeNonNull(mIsComposeplateEnabled)) {
             initializeComposeplate();
         }
@@ -1462,10 +1462,6 @@ public class NewTabPageCoordinator implements ModuleDelegateHost {
 
     public @Nullable HomeModulesCoordinator getHomeModulesCoordinatorForTesting() {
         return mHomeModulesCoordinator;
-    }
-
-    public @Nullable NtpSearchBox getNtpSearchBoxForTesting() {
-        return mNtpSearchBox;
     }
 
     public PropertyModel getModelForTesting() {

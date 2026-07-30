@@ -42,6 +42,8 @@
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/autofill/actor/actor_form_filling_service_impl.h"
+#include "chrome/browser/autofill/actor/one_time_tokens/actor_one_time_token_filling_service.h"
+#include "chrome/browser/autofill/actor/one_time_tokens/actor_one_time_token_filling_service_impl.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service_impl.h"
@@ -124,6 +126,32 @@ url::Origin OriginOrPrecursorIfOpaque(const url::Origin& origin) {
       origin.GetTupleOrPrecursorTupleIfOpaque().GetURL());
 }
 
+void OnNavigationConfirmationDecisionInBackground(
+    ExecutionEngine::State state,
+    ukm::SourceId ukm_source_id,
+    base::ScopedUmaHistogramTimer timer,
+    webui::mojom::NavigationConfirmationResponsePtr response) {
+  switch (response->result->which()) {
+    case webui::mojom::ConfirmationRequestResult::Tag::kPermissionGranted: {
+      bool permission_granted = response->result->get_permission_granted();
+      base::UmaHistogramBoolean(kPermissionGrantedHistogram,
+                                permission_granted);
+      ukm::builders::Actor_OriginGating builder(ukm_source_id);
+      builder
+          .SetServerConfirmationResult(static_cast<int64_t>(
+              permission_granted
+                  ? ExecutionEngine::ActorServerConfirmationResult::kAccepted
+                  : ExecutionEngine::ActorServerConfirmationResult::kRejected))
+          .SetEngineState(static_cast<int64_t>(state));
+      builder.Record(ukm::UkmRecorder::Get());
+      return;
+    }
+    case webui::mojom::ConfirmationRequestResult::Tag::kErrorReason:
+      return;
+  }
+  NOTREACHED();
+}
+
 }  // namespace
 
 ToolDelegate::CredentialWithPermission::CredentialWithPermission() = default;
@@ -174,6 +202,9 @@ ExecutionEngine::ExecutionEngine(
       actor_form_filling_service_(
           std::make_unique<autofill::ActorFormFillingServiceImpl>(journal_,
                                                                   task_->id())),
+      actor_one_time_token_filling_service_(
+          std::make_unique<autofill::ActorOneTimeTokenFillingServiceImpl>(
+              task_->GetProfile())),
       ui_event_dispatcher_(std::move(ui_event_dispatcher)) {
   TRACE_EVENT0("actor", "ExecutionEngine::ExecutionEngine");
 }
@@ -280,6 +311,7 @@ ExecutionEngine::ShouldDeferNavigation(
 
   switch (decision) {
     case GatingDecision::kAllowSameOrigin:
+    case GatingDecision::kAllowByContainerConfig:
       LogNavigationGating(source_origin, navigation_handle.GetInitiatorOrigin(),
                           url::Origin::Create(navigation_handle.GetURL()),
                           /*applied_gate=*/false);
@@ -296,6 +328,7 @@ ExecutionEngine::ShouldDeferNavigation(
           /*is_pre_approved=*/false);
       return content::NavigationThrottle::PROCEED;
     case GatingDecision::kBlockByStaticList:
+    case GatingDecision::kBlockByContainerConfig:
       LogNavigationGating(source_origin, navigation_handle.GetInitiatorOrigin(),
                           url::Origin::Create(navigation_handle.GetURL()),
                           /*applied_gate=*/true);
@@ -353,6 +386,14 @@ ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
       return GatingDecision::kAllowByStaticList;
     case EnterprisePolicyChecker::UrlBlockReason::kExplicitlyBlocked:
       return GatingDecision::kBlockByStaticList;
+  }
+
+  if (actor_container_config_.IsActive()) {
+    return actor_container_config_.IsNavigationAllowed(
+               url::Origin::Create(source_url),
+               url::Origin::Create(destination_url))
+               ? GatingDecision::kAllowByContainerConfig
+               : GatingDecision::kBlockByContainerConfig;
   }
 
   switch (SafetyListManager::GetInstance()->Find(source_url, destination_url)) {
@@ -459,6 +500,22 @@ void ExecutionEngine::HandleNavigationToNewOrigin(
     base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback) {
   if (!kGlicConfirmNavigationToNewOrigins.Get()) {
+    if (kGlicConfirmNavigationToNewOriginsDarkLaunch.Get() &&
+        !dark_launch_origin_checker_.IsNavigationAllowed(url::Origin(),
+                                                         destination)) {
+      SendNavigationConfirmationRequest(
+          destination,
+          base::BindOnce(&OnNavigationConfirmationDecisionInBackground, state_,
+                         ukm_source_id,
+                         base::ScopedUmaHistogramTimer(
+                             "Actor.NavigationGating."
+                             "DarkLaunchConfirmationRequestLatency")));
+      // Navigation is auto-approved, so add to origin checker allowlist to skip
+      // future checks and metrics.
+      dark_launch_origin_checker_.AllowNavigationTo(
+          destination,
+          /*is_user_confirmed=*/false);
+    }
     std::move(callback).Run(/*may_continue=*/true);
     return;
   }
@@ -468,24 +525,25 @@ void ExecutionEngine::HandleNavigationToNewOrigin(
                                       std::move(timer), std::move(callback));
     return;
   }
-  SendNavigationConfirmationRequest(destination, ukm_source_id,
-                                    std::move(timer), std::move(callback));
+  SendNavigationConfirmationRequest(
+      destination,
+      base::BindOnce(&ExecutionEngine::OnNavigationConfirmationDecision,
+                     GetWeakPtr(), destination, ukm_source_id, std::move(timer),
+                     state_, std::move(callback)));
 }
 
 void ExecutionEngine::SendNavigationConfirmationRequest(
     const url::Origin& destination,
-    ukm::SourceId ukm_source_id,
-    base::ScopedUmaHistogramTimer timer,
-    ExecutionEngine::NavigationDecisionCallback callback) {
+    NavigationConfirmationCallback callback) {
   if (!task_->delegate()) {
-    std::move(callback).Run(/*may_continue=*/false);
+    auto response = webui::mojom::NavigationConfirmationResponse::New();
+    response->result =
+        webui::mojom::ConfirmationRequestResult::NewPermissionGranted(false);
+    std::move(callback).Run(std::move(response));
     return;
   }
-  task_->delegate()->RequestToConfirmNavigation(
-      task_->id(), destination,
-      base::BindOnce(&ExecutionEngine::OnNavigationConfirmationDecision,
-                     GetWeakPtr(), destination, ukm_source_id, std::move(timer),
-                     std::move(callback)));
+  task_->delegate()->RequestToConfirmNavigation(task_->id(), destination,
+                                                std::move(callback));
 }
 
 void ExecutionEngine::MaybeRecordNavigationConfirmationMetrics(
@@ -534,6 +592,7 @@ void ExecutionEngine::OnNavigationConfirmationDecision(
     const url::Origin& destination,
     ukm::SourceId ukm_source_id,
     base::ScopedUmaHistogramTimer timer,
+    State engine_state,
     ExecutionEngine::NavigationDecisionCallback callback,
     webui::mojom::NavigationConfirmationResponsePtr response) {
   switch (response->result->which()) {
@@ -549,10 +608,8 @@ void ExecutionEngine::OnNavigationConfirmationDecision(
               permission_granted
                   ? ExecutionEngine::ActorServerConfirmationResult::kAccepted
                   : ExecutionEngine::ActorServerConfirmationResult::kRejected))
-          .SetEngineState(static_cast<int64_t>(state_));
+          .SetEngineState(static_cast<int64_t>(engine_state));
       builder.Record(ukm::UkmRecorder::Get());
-      permission_granted = permission_granted ||
-                           kGlicConfirmNavigationToNewOriginsDarkLaunch.Get();
       if (permission_granted) {
         origin_checker_.AllowNavigationTo(destination,
                                           /*is_user_confirmed=*/false);
@@ -801,10 +858,21 @@ void ExecutionEngine::SafetyChecksForNextAction() {
     return;
   }
 
-  const SafetyListManager& safety_list_manager =
-      *SafetyListManager::GetInstance();
   const GURL& url =
       tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedURL();
+
+  if (actor_container_config_.IsActive()) {
+    bool navigation_allowed =
+        actor_container_config_.IsActuationAllowed(url::Origin::Create(url));
+    OnMayActOnTabDecision(
+        tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin(),
+        navigation_allowed ? MayActOnUrlBlockReason::kAllowed
+                           : MayActOnUrlBlockReason::kBlockedByContainerConfig);
+    return;
+  }
+
+  const SafetyListManager& safety_list_manager =
+      *SafetyListManager::GetInstance();
   if (safety_list_manager.Find(url, url) ==
       SafetyListManager::Decision::kBlock) {
     OnMayActOnTabDecision(
@@ -1132,6 +1200,11 @@ actor_login::ActorLoginService& ExecutionEngine::GetActorLoginService() {
 autofill::ActorFormFillingService&
 ExecutionEngine::GetActorFormFillingService() {
   return *actor_form_filling_service_;
+}
+
+autofill::ActorOneTimeTokenFillingService&
+ExecutionEngine::GetActorOneTimeTokenFillingService() {
+  return *actor_one_time_token_filling_service_;
 }
 
 void ExecutionEngine::PromptToSelectCredential(

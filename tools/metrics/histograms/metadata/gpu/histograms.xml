@@ -704,7 +704,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.Dawn.AdapterFeatureLevel" enum="DawnAdapterFeatureLevel"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1122,7 +1122,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.GPUProcessTerminationStatus2" enum="GpuTerminationStatus"
-    expires_after="2026-07-05">
+    expires_after="2026-11-01">
   <owner>vmiura@chromium.org</owner>
   <summary>
     Counts for each time the GPU Process Host detects the process dies.
@@ -1215,7 +1215,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gpu.GrCompileShaderUs" units="microseconds"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>geofflang@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1226,7 +1226,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gpu.GrLinkProgramUs" units="microseconds"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>geofflang@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1322,7 +1322,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.IOSurface.WaitForCommandsToBeScheduledTimeUs"
-    units="microseconds" expires_after="2026-08-30">
+    units="microseconds" expires_after="2026-11-01">
   <owner>magchen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1337,7 +1337,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.IOSurface.WaitForCommandsToBeScheduledTimeUs.ANGLE"
-    units="microseconds" expires_after="2026-08-30">
+    units="microseconds" expires_after="2026-11-01">
   <owner>magchen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1351,7 +1351,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.IOSurface.WaitForCommandsToBeScheduledTimeUs.Dawn"
-    units="microseconds" expires_after="2026-08-30">
+    units="microseconds" expires_after="2026-11-01">
   <owner>magchen@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1387,7 +1387,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Gpu.Metal.FamilyMac" enum="MetalFamilyMac"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>cwallez@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1569,7 +1569,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.Presentation.VSyncCallbackDelay" units="microseconds"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>magchen@chromium.org</owner>
   <owner>vmiura@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
@@ -1602,7 +1602,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ProcessLifetimeEvents.SwiftShader"
-    enum="GPUProcessLifetimeEvent" expires_after="2026-09-06">
+    enum="GPUProcessLifetimeEvent" expires_after="2026-11-08">
   <owner>vmiura@chromium.org</owner>
   <summary>
     Recorded once for every GPU process launch and crash when GPU process is
@@ -1732,7 +1732,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.SkiaBackendType" enum="SkiaBackendType"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
   <summary>
@@ -1815,8 +1815,20 @@ chromium-metrics-reviews@google.com.
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
     Duration of vkCreateGraphicsPipelines call. Recorded every time
-    Ganesh-Vulkan or Graphite-Dawn on Skia context creates graphics pipeline.
-    Only reported for platforms supporting high resolution clocks.
+    Ganesh-Vulkan or Graphite-Dawn-Vulkan on Skia context creates graphics
+    pipeline. Only reported for platforms supporting high resolution clocks.
+  </summary>
+</histogram>
+
+<histogram name="GPU.Vulkan.SkiaContext.vkQueueSubmitUS" units="microseconds"
+    expires_after="2027-05-06">
+  <owner>hitawala@chromium.org</owner>
+  <owner>kylechar@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Duration of vkQueueSubmit call. Recorded every time Ganesh-Vulkan or
+    Graphite-Dawn-Vulkan on Skia context submits to vulkan queue. Only reported
+    for platforms supporting high resolution clocks.
   </summary>
 </histogram>
 
@@ -1989,6 +2001,19 @@ chromium-metrics-reviews@google.com.
   <token key="GraphiteDawnOrWebGPU" variants="GraphiteDawnOrWebGPU"/>
 </histogram>
 
+<histogram name="GPU.{GraphiteDawnOrWebGPU}.Vulkan.VkQueueSubmitUS"
+    units="microseconds" expires_after="2027-05-06">
+  <owner>hitawala@chromium.org</owner>
+  <owner>kylechar@chromium.org</owner>
+  <owner>mdb.webgpu-dev-team@google.com</owner>
+  <summary>
+    Tracks the amount of time in microseconds it takes for a call to
+    vkQueueSubmit to complete. Recorded only for clients that support
+    high-resolution clocks.
+  </summary>
+  <token key="GraphiteDawnOrWebGPU" variants="GraphiteDawnOrWebGPU"/>
+</histogram>
+
 <histogram name="GPU.{GraphiteDawnOrWebGPU}.{Cacheable}.CacheHit"
     units="microseconds" expires_after="2026-09-06">
   <owner>lokokung@google.com</owner>
@@ -2110,7 +2135,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Graphics.Exo.Buffer.SharedImageFormat"
-    enum="SharedImageFormatUMA" expires_after="2026-09-01">
+    enum="SharedImageFormatUMA" expires_after="2026-11-01">
   <owner>hitawala@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -2285,7 +2310,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.BeginFrameSource.VSyncCallbackDelay" units="microseconds"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>magchen@chromium.org</owner>
   <owner>vmiura@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>

@@ -113,6 +113,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/chrome_pages.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -243,6 +244,7 @@
 #include "extensions/common/extension.h"
 #include "extensions/common/manifest_handlers/background_info.h"
 #include "net/base/filename_util.h"
+#include "services/network/public/mojom/web_sandbox_flags.mojom.h"
 #include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom.h"
 #include "third_party/blink/public/mojom/frame/fullscreen.mojom.h"
@@ -656,12 +658,14 @@ Browser::Browser(const CreateParams& params)
   is_initialized_ = true;
 
   if (profile_->IsGuestSession()) {
-    base::UmaHistogramCounts100("Browser.WindowCount.Guest",
-                                chrome::GetGuestBrowserCount());
+    base::UmaHistogramCounts100(
+        "Browser.WindowCount.Guest",
+        GlobalBrowserCollection::GetInstance()->GetGuestBrowserCount());
   } else if (profile_->IsIncognitoProfile()) {
     base::UmaHistogramCounts100(
         "Browser.WindowCount.Incognito",
-        chrome::GetOffTheRecordBrowsersActiveForProfile(profile_));
+        ProfileBrowserCollection::GetForProfile(profile_)
+            ->GetOffTheRecordBrowserCount());
   }
 }
 
@@ -671,7 +675,7 @@ Browser::~Browser() {
     // `OnWindowClosing()` lifecycle hook. This may not be invoked during
     // Browser shutdown specifically in cases where clients directly reset
     // the Browser unique_ptr.
-    force_skip_warning_user_on_close_ = true;
+    UnloadController::From(this)->set_force_skip_warning_user_on_close(true);
     OnWindowClosing();
   }
 
@@ -932,7 +936,7 @@ Browser::WarnBeforeClosingResult Browser::MaybeWarnBeforeClosing(
   // before-unload handlers by setting `force_skip_warning_user_on_close_` to
   // true or there are no pending downloads we need to prompt about) then
   // there's no need to warn.
-  if (force_skip_warning_user_on_close_) {
+  if (UnloadController::From(this)->force_skip_warning_user_on_close()) {
     return WarnBeforeClosingResult::kOkToClose;
   }
 
@@ -954,7 +958,7 @@ bool Browser::HandleBeforeClose() {
       [this]() -> BrowserWindowInterface::ClosingStatus {
     // If `force_skip_warning_user_` is true, then we should immediately
     // return true.
-    if (force_skip_warning_user_on_close_) {
+    if (UnloadController::From(this)->force_skip_warning_user_on_close()) {
       return BrowserWindowInterface::ClosingStatus::kPermitted;
     }
 
@@ -1000,18 +1004,6 @@ bool Browser::IsAttemptingToCloseBrowser() const {
   return UnloadController::From(this)->is_attempting_to_close_browser();
 }
 
-bool Browser::ShouldRunUnloadListenerBeforeClosing(
-    content::WebContents* web_contents) {
-  return !force_skip_warning_user_on_close_ &&
-         UnloadController::From(this)->ShouldRunUnloadEventsHelper(
-             web_contents);
-}
-
-bool Browser::RunUnloadListenerBeforeClosing(
-    content::WebContents* web_contents) {
-  return !force_skip_warning_user_on_close_ &&
-         UnloadController::From(this)->RunUnloadEventsHelper(web_contents);
-}
 
 void Browser::SetWindowUserTitle(const std::string& user_title) {
   user_title_ = user_title;
@@ -1772,10 +1764,6 @@ bool Browser::HandleKeyboardEvent(content::WebContents* source,
          window()->HandleKeyboardEvent(event);
 }
 
-bool Browser::TabsNeedBeforeUnloadFired() const {
-  return UnloadController::From(this)->TabsNeedBeforeUnloadFired();
-}
-
 bool Browser::CanDragEnter(content::WebContents* source,
                            const content::DropData& data,
                            blink::DragOperationsMask operations_allowed) {
@@ -2230,14 +2218,8 @@ bool Browser::DidAddMessageToConsole(
 void Browser::BeforeUnloadFired(WebContents* web_contents,
                                 bool proceed,
                                 bool* proceed_to_fire_unload) {
-  if (is_type_devtools() &&
-      DevToolsWindow::HandleBeforeUnload(web_contents, proceed,
-                                         proceed_to_fire_unload)) {
-    return;
-  }
-
-  *proceed_to_fire_unload =
-      UnloadController::From(this)->BeforeUnloadFired(web_contents, proceed);
+  UnloadController::From(this)->BeforeUnloadFired(web_contents, proceed,
+                                                  proceed_to_fire_unload);
 }
 
 bool Browser::ShouldFocusLocationBarByDefault(WebContents* source) {
@@ -2303,6 +2285,15 @@ bool Browser::IsWebContentsCreationOverridden(
     // tab. Note, we do this even if the task isn't active (e.g. paused) so that
     // a user action on behalf of the actor has the same behavior since the
     // resumed task will still be fixed to the tab.
+
+    // However, if the opener is sandboxed and restricted from top-level
+    // navigation, we cannot force a same-tab redirection as it would violate
+    // the sandbox. Instead, we decline to override creation, allowing the
+    // browser to safely open a new popup window (since kPopups is allowed).
+    if (opener &&
+        opener->IsSandboxed(network::mojom::WebSandboxFlags::kTopNavigation)) {
+      return false;
+    }
     return true;
   }
 
@@ -2682,17 +2673,17 @@ void Browser::RegisterProtocolHandler(
   permissions::PermissionRequestManager* permission_request_manager =
       permissions::PermissionRequestManager::FromWebContents(web_contents);
   if (permission_request_manager) {
-    // At this point, there will be UI presented, and running a dialog causes an
-    // exit to webpage-initiated fullscreen. http://crbug.com/41322524
-    base::ScopedClosureRunner fullscreen_block =
-        web_contents->ForSecurityDropFullscreen(
-            /*display_id=*/display::kInvalidDisplayId);
+    auto blocker = web_contents->ForSecurityDropFullscreen(
+        /*display_id=*/display::kInvalidDisplayId);
+    if (!blocker) {
+      return;
+    }
 
     permission_request_manager->AddRequest(
         requesting_frame,
         std::make_unique<
             custom_handlers::RegisterProtocolHandlerPermissionRequest>(
-            registry, handler, url, std::move(fullscreen_block)));
+            registry, handler, url, std::move(*blocker)));
   }
 }
 

@@ -109,6 +109,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_PDF_INK2)
+#include "base/rand_util.h"
 #include "pdf/pdf_ink_metrics_handler.h"
 #include "pdf/pdf_ink_transform.h"
 #include "pdf/pdfium/pdfium_ink_reader.h"
@@ -158,6 +159,10 @@ constexpr int kMaxPasswordTries = 3;
 
 constexpr base::TimeDelta kTouchLongPressTimeout = base::Milliseconds(300);
 
+#if BUILDFLAG(ENABLE_PDF_INK2)
+constexpr int kMinTextboxId = 0;
+constexpr int kMaxTextboxId = std::numeric_limits<int>::max();
+
 // Saves the provided `attributes` as parameters on the `mark` of the
 // `text_object`. Used to reload text objects in future PDF sessions.
 void AddMetadataToTextObject(FPDF_DOCUMENT doc,
@@ -187,7 +192,11 @@ void AddMetadataToTextObject(FPDF_DOCUMENT doc,
                                     attributes.is_bold));
   CHECK(FPDFPageObjMark_SetIntParam(doc, text_object, mark, "IsItalic",
                                     attributes.is_italic));
+
+  CHECK(FPDFPageObjMark_SetStringParam(doc, text_object, mark, "Text",
+                                       attributes.text.c_str()));
 }
+#endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 // Windows has native panning capabilities. No need to use our own.
 #if BUILDFLAG(IS_WIN)
@@ -662,6 +671,21 @@ sk_sp<const SkData> MakeDataAvoidingCopy(SkStreamAsset* stream) {
   }
   return SkData::MakeFromStream(stream, stream->getLength());
 }
+
+// Caller takes ownership of `page_objects` via the return value.
+std::vector<ScopedFPDFPageObject> RemovePageObjectsFromPage(
+    FPDF_PAGE page,
+    std::vector<FPDF_PAGEOBJECT> page_objects) {
+  std::vector<ScopedFPDFPageObject> page_object_deleters;
+  page_object_deleters.reserve(page_objects.size());
+  for (FPDF_PAGEOBJECT page_object : page_objects) {
+    CHECK(FPDFPage_RemoveObject(page, page_object));
+    // FPDFPage_RemoveObject() transferred ownership of `page_object` to the
+    // caller. This transfers ownership into `page_object_deleters`.
+    page_object_deleters.push_back(ScopedFPDFPageObject(page_object));
+  }
+  return page_object_deleters;
+}
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
 void CheckBitmapProperties(const SkBitmap& sk_bitmap, FPDF_BITMAP fpdf_bitmap) {
@@ -748,6 +772,10 @@ PDFiumEngine::PDFiumEngine(PDFiumEngineClient* client,
   IFSDK_PAUSE::version = 1;
   IFSDK_PAUSE::user = nullptr;
   IFSDK_PAUSE::NeedToPauseNow = Pause_NeedToPauseNow;
+
+#if BUILDFLAG(ENABLE_PDF_INK2)
+  next_textbox_id_ = base::RandIntInclusive(kMinTextboxId, kMaxTextboxId);
+#endif
 }
 
 PDFiumEngine::~PDFiumEngine() {
@@ -5125,7 +5153,7 @@ void PDFiumEngine::DrawText(int page_index,
   const SkColor color = attributes.color;
   const float pdf_font_size =
       CSSFontSizeToPdfFontSize(attributes.css_font_size);
-  const int textbox_id = next_textbox_id_++;
+  const int textbox_id = GetNextTextboxId();
 
   for (const InkTextInfo& item : text_info) {
     FPDF_FONT font = GetAddedFont(item.font_id);
@@ -5151,6 +5179,20 @@ void PDFiumEngine::DrawText(int page_index,
                                    /*A=*/255));
     CHECK(FPDFText_SetCharcodes(text_object.get(), item.glyphs.data(),
                                 item.glyphs.size()));
+
+    if (item.glyph_positions.size() > 1) {
+      std::vector<float> positions;
+      base::span<const float> unscaled_positions =
+          base::span(item.glyph_positions).subspan<1u>();
+      positions.reserve(unscaled_positions.size());
+      std::ranges::transform(unscaled_positions, std::back_inserter(positions),
+                             [pdf_zoom](float pos) {
+                               return CSSFontSizeToPdfFontSize(pos / pdf_zoom);
+                             });
+      CHECK(FPDFText_SetPositions(text_object.get(), positions.data(),
+                                  positions.size()));
+    }
+
     FS_MATRIX matrix{1, 0, 0, 1, run_rect.x(), run_rect.y()};
     CHECK(FPDFPageObj_TransformF(text_object.get(), &matrix));
 
@@ -5170,7 +5212,6 @@ void PDFiumEngine::DrawText(int page_index,
   }
 
   CHECK(FPDFPage_GenerateContent(page));
-  // TODO(crbug.com/504689665): Avoid crashing if the page has other edits.
   GetPage(page_index)->ReloadTextPage();
   client_->Invalidate(GetPageScreenRect(page_index));
 }
@@ -5202,11 +5243,11 @@ void PDFiumEngine::ApplyStroke(int page_index,
   CHECK(inserted);  // Stroke IDs should be unique when added.
 
   // Since there are now page references in `ink_stroke_data_`, ensure that this
-  // page has a ScopedUnloadPreventer so that the references do not become stale
-  // if PDFiumPage::Unload() gets called.
+  // page has a ScopedPageUnloadPreventer so that the references do not become
+  // stale if PDFiumPage::Unload() gets called.
   if (!edited_pages_unload_preventers_.contains(page_index)) {
     edited_pages_unload_preventers_.insert(
-        {page_index, PDFiumPage::ScopedUnloadPreventer(pdfium_page)});
+        {page_index, PDFiumPage::ScopedPageUnloadPreventer(pdfium_page)});
   }
 }
 
@@ -5227,23 +5268,12 @@ void PDFiumEngine::DiscardStroke(int page_index, InkStrokeId id) {
   CHECK(PageIndexInBounds(page_index));
   auto it = ink_stroke_data_.find(id);
   CHECK(it != ink_stroke_data_.end());
-  for (FPDF_PAGEOBJECT page_object : it->second.page_objects) {
-    bool result =
-        FPDFPage_RemoveObject(pages_[page_index]->GetPage(), page_object);
-    CHECK(result);
-
-    // FPDFPage_RemoveObject() transferred ownership of `page_object` to the
-    // caller. Free it since `page_object` is being discarded.
-    FPDFPageObj_Destroy(page_object);
-  }
+  std::vector<ScopedFPDFPageObject> page_object_deleters =
+      RemovePageObjectsFromPage(pages_[page_index]->GetPage(),
+                                std::move(it->second.page_objects));
   ink_stroke_data_.erase(it);
 
-  bool page_still_has_shapes_or_strokes =
-      pages_with_loaded_v2_ink_shapes_.contains(page_index) ||
-      std::ranges::any_of(ink_stroke_data_, [page_index](const auto& it) {
-        return it.second.page_index == page_index;
-      });
-  if (!page_still_has_shapes_or_strokes) {
+  if (!PageStillHasEdits(page_index)) {
     edited_pages_unload_preventers_.erase(page_index);
   }
 }
@@ -5296,11 +5326,35 @@ PDFiumEngine::LoadV2InkPathsForPage(int page_index) {
   // will know not to erase the `edited_pages_unload_preventers_` entry.
   if (!page_shape_map.empty()) {
     edited_pages_unload_preventers_.insert(
-        {page_index, PDFiumPage::ScopedUnloadPreventer(page)});
+        {page_index, PDFiumPage::ScopedPageUnloadPreventer(page)});
     pages_with_loaded_v2_ink_shapes_.insert(page_index);
   }
 
   return page_shape_map;
+}
+
+DocumentInkTextBoxesMap PDFiumEngine::LoadTextAnnotationsFromPdf() {
+  DocumentInkTextBoxesMap document_textboxes;
+  for (size_t i = 0; i < pages_.size(); ++i) {
+    PDFiumPage* page = pages_[i].get();
+    std::vector<InkTextBox> page_textboxes =
+        ReadInkTextAnnotationsFromPage(page->GetPage());
+    if (page_textboxes.empty()) {
+      continue;
+    }
+
+    // Note that the textbox IDs in the PDF are ONLY used for grouping multiple
+    // text objects belonging to the same textbox in the PDF on a per-page
+    // basis (and not for global tracking). Generating globally unique IDs
+    // prevents collisions across all pages.
+    for (const auto& textbox : page_textboxes) {
+      existing_textbox_ids_.insert(textbox.id);
+    }
+    document_textboxes[i] = std::move(page_textboxes);
+  }
+
+  // TODO(crbug.com/504697272): Track the textboxes.
+  return document_textboxes;
 }
 
 void PDFiumEngine::UpdateShapeActive(int page_index,
@@ -5389,6 +5443,31 @@ std::vector<FPDF_PAGEOBJECT> PDFiumEngine::GetActiveInkPageObjectsForPage(
     }
   }
   return active_page_objects;
+}
+
+int PDFiumEngine::GetNextTextboxId() {
+  while (true) {
+    int candidate = next_textbox_id_;
+
+    if (next_textbox_id_ == kMaxTextboxId) {
+      next_textbox_id_ = kMinTextboxId;
+    } else {
+      ++next_textbox_id_;
+    }
+
+    bool inserted = existing_textbox_ids_.insert(candidate).second;
+    if (inserted) {
+      return candidate;
+    }
+  }
+}
+
+bool PDFiumEngine::PageStillHasEdits(int page_index) const {
+  CHECK(PageIndexInBounds(page_index));
+  return pages_with_loaded_v2_ink_shapes_.contains(page_index) ||
+         std::ranges::any_of(ink_stroke_data_, [page_index](const auto& it) {
+           return it.second.page_index == page_index;
+         });
 }
 
 PDFiumEngine::InkStrokeData::InkStrokeData(

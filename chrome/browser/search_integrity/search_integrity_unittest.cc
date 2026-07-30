@@ -14,9 +14,11 @@
 #include "chrome/browser/search_engines/template_url_service_test_util.h"
 #include "chrome/browser/search_integrity/search_integrity_allowlist.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/search_engines/search_engines_pref_names.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_data.h"
 #include "components/search_engines/template_url_service.h"
+#include "components/sync_preferences/testing_pref_service_syncable.h"
 #include "content/public/test/browser_task_environment.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -56,7 +58,8 @@ class SearchIntegrityTest : public testing::Test {
                                const std::string& url,
                                bool created_by_policy = false,
                                int prepopulate_id = 0,
-                               int starter_pack_id = 0) {
+                               int starter_pack_id = 0,
+                               bool enforced_by_policy = false) {
     TemplateURLData data;
     data.SetShortName(short_name);
     data.SetKeyword(short_name);
@@ -65,9 +68,20 @@ class SearchIntegrityTest : public testing::Test {
       data.policy_origin =
           TemplateURLData::PolicyOrigin::kDefaultSearchProvider;
     }
+    data.enforced_by_policy = enforced_by_policy;
     data.prepopulate_id = prepopulate_id;
     data.starter_pack_id = starter_pack_id;
     return test_util_->model()->Add(std::make_unique<TemplateURL>(data));
+  }
+
+  void ClearAllButDefault() {
+    const TemplateURL* def_turl =
+        test_util_->model()->GetDefaultSearchProvider();
+    for (const auto& turl : test_util_->model()->GetTemplateURLs()) {
+      if (turl != def_turl) {
+        test_util_->model()->Remove(turl);
+      }
+    }
   }
 
   void SetDefaultSearchProvider(TemplateURL* template_url) {
@@ -95,6 +109,7 @@ TEST_F(SearchIntegrityTest, CheckCustomSearchEngines_ExtractsNoReferralParam) {
       AddSearchEngine(u"No Referral Engine", "http://custom.com");
   SetDefaultSearchProvider(turl);
   TriggerAllowlistInitialized();
+  ClearAllButDefault();
   SearchIntegrityReport report = CheckSearchEnginesReport();
 
   EXPECT_TRUE(report.has_custom_option);
@@ -287,15 +302,31 @@ TEST_F(SearchIntegrityTest, CheckDefaultSearchEngine_DefaultIsStarterPack) {
   EXPECT_FALSE(report.is_default_custom);
 }
 
-TEST_F(SearchIntegrityTest, CheckDefaultSearchEngine_DefaultIsPrepopulated) {
-  TemplateURL* turl =
-      AddSearchEngine(u"Prepopulated", "http://prepopulated.com",
-                      /*created_by_policy=*/false, /*prepopulate_id=*/1);
+TEST_F(SearchIntegrityTest, CheckDefaultEnforcedWithoutPolicy_Unmanaged) {
+  // Case: enforced_by_policy is true, but DefaultSearchProviderEnabled is not
+  // managed.
+  TemplateURL* turl = AddSearchEngine(u"Policy Default", "http://policy.com",
+                                      /*created_by_policy=*/true, 0, 0,
+                                      /*enforced_by_policy=*/true);
   SetDefaultSearchProvider(turl);
 
   SearchIntegrityReport report = CheckSearchEnginesReport();
+  EXPECT_TRUE(report.is_default_enforced_without_policy);
+}
 
-  EXPECT_FALSE(report.is_default_custom);
+TEST_F(SearchIntegrityTest, CheckDefaultEnforcedWithoutPolicy_Managed) {
+  // Case: enforced_by_policy is true, and DefaultSearchProviderEnabled IS
+  // managed.
+  TemplateURL* turl = AddSearchEngine(u"Policy Default", "http://policy.com",
+                                      /*created_by_policy=*/true, 0, 0,
+                                      /*enforced_by_policy=*/true);
+  SetDefaultSearchProvider(turl);
+
+  test_util_->profile()->GetTestingPrefService()->SetManagedPref(
+      prefs::kDefaultSearchProviderEnabled, base::Value(true));
+
+  SearchIntegrityReport report = CheckSearchEnginesReport();
+  EXPECT_FALSE(report.is_default_enforced_without_policy);
 }
 
 TEST_F(SearchIntegrityTest, CheckForSpoofing_NoAlertForNonUrlKeywords) {

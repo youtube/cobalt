@@ -8,14 +8,17 @@
 #include <string>
 #include <vector>
 
+#include "base/test/run_until.h"
 #include "chrome/browser/apps/app_service/app_service_proxy.h"
 #include "chrome/browser/apps/app_service/app_service_proxy_factory.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics.h"
 #include "chrome/browser/apps/app_service/metrics/app_platform_metrics_utils.h"
+#include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "chromeos/ash/components/login/login_state/scoped_test_public_session_login_state.h"
 #include "components/app_constants/constants.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 #include "components/services/app_service/public/cpp/app_types.h"
@@ -88,19 +91,114 @@ class AppPlatformInputMetricsTest : public InProcessBrowserTest {
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
     test_ukm_recorder_ = std::make_unique<ukm::TestAutoSetUkmRecorder>();
+  }
 
+  void StartMetricsService() {
     auto* proxy = AppServiceProxyFactory::GetForProfile(browser()->profile());
-    if (!proxy->AppPlatformMetricsService()->AppPlatformMetrics()) {
-      proxy->AppPlatformMetricsService()->Start(
-          proxy->AppRegistryCache(), proxy->InstanceRegistry(),
-          proxy->AppCapabilityAccessCache());
-    }
+    // Force overwrite and re-create the service to completely bypass and
+    // replace the production async posted task from
+    // AppServiceProxyAsh::Initialize()!
+    auto service =
+        std::make_unique<apps::AppPlatformMetricsService>(browser()->profile());
+    auto* service_ptr = service.get();
+    proxy->SetAppPlatformMetricsServiceForTesting(std::move(service));
+
+    service_ptr->Start(proxy->AppRegistryCache(), proxy->InstanceRegistry(),
+                       proxy->AppCapabilityAccessCache());
   }
 
   AppPlatformInputMetrics* app_platform_input_metrics() {
     auto* proxy = AppServiceProxyFactory::GetForProfile(browser()->profile());
     return proxy->AppPlatformMetricsService()
         ->app_platform_input_metrics_.get();
+  }
+
+  AppPlatformMetrics* app_platform_metrics() {
+    auto* proxy = AppServiceProxyFactory::GetForProfile(browser()->profile());
+    return proxy->AppPlatformMetrics();
+  }
+
+  void VerifyAppUsageTimeUkm(const std::string& app_id,
+                             base::TimeDelta duration,
+                             AppTypeName app_type_name) {
+    VerifyAppUsageTimeUkmWithUkmName("ChromeOSApp.UsageTime", app_id, duration,
+                                     app_type_name);
+    VerifyAppUsageTimeUkmWithUkmName("ChromeOSApp.UsageTimeReusedSourceId",
+                                     app_id, duration, app_type_name);
+  }
+
+  void VerifyAppUsageTimeUkmWithUkmName(const std::string& ukm_name,
+                                        const std::string& app_id,
+                                        base::TimeDelta duration,
+                                        AppTypeName app_type_name) {
+    const auto entries = test_ukm_recorder_->GetEntriesByName(ukm_name);
+    int usage_time = 0;
+    GURL expected_url =
+        AppPlatformMetrics::GetURLForApp(browser()->profile(), app_id);
+    for (const ukm::mojom::UkmEntry* entry : entries) {
+      const ukm::UkmSource* src =
+          test_ukm_recorder_->GetSourceForSourceId(entry->source_id);
+      if (src == nullptr || src->url() != expected_url) {
+        continue;
+      }
+      usage_time += *(test_ukm_recorder_->GetEntryMetric(entry, "Duration"));
+      test_ukm_recorder_->ExpectEntryMetric(entry, "UserDeviceMatrix", 0);
+      test_ukm_recorder_->ExpectEntryMetric(entry, "AppType",
+                                            (int)app_type_name);
+    }
+    ASSERT_EQ(usage_time, duration.InMilliseconds());
+  }
+
+  void VerifyNoAppUsageTimeUkm() {
+    auto entries =
+        test_ukm_recorder_->GetEntriesByName("ChromeOSApp.UsageTime");
+    ASSERT_EQ(0U, entries.size());
+  }
+
+  void VerifyAppUsageTimeUkm(const std::string& app_id,
+                             AppTypeName app_type_name) {
+    const auto entries =
+        test_ukm_recorder_->GetEntriesByName("ChromeOSApp.UsageTime");
+    bool found = false;
+    GURL expected_url =
+        AppPlatformMetrics::GetURLForApp(browser()->profile(), app_id);
+    for (const ukm::mojom::UkmEntry* entry : entries) {
+      const ukm::UkmSource* src =
+          test_ukm_recorder_->GetSourceForSourceId(entry->source_id);
+      if (src && src->url() == expected_url) {
+        test_ukm_recorder_->ExpectEntryMetric(entry, "AppType",
+                                              (int)app_type_name);
+        found = true;
+        break;
+      }
+    }
+    ASSERT_TRUE(found);
+  }
+
+  void VerifyInstalledAppsUkm(const std::string& app_id,
+                              InstallReason install_reason,
+                              InstallSource install_source,
+                              InstallTime install_time) {
+    const auto entries =
+        test_ukm_recorder_->GetEntriesByName("ChromeOSApp.InstalledApp");
+    bool found = false;
+    GURL expected_url =
+        AppPlatformMetrics::GetURLForApp(browser()->profile(), app_id);
+    for (const ukm::mojom::UkmEntry* entry : entries) {
+      const ukm::UkmSource* src =
+          test_ukm_recorder_->GetSourceForSourceId(entry->source_id);
+      if (src && src->url() == expected_url) {
+        test_ukm_recorder_->ExpectEntryMetric(entry, "InstallReason",
+                                              (int)install_reason);
+        test_ukm_recorder_->ExpectEntryMetric(entry, "InstallSource2",
+                                              (int)install_source);
+        test_ukm_recorder_->ExpectEntryMetric(entry, "InstallTime",
+                                              (int)install_time);
+        found = true;
+        break;
+      }
+    }
+    ASSERT_TRUE(found);
   }
 
   aura::Window* window() { return browser()->window()->GetNativeWindow(); }
@@ -147,12 +245,13 @@ class AppPlatformInputMetricsTest : public InProcessBrowserTest {
                      AppType app_type,
                      const std::string& publisher_id,
                      Readiness readiness,
-                     InstallSource install_source) {
+                     InstallSource install_source,
+                     InstallReason install_reason = InstallReason::kSystem) {
     auto* proxy = AppServiceProxyFactory::GetForProfile(browser()->profile());
     AppPtr app = std::make_unique<App>(app_type, app_id);
     app->readiness = readiness;
     app->publisher_id = publisher_id;
-    app->install_reason = InstallReason::kSystem;
+    app->install_reason = install_reason;
     app->install_source = install_source;
 
     std::vector<AppPtr> apps;
@@ -201,13 +300,50 @@ class AppPlatformInputMetricsTest : public InProcessBrowserTest {
     return window;
   }
 
+  void TearDownOnMainThread() override {
+    test_ukm_recorder_.reset();
+    InProcessBrowserTest::TearDownOnMainThread();
+  }
+
  protected:
   std::unique_ptr<ukm::TestAutoSetUkmRecorder> test_ukm_recorder_;
   base::CallbackListSubscription create_services_subscription_;
 };
 
+class ManagedGuestSessionMetricsTest : public AppPlatformInputMetricsTest {
+ public:
+  void SetUpOnMainThread() override {
+    // 1. Run base setup (InProcessBrowserTest handles its own login)
+    AppPlatformInputMetricsTest::SetUpOnMainThread();
+    // 2. Simulate Managed Guest Session AFTER InProcessBrowserTest setup to
+    // ensure it is not overwritten!
+    mgs_state_ = std::make_unique<ash::ScopedTestPublicSessionLoginState>();
+    // 3. Now start the metrics service, so it sees the MGS state correctly!
+    StartMetricsService();
+  }
+
+  void TearDownOnMainThread() override {
+    // 1. Purge and destroy the custom testing metrics service early. This
+    // invokes their destructors and safely unregisters the UkmRecorder
+    // observers while MGS is still active!
+    auto* proxy = AppServiceProxyFactory::GetForProfile(browser()->profile());
+    if (proxy) {
+      proxy->SetAppPlatformMetricsServiceForTesting(nullptr);
+    }
+
+    // 2. Now it is 100% safe to destroy the mock Managed Guest Session login
+    // state!
+    mgs_state_.reset();
+    AppPlatformInputMetricsTest::TearDownOnMainThread();
+  }
+
+ protected:
+  std::unique_ptr<ash::ScopedTestPublicSessionLoginState> mgs_state_;
+};
+
 IN_PROC_BROWSER_TEST_F(AppPlatformInputMetricsTest,
                        InputEventsOnBrowserWindow) {
+  StartMetricsService();
   InstallOneApp(app_constants::kChromeAppId, AppType::kChromeApp, "Chrome",
                 Readiness::kReady, InstallSource::kSystem);
   InstallOneApp(kWebAppId1, AppType::kWeb, "https://foo.com/",
@@ -299,6 +435,248 @@ IN_PROC_BROWSER_TEST_F(AppPlatformInputMetricsTest,
                  apps::InstanceState::kDestroyed);
   ModifyInstance(kWebAppId1, web_app_window1.get(),
                  apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       InputEventUkmReportedAfter2Hours) {
+  InstallOneApp(app_constants::kChromeAppId, AppType::kChromeApp, "Chrome",
+                Readiness::kReady, InstallSource::kSystem);
+  auto chrome_window = CreateWebAppWindow(window());
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 kActiveInstanceState);
+  CreateInputEvent(InputEventSource::kTouch, chrome_window.get());
+
+  app_platform_input_metrics()->OnFiveMinutes();
+  VerifyNoUkm();
+
+  // Set time passed 2 hours to record the usage time AppKM.
+  app_platform_input_metrics()->OnTwoHours();
+  VerifyUkm(1, std::string("app://") + app_constants::kChromeAppId,
+            AppTypeName::kChromeBrowser, /*event_count=*/1,
+            InputEventSource::kTouch);
+
+  // Cleanup
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       InputEventUkmReportedOnShutdown) {
+  InstallOneApp(app_constants::kChromeAppId, AppType::kChromeApp, "Chrome",
+                Readiness::kReady, InstallSource::kSystem);
+  auto chrome_window = CreateWebAppWindow(window());
+  // Set the browser window as activated.
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 kActiveInstanceState);
+  CreateInputEvent(InputEventSource::kTouch, chrome_window.get());
+
+  app_platform_input_metrics()->OnFiveMinutes();
+  VerifyNoUkm();
+
+  // Simulate shutdown by notifying observers. This will now safely trigger
+  // OnStartingShutdown because our inline service was correctly registered.
+  ukm::UkmRecorder::Get()->NotifyStartShutdown();
+
+  // Wait for the async UKM entry to propagate to the test recorder.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return test_ukm_recorder_->GetEntriesByName("ChromeOSApp.InputEvent")
+               .size() == 1U;
+  }));
+
+  VerifyUkm(1, std::string("app://") + app_constants::kChromeAppId,
+            AppTypeName::kChromeBrowser, /*event_count=*/1,
+            InputEventSource::kTouch);
+
+  // Cleanup
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       InputEventUkmForPolicyInstalledApp) {
+  InstallOneApp("p", AppType::kWeb, "https://policy.com/", Readiness::kReady,
+                InstallSource::kSystem, InstallReason::kPolicy);
+  auto app_window = CreateWebAppWindow(window());
+
+  // Set the browser window as activated.
+  ModifyInstance("p", app_window.get(), kActiveInstanceState);
+  CreateInputEvent(InputEventSource::kMouse, app_window.get());
+  app_platform_input_metrics()->OnFiveMinutes();
+  VerifyNoUkm();
+
+  // Set time passed 2 hours to record the usage time AppKM.
+  app_platform_input_metrics()->OnTwoHours();
+  VerifyUkm(1, "https://policy.com/", AppTypeName::kChromeBrowser,
+            /*event_count=*/1, InputEventSource::kMouse);
+
+  // Cleanup
+  ModifyInstance("p", app_window.get(), apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       DoNotReportInputEventUkmForUserInstalledApps) {
+  InstallOneApp("u", AppType::kWeb, "https://user.com/", Readiness::kReady,
+                InstallSource::kSystem, InstallReason::kUser);
+  auto app_window = CreateWebAppWindow(window());
+
+  // Set the browser window as activated.
+  ModifyInstance("u", app_window.get(), kActiveInstanceState);
+  CreateInputEvent(InputEventSource::kMouse, app_window.get());
+  app_platform_input_metrics()->OnFiveMinutes();
+  VerifyNoUkm();
+
+  // Set time passed 2 hours to record the usage time AppKM.
+  app_platform_input_metrics()->OnTwoHours();
+  VerifyNoUkm();
+
+  // Cleanup
+  ModifyInstance("u", app_window.get(), apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       ReportsUsageTimeUkmAfter2Hours) {
+  InstallOneApp(app_constants::kChromeAppId, AppType::kChromeApp, "Chrome",
+                Readiness::kReady, InstallSource::kSystem);
+  auto chrome_window = CreateWebAppWindow(window());
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 kActiveInstanceState);
+
+  app_platform_metrics()->OnFiveMinutes();
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 kInactiveInstanceState);
+  VerifyNoAppUsageTimeUkm();
+
+  app_platform_metrics()->OnTwoHours();
+  VerifyAppUsageTimeUkm(app_constants::kChromeAppId,
+                        AppTypeName::kChromeBrowser);
+
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       UsageTimeUkmReportedOnShutdown) {
+  InstallOneApp(app_constants::kChromeAppId, AppType::kChromeApp, "Chrome",
+                Readiness::kReady, InstallSource::kSystem);
+  auto chrome_window = CreateWebAppWindow(window());
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 kActiveInstanceState);
+
+  app_platform_metrics()->OnFiveMinutes();
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 kInactiveInstanceState);
+  VerifyNoAppUsageTimeUkm();
+
+  ukm::UkmRecorder::Get()->NotifyStartShutdown();
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return test_ukm_recorder_->GetEntriesByName("ChromeOSApp.UsageTime")
+               .size() == 1U;
+  }));
+
+  VerifyAppUsageTimeUkm(app_constants::kChromeAppId,
+                        AppTypeName::kChromeBrowser);
+
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       UsageTimeUkmReportedInShortSessions) {
+  InstallOneApp(app_constants::kChromeAppId, AppType::kChromeApp, "Chrome",
+                Readiness::kReady, InstallSource::kSystem);
+  auto chrome_window = CreateWebAppWindow(window());
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 kActiveInstanceState);
+
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 kInactiveInstanceState);
+  VerifyNoAppUsageTimeUkm();
+
+  ukm::UkmRecorder::Get()->NotifyStartShutdown();
+
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return test_ukm_recorder_->GetEntriesByName("ChromeOSApp.UsageTime")
+               .size() == 1U;
+  }));
+
+  VerifyAppUsageTimeUkm(app_constants::kChromeAppId,
+                        AppTypeName::kChromeBrowser);
+
+  ModifyInstance(app_constants::kChromeAppId, chrome_window.get(),
+                 apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       DoNotReportUsageTimeUkmForBlockedInstalledReasons) {
+  for (InstallReason reason : {InstallReason::kUser}) {
+    InstallOneApp("blocked_app", AppType::kWeb, "https://blocked.com/",
+                  Readiness::kReady, InstallSource::kSystem, reason);
+    auto app_window = CreateWebAppWindow(nullptr);
+    ModifyInstance("blocked_app", app_window.get(), kActiveInstanceState);
+
+    app_platform_metrics()->OnFiveMinutes();
+    app_platform_metrics()->OnTwoHours();
+    VerifyNoAppUsageTimeUkm();
+
+    ModifyInstance("blocked_app", app_window.get(),
+                   apps::InstanceState::kDestroyed);
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       ReportsUsageTimeUkmForPolicyInstalledReasons) {
+  InstallOneApp("policy_app", AppType::kWeb, "https://policy.com/",
+                Readiness::kReady, InstallSource::kSystem,
+                InstallReason::kPolicy);
+  auto app_window = CreateWebAppWindow(nullptr);
+  ModifyInstance("policy_app", app_window.get(), kActiveInstanceState);
+
+  app_platform_metrics()->OnFiveMinutes();
+  app_platform_metrics()->OnTwoHours();
+  VerifyAppUsageTimeUkm("policy_app", AppTypeName::kWeb);
+
+  ModifyInstance("policy_app", app_window.get(),
+                 apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       ReportsUsageTimeUkmForOemInstalledReasons) {
+  InstallOneApp("oem_app", AppType::kWeb, "https://oem.com/", Readiness::kReady,
+                InstallSource::kSystem, InstallReason::kOem);
+  auto app_window = CreateWebAppWindow(nullptr);
+  ModifyInstance("oem_app", app_window.get(), kActiveInstanceState);
+
+  app_platform_metrics()->OnFiveMinutes();
+  app_platform_metrics()->OnTwoHours();
+  VerifyAppUsageTimeUkm("oem_app", AppTypeName::kWeb);
+
+  ModifyInstance("oem_app", app_window.get(), apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       ReportsUsageTimeUkmForDefaultInstalledReasons) {
+  InstallOneApp("default_app", AppType::kWeb, "https://default.com/",
+                Readiness::kReady, InstallSource::kSystem,
+                InstallReason::kDefault);
+  auto app_window = CreateWebAppWindow(nullptr);
+  ModifyInstance("default_app", app_window.get(), kActiveInstanceState);
+
+  app_platform_metrics()->OnFiveMinutes();
+  app_platform_metrics()->OnTwoHours();
+  VerifyAppUsageTimeUkm("default_app", AppTypeName::kWeb);
+
+  ModifyInstance("default_app", app_window.get(),
+                 apps::InstanceState::kDestroyed);
+}
+
+IN_PROC_BROWSER_TEST_F(ManagedGuestSessionMetricsTest,
+                       InstalledAppsUkmReportedOnlyForAllowedInstallReasons) {
+  InstallOneApp("a", AppType::kWeb, "https://allowed.com/", Readiness::kReady,
+                InstallSource::kSystem, InstallReason::kPolicy);
+
+  VerifyInstalledAppsUkm("a", InstallReason::kPolicy, InstallSource::kSystem,
+                         InstallTime::kRunning);
 }
 
 }  // namespace apps

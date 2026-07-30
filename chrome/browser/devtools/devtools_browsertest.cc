@@ -33,6 +33,7 @@
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "base/test/test_timeouts.h"
 #include "base/threading/thread_restrictions.h"
 #include "base/values.h"
@@ -73,6 +74,13 @@
 #include "chrome/test/base/chrome_test_utils.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/platform_browser_test.h"
+#if BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/android/tab_android.h"
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_list.h"
+#include "chrome/browser/ui/android/tab_model/tab_model_test_helper.h"
+#include "components/tabs/public/tab_interface.h"
+#endif
 #include "chrome/test/base/test_chrome_web_ui_controller_factory.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
@@ -1327,8 +1335,10 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   EXPECT_EQ(extensions_instance->GetProcess(),
             data_frame_rfh->GetSiteInstance()->GetProcess());
 
-  EXPECT_EQ(web_url.GetHost(),
-            web_frame_rfh->GetSiteInstance()->GetSiteURL().GetHost());
+  EXPECT_EQ(web_url.GetHost(), web_frame_rfh->GetSiteInstance()
+                                   ->GetSecurityPrincipal()
+                                   .GetDeprecatedSiteURL()
+                                   .GetHost());
   EXPECT_NE(devtools_instance, web_frame_rfh->GetSiteInstance());
   EXPECT_NE(extensions_instance, web_frame_rfh->GetSiteInstance());
 
@@ -1346,8 +1356,10 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   web_frame_rfh = ChildFrameAt(panel_frame_rfh, 2);
 
   EXPECT_EQ(about_blank_url, web_frame_rfh->GetLastCommittedURL());
-  EXPECT_EQ(web_url.GetHost(),
-            web_frame_rfh->GetSiteInstance()->GetSiteURL().GetHost());
+  EXPECT_EQ(web_url.GetHost(), web_frame_rfh->GetSiteInstance()
+                                   ->GetSecurityPrincipal()
+                                   .GetDeprecatedSiteURL()
+                                   .GetHost());
   EXPECT_NE(devtools_instance, web_frame_rfh->GetSiteInstance());
   EXPECT_NE(extensions_instance, web_frame_rfh->GetSiteInstance());
 
@@ -1444,8 +1456,10 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
             devtools_extension_devtools_page_rfh->GetSiteInstance());
   EXPECT_EQ(extensions_instance,
             devtools_sidebar_pane_extension_rfh->GetSiteInstance());
-  EXPECT_EQ(web_url.GetHost(),
-            http_iframe_rfh->GetSiteInstance()->GetSiteURL().GetHost());
+  EXPECT_EQ(web_url.GetHost(), http_iframe_rfh->GetSiteInstance()
+                                   ->GetSecurityPrincipal()
+                                   .GetDeprecatedSiteURL()
+                                   .GetHost());
   EXPECT_NE(devtools_instance, http_iframe_rfh->GetSiteInstance());
   EXPECT_NE(extensions_instance, http_iframe_rfh->GetSiteInstance());
 }
@@ -1519,8 +1533,10 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   EXPECT_TRUE(devtools_instance->GetSecurityPrincipal().SchemeIs(
       content::kChromeDevToolsScheme));
   EXPECT_NE(devtools_instance, extensions_instance);
-  EXPECT_EQ(web_url.GetHost(),
-            http_iframe_rfh->GetSiteInstance()->GetSiteURL().GetHost());
+  EXPECT_EQ(web_url.GetHost(), http_iframe_rfh->GetSiteInstance()
+                                   ->GetSecurityPrincipal()
+                                   .GetDeprecatedSiteURL()
+                                   .GetHost());
   EXPECT_NE(devtools_instance, http_iframe_rfh->GetSiteInstance());
   EXPECT_NE(extensions_instance, http_iframe_rfh->GetSiteInstance());
 }
@@ -1592,7 +1608,9 @@ IN_PROC_BROWSER_TEST_F(DevToolsExtensionTest,
   EXPECT_EQ(extensions_instance,
             devtools_extension_panel_rfh->GetSiteInstance());
   EXPECT_EQ(non_dt_extension_test_url.DeprecatedGetOriginAsURL(),
-            non_devtools_extension_rfh->GetSiteInstance()->GetSiteURL());
+            non_devtools_extension_rfh->GetSiteInstance()
+                ->GetSecurityPrincipal()
+                .GetDeprecatedSiteURL());
   EXPECT_NE(devtools_instance, non_devtools_extension_rfh->GetSiteInstance());
   EXPECT_NE(extensions_instance, non_devtools_extension_rfh->GetSiteInstance());
 }
@@ -4959,3 +4977,40 @@ INSTANTIATE_TEST_SUITE_P(,
                          });
 
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+#if BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(DevToolsTest, DevToolsInIncognitoTabModel) {
+  Profile* profile = chrome_test_utils::GetProfile(this);
+  Profile* incognito_profile =
+      profile->GetPrimaryOTRProfile(/*create_if_needed=*/true);
+
+  // Setup multiple TabModels to test routing.
+  OwningTestTabModel regular_tab_model(profile);
+  OwningTestTabModel incognito_tab_model(incognito_profile);
+
+  // 1. Test routing with an inspected WebContents in the incognito TabModel.
+  std::unique_ptr<content::WebContents> contents =
+      content::WebContents::Create(
+          content::WebContents::CreateParams(incognito_profile));
+  content::WebContents* raw_web_contents = contents.get();
+
+  incognito_tab_model.AddTabFromWebContents(
+      std::move(contents), 0, /*select=*/true,
+      TabModel::TabLaunchType::FROM_CHROME_UI);
+
+  EXPECT_EQ(DevToolsWindow::GetTabModelForDefaultRouting(incognito_profile,
+                                                         raw_web_contents),
+            &incognito_tab_model);
+
+  // 2. Test routing without an inspected WebContents (e.g., Service Worker).
+  // It should fall back to the first TabModel matching the profile.
+  EXPECT_EQ(DevToolsWindow::GetTabModelForDefaultRouting(incognito_profile,
+                                                         nullptr),
+            &incognito_tab_model);
+
+  TabModel* fallback_model =
+      DevToolsWindow::GetTabModelForDefaultRouting(profile, nullptr);
+  ASSERT_TRUE(fallback_model);
+  EXPECT_EQ(fallback_model->GetProfile(), profile);
+}
+#endif

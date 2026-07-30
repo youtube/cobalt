@@ -141,7 +141,10 @@ public class ExtensionsMenuMediatorTest {
         // Mock site settings state.
         mSiteSettingsState =
                 createSiteSettingsState(
-                        "label", ExtensionsMenuTypes.ControlState.Status.HIDDEN, /* isOn= */ false);
+                        "label",
+                        ExtensionsMenuTypes.ControlState.Status.HIDDEN,
+                        /* isOn= */ false,
+                        /* hasTooltip= */ false);
         when(mExtensionsMenuBridgeJniMock.getSiteSettings(anyLong()))
                 .thenReturn(mSiteSettingsState);
         when(mExtensionsMenuBridgeJniMock.init(any(), anyLong(), anyLong()))
@@ -190,7 +193,7 @@ public class ExtensionsMenuMediatorTest {
         assertTrue(mActionModels.isEmpty());
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, true);
         verify(mMenuPropertyModel)
-                .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, false);
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_CONTAINER_VISIBLE, false);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.DISCOVER_EXTENSIONS_VISIBLE, false);
         verify(mOnReadyRunnable).run();
     }
@@ -472,7 +475,7 @@ public class ExtensionsMenuMediatorTest {
         assertEquals(0, mActionModels.size());
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.IS_ZERO_STATE, true);
         verify(mMenuPropertyModel)
-                .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, false);
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_CONTAINER_VISIBLE, false);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.DISCOVER_EXTENSIONS_VISIBLE, false);
     }
 
@@ -636,6 +639,55 @@ public class ExtensionsMenuMediatorTest {
         verify(mActionContextMenuBridgeJniMock).destroy(eq(ACTION_CONTEXT_MENU_BRIDGE_POINTER));
     }
 
+    /** Tests that the context menu button's accessible name is correctly updated in the model. */
+    @Test
+    public void testMenuItemContextMenuButtonAccessibleName() {
+        List<ExtensionsMenuTypes.MenuEntryState> entries = new ArrayList<>();
+        ExtensionsMenuTypes.ControlState actionButton =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                        "Extension A",
+                        /* accessibleName= */ "",
+                        /* tooltipText= */ "",
+                        /* isOn= */ false,
+                        ICON_RED);
+        ExtensionsMenuTypes.ControlState contextMenuButton =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                        /* text= */ "",
+                        /* accessibleName= */ "More options for Extension A",
+                        /* tooltipText= */ "",
+                        /* isOn= */ false,
+                        /* icon= */ null);
+
+        // updateMenuItem() accesses fields on siteAccessToggle and sitePermissionsButton, so
+        // they cannot be null. We use a placeholder state since they are not relevant to this test.
+        ExtensionsMenuTypes.ControlState placeholderState =
+                new ExtensionsMenuTypes.ControlState(
+                        ExtensionsMenuTypes.ControlState.Status.HIDDEN,
+                        /* text= */ "",
+                        /* accessibleName= */ "",
+                        /* tooltipText= */ "",
+                        /* isOn= */ false,
+                        /* icon= */ null);
+        entries.add(
+                new ExtensionsMenuTypes.MenuEntryState(
+                        "id_a",
+                        actionButton,
+                        contextMenuButton,
+                        placeholderState,
+                        placeholderState,
+                        /* isEnterprise= */ false));
+        when(mExtensionsMenuBridgeJniMock.getMenuEntries(anyLong())).thenReturn(entries);
+
+        mBridgeCaptor.getValue().onReady();
+
+        PropertyModel model = mActionModels.get(0).model;
+        assertEquals(
+                "More options for Extension A",
+                model.get(ExtensionsMenuItemProperties.CONTEXT_MENU_BUTTON_ACCESSIBLE_NAME));
+    }
+
     /** Helper to create a mock {@link ListMenuButton} with a mock {@link ListMenuHost}. */
     private ListMenuButton createMockMenuButton() {
         ListMenuHost mockListMenuHost = mock(ListMenuHost.class);
@@ -658,16 +710,21 @@ public class ExtensionsMenuMediatorTest {
                 createSiteSettingsState(
                         "test_label",
                         ExtensionsMenuTypes.ControlState.Status.ENABLED,
-                        /* isOn= */ true);
+                        /* isOn= */ true,
+                        /* hasTooltip= */ false);
         when(mExtensionsMenuBridgeJniMock.getSiteSettings(anyLong()))
                 .thenReturn(siteSettingsStateOn);
         mMenuMediator.updateSiteSettingsToggle();
 
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_CONTAINER_VISIBLE, true);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, true);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, true);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "test_label");
         verify(mMenuPropertyModel)
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_TOOLTIP, "tooltip");
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_INFO_ICON_VISIBLE, false);
 
         clearInvocations(mMenuPropertyModel);
 
@@ -676,11 +733,14 @@ public class ExtensionsMenuMediatorTest {
                 createSiteSettingsState(
                         "test_label_2",
                         ExtensionsMenuTypes.ControlState.Status.ENABLED,
-                        /* isOn= */ false);
+                        /* isOn= */ false,
+                        /* hasTooltip= */ false);
         when(mExtensionsMenuBridgeJniMock.getSiteSettings(anyLong()))
                 .thenReturn(siteSettingsStateOff);
         mMenuMediator.updateSiteSettingsToggle();
 
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_CONTAINER_VISIBLE, true);
         verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, true);
         verify(mMenuPropertyModel)
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, false);
@@ -688,6 +748,8 @@ public class ExtensionsMenuMediatorTest {
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "test_label_2");
         verify(mMenuPropertyModel)
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_TOOLTIP, "tooltip");
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_INFO_ICON_VISIBLE, false);
 
         clearInvocations(mMenuPropertyModel);
 
@@ -696,11 +758,14 @@ public class ExtensionsMenuMediatorTest {
                 createSiteSettingsState(
                         "test_label_3",
                         ExtensionsMenuTypes.ControlState.Status.HIDDEN,
-                        /* isOn= */ false);
+                        /* isOn= */ false,
+                        /* hasTooltip= */ false);
         when(mExtensionsMenuBridgeJniMock.getSiteSettings(anyLong()))
                 .thenReturn(siteSettingsStateHidden);
         mMenuMediator.updateSiteSettingsToggle();
 
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_CONTAINER_VISIBLE, true);
         verify(mMenuPropertyModel)
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, false);
         verify(mMenuPropertyModel)
@@ -709,6 +774,30 @@ public class ExtensionsMenuMediatorTest {
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "test_label_3");
         verify(mMenuPropertyModel)
                 .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_TOOLTIP, "tooltip");
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_INFO_ICON_VISIBLE, false);
+    }
+
+    @Test
+    public void testUpdateSiteSettingsToggle_WithTooltip() {
+        ExtensionsMenuTypes.SiteSettingsState siteSettingsState =
+                createSiteSettingsState(
+                        "test_label",
+                        ExtensionsMenuTypes.ControlState.Status.ENABLED,
+                        /* isOn= */ true,
+                        /* hasTooltip= */ true);
+        when(mExtensionsMenuBridgeJniMock.getSiteSettings(anyLong())).thenReturn(siteSettingsState);
+        mMenuMediator.updateSiteSettingsToggle();
+
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_CONTAINER_VISIBLE, true);
+        verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_VISIBLE, true);
+        verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_CHECKED, true);
+        verify(mMenuPropertyModel).set(ExtensionsMenuProperties.SITE_SETTINGS_LABEL, "test_label");
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_TOGGLE_TOOLTIP, "tooltip");
+        verify(mMenuPropertyModel)
+                .set(ExtensionsMenuProperties.SITE_SETTINGS_INFO_ICON_VISIBLE, true);
     }
 
     @Test
@@ -1071,6 +1160,9 @@ public class ExtensionsMenuMediatorTest {
         assertEquals(
                 "Always on all sites. Select to change site permissions",
                 model.get(ExtensionsMenuItemProperties.SITE_PERMISSIONS_BUTTON_ACCESSIBLE_NAME));
+        assertEquals(
+                "Change site permissions",
+                model.get(ExtensionsMenuItemProperties.SITE_PERMISSIONS_BUTTON_TOOLTIP));
 
         // Update the item to have an enabled site permissions button.
         sitePermissionsButtonState =
@@ -1473,7 +1565,10 @@ public class ExtensionsMenuMediatorTest {
     }
 
     private ExtensionsMenuTypes.SiteSettingsState createSiteSettingsState(
-            String label, @ExtensionsMenuTypes.ControlState.Status int status, boolean isOn) {
+            String label,
+            @ExtensionsMenuTypes.ControlState.Status int status,
+            boolean isOn,
+            boolean hasTooltip) {
         ExtensionsMenuTypes.ControlState toggleState =
                 new ExtensionsMenuTypes.ControlState(
                         status,
@@ -1482,7 +1577,6 @@ public class ExtensionsMenuMediatorTest {
                         "tooltip",
                         isOn,
                         /* icon= */ null);
-        return new ExtensionsMenuTypes.SiteSettingsState(
-                label, /* hasTooltip= */ false, toggleState);
+        return new ExtensionsMenuTypes.SiteSettingsState(label, hasTooltip, toggleState);
     }
 }

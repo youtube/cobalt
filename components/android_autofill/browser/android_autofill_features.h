@@ -13,13 +13,9 @@ BASE_DECLARE_FEATURE(kAutofillVirtualViewStructureAndroidPasskeyLongPress);
 
 BASE_DECLARE_FEATURE(kAndroidAutofillLazyFrameworkWrapper);
 
-BASE_DECLARE_FEATURE(kAndroidAutofillForwardIframeOrigin);
-
 BASE_DECLARE_FEATURE(kAndroidAutofillImprovedVisibilityDetection);
 
 BASE_DECLARE_FEATURE(kAndroidAutofillUpdateContextForWebContents);
-
-BASE_DECLARE_FEATURE(kAndroidAutofillSupportForHttpAuth);
 
 BASE_DECLARE_FEATURE(kAndroidAutofillFieldsUpdatedOnSelect);
 

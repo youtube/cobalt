@@ -121,13 +121,8 @@ class DocumentScanAPIHandlerTest : public testing::Test {
 
     document_scan_api_handler_ =
         std::make_unique<DocumentScanAPIHandler>(testing_profile_);
-    GetLorgnetteScannerManager()->SetCloseScannerResult(
-        lorgnette::OPERATION_RESULT_SUCCESS);
-    GetLorgnetteScannerManager()->SetCancelScanResult(
-        lorgnette::OPERATION_RESULT_SUCCESS);
+
     GetLorgnetteScannerManager()->ConfigureReadScanDataResponse(
-        lorgnette::OPERATION_RESULT_SUCCESS);
-    GetLorgnetteScannerManager()->SetStartPreparedScanResult(
         lorgnette::OPERATION_RESULT_SUCCESS);
   }
 
@@ -162,7 +157,8 @@ class DocumentScanAPIHandlerTest : public testing::Test {
   // the scanner that gets created.  Otherwise, a constant ID will be used.
   std::string CreateScannerIdForExtension(
       scoped_refptr<const Extension> extension,
-      bool unique_id = true) {
+      bool unique_id = true,
+      std::optional<lorgnette::ScannerConfig> config = std::nullopt) {
     auto scanner_info = CreateTestScannerInfo();
     if (unique_id) {
       static size_t counter = 0;
@@ -171,7 +167,7 @@ class DocumentScanAPIHandlerTest : public testing::Test {
     }
     const std::string the_scanner_id = scanner_info.name();
 
-    AddScanners({std::move(scanner_info)});
+    AddScanners({std::move(scanner_info)}, std::move(config));
     ScannerDiscoveryRunner::SetDiscoveryConfirmationResultForTesting(true);
 
     GetScannerListFuture list_future;
@@ -196,33 +192,24 @@ class DocumentScanAPIHandlerTest : public testing::Test {
             testing_profile_.get()));
   }
 
-  void AddScanners(std::vector<lorgnette::ScannerInfo> scanners) {
+  void AddScanners(
+      std::vector<lorgnette::ScannerInfo> scanners,
+      std::optional<lorgnette::ScannerConfig> config = std::nullopt) {
     auto* scanner_manager = GetLorgnetteScannerManager();
-    base::test::TestFuture<
-        const std::optional<lorgnette::ListScannersResponse>&>
-        future;
-    scanner_manager->GetScannerInfoList(
-        extension_->id(),
-        ash::LorgnetteScannerManager::LocalScannerFilter::
-            kIncludeNetworkScanners,
-        ash::LorgnetteScannerManager::SecureScannerFilter::
-            kIncludeUnsecureScanners,
-        future.GetCallback());
-    auto response = future.Get().value_or(lorgnette::ListScannersResponse());
-    response.set_result(lorgnette::OPERATION_RESULT_SUCCESS);
-
     lorgnette::ScannerConfig config_template;
-    lorgnette::ScannerOption option1;
-    option1.set_name("option1");
-    option1.set_option_type(lorgnette::TYPE_INT);
-    option1.mutable_int_value()->add_value(5);
-    (*config_template.mutable_options())["option1"] = option1;
+    if (config.has_value()) {
+      config_template = std::move(config).value();
+    } else {
+      lorgnette::ScannerOption option1;
+      option1.set_name("option1");
+      option1.set_option_type(lorgnette::TYPE_INT);
+      option1.mutable_int_value()->add_value(5);
+      (*config_template.mutable_options())["option1"] = option1;
+    }
 
     for (auto& scanner : scanners) {
-      scanner_manager->AddScanner(scanner, config_template);
-      response.mutable_scanners()->Add(std::move(scanner));
+      scanner_manager->AddScanner(std::move(scanner), config_template);
     }
-    scanner_manager->SetGetScannerInfoListResponse(response);
   }
 
   // "Discover" a scanner and open that given scanner, returning the scanner
@@ -230,8 +217,11 @@ class DocumentScanAPIHandlerTest : public testing::Test {
   // further operations.  Note that this will always use a unique scanner ID for
   // the scanner that is created.
   std::string OpenScannerForExtension(
-      scoped_refptr<const Extension> extension) {
-    return OpenScannerWithId(extension, CreateScannerIdForExtension(extension));
+      scoped_refptr<const Extension> extension,
+      std::optional<lorgnette::ScannerConfig> config = std::nullopt) {
+    return OpenScannerWithId(
+        extension, CreateScannerIdForExtension(extension, /*unique_id=*/true,
+                                               std::move(config)));
   }
 
   // "Discover" and open a scanner, start a scan on that scanner, and return the
@@ -350,8 +340,7 @@ TEST_F(DocumentScanAPIHandlerTest, SimpleScan_OpenFails) {
 
 TEST_F(DocumentScanAPIHandlerTest, SimpleScan_StartScanFails) {
   AddScanners({CreateTestScannerInfo()});
-  GetLorgnetteScannerManager()->SetStartPreparedScanResult(
-      lorgnette::OPERATION_RESULT_IO_ERROR);
+  GetLorgnetteScannerManager()->SimulateScannerFailure(true);
   SimpleScanFuture future;
   document_scan_api_handler_->SimpleScan(extension_, {"image/png"},
                                          future.GetCallback());
@@ -680,13 +669,20 @@ TEST_F(DocumentScanAPIHandlerTest, OpenScanner_ReopenSameScannerSucceeds) {
 
   // GetScannerList returns a new token that points to the same underlying
   // scanner created by CreateScannerId above.
-  std::string scanner_id2 = CreateScannerIdForExtension(extension_,
-                                                        /*unique_id=*/false);
-  ASSERT_FALSE(scanner_id2.empty());
+  GetScannerListFuture list_future;
+  document_scan_api_handler_->GetScannerList(
+      /*native_window=*/nullptr, extension_, /*user_gesture=*/false, {},
+      list_future.GetCallback());
+  const api::document_scan::GetScannerListResponse& list_response =
+      list_future.Get();
 
+  ASSERT_TRUE(std::ranges::any_of(list_response.scanners,
+                                  [&scanner_id](const auto& scanner) {
+                                    return scanner.scanner_id == scanner_id;
+                                  }));
   // Opening the second ID succeeds because this is the same extension.
   OpenScannerFuture future2;
-  document_scan_api_handler_->OpenScanner(extension_, scanner_id2,
+  document_scan_api_handler_->OpenScanner(extension_, scanner_id,
                                           future2.GetCallback());
   const api::document_scan::OpenScannerResponse& response2 = future2.Get();
 
@@ -697,7 +693,7 @@ TEST_F(DocumentScanAPIHandlerTest, OpenScanner_ReopenSameScannerSucceeds) {
   ASSERT_TRUE(response1.options.has_value());
   EXPECT_TRUE(response1.options->additional_properties.contains("option1"));
 
-  EXPECT_EQ(response2.scanner_id, scanner_id2);
+  EXPECT_EQ(response2.scanner_id, scanner_id);
   EXPECT_EQ(response2.result, api::document_scan::OperationResult::kSuccess);
   ASSERT_TRUE(response2.scanner_handle.has_value());
   EXPECT_FALSE(response2.scanner_handle->empty());
@@ -723,14 +719,22 @@ TEST_F(DocumentScanAPIHandlerTest, OpenScanner_SecondExtensionOpenFails) {
                         .SetID("extension2id")
                         .AddAPIPermission(kExtensionPermissionName)
                         .Build();
-  std::string scanner_id2 = CreateScannerIdForExtension(extension2,
-                                                        /*unique_id=*/false);
-  ASSERT_FALSE(scanner_id2.empty());
 
+  GetScannerListFuture list_future;
+  document_scan_api_handler_->GetScannerList(
+      /*native_window=*/nullptr, extension2, /*user_gesture=*/false, {},
+      list_future.GetCallback());
+  const api::document_scan::GetScannerListResponse& list_response =
+      list_future.Get();
+
+  ASSERT_TRUE(std::ranges::any_of(list_response.scanners,
+                                  [&scanner_id](const auto& scanner) {
+                                    return scanner.scanner_id == scanner_id;
+                                  }));
   // Opening the same scanner from a second extension fails because the scanner
   // is already open.
   OpenScannerFuture open_future2;
-  document_scan_api_handler_->OpenScanner(extension2, scanner_id2,
+  document_scan_api_handler_->OpenScanner(extension2, scanner_id,
                                           open_future2.GetCallback());
   const api::document_scan::OpenScannerResponse& open_response2 =
       open_future2.Get();
@@ -744,7 +748,7 @@ TEST_F(DocumentScanAPIHandlerTest, OpenScanner_SecondExtensionOpenFails) {
   EXPECT_TRUE(
       open_response1.options->additional_properties.contains("option1"));
 
-  EXPECT_EQ(open_response2.scanner_id, scanner_id2);
+  EXPECT_EQ(open_response2.scanner_id, scanner_id);
   EXPECT_EQ(open_response2.result,
             api::document_scan::OperationResult::kDeviceBusy);
   EXPECT_FALSE(open_response2.scanner_handle.has_value());
@@ -754,9 +758,6 @@ TEST_F(DocumentScanAPIHandlerTest, OpenScanner_SecondExtensionOpenFails) {
 TEST_F(DocumentScanAPIHandlerTest, OpenScanner_SecondOpenClosesFirstHandle) {
   const std::string scanner_id = CreateScannerIdForExtension(extension_);
   ASSERT_FALSE(scanner_id.empty());
-
-  GetLorgnetteScannerManager()->ConfigureGetCurrentConfigResponse(
-      lorgnette::OPERATION_RESULT_SUCCESS, std::nullopt);
 
   // The first open succeeds because the scanner is not open.
   OpenScannerFuture future1;
@@ -835,15 +836,14 @@ TEST_F(DocumentScanAPIHandlerTest, GetOptionGroups_NoScanner) {
 }
 
 TEST_F(DocumentScanAPIHandlerTest, GetOptionGroups_ValidScanner) {
-  std::string scanner_handle = OpenScannerForExtension(extension_);
-  EXPECT_FALSE(scanner_handle.empty());
-
   lorgnette::ScannerConfig config;
   lorgnette::OptionGroup* group = config.add_option_groups();
   group->set_title("group-title");
   group->add_members("group-member");
-  GetLorgnetteScannerManager()->ConfigureGetCurrentConfigResponse(
-      lorgnette::OPERATION_RESULT_SUCCESS, std::move(config));
+
+  std::string scanner_handle =
+      OpenScannerForExtension(extension_, std::move(config));
+  EXPECT_FALSE(scanner_handle.empty());
 
   GetOptionGroupsFuture future;
   document_scan_api_handler_->GetOptionGroups(extension_, scanner_handle,
@@ -862,6 +862,8 @@ TEST_F(DocumentScanAPIHandlerTest, GetOptionGroups_ValidScanner) {
 TEST_F(DocumentScanAPIHandlerTest, GetOptionGroups_DBusFailure) {
   std::string scanner_handle = OpenScannerForExtension(extension_);
   EXPECT_FALSE(scanner_handle.empty());
+
+  GetLorgnetteScannerManager()->SimulateDBusFailure(true);
 
   GetOptionGroupsFuture future;
   document_scan_api_handler_->GetOptionGroups(extension_, scanner_handle,
@@ -896,7 +898,7 @@ TEST_F(DocumentScanAPIHandlerTest, CloseScanner_DBusFailure) {
   ASSERT_TRUE(open_response.scanner_handle.has_value());
   const std::string& handle = open_response.scanner_handle.value();
 
-  GetLorgnetteScannerManager()->SetCloseScannerResult(std::nullopt);
+  GetLorgnetteScannerManager()->SimulateDBusFailure(true);
 
   CloseScannerFuture close_future1;
   document_scan_api_handler_->CloseScanner(extension_, handle,
@@ -932,9 +934,6 @@ TEST_F(DocumentScanAPIHandlerTest, CloseScanner_CloseInvalidHandleFails) {
       open_future.Get();
   ASSERT_TRUE(open_response.scanner_handle.has_value());
   const std::string& handle = open_response.scanner_handle.value();
-
-  GetLorgnetteScannerManager()->SetCloseScannerResult(
-      lorgnette::OPERATION_RESULT_SUCCESS);
 
   // Closing a valid handle from a different extension fails because it isn't
   // valid for the second extension.
@@ -974,9 +973,6 @@ TEST_F(DocumentScanAPIHandlerTest, CloseScanner_DoubleCloseHandleFails) {
       open_future.Get();
   ASSERT_TRUE(open_response.scanner_handle.has_value());
   const std::string& handle = open_response.scanner_handle.value();
-
-  GetLorgnetteScannerManager()->SetCloseScannerResult(
-      lorgnette::OPERATION_RESULT_SUCCESS);
 
   // First call succeeds because the handle is valid.
   CloseScannerFuture close_future1;
@@ -1530,7 +1526,7 @@ TEST_F(DocumentScanAPIHandlerTest, StartScan_DBusFailure) {
   std::string scanner_handle = OpenScannerForExtension(extension_);
   EXPECT_FALSE(scanner_handle.empty());
 
-  GetLorgnetteScannerManager()->SetStartPreparedScanResult(std::nullopt);
+  GetLorgnetteScannerManager()->SimulateDBusFailure(true);
 
   base::AutoReset<std::optional<bool>> testing_scope =
       StartScanRunner::SetStartScanConfirmationResultForTesting(true);
@@ -1564,9 +1560,6 @@ TEST_F(DocumentScanAPIHandlerTest, CancelScan_ValidJob) {
   std::string job_handle = StartScanForExtension(extension_);
   EXPECT_FALSE(job_handle.empty());
 
-  GetLorgnetteScannerManager()->SetCancelScanResult(
-      lorgnette::OPERATION_RESULT_SUCCESS);
-
   CancelScanFuture cancel_future;
   document_scan_api_handler_->CancelScan(extension_, job_handle,
                                          cancel_future.GetCallback());
@@ -1582,7 +1575,7 @@ TEST_F(DocumentScanAPIHandlerTest, CancelScan_DBusFailure) {
   std::string job_handle = StartScanForExtension(extension_);
   EXPECT_FALSE(job_handle.empty());
 
-  GetLorgnetteScannerManager()->SetCancelScanResult(std::nullopt);
+  GetLorgnetteScannerManager()->SimulateDBusFailure(true);
 
   CancelScanFuture cancel_future;
   document_scan_api_handler_->CancelScan(extension_, job_handle,

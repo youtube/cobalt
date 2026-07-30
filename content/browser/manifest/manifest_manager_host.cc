@@ -8,8 +8,10 @@
 
 #include "base/check_is_test.h"
 #include "base/functional/bind.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_util.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/types/expected.h"
 #include "content/browser/renderer_host/render_frame_host_impl.h"
@@ -18,7 +20,10 @@
 #include "net/base/schemeful_site.h"
 #include "services/service_manager/public/cpp/interface_provider.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
+#include "third_party/blink/public/common/custom_handlers/protocol_handler_utils.h"
 #include "third_party/blink/public/common/manifest/manifest_util.h"
+#include "third_party/blink/public/common/scheme_registry.h"
+#include "third_party/blink/public/common/security/protocol_handler_security_level.h"
 #include "third_party/blink/public/mojom/manifest/manifest.mojom.h"
 #include "third_party/blink/public/mojom/manifest/manifest_manager.mojom.h"
 #include "url/gurl.h"
@@ -66,7 +71,9 @@ std::optional<std::string> MaybeGetBadMessageStringForManifest(
     }
 
     if (!document_origin.IsSameOriginWith(manifest.start_url)) {
-      return "Manifest start_url must be same-origin with the document.";
+      return base::StrCat({"Manifest start_url (" + manifest.start_url.spec() +
+                           ") must be same-origin with the document (" +
+                           document_origin.Serialize() + ")."});
     }
 
     if (!document_origin.IsSameOriginWith(manifest.id)) {
@@ -92,6 +99,18 @@ std::optional<std::string> MaybeGetBadMessageStringForManifest(
       if (!document_origin.IsSameOriginWith(protocol_handler->url)) {
         return "Manifest protocol_handlers must be same-origin with the "
                "document.";
+      }
+
+      blink::ProtocolHandlerSecurityLevel security_level =
+          blink::CommonSchemeRegistry::IsIsolatedAppScheme(
+              document_origin.scheme())
+              ? blink::ProtocolHandlerSecurityLevel::kIsolatedAppFeatures
+              : blink::ProtocolHandlerSecurityLevel::kStrict;
+      if (!blink::IsValidCustomHandlerScheme(
+              base::UTF16ToUTF8(protocol_handler->protocol), security_level)) {
+        return "Manifest protocol_handlers protocol is invalid or restricted "
+               "for security level:" +
+               base::ToString(security_level);
       }
     }
 
@@ -127,6 +146,17 @@ std::optional<std::string> MaybeGetBadMessageStringForManifest(
             base::StartsWith(shortcut.url.path(), manifest.scope.path(),
                              base::CompareCase::SENSITIVE))) {
         return "Manifest shortcut urls must be within scope.";
+      }
+    }
+
+    for (const auto& icon : manifest.icons) {
+      if (!icon.src.is_valid()) {
+        return "Manifest icon urls must be valid.";
+      }
+      if (!icon.src.SchemeIsHTTPOrHTTPS() && !icon.src.SchemeIs("data") &&
+          !icon.src.SchemeIs(document_origin.scheme())) {
+        return "Manifest icon urls must be http, https, data, or match the "
+               "document scheme.";
       }
     }
   }
@@ -216,10 +246,20 @@ blink::mojom::ManifestPtr ManifestManagerHost::ValidateAndMaybeOverrideManifest(
     blink::mojom::ManifestPtr manifest) {
   // Mojo bindings guarantee that `manifest` isn't null.
   CHECK(manifest);
+
+  auto& document_origin = page().GetMainDocument().GetLastCommittedOrigin();
+  if (!blink::IsEmptyManifest(manifest) && document_origin.opaque()) {
+    // We should never get a manifest for an opaque origin, unless perhaps due
+    // to a race condition. Override to empty and log.
+    base::UmaHistogramBoolean("WebApp.Manifest.ForOpaqueOrigin", true);
+    DVLOG(1) << "Manifest received for opaque origin with start_url"
+             << manifest->start_url.spec();
+    return blink::mojom::Manifest::New();
+  }
+
   if (std::optional<std::string> bad_message_error =
-          MaybeGetBadMessageStringForManifest(
-              result, *manifest,
-              page().GetMainDocument().GetLastCommittedOrigin());
+          MaybeGetBadMessageStringForManifest(result, *manifest,
+                                              document_origin);
       bad_message_error.has_value()) {
     mojo::ReportBadMessage(*bad_message_error);
     return blink::mojom::Manifest::New();

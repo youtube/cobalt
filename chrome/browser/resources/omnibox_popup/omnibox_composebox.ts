@@ -5,6 +5,7 @@
 import '//resources/cr_components/composebox/composebox_dropdown.js';
 import '//resources/cr_components/composebox/composebox_file_inputs.js';
 import '//resources/cr_components/composebox/composebox_input.js';
+import '//resources/cr_components/composebox/contextual_entrypoint_button.js';
 
 import type {PageHandlerRemote} from '//resources/cr_components/composebox/composebox.mojom-webui.js';
 import type {ComposeboxDropdownElement} from '//resources/cr_components/composebox/composebox_dropdown.js';
@@ -41,15 +42,10 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
 
   static override get properties() {
     return {
-      disableCaretColorAnimation: {
-        type: Boolean,
-        reflect: true,
-      },
       entrypointName: {type: String, reflect: true},
     };
   }
 
-  accessor disableCaretColorAnimation: boolean = false;
   accessor entrypointName: string = 'Omnibox';
   private pageHandler_: PageHandlerRemote;
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
@@ -107,12 +103,12 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
     }
   }
 
-  // TODO(crbug.com/486707998): Implement when carousel is added.
+  // TODO(crbug.com/508287630): Implement when carousel is added.
   private addFileFromAttachment_(fileAttachment: FileAttachment) {
     return fileAttachment;
   }
 
-  // TODO(crbug.com/486707998): Implement when carousel is added.
+  // TODO(crbug.com/508287630): Implement when carousel is added.
   private addTabFromAttachment_(tabAttachment: TabAttachment) {
     return tabAttachment;
   }
@@ -123,9 +119,7 @@ export class OmniboxComposeboxElement extends ComposeboxEmbedderMixin
       return false;
     }
 
-    return this.showDropdown &&
-        (this.showFileCarousel || this.shouldShowSubmitButton() ||
-         this.inToolMode);
+    return super.shouldShowDivider();
   }
 
   // TODO(crbug.com/486707998): Remove once this is added to mixin.

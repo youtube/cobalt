@@ -7,15 +7,16 @@
 #include "base/strings/stringprintf.h"
 #include "base/values.h"
 #include "chrome/browser/extensions/extension_browsertest.h"
-#include "chrome/browser/ui/browser.h"
 #include "chrome/common/url_constants.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/test/test_extension_dir.h"
 #include "net/dns/mock_host_resolver.h"
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -54,11 +55,15 @@ class ExtensionCSPBypassTest : public ExtensionBrowserTest {
         base::DictValue()
             .Set("name", unique_name)
             .Set("version", "1")
-            .Set("manifest_version", 2)
-            .Set("web_accessible_resources", base::ListValue().Append("*"));
+            .Set("manifest_version", 3)
+            .Set("web_accessible_resources",
+                 base::ListValue().Append(
+                     base::DictValue()
+                         .Set("resources", base::ListValue().Append("*"))
+                         .Set("matches", base::ListValue().Append("*://*/*"))));
 
     if (all_urls_permission) {
-      manifest.Set("permissions", base::ListValue().Append("<all_urls>"));
+      manifest.Set("host_permissions", base::ListValue().Append("<all_urls>"));
     }
     if (is_component) {
       // LoadExtensionAsComponent requires the manifest to contain a key.
@@ -133,8 +138,8 @@ IN_PROC_BROWSER_TEST_F(ExtensionCSPBypassTest, LoadWebAccessibleScript) {
   EXPECT_TRUE(CanLoadScript(ext_without_permission));
 
   // chrome-extension:-URLs can never bypass CSP in WebUI.
-  ASSERT_TRUE(ui_test_utils::NavigateToURL(
-      browser(), GURL(chrome::kChromeUIExtensionsURL)));
+  ASSERT_TRUE(NavigateToURL(GetActiveWebContents(),
+                            GURL(chrome::kChromeUIExtensionsURL)));
 
   EXPECT_FALSE(CanLoadScript(component_ext_with_permission));
   EXPECT_FALSE(CanLoadScript(component_ext_without_permission));
@@ -188,9 +193,9 @@ IN_PROC_BROWSER_TEST_F(ExtensionCSPBypassTest, FrameAncestors) {
   std::string manifest = R"(
     {
       "name": "CSP frame-ancestors",
-      "manifest_version": 2,
+      "manifest_version": 3,
       "version": "0.1",
-      "browser_action": {
+      "action": {
        "default_popup": "popup.html"
       }
     }

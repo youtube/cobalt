@@ -372,6 +372,12 @@
       name: "AIPageContentPaidContentAnnotation",
       status: "stable"
     },
+    // When enabled, certian element coordinates will be tracked using the
+    // Element::SetTrackedElementSubRect() method.
+    {
+      name: "AIPageContentTrackedElements",
+      status: "test"
+    },
     // Clamp AIPageContent visible bounding boxes to the local-root viewport
     // after visual-viewport mapping to normalize viewport-relative geometry.
     {
@@ -516,7 +522,6 @@
     },
     {
       name: "AISummarizationPerformancePreference",
-      status: "experimental",
     },
     {
       name: "AIWriterAPI",
@@ -686,12 +691,6 @@
       status: "stable",
     },
     {
-      // When enabled, perform async IPCs from CookieJar::SetCookie to the
-      // network service.
-      name: "AsyncSetCookie",
-      status: "stable",
-    },
-    {
       name: "AttributionReporting",
       status: "stable",
       base_feature: "none",
@@ -730,11 +729,6 @@
     {
       name: "AudioVideoTracks",
       status: "experimental",
-    },
-    {
-      name: "AuthenticatorPasswordsOnlyImmediateRequests",
-      base_feature: "none",
-      public: true,
     },
     {
       // https://drafts.csswg.org/css-scroll-snap
@@ -972,10 +966,6 @@
       status: "experimental",
     },
     {
-      name: "Canvas2dGPUTransfer",
-      status: "experimental",
-    },
-    {
       name: "Canvas2dLayers",
     },
     {
@@ -1205,7 +1195,7 @@
       // @container allowing multiple comma separated container queries.
       // Also introduces the 'conditions' attribute on CSSContainerRule.
       name: "CommaSeparatedContainerQueries",
-      status: "experimental",
+      status: "stable",
     },
     {
       // Return the current target from composedPath() while
@@ -1510,6 +1500,12 @@
       status: "stable",
     },
     {
+      // Two-value caret-color: <color> [<color>]?
+      // https://github.com/w3c/csswg-drafts/issues/13723
+      name: "CSSCaretColorWithOptionalSecondValue",
+      status: "experimental",
+    },
+    {
       // https://chromestatus.com/feature/6106160780017664
       name: "CSSCaretShape",
       status: "stable",
@@ -1636,6 +1632,14 @@
       status: "test",
     },
     {
+      // image(<color>) functional notation, producing a solid-color image
+      // with no natural dimensions.
+      // https://drafts.csswg.org/css-images-4/#funcdef-image
+      // https://chromestatus.com/feature/5121011285622784
+      name: "CSSImageFunction",
+      status: "experimental",
+    },
+    {
       // The inherit() function works like var(), except that it grabs
       // the computed value of the specified property from the parent style
       // instead of the current style.
@@ -1708,9 +1712,16 @@
       name: "CSSMarkerNestedPseudoElement",
       status: "stable",
     },
-    // https://drafts.csswg.org/css-values-5/#progress
-    // media-progress()
     {
+      // Pseudo-classes :playing, :paused, :seeking, :buffering, :stalled,
+      // :muted, and :volume-locked for media elements.
+      // https://drafts.csswg.org/selectors/#resource-pseudos
+      name: "CSSMediaElementPseudos",
+      status: "experimental",
+    },
+    {
+      // https://drafts.csswg.org/css-values-5/#progress
+      // media-progress()
       name: "CSSMediaProgressNotation",
       status: "experimental",
     },
@@ -1729,6 +1740,7 @@
     },
     {
       name: "CSSOverscrollBehaviorChain",
+      status: "experimental",
     },
     {
       name: "CSSPaintAPIArguments",
@@ -1782,13 +1794,6 @@
       status: "experimental",
     },
     {
-      // When an audio, video, or similar resource is "playing"
-      // or "paused".
-      // https://www.w3.org/TR/selectors-4/#video-state
-      name: "CSSPseudoPlayingPaused",
-      status: "test",
-    },
-    {
       // For ::scroll-up-button and ::scroll-down-button pseudo-elements for Carousel.
       // https://github.com/flackr/carousel/tree/main/scroll-button
       name: "CSSPseudoScrollButtons",
@@ -1835,7 +1840,7 @@
     },
     {
       name: "CSSSafePrintableInset",
-      status: "experimental",
+      status: "stable",
     },
     {
       // The '&' pseudo-class effectively behaves like :where(:scope)
@@ -1967,7 +1972,7 @@
     },
     {
       name: "CSSTextDecorationSkipSpaces",
-      status: "test",
+      status: "experimental",
     },
     {
       // crbug.com/417306102
@@ -2031,7 +2036,7 @@
       //
       // https://drafts.csswg.org/css-values-5/#request-url-modifiers
       name: "CSSURLRequestModifiers",
-      status: "experimental",
+      status: "stable",
     },
     // Support for `user-select:contain`.
     {
@@ -2053,6 +2058,13 @@
     {
       // https://chromestatus.com/feature/4850737974345728
       name: "CSSViewTransitionAutoName",
+      status: "experimental",
+    },
+    {
+      // CSSWG resolution to make the `zoom` property continuously
+      // interpolatable. https://github.com/w3c/csswg-drafts/issues/10872
+      // ChromeStatus: https://chromestatus.com/feature/5183671737909248
+      name: "CSSZoomAnimation",
       status: "experimental",
     },
     {
@@ -2086,11 +2098,6 @@
     {
       // https://crbug.com/473454959
       name: "DateTimeInputTypeEarlyAdvanceFix",
-      status: "stable",
-    },
-    {
-      // crbug.com/40153320
-      name: "DateTimeLocalArabicCommaWorkaround",
       status: "stable",
     },
     // https://crbug.com/448174611
@@ -2428,6 +2435,13 @@
       status: "stable",
     },
     {
+      // Enables JS-constructed File objects (e.g. new File([bytes], 'photo.jpg'))
+      // to carry their blob contents through the drag-and-drop pipeline.
+      // When disabled, only the filename is sent as text/plain (legacy behavior).
+      name: "DragAndDropJSFileObjects",
+      status: "test",
+    },
+    {
       // See https://crbug.com/443612843
       name: "EditContextAssignmentAsPerSpec",
       status: "test"
@@ -2437,12 +2451,6 @@
       name: "EditContextHandleTextOrSelectionUpdateDuringComposition",
       status: "test",
       settable_from_internals: true
-    },
-    {
-      // Enables proper backspace handling for emoji tag sequences
-      // (e.g., subdivision flags like 🏴󠁧󠁢󠁥󠁮󠁧󠁿) per UTS #51 ED-14a.
-      name: "EditEmojiTagSequence",
-      status: "stable",
     },
     {
       name: "EditingLineMovementWithRubyFix",
@@ -2878,6 +2886,14 @@
       status: "stable",
     },
     {
+      // Guard the kStart / kEnd / kStartAndEnd branches of
+      // LayoutSelection::ComputeSelectionStatus against std::nullopt
+      // start_offset / end_offset in SelectionPaintRange.
+      // See https://crbug.com/489028874
+      name: "FixSelectionPaintRangeNullOpt",
+      status: "stable",
+    },
+    {
       // Fix for strikethrough toggle not working in empty
       // contenteditable. See https://crbug.com/427915243
       name: "FixStrikethroughToggleInEmptyContentEditable",
@@ -2987,8 +3003,7 @@
     {
       // https://open-ui.org/components/scoped-focusgroup.explainer/
       name: "Focusgroup",
-      status: "experimental",
-      origin_trial_feature_name: "Focusgroup",
+      status: "stable",
     },
     {
       // 2-D grid navigation functionality of focusgroup is considered out of
@@ -3618,15 +3633,6 @@
       // crbug.com/394009026).
     },
     {
-      name: "LocalNetworkAccessSplitPermissions",
-      base_feature: "none",
-      // No status because this blink runtime feature doesn't work by itself.
-      // It's controlled by
-      // network::features::kLocalNetworkAccessChecksSplitPermissions which
-      // needs to be enabled to make the whole feature work (see
-      // crbug.com/465491626).
-    },
-    {
       name: "LocalNetworkAccessWebRTC",
       base_feature: "none",
       // No status because this feature is controlled by
@@ -3939,7 +3945,7 @@
     },
     {
       name: "NavigateEventClearOnRestore",
-      status: "test",
+      status: "stable",
     },
     {
       name: "NavigateEventDeferCrossDocumentCommit",
@@ -4407,8 +4413,9 @@
     {
       // Simplifies the behavior and stacking interactions of popover=hint and
       // popover=auto. See https://crbug.com/499019927.
+      // This shipped in M150 and can be removed in M152.
       name: "PopoverHintNewBehavior",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "PositionOutsideTabSpanCheckSiblingNode",
@@ -4690,12 +4697,6 @@
       name: "ReduceAcceptLanguage",
       base_feature: "none",
     },
-    // If enabled, the platform version in User-Agent Data will be removed.
-    // This feature is limited to Linux only.
-    {
-      name: "ReduceUserAgentDataLinuxPlatformVersion",
-      status: {"Linux": "stable"},
-    },
     // If enabled, the minor version of the User-Agent string will be reduced.
     // This User-Agent Reduction feature has been enabled starting from M101,
     // but we still keep this flag for future phase tests.
@@ -4975,6 +4976,11 @@
       status: "stable",
     },
     {
+      // https://issues.chromium.org/issues/429490608
+      name: "SanitizeIDNEmailFormInput",
+      status: "stable",
+    },
+    {
       // Spec: https://wicg.github.io/sanitizer-api/
       // Tracking bug: crbug.com/356601280
       name: "SanitizerAPI",
@@ -5040,6 +5046,11 @@
     {
       name: "ScrollbarWidth",
       status: "stable",
+    },
+    {
+      // https://github.com/w3c/csswg-drafts/issues/9576
+      name: "ScrollIntoViewAlignAuto",
+      status: "experimental",
     },
     {
       name: "ScrollIntoViewNearest",
@@ -5636,7 +5647,7 @@
     },
     {
       name: "SvgEnableTextDecorationCssStyling",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SvgFallBackToContainerSize",
@@ -5663,15 +5674,7 @@
       status: "test",
     },
     {
-      name: "SvgLengthListClearOnParsingFailure",
-      status: "stable",
-    },
-    {
       name: "SvgLengthResolveUnparsedValue",
-      status: "stable",
-    },
-    {
-      name: "SvgNumberListClearOnParsingFailure",
       status: "stable",
     },
     {
@@ -5704,6 +5707,14 @@
     },
     {
       name: "SvgTransformOnNestedSvgElement",
+      status: "stable",
+    },
+    {
+      name: "SvgUseNestedResourceDocuments",
+      status: "stable",
+    },
+    {
+      name: "SvgUseNestedResourceDocumentsDelayLoad",
       status: "stable",
     },
     {
@@ -6086,6 +6097,11 @@
     {
       name: "TwoPhaseViewTransition",
       status: "experimental",
+    },
+    {
+      // The Unbounded Element API. See crbug.com/508672616.
+      name: "UnboundedElement",
+      status: "test",
     },
     {
       name: "UnclosedFormControlIsInvalid",

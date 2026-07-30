@@ -52,6 +52,7 @@ import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.CriteriaHelper;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.ImportantFormFactors;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
@@ -79,6 +80,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeoutException;
 
 /** End-to-end test for the extension toolbar on Desktop Android. */
 @RunWith(ChromeJUnit4ClassRunner.class)
@@ -1098,5 +1100,66 @@ public class ExtensionsToolbarTest {
         CriteriaHelper.pollInstrumentationThread(
                 () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, extensionId) == 1,
                 "Popup did not open");
+    }
+
+    @Test
+    @LargeTest
+    // TODO(crbug.com/511895956): Re-enable this test.
+    @DisableIf.Device(DeviceFormFactor.DESKTOP)
+    public void testNewDialogDismissesExtensionsMenu() throws IOException {
+        loadBasicExtension("extension1", "Test Extension", "Test Action");
+
+        // Open the extensions menu.
+        ViewUtils.onViewWaiting(withId(R.id.extensions_menu_button))
+                .check(matches(isDisplayed()))
+                .perform(click());
+
+        // Show "Remove extension" dialog.
+        ViewUtils.onViewWaiting(withId(R.id.extensions_menu_item_context_menu)).perform(click());
+        ViewUtils.onViewWaiting(withText("Remove from Chromium")).perform(click());
+
+        // The dialog should trigger dismiss on the extensions menu.
+        onView(isRoot())
+                .check(
+                        withEventualExpectedViewState(
+                                withId(R.id.extensions_menu_close_button), VIEW_GONE | VIEW_NULL));
+    }
+
+    @Test
+    @LargeTest
+    public void testNewDialogDismissesExtensionPopup() throws IOException, TimeoutException {
+        String alphaId =
+                loadPopupExtension(
+                        "alpha", "Alpha Extension", "Alpha Action", "alpha popup opened");
+        ExtensionTestUtils.setExtensionActionVisible(mProfile, alphaId, true);
+        ViewUtils.onViewWaiting(withContentDescription("Alpha Action"))
+                .check(matches(isDisplayed()));
+
+        // Click on Alpha and wait for it to open the popup.
+        try (ExtensionTestMessageListener listener =
+                new ExtensionTestMessageListener("alpha popup opened")) {
+            clickViewWithContentDescription("Alpha Action");
+            assertTrue(listener.waitUntilSatisfied());
+        }
+        CriteriaHelper.pollInstrumentationThread(
+                () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, alphaId) == 1,
+                "Alpha popup did not open.");
+
+        // Display alert with JavaScript asynchronously.
+        WebContents webContents =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () -> mActivityTestRule.getActivity().getActivityTab().getWebContents());
+        ThreadUtils.runOnUiThread(
+                () -> {
+                    webContents.evaluateJavaScriptForTests("alert('JavaScript alert');", null);
+                });
+
+        // Wait for the dialog to appear and click OK.
+        ViewUtils.onViewWaiting(withText("OK")).perform(click());
+
+        // Verify the extension popup was dismissed by the alert dialog.
+        CriteriaHelper.pollInstrumentationThread(
+                () -> ExtensionTestUtils.getRenderFrameHostCount(mProfile, alphaId) == 0,
+                "Alpha popup did not close.");
     }
 }

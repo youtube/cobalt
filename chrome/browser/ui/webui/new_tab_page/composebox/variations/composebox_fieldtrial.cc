@@ -62,7 +62,8 @@ omnibox::NTPComposeboxConfig GetNTPComposeboxConfig() {
       "image/avif,image/bmp,image/jpeg,image/png,image/webp,image/heif,"
       "image/heic");
   auto* attachment_upload = composebox->mutable_attachment_upload();
-  attachment_upload->set_max_size_bytes(200000000);
+  // File upload size limit: 100 MiB.
+  attachment_upload->set_max_size_bytes(100 * 1024 * 1024);
   attachment_upload->set_mime_types_allowed(".pdf,application/pdf");
 
   composebox->set_input_placeholder_text(
@@ -244,11 +245,11 @@ const base::FeatureParam<int> kContextMenuMaxTabSuggestions(
 const base::FeatureParam<bool> kContextMenuEnableMultiTabSelection(
     &kNtpComposebox,
     "NtpComposeboxContextMenuEnableMultiTabSelection",
-    false);
+    true);
 
 const base::FeatureParam<bool> kEnableThreadsRail(&kNtpComposebox,
                                                   "EnableThreadsRail",
-                                                  true);
+                                                  false);
 const base::FeatureParam<bool> kEnableThreadsRailLogo(&kNtpComposebox,
                                                       "EnableThreadsRailLogo",
                                                       false);

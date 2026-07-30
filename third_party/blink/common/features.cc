@@ -63,10 +63,18 @@ BASE_FEATURE(kAndroidSpellcheckFullApiBlink, base::FEATURE_DISABLED_BY_DEFAULT);
 // If enabled, the platform in the User-Agent metadata for Android desktop will
 // be "Android" instead of "Linux".
 BASE_FEATURE(kAndroidDesktopUAPlatform, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the user agent platform will be ChromeOS instead of Linux for
+// desktop Android devices, when kAndroidDesktopUAPlatform is disabled.
+BASE_FEATURE(kAndroidDesktopUASpoofAsChromeOS,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 // Avoids copying ResourceRequest::TrustedParams when possible.
 BASE_FEATURE(kAvoidTrustedParamsCopies, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, fast-exits the mixed-content checks for secure URLs.
+BASE_FEATURE(kOptimizeMixedContentChecks, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kUnthrottleAsyncTouchMoves, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -481,7 +489,7 @@ BASE_FEATURE(kCreateImageBitmapOrientationNone,
 BASE_FEATURE(kDeclarativeCSSModulesUseDataURI,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDataUrlWorkerOpaqueOrigin, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kDataUrlWorkerOpaqueOrigin, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, HTMLTreeBuilder::Flush() will be throttled in kTextMode
 // to reduce O(n^2) string copies.
@@ -979,7 +987,7 @@ BASE_FEATURE(kFledgeTruncateSelectableBuyerAndSellerReportingIdsToKAnonLimit,
 BASE_FEATURE(kForceHighPerformanceGPUForWebGL,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kForceSkcmsICCParsing, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kForceSkcmsICCParsing, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kForceSkExifCppParsing, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -2493,9 +2501,6 @@ BASE_FEATURE(kStreamlineRendererInit, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSubSampleWindowProxyUsageMetrics,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSupportOpeningDraggedLinksInSameTab,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTaskAttributionTraceMicrotaskTaskState,
              base::FEATURE_ENABLED_BY_DEFAULT);

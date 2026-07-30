@@ -232,6 +232,11 @@ BASE_FEATURE(kBypassRedirectChecksPerRequest, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kCacheControlNoStoreEnterBackForwardCache,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Enables the experimental Rust implementation of
+// ChildProcessSecurityPolicy. See https://crbug.com/482216433.
+BASE_FEATURE(kChildProcessSecurityPolicyRust,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Clear the window.name property for the top-level cross-site navigations that
 // swap BrowsingContextGroups(BrowsingInstances).
 BASE_FEATURE(kClearCrossSiteCrossBrowsingContextGroupWindowName,
@@ -391,10 +396,6 @@ BASE_FEATURE(kEnsureExistingRendererAlive, base::FEATURE_DISABLED_BY_DEFAULT);
 // We enable it here by default to support use in origin trials.
 BASE_FEATURE(kFedCm, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Kill switch for checking if there is an ongoing embedder task in the auto
-// re-authn flow.
-BASE_FEATURE(kFedCmEmbedderCheck, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables RPs to enhance autofill with federated accounts fetched by the FedCM
 // API.
 BASE_FEATURE(kFedCmAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -542,6 +543,13 @@ BASE_FEATURE_PARAM(bool,
                    &features::kInitialWebUI,
                    "high_stream_priority",
                    true);
+
+// If enabled, the initial WebUI skips spell check initialization on startup.
+BASE_FEATURE_PARAM(bool,
+                   kInitialWebUIWithoutSpellCheck,
+                   &features::kInitialWebUI,
+                   "without_spellcheck",
+                   false);
 
 // Whether initial WebUI navigations should synchronously go from navigation
 // start to commit, by doing e.g. in-renderer body loading.
@@ -926,6 +934,12 @@ BASE_FEATURE(kServiceWorkerAutoPreload, base::FEATURE_ENABLED_BY_DEFAULT);
 // `webview` permission, meaning ServiceWorkerAutoPreload is almost always not
 // enabled.
 BASE_FEATURE(kOptimizeWebRequestProxyForServiceWorkerAutoPreload,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// crbug.com/40410035: When enabled, download requests ("Save link as",
+// "Save image as", <a download>) are intercepted by service workers, allowing
+// the service worker's fetch event handler to provide a response.
+BASE_FEATURE(kServiceWorkerInterceptDownloads,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // crbug.com/374606637: When this is enabled, race-network-and-fetch-hander will
@@ -1351,7 +1365,7 @@ BASE_FEATURE(kAccessibilityPageZoomV2, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables populating the supplemental description information via the
 // Android supplemental description API.
 BASE_FEATURE(kAccessibilityPopulateSupplementalDescriptionApi,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the reactive synchronization of accessibility and keyboard focus,
 // relying on new Android framework behavior.
@@ -1432,10 +1446,6 @@ BASE_FEATURE(kWebauthnDisabledOnAuto,
 BASE_FEATURE(kEnableExclusiveAccessManager, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kKeyboardLockApiOnAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
-
 // Sets IO threads to kInteractive all the time.
 BASE_FEATURE(kIOThreadInteractiveThreadType, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -1447,9 +1457,7 @@ const base::FeatureParam<int> kNavigationCapturingIPHGuardrailStorageDuration{
 BASE_FEATURE(kPwaNavigationCapturing, base::FEATURE_ENABLED_BY_DEFAULT);
 
 const base::FeatureParam<CapturingState>::Option kNavigationCapturingParams[] =
-    {{CapturingState::kDefaultOn, "on_by_default"},
-     {CapturingState::kDefaultOff, "off_by_default"},
-     {CapturingState::kReimplDefaultOn, "reimpl_default_on"},
+    {{CapturingState::kReimplDefaultOn, "reimpl_default_on"},
      {CapturingState::kReimplDefaultOff, "reimpl_default_off"},
      {CapturingState::kReimplOnViaClientMode, "reimpl_on_via_client_mode"}};
 

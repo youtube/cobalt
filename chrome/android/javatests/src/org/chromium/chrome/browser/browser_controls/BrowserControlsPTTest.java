@@ -14,7 +14,6 @@ import org.junit.runner.RunWith;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.DisabledTest;
-import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.ChromeTabbedActivity;
@@ -38,10 +37,8 @@ import org.chromium.ui.test.util.DeviceRestriction;
     ChromeSwitches.DISABLE_MINIMUM_SHOW_DURATION
 })
 @EnableFeatures({
-    ChromeFeatureList.TOP_CONTROLS_REFACTOR,
     ChromeFeatureList.TOP_CONTROLS_REFACTOR_V2
 })
-@DisableFeatures({ChromeFeatureList.LOCK_TOP_CONTROLS_ON_LARGE_TABLETS})
 @Restriction(DeviceRestriction.RESTRICTION_TYPE_NON_AUTO)
 public class BrowserControlsPTTest {
 

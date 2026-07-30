@@ -88,7 +88,10 @@ enum class Channel;
 
 namespace accessibility_annotator {
 class AccessibilityQueryService;
-enum class RemoteAnnotatorEnablementState;
+}
+
+namespace personal_context {
+enum class PersonalContextEnablementState;
 }
 
 namespace metrics {
@@ -260,8 +263,13 @@ class AutofillClient {
     // accepted the bubble.
     std::optional<int> accept_button_string_id;
   };
+  // Callback to run when the user makes a decision on whether to save the
+  // entity. If the user edits the entity and then accepts edits, the edited
+  // version of the entity should be passed as the second parameter. No entity
+  // is passed otherwise.
   using EntityImportPromptResultCallback =
       base::OnceCallback<void(AutofillAiBubbleResult result,
+                              base::optional_ref<const EntityInstance> entity,
                               const EntityImportUIContext& ui_context)>;
 
   // The types of prompts that AutofillAi can show to the user after a form
@@ -384,6 +392,7 @@ class AutofillClient {
 
   // Returns the `AutofillComposeDelegate` instance for the tab of this client.
   virtual AutofillComposeDelegate* GetComposeDelegate();
+  const AutofillComposeDelegate* GetComposeDelegate() const;
 
   // Attempts to the annotated page content for the current tab and calls
   // `callback` with the results.
@@ -425,13 +434,15 @@ class AutofillClient {
   GetAccessibilityQueryService();
 
   // Returns the enablement state of the Accessibility Annotator.
-  virtual accessibility_annotator::RemoteAnnotatorEnablementState
-  GetAccessibilityAnnotatorEnablementState() const;
+  virtual personal_context::PersonalContextEnablementState
+  GetPersonalContextEnablementState() const;
 
   // Returns the `PasswordManagerDelegate` responsible to provide
   // password suggestions for the given `field_id`.
   virtual PasswordManagerDelegate* GetPasswordManagerDelegate(
       const FieldGlobalId& field_id);
+  const PasswordManagerDelegate* GetPasswordManagerDelegate(
+      const FieldGlobalId& field_id) const;
 
   // Gets the preferences associated with the client.
   virtual PrefService* GetPrefs() = 0;
@@ -647,7 +658,7 @@ class AutofillClient {
   virtual const AutofillAblationStudy& GetAblationStudy() const;
 
 #if BUILDFLAG(IS_ANDROID)
-  // Shows the @memory bottom sheet on Android.
+  // Shows the @memory bottom sheet. Triggered by keyboard accessory controller.
   virtual void ShowAtMemoryBottomSheet();
 
   // The AutofillSnackbarController is used to show a snackbar notification

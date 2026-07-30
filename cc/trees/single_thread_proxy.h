@@ -34,7 +34,7 @@ namespace cc {
 
 class ClientLayerTreeHostImpl;
 class LayerTreeHost;
-class LayerTreeHostSingleThreadClient;
+class LayerTreeHostSingleThreadDelegate;
 class RenderFrameMetadataObserver;
 
 class CC_EXPORT SingleThreadProxy : public Proxy,
@@ -43,7 +43,7 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
  public:
   static std::unique_ptr<Proxy> Create(
       LayerTreeHost* layer_tree_host,
-      LayerTreeHostSingleThreadClient* client,
+      LayerTreeHostSingleThreadDelegate* delegate,
       TaskRunnerProvider* task_runner_provider);
   SingleThreadProxy(const SingleThreadProxy&) = delete;
   ~SingleThreadProxy() override;
@@ -57,7 +57,7 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
   void ReleaseLayerTreeFrameSink() override;
   void SetVisible(bool visible) override;
   void SetShouldWarmUp() override;
-  void SetNeedsAnimate(bool urgent) override;
+  void SetNeedsAnimate(BeginMainFrameReason, bool urgent) override;
   void SetNeedsUpdateLayers() override;
   void SetNeedsCommit() override;
   void SetNeedsRedraw(const gfx::Rect& damage_rect) override;
@@ -190,7 +190,7 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
 
  protected:
   SingleThreadProxy(LayerTreeHost* layer_tree_host,
-                    LayerTreeHostSingleThreadClient* client,
+                    LayerTreeHostSingleThreadDelegate* delegate,
                     TaskRunnerProvider* task_runner_provider);
 
  private:
@@ -213,7 +213,7 @@ class CC_EXPORT SingleThreadProxy : public Proxy,
 
   // Accessed on main thread only.
   raw_ptr<LayerTreeHost> layer_tree_host_;
-  raw_ptr<LayerTreeHostSingleThreadClient> single_thread_client_;
+  raw_ptr<LayerTreeHostSingleThreadDelegate> single_thread_delegate_;
 
   raw_ptr<TaskRunnerProvider> task_runner_provider_;
 

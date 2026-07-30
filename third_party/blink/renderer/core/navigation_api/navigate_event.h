@@ -117,15 +117,13 @@ class NavigateEvent final : public Event,
  private:
   bool PerformSharedChecks(const String& function_name, ExceptionState&);
 
-  void CommitNow(ScriptState*);
+  void CommitNow();
 
   void PotentiallyResetTheFocus();
   void PotentiallyProcessScrollBehavior();
   void ProcessScrollBehavior();
 
-  class FulfillReaction;
-  class RejectReaction;
-  void ReactDone(ScriptState*, ScriptValue, bool did_fulfill);
+  void ReactDone(ScriptState*, bool did_fulfill, ScriptValue);
 
   void DelayedLoadStartTimerFired();
 

@@ -34,7 +34,6 @@ import android.view.View;
 import android.view.ViewStub;
 
 import androidx.annotation.ColorInt;
-import androidx.appcompat.content.res.AppCompatResources;
 import androidx.core.content.ContextCompat;
 import androidx.core.graphics.ColorUtils;
 
@@ -281,7 +280,7 @@ public class StripLayoutHelperManagerTest {
                         /* xrSpaceModeObservableSupplier= */ null,
                         mBackPressManager,
                         mSnackbarManager,
-                        () -> {},
+                        CallbackUtils.emptyCallback(),
                         mGlicKeyedService);
         mStripLayoutHelperManager.setTabStripTreeProviderForTesting(mTabStripTreeProvider);
         mStripLayoutHelperManager.setTabModelSelector(mTabModelSelector, mTabCreatorManager);
@@ -613,9 +612,7 @@ public class StripLayoutHelperManagerTest {
         // Verify button icon color after disabling button style.
         assertEquals(
                 "Unexpected incognito button color.",
-                AppCompatResources.getColorStateList(
-                                mActivity, R.color.default_icon_color_tint_list)
-                        .getDefaultColor(),
+                mActivity.getColorStateList(R.color.default_icon_color_tint_list).getDefaultColor(),
                 ((TintedCompositorButton) mStripLayoutHelperManager.getModelSelectorButton())
                         .getTint());
     }
@@ -1579,7 +1576,6 @@ public class StripLayoutHelperManagerTest {
 
     @Test
     @EnableFeatures({
-        ChromeFeatureList.TOP_CONTROLS_REFACTOR,
         ChromeFeatureList.TOP_CONTROLS_REFACTOR_V2
     })
     public void testPushAndUpdateStrip_RefactorEnabled() {

@@ -457,6 +457,7 @@ Povezan je sljedeći broj uređaja: <ph name="DEVICECOUNT" />.</translation>
 <translation id="2475783092753560388">Umetnite rezultat <ph name="SEARCH_RESULT_TEXT" /></translation>
 <translation id="2475982808118771221">Došlo je do pogreške</translation>
 <translation id="2478076885740497414">Instaliranje aplikacije</translation>
+<translation id="2479148705183875116">Otvori Postavke</translation>
 <translation id="2482878487686419369">Obavijesti</translation>
 <translation id="2484513351006226581">Pritisnite <ph name="KEYBOARD_SHORTCUT" /> da biste promijenili raspored tipkovnice.</translation>
 <translation id="2485422356828889247">Deinstaliraj</translation>
@@ -1047,6 +1048,7 @@ Neke su značajke ograničene radi produljenja trajanja baterije.</translation>
 <translation id="4239069858505860023">GPRS</translation>
 <translation id="4240486403425279990">Način pregleda</translation>
 <translation id="4242533952199664413">Otvori postavke</translation>
+<translation id="4244765461494758482">Te se postavke sinkroniziraju na vašim drugim ChromeOS uređajima. Možete ih promijeniti ovdje ili upravljati cijelim popisom u postavkama.</translation>
 <translation id="4247123849143712100">Ažuriraj i isključi</translation>
 <translation id="4249248555939881673">Čekanje mrežne veze...</translation>
 <translation id="4250229828105606438">Snimka zaslona</translation>
@@ -2327,6 +2329,7 @@ Da biste isključili uređaj, ponovno pritisnite i zadržite tipku za uključiva
 <translation id="8051716679295756675">Već postoji predložak s nazivom <ph name="DESK_TEMPLATE_NAME" /></translation>
 <translation id="8052898407431791827">Kopirano u međuspremnik</translation>
 <translation id="8054466585765276473">Izračun vremena baterije.</translation>
+<translation id="8063363226185507157">Sinkronizirane postavke pristupačnosti</translation>
 <translation id="8076492880354921740">Kartice</translation>
 <translation id="8079538659226626406">Dijeljenje zaslona</translation>
 <translation id="8083540854303889870">Spremljeno za kasnije</translation>

@@ -136,7 +136,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.DragDrop.Surface" enum="DragAndDropSurface"
-    expires_after="2026-08-01">
+    expires_after="2026-11-01">
   <owner>mustaq@chromium.org</owner>
   <owner>gastonr@microsoft.com</owner>
   <owner>gerchiko@microsoft.com</owner>
@@ -339,7 +339,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Event.Latency.OS2{EventType}" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>flackr@chromium.org</owner>
   <owner>joenotcharles@google.com</owner>
   <owner>input-dev@chromium.org</owner>
@@ -749,6 +749,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Event.ScrollJank.FrameStageScrollIdBasedCalculationIssues"
+    enum="FrameStageScrollIdBasedCalculationIssues" expires_after="2026-11-06">
+  <owner>petrcermak@chromium.org</owner>
+  <owner>kartarsingh@google.com</owner>
+  <owner>jonross@chromium.org</owner>
+  <owner>woa-performance-team@google.com</owner>
+  <summary>
+    The issues encountered by the scroll-ID-based implementation of
+    `cc::ScrollJankV4FrameStageCalculator` when processing scroll events in a
+    single frame. Only emitted for frames which contain at least one GSU.
+  </summary>
+</histogram>
+
 <histogram name="Event.ScrollJank.MissedVsyncs.PerFrame" units="counts"
     expires_after="2026-09-06">
   <owner>kartarsingh@google.com</owner>
@@ -944,7 +957,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="EventLatency.GestureScrollUpdate.{NonTouchscreenScrollInputType}.TotalLatency2"
-    units="microseconds" expires_after="2026-08-30">
+    units="microseconds" expires_after="2026-11-08">
   <owner>jonross@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>

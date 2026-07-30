@@ -28,8 +28,8 @@
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
+#include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
-#include "chrome/browser/ui/page_actions/page_action_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -693,6 +693,8 @@ class LocationBarViewAddContextButtonBrowserTest
     scoped_feature_list_.InitWithFeaturesAndParameters(
         /*enabled_features=*/
         {{omnibox::internal::kWebUIOmniboxAimPopup,
+          {{omnibox::kShowToolsAndModels.name, "true"}}},
+         {omnibox::internal::kWebUIOmniboxSimplification,
           {{omnibox::kWebUIOmniboxAimPopupAddContextButtonVariantParam.name,
             "inline"}}},
          {omnibox::internal::kWebUIOmniboxPopup, {}},
@@ -701,6 +703,7 @@ class LocationBarViewAddContextButtonBrowserTest
                                omnibox::kAimFuseboxEligibilityCheckEnabled,
                                omnibox::kAimUsePecApi});
   }
+
   ~LocationBarViewAddContextButtonBrowserTest() override = default;
 
  private:

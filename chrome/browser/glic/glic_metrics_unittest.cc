@@ -355,8 +355,6 @@ TEST_F(GlicMetricsTest, Basic) {
   metrics()->OnResponseRated(/*positive=*/true);
   metrics()->OnSessionTerminated();
 
-  histogram_tester().ExpectTotalCount("Glic.Response.StopTime", 1);
-  histogram_tester().ExpectTotalCount("Glic.Response.StopTime.UnknownCause", 1);
   histogram_tester().ExpectUniqueSample(
       "Glic.Session.InputSubmit.BrowserActiveState", 5 /*kBrowserHidden*/, 1);
   histogram_tester().ExpectUniqueSample(
@@ -386,7 +384,6 @@ TEST_F(GlicMetricsTest, BasicVisible) {
   metrics()->OnSessionTerminated();
   metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
 
-  histogram_tester().ExpectTotalCount("Glic.Response.StopTime", 1);
   EXPECT_THAT(
       histogram_tester().GetAllSamplesForPrefix("Glic.Response.StartTime"),
       UnorderedElementsAre(
@@ -549,7 +546,6 @@ TEST_F(GlicMetricsTest, BasicStopReasonOther) {
   metrics()->OnSessionTerminated();
   metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
 
-  histogram_tester().ExpectTotalCount("Glic.Response.StopTime.Other", 1);
   EXPECT_EQ(user_action_tester().GetActionCount("GlicResponseStopOther"), 1);
   EXPECT_EQ(user_action_tester().GetActionCount("GlicResponseStop"), 1);
 }
@@ -565,7 +561,6 @@ TEST_F(GlicMetricsTest, BasicStopReasonByUser) {
   metrics()->OnSessionTerminated();
   metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
 
-  histogram_tester().ExpectTotalCount("Glic.Response.StopTime.ByUser", 1);
   EXPECT_EQ(user_action_tester().GetActionCount("GlicResponseStopByUser"), 1);
   EXPECT_EQ(user_action_tester().GetActionCount("GlicResponse"), 1);
 }
@@ -917,28 +912,6 @@ TEST_F(GlicMetricsTest, InputModesUsed) {
   histogram_tester().ExpectTotalCount("Glic.Session.InputModesUsed", 6);
   histogram_tester().ExpectBucketCount("Glic.Session.InputModesUsed",
                                        InputModesUsed::kNone, 2);
-}
-
-TEST_F(GlicMetricsTest, AttachStateChanges) {
-  // TODO(b/452378389): Unconventional order of metrics calls may be a problem.
-  // Attach changes during initialization should not be counted.
-  metrics()->OnAttachedToBrowser(AttachChangeReason::kInit);
-  metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
-  histogram_tester().ExpectTotalCount("Glic.Session.AttachStateChanges", 1);
-  histogram_tester().ExpectBucketCount("Glic.Session.AttachStateChanges", 0, 1);
-
-  metrics()->OnAttachedToBrowser(AttachChangeReason::kDrag);
-  metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
-  histogram_tester().ExpectTotalCount("Glic.Session.AttachStateChanges", 2);
-  histogram_tester().ExpectBucketCount("Glic.Session.AttachStateChanges", 1, 1);
-
-  metrics()->OnAttachedToBrowser(AttachChangeReason::kMenu);
-  metrics()->OnDetachedFromBrowser(AttachChangeReason::kMenu);
-  metrics()->OnAttachedToBrowser(AttachChangeReason::kMenu);
-  metrics()->OnDetachedFromBrowser(AttachChangeReason::kMenu);
-  metrics()->OnGlicWindowClose(nullptr, std::nullopt, gfx::Rect());
-  histogram_tester().ExpectTotalCount("Glic.Session.AttachStateChanges", 3);
-  histogram_tester().ExpectBucketCount("Glic.Session.AttachStateChanges", 4, 1);
 }
 
 TEST_F(GlicMetricsTest, TimeElapsedBetweenSessions) {

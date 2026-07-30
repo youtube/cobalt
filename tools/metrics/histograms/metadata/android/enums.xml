@@ -405,6 +405,12 @@ chromium-metrics-reviews@google.com.
   <int value="2" label="RemoteException"/>
 </enum>
 
+<enum name="AndroidWebViewGmsApiCallResult">
+  <int value="0" label="SUCCESS"/>
+  <int value="1" label="TIMEOUT"/>
+  <int value="2" label="UNKNOWN_ERROR"/>
+</enum>
+
 <enum name="AndroidWebViewMediaIntegrityApiStatus">
   <int value="0" label="DISABLED"/>
   <int value="1" label="ENABLED_WITHOUT_APP_IDENTITY"/>
@@ -513,12 +519,6 @@ chromium-metrics-reviews@google.com.
       label="(Obsolete) DISALLOWED_SITE_DETECTED. Removed in 2025/02"/>
   <int value="4" label="TIMEOUT"/>
   <int value="5" label="UNKNOWN_ERROR"/>
-</enum>
-
-<enum name="AndroidWebViewSupportedThreatTypesResult">
-  <int value="0" label="SUCCESS"/>
-  <int value="1" label="TIMEOUT"/>
-  <int value="2" label="UNKNOWN_ERROR"/>
 </enum>
 
 <enum name="AndroidWebViewTextSelectionMenuOrdering">
@@ -752,6 +752,7 @@ chromium-metrics-reviews@google.com.
   <int value="191" label="WebSettingsCompat.clearMaxPrefetches"/>
   <int value="192" label="WebSettingsCompat.clearPrefetchTtl"/>
   <int value="193" label="WebSettingsCompat.clearMaxPrerenders"/>
+  <int value="194" label="WebViewCompat.navigate"/>
 <!-- LINT.ThenChange(/android_webview/support_library/java/src/org/chromium/support_lib_glue/SupportLibWebViewChromiumFactory.java:ApiCall) -->
 
 </enum>
@@ -1412,6 +1413,7 @@ chromium-metrics-reviews@google.com.
   <int value="67" label="SaveUpdateEntity"/>
   <int value="68" label="SigninSurvey"/>
   <int value="69" label="ExtensionsRequestAccess"/>
+  <int value="70" label="KnownInterceptionDisclosure"/>
 </enum>
 
 <!-- LINT.ThenChange(//components/messages/android/message_enums.h:MessageIdentifier) -->
@@ -2862,6 +2864,7 @@ chromium-metrics-reviews@google.com.
   <int value="107" label="getDefaultCookieManager"/>
   <int value="108" label="getProfileStore"/>
   <int value="109" label="webViewInstanceGetSettings"/>
+  <int value="110" label="webViewInstanceGetAwContents"/>
 </enum>
 
 <!-- LINT.ThenChange(//base/tracing/protos/chrome_track_event.proto:WebViewStartup) -->

@@ -281,11 +281,6 @@ BASE_FEATURE(kLocalNetworkAccessChecksWebSockets,
 BASE_FEATURE(kLocalNetworkAccessChecksWebTransport,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Splits the Local Network Access permission into 2 permissions. See
-// crbug.com/465491626.
-BASE_FEATURE(kLocalNetworkAccessChecksSplitPermissions,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled, then the network service will parse the Cookie-Indices header.
 // This does not currently control changing cache behavior according to the
 // value of this header.
@@ -540,8 +535,6 @@ BASE_FEATURE_PARAM(int,
                    "max_ops_before_maintenance",
                    1000);
 
-BASE_FEATURE(kGetCookiesOnSet, base::FEATURE_DISABLED_BY_DEFAULT);
-
 BASE_FEATURE(kIncreaseCookieAccessCacheSize, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE_PARAM(int,
@@ -563,7 +556,7 @@ BASE_FEATURE(kCSPScriptSrcHashesInV1,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kCacheSharingForPervasiveResources,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSendSameSiteLaxForFedCM, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -659,5 +652,8 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 
 BASE_FEATURE(kRestrictForbiddenSecurityHeaders,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kDeclarativePerformanceObserver,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 }  // namespace network::features

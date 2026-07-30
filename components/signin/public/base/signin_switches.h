@@ -210,6 +210,13 @@ BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,
                            kChromeIdentitySurveyLaunchWithDelayDuration);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
+#if BUILDFLAG(IS_CHROMEOS)
+// If enabled, the primary account consent level on ChromeOS is set to kSignin
+// instead of kSync for new profiles.
+COMPONENT_EXPORT(SIGNIN_SWITCHES)
+BASE_DECLARE_FEATURE(kChromeOsUseConsentLevelSigninForNewUsers);
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
 #if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 // Feature flag to enable cross-device sign-in.
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
@@ -519,22 +526,6 @@ BASE_DECLARE_FEATURE(kProfileCreationDeclineSigninCTAExperiment);
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kProfileDiscOnAllPages);
 #endif  // BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-// Enables variations of the profile picker text.
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-BASE_DECLARE_FEATURE(kProfilePickerTextVariations);
-enum class ProfilePickerVariation {
-  kKeepWorkAndLifeSeparate = 0,
-  kGotAnotherGoogleAccount = 1,
-  kKeepTasksSeparate = 2,
-  kSharingAComputer = 3,
-  kKeepEverythingInChrome = 4,
-};
-COMPONENT_EXPORT(SIGNIN_SWITCHES)
-extern const base::FeatureParam<ProfilePickerVariation>
-    kProfilePickerTextVariation;
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 
 COMPONENT_EXPORT(SIGNIN_SWITCHES)
 BASE_DECLARE_FEATURE(kProfilesReordering);

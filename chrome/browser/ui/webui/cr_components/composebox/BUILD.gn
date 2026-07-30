@@ -4,7 +4,7 @@
 
 import("//ui/webui/webui_features.gni")
 
-assert(enable_webui_ntp)
+assert(!is_ios)
 
 source_set("composebox") {
   sources = [
@@ -19,6 +19,7 @@ source_set("composebox") {
     "//chrome/browser/ui/webui/cr_components/searchbox",
     "//components/contextual_search:public",
     "//components/contextual_tasks/public:feature_list",
+    "//components/feature_engagement/public",
     "//components/lens",
     "//components/metrics",
     "//components/omnibox/browser",
@@ -32,4 +33,10 @@ source_set("composebox") {
     "//ui/webui/resources/cr_components/composebox:mojo_bindings",
     "//url",
   ]
+  if (!is_android) {
+    deps += [
+      "//chrome/browser/ui/user_education",
+      "//chrome/browser/ui/webui/top_chrome",
+    ]
+  }
 }

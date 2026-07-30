@@ -216,6 +216,8 @@ public class LocationBarMediatorTest {
     @Captor private ArgumentCaptor<Runnable> mRunnableCaptor;
     @Captor private ArgumentCaptor<LoadUrlParams> mLoadUrlParamsCaptor;
     @Captor private ArgumentCaptor<TabObserver> mTabObserverCaptor;
+    @Captor private ArgumentCaptor<Callback<Boolean>> mOnInteractionCompletedCallbackCaptor;
+    private Callback<Boolean> mOnInteractionCompletedCallback;
 
     private Context mContext;
     private SettableNonNullObservableSupplier<TabModelSelector> mTabModelSelectorSupplier;
@@ -332,6 +334,10 @@ public class LocationBarMediatorTest {
                         mLocationBarEmbedder,
                         /* omniboxChipManager= */ null,
                         mScrimHandler);
+        verify(mFuseboxCoordinator)
+                .setOnInteractionCompletedCallback(mOnInteractionCompletedCallbackCaptor.capture());
+        mOnInteractionCompletedCallback = mOnInteractionCompletedCallbackCaptor.getValue();
+
         mMediator.setCoordinators(mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         mMediator.setAddToHomescreenCoordinatorForTesting(mAddToHomescreenCoordinator);
         ObjectAnimatorShadow.setUrlAnimator(mUrlAnimator);
@@ -412,6 +418,45 @@ public class LocationBarMediatorTest {
     public void testOnTabLoadingNtp() {
         mMediator.onNtpStartedLoading();
         verify(mLocationBarLayout).onNtpStartedLoading();
+    }
+
+    @Test
+    public void testBeginInput_StandbyNoFocus() {
+        var input = mSessionState.getAutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.STANDBY_NO_FOCUS);
+
+        mMediator.beginInput(input);
+        verify(mUrlCoordinator, never()).requestFocus();
+    }
+
+    @Test
+    public void testOnFuseboxInteractionCompleted_StandbyNoFocus() {
+        var input = mSessionState.getAutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.STANDBY_NO_FOCUS);
+        mMediator.beginInput(input);
+        clearInvocations(mUrlCoordinator);
+
+        // Simulate an action taken by setting request type to AI_MODE.
+        input.setRequestType(AutocompleteRequestType.AI_MODE);
+
+        // Trigger the action (dismiss with action taken)
+        mOnInteractionCompletedCallback.onResult(true);
+
+        assertEquals(AutocompleteState.ENABLED, input.getAutocompleteState());
+        assertEquals(OmniboxFocusReason.FAKE_BOX_TAP, input.getFocusReason());
+        verify(mUrlCoordinator).requestFocus();
+    }
+
+    @Test
+    public void testOnFuseboxPopupDismissed_StandbyNoFocus() {
+        var input = mSessionState.getAutocompleteInput();
+        input.setAutocompleteState(AutocompleteState.STANDBY_NO_FOCUS);
+        mMediator.beginInput(input);
+
+        // Trigger the dismiss (no action taken)
+        mOnInteractionCompletedCallback.onResult(false);
+
+        assertFalse(mSessionState.isSessionActive());
     }
 
     @Test
@@ -654,6 +699,15 @@ public class LocationBarMediatorTest {
                 new UrlBarTextChangeInfo(
                         "word ", 4, 1, 1); // e.g. replacing '1' in "word1" with ' '
         assertTrue(mMediator.shouldTriggerSiteSearch(replaceWithSpaceInfo));
+
+        // Scenario 9: Leading space -> False
+        UrlBarTextChangeInfo leadingSpaceInfo = new UrlBarTextChangeInfo(" keyword ", 8, 0, 1);
+        assertFalse(mMediator.shouldTriggerSiteSearch(leadingSpaceInfo));
+
+        // Scenario 10: Space after a trailing space -> False
+        UrlBarTextChangeInfo spaceAfterTrailingSpaceInfo =
+                new UrlBarTextChangeInfo("word1  ", 6, 0, 1);
+        assertFalse(mMediator.shouldTriggerSiteSearch(spaceAfterTrailingSpaceInfo));
     }
 
     public void testLoadUrl_base() {
@@ -969,6 +1023,8 @@ public class LocationBarMediatorTest {
         verify(mUrlCoordinator, never()).clearFocus();
 
         mMediator.beginInput(input);
+        // Simulate focus change to make mUrlHasFocus true.
+        mMediator.onUrlFocusChange(true);
         mMediator.onConfigurationChanged(config);
         verify(mUrlCoordinator, never()).clearFocus();
 
@@ -1012,9 +1068,46 @@ public class LocationBarMediatorTest {
         doReturn("").when(mUrlCoordinator).getTextWithoutAutocomplete();
         doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
 
+        clearInvocations(mUrlCoordinator);
+
         assertTrue(mMediator.onKey(mView, KeyEvent.KEYCODE_DEL, mKeyEvent));
         FuseboxSessionState state = FuseboxSessionState.from(mLocationBarDataProvider);
         assertNull(state.getAutocompleteInput().getSiteSearchData());
+
+        ArgumentCaptor<UrlBarData> urlBarDataCaptor = ArgumentCaptor.forClass(UrlBarData.class);
+        verify(mUrlCoordinator)
+                .setUrlBarData(
+                        urlBarDataCaptor.capture(),
+                        eq(UrlBar.ScrollType.NO_SCROLL),
+                        eq(UrlBarData.SELECT_END));
+        assertEquals("keyword", urlBarDataCaptor.getValue().displayText.toString());
+    }
+
+    @Test
+    public void testOnKey_del_clearsKeywordEnteredViaSpace() {
+        mMediator.onFinishNativeInitialization();
+        mProfileSupplier.set(mProfile);
+        AutocompleteInput input = new AutocompleteInput();
+        input.setSiteSearchData(
+                new SiteSearchData("keyword", "Search keyword", /* enteredViaSpace= */ true));
+        mMediator.beginInput(input);
+
+        doReturn("").when(mUrlCoordinator).getTextWithoutAutocomplete();
+        doReturn(KeyEvent.ACTION_DOWN).when(mKeyEvent).getAction();
+
+        clearInvocations(mUrlCoordinator);
+
+        assertTrue(mMediator.onKey(mView, KeyEvent.KEYCODE_DEL, mKeyEvent));
+        FuseboxSessionState state = FuseboxSessionState.from(mLocationBarDataProvider);
+        assertNull(state.getAutocompleteInput().getSiteSearchData());
+
+        ArgumentCaptor<UrlBarData> urlBarDataCaptor = ArgumentCaptor.forClass(UrlBarData.class);
+        verify(mUrlCoordinator)
+                .setUrlBarData(
+                        urlBarDataCaptor.capture(),
+                        eq(UrlBar.ScrollType.NO_SCROLL),
+                        eq(UrlBarData.SELECT_END));
+        assertEquals("keyword ", urlBarDataCaptor.getValue().displayText.toString());
     }
 
     @Test
@@ -1258,7 +1351,7 @@ public class LocationBarMediatorTest {
     @Test
     public void testEndInput_notFocused() {
         mMediator.endInput();
-        verify(mUrlCoordinator).clearFocus();
+        verify(mUrlCoordinator, never()).clearFocus();
     }
 
     @Test

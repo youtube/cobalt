@@ -43,13 +43,7 @@ if (!defined(experimental_linker_path) || !is_a_target_toolchain) {
 if (!is_win && !is_mac && !is_ios) {
   declare_args() {
     # Link using mold instead of lld.
-    use_mold =
-        host_os == "linux" && !is_official_build &&
-        experimental_linker_path == "" && is_a_target_toolchain &&
-        current_cpu == "x64" && is_android
-    # This should be !use_thin_lto, but there's a circular dependency
-    # between use_thin_lto and use_mold.
-    # is_a_target_toolchain restriction due to https://github.com/rui314/mold/issues/1571
+    use_mold = false
   }
 }
 
@@ -164,7 +158,7 @@ declare_args() {
       # dwp did not work properly for Android official builds, so disable in
       # order to be able to archive symbols properly. https://crbug.com/40203231
       symbol_level >= 1 && !(is_android && is_official_build) && !is_fuchsia &&
-      !is_apple && !is_win && (use_lld || experimental_linker_path != "")
+      !is_apple && !is_win && (use_lld || linker_path != "")
 
   # Enables support for ThinLTO, which links 3x-10x faster than full LTO. See
   # also http://blog.llvm.org/2016/06/thinlto-scalable-and-incremental-lto.html

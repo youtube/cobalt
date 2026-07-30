@@ -215,6 +215,17 @@ void AutofillAiManager::OnSuggestionsShown(
     const AutofillField& field,
     base::span<const Suggestion> shown_suggestions,
     ukm::SourceId ukm_source_id) {
+  if (last_logged_ukm_source_id_ != ukm_source_id &&
+      !form.server_predictions_received_timestamp().is_null()) {
+    base::TimeDelta duration =
+        base::TimeTicks::Now() - form.server_predictions_received_timestamp();
+    base::UmaHistogramLongTimes(
+        "Autofill.Ai.TimingInterval."
+        "LoadedServerPredictionsToSuggestionsShown",
+        duration);
+    last_logged_ukm_source_id_ = ukm_source_id;
+  }
+
   std::vector<const EntityInstance*> entities_suggested;
   for (const Suggestion& suggestion : shown_suggestions) {
     if (const auto* payload =
@@ -243,6 +254,27 @@ void AutofillAiManager::OnSuggestionsShown(
 
 void AutofillAiManager::OnFormSeen(const FormStructure& form) {
   UpdateLoggerReadinessData(form);
+}
+
+void AutofillAiManager::OnFormInteracted(const FormStructure& form,
+                                         ukm::SourceId ukm_source_id) {
+  if (last_logged_ukm_source_id_for_interaction_ == ukm_source_id ||
+      form.server_predictions_received_timestamp().is_null()) {
+    return;
+  }
+  const DenseSet<EntityType> relevant_entities =
+      GetRelevantEntityTypesForFields(form.fields());
+  if (relevant_entities.empty()) {
+    return;
+  }
+
+  base::TimeDelta duration =
+      base::TimeTicks::Now() - form.server_predictions_received_timestamp();
+  base::UmaHistogramLongTimes(
+      "Autofill.Ai.TimingInterval."
+      "LoadedServerPredictionsToFirstInteraction",
+      duration);
+  last_logged_ukm_source_id_for_interaction_ = ukm_source_id;
 }
 
 void AutofillAiManager::OnDidFillSuggestion(
@@ -379,7 +411,11 @@ void AutofillAiManager::HandlePromptResult(
     ukm::SourceId ukm_source_id,
     AutofillClient::AutofillAiImportPromptType prompt_type,
     AutofillClient::AutofillAiBubbleResult result,
+    base::optional_ref<const EntityInstance> edited_entity,
     const AutofillClient::EntityImportUIContext& ui_context) {
+  if (edited_entity) {
+    entity = *edited_entity;
+  }
   logger_.OnImportPromptResult(form, prompt_type, entity.type(),
                                entity.record_type(), result, ukm_source_id);
   EntityDataManager& entity_manager =

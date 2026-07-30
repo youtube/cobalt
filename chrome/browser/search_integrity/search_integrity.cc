@@ -26,6 +26,8 @@
 #include "chrome/browser/search_integrity/search_integrity_allowlist.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/grit/browser_resources.h"
+#include "components/prefs/pref_service.h"
+#include "components/search_engines/search_engines_pref_names.h"
 #include "components/search_engines/template_url_service.h"
 #include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/base/url_util.h"
@@ -86,8 +88,7 @@ bool IsDisallowedCustomSearchEngine(const TemplateURL* template_url) {
     return false;
   }
 
-  return template_url->prepopulate_id() == 0 &&
-         !template_url->CreatedByPolicy() &&
+  return !template_url->CreatedByPolicy() &&
          template_url->starter_pack_id() ==
              template_url_starter_pack_data::StarterPackId::kNone &&
          !SearchEngineAllowlist::GetInstance()->IsAllowed(template_url->url());
@@ -181,6 +182,8 @@ void SearchIntegrity::OnTemplateURLServiceLoaded() {
     base::UmaHistogramBoolean(
         "Search.Integrity.IsDefaultCustomWithMatchingPolicyEngine",
         report.is_default_custom_with_matching_policy_engine);
+    base::UmaHistogramBoolean("Search.Integrity.IsDefaultEnforcedWithoutPolicy",
+                              report.is_default_enforced_without_policy);
 
     if (report.referral_param_found.has_value()) {
       base::UmaHistogramEnumeration("Search.Integrity.Referral.ParameterFound",
@@ -194,6 +197,9 @@ void SearchIntegrity::LogEnterpriseMetrics(
   base::UmaHistogramBoolean(
       "Search.Integrity.Enterprise.IsDefaultCustomWithMatchingPolicyEngine",
       report.is_default_custom_with_matching_policy_engine);
+  base::UmaHistogramBoolean(
+      "Search.Integrity.Enterprise.IsDefaultEnforcedWithoutPolicy",
+      report.is_default_enforced_without_policy);
 
   if (report.referral_param_found.has_value()) {
     base::UmaHistogramEnumeration(
@@ -252,7 +258,6 @@ SearchIntegrityReport SearchIntegrity::CheckSearchEnginesReport() {
           break;
         }
       }
-      break;
     }
   }
 
@@ -261,6 +266,12 @@ SearchIntegrityReport SearchIntegrity::CheckSearchEnginesReport() {
 
   if (!default_search_provider) {
     return report;
+  }
+
+  if (default_search_provider->enforced_by_policy() &&
+      !profile_->GetPrefs()->IsManagedPreference(
+          prefs::kDefaultSearchProviderEnabled)) {
+    report.is_default_enforced_without_policy = true;
   }
 
   if (IsDisallowedCustomSearchEngine(default_search_provider)) {

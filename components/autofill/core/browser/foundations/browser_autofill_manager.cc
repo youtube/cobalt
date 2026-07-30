@@ -59,7 +59,7 @@
 #include "base/types/zip.h"
 #include "base/uuid.h"
 #include "build/build_config.h"
-#include "components/accessibility_annotator/core/accessibility_annotator_types.h"
+#include "components/autofill/core/browser/at_memory/at_memory_manager.h"
 #include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/autofill_trigger_source.h"
@@ -174,7 +174,7 @@
 #include "components/autofill/core/common/signatures.h"
 #include "components/autofill/core/common/unique_ids.h"
 #include "components/optimization_guide/proto/features/model_prototyping.pb.h"
-#include "components/password_manager/core/browser/features/password_features.h"
+#include "components/personal_context/core/personal_context_types.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/prefs/pref_service.h"
 #include "components/security_interstitials/core/pref_names.h"
@@ -658,10 +658,8 @@ std::optional<Suggestion> GenerateComposeSuggestion(
     const FormData& form,
     const FormFieldData& field,
     AutofillSuggestionTriggerSource trigger_source,
-    AutofillClient& client,
-    AutofillComposeDelegate* compose_delegate) {
-  ComposeSuggestionGenerator suggestion_generator(compose_delegate,
-                                                  trigger_source);
+    AutofillClient& client) {
+  ComposeSuggestionGenerator suggestion_generator(trigger_source);
   std::vector<Suggestion> suggestions;
 
   auto on_suggestions_generated =
@@ -672,8 +670,9 @@ std::optional<Suggestion> GenerateComposeSuggestion(
 
   // Since the `on_suggestions_generated` callback is called synchronously, we
   // can assume that `suggestions` will hold the correct value.
-  suggestion_generator.GenerateSuggestions(form, field, nullptr, nullptr,
-                                           client, on_suggestions_generated);
+  suggestion_generator.GenerateSuggestions(
+      form, field, /*form_structure=*/nullptr,
+      /*trigger_autofill_field=*/nullptr, client, on_suggestions_generated);
   if (suggestions.empty()) {
     return std::nullopt;
   }
@@ -687,11 +686,8 @@ bool ShouldShowWebauthnHybridEntryPoint(const FormFieldData& field) {
 #else
   const std::optional<AutocompleteParsingResult>& autocomplete =
       field.parsed_autocomplete();
-  return autocomplete.has_value() &&  // Assume no autcomplete if not parsed.
-         autocomplete->webauthn &&    // Field must have "webauthn" annotation.
-         base::FeatureList::IsEnabled(
-             password_manager::features::
-                 kAutofillReintroduceHybridPasskeyDropdownItem);
+  return autocomplete.has_value() &&  // Assume no autocomplete if not parsed.
+         autocomplete->webauthn;      // Field must have "webauthn" annotation.
 #endif  // BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
 }
 
@@ -820,6 +816,7 @@ BrowserAutofillManager::BrowserAutofillManager(AutofillDriver* driver)
     : AutofillManager(driver),
       otp_manager_(
           new OtpManagerImpl(*this, client().GetOneTimeTokenService())),
+      at_memory_manager_(std::make_unique<AtMemoryManager>(this)),
       account_name_email_strike_manager_(
           std::make_unique<AccountNameEmailStrikeManager>(*this)),
       address_on_typing_manager_(client()) {}
@@ -848,6 +845,21 @@ const CreditCardAccessManager*
 BrowserAutofillManager::GetCreditCardAccessManager() const {
   return const_cast<BrowserAutofillManager*>(this)
       ->GetCreditCardAccessManager();
+}
+
+AtMemoryManager& BrowserAutofillManager::GetAtMemoryManager() {
+  return *at_memory_manager_;
+}
+
+void BrowserAutofillManager::TriggerAtMemorySuggestions(
+    const FieldGlobalId& field_id) {
+  const FormStructure* form_structure = FindCachedFormById(field_id);
+  if (!form_structure) {
+    return;
+  }
+  OnAskForValuesToFill(form_structure->ToFormData(), field_id, gfx::Rect(),
+                       AutofillSuggestionTriggerSource::kAtMemory,
+                       std::nullopt);
 }
 
 payments::AmountExtractionManager&
@@ -1162,6 +1174,10 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
   if (form_structure && autofill_field) {
     AutofillMetrics::LogParsedFormUntilInteractionTiming(
         base::TimeTicks::Now() - form_structure->form_parsed_timestamp());
+    if (AutofillAiManager* ai_manager = client().GetAutofillAiManager()) {
+      ai_manager->OnFormInteracted(*form_structure,
+                                   driver().GetPageUkmSourceId());
+    }
     if (autofill_metrics::FormEventLoggerBase* logger =
             GetEventFormLogger(*autofill_field);
         logger && ShouldBeParsed(*form_structure, /*log_manager=*/nullptr)) {
@@ -1193,8 +1209,8 @@ void BrowserAutofillManager::OnAskForValuesToFillImpl(
 
   if (IsAtMemoryTriggerSource(trigger_source)) {
     // Do not show the pop up at all for non eligible profiles.
-    if (client().GetAccessibilityAnnotatorEnablementState() ==
-        accessibility_annotator::RemoteAnnotatorEnablementState::
+    if (client().GetPersonalContextEnablementState() ==
+        personal_context::PersonalContextEnablementState::
             kDisabledNotEligible) {
       return;
     }
@@ -1545,12 +1561,8 @@ void BrowserAutofillManager::GenerateSuggestionsAndMaybeShowUIPhase2(
 
   if (field.form_control_type() == FormControlType::kTextArea ||
       field.form_control_type() == FormControlType::kContentEditable) {
-    AutofillComposeDelegate* compose_delegate = client().GetComposeDelegate();
     std::optional<Suggestion> maybe_compose_suggestion =
-        compose_delegate
-            ? GenerateComposeSuggestion(form, field, trigger_source, client(),
-                                        compose_delegate)
-            : std::nullopt;
+        GenerateComposeSuggestion(form, field, trigger_source, client());
     if (maybe_compose_suggestion) {
       std::move(callback).Run(/*show_suggestions=*/true,
                               {*std::move(maybe_compose_suggestion)});
@@ -2207,8 +2219,12 @@ void BrowserAutofillManager::DidShowSuggestions(
     const FormGlobalId& form_id,
     const FieldGlobalId& field_id,
     AutofillExternalDelegate::UpdateSuggestionsCallback
-        update_suggestions_callback) {
+        update_suggestions_callback,
+    AutofillSuggestionTriggerSource trigger_source) {
   NotifyObservers(&Observer::OnSuggestionsShown, suggestions);
+
+  GetAtMemoryManager().OnPopupShown(trigger_source,
+                                    update_suggestions_callback);
 
   const DenseSet<SuggestionType> shown_suggestion_types(suggestions,
                                                         &Suggestion::type);
@@ -2663,6 +2679,7 @@ void BrowserAutofillManager::Reset() {
   ProcessPendingFormForUpload();
   DCHECK(!pending_form_data_);
 
+  suggestion_generators_.clear();
   four_digit_combinations_in_dom_.clear();
   last_unlocked_credit_card_cvc_.clear();
   if (touch_to_fill_delegate_) {
@@ -2677,6 +2694,7 @@ void BrowserAutofillManager::Reset() {
   // a navigation.
   otp_manager_ = std::make_unique<OtpManagerImpl>(
       *this, client().GetOneTimeTokenService());
+  at_memory_manager_ = std::make_unique<AtMemoryManager>(this);
   account_name_email_strike_manager_ =
       std::make_unique<AccountNameEmailStrikeManager>(*this);
   metrics_.reset();
@@ -2889,8 +2907,7 @@ std::vector<Suggestion> BrowserAutofillManager::GetProfileSuggestions(
     const AutofillField& trigger_autofill_field,
     AutofillSuggestionTriggerSource trigger_source) {
   std::vector<Suggestion> suggestions;
-  AddressSuggestionGenerator address_suggestion_generator(log_manager(),
-                                                          trigger_source);
+  AddressSuggestionGenerator address_suggestion_generator(trigger_source);
 
   auto on_suggestions_generated =
       [&suggestions](
@@ -3453,8 +3470,7 @@ void BrowserAutofillManager::InitializeSuggestionGenerators(
   if (relevant_filling_products.contains(FillingProduct::kCompose) &&
       client().GetComposeDelegate()) {
     suggestion_generators_.push_back(
-        std::make_unique<ComposeSuggestionGenerator>(
-            client().GetComposeDelegate(), trigger_source));
+        std::make_unique<ComposeSuggestionGenerator>(trigger_source));
   }
   if (relevant_filling_products.contains(FillingProduct::kIdentityCredential)) {
     if (IdentityCredentialDelegate* delegate =
@@ -3466,11 +3482,8 @@ void BrowserAutofillManager::InitializeSuggestionGenerators(
     }
   }
   if (relevant_filling_products.contains(FillingProduct::kPasskey)) {
-    if (PasswordManagerDelegate* password_delegate =
-            client().GetPasswordManagerDelegate(field_id)) {
-      suggestion_generators_.push_back(
-          std::make_unique<PasskeySuggestionGenerator>(*password_delegate));
-    }
+    suggestion_generators_.push_back(
+        std::make_unique<PasskeySuggestionGenerator>());
   }
   if (relevant_filling_products.contains(FillingProduct::kOneTimePassword) &&
       otp_manager_) {
@@ -3479,8 +3492,7 @@ void BrowserAutofillManager::InitializeSuggestionGenerators(
   }
   if (relevant_filling_products.contains(FillingProduct::kAddress)) {
     suggestion_generators_.push_back(
-        std::make_unique<AddressSuggestionGenerator>(log_manager(),
-                                                     trigger_source));
+        std::make_unique<AddressSuggestionGenerator>(trigger_source));
   }
   if (relevant_filling_products.contains(FillingProduct::kCreditCard)) {
     suggestion_generators_.push_back(

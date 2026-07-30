@@ -19,6 +19,7 @@
 #include "base/types/id_type.h"
 #include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
+#include "chrome/browser/actor/actor_container_config.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/site_policy.h"
@@ -43,6 +44,10 @@ class Profile;
 namespace affiliations {
 struct Facet;
 }  // namespace affiliations
+
+namespace autofill {
+class ActorOneTimeTokenFillingService;
+}  // namespace autofill
 
 namespace base {
 class ScopedUmaHistogramTimer;
@@ -111,7 +116,12 @@ class ExecutionEngine : public ToolDelegate,
     // The navigation is not on any allowlist or blocklist and requires an
     // asynchronous check to determine the final outcome.
     kNeedsAsyncCheck = 3,
-    kMaxValue = kNeedsAsyncCheck,
+    // AgentContainerConfig was provided and did not block this site. In this
+    // case navigation is allowed.
+    kAllowByContainerConfig = 4,
+    // AgentContainerConfig was provided and blocked this site.
+    kBlockByContainerConfig = 5,
+    kMaxValue = kBlockByContainerConfig,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/actor/enums.xml:GatingDecision)
 
@@ -191,6 +201,8 @@ class ExecutionEngine : public ToolDelegate,
       const GURL& url,
       DecisionCallbackWithReason callback) override;
   autofill::ActorFormFillingService& GetActorFormFillingService() override;
+  autofill::ActorOneTimeTokenFillingService&
+  GetActorOneTimeTokenFillingService() override;
   actor_login::ActorLoginService& GetActorLoginService() override;
   void PromptToSelectCredential(
       const std::vector<actor_login::Credential>& credentials,
@@ -289,6 +301,10 @@ class ExecutionEngine : public ToolDelegate,
   // restriction for certain tools to function.
   bool TabsCanOpenNewWebContents() const;
 
+  ActorContainerConfig& actor_container_config() {
+    return actor_container_config_;
+  }
+
  protected:
   // Allow derived classes to use the natural constructors.
   explicit ExecutionEngine(ActorTask& owner_task);
@@ -384,14 +400,17 @@ class ExecutionEngine : public ToolDelegate,
       base::ScopedUmaHistogramTimer timer,
       ExecutionEngine::NavigationDecisionCallback callback);
 
-  void SendNavigationConfirmationRequest(const url::Origin& destination,
-                                         ukm::SourceId ukm_source_id,
-                                         base::ScopedUmaHistogramTimer timer,
-                                         NavigationDecisionCallback callback);
+  using NavigationConfirmationCallback =
+      base::OnceCallback<void(webui::mojom::NavigationConfirmationResponsePtr)>;
+  void SendNavigationConfirmationRequest(
+      const url::Origin& destination,
+      NavigationConfirmationCallback callback);
+
   void OnNavigationConfirmationDecision(
       const url::Origin& destination,
       ukm::SourceId ukm_source_id,
       base::ScopedUmaHistogramTimer timer,
+      State engine_state,
       NavigationDecisionCallback callback,
       webui::mojom::NavigationConfirmationResponsePtr response);
 
@@ -427,6 +446,8 @@ class ExecutionEngine : public ToolDelegate,
   std::unique_ptr<actor_login::ActorLoginService> actor_login_service_;
   std::unique_ptr<autofill::ActorFormFillingService>
       actor_form_filling_service_;
+  std::unique_ptr<autofill::ActorOneTimeTokenFillingService>
+      actor_one_time_token_filling_service_;
   std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher_;
 
   base::flat_map<url::Origin, url::Origin> affiliated_origin_map_;
@@ -449,6 +470,12 @@ class ExecutionEngine : public ToolDelegate,
   // Manages the sets of origins that have been allowed for navigations and that
   // the user has been prompted about.
   OriginChecker origin_checker_;
+  // This will allow us to store already-recorded origins to avoid duplication
+  // of dark launch metrics.
+  OriginChecker dark_launch_origin_checker_;
+
+  // Manages the container config settings that have been sent by the server.
+  ActorContainerConfig actor_container_config_;
 
   // For overwriting the actor login permission, currently only works for the
   // feature `kPasswordCheckupPrototype` for automated password changes.

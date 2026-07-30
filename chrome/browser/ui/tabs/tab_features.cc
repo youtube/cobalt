@@ -46,6 +46,7 @@
 #include "chrome/browser/task_manager/web_contents_tags.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/autofill/bubble_manager.h"
+#include "chrome/browser/ui/autofill/payments/omnibox_autofill_page_action_controller.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/commerce/commerce_ui_tab_helper.h"
@@ -53,10 +54,10 @@
 #include "chrome/browser/ui/cookie_controls/roll_back_mode_b_infobar_controller.h"
 #include "chrome/browser/ui/lens/lens_overlay_controller.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
+#include "chrome/browser/ui/page_action/action_ids.h"
+#include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
-#include "chrome/browser/ui/page_actions/action_ids.h"
-#include "chrome/browser/ui/page_actions/page_action_controller.h"
-#include "chrome/browser/ui/page_actions/page_action_properties_provider.h"
+#include "chrome/browser/ui/page_action/page_action_properties_provider.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_chip_controller.h"
 #include "chrome/browser/ui/performance_controls/memory_saver_chip_tab_helper.h"
 #include "chrome/browser/ui/performance_controls/tab_resource_usage_tab_helper.h"
@@ -96,6 +97,7 @@
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/pwa_install_page_action.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
+#include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/enterprise/browser/reporting/reporting_features.h"
 #include "components/multistep_filter/core/features.h"
@@ -107,6 +109,11 @@
 #include "chrome/browser/ui/views/location_bar/record_replay_page_action_controller.h"
 #include "chrome/browser/wallet/chrome_walletable_pass_client.h"
 #include "components/record_replay/core/common/record_replay_features.h"
+#endif
+
+#if BUILDFLAG(IS_WIN)
+#include "chrome/browser/ui/search_promotion/search_promotion_navigation_observer.h"
+#include "components/feature_engagement/public/feature_constants.h"
 #endif
 #include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
 #include "chrome/browser/glic/glic_selection_observer.h"
@@ -365,7 +372,7 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
           GetUserDataFactory().CreateInstance<glic::SelectionOverlayController>(
               tab, &tab, profile->GetPrefs());
 
-      if (base::FeatureList::IsEnabled(features::kGlicSelectionPrompt)) {
+      if (glic::GlicEnabling::IsSelectionPromptEnabledForProfile(profile)) {
         glic_selection_observer_ =
             std::make_unique<glic::GlicSelectionObserver>(tab.GetContents());
       }
@@ -423,6 +430,13 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   if (base::FeatureList::IsEnabled(
           autofill::features::kAutofillShowBubblesBasedOnPriorities)) {
     autofill_bubble_manager_ = autofill::BubbleManager::Create(&tab);
+  }
+
+  if (base::FeatureList::IsEnabled(
+          autofill::features::kAutofillEnableOmniboxAutofill)) {
+    omnibox_autofill_page_action_controller_ =
+        std::make_unique<autofill::OmniboxAutofillPageActionController>(
+            tab, *page_action_controller_);
   }
 
   customize_chrome_side_panel_controller_ =
@@ -497,8 +511,18 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasksContext)) {
     contextual_tasks_tab_visit_tracker_ =
-        std::make_unique<contextual_tasks::ContextualTasksTabVisitTracker>(
-            tab.GetContents());
+        GetUserDataFactory()
+            .CreateInstance<contextual_tasks::ContextualTasksTabVisitTracker>(
+                tab, tab);
+  }
+#endif
+
+#if BUILDFLAG(IS_WIN)
+  if (base::FeatureList::IsEnabled(
+          feature_engagement::kIPHSearchPromotionFeature)) {
+    search_promotion_navigation_observer_ =
+        GetUserDataFactory().CreateInstance<SearchPromotionNavigationObserver>(
+            tab, tab);
   }
 #endif
 

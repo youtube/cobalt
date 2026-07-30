@@ -777,6 +777,7 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testCookiesFpsSubpageIsLaunched() throws Exception {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
@@ -884,6 +885,7 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testClearCookiesGroup() throws Exception {
         final String url1 =
                 mPermissionRule.getURLWithHostName(
@@ -970,6 +972,7 @@ public class SiteSettingsTest {
     @SmallTest
     @Feature({"Preferences"})
     @Policies.Add({@Policies.Item(key = "DefaultCookiesSetting", string = "1")})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testDefaultCookiesSettingManagedAllow() throws Exception {
         checkDefaultCookiesSettingManaged(true);
         checkThirdPartyCookieBlockingManaged(false);
@@ -1000,6 +1003,7 @@ public class SiteSettingsTest {
     @SmallTest
     @Feature({"Preferences"})
     @Policies.Add({@Policies.Item(key = "BlockThirdPartyCookies", string = "true")})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testBlockThirdPartyCookiesManagedTrue() throws Exception {
         checkDefaultCookiesSettingManaged(false);
         checkThirdPartyCookieBlockingManaged(true);
@@ -1067,6 +1071,7 @@ public class SiteSettingsTest {
         @Policies.Item(key = "DefaultCookiesSetting", string = "1"),
         @Policies.Item(key = "BlockThirdPartyCookies", string = "false")
     })
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testAllCookieSettingsManaged() throws Exception {
         checkDefaultCookiesSettingManaged(true);
         checkThirdPartyCookieBlockingManaged(true);
@@ -1091,6 +1096,7 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testNoCookieSettingsManaged() throws Exception {
         checkDefaultCookiesSettingManaged(false);
         checkThirdPartyCookieBlockingManaged(false);
@@ -1116,6 +1122,7 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void blockAndAllowThirdPartyCookieOptionsShown() throws Exception {
         checkDefaultCookiesSettingManaged(false);
         checkThirdPartyCookieBlockingManaged(false);
@@ -1255,7 +1262,7 @@ public class SiteSettingsTest {
     public void testOnlyExpectedPreferencesShown() {
         // If you add a category in the SiteSettings UI, please update this total AND add a test for
         // it below, named "testOnlyExpectedPreferences<Category>".
-        Assert.assertEquals(39, SiteSettingsCategory.Type.NUM_ENTRIES);
+        Assert.assertEquals(38, SiteSettingsCategory.Type.NUM_ENTRIES);
     }
 
     @Test
@@ -1480,6 +1487,7 @@ public class SiteSettingsTest {
     @Feature({"Preferences"})
     // TODO(crbug.com/433576895): Re-enable containment feature once the test is fixed.
     @DisableFeatures(ChromeFeatureList.ANDROID_SETTINGS_CONTAINMENT)
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testExpectedExceptionsStorageAccess() {
         createStorageAccessExceptions();
         SiteSettingsTestUtils.startSiteSettingsCategory(SiteSettingsCategory.Type.STORAGE_ACCESS);
@@ -1650,6 +1658,7 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testExpectedCookieButtonsCheckedWhenFpsUiEnabled() {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
@@ -1673,6 +1682,7 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testExpectedCookieButtonsCheckedWhenFpsUiAndPrivacySandboxSettings4Enabled() {
         SettingsActivity settingsActivity =
                 SiteSettingsTestUtils.startSiteSettingsCategory(
@@ -1697,6 +1707,7 @@ public class SiteSettingsTest {
     @SmallTest
     @Feature({"Preferences"})
     @DisableFeatures({ChromeFeatureList.PRIVACY_SANDBOX_AD_PRIVACY_UX_DEPRECATION})
+    @DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511287320
     public void testBlockAllThirdPartyCookiesSnackbarDisplayedWhenTopicsEnabled() {
         var userActionTester = new UserActionTester();
         // Enable Topics API.
@@ -1879,17 +1890,6 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
-    public void testOnlyExpectedPreferencesLocalNetworkAccess() {
-        testExpectedPreferences(
-                SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS,
-                BINARY_RADIO_BUTTON_AND_INFO_TEXT,
-                BINARY_RADIO_BUTTON_AND_INFO_TEXT);
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Preferences"})
-    @EnableFeatures(ChromeFeatureList.LOCAL_NETWORK_ACCESS_SPLIT_PERMISSIONS)
     public void testOnlyExpectedPreferencesLocalNetwork() {
         testExpectedPreferences(
                 SiteSettingsCategory.Type.LOCAL_NETWORK,
@@ -1900,7 +1900,6 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
-    @EnableFeatures(ChromeFeatureList.LOCAL_NETWORK_ACCESS_SPLIT_PERMISSIONS)
     public void testOnlyExpectedPreferencesLoopbackNetwork() {
         testExpectedPreferences(
                 SiteSettingsCategory.Type.LOOPBACK_NETWORK,
@@ -2704,33 +2703,6 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
-    public void testAllowLocalNetworkAccess() {
-        new TwoStatePermissionTestCaseWithRadioButton(
-                        "LocalNetworkAccess",
-                        SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS,
-                        ContentSettingsType.LOCAL_NETWORK_ACCESS,
-                        true)
-                .withExpectedPrefKeysAtStart(SingleCategorySettings.INFO_TEXT_KEY)
-                .run();
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Preferences"})
-    public void testBlockLocalNetworkAccess() {
-        new TwoStatePermissionTestCaseWithRadioButton(
-                        "LocalNetworkAccess",
-                        SiteSettingsCategory.Type.LOCAL_NETWORK_ACCESS,
-                        ContentSettingsType.LOCAL_NETWORK_ACCESS,
-                        false)
-                .withExpectedPrefKeysAtStart(SingleCategorySettings.INFO_TEXT_KEY)
-                .run();
-    }
-
-    @Test
-    @SmallTest
-    @Feature({"Preferences"})
-    @EnableFeatures(ChromeFeatureList.LOCAL_NETWORK_ACCESS_SPLIT_PERMISSIONS)
     public void testAllowLocalNetwork() {
         new TwoStatePermissionTestCaseWithRadioButton(
                         "LocalNetwork",
@@ -2744,7 +2716,6 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
-    @EnableFeatures(ChromeFeatureList.LOCAL_NETWORK_ACCESS_SPLIT_PERMISSIONS)
     public void testBlockLocalNetwork() {
         new TwoStatePermissionTestCaseWithRadioButton(
                         "LocalNetwork",
@@ -2758,7 +2729,6 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
-    @EnableFeatures(ChromeFeatureList.LOCAL_NETWORK_ACCESS_SPLIT_PERMISSIONS)
     public void testAllowLoopbackNetwork() {
         new TwoStatePermissionTestCaseWithRadioButton(
                         "LoopbackNetwork",
@@ -2772,7 +2742,6 @@ public class SiteSettingsTest {
     @Test
     @SmallTest
     @Feature({"Preferences"})
-    @EnableFeatures(ChromeFeatureList.LOCAL_NETWORK_ACCESS_SPLIT_PERMISSIONS)
     public void testBlockLoopbackNetwork() {
         new TwoStatePermissionTestCaseWithRadioButton(
                         "LoopbackNetwork",

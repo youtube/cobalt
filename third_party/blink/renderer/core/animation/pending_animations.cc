@@ -46,8 +46,10 @@ void PendingAnimations::Add(Animation* animation) {
   pending_.push_back(animation);
 
   Document* document = animation->GetDocument();
-  if (document->View())
-    document->View()->ScheduleAnimation();
+  if (document->View()) {
+    document->View()->ScheduleAnimation(
+        cc::BeginMainFrameReason::kCSSAnimation);
+  }
 
   bool visible = document->GetPage() && document->GetPage()->IsPageVisible();
   if (!visible && !timer_.IsActive()) {
@@ -238,8 +240,7 @@ int PendingAnimations::NextCompositorGroup() {
     // Wrap around, skipping reserved groups.
     ++compositor_group_;
   } while (compositor_group_ == kCompositorGroupAutoAssign ||
-           compositor_group_ == kCompositorGroupHasStartTime ||
-           compositor_group_ == kCompositorGroupTriggered);
+           compositor_group_ == kCompositorGroupHasStartTime);
 
   return compositor_group_;
 }

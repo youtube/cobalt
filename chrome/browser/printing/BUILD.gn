@@ -135,10 +135,13 @@ if (enable_printing) {
     deps = [
       "//chrome/app:command_ids",
       "//chrome/app:generated_resources",
+      "//chrome/browser:after_startup_task_utils",
+      "//chrome/browser:bad_message",
       "//chrome/browser:browser_process",
       "//chrome/browser/enterprise",
       "//chrome/browser/headless",
       "//chrome/browser/profiles:profile",
+      "//chrome/browser/ui:simple_message_box_headers",
       "//chrome/browser/ui/browser_window",
       "//chrome/common",
       "//chrome/common/printing",

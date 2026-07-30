@@ -34,6 +34,7 @@
 #include "pdf/pdf_annotation_agent.h"
 #include "pdf/pdf_caret.h"
 #include "pdf/pdf_caret_client.h"
+#include "pdf/pdf_ink_text.h"
 #include "pdf/pdf_rect.h"
 #include "pdf/pdfium/pdfium_engine_client.h"
 #include "pdf/pdfium/pdfium_form_filler.h"
@@ -462,6 +463,12 @@ class PDFiumEngine : public DocumentLoader::Client,
   virtual std::map<InkModeledShapeId, ink::PartitionedMesh>
   LoadV2InkPathsForPage(int page_index);
 
+  // Loads the saved text annotations across the PDF document. Returns a map of
+  // 0-based page indexes to the vector of reconstructed textboxes.
+  //
+  // Virtual to support testing.
+  virtual DocumentInkTextBoxesMap LoadTextAnnotationsFromPdf();
+
   // Modifies an existing shape identified by `id` on the page at `page_index`
   // to become either active or inactive. The caller must pass the same
   // consistent and valid `page_index`/`id` pair as was provided by
@@ -508,9 +515,15 @@ class PDFiumEngine : public DocumentLoader::Client,
     return ink_modeled_shape_map_;
   }
 
-  const std::map<int, PDFiumPage::ScopedUnloadPreventer>&
+  const std::map<int, PDFiumPage::ScopedPageUnloadPreventer>&
   edited_pages_unload_preventers_for_testing() const {
     return edited_pages_unload_preventers_;
+  }
+
+  void set_next_textbox_id_for_testing(int id) { next_textbox_id_ = id; }
+
+  void set_existing_textbox_ids_for_testing(std::set<int> ids) {
+    existing_textbox_ids_ = std::move(ids);
   }
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
@@ -1127,6 +1140,13 @@ class PDFiumEngine : public DocumentLoader::Client,
 #if BUILDFLAG(ENABLE_PDF_INK2)
   std::vector<FPDF_PAGEOBJECT> GetActiveInkPageObjectsForPage(
       int page_index) const;
+
+  // Returns the next available textbox ID, avoiding collisions with
+  // `existing_textbox_ids_` and handling integer overflow. Adds the returned
+  // ID to `existing_textbox_ids_`.
+  int GetNextTextboxId();
+
+  bool PageStillHasEdits(int page_index) const;
 #endif
 
   const raw_ptr<PDFiumEngineClient> client_;
@@ -1383,7 +1403,7 @@ class PDFiumEngine : public DocumentLoader::Client,
   // Pages with Ink strokes have page references in `ink_stroke_data_`, so these
   // unload preventers ensure those page handles stay valid by keeping the page
   // in memory.  Use one unload preventer per page for simplicity.
-  std::map<int, PDFiumPage::ScopedUnloadPreventer>
+  std::map<int, PDFiumPage::ScopedPageUnloadPreventer>
       edited_pages_unload_preventers_;
 
   struct InkStrokeData {
@@ -1426,9 +1446,17 @@ class PDFiumEngine : public DocumentLoader::Client,
   // Value: The associated PDFium font objects.
   std::map<FontId, ScopedFPDFFont> font_map_;
 
-  // The next available ID for a textbox for writing into the PDF.
-  // TODO(crbug.com/408926609): Implement ID collision avoidance.
-  int next_textbox_id_ = 0;
+  // The next available ID for a textbox for writing into the PDF. Initialized
+  // to a random value to make collisions rare.
+  int next_textbox_id_;
+
+  // The set of textbox IDs currently in use in the document. Used to prevent
+  // collisions when generating new textbox IDs. Note that the textbox IDs in
+  // the PDF are ONLY used for grouping multiple text objects belonging to the
+  // same textbox in the PDF on a per-page basis (and not for global tracking).
+  // Generating globally unique IDs is a simple and safe way to prevent
+  // collisions on all pages.
+  std::set<int> existing_textbox_ids_;
 #endif  // BUILDFLAG(ENABLE_PDF_INK2)
 
   base::WeakPtrFactory<PDFiumEngine> weak_factory_{this};

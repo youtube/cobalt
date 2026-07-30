@@ -604,11 +604,6 @@ BASE_FEATURE(kEnableTouchscreenMappingExperience,
 BASE_FEATURE(kEnableTouchpadsInDiagnosticsApp,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, touchscreen cards will be shown in the diagnostics app's input
-// section.
-BASE_FEATURE(kEnableTouchscreensInDiagnosticsApp,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // If enabled, touchscreen calibration will be shown in settings.
 BASE_FEATURE(kEnableTouchscreenCalibration, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -786,7 +781,7 @@ BASE_FEATURE(kFjordOobeForSquid, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kFjordOobeForceEnabled, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls if the Fjord image switch screen is shown during OOBE.
-BASE_FEATURE(kFjordOobeImageSwitch, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFjordOobeImageSwitch, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables the Flex Auto-Enrollment feature on ChromeOS
 BASE_FEATURE(kFlexAutoEnrollment, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1327,6 +1322,10 @@ BASE_FEATURE(kNotificationScrollBar, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables notifications to be shown within context menus.
 BASE_FEATURE(kNotificationsInContextMenu, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Kill switch for https://crbug.com/502771678. Forces OEM apps to receive
+// updates from the Chrome Web Store, which is the safe default.
+BASE_FEATURE(kOemAppsMustUpdateFromWebstore, base::FEATURE_ENABLED_BY_DEFAULT);
+
 // Controls whether to enable on-device grammar check service.
 BASE_FEATURE(kOnDeviceGrammarCheck, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1725,16 +1724,6 @@ BASE_FEATURE(kShimlessRMA3pDiagnosticsDevMode,
 // Controls whether Shimless diagnostics IWAs can access user permission through
 // requesting permission at install time.
 BASE_FEATURE(kShimlessRMA3pDiagnosticsAllowPermissionPolicy,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables or disables the skip option of hardware validation on Shimless RMA
-// landing page.
-BASE_FEATURE(kShimlessRMAHardwareValidationSkip,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Enables or disables the option of grey out specific input fields on Shimless
-// RMA device information page.
-BASE_FEATURE(kShimlessRMADynamicDeviceInfoInputs,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables the option to allow customized Serial Number namings.
@@ -2965,6 +2954,10 @@ bool AreOngoingProcessesEnabled() {
   return base::FeatureList::IsEnabled(kOngoingProcesses);
 }
 
+bool IsOemAppsMustUpdateFromWebstoreEnabled() {
+  return base::FeatureList::IsEnabled(kOemAppsMustUpdateFromWebstore);
+}
+
 bool IsOobeJellyEnabled() {
   return base::FeatureList::IsEnabled(kOobeJelly);
 }
@@ -3213,14 +3206,6 @@ bool IsShimlessRMA3pDiagnosticsAllowPermissionPolicyEnabled() {
       kShimlessRMA3pDiagnosticsAllowPermissionPolicy);
 }
 
-bool IsShimlessRMAHardwareValidationSkipEnabled() {
-  return base::FeatureList::IsEnabled(kShimlessRMAHardwareValidationSkip);
-}
-
-bool IsShimlessRMADynamicDeviceInfoInputsEnabled() {
-  return base::FeatureList::IsEnabled(kShimlessRMADynamicDeviceInfoInputs);
-}
-
 bool IsShimlessRMAFlexibleSerialNumberNameEnabled() {
   return base::FeatureList::IsEnabled(kShimlessRMAFlexibleSerialNumberName);
 }
@@ -3274,10 +3259,6 @@ bool IsTouchscreenMappingExperienceEnabled() {
 
 bool IsTouchpadInDiagnosticsAppEnabled() {
   return base::FeatureList::IsEnabled(kEnableTouchpadsInDiagnosticsApp);
-}
-
-bool IsTouchscreenInDiagnosticsAppEnabled() {
-  return base::FeatureList::IsEnabled(kEnableTouchscreensInDiagnosticsApp);
 }
 
 bool IsTouchscreenCalibrationEnabled() {

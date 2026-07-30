@@ -335,6 +335,9 @@ chromium-metrics-reviews@google.com.
       summary="Showing the static Feed Swipe IPH on iOS."/>
   <variant name="IPH_iOSGeminiContextualCueChip"
       summary="Gemini contextual cue chip on the omnibox"/>
+  <variant name="IPH_iOSGeminiExternalAppStoreEvent"
+      summary="shows Gemini IPH bubble after Gemini FRE is invoked from an
+               external App Store event and dismissed"/>
   <variant name="IPH_iOSGeminiFullscreenPromoFeature"
       summary="showing the fullscreen Gemini promo on iOS"/>
   <variant name="IPH_iOSGeminiImageRemix"
@@ -650,6 +653,8 @@ chromium-metrics-reviews@google.com.
                sync-to-signin migration."/>
   <variant name="IPH_SiteControls"
       summary="educating users that site controls have moved to the app menu"/>
+  <variant name="IPH_SmartTabSharingFeature"
+      summary="Smart Tab Sharing feature"/>
   <variant name="IPH_SupervisedUserProfileSignin"
       summary="informing supervised users about parental controls"/>
   <variant name="IPH_TabAudioMuting" summary="muting tab audio"/>
@@ -722,14 +727,6 @@ chromium-metrics-reviews@google.com.
       summary="Video tutorial card on NTP about voice search in chrome"/>
   <variant name="IPH_VideoTutorial_TryNow"
       summary="Video tutorial Try Now feature"/>
-  <variant name="IPH_WebFeedAwareness"
-      summary="proactive announcement of web feed on NTP/start surface"/>
-  <variant name="IPH_WebFeedFollow"
-      summary="proactive Web Feed follow recommendations"/>
-  <variant name="IPH_WebFeedPostFollowDialog"
-      summary="Web Feed successful follow operations"/>
-  <variant name="IPH_WebFeedPostFollowDialogWithUIUpdate"
-      summary="Web Feed successful follow operations with UI update"/>
   <variant name="IPH_WebUiHelpBubbleTest"
       summary="testing the WebUI help bubble"/>
   <variant name="IPH_WhatsNewUpdated"
@@ -805,7 +802,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.Gestural.DismissalReason.iOS"
-    enum="InProductHelpDismissalReason" expires_after="2026-08-30">
+    enum="InProductHelpDismissalReason" expires_after="2026-11-01">
   <owner>ginnyhuang@chromium.org</owner>
   <owner>adamta@google.com</owner>
   <summary>

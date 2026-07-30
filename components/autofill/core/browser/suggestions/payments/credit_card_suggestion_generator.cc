@@ -393,7 +393,7 @@ void CreditCardSuggestionGenerator::GenerateSuggestions(
     const FormFieldData& trigger_field,
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
-    const AutofillClient& client,
+    AutofillClient& client,
     base::OnceCallback<void(ReturnedSuggestions)> callback) {
   GenerateSuggestions(
       form, trigger_field, form_structure, trigger_autofill_field, client,
@@ -407,9 +407,10 @@ void CreditCardSuggestionGenerator::GenerateSuggestions(
     const FormFieldData& trigger_field,
     const FormStructure* form_structure,
     const AutofillField* trigger_autofill_field,
-    const AutofillClient& client,
+    AutofillClient& client,
     base::FunctionRef<void(ReturnedSuggestions)> callback) {
-  if (!form_structure || !trigger_autofill_field) {
+  if (!form_structure || !trigger_autofill_field ||
+      trigger_autofill_field->Type().GetCreditCardType() == UNKNOWN_TYPE) {
     callback({SuggestionDataSource::kCreditCard, {}});
     return;
   }

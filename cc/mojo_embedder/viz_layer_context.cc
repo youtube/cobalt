@@ -349,6 +349,7 @@ void ComputePropertyTreeUpdate(const PropertyTrees& trees,
                                const TreeType& new_tree,
                                ContainerType& updates,
                                uint32_t& new_num_nodes) {
+  CHECK(!(new_tree.size() == 0 && old_tree.size() > 0));
   using NodeType = typename TreeType::NodeType;
   new_num_nodes = base::checked_cast<uint32_t>(new_tree.size());
   for (size_t i = 0; i < new_tree.size(); ++i) {
@@ -362,6 +363,7 @@ void ComputeTransformTreeUpdate(
     const TransformTree& new_tree,
     std::vector<viz::mojom::TransformNodePtr>& updates,
     uint32_t& new_num_nodes) {
+  CHECK(!(new_tree.size() == 0 && old_tree.size() > 0));
   new_num_nodes = base::checked_cast<uint32_t>(new_tree.size());
 
   const auto& new_nodes = new_tree.nodes();
@@ -397,6 +399,7 @@ void ComputeEffectTreeUpdate(const PropertyTrees& trees,
                              EffectTree& new_tree,
                              std::vector<::viz::mojom::EffectNodePtr>& updates,
                              uint32_t& new_num_nodes) {
+  CHECK(!(new_tree.size() == 0 && old_tree.size() > 0));
   // Take any copy output requests from `new_tree` to push over the wire.
   auto copy_requests = new_tree.TakeCopyRequests();
 
@@ -1455,16 +1458,17 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
     LayerTreeImpl& tree,
     viz::ClientResourceProvider& resource_provider,
     gpu::SharedImageInterface* shared_image_interface,
-    const viz::BeginFrameArgs& begin_frame_args,
     const gfx::Rect& viewport_damage_rect,
     bool frame_has_damage,
     bool is_flush,
-    std::vector<ui::LatencyInfo> latency_info) {
+    std::vector<ui::LatencyInfo> latency_info,
+    viz::TrackedElementRects tracked_element_rects) {
   TRACE_EVENT0("viz", "VizLayerContext::UpdateDisplayTreeFrom");
 
   auto& property_trees = *tree.property_trees();
   auto update = viz::mojom::LayerTreeUpdate::New();
-  update->begin_frame_args = begin_frame_args;
+  update->begin_frame_args =
+      is_flush ? viz::BeginFrameArgs() : tree.CurrentBeginFrameArgs();
   update->source_frame_number = tree.source_frame_number();
   update->trace_id = tree.trace_id().value();
   update->primary_main_frame_item_sequence_number =
@@ -1491,6 +1495,7 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
   update->is_flush = is_flush;
 
   update->latency_info = std::move(latency_info);
+  update->tracked_element_rects = std::move(tracked_element_rects);
   update->device_viewport = tree.GetDeviceViewport();
   update->device_scale_factor = tree.device_scale_factor();
   DUMP_WILL_BE_CHECK_GT(update->device_scale_factor, 0.f);
@@ -1539,6 +1544,13 @@ base::TimeTicks VizLayerContext::UpdateDisplayTreeFrom(
         std::make_unique<gfx::DelegatedInkMetadata>(
             *tree.delegated_ink_metadata());
   }
+
+  if (auto token = host_impl_->TakeScreenshotDestinationToken();
+      !token.is_empty()) {
+    update->screenshot_destination =
+        blink::SameDocNavigationScreenshotDestinationToken(token);
+  }
+
   update->may_throttle_if_undrawn_frames =
       host_impl_->may_throttle_if_undrawn_frames();
   update->is_viewport_mobile_optimized =

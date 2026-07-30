@@ -6,7 +6,6 @@
 
 #import "base/functional/bind.h"
 #import "base/functional/callback_helpers.h"
-#import "base/ios/block_types.h"
 #import "base/memory/weak_ptr.h"
 #import "base/metrics/histogram_functions.h"
 #import "base/strings/string_number_conversions.h"
@@ -622,6 +621,10 @@ void GeminiTabHelper::OnCanApplyContextualCueingDecision(
     optimization_guide::OptimizationGuideDecision decision,
     const optimization_guide::OptimizationMetadata& metadata) {
   CHECK(IsAskGeminiChipEnabled());
+
+  // Record every decision before checking if the url changed.
+  RecordGeminiGlicContextualCueDecision(decision);
+
   // The URL has changed so the metadata is obsolete.
   if (previous_main_frame_url_ != main_frame_url) {
     return;
@@ -666,8 +669,17 @@ void GeminiTabHelper::OnCanApplyContextualCueingDecision(
     return;
   }
 
-  UIImage* badge_image =
-      [GeminiUIUtils brandedGeminiSymbolWithPointSize:kBadgeSymbolPointSize];
+  UIImage* badge_image;
+  BOOL should_hide_badge_after_chip_collapse = NO;
+  if (IsChromeNextIaEnabled()) {
+    badge_image = CustomSymbolTemplateWithPointSize(kTextSparkSymbol,
+                                                    kBadgeSymbolPointSize);
+    should_hide_badge_after_chip_collapse = NO;
+  } else {
+    badge_image =
+        [GeminiUIUtils brandedGeminiSymbolWithPointSize:kBadgeSymbolPointSize];
+    should_hide_badge_after_chip_collapse = YES;
+  }
   NSString* cue_label =
       l10n_util::GetNSString(IDS_IOS_ASK_GEMINI_CHIP_CUE_LABEL);
   LocationBarBadgeConfiguration* badge_config =
@@ -677,7 +689,8 @@ void GeminiTabHelper::OnCanApplyContextualCueingDecision(
                   badgeImage:badge_image];
 
   badge_config.badgeText = cue_label;
-  badge_config.shouldHideBadgeAfterChipCollapse = true;
+  badge_config.shouldHideBadgeAfterChipCollapse =
+      should_hide_badge_after_chip_collapse;
   bool success = false;
   if ([(id)location_bar_badge_commands_handler_
           respondsToSelector:@selector(updateBadgeConfig:)]) {

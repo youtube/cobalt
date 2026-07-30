@@ -27,7 +27,6 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/themed_background.h"
-#include "chrome/browser/ui/views/side_panel/side_panel_animation_perf_reporter.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_resize_area.h"
 #include "chrome/common/pref_names.h"
 #include "chrome/grit/generated_resources.h"
@@ -64,20 +63,6 @@
 namespace {
 constexpr BrowserAnimationGroup kAnimationGroup =
     SidePanelAnimations::kSidePanel;
-
-// Converts from animation motion to animation type.
-SidePanelAnimationType AnimationMotionToType(BrowserAnimationMotion motion) {
-  if (motion == SidePanelAnimations::kOpen) {
-    return SidePanelAnimationType::kOpen;
-  }
-  if (motion == SidePanelAnimations::kOpenWithContentTransition) {
-    return SidePanelAnimationType::kOpenWithContentTransition;
-  }
-  if (motion == SidePanelAnimations::kClose) {
-    return SidePanelAnimationType::kClose;
-  }
-  NOTREACHED();
-}
 
 // This thickness includes the solid-color background and the inner round-rect
 // border-color stroke. It does not include the outer-color separator.
@@ -490,13 +475,7 @@ void SidePanel::OnBoundsChanged(const gfx::Rect& previous_bounds) {
 }
 
 double SidePanel::GetAnimationValue() const {
-  double result = GetAnimationValueFor(SidePanelAnimations::kPanelWidth);
-  if (BrowserAnimationController::From(browser_view_->browser())
-          ->GetCurrentMotion(kAnimationGroup) == SidePanelAnimations::kOpen) {
-    // Use the open starting point for open animations instead of zero.
-    result = open_starting_point_ + (1.0 - open_starting_point_) * result;
-  }
-  return result;
+  return GetAnimationValueFor(SidePanelAnimations::kPanelWidth);
 }
 
 void SidePanel::OnAnimationProgressed(
@@ -504,24 +483,13 @@ void SidePanel::OnAnimationProgressed(
     BrowserAnimationUpdate status) {
   switch (status) {
     case BrowserAnimationUpdate::kStarted:
-      animation_perf_reporter_ =
-          std::make_unique<SidePanelAnimationPerfReporter>(
-              GetCurrentEntryType(),
-              AnimationMotionToType(
-                  controller->GetCurrentMotion(kAnimationGroup)),
-              controller->GetMotionDuration(kAnimationGroup), GetWidget());
       break;
     case BrowserAnimationUpdate::kProgressed:
-      animation_perf_reporter_->OnAnimationProgressed();
       if (const auto width = controller->GetCurrentValue(
               kAnimationGroup, SidePanelAnimations::kPanelWidth)) {
         if (last_animation_values_[SidePanelAnimations::kPanelWidth] !=
             *width) {
           last_animation_values_[SidePanelAnimations::kPanelWidth] = *width;
-          if (controller->GetCurrentMotion(kAnimationGroup) !=
-              SidePanelAnimations::kOpen) {
-            open_starting_point_ = *width;
-          }
           InvalidateLayout();
         }
       }
@@ -536,16 +504,13 @@ void SidePanel::OnAnimationProgressed(
       }
       break;
     case BrowserAnimationUpdate::kEnded: {
-      animation_perf_reporter_.reset();
       const auto motion = controller->GetCurrentMotion(kAnimationGroup);
       if (motion == SidePanelAnimations::kClose) {
-        open_starting_point_ = 0.0;
         state_ = State::kClosed;
         views::ElementTrackerViews::GetInstance()->NotifyCustomEvent(
             kCloseAnimationCompletedEvent, this);
         SetVisible(false);
       } else if (motion) {
-        open_starting_point_ = 1.0;
         if (motion == SidePanelAnimations::kOpenWithContentTransition) {
           if (browser_view_->GetSidePanelAnimationContent()) {
             content_parent_view_->AddChildView(
@@ -562,7 +527,6 @@ void SidePanel::OnAnimationProgressed(
       break;
     }
     case BrowserAnimationUpdate::kCanceled:
-      animation_perf_reporter_.reset();
       last_animation_values_.clear();
       break;
   }
@@ -660,7 +624,7 @@ void SidePanel::ResetSidePanelAnimationContent() {
     browser_view_->SetSidePanelAnimationContent(nullptr);
     auto* const controller =
         BrowserAnimationController::From(browser_view_->browser());
-    controller->Cancel(kAnimationGroup);
+    controller->Clear(kAnimationGroup);
   }
 }
 
@@ -721,12 +685,16 @@ void SidePanel::UpdateVisibility(bool should_be_open, bool animate_transition) {
       motion = SidePanelAnimations::kClose;
     }
     if (motion) {
-      animation_controller->Start(kAnimationGroup, motion);
+      animation_controller->Start(
+          kAnimationGroup, motion,
+          /*group_histogram_override=*/
+          current_entry_type_ == SidePanelType::kToolbar
+              ? SidePanelMetrics::kSidePanelToolbarHeightHistogramName
+              : SidePanelMetrics::kSidePanelHistogramName);
     }
   } else {
-    animation_controller->Cancel(kAnimationGroup);
+    animation_controller->Clear(kAnimationGroup);
     SetVisible(should_be_open);
-    open_starting_point_ = should_be_open ? 1.0 : 0.0;
   }
 }
 

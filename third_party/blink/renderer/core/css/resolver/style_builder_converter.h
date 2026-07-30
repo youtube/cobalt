@@ -85,6 +85,7 @@ class RotateTransformOperation;
 class ScaleTransformOperation;
 class ScopedCSSName;
 class StyleAutoColor;
+class StyleCaretColor;
 class StylePath;
 class StyleResolverState;
 class StyleSVGResource;
@@ -231,6 +232,7 @@ class StyleBuilderConverter {
                                                       const CSSValue&);
   template <typename T>
   static T ConvertLineWidth(StyleResolverState&, const CSSValue&);
+  static int ClampLineWidth(double);
   static int ConvertBorderWidth(const StyleResolverState&, const CSSValue&);
   static int ConvertOutlineOffset(const StyleResolverState&, const CSSValue&);
   static uint16_t ConvertColumnRuleWidth(StyleResolverState&, const CSSValue&);
@@ -323,6 +325,9 @@ class StyleBuilderConverter {
   static StyleAutoColor ConvertStyleAutoColor(StyleResolverState&,
                                               const CSSValue&,
                                               bool for_visited_link = false);
+  static StyleCaretColor ConvertStyleCaretColor(StyleResolverState&,
+                                                const CSSValue&,
+                                                bool for_visited_link = false);
   static SVGPaint ConvertSVGPaint(StyleResolverState&,
                                   const CSSValue&,
                                   bool for_visited_link,

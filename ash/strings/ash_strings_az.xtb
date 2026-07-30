@@ -457,6 +457,7 @@
 <translation id="2475783092753560388"><ph name="SEARCH_RESULT_TEXT" /> daxil edin</translation>
 <translation id="2475982808118771221">Xəta baş verdi</translation>
 <translation id="2478076885740497414">Tətbiqi quraşdırın</translation>
+<translation id="2479148705183875116">Ayarlara keçin</translation>
 <translation id="2482878487686419369">Bildirişlər</translation>
 <translation id="2484513351006226581">Klaviatura düzülüşünü dəyişmək üçün <ph name="KEYBOARD_SHORTCUT" /> süyməsinə klikləyin.</translation>
 <translation id="2485422356828889247">Sistemdən silin</translation>
@@ -1047,6 +1048,7 @@ Batareya istifadəsini uzatmaq üçün bəzi funksiyalar məhdudlaşdırılıb.<
 <translation id="4239069858505860023">GPRS</translation>
 <translation id="4240486403425279990">Giriş rejimi</translation>
 <translation id="4242533952199664413">Ayarları açın</translation>
+<translation id="4244765461494758482">Bu ayarlar digər ChromeOS cihazlarınızda sinxronlaşdırılır. Onları burada dəyişə və ya tam siyahını Ayarlarda idarə edə bilərsiniz.</translation>
 <translation id="4247123849143712100">Güncəlləyin və söndürün</translation>
 <translation id="4249248555939881673">Şəbəkə bağlantısı gözlənilir...</translation>
 <translation id="4250229828105606438">Skrinşot</translation>
@@ -2327,6 +2329,7 @@ Cihazı söndürmək üçün cihazda enerji düyməsinə yenidən basıb saxlay�
 <translation id="8051716679295756675"><ph name="DESK_TEMPLATE_NAME" /> adlı şablon artıq mövcuddur</translation>
 <translation id="8052898407431791827">Mübadilə buferinə kopyalandı</translation>
 <translation id="8054466585765276473">Enerji vaxtı hesablanır.</translation>
+<translation id="8063363226185507157">Sinxronlaşdırılmış əlçatanlıq ayarları</translation>
 <translation id="8076492880354921740">Tablar</translation>
 <translation id="8079538659226626406">Ekran paylaşımı</translation>
 <translation id="8083540854303889870">Sonra üçün yadda saxlanıldı</translation>

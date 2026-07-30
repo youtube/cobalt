@@ -47,6 +47,7 @@ class InspectorLogAgent;
 class InspectorNetworkAgent;
 class InspectorOverlayAgent;
 class InspectorPageAgent;
+class InspectorInjectedScriptManager;
 class InspectorPerformanceAgent;
 class InspectorWebAudioAgent;
 class InspectorWebMCPAgent;
@@ -104,6 +105,10 @@ class CORE_EXPORT DevToolsSession
     return script_to_evaluate_on_load_;
   }
 
+  InspectorInjectedScriptManager* InjectedScriptManager() const {
+    return injected_script_manager_.Get();
+  }
+
  private:
   class IOSession;
 
@@ -112,6 +117,12 @@ class CORE_EXPORT DevToolsSession
                                const String& method,
                                base::span<const uint8_t> message) override;
   void UnpauseAndTerminate() override;
+  void AddScriptToEvaluateOnNewDocument(
+      const String& identifier,
+      mojom::blink::ScriptToEvaluateOnNewDocumentPtr script,
+      bool run_immediately,
+      AddScriptToEvaluateOnNewDocumentCallback callback) override;
+  void RemoveScriptToEvaluateOnNewDocument(const String& identifier) override;
 
   void DispatchProtocolCommandImpl(int call_id,
                                    const String& method,
@@ -190,6 +201,7 @@ class CORE_EXPORT DevToolsSession
   // This is only relevant until the initial attach to v8 and is never reset
   // once the session stops waiting.
   const bool session_waits_for_debugger_;
+  Member<InspectorInjectedScriptManager> injected_script_manager_;
 };
 
 }  // namespace blink

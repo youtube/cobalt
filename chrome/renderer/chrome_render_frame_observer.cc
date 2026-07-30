@@ -669,8 +669,10 @@ void ChromeRenderFrameObserver::StartActorJournal(
 }
 
 void ChromeRenderFrameObserver::GetCrossDocumentScriptToolResult(
+    const base::UnguessableToken& execution_id,
     GetCrossDocumentScriptToolResultCallback callback) {
   render_frame()->GetWebFrame()->GetDocument().GetCrossDocumentScriptToolResult(
+      execution_id,
       base::BindOnce(
           [](GetCrossDocumentScriptToolResultCallback cb,
              blink::WebString result) { std::move(cb).Run(result.Utf8()); },
@@ -806,7 +808,7 @@ void ChromeRenderFrameObserver::CapturePageText(
   // Will swap out the string.
   if (phishing_classifier_) {
     phishing_classifier_->PageCaptured(
-        contents, layout_type == blink::WebMeaningfulLayout::kFinishedParsing);
+        layout_type == blink::WebMeaningfulLayout::kFinishedParsing);
   }
   if (phishing_image_embedder_) {
     phishing_image_embedder_->PageCaptured(

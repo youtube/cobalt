@@ -479,8 +479,6 @@ int AutofillProfile::Compare(const AutofillProfile& profile) const {
                                 NAME_FIRST,
                                 NAME_MIDDLE,
                                 NAME_LAST,
-                                NAME_LAST_PREFIX,
-                                NAME_LAST_CORE,
                                 NAME_LAST_FIRST,
                                 NAME_LAST_SECOND,
                                 NAME_LAST_CONJUNCTION,
@@ -584,6 +582,15 @@ bool AutofillProfile::IsSubsetOfForFieldSet(
     const AutofillProfile& profile,
     const FieldTypeSet& types) const {
   SCOPED_UMA_HISTOGRAM_TIMER("Autofill.Timing.IsSubsetOfForFieldSet");
+
+  // Do not process `profile` if it is trivially unrelated to `this` for having
+  // different source country code, for performance reasons.
+  if (types.contains(ADDRESS_HOME_COUNTRY) &&
+      !data_util::HaveNonConflictingCountryCodes(
+          GetAddressCountryCode(), profile.GetAddressCountryCode())) {
+    return false;
+  }
+
   const std::string& app_locale = comparator.app_locale();
   const AddressComponent& address = GetAddress().GetRoot();
   const AddressComponent& other_address = profile.GetAddress().GetRoot();
@@ -596,7 +603,7 @@ bool AutofillProfile::IsSubsetOfForFieldSet(
     // however, GetRawInfo returns an empty string.
     const std::u16string value = GetInfo(type, app_locale);
     const std::u16string other_value = profile.GetInfo(type, app_locale);
-    if (value.empty() || value == other_value) {
+    if (value.empty() || value == other_value || type == ADDRESS_HOME_COUNTRY) {
       continue;
     }
     // TODO(crbug.com/40257475): Use rewriter rules for all kAddressHome types.

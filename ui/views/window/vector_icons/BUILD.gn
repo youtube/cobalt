@@ -8,10 +8,13 @@ aggregate_vector_icons("window_control_vector_icons") {
   icon_directory = "."
 
   sources = [
-    "window_control_close.icon",
-    "window_control_maximize.icon",
-    "window_control_minimize.icon",
-    "window_control_restore.icon",
+    "chrome_maximize.icon",
+    "chrome_minimize.icon",
+    "chrome_restore.icon",
+    "window_control_close_old.icon",
+    "window_control_maximize_old.icon",
+    "window_control_minimize_old.icon",
+    "window_control_restore_old.icon",
   ]
 }
 

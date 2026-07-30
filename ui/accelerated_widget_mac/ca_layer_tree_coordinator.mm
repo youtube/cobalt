@@ -10,6 +10,7 @@
 #include "base/mac/mac_util.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/trace_event/trace_event.h"
+#include "build/ios_buildflags.h"
 #include "ui/accelerated_widget_mac/ca_renderer_layer_tree.h"
 #include "ui/base/cocoa/animation_utils.h"
 #include "ui/base/cocoa/remote_layer_api.h"
@@ -180,8 +181,8 @@ void CALayerTreeCoordinator::CommitPresentedFrameToCA(
   }
 
   gfx::CALayerParams params;
-  if (has_resized_since_last_swap_) {
 #if BUILDFLAG(IS_MAC)
+  if (has_resized_since_last_swap_) {
     // Create a new CAContext at the new size. This allows new frame update at
     // the new size to be atomic with things like resizing the NSWindow.
     if (allow_remote_layers_) {
@@ -191,9 +192,9 @@ void CALayerTreeCoordinator::CommitPresentedFrameToCA(
       ca_context_ = nil;
       current_tree = nullptr;
     }
-#endif
     has_resized_since_last_swap_ = false;
   }
+#endif
 
   // Get the frame to be committed.
   auto& frame = presented_frames_.front();
@@ -214,6 +215,7 @@ void CALayerTreeCoordinator::CommitPresentedFrameToCA(
                         pixel_size_.width());
 
     if (allow_remote_layers_) {
+#if !BUILDFLAG(IS_IOS) || BUILDFLAG(IS_IOS_TVOS)
       if (!ca_context_) {
         // Create the CAContext to send this to the GPU process, and the layer
         // for the context.
@@ -231,6 +233,7 @@ void CALayerTreeCoordinator::CommitPresentedFrameToCA(
 #endif
         ca_context_.layer = root_ca_layer_;
       }
+#endif  // !BUILDFLAG(IS_IOS) || BUILDFLAG(IS_IOS_TVOS)
       params.ca_context_id = [ca_context_ contextId];
     } else {
       IOSurfaceRef io_surface = frame.layer_tree->GetContentIOSurface();

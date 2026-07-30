@@ -8,6 +8,7 @@ source_set("animation") {
   public = [
     "browser_animation_controller.h",
     "browser_animation_provider.h",
+    "browser_animation_provider_internal.h",
     "browser_animation_types.h",
   ]
 
@@ -15,7 +16,6 @@ source_set("animation") {
     "browser_animation_controller.cc",
     "browser_animation_provider.cc",
     "browser_animation_provider_internal.cc",
-    "browser_animation_provider_internal.h",
   ]
 
   public_deps = [
@@ -41,6 +41,27 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//chrome/browser/ui:test_support",
     "//chrome/browser/ui/browser_window",
+    "//testing/gmock",
+    "//testing/gtest",
+    "//ui/base/interaction:test_support",
+    "//ui/gfx:test_support",
+  ]
+}
+
+source_set("browser_tests") {
+  testonly = true
+
+  defines = [ "HAS_OUT_OF_PROC_TEST_RUNNER" ]
+
+  sources = [ "browser_animation_controller_browsertest.cc" ]
+
+  deps = [
+    ":animation",
+    "//base/test:test_support",
+    "//chrome/browser/ui:test_support",
+    "//chrome/browser/ui/browser_window",
+    "//chrome/test:test_support_ui",
+    "//content/test:test_support",
     "//testing/gmock",
     "//testing/gtest",
     "//ui/base/interaction:test_support",

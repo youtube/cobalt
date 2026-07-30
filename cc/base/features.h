@@ -154,6 +154,10 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kAllowLCDTextWithFilter);
 // explicitly via img.decode(), it will be decoded only once.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kPreventDuplicateImageDecodes);
 
+// When enabled, HTMLImageElement::decode() promises resolve even if the image
+// is too large to fit into the image decode cache budget.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kResolveLargeImageDecodes);
+
 // When enabled, fix bug where an image decode cache entry last use timestamp is
 // initialized to 0 instead of now.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kInitImageDecodeLastUseTime);
@@ -243,6 +247,16 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE_PARAM(
     double,
     kScrollJankV4MetricFlingContinuityThreshold);
 
+// When disabled, `cc::ScrollJankV4FrameStageCalculator` relies on the
+// timestamps of arrival of individual `cc::ScrollEventMetrics` in the renderer
+// compositor (`scroll_event_metrics->GetDispatchStageTimestamp(
+// cc::EventMetrics::DispatchStage::kGenerated)`) when calculating the
+// `ScrollJankV4Frame::Stage`s that happened in a single frame. When enabled,
+// `cc::ScrollJankV4FrameStageCalculator` uses the scroll IDs
+// (`scroll_event_metrics->scroll_begin_arrival_timestamp()`) instead.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(
+    kUseScrollIdToCalculateScrollJankV4FrameStages);
+
 // When enabled, AsyncLayerTreeFrameSink will generate its own BeginFrameArgs
 // when auto_needs_begin_frame_ is enabled.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kManualBeginFrame);
@@ -270,6 +284,10 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kBrowserControlsScrollSnapAnimation);
 // instead of a point sample near edge_end. This is a kill switch for
 // crbug.com/451833352.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge);
+
+// When enabled, ResourcePool will prioritize exact size matches when reusing
+// resources.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kResourcePoolPreferExactSizeReuse);
 
 }  // namespace features
 

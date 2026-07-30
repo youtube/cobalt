@@ -109,6 +109,7 @@ class MockContextualTasksPage : public contextual_tasks::mojom::Page {
   MOCK_METHOD(void, UnlockInput, (), (override));
   MOCK_METHOD(void, SetShowReopenTabs, (bool show), (override));
   MOCK_METHOD(void, SetExpandButtonEnabled, (bool enabled), (override));
+  MOCK_METHOD(void, TurnOnSmartTabSharing, (), (override));
   MOCK_METHOD(void,
               RemoveInjectedInput,
               (const base::UnguessableToken& file_token),
@@ -623,6 +624,15 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksNoMockBrowserTest, CanZoom) {
   auto* zoom_controller = zoom::ZoomController::FromWebContents(web_contents);
   ASSERT_EQ(zoom::ZoomController::ZoomMode::ZOOM_MODE_DEFAULT,
             zoom_controller->zoom_mode());
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksNoMockBrowserTest,
+                       IncognitoDoesNotCrash) {
+  Browser* incognito_browser = CreateIncognitoBrowser();
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      incognito_browser, GURL(chrome::kChromeUINewTabPageURL)));
+  EXPECT_TRUE(ui_test_utils::NavigateToURL(
+      incognito_browser, GURL(chrome::kChromeUIContextualTasksURL)));
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksNoMockBrowserTest,

@@ -22,6 +22,10 @@
 #include "base/win/windows_version.h"
 #endif
 
+#if BUILDFLAG(IS_ANDROID)
+#include "base/android/android_info.h"
+#endif  // BUILDFLAG(IS_ANDROID)
+
 namespace net::features {
 
 BASE_FEATURE(kAlpsForHttp2, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -368,7 +372,6 @@ BASE_FEATURE(kDeviceBoundSessions, base::FEATURE_ENABLED_BY_DEFAULT);
 #else
 BASE_FEATURE(kDeviceBoundSessions, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
-BASE_FEATURE(kPersistDeviceBoundSessions, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDeviceBoundSessionsBypassDeferralsForRefreshRequests,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
@@ -603,7 +606,7 @@ BASE_FEATURE(kRestrictAbusePortsOnLocalhost, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTLSTrustAnchorIDs, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kTlsMldsaSignatures, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kTlsMldsaSignatures, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
 BASE_FEATURE(kVerifyMTCs, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -845,5 +848,16 @@ BASE_FEATURE(kCookieParseRejectEmptyNameAmbiguous,
 
 BASE_FEATURE(kEnablePrivateVerificationTokens,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsDnsPlatformSupported() {
+#if BUILDFLAG(IS_ANDROID)
+  // android_res_n{query, result} are available starting from API level 29 (Q).
+  // https://developer.android.com/ndk/reference/group/networking#android_res_nquery
+  return base::android::android_info::sdk_int() >=
+         base::android::android_info::SDK_VERSION_Q;
+#else
+  return false;
+#endif
+}
 
 }  // namespace net::features

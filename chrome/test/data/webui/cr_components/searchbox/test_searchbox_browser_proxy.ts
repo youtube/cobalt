@@ -4,7 +4,7 @@
 
 import type {WindowOpenDisposition} from '//resources/mojo/ui/base/mojom/window_open_disposition.mojom-webui.js';
 import type {NavigationPredictor} from 'chrome://resources/mojo/components/omnibox/browser/omnibox.mojom-webui.js';
-import type {OmniboxPopupSelection, PageHandlerInterface, PageRemote, PlaceholderConfig, SelectedFileInfo} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {OmniboxPopupSelection, PageHandlerInterface, PageRemote, PlaceholderConfig, SelectedFileInfo, SmartComposeStats} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {PageCallbackRouter} from 'chrome://resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import type {BigBuffer} from 'chrome://resources/mojo/mojo/public/mojom/base/big_buffer.mojom-webui.js';
@@ -45,7 +45,6 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'notifySessionAbandoned',
       'addFileContext',
       'addTabContext',
-      'addDriveContext',
       'onDriveUploadClicked',
       'deleteContext',
       'clearFiles',
@@ -62,6 +61,7 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       'shouldShowDriveDisclaimer',
       'onDriveDisclaimerAccepted',
       'getPageClassification',
+      'setSmartComposeStats',
     ]);
   }
 
@@ -122,6 +122,10 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
       metaKey,
       shiftKey,
     });
+  }
+
+  setSmartComposeStats(smartComposeStats: SmartComposeStats) {
+    this.methodCalled('setSmartComposeStats', {smartComposeStats});
   }
 
   onNavigationLikely(
@@ -198,13 +202,12 @@ class FakePageHandler extends TestBrowserProxy implements PageHandlerInterface {
     return Promise.resolve('');
   }
 
-  addDriveContext(driveId: string, resourceKey: string, mimeType: string) {
-    this.methodCalled('addDriveContext', {driveId, resourceKey, mimeType});
-    return Promise.resolve('');
-  }
-
   onDriveUploadClicked() {
     this.methodCalled('onDriveUploadClicked');
+    if (this.results_.has('onDriveUploadClicked')) {
+      return this.results_.get('onDriveUploadClicked');
+    }
+    return Promise.resolve({response: {files: [], error: null}});
   }
 
   addTabContext(tabId: number, delayUpload: boolean) {

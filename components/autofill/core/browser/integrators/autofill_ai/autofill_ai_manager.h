@@ -8,6 +8,7 @@
 #include "base/containers/lru_cache.h"
 #include "base/functional/callback_forward.h"
 #include "base/memory/weak_ptr.h"
+#include "base/types/optional_ref.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_type.h"
 #include "components/autofill/core/browser/field_types.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
@@ -69,6 +70,8 @@ class AutofillAiManager {
       base::span<const Suggestion> shown_suggestions,
       ukm::SourceId ukm_source_id);
   virtual void OnFormSeen(const FormStructure& form);
+  virtual void OnFormInteracted(const FormStructure& form,
+                                ukm::SourceId ukm_source_id);
   virtual void OnDidFillSuggestion(
       const EntityInstance& entity,
       const FormStructure& form,
@@ -191,6 +194,7 @@ class AutofillAiManager {
       ukm::SourceId ukm_source_id,
       AutofillClient::AutofillAiImportPromptType prompt_type,
       AutofillClient::AutofillAiBubbleResult result,
+      base::optional_ref<const EntityInstance> edited_entity,
       const AutofillClient::EntityImportUIContext& ui_context);
 
   // Handles the fallback UI and storage logic when a Wallet save is
@@ -227,6 +231,15 @@ class AutofillAiManager {
   base::LRUCache<FormGlobalId, UserSuggestionInteractionDetails>
       user_suggestion_interactions_per_form_{
           kSuggestionInteractionCacheMaxSize};
+
+  // Tracks the UKM source ID for which the suggestions shown timing metric was
+  // last logged, ensuring it is logged at most once per page.
+  ukm::SourceId last_logged_ukm_source_id_ = ukm::kInvalidSourceId;
+
+  // Tracks the UKM source ID for which the first interaction timing metric was
+  // last logged, ensuring it is logged at most once per page.
+  ukm::SourceId last_logged_ukm_source_id_for_interaction_ =
+      ukm::kInvalidSourceId;
 
   base::WeakPtrFactory<AutofillAiManager> weak_ptr_factory_{this};
 };

@@ -353,7 +353,9 @@ chromium-metrics-reviews@google.com.
       label="IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_USE_PASSKEY_FROM_ANOTHER_DEVICE"/>
   <int value="153" label="IDC_CONTENT_CONTEXT_USE_PASSKEY_FROM_ANOTHER_DEVICE"/>
   <int value="154" label="IDC_CONTENT_CONTEXT_RELOAD_GLIC"/>
-  <int value="155" label="IDC_CONTENT_CONTEXT_CLOSE_GLIC"/>
+  <int value="155"
+      label="(Obsolete) IDC_CONTENT_CONTEXT_CLOSE_GLIC. Deprecated in M149
+             due to Multi-Instance being enabled by default."/>
   <int value="156" label="IDC_CONTENT_CONTEXT_OPENLINKSPLITVIEW"/>
   <int value="157" label="IDC_CONTENT_CONTEXT_GLICSHAREIMAGE"/>
   <int value="158" label="IDC_CONTENT_CONTEXT_ARCHIVE_GLIC"/>
@@ -363,6 +365,7 @@ chromium-metrics-reviews@google.com.
   <int value="162" label="IDC_CONTENT_CONTEXT_GLIC"/>
   <int value="163" label="IDC_CONTENT_CONTEXT_VIDEO_FRAME"/>
   <int value="164" label="IDC_CONTENT_CONTEXT_LISTEN_TO_THIS_PAGE"/>
+  <int value="165" label="IDC_CONTENT_CONTEXT_DICTATION"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/renderer_context_menu/render_view_context_menu.cc:RenderViewContextMenuItem) -->
@@ -766,6 +769,7 @@ chromium-metrics-reviews@google.com.
   <int value="-1169621742" label="chrome://linux-proxy-config/"/>
   <int value="-1147478891" label="chrome-untrusted://sample-system-web-app/"/>
   <int value="-1137946367" label="chrome://webrt-logs/"/>
+  <int value="-1124468987" label="chrome://multistep-filter-internals/"/>
   <int value="-1108319739" label="chrome://sync-internals/"/>
   <int value="-1087461470" label="chrome://management/"/>
   <int value="-1084687099" label="chrome://newtab-footer/"/>
@@ -780,6 +784,7 @@ chromium-metrics-reviews@google.com.
   <int value="-986956132" label="chrome://app-install-dialog/"/>
   <int value="-986409800" label="chrome://identity-internals/"/>
   <int value="-969979971" label="chrome://sandbox/"/>
+  <int value="-960608521" label="chrome://glic-experimental-opt-in/"/>
   <int value="-949665427"
       label="chrome://customize-chrome-side-panel.top-chrome/"/>
   <int value="-946383082" label="chrome://translate-internals/"/>

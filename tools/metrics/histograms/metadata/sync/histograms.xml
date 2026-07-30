@@ -143,6 +143,11 @@ chromium-metrics-reviews@google.com.
   <variant name=".Migration" summary="run the migration"/>
 </variants>
 
+<variants name="TabsFromOtherDevicesVersion">
+  <variant name="List" summary="list version"/>
+  <variant name="Screenshot" summary="screenshot version"/>
+</variants>
+
 <variants name="TrustedVaultTimeSinceMigrationSuffix">
   <variant name=""
       summary="Includes data for users that went through migration any time
@@ -299,7 +304,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.BatchUpload.Requests3" enum="SyncDataTypes"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>ankushkush@google.com</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -682,7 +687,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.ConfigureDataTypes" enum="SyncDataTypes"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>mastiz@chromium.org</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -697,7 +702,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.ConfigureTime_{ConfigurationType}.{Result}" units="ms"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -763,7 +768,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Sync.Crypto.CustomPassphraseKeyDerivationMethodStateOnStartup"
     enum="SyncCustomPassphraseKeyDerivationMethodState"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>mmoskvitin@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -1125,7 +1130,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DataTypeUpdateDrop.{Reason}" enum="SyncDataTypes"
-    expires_after="2026-08-30">
+    expires_after="2026-11-08">
   <owner>treib@chromium.org</owner>
   <owner>rushans@google.com</owner>
   <summary>
@@ -1256,7 +1261,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.DeviceStatistics.Outcome.NonPrimaryAccount.PlatformOfAdditionalClient2"
-    enum="SyncDeviceStatisticsPlatform" expires_after="2026-08-30">
+    enum="SyncDeviceStatisticsPlatform" expires_after="2026-11-01">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -1269,7 +1274,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DeviceStatistics.Outcome.Overall2"
-    enum="SyncDeviceStatisticsOutcome" expires_after="2026-08-30">
+    enum="SyncDeviceStatisticsOutcome" expires_after="2026-11-01">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -1444,7 +1449,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.DeviceStatistics.RequestsStartedCount" units="requests"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -1610,7 +1615,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.InitialState2" enum="SyncInitialState"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -1845,40 +1850,6 @@ chromium-metrics-reviews@google.com.
   <owner>treib@chromium.org</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>The active sync passphrase type at sync startup.</summary>
-</histogram>
-
-<histogram name="Sync.PassphraseType2" enum="PassphraseTypeForMetrics"
-    expires_after="2026-08-30">
-  <owner>mmoskvitin@google.com</owner>
-  <owner>mastiz@chromium.org</owner>
-  <summary>
-    TODO(crbug.com/347711860): Remove this on 02/2026, once Sync.PassphraseType5
-    has been available for a year. That one relies on a pref that caches the
-    passphrase type and thus can record the correct value before sync engine
-    initialization.
-
-    Sync passphrase type collected at each metrics upload. Also used for the
-    &quot;Sync passphrase type&quot; filter in the dashboard.
-  </summary>
-</histogram>
-
-<histogram name="Sync.PassphraseType4" enum="PassphraseTypeForMetrics"
-    expires_after="never">
-<!-- expires-never: important for UMA filtering. -->
-
-  <owner>treib@chromium.org</owner>
-  <owner>src/components/sync/OWNERS</owner>
-  <summary>
-    TODO(crbug.com/347711860): Remove this on 02/2026, once Sync.PassphraseType5
-    has been available for a year. That one correctly records
-    &quot;kUnknown&quot; for signed-out users.
-
-    Sync passphrase type collected at each metrics upload. The implementation
-    relies on the kSyncCachedPassphraseType pref, and thus can record the
-    correct value before sync engine initialization. Signed-out users are
-    counted in the &quot;implicit passphrase&quot; bucket. Recorded only after
-    profile initialization.
-  </summary>
 </histogram>
 
 <histogram name="Sync.PassphraseType5" enum="PassphraseTypeForMetrics"
@@ -2119,7 +2090,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SearchEngine.AddedKeywordHasAccountData" enum="Boolean"
-    expires_after="2026-07-12">
+    expires_after="2026-11-01">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2150,7 +2121,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SearchEngine.DuplicateIsDefaultSearchProvider"
-    enum="Boolean" expires_after="2026-07-12">
+    enum="Boolean" expires_after="2026-11-01">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2184,7 +2155,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.LocalUntouchedAutogenerated.IsPrepopulatedEntry"
-    enum="Boolean" expires_after="2026-07-12">
+    enum="Boolean" expires_after="2027-05-06">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2197,7 +2168,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.LocalUntouchedAutogenerated.IsStarterPackEntry"
-    enum="Boolean" expires_after="2026-07-12">
+    enum="Boolean" expires_after="2027-05-06">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2209,7 +2180,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SearchEngine.RemoteSearchEngineIsUntouchedAutogenerated"
-    enum="Boolean" expires_after="2027-01-19">
+    enum="Boolean" expires_after="2027-05-06">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2220,7 +2191,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.RemoteUntouchedAutogenerated.IsPrepopulatedEntry"
-    enum="Boolean" expires_after="2027-01-19">
+    enum="Boolean" expires_after="2027-05-06">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2232,7 +2203,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.RemoteUntouchedAutogenerated.IsStarterPackEntry"
-    enum="Boolean" expires_after="2027-01-19">
+    enum="Boolean" expires_after="2027-05-06">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2243,7 +2214,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SearchEngine.UntouchedAutogenerated{Operation}"
-    enum="Boolean" expires_after="2026-07-12">
+    enum="Boolean" expires_after="2027-05-06">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2259,7 +2230,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.UntouchedAutogenerated{Operation}.IsPrepopulatedEntry"
-    enum="Boolean" expires_after="2026-05-10">
+    enum="Boolean" expires_after="2027-05-06">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2275,7 +2246,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Sync.SearchEngine.UntouchedAutogenerated{Operation}.IsStarterPackEntry"
-    enum="Boolean" expires_after="2026-07-12">
+    enum="Boolean" expires_after="2027-05-06">
   <owner>ankushkush@google.com</owner>
   <owner>mahmadi@chromium.org</owner>
   <summary>
@@ -2352,7 +2323,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.SyncablePrefValueChanged{SyncDataType}"
-    enum="SyncablePref" expires_after="2026-08-30">
+    enum="SyncablePref" expires_after="2026-11-08">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <summary>
@@ -2684,6 +2655,40 @@ chromium-metrics-reviews@google.com.
     &quot;Migrate&quot; bucket of &quot;Sync.SyncToSigninMigrationDecision&quot;
     to verify that all migrations that were started also finished.
   </summary>
+</histogram>
+
+<histogram name="Sync.TabsFromOtherDevicesSidePanel.{Version}.Events"
+    enum="TabsFromOtherDevicesSidePanelEvent" expires_after="2027-05-07">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records events for the TabsFromOtherDevices side panel ({Version}). Recorded
+    when the side panel is created, opened, closed, or a tab is opened from it.
+  </summary>
+  <token key="Version" variants="TabsFromOtherDevicesVersion"/>
+</histogram>
+
+<histogram name="Sync.TabsFromOtherDevicesSidePanel.{Version}.TimeSpentOpen"
+    units="ms" expires_after="2027-05-07">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the total time spent with the TabsFromOtherDevices side panel
+    ({Version}) open. Recorded when the side panel is closed or hidden.
+  </summary>
+  <token key="Version" variants="TabsFromOtherDevicesVersion"/>
+</histogram>
+
+<histogram name="Sync.TabsFromOtherDevicesSidePanel.{Version}.TimeToFirstTab"
+    units="ms" expires_after="2027-05-07">
+  <owner>treib@chromium.org</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records the time between opening the TabsFromOtherDevices side panel
+    ({Version}) and opening the first tab from it. Recorded when the first tab
+    is opened.
+  </summary>
+  <token key="Version" variants="TabsFromOtherDevicesVersion"/>
 </histogram>
 
 <histogram name="Sync.ThrottledAllDataTypes" enum="Boolean"

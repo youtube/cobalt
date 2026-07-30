@@ -19,6 +19,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "base/no_destructor.h"
 #include "base/notimplemented.h"
+#include "base/numerics/checked_math.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_number_conversions_win.h"
@@ -37,6 +38,7 @@
 #include "base/win/scoped_bstr.h"
 #include "base/win/scoped_safearray.h"
 #include "base/win/scoped_variant.h"
+#include "base/win/shlwapi.h"
 #include "base/win/variant_vector.h"
 #include "base/win/win_util.h"
 #include "base/win/windows_version.h"
@@ -70,7 +72,6 @@
 #include "ui/accessibility/platform/compute_attributes.h"
 #include "ui/accessibility/platform/uia_registrar_win.h"
 #include "ui/base/l10n/l10n_util.h"
-#include "ui/base/win/atl_module.h"
 #include "ui/display/win/screen_win.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/strings/grit/ax_strings.h"
@@ -361,14 +362,8 @@ bool AXPlatformNodeWin::pause_ax_mode_changes_ = false;
 // static
 AXPlatformNode::Pointer AXPlatformNode::Create(
     AXPlatformNodeDelegate& delegate) {
-  // Make sure ATL is initialized in this module.
-  win::CreateATLModuleIfNeeded();
-
-  CComObject<AXPlatformNodeWin>* instance = nullptr;
-  HRESULT hr = CComObject<AXPlatformNodeWin>::CreateInstance(&instance);
-  DCHECK(SUCCEEDED(hr));
+  auto* instance = new AXPlatformNodeWin();
   instance->Init(delegate);
-  instance->AddRef();
   return Pointer(instance);
 }
 
@@ -392,7 +387,7 @@ AXPlatformNode* AXPlatformNode::FromNativeViewAccessible(
 
 AXPlatformNodeWin::AXPlatformNodeWin() {
   // All nodes are born dormant and remain so until referenced by something
-  // other than their `AXPlatformNodeDelegate`; see `InternalAddRef()`.
+  // other than their `AXPlatformNodeDelegate`; see `AddRef()`.
   ++g_dormant_node_count_;
 }
 
@@ -701,22 +696,25 @@ gfx::NativeViewAccessible AXPlatformNodeWin::GetNativeViewAccessible() {
 void AXPlatformNodeWin::NotifyAccessibilityEvent(ax::mojom::Event event_type) {
   TRACE_EVENT("accessibility", "NotifyAccessibilityEvent",
               perfetto::Flow::FromPointer(this));
-  AXPlatformNodeBase::NotifyAccessibilityEvent(event_type);
   const bool selection_event_on_unselected_node =
       event_type == ax::mojom::Event::kSelection &&
       HasBoolAttribute(ax::mojom::BoolAttribute::kSelected) &&
       !GetBoolAttribute(ax::mojom::BoolAttribute::kSelected);
 
   // Menu items fire selection events but Windows screen readers work reliably
-  // with focus events. Remap here if the node is selected.
+  // with focus events. Remap selected menu items and legacy selection events
+  // without explicit selected state, but do not remap explicitly unselected
+  // items.
   if (event_type == ax::mojom::Event::kSelection &&
-      !HasBoolAttribute(ax::mojom::BoolAttribute::kSelected)) {
+      !selection_event_on_unselected_node) {
     // A menu item could have something other than a role of
     // |ROLE_SYSTEM_MENUITEM|. Zoom modification controls for example have a
     // role of button.
+    const bool selection_state_is_unknown =
+        !HasBoolAttribute(ax::mojom::BoolAttribute::kSelected);
     if (int role = MSAARole(); role == ROLE_SYSTEM_MENUITEM) {
       event_type = ax::mojom::Event::kFocus;
-    } else if (role == ROLE_SYSTEM_LISTITEM) {
+    } else if (selection_state_is_unknown && role == ROLE_SYSTEM_LISTITEM) {
       if (const AXPlatformNodeBase* container = GetSelectionContainer()) {
         if (container->GetRole() == ax::mojom::Role::kListBox &&
             !container->HasState(ax::mojom::State::kMultiselectable) &&
@@ -724,14 +722,18 @@ void AXPlatformNodeWin::NotifyAccessibilityEvent(ax::mojom::Event event_type) {
           event_type = ax::mojom::Event::kFocus;
         }
       }
-    } else if (auto* parent = GetParentPlatformNodeWin(); parent) {
-      if (int parent_role = parent->MSAARole();
-          parent_role == ROLE_SYSTEM_MENUPOPUP ||
-          parent_role == ROLE_SYSTEM_LIST) {
-        event_type = ax::mojom::Event::kFocus;
+    } else if (selection_state_is_unknown) {
+      if (auto* parent = GetParentPlatformNodeWin(); parent) {
+        if (int parent_role = parent->MSAARole();
+            parent_role == ROLE_SYSTEM_MENUPOPUP ||
+            parent_role == ROLE_SYSTEM_LIST) {
+          event_type = ax::mojom::Event::kFocus;
+        }
       }
     }
   }
+
+  AXPlatformNodeBase::NotifyAccessibilityEvent(event_type);
 
   // TODO(benjamin.beaudry): Uncomment DCHECK once https://crbug.com/331840469
   // is fixed.
@@ -2282,17 +2284,14 @@ IFACEMETHODIMP AXPlatformNodeWin::get_relation(LONG relation_index,
   if (found == 0)
     return E_INVALIDARG;
 
-  CComObject<AXPlatformRelationWin>* relation_obj;
-  HRESULT hr = CComObject<AXPlatformRelationWin>::CreateInstance(&relation_obj);
-  DCHECK(SUCCEEDED(hr));
-  relation_obj->AddRef();
-  relation_obj->Initialize(relation_type);
+  auto relation_obj =
+      Microsoft::WRL::Make<AXPlatformRelationWin>(std::move(relation_type));
   for (AXPlatformNode* target : targets) {
     if (target)
       relation_obj->AddTarget(static_cast<AXPlatformNodeWin*>(target));
   }
 
-  *relation = relation_obj;
+  *relation = relation_obj.Detach();
   return S_OK;
 }
 
@@ -6013,50 +6012,169 @@ IFACEMETHODIMP AXPlatformNodeWin::QueryService(REFGUID guidService,
 }
 
 //
-// Methods used by the ATL COM map.
+// IDispatch methods.
 //
 
-// static
-STDMETHODIMP AXPlatformNodeWin::InternalQueryInterface(
-    void* this_ptr,
-    const _ATL_INTMAP_ENTRY* entries,
-    REFIID riid,
-    void** object) {
-  if (!object)
+IFACEMETHODIMP AXPlatformNodeWin::GetTypeInfoCount(UINT* pctinfo) {
+  if (!pctinfo) {
+    return E_POINTER;
+  }
+  *pctinfo = 1;
+  return S_OK;
+}
+
+IFACEMETHODIMP AXPlatformNodeWin::GetTypeInfo(UINT iTInfo,
+                                              LCID lcid,
+                                              ITypeInfo** ppTInfo) {
+  if (!ppTInfo) {
+    return E_POINTER;
+  }
+  *ppTInfo = nullptr;
+  if (iTInfo != 0) {
+    return DISP_E_BADINDEX;
+  }
+  return EnsureDispatchTypeInfo(lcid, ppTInfo);
+}
+
+IFACEMETHODIMP AXPlatformNodeWin::GetIDsOfNames(REFIID riid,
+                                                LPOLESTR* rgszNames,
+                                                UINT cNames,
+                                                LCID lcid,
+                                                DISPID* rgDispId) {
+  Microsoft::WRL::ComPtr<ITypeInfo> type_info;
+  HRESULT hr = EnsureDispatchTypeInfo(lcid, &type_info);
+  if (FAILED(hr)) {
+    return hr;
+  }
+  return type_info->GetIDsOfNames(rgszNames, cNames, rgDispId);
+}
+
+IFACEMETHODIMP AXPlatformNodeWin::Invoke(DISPID dispIdMember,
+                                         REFIID riid,
+                                         LCID lcid,
+                                         WORD wFlags,
+                                         DISPPARAMS* pDispParams,
+                                         VARIANT* pVarResult,
+                                         EXCEPINFO* pExcepInfo,
+                                         UINT* puArgErr) {
+  Microsoft::WRL::ComPtr<ITypeInfo> type_info;
+  HRESULT hr = EnsureDispatchTypeInfo(lcid, &type_info);
+  if (FAILED(hr)) {
+    return hr;
+  }
+  return type_info->Invoke(static_cast<IAccessible*>(this), dispIdMember,
+                           wFlags, pDispParams, pVarResult, pExcepInfo,
+                           puArgErr);
+}
+
+HRESULT AXPlatformNodeWin::EnsureDispatchTypeInfo(LCID lcid,
+                                                  ITypeInfo** ppTInfo) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (!dispatch_type_info_) {
+    Microsoft::WRL::ComPtr<ITypeLib> type_lib;
+    HRESULT hr = LoadRegTypeLib(LIBID_IAccessible2Lib, 1, 0, lcid, &type_lib);
+    if (FAILED(hr)) {
+      return hr;
+    }
+    hr = type_lib->GetTypeInfoOfGuid(IID_IAccessible2_4, &dispatch_type_info_);
+    if (FAILED(hr)) {
+      return hr;
+    }
+  }
+  dispatch_type_info_.CopyTo(ppTInfo);
+  return S_OK;
+}
+
+IFACEMETHODIMP AXPlatformNodeWin::QueryInterface(REFIID iid, void** ppvObject) {
+  if (!ppvObject) {
     return E_INVALIDARG;
-  *object = nullptr;
-  AXPlatformNodeWin* accessible =
-      reinterpret_cast<AXPlatformNodeWin*>(this_ptr);
-  if (!accessible || accessible->IsDestroyed()) {
+  }
+  *ppvObject = nullptr;
+
+  if (IsDestroyed()) {
     return E_NOINTERFACE;
   }
 
-  if (riid == IID_IAccessibleTable || riid == IID_IAccessibleTable2) {
-    if (!IsTableLike(accessible->GetRole()))
-      return E_NOINTERFACE;
-  } else if (riid == IID_IAccessibleTableCell) {
-    if (!IsCellOrTableHeader(accessible->GetRole()))
-      return E_NOINTERFACE;
-  } else if (riid == IID_IAccessibleText || riid == IID_IAccessibleHypertext) {
-    if (IsImageOrVideo(accessible->GetRole())) {
+  // Runtime conditional filtering — reject interfaces based on role/state.
+  if (iid == IID_IAccessibleTable || iid == IID_IAccessibleTable2) {
+    if (!IsTableLike(GetRole())) {
       return E_NOINTERFACE;
     }
-  } else if (riid == IID_IAccessibleValue) {
-    if (!accessible->GetData().IsRangeValueSupported()) {
+  } else if (iid == IID_IAccessibleTableCell) {
+    if (!IsCellOrTableHeader(GetRole())) {
       return E_NOINTERFACE;
     }
-  } else if (riid == IID_IChromeAccessible) {
+  } else if (iid == IID_IAccessibleText || iid == IID_IAccessibleHypertext) {
+    if (IsImageOrVideo(GetRole())) {
+      return E_NOINTERFACE;
+    }
+  } else if (iid == IID_IAccessibleValue) {
+    if (!GetData().IsRangeValueSupported()) {
+      return E_NOINTERFACE;
+    }
+  } else if (iid == IID_IChromeAccessible) {
     if (!features::IsIChromeAccessibleEnabled()) {
       return E_NOINTERFACE;
     }
-  } else if (riid == IID_IRawElementProviderAdviseEvents) {
+  } else if (iid == IID_IRawElementProviderAdviseEvents) {
     if (!base::FeatureList::IsEnabled(features::kUiaEventOptimization)) {
       return E_NOINTERFACE;
     }
   }
 
-  return CComObjectRootBase::InternalQueryInterface(this_ptr, entries, riid,
-                                                    object);
+  return ResolveInterfaces(iid, ppvObject);
+}
+
+HRESULT AXPlatformNodeWin::ResolveInterfaces(REFIID iid, void** ppvObject) {
+  // Self-QI for AXPlatformNodeWin (not a standard COM interface).
+  if (iid == __uuidof(AXPlatformNodeWin)) {
+    *ppvObject = this;
+    AddRef();
+    return S_OK;
+  }
+
+  static const QITAB qit[] = {
+      // IDispatch/IAccessible chain — all resolve through IAccessible2_4.
+      QITABENTMULTI(AXPlatformNodeWin, IDispatch, IAccessible2_4),
+      QITABENTMULTI(AXPlatformNodeWin, IAccessible, IAccessible2_4),
+      QITABENTMULTI(AXPlatformNodeWin, IAccessible2, IAccessible2_4),
+      QITABENTMULTI(AXPlatformNodeWin, IAccessible2_2, IAccessible2_4),
+      QITABENTMULTI(AXPlatformNodeWin, IAccessible2_3, IAccessible2_4),
+      QITABENT(AXPlatformNodeWin, IAccessible2_4),
+      QITABENT(AXPlatformNodeWin, IAccessibleEx),
+      // IAccessibleText resolves through IAccessibleHypertext.
+      QITABENTMULTI(AXPlatformNodeWin, IAccessibleText, IAccessibleHypertext),
+      QITABENT(AXPlatformNodeWin, IAccessibleHypertext),
+      QITABENT(AXPlatformNodeWin, IAccessibleTable),
+      QITABENT(AXPlatformNodeWin, IAccessibleTable2),
+      QITABENT(AXPlatformNodeWin, IAccessibleTableCell),
+      QITABENT(AXPlatformNodeWin, IAccessibleTextSelectionContainer),
+      QITABENT(AXPlatformNodeWin, IAccessibleValue),
+      QITABENT(AXPlatformNodeWin, IChromeAccessible),
+      QITABENT(AXPlatformNodeWin, IAnnotationProvider),
+      QITABENT(AXPlatformNodeWin, IExpandCollapseProvider),
+      QITABENT(AXPlatformNodeWin, IGridItemProvider),
+      QITABENT(AXPlatformNodeWin, IGridProvider),
+      QITABENT(AXPlatformNodeWin, IInvokeProvider),
+      QITABENT(AXPlatformNodeWin, IRangeValueProvider),
+      QITABENT(AXPlatformNodeWin, IRawElementProviderFragment),
+      // IRawElementProviderSimple resolves through IRawElementProviderSimple2.
+      QITABENTMULTI(AXPlatformNodeWin, IRawElementProviderSimple,
+                    IRawElementProviderSimple2),
+      QITABENT(AXPlatformNodeWin, IRawElementProviderSimple2),
+      QITABENT(AXPlatformNodeWin, IScrollItemProvider),
+      QITABENT(AXPlatformNodeWin, IScrollProvider),
+      QITABENT(AXPlatformNodeWin, ISelectionItemProvider),
+      QITABENT(AXPlatformNodeWin, ISelectionProvider),
+      QITABENT(AXPlatformNodeWin, ITableItemProvider),
+      QITABENT(AXPlatformNodeWin, ITableProvider),
+      QITABENT(AXPlatformNodeWin, IToggleProvider),
+      QITABENT(AXPlatformNodeWin, IValueProvider),
+      QITABENT(AXPlatformNodeWin, IWindowProvider),
+      QITABENT(AXPlatformNodeWin, IServiceProvider),
+      {nullptr, 0},
+  };
+  return QISearch(this, qit, iid, ppvObject);
 }
 
 HRESULT AXPlatformNodeWin::GetTextAttributeValue(
@@ -7888,13 +8006,15 @@ bool AXPlatformNodeWin::ShouldHideChildrenForUIA() const {
   }
 }
 
-ULONG AXPlatformNodeWin::InternalAddRef() {
+IFACEMETHODIMP_(ULONG) AXPlatformNodeWin::AddRef() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // Instances of AXPlatformNodeWin hold a reference to themselves (acquired in
   // `Create()` and released in `Dispose()`). When the refcount rises from 1 to
   // 2 before the node has been disposed, infer that the instance is being used
   // for some COM-ish purpose; for example, being handed to an accessibility
   // tool via a WM_GETOBJECT message handler.
-  const auto ref_count = SequenceAffineComObjectRoot::InternalAddRef();
+  const ULONG ref_count = base::CheckAdd(ref_count_, 1).ValueOrDie();
+  ref_count_ = ref_count;
   if (!IsDestroyed()) {
     if (ref_count == 2) {
       // This node is now referenced by something other than its delegate, so it
@@ -7910,19 +8030,24 @@ ULONG AXPlatformNodeWin::InternalAddRef() {
   return ref_count;
 }
 
-ULONG AXPlatformNodeWin::InternalRelease() {
+IFACEMETHODIMP_(ULONG) AXPlatformNodeWin::Release() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   // As above, infer that the instance is no longer being used for some COM-ish
   // purpose when the refcount drops back down to 1 if it has yet to be
   // disposed. For cases where the instance was disposed while there were
   // outstanding references, `OnDereferenced()` will not be called before
   // destruction.
-  const auto ref_count = SequenceAffineComObjectRoot::InternalRelease();
+  const ULONG ref_count = base::CheckSub(ref_count_, 1).ValueOrDie();
+  ref_count_ = ref_count;
   if (!IsDestroyed() && ref_count == 1) {
     // This node is no longer being referenced by something other than its
     // delegate, so it has slipped back to dormancy.
     --g_live_node_count_;
     ++g_dormant_node_count_;
     OnDereferenced();
+  }
+  if (ref_count == 0) {
+    delete this;
   }
   return ref_count;
 }
@@ -8154,7 +8279,6 @@ std::optional<DWORD> AXPlatformNodeWin::MojoEventToMSAAEvent(
     case ax::mojom::Event::kStateChanged:
       return EVENT_OBJECT_STATECHANGE;
     case ax::mojom::Event::kFocus:
-    case ax::mojom::Event::kFocusContext:
     case ax::mojom::Event::kFocusAfterMenuClose:
       return EVENT_OBJECT_FOCUS;
     case ax::mojom::Event::kLiveRegionChanged:
@@ -8201,7 +8325,6 @@ std::optional<EVENTID> AXPlatformNodeWin::MojoEventToUIAEvent(
     case ax::mojom::Event::kEndOfTest:
       return UiaRegistrarWin::GetInstance().GetTestCompleteEventId();
     case ax::mojom::Event::kFocus:
-    case ax::mojom::Event::kFocusContext:
     case ax::mojom::Event::kFocusAfterMenuClose:
       return UIA_AutomationFocusChangedEventId;
     case ax::mojom::Event::kLiveRegionChanged:

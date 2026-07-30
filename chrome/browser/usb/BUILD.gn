@@ -108,7 +108,10 @@ source_set("impl") {
       "android/usb_bridge.cc",
       "android/web_usb_chooser_android.cc",
     ]
-    deps += [ "//chrome/browser/usb/android:jni_headers" ]
+    deps += [
+      "//chrome/browser/ui/android/device_dialog",
+      "//chrome/browser/usb/android:jni_headers",
+    ]
   } else {
     sources += [
       "usb_connection_tracker.cc",
@@ -275,6 +278,7 @@ source_set("browser_test_support") {
     ":usb",
     "//base",
     "//chrome/browser",
+    "//chrome/browser:chrome_content_browser_client",
   ]
 }
 
@@ -290,6 +294,7 @@ source_set("platform_browser_tests") {
     "//base/test:test_support",
     "//chrome/browser",
     "//chrome/browser:browser_process",
+    "//chrome/browser:chrome_content_browser_client",
     "//chrome/browser/content_settings:content_settings_factory",
     "//chrome/browser/ui/navigator",
     "//chrome/test:test_support",

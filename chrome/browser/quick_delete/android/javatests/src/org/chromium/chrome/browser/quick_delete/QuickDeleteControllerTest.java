@@ -34,6 +34,7 @@ import org.chromium.base.test.transit.TransitAsserts;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CallbackHelper;
 import org.chromium.base.test.util.CommandLineFlags;
+import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.HistogramWatcher;
 import org.chromium.base.test.util.Restriction;
 import org.chromium.chrome.browser.browsing_data.BrowsingDataBridge;
@@ -57,6 +58,7 @@ import org.chromium.chrome.test.transit.quick_delete.QuickDeleteDialogFacility;
 import org.chromium.chrome.test.transit.settings.SettingsStation;
 import org.chromium.components.browsing_data.DeleteBrowsingDataAction;
 import org.chromium.components.user_prefs.UserPrefs;
+import org.chromium.ui.base.DeviceFormFactor;
 
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -65,6 +67,7 @@ import java.util.concurrent.TimeoutException;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
+@DisableIf.Device(DeviceFormFactor.DESKTOP_FREEFORM) // crbug.com/511289665
 public class QuickDeleteControllerTest {
     private static final long FIFTEEN_MINUTES_IN_MS = TimeUnit.MINUTES.toMillis(15);
 
@@ -97,7 +100,7 @@ public class QuickDeleteControllerTest {
                                     return null;
                                 })
                 .when(mBrowsingDataBridgeMock)
-                .clearBrowsingData(any(), any(), any(), anyInt(), any(), any(), any(), any());
+                .clearBrowsingData(any(), any(), any(), anyInt(), any(), any());
 
         // Set the time for the initial tab to be outside of the quick delete time span.
         Tab initialTab = firstPage.loadedTabElement.value();
@@ -327,7 +330,6 @@ public class QuickDeleteControllerTest {
                 "BrowsingDataBridgeJni.clearBrowsingData() not called as expected.");
 
         verify(mBrowsingDataBridgeMock)
-                .clearBrowsingData(
-                        any(), any(), eq(types), eq(timePeriod), any(), any(), any(), any());
+                .clearBrowsingData(any(), any(), eq(types), eq(timePeriod), any(), any());
     }
 }

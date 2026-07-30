@@ -6,6 +6,7 @@ import("//chrome/browser/buildflags.gni")
 import("//chrome/common/features.gni")
 import("//components/compose/features.gni")
 import("//components/enterprise/buildflags/buildflags.gni")
+import("//components/safe_browsing/buildflags.gni")
 import("//content/browser/devtools/features.gni")
 import("//pdf/features.gni")
 import("//printing/buildflags/buildflags.gni")
@@ -55,8 +56,10 @@ group("resources") {
       "data_sharing:resources",
       "downloads:resources",
       "drive_picker_host:resources",
+      "drive_picker_host/untrusted:resources",
       "feedback:resources",
       "gaia_auth_host:resources",
+      "glic/experimental_opt_in:resources",
       "glic/selection_overlay:resources",
       "history:resources",
       "indigo:resources",
@@ -89,6 +92,7 @@ group("resources") {
       "tab_group_home:resources",
       "tab_search:resources",
       "web_app_internals:resources",
+      "webnn_internals:resources",
       "webui_browser:resources",
       "webui_gallery:resources",
       "webui_toolbar:resources",
@@ -96,7 +100,10 @@ group("resources") {
       "//components/browser_apis/tab_strip/resources",
     ]
     if (is_chrome_branded) {
-      public_deps += [ "media_router/cast_feedback:resources" ]
+      public_deps += [
+        ":preinstalled_web_apps_resources",
+        "media_router/cast_feedback:resources",
+      ]
     }
   }
 
@@ -158,7 +165,10 @@ group("resources") {
   }
 
   if (is_win) {
-    public_deps += [ "inline_login:resources" ]
+    public_deps += [
+      "conflicts:resources",
+      "inline_login:resources",
+    ]
   }
 
   if (enable_dice_support) {
@@ -196,6 +206,10 @@ group("resources") {
 
   if (enterprise_watermark) {
     public_deps += [ "watermark:resources" ]
+  }
+
+  if (safe_browsing_mode == 1) {
+    public_deps += [ "reset_password:resources" ]
   }
 }
 
@@ -354,6 +368,7 @@ group("dev_ui_resources") {
       "indigo_internals:resources",
       "infobar_internals:resources",
       "media_router/internals:resources",
+      "multistep_filter_internals:resources",
       "on_device_internals:resources",
       "user_education_internals:resources",
       "webnn_internals:resources",
@@ -434,6 +449,7 @@ repack("dev_ui_paks") {
       "$root_gen_dir/chrome/indigo_internals_resources.pak",
       "$root_gen_dir/chrome/infobar_internals_resources.pak",
       "$root_gen_dir/chrome/media_router_internals_resources.pak",
+      "$root_gen_dir/chrome/multistep_filter_internals_resources.pak",
       "$root_gen_dir/chrome/on_device_internals_resources.pak",
       "$root_gen_dir/chrome/user_education_internals_resources.pak",
       "$root_gen_dir/chrome/webui_js_error_resources.pak",

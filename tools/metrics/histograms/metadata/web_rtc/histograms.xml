@@ -709,7 +709,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.AudioInputSampleRate" enum="AudioSampleRate"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>saza@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -766,7 +766,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.BWE.InitiallyLostPackets" units="packets"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>holmer@chromium.org</owner>
   <summary>
     The number of video packets lost durig the first 2 seconds in a WebRTC call.
@@ -1224,7 +1224,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.P2P.UDP.SendResult"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-07-01">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-11-01">
   <owner>hta@chromium.org</owner>
   <owner>stevebe@microsoft.com</owner>
   <owner>webrtc-dev@chromium.org</owner>
@@ -1725,7 +1725,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.PeerConnection.SdpMunging.{DescriptionType}.{Stage}"
-    enum="SdpMungingType" expires_after="2026-09-06">
+    enum="SdpMungingType" expires_after="2026-11-08">
   <owner>hta@chromium.org</owner>
   <owner>webrtc-dev@chromium.org</owner>
   <summary>
@@ -4158,12 +4158,13 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="WebRTC.Video{TypeOfStream}.CorruptionLikelihoodPermille"
-    units="permille (‰)" expires_after="2026-02-22">
+    units="permille (‰)" expires_after="2027-05-11">
   <owner>sprang@chromium.org</owner>
   <owner>webrtc-video@google.com</owner>
   <summary>
     The average corruption score (in permille) for a received {TypeOfStream}.
-    Recorded when a stream is removed.
+    Recorded when a stream is removed. Warning: this histogram was expired from
+    2026-02-22 to 2026-05-11; data may be missing.
   </summary>
   <token key="TypeOfStream">
     <variant name="" summary="video stream"/>

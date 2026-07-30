@@ -147,8 +147,8 @@ INSTANTIATE_TEST_SUITE_P(All,
 #endif
 );
 
-// TODO(crbug.com/406839385): Re-enable this test on Mac.
-#if BUILDFLAG(IS_MAC)
+// TODO(crbug.com/406839385): Re-enable this test on Mac and Linux.
+#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
 #define MAYBE_HelloWorld DISABLED_HelloWorld
 #else
 #define MAYBE_HelloWorld HelloWorld
@@ -175,12 +175,8 @@ IN_PROC_BROWSER_TEST_P(PDFSearchifyTest, MAYBE_HelloWorld) {
 }
 
 // TODO(crbug.com/406839385): Re-enable this test on Mac.
-#if BUILDFLAG(IS_MAC)
-#define MAYBE_MultiPage DISABLED_MultiPage
-#else
-#define MAYBE_MultiPage MultiPage
-#endif
-IN_PROC_BROWSER_TEST_P(PDFSearchifyTest, MAYBE_MultiPage) {
+// TODO(crbug.com/470431038): Test is flaky on multiple platforms.
+IN_PROC_BROWSER_TEST_P(PDFSearchifyTest, DISABLED_MultiPage) {
   base::HistogramTester histograms;
   ASSERT_TRUE(LoadPdf(embedded_test_server()->GetURL(
       "/pdf/accessibility/inaccessible-text-in-three-page.pdf")));

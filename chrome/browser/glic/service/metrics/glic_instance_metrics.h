@@ -180,6 +180,9 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   void OnGlicScrollAttempt();
   void OnGlicScrollComplete(bool success);
 
+  // Called when the opt-in CTA is shown.
+  void OnOptinImpression();
+
   // Called when GlicInstanceImpl is destroyed.
   void OnInstanceDestroyed();
 
@@ -301,6 +304,10 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   void RecordTabPinningStatusEvent(tabs::TabInterface* tab,
                                    GlicPinningStatusEvent event);
 
+  enum class PendingImpression {
+    kOptIn = 0,
+  };
+
   // Routes skills WebUI actions from the frontend to their respective
   // metrics funnels.
   void RecordSkillsWebClientEvent(mojom::SkillsWebClientEvent action);
@@ -407,6 +414,11 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
 
   std::map<tabs::TabHandle, int> tab_depths_;
 
+  bool is_client_ready_ = false;
+  bool is_opt_in_pending_ = false;
+
+  void MaybeRecordOptInImpression();
+
   base::CallbackListSubscription pinned_tabs_changed_subscription_;
   base::CallbackListSubscription tab_pinning_status_subscription_;
   const raw_ref<const metrics::ProfileMetricsService> profile_metrics_service_;
@@ -416,6 +428,7 @@ class GlicInstanceMetrics : public GlicInstanceMetricsBackwardsCompatibility {
   raw_ptr<PrefService> pref_service_ = nullptr;
 
   bool first_side_panel_close_recorded_ = false;
+  bool first_floaty_close_recorded_ = false;
   bool saas_usage_recorded_ = false;
 
   // The following variables are used for recording scroll related metrics.

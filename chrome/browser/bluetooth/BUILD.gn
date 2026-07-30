@@ -46,7 +46,10 @@ source_set("impl") {
   }
   if (is_android) {
     sources += [ "android/bluetooth_bridge.cc" ]
-    deps += [ "//chrome/browser/bluetooth/android:jni_headers" ]
+    deps += [
+      "//chrome/browser/bluetooth/android:jni_headers",
+      "//chrome/browser/ui/android/device_dialog",
+    ]
   }
 }
 
@@ -61,6 +64,7 @@ if (!is_android) {
     public_deps = [
       ":bluetooth",
       "//chrome/browser",
+      "//chrome/browser:chrome_content_browser_client",
       "//device/bluetooth",
       "//device/bluetooth:mocks",
       "//device/bluetooth/public/cpp",

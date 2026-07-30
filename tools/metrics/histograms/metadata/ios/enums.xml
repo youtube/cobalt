@@ -412,6 +412,17 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(//components/desktop_to_mobile_promos/promos_types.h:PromoType) -->
 
+<!-- LINT.IfChange(IOSDarkModeDetectionCrossedState) -->
+
+<enum name="IOSDarkModeDetectionCrossedState">
+  <int value="0" label="Not supported, Light mode"/>
+  <int value="1" label="Not supported, Dark mode"/>
+  <int value="2" label="Supported, Light mode"/>
+  <int value="3" label="Supported, Dark mode"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/web/model/dark_mode_detection/dark_mode_detection_java_script_feature.mm:DarkModeDetectionCrossedState) -->
+
 <!-- LINT.IfChange(IOSDataProtectionScreenshotBlockSource) -->
 
 <enum name="IOSDataProtectionScreenshotBlockSource">
@@ -2157,6 +2168,16 @@ chromium-metrics-reviews@google.com.
 
 <!-- LINT.ThenChange(/ios/chrome/browser/push_notification/model/constants.h:NotificationType) -->
 
+<enum name="NtpBackgroundCacheCleanupEvent">
+  <int value="0" label="Cleanup Skipped (New User)"/>
+  <int value="1" label="Cleanup Triggered"/>
+  <int value="2" label="Cleanup Completed Success"/>
+  <int value="3" label="Cleanup Completed Failure"/>
+  <int value="4" label="Refetch Triggered"/>
+  <int value="5" label="Refetch Completed Success"/>
+  <int value="6" label="Refetch Completed Failure"/>
+</enum>
+
 <!-- LINT.IfChange(OmniboxPositionType) -->
 
 <enum name="OmniboxPositionType">
@@ -2568,6 +2589,27 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(/ios/chrome/browser/safari_data_import/public/safari_data_import_stage.h:SafariDataImportStage) -->
+
+<!-- LINT.IfChange(ScanCardOfferToSaveAction) -->
+
+<enum name="ScanCardOfferToSaveAction">
+  <int value="0" label="Ignore"/>
+  <int value="1" label="Accept"/>
+  <int value="2" label="Reject"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/autofill/scan_save_and_fill/ui/payments_scan_save_and_fill_edit_view_controller.h:ScanCardOfferToSaveAction) -->
+
+<!-- LINT.IfChange(ScanCardSuggestionBottomSheetExitReason) -->
+
+<enum name="ScanCardSuggestionBottomSheetExitReason">
+  <int value="0" label="Ignore"/>
+  <int value="1" label="Accept Suggestion"/>
+  <int value="2" label="Reject Suggestion"/>
+  <int value="3" label="Could Not Present"/>
+</enum>
+
+<!-- LINT.ThenChange(/ios/chrome/browser/autofill/scan_save_and_fill/coordinator/payments_scan_save_and_fill_offer_bottom_sheet_mediator.h:ScanCardSuggestionBottomSheetExitReason) -->
 
 <!-- LINT.IfChange(SyncedSetUpAppliedPref) -->
 

@@ -695,7 +695,25 @@ void HTMLMediaElement::AttachToNewFrame() {
   // NOTE: |media_player_host_remote_| is also coupled to |old_document|'s
   // frame.
   ResetMojoState();
-  InvokeLoadAlgorithm();
+
+  // Only restart the load when the element was actively loading in the old
+  // document (NETWORK_LOADING or NETWORK_IDLE). The underlying media player
+  // holds frame-specific resources and must be recreated, which requires
+  // running the load algorithm again. When the element has already finished or
+  // failed loading (NETWORK_NO_SOURCE, NETWORK_EMPTY), moving to a new
+  // document should not invoke the resource selection algorithm — per the HTML
+  // spec, a document move does not constitute a new load trigger. In that case
+  // we still destroy the player to release old-frame references.
+  switch (network_state_) {
+    case kNetworkLoading:
+    case kNetworkIdle:
+      InvokeLoadAlgorithm();
+      break;
+    case kNetworkEmpty:
+    case kNetworkNoSource:
+      ResetMediaPlayerAndMediaSource();
+      break;
+  }
 }
 
 void HTMLMediaElement::ResetMojoState() {
@@ -845,6 +863,9 @@ Node::InsertionNotificationRequest HTMLMediaElement::InsertedInto(
 
   HTMLElement::InsertedInto(insertion_point);
   if (insertion_point.isConnected()) {
+    // Cancel any pending removed-from-document timer: the element has been
+    // (re-)inserted into a document, so it should not be paused by that timer.
+    removed_from_document_timer_.Stop();
     UseCounter::Count(GetDocument(), WebFeature::kHTMLMediaElementInDocument);
     // If the element was deferred due to lazy loading while disconnected,
     // start IntersectionObserver monitoring now that it's in the document.
@@ -870,6 +891,10 @@ void HTMLMediaElement::RemovedFrom(ContainerNode& insertion_point) {
   DVLOG(3) << "removedFrom(" << *this << ", " << insertion_point << ")";
 
   removed_from_document_timer_.StartOneShot(base::TimeDelta(), FROM_HERE);
+  if (RuntimeEnabledFeatures::LazyLoadVideoAndAudioEnabled() &&
+      lazy_media_load_state_ == LazyMediaLoadState::kDeferred) {
+    LazyMediaHelper::StopMonitoring(this);
+  }
 
   HTMLElement::RemovedFrom(insertion_point);
 }
@@ -1022,6 +1047,13 @@ void HTMLMediaElement::load() {
 void HTMLMediaElement::InvokeLoadAlgorithm() {
   DVLOG(3) << "invokeLoadAlgorithm(" << *this << ")";
 
+  // Capture the user-visible playback position now, before the player is torn
+  // down. ResetMediaPlayerAndMediaSource() nulls web_media_player_, after which
+  // CurrentPlaybackPosition() returns 0 regardless of where the element was.
+  // currentTime() also returns last_seek_time_ when seeking_ is true, covering
+  // the in-flight seek case — seeking_ is cleared later at step 4.7.
+  const double old_playback_position = currentTime();
+
   // Perform the cleanup required for the resource load algorithm to run.
   StopPeriodicTimers();
   load_timer_.Stop();
@@ -1033,7 +1065,10 @@ void HTMLMediaElement::InvokeLoadAlgorithm() {
   // FIXME: Figure out appropriate place to reset LoadTextTrackResource if
   // necessary and set pending_action_flags_ to 0 here.
   pending_action_flags_ &= ~kLoadMediaResource;
-  sent_stalled_event_ = false;
+  if (sent_stalled_event_) {
+    sent_stalled_event_ = false;
+    PseudoStateChanged(CSSSelector::kPseudoStalled);
+  }
   have_fired_loaded_data_ = false;
 
   autoplay_policy_->StopAutoplayMutedWhenVisible();
@@ -1104,7 +1139,7 @@ void HTMLMediaElement::InvokeLoadAlgorithm() {
     // 4.6 - If the paused attribute is false, then run these substeps
     if (!paused_) {
       // 4.6.1 - Set the paused attribute to true.
-      paused_ = true;
+      SetPaused(true);
 
       // 4.6.2 - Take pending play promises and reject pending play promises
       // with the result and an "AbortError" DOMException.
@@ -1114,7 +1149,7 @@ void HTMLMediaElement::InvokeLoadAlgorithm() {
     }
 
     // 4.7 - If seeking is true, set it to false.
-    seeking_ = false;
+    SetSeeking(false);
 
     // 4.8 - Set the current playback position to 0.
     //       Set the official playback position to 0.
@@ -1122,7 +1157,9 @@ void HTMLMediaElement::InvokeLoadAlgorithm() {
     //       to fire a simple event named timeupdate at the media element.
     // 4.9 - Set the initial playback position to 0.
     SetOfficialPlaybackPosition(0);
-    ScheduleTimeupdateEvent(false);
+    if (old_playback_position != 0) {
+      ScheduleTimeupdateEvent(false);
+    }
     GetCueTimeline().OnReadyStateReset();
 
     // 4.10 - Set the timeline offset to Not-a-Number (NaN).
@@ -2200,6 +2237,8 @@ void HTMLMediaElement::SetReadyState(ReadyState state) {
 
   tracks_are_ready_ = tracks_are_ready;
 
+  bool was_matching_buffering_pseudo = MatchesBufferingPseudo();
+
   if (tracks_are_ready) {
     ready_state_ = new_state;
   } else {
@@ -2210,6 +2249,11 @@ void HTMLMediaElement::SetReadyState(ReadyState state) {
       ready_state_ = new_state;
     else
       ready_state_ = kHaveCurrentData;
+  }
+
+  if (was_matching_buffering_pseudo != MatchesBufferingPseudo()) {
+    PseudoStateChanged(CSSSelector::kPseudoBuffering);
+    PseudoStateChanged(CSSSelector::kPseudoStalled);
   }
 
   // If we're transitioning to / past kHaveMetadata, then cache the final URL.
@@ -2246,7 +2290,7 @@ void HTMLMediaElement::SetReadyState(ReadyState state) {
     }
 
     // Prior to kHaveMetadata |network_state_| may be inaccurate to avoid side
-    // channel leaks. This be a no-op if nothing has changed.
+    // channel leaks. This is a no-op if nothing has changed.
     NetworkStateChanged();
   }
 
@@ -2386,7 +2430,7 @@ void HTMLMediaElement::SetReadyState(ReadyState state) {
     }
 
     if (autoplay_policy_->RequestAutoplayByAttribute()) {
-      paused_ = false;
+      SetPaused(false);
       SetShowPosterFlag(false);
       GetCueTimeline().InvokeTimeMarchesOn();
       ScheduleNamedEvent(event_type_names::kPlay);
@@ -2451,7 +2495,10 @@ void HTMLMediaElement::ProgressEventTimerFired() {
   if (web_media_player_ && web_media_player_->DidLoadingProgress()) {
     ScheduleNamedEvent(event_type_names::kProgress);
     previous_progress_time_ = base::ElapsedTimer();
-    sent_stalled_event_ = false;
+    if (sent_stalled_event_) {
+      sent_stalled_event_ = false;
+      PseudoStateChanged(CSSSelector::kPseudoStalled);
+    }
     UpdateLayoutObject();
   } else if (!media_source_attachment_ &&
              previous_progress_time_->Elapsed() >
@@ -2465,6 +2512,7 @@ void HTMLMediaElement::ProgressEventTimerFired() {
     // MediaSource disables the delayed load when first attached.
     ScheduleNamedEvent(event_type_names::kStalled);
     sent_stalled_event_ = true;
+    PseudoStateChanged(CSSSelector::kPseudoStalled);
     SetShouldDelayLoadEvent(false);
   }
 }
@@ -2566,7 +2614,7 @@ void HTMLMediaElement::Seek(double time) {
   // 4 - Set the seeking IDL attribute to true.
   // The flag will be cleared when the engine tells us the time has actually
   // changed.
-  seeking_ = true;
+  SetSeeking(true);
 
   // 6 - If the new playback position is later than the end of the media
   // resource, then let it be the end of the media resource instead.
@@ -2598,7 +2646,7 @@ void HTMLMediaElement::Seek(double time) {
   WebTimeRanges seekable_ranges = SeekableInternal();
 
   if (seekable_ranges.empty()) {
-    seeking_ = false;
+    SetSeeking(false);
     return;
   }
   time = seekable_ranges.Nearest(time, now);
@@ -2621,9 +2669,10 @@ void HTMLMediaElement::Seek(double time) {
 
 void HTMLMediaElement::FinishSeek() {
   DVLOG(3) << "finishSeek(" << *this << ")";
+  DCHECK(seeking_);
 
   // 14 - Set the seeking IDL attribute to false.
-  seeking_ = false;
+  SetSeeking(false);
 
   // Force an update to officialPlaybackPosition. Periodic updates generally
   // handle this, but may be skipped paused or waiting for data.
@@ -2657,6 +2706,14 @@ bool HTMLMediaElement::IsEncrypted() const {
 
 bool HTMLMediaElement::seeking() const {
   return seeking_;
+}
+
+void HTMLMediaElement::SetSeeking(bool seeking) {
+  if (seeking_ == seeking) {
+    return;
+  }
+  seeking_ = seeking;
+  PseudoStateChanged(CSSSelector::kPseudoSeeking);
 }
 
 // https://www.w3.org/TR/html51/semantics-embedded-content.html#earliest-possible-position
@@ -2780,6 +2837,17 @@ double HTMLMediaElement::duration() const {
 
 bool HTMLMediaElement::paused() const {
   return paused_;
+}
+
+void HTMLMediaElement::SetPaused(bool paused) {
+  if (paused_ == paused) {
+    return;
+  }
+  paused_ = paused;
+  PseudoStateChanged(CSSSelector::kPseudoPaused);
+  PseudoStateChanged(CSSSelector::kPseudoPlaying);
+  PseudoStateChanged(CSSSelector::kPseudoBuffering);
+  PseudoStateChanged(CSSSelector::kPseudoStalled);
 }
 
 double HTMLMediaElement::defaultPlaybackRate() const {
@@ -3085,7 +3153,7 @@ void HTMLMediaElement::PlayInternal() {
     Seek(0);
 
   if (paused_) {
-    paused_ = false;
+    SetPaused(false);
     SetShowPosterFlag(false);
     GetCueTimeline().InvokeTimeMarchesOn();
     ScheduleNamedEvent(event_type_names::kPlay);
@@ -3122,12 +3190,12 @@ void HTMLMediaElement::PauseInternal(WebMediaPlayer::PauseReason pause_reason) {
   can_autoplay_ = false;
 
   if (!paused_) {
-    paused_ = true;
+    SetPaused(true);
     ScheduleTimeupdateEvent(false);
     ScheduleNamedEvent(event_type_names::kPause);
 
     // Force an update to official playback position. Automatic updates from
-    // currentPlaybackPosition() will be blocked while paused_ = true. This
+    // currentPlaybackPosition() will be blocked while paused_ == true. This
     // blocking is desired while paused, but its good to update it one final
     // time to accurately reflect movie time at the moment we paused.
     SetOfficialPlaybackPosition(CurrentPlaybackPosition());
@@ -3295,6 +3363,8 @@ void HTMLMediaElement::setMuted(bool muted) {
     return;
 
   muted_ = muted;
+
+  PseudoStateChanged(CSSSelector::kPseudoMuted);
 
   ScheduleNamedEvent(event_type_names::kVolumechange);
 
@@ -3892,13 +3962,13 @@ void HTMLMediaElement::TimeChanged() {
       // playback is still forwards, and paused is false,
       if (!paused_) {
         // Trigger an update to `official_playback_position_` (if necessary)
-        // BEFORE setting `paused_ = false`, to ensure a final sync with
+        // BEFORE calling `SetPaused(true)`, to ensure a final sync with
         // `WebMediaPlayer()->CurrentPlaybackPosition()`.
         OfficialPlaybackPosition();
 
         // changes paused to true and fires a simple event named pause at the
         // media element.
-        paused_ = true;
+        SetPaused(true);
         pause_reason = WebMediaPlayer::PauseReason::kEndOfPlayback;
         ScheduleNamedEvent(event_type_names::kPause);
         ScheduleRejectPlayPromises(
@@ -4141,8 +4211,6 @@ void HTMLMediaElement::UpdatePlayState(
     web_media_player_->OnTimeUpdate();
 
   ReportCurrentTimeToMediaSource();
-  PseudoStateChanged(CSSSelector::kPseudoPaused);
-  PseudoStateChanged(CSSSelector::kPseudoPlaying);
 
   UpdateVideoVisibilityTracker();
 }
@@ -4234,8 +4302,8 @@ void HTMLMediaElement::ContextDestroyed() {
   official_playback_position_ = 0;
   official_playback_position_needs_update_ = true;
   playing_ = false;
-  paused_ = true;
-  seeking_ = false;
+  SetPaused(true);
+  SetSeeking(false);
   GetCueTimeline().OnReadyStateReset();
 
   UpdateLayoutObject();
@@ -4686,12 +4754,30 @@ void HTMLMediaElement::SetNetworkState(NetworkState state,
   if (network_state_ == state)
     return;
 
+  bool was_matching_buffering_pseudo = MatchesBufferingPseudo();
   network_state_ = state;
+  if (was_matching_buffering_pseudo != MatchesBufferingPseudo()) {
+    PseudoStateChanged(CSSSelector::kPseudoBuffering);
+    PseudoStateChanged(CSSSelector::kPseudoStalled);
+  }
   if (network_state_ > network_state_maximum_) {
     network_state_maximum_ = network_state_;
   }
   if (update_media_controls && GetMediaControls())
     GetMediaControls()->NetworkStateChanged();
+}
+
+bool HTMLMediaElement::MatchesBufferingPseudo() const {
+  // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-buffering
+  return !paused_ && network_state_ == kNetworkLoading &&
+         ready_state_ <= kHaveCurrentData;
+}
+
+bool HTMLMediaElement::MatchesStalledPseudo() const {
+  // https://html.spec.whatwg.org/multipage/semantics-other.html#selector-stalled
+  // is defined in terms of "is currently stalled", and sent_stalled_event_ is
+  // this concept by another name.
+  return MatchesBufferingPseudo() && sent_stalled_event_;
 }
 
 void HTMLMediaElement::VideoWillBeDrawnToCanvas() const {

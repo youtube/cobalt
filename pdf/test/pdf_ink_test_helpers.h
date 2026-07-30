@@ -7,7 +7,9 @@
 
 #include <stdint.h>
 
+#include <iosfwd>
 #include <optional>
+#include <string>
 #include <string_view>
 
 #include "base/containers/span.h"
@@ -15,10 +17,12 @@
 #include "base/time/time.h"
 #include "base/values.h"
 #include "pdf/pdf_ink_annotation_mode.h"
+#include "pdf/pdf_ink_text.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "third_party/ink/src/ink/geometry/affine_transform.h"
 #include "third_party/ink/src/ink/strokes/input/stroke_input_batch.h"
 #include "ui/gfx/geometry/point_f.h"
+#include "ui/gfx/geometry/rect_f.h"
 
 using SkColor = uint32_t;
 
@@ -81,6 +85,42 @@ MATCHER_P6(InkAffineTransformEq,
          Matches(FloatEq(expected_e))(arg.E()) &&
          Matches(FloatEq(expected_f))(arg.F());
 }
+
+MATCHER_P9(InkTextBoxAttributesEq,
+           rect,
+           color,
+           css_font_size,
+           typeface,
+           alignment,
+           orientation,
+           is_bold,
+           is_italic,
+           text,
+           "matches InkTextBoxAttributes") {
+  return arg.rect == rect && arg.color == color &&
+         arg.css_font_size == css_font_size && arg.typeface == typeface &&
+         arg.alignment == alignment && arg.orientation == orientation &&
+         arg.is_bold == is_bold && arg.is_italic == is_italic &&
+         arg.text == text;
+}
+
+MATCHER_P5(InkTextInfoEq,
+           font_id,
+           glyphs,
+           glyph_positions,
+           location,
+           is_horizontal,
+           testing::PrintToString(InkTextInfo(font_id,
+                                              glyphs,
+                                              glyph_positions,
+                                              location,
+                                              is_horizontal))) {
+  return arg.font_id == font_id && arg.glyphs == glyphs &&
+         arg.glyph_positions == glyph_positions && arg.location == location &&
+         arg.is_horizontal == is_horizontal;
+}
+
+void PrintTo(const InkTextInfo& info, std::ostream* os);
 
 // Generate the path for test files specific to Ink.
 base::FilePath GetInkTestDataFilePath(base::FilePath::StringViewType filename);

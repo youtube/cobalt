@@ -60,6 +60,7 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimProperties;
 import org.chromium.components.contextual_search.InputState;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.IconResourceIdsProto.IconResourceIds;
@@ -108,6 +109,7 @@ import java.util.function.Supplier;
     private final Supplier<@Nullable View> mScrimAnchorViewSupplier;
 
     private boolean mIsTextWrapping;
+    private boolean mHasContextualTasksFocus;
     private @BrandedColorScheme int mBrandedColorScheme = BrandedColorScheme.APP_DEFAULT;
     private @Nullable Profile mProfile;
     private @Nullable AutocompleteInput mInput;
@@ -115,6 +117,8 @@ import java.util.function.Supplier;
     private @Nullable ComposeboxQueryControllerBridge mComposeboxQueryControllerBridge;
     private @Nullable FuseboxMetrics mMetrics;
     private @Nullable PropertyModel mScrimModel;
+    private boolean mActionTaken;
+
     private final ListObserver<Void> mListObserver =
             new ListObserver<>() {
                 @Override
@@ -192,6 +196,10 @@ import java.util.function.Supplier;
 
     /* package */ void destroy() {
         endInput();
+    }
+
+    public boolean wasActionTaken() {
+        return mActionTaken;
     }
 
     @EnsuresNonNullIf(
@@ -278,6 +286,7 @@ import java.util.function.Supplier;
      *     through the endInput() (valid -> valid). This is the case for tab switching.
      */
     /* package */ void beginInput(FuseboxSessionState session) {
+        mActionTaken = false;
         mMetrics = session.getMetrics();
         mProfile = assertNonNull(session.getProfile());
         setController(session.getComposeboxQueryControllerBridge());
@@ -288,7 +297,13 @@ import java.util.function.Supplier;
         updateSnackbarStyling();
     }
 
-    /** Called when the user stops interacting with the Omnibox. */
+    /**
+     * Called when the user stops interacting with the Omnibox.
+     *
+     * <p>For standard search, this is called on every focus loss to clear the UI. For Contextual
+     * Tasks, this is only called when the task is destroyed (e.g., tab switch or explicit close) to
+     * keep the session warm during focus loss.
+     */
     /* package */ void endInput() {
         hidePopup();
         setModelList(null);
@@ -297,6 +312,24 @@ import java.util.function.Supplier;
         mProfile = null;
         mMetrics = null;
         mIsTextWrapping = false;
+        updateFuseboxState();
+    }
+
+    /**
+     * Called when focus is lost or gained while in a Contextual Tasks session.
+     *
+     * @param hasFocus Whether the contextual tasks fusebox has focus.
+     */
+    /* package */ void onContextualTaskFocusChanged(boolean hasFocus) {
+        if (mHasContextualTasksFocus == hasFocus) return;
+        mHasContextualTasksFocus = hasFocus;
+
+        if (!isInInputSession()) return;
+
+        if (!hasFocus) {
+            hidePopup();
+            mIsTextWrapping = false;
+        }
         updateFuseboxState();
     }
 
@@ -343,7 +376,9 @@ import java.util.function.Supplier;
     private void onRequestTypeButtonClicked() {
         if (!isInInputSession()) return;
 
-        if (ToolModeUtils.isAimRequest(mInput.getRequestType())) {
+        // On Desktop, dedicated button shows in specialized modes only, and reverts to AI Mode.
+        if (ToolModeUtils.isAimRequest(mInput.getRequestType())
+                && !OmniboxFeatures.isDesktopPlatform()) {
             activateSearchMode();
         } else {
             activateAiMode(
@@ -393,19 +428,51 @@ import java.util.function.Supplier;
 
     private void updateFuseboxState() {
         @FuseboxState int targetState;
+        boolean showRequestTypeButton = shouldShowRequestTypeButton();
+        boolean isContextualTasks =
+                mInput != null
+                        && mInput.getRawPageClassification()
+                                == PageClassification.CO_BROWSING_COMPOSEBOX_VALUE;
+
         if (!isInInputSession()) {
             targetState = FuseboxState.DISABLED;
+        } else if (!mHasContextualTasksFocus && isContextualTasks) {
+            targetState = FuseboxState.COMPACT;
         } else if (!OmniboxFeatures.sCompactFusebox.getValue()) {
             targetState = FuseboxState.EXPANDED;
         } else {
             targetState =
-                    mIsTextWrapping || mInput.getRequestType() != AutocompleteRequestType.SEARCH
+                    // If we're showing the request type button...
+                    showRequestTypeButton
+                                    // or the text is wrapping...
+                                    || mIsTextWrapping
+                                    // or the attachments list has elements - expand the fusebox.
+                                    || !mModelList.isEmpty()
                             ? FuseboxState.EXPANDED
                             : FuseboxState.COMPACT;
         }
         mFuseboxStateSupplier.set(targetState);
         mModel.set(FuseboxProperties.FUSEBOX_STATE, targetState);
         mModel.set(FuseboxProperties.ADD_BUTTON_VISIBLE, targetState == FuseboxState.EXPANDED);
+        mModel.set(FuseboxProperties.SHOW_REQUEST_TYPE_BUTTON, showRequestTypeButton);
+    }
+
+    @SuppressWarnings("checkstyle:SimplifyBooleanReturn")
+    private boolean shouldShowRequestTypeButton() {
+        // Conditions here, when grouped into a single return, are difficult to parse.
+        // Breaking down into explicit if/elseif/else to help understand what's going on.
+        if (!isInInputSession()) {
+            return false;
+        } else if (ToolModeUtils.isConventionalRequest(mInput.getRequestType())) {
+            // Never show mode button if in Search mode.
+            return false;
+        } else if (mInput.getRequestType() == AutocompleteRequestType.AI_MODE
+                && OmniboxFeatures.isDesktopPlatform()) {
+            // Special Desktop case -> AI Mode only changes the status icon.
+            return false;
+        }
+
+        return true;
     }
 
     /** Toggles the visibility of the attachments popup. */
@@ -429,7 +496,7 @@ import java.util.function.Supplier;
         mModel.set(FuseboxProperties.POPUP_ATTACH_CLIPBOARD_VISIBLE, mClipboard.hasImage());
         mModel.set(
                 FuseboxProperties.POPUP_STATE,
-                OmniboxFeatures.sShowBottomSheetPopup.getValue()
+                OmniboxFeatures.shouldShowBottomSheetPopup()
                         ? PopupState.BOTTOM
                         : PopupState.FLOATING);
         if (mScrimManager != null
@@ -585,6 +652,7 @@ import java.util.function.Supplier;
     private void onTabPickerClicked() {
         if (!isInInputSession()) return;
 
+        mActionTaken = true;
         hidePopup();
         mMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.TAB_PICKER);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_TAB)) return;
@@ -710,6 +778,7 @@ import java.util.function.Supplier;
     private void onCameraClicked() {
         if (!isInInputSession()) return;
 
+        mActionTaken = true;
         hidePopup();
         mMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CAMERA);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
@@ -778,7 +847,7 @@ import java.util.function.Supplier;
                 new PopupButtonData(
                         this::onDynamicButtonClicked,
                         mContext.getString(R.string.ai_mode_entrypoint_label),
-                        R.drawable.search_spark_black_24dp,
+                        IconResourceIds.SEARCH_LOUPE_WITH_SPARKLE_VALUE,
                         /* enabled= */ true,
                         mInput.getRequestType() == AutocompleteRequestType.AI_MODE,
                         PopupButtonType.TOOL,
@@ -790,7 +859,7 @@ import java.util.function.Supplier;
                     new PopupButtonData(
                             this::onDynamicButtonClicked,
                             mContext.getString(R.string.omnibox_create_image),
-                            R.drawable.create_image_24dp,
+                            IconResourceIds.BANANA_VALUE,
                             areAttachmentsCompatibleWithCreateImage(),
                             mInput.getRequestType() == AutocompleteRequestType.IMAGE_GENERATION,
                             PopupButtonType.TOOL,
@@ -838,6 +907,7 @@ import java.util.function.Supplier;
     private void onImagePickerClicked() {
         if (!isInInputSession()) return;
 
+        mActionTaken = true;
         hidePopup();
         mMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.GALLERY);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
@@ -883,12 +953,13 @@ import java.util.function.Supplier;
     private void onFilePickerClicked() {
         if (!isInInputSession()) return;
 
+        mActionTaken = true;
         hidePopup();
         mMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.FILES);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_FILE)) return;
 
         String mimeType =
-                OmniboxFeatures.sEnableAllFileTypes.getValue()
+                ChromeFeatureList.sLensSendRawFileMediaTypes.isEnabled()
                         ? MimeTypeUtils.ALL_FILE_TYPES_MIME_TYPE
                         : MimeTypeUtils.PDF_MIME_TYPE;
         var i =
@@ -922,6 +993,7 @@ import java.util.function.Supplier;
     private void onClipboardClicked() {
         if (!isInInputSession()) return;
 
+        mActionTaken = true;
         hidePopup();
         mMetrics.notifyAttachmentButtonUsed(FuseboxAttachmentButtonType.CLIPBOARD);
         if (isMaxAttachmentCountReached(FuseboxAttachmentType.ATTACHMENT_IMAGE)) return;
@@ -958,7 +1030,7 @@ import java.util.function.Supplier;
     @VisibleForTesting
     /* package */ void fetchAttachmentDetails(
             Uri uri,
-            Callback<FuseboxAttachment> callback,
+            Callback<@Nullable FuseboxAttachment> callback,
             @FuseboxAttachmentButtonType int buttonType) {
         new FuseboxAttachmentDetailsFetcher(
                         mContext, mContext.getContentResolver(), uri, callback, buttonType)
@@ -970,7 +1042,11 @@ import java.util.function.Supplier;
      *
      * @param attachment Contains information about the input that will be added as context.
      */
-    /* package */ void uploadAndAddAttachment(FuseboxAttachment attachment) {
+    /* package */ void uploadAndAddAttachment(@Nullable FuseboxAttachment attachment) {
+        if (attachment == null) {
+            onAttachmentUploadFailed();
+            return;
+        }
         if (!isInInputSession()) return;
 
         // Image generation is only allowed to have a single piece of context.
@@ -1103,7 +1179,9 @@ import java.util.function.Supplier;
             }
         }
         boolean showModelPicker = modelButtonDataList.size() >= 2;
-        mModel.set(FuseboxProperties.POPUP_MODEL_DIVIDER_VISIBLE, showModelPicker);
+        boolean showModelPickerDivider =
+                showModelPicker && !OmniboxFeatures.shouldShowBottomSheetPopup();
+        mModel.set(FuseboxProperties.POPUP_MODEL_DIVIDER_VISIBLE, showModelPickerDivider);
         mModel.set(FuseboxProperties.POPUP_MODEL_HEADER_VISIBLE, showModelPicker);
         mModel.set(
                 FuseboxProperties.POPUP_MODEL_HEADER_TEXT,
@@ -1124,6 +1202,7 @@ import java.util.function.Supplier;
     }
 
     private void onDynamicButtonClicked(PopupButtonData data) {
+        mActionTaken = true;
         if (data.type == PopupButtonType.MODEL) {
             FuseboxMetrics.notifyModelButtonSelected(data.protoId);
             setModelMode(data.protoId);

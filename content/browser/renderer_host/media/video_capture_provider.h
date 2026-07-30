@@ -48,9 +48,13 @@ class VideoCaptureProvider {
 
   virtual void CloseNativeScreenCapturePicker(DesktopMediaID device_id) = 0;
 
-  virtual void GetMainBundleId(
+#if BUILDFLAG(IS_MAC)
+  virtual void GetApplicationAudioCaptureId(
       DesktopMediaID::Id session_id,
-      base::OnceCallback<void(const std::optional<std::string>&)> callback) = 0;
+      base::OnceCallback<void(
+          const std::optional<desktop_capture::ApplicationAudioCaptureId>&)>
+          callback) = 0;
+#endif
 };
 
 }  // namespace content

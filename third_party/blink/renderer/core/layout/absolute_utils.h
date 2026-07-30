@@ -16,6 +16,7 @@
 
 namespace blink {
 
+enum class AutoSizeBehavior : uint8_t;
 class BlockNode;
 class ConstraintSpace;
 class LayoutResult;
@@ -72,14 +73,12 @@ struct LogicalAnchorCenterPosition {
 LogicalAnchorCenterPosition ComputeAnchorCenterPosition(
     const ComputedStyle& style,
     const LogicalAlignment& alignment,
-    WritingDirectionMode writing_direction,
     LogicalSize available_size);
 
 CORE_EXPORT LogicalOofInsets
 ComputeOutOfFlowInsets(const ComputedStyle& style,
                        const LogicalSize& available_size,
-                       const LogicalAlignment&,
-                       WritingDirectionMode self_writing_direction);
+                       const LogicalAlignment&);
 
 struct CORE_EXPORT InsetModifiedContainingBlock {
   // The original containing block size that the insets refer to.
@@ -170,9 +169,6 @@ ComputeIMCBForPositionFallback(const LogicalSize& available_size,
 // It needs to be computed in 2 stages:
 // 1. The inline-dimensions with |ComputeOofInlineDimensions|.
 // 2. The block-dimensions with |ComputeOofBlockDimensions|.
-//
-// NOTE: |ComputeOofInlineDimensions| may call |ComputeOofBlockDimensions| if
-// its required to correctly determine the min/max content sizes.
 
 // |replaced_size| should be set if and only if element is replaced element.
 // Will return true if |BlockNode::ComputeMinMaxSizes| was called.
@@ -187,6 +183,8 @@ CORE_EXPORT bool ComputeOofInlineDimensions(
     const BoxStrut& border_padding,
     const std::optional<LogicalSize>& replaced_size,
     const BoxStrut& container_insets,
+    AutoSizeBehavior inline_auto_size_behavior,
+    AutoSizeBehavior block_auto_size_behavior,
     WritingDirectionMode container_writing_direction,
     LogicalOofDimensions* dimensions);
 
@@ -203,6 +201,7 @@ CORE_EXPORT const LayoutResult* ComputeOofBlockDimensions(
     const BoxStrut& border_padding,
     const std::optional<LogicalSize>& replaced_size,
     const BoxStrut& container_insets,
+    AutoSizeBehavior block_auto_size_behavior,
     WritingDirectionMode container_writing_direction,
     LogicalOofDimensions* dimensions);
 

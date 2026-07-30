@@ -32,7 +32,6 @@ include_rules = [
   "+chrome/browser/ui/webui/ash/settings/pages/os_settings_section.h",
   "+chrome/browser/ui/webui/ash/settings/search",
   "+chrome/browser/ui/webui/settings",
-  "+chrome/browser/ui/webui/signin/ash",
   "+chrome/common",
   "+chrome/grit",
   "+chrome/test",
@@ -41,5 +40,8 @@ include_rules = [
 specific_include_rules = {
   "graduation_handler\.cc": [
     "+chrome/browser/ui/ash/system_web_apps/system_web_app_utils.h",
+  ],
+  "people_section_unittest\\.cc": [
+    "+chrome/browser/ash/login/users/profile_user_manager_controller.h",
   ],
 }

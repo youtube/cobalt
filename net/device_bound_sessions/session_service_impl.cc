@@ -82,6 +82,9 @@ class DebugHeaderBuilder {
     structured_headers::Item item;
     switch (result) {
       case RefreshResult::kRefreshed:
+      // TODO(crbug.com/417401759): Add "transient_signing_error" as a supported
+      // value for `Secure-Session-Skipped`.
+      case RefreshResult::kTransientSigningError:
       case RefreshResult::kFatalError:
       case RefreshResult::kRefreshedAsWaiter:
         return;
@@ -165,8 +168,9 @@ void LogProactiveRefreshAttempt(
 }  // namespace
 
 DeferredURLRequest::DeferredURLRequest(
+    base::WeakPtr<URLRequest> request,
     SessionService::RefreshCompleteCallback callback)
-    : callback(std::move(callback)) {}
+    : request(std::move(request)), callback(std::move(callback)) {}
 
 DeferredURLRequest::DeferredURLRequest(DeferredURLRequest&& other) noexcept =
     default;
@@ -547,7 +551,7 @@ void SessionServiceImpl::DeferRequestForRefresh(
   // For the first deferring request, create a new vector and add the request.
   auto [it, inserted] = deferred_requests_.try_emplace(session_key);
   // Add the request callback to the deferred list.
-  it->second.emplace_back(std::move(callback));
+  it->second.emplace_back(request.GetWeakPtr(), std::move(callback));
 
   auto* session = GetSession(session_key);
   CHECK(session);
@@ -1179,29 +1183,21 @@ SessionError::ErrorType SessionServiceImpl::OnRefreshRequestCompletionInternal(
                 return success_result;
               },
               [&](SessionError error) {
-                SessionError::ErrorType error_type = error.type;
-                if (std::optional<DeletionReason> deletion_reason =
-                        error.GetDeletionReason();
-                    deletion_reason.has_value()) {
+                const SessionError::ErrorType error_type = error.type;
+                std::optional<DeletionReason> deletion_reason =
+                    error.GetDeletionReason();
+                if (deletion_reason) {
                   DeleteSessionAndNotify(*deletion_reason, session_key,
                                          on_access_callback);
-                  UnblockDeferredRequests(session_key,
-                                          RefreshResult::kFatalError,
-                                          std::move(error));
-                } else {
-                  RefreshResult refresh_result;
-                  if (error.IsServerError()) {
-                    refresh_result = RefreshResult::kServerError;
-                  } else if (error.type ==
-                             SessionError::kSigningQuotaExceeded) {
-                    refresh_result = RefreshResult::kSigningQuotaExceeded;
-                  } else {
-                    refresh_result = RefreshResult::kUnreachable;
-                  }
-                  // Transient error, unblock the request without cookies.
-                  UnblockDeferredRequests(session_key, refresh_result,
-                                          std::move(error));
                 }
+
+                RefreshResult refresh_result =
+                    error.GetRefreshResult().value_or(
+                        deletion_reason ? RefreshResult::kFatalError
+                                        : RefreshResult::kUnreachable);
+
+                UnblockDeferredRequests(session_key, refresh_result,
+                                        std::move(error));
                 return error_type;
               }));
 
@@ -1234,9 +1230,16 @@ void SessionServiceImpl::OnSessionKeyRestored(
         std::optional<unexportable_keys::UnexportableSigningKeyId>)> callback,
     Session::KeyIdOrError key_id_or_error) {
   if (!key_id_or_error.has_value()) {
-    UnblockDeferredRequests(session_key, RefreshResult::kFatalError);
-    DeleteSessionAndNotify(DeletionReason::kFailedToUnwrapKey, session_key,
-                           on_access_callback);
+    const bool is_persistent_error =
+        unexportable_keys::IsPersistentError(key_id_or_error.error());
+    UnblockDeferredRequests(session_key,
+                            is_persistent_error
+                                ? RefreshResult::kFatalError
+                                : RefreshResult::kTransientSigningError);
+    if (is_persistent_error) {
+      DeleteSessionAndNotify(DeletionReason::kFailedToUnwrapKey, session_key,
+                             on_access_callback);
+    }
     std::move(callback).Run(std::nullopt);
     return;
   }
@@ -1256,11 +1259,33 @@ void SessionServiceImpl::RefreshSessionInternal(
     base::WeakPtr<URLRequest> maybe_request,
     const SessionKey& session_key,
     std::optional<unexportable_keys::UnexportableSigningKeyId> key_id) {
-  if (!maybe_request || !key_id) {
+  base::WeakPtr<URLRequest> active_request = std::move(maybe_request);
+  if (!active_request) {
+    // If the original request that triggered key restoration was canceled or
+    // destroyed (for example, during the asynchronous `RestoreSessionKey`
+    // delay), select the next available valid request in the deferred queue to
+    // act as the new triggering request for the DBSC refresh. This prevents
+    // waiter requests from hanging indefinitely.
+    if (auto it = deferred_requests_.find(session_key);
+        it != deferred_requests_.end()) {
+      auto req_it = std::ranges::find_if(
+          it->second, [](const auto& req) { return !!req.request; });
+      if (req_it != it->second.end()) {
+        active_request = req_it->request;
+        req_it->triggered_refresh = true;
+      }
+    }
+  }
+
+  if (!active_request || !key_id) {
+    // TODO(crbug.com/509885112): We should call UnblockDeferredRequests() here
+    // if `active_request` is null to drain the queue of deferred requests
+    // because all the requests have already been canceled. Use a new
+    // `RefreshResult::kCancelled` for this.
     return;
   }
 
-  DbscRequest request(maybe_request.get());
+  DbscRequest request(active_request.get());
 
   net::NetLogSource net_log_source_for_refresh = net::NetLogSource(
       net::NetLogSourceType::URL_REQUEST, net::NetLog::Get()->NextID());

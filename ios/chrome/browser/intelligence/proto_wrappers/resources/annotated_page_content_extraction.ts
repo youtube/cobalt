@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {HAS_BEEN_PASSWORD_SYMBOL} from '//components/autofill/ios/form_util/resources/fill_constants.js';
+import {HAS_BEEN_PASSWORD_SYMBOL, ID_SYMBOL} from '//components/autofill/ios/form_util/resources/fill_constants.js';
 import {APC_NODE_DEPTH_COST, getRemoteFrameRemoteToken, NONCE_ATTR} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/common.js';
 import {getNodeId, getOrCreateNodeId} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/dom_node_ids.js';
 import {AxRole, FormControlType, PageContentAnchorRel, PageContentAnnotatedRole, PageContentAttributeType, PageContentClickabilityReason, PageContentInteractionDisabledReason, PageContentMediaType, PageContentRedactionDecision, PageContentTableRowType, PageContentTextSize} from '//ios/chrome/browser/intelligence/proto_wrappers/resources/page_content_types.js';
@@ -25,6 +25,12 @@ interface HtmlElementWithDisabled extends HTMLElement {
 // it has been a password field.
 interface PasswordTrackedElement extends HTMLInputElement {
   [HAS_BEEN_PASSWORD_SYMBOL]?: boolean;
+}
+
+// An HTMLInputElement that can hold an Autofill node id via the designated
+// symbol property.
+interface HtmlElementWithAutofillId extends HTMLElement {
+  [ID_SYMBOL]?: number;
 }
 
 // Cache that stores computed style for the latest walked element to avoid
@@ -1422,6 +1428,7 @@ function extractFrameData(
 
   frameData.frameInteractionInfo = extractFrameInteractionInfo(document);
   frameData.mediaData = extractMediaData(document);
+  frameData.isFocusedDocument = isDeepestFocusedDocument(document);
 
   return frameData;
 }
@@ -1597,6 +1604,7 @@ function getContentForIframeNode(
 
   let childTree: PageContentNode|null = null;
   let localFrameData: PageContentFrameData|undefined;
+  let localFrameId: string|undefined;
 
   // Always register the frame to get a remote token, even for same-origin
   // frames. This allows identification of the frame document in the browser.
@@ -1605,6 +1613,10 @@ function getContentForIframeNode(
   try {
     const contentDoc = iframeElement.contentDocument;
     if (contentDoc && contentDoc.body) {
+      const contentWindow = iframeElement.contentWindow;
+      if (contentWindow) {
+        localFrameId = (contentWindow as any).__gCrWeb?.getFrameId();
+      }
       // Recurse to start a new tree walk on the iframe content when available
       // (i.e. when on the same origin) because the TreeWalker doesn't walk
       // through iframe content.
@@ -1640,7 +1652,8 @@ function getContentForIframeNode(
   // site (domain and one level of subdomain). Only populate the remote token if
   // grafting is needed to get the iframe content.
   attributes.iframeData = {
-    frameToken: {value: childTree ? '' : remoteToken},
+    remoteFrameToken: {value: childTree ? '' : remoteToken},
+    localFrameToken: localFrameId ? {value: localFrameId} : undefined,
     content: {
       localFrameData: localFrameData,
     },
@@ -1872,6 +1885,20 @@ function isPasswordField(
 }
 
 /**
+ * Gets the autofill node ID for the `element` if one is available.
+ *
+ * @param element The DOM element to process.
+ * @return The autofill node ID, or undefined if there is no ID.
+ */
+function getAutofillNodeId(element: HTMLElement): number|undefined {
+  const id = (element as HtmlElementWithAutofillId)[ID_SYMBOL];
+  if (Number.isFinite(id)) {
+    return id;
+  }
+  return undefined;
+}
+
+/**
  * Extracts form control specific content attributes from a given DOM element.
  * Handles inputs, textareas, selects, and buttons.
  *
@@ -1964,6 +1991,8 @@ function getFormControlData(
       });
     }
   }
+
+  formControlData.autofillNodeId = getAutofillNodeId(domNode);
 
   return formControlData as PageContentFormControlData;
 }
@@ -2743,6 +2772,19 @@ function generateAndPushContentNode(
   });
 }
 
+/**
+ * Checks if the current document is the deepest focused document.
+ *
+ * @param document The document to check.
+ * @return True if the document has focus and its active element is not an
+ *     iframe or frame.
+ */
+function isDeepestFocusedDocument(document: Document): boolean {
+  return document.hasFocus() &&
+      !(document.activeElement instanceof HTMLIFrameElement ||
+        document.activeElement instanceof HTMLFrameElement);
+}
+
 // TODO(crbug.com/485799759): Assess if we need the mouse position.
 /**
  * Extracts the page interaction info (focus, pointer position).
@@ -2756,6 +2798,8 @@ function extractPageInteractionInfo(document: Document):
 
   const focusedId = getFocusedNodeId(document);
   if (focusedId !== undefined) {
+    // TODO(crbug.com/507089815): Avoid dangling focusedDomNodeId for rejected
+    // elements.
     pageInteractionInfo.focusedDomNodeId = focusedId;
   }
 

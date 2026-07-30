@@ -61,7 +61,7 @@ class ScopedGpuSequence;
 // A WebNNContextImpl owns a collection of graphs and tensors and may be bound
 // to a device such as a GPU or NPU. It is created and destroyed on its
 // `owning_task_runner()`. Mojo messages are dispatched on
-// `task_runner()`, which is a distinct task runner but runs on the
+// `mojo_task_runner()`, which is a distinct task runner but runs on the
 // same thread.
 class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
     : public WebNNObjectBase<mojom::WebNNContext,
@@ -190,12 +190,6 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
   // by removing itself from the ownership of `context_provider_`.
   void OnLost(const std::string& reason);
 
-  // Exposes a SequencedTaskRunner which can be used to schedule tasks in
-  // sequence with this WebNNContext -- that is, on the same gpu::Scheduler
-  // sequence. When running without a GPU sequence, returns the owning task
-  // runner. Does not support nested loops or delayed tasks.
-  scoped_refptr<base::SequencedTaskRunner> task_runner() const;
-
   // Exposes the ScopedGpuSequence which can be used to schedule tasks
   // in sequence with this WebNNContext -- that is, on the same gpu::Scheduler
   // sequence. May be null when running without GPU dependencies.
@@ -281,6 +275,11 @@ class COMPONENT_EXPORT(WEBNN_SERVICE) WebNNContextImpl
                                const gpu::Mailbox& mailbox,
                                const gpu::SyncToken& fence,
                                CreateTensorCallback callback) override;
+  void Dispatch(
+      const blink::WebNNGraphToken& graph_token,
+      const base::flat_map<std::string, blink::WebNNTensorToken>& named_inputs,
+      const base::flat_map<std::string, blink::WebNNTensorToken>& named_outputs)
+      override;
 
   // This method will be called by `CreateTensor()` after the tensor info is
   // validated. A backend subclass should implement this method to create and

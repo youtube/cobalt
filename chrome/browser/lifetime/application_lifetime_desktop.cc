@@ -27,9 +27,9 @@
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/sessions/exit_type_service.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/unload_controller.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/pref_names.h"
 #include "components/keep_alive_registry/keep_alive_registry.h"
@@ -331,7 +331,7 @@ bool AreAllBrowsersCloseable() {
   bool all_closeable = true;
   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
       [&all_closeable](BrowserWindowInterface* bwi) {
-        if (bwi->GetBrowserForMigrationOnly()->TabsNeedBeforeUnloadFired()) {
+        if (UnloadController::From(bwi)->TabsNeedBeforeUnloadFired()) {
           all_closeable = false;
         }
         return all_closeable;

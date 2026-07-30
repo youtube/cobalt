@@ -252,10 +252,12 @@ void ReportingEventRouter::OnPasswordBreach(
   }
 }
 
-void ReportingEventRouter::OnPasswordReuse(const GURL& url,
-                                           const std::string& user_name,
-                                           bool is_phishing_url,
-                                           bool warning_shown) {
+void ReportingEventRouter::OnPasswordReuse(
+    const GURL& url,
+    const std::string& user_name,
+    bool is_phishing_url,
+    bool warning_shown,
+    const ReferrerChain& referrer_chain) {
   if (!IsEventEnabled(kKeyPasswordReuseEvent)) {
     return;
   }
@@ -265,10 +267,10 @@ void ReportingEventRouter::OnPasswordReuse(const GURL& url,
   if (base::FeatureList::IsEnabled(
           policy::kUploadRealtimeReportingEventsUsingProto)) {
     chrome::cros::reporting::proto::Event event;
-    *event.mutable_password_reuse_event() =
-        GetPasswordReuseEvent(url, user_name, is_phishing_url, warning_shown,
-                              reporting_client_->GetProfileIdentifier(),
-                              reporting_client_->GetProfileUserName());
+    *event.mutable_password_reuse_event() = GetPasswordReuseEvent(
+        url, user_name, is_phishing_url, warning_shown,
+        reporting_client_->GetProfileIdentifier(),
+        reporting_client_->GetProfileUserName(), referrer_chain);
     *event.mutable_time() = ToProtoTimestamp(base::Time::Now());
 
     reporting_client_->ReportEvent(std::move(event), settings.value());
@@ -280,6 +282,10 @@ void ReportingEventRouter::OnPasswordReuse(const GURL& url,
     event.Set(kKeyEventResult,
               EventResultToString(warning_shown ? EventResult::WARNED
                                                 : EventResult::ALLOWED));
+
+    if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
+      AddReferrerChainToEvent(referrer_chain, event);
+    }
 
     reporting_client_->ReportEventWithTimestampDeprecated(
         kKeyPasswordReuseEvent, std::move(settings.value()), std::move(event),
@@ -499,6 +505,7 @@ void ReportingEventRouter::OnUnscannedFileEvent(
     const std::string& reason,
     const std::string& content_transfer_method,
     const int64_t content_size,
+    const ReferrerChain& referrer_chain,
     EventResult event_result) {
   if (!IsEventEnabled(kKeyUnscannedFileEvent)) {
     return;
@@ -522,7 +529,8 @@ void ReportingEventRouter::OnUnscannedFileEvent(
         url, tab_url, source, destination, final_file_name,
         download_digest_sha256, mime_type, trigger, scan_id, reason,
         content_transfer_method, reporting_client_->GetProfileIdentifier(),
-        reporting_client_->GetProfileUserName(), content_size, event_result);
+        reporting_client_->GetProfileUserName(), content_size, referrer_chain,
+        event_result);
 
     auto send_event_cb =
         base::BindOnce(&ReportingEventRouter::SendEventOnGotHash,
@@ -551,6 +559,9 @@ void ReportingEventRouter::OnUnscannedFileEvent(
       event.Set(kKeyContentSize, base::Int64ToValue(content_size));
     }
     event.Set(kKeyTrigger, trigger);
+    if (base::FeatureList::IsEnabled(safe_browsing::kEnhancedFieldsForSecOps)) {
+      AddReferrerChainToEvent(referrer_chain, event);
+    }
     event.Set(kKeyEventResult, EventResultToString(event_result));
     event.Set(kKeyClickedThrough, event_result == EventResult::BYPASSED);
     if (!content_transfer_method.empty()) {

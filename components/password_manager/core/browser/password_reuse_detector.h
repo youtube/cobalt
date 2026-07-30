@@ -42,7 +42,7 @@ struct MatchingReusedCredential {
       GURL url,
       std::u16string username,
       PasswordForm::Store in_store = PasswordForm::Store::kNotSet);
-  explicit MatchingReusedCredential(const PasswordForm& form);
+  explicit MatchingReusedCredential(const StoredCredential& cred);
   MatchingReusedCredential(const MatchingReusedCredential& other);
   MatchingReusedCredential(MatchingReusedCredential&& other);
   ~MatchingReusedCredential();
@@ -82,7 +82,7 @@ class PasswordReuseDetector {
 
   virtual void OnLoginsRetained(
       PasswordForm::Store password_store_type,
-      const std::vector<PasswordForm>& retained_passwords) = 0;
+      const std::vector<StoredCredential>& retained_credentials) = 0;
 
   // Clears all the cached passwords which are stored on the account store.
   virtual void ClearCachedAccountStorePasswords() = 0;

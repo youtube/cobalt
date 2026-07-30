@@ -5,6 +5,7 @@
 import {ComposeboxContextAddedMethod} from '//resources/cr_components/search/constants.js';
 import {assertNotReachedCase} from '//resources/js/assert.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
+import type {DriveUploadError} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import type {UnguessableToken} from '//resources/mojo/mojo/public/mojom/base/unguessable_token.mojom-webui.js';
 import type {Url} from '//resources/mojo/url/mojom/url.mojom-webui.js';
 
@@ -79,6 +80,34 @@ export const FILE_VALIDATION_ERRORS_MAP =
         ContextUploadErrorType.kUnknown,
         'composeboxFileUploadValidationFailed',
       ],
+      [
+        ContextUploadErrorType.kBrowserProcessingFileTooLargeError,
+        'composeboxFileUploadInvalidTooLarge',
+      ],
+      [
+        ContextUploadErrorType.kBrowserProcessingFileEmptyError,
+        'composeboxFileUploadInvalidEmptySize',
+      ],
+      [
+        ContextUploadErrorType.kBrowserProcessingMaxFilesExceededError,
+        'maxFilesReachedError',
+      ],
+      [
+        ContextUploadErrorType.kBrowserProcessingUnsupportedFileTypeError,
+        'composeFileTypesAllowedError',
+      ],
+      [
+        ContextUploadErrorType.kBrowserProcessingFileUploadNotAllowedError,
+        'composeboxFileUploadNotAllowed',
+      ],
+      [
+        ContextUploadErrorType.kBrowserProcessingMaxImagesExceededError,
+        'maxImagesReachedError',
+      ],
+      [
+        ContextUploadErrorType.kBrowserProcessingMaxPdfsExceededError,
+        'maxPdfsReachedError',
+      ],
     ]);
 
 export class ComposeboxFile {
@@ -94,6 +123,7 @@ export class ComposeboxFile {
   isDeletable: boolean;
   iconName: string|null;
   supportsUnimodal: boolean;
+  thumbnailUrl?: string|null;
 
   constructor(
       uuid: UnguessableToken, name: string, type: string, inputType: InputType,
@@ -110,6 +140,7 @@ export class ComposeboxFile {
     this.isDeletable = options?.isDeletable ?? true;
     this.iconName = options?.iconName ?? null;
     this.supportsUnimodal = options?.supportsUnimodal ?? false;
+    this.thumbnailUrl = options?.thumbnailUrl ?? null;
   }
 
   static createFromFile(
@@ -151,12 +182,20 @@ export class ComposeboxFile {
 export interface ComposeboxState {
   text: string;
   files: ContextualUpload[];
+  error?: DriveUploadError;
   mode: ToolMode;
   model: ModelMode;
 }
 
 export interface FileUpload {
   file: File;
+}
+
+export interface DriveUpload {
+  token: UnguessableToken;
+  mimeType: string;
+  fileName: string;
+  thumbnailUrl: string|null;
 }
 
 export enum TabUploadOrigin {
@@ -175,7 +214,7 @@ export interface TabUpload {
   origin: TabUploadOrigin;
 }
 
-export type ContextualUpload = TabUpload|FileUpload;
+export type ContextualUpload = TabUpload|FileUpload|DriveUpload;
 
 export enum GlifAnimationState {
   INELIGIBLE = 'ineligible',

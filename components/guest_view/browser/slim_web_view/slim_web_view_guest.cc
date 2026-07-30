@@ -23,6 +23,7 @@
 #include "content/public/browser/navigation_entry.h"
 #include "content/public/browser/navigation_handle.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/storage_partition_config.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
@@ -372,6 +373,13 @@ void SlimWebViewGuest::RequestMediaAccessPermission(
   GuestRequestMediaAccessPermission(request, std::move(callback));
 }
 
+void SlimWebViewGuest::CanDownload(const GURL& url,
+                                   const std::string& request_method,
+                                   base::OnceCallback<void(bool)> callback) {
+  CHECK(!base::FeatureList::IsEnabled(features::kGuestViewMPArch));
+  permission_helper_.CanDownload(url, request_method, std::move(callback));
+}
+
 void SlimWebViewGuest::DidStartNavigation(
     content::NavigationHandle* navigation_handle) {
   if (!IsObservedNavigationWithinGuest(navigation_handle)) {
@@ -530,10 +538,14 @@ void SlimWebViewGuest::CreateInnerPage(
   bool persist_storage = false;
   ParsePartitionParam(create_params, &storage_partition_id, &persist_storage);
   content::StoragePartitionConfig partition_config =
-      content::StoragePartitionConfig::Create(
-          browser_context(),
-          owner_rfh()->GetSiteInstance()->GetSiteURL().GetHost(),
-          storage_partition_id, !persist_storage);
+      content::StoragePartitionConfig::Create(browser_context(),
+                                              owner_rfh()
+                                                  ->GetSiteInstance()
+                                                  ->GetSecurityPrincipal()
+                                                  .GetDeprecatedSiteURL()
+                                                  .GetHost(),
+                                              storage_partition_id,
+                                              !persist_storage);
 
   scoped_refptr<content::SiteInstance> guest_site_instance =
       content::SiteInstance::CreateForGuest(browser_context(),

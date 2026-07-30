@@ -54,6 +54,7 @@
 #include "third_party/blink/renderer/core/html/forms/form_data.h"
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_input_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_opt_group_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_option_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_options_collection.h"
@@ -75,6 +76,7 @@
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/spatial_navigation.h"
 #include "third_party/blink/renderer/platform/bindings/exception_state.h"
+#include "third_party/blink/renderer/platform/bindings/script_forbidden_scope.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/instrumentation/tracing/trace_event.h"
 #include "third_party/blink/renderer/platform/text/platform_locale.h"
@@ -398,12 +400,25 @@ bool HTMLSelectElement::IsPresentationAttribute(
 }
 
 namespace {
+
 void MaybeUseCountMultipleSizeOne(HTMLSelectElement& select) {
   if (select.IsMultiple() && select.FastHasAttribute(html_names::kSizeAttr) &&
       select.size() == 1) {
     UseCounter::Count(select.GetDocument(), WebFeature::kSelectMultipleSizeOne);
   }
 }
+
+void LogOptionAndInputWarning(Node& node) {
+  // TODO(crbug.com/402429384): Make this a DevTools issue in order to add a red
+  // underline on the node in the elements panel.
+  node.AddConsoleMessage(
+      mojom::ConsoleMessageSource::kJavaScript,
+      mojom::ConsoleMessageLevel::kWarning,
+      "An <option> and an <input> were put inside the same child of a <select> "
+      "element. In order to ensure accessibility, the <option> and <input> "
+      "must be placed inside separate children of the <select> element.");
+}
+
 }  // namespace
 
 void HTMLSelectElement::ParseAttribute(
@@ -418,7 +433,11 @@ void HTMLSelectElement::ParseAttribute(
       ChangeRendering();
       UpdateUserAgentShadowTree(*UserAgentShadowRoot());
       UpdateMutationObserver();
-      ResetToDefaultSelection();
+      // The selection can't change if there are no children; this is a
+      // common case during parsing.
+      if (hasChildren()) {
+        ResetToDefaultSelection();
+      }
       select_type_->UpdateTextStyleAndContent();
       select_type_->SaveListboxActiveSelection();
     }
@@ -869,16 +888,17 @@ bool HTMLSelectElement::ChildrenChangedAllChildrenRemovedNeedsList() const {
 
 void HTMLSelectElement::ElementInserted(Node& node) {
   if (auto* option = DynamicTo<HTMLOptionElement>(&node)) {
-    OptionInserted(*option, option->Selected());
+    OptionInserted(*option, option, option->Selected());
   } else if (auto* optgroup = DynamicTo<HTMLOptGroupElement>(&node)) {
     for (auto& child_option :
          Traversal<HTMLOptionElement>::ChildrenOf(*optgroup)) {
-      OptionInserted(child_option, child_option.Selected());
+      OptionInserted(child_option, optgroup, child_option.Selected());
     }
   }
 }
 
 void HTMLSelectElement::OptionInserted(HTMLOptionElement& option,
+                                       Node* nearest_ancestor_select_child,
                                        bool option_is_selected) {
   DCHECK_EQ(option.OwnerSelectElement(), this);
   SetRecalcListItems();
@@ -906,6 +926,10 @@ void HTMLSelectElement::OptionInserted(HTMLOptionElement& option,
 
   was_option_inserted_ = true;
 
+  if (RuntimeEnabledFeatures::FilterableSelectEnabled()) {
+    CountedElementInserted(&option, nearest_ancestor_select_child);
+  }
+
   if (!GetDocument().IsActive())
     return;
 
@@ -928,7 +952,8 @@ void HTMLSelectElement::UpdateAllSelectedcontents() {
   }
 }
 
-void HTMLSelectElement::OptionRemoved(HTMLOptionElement& option) {
+void HTMLSelectElement::OptionRemoved(HTMLOptionElement& option,
+                                      Node* nearest_ancestor_select_child) {
   SetRecalcListItems();
 
   if (option.Selected() &&
@@ -955,6 +980,10 @@ void HTMLSelectElement::OptionRemoved(HTMLOptionElement& option) {
     SetAutofillState(WebAutofillState::kNotFilled);
   SetNeedsValidityCheck();
   select_type_->ClearLastOnChangeSelection();
+
+  if (RuntimeEnabledFeatures::FilterableSelectEnabled()) {
+    CountedElementRemoved(&option, nearest_ancestor_select_child);
+  }
 
   if (!GetDocument().IsActive())
     return;
@@ -1362,7 +1391,7 @@ void HTMLSelectElement::ChildrenChanged(const ChildrenChange& change) {
       // OptionRemoved is normally called in HTMLOptionElement::RemovedFrom,
       // but as a direct child we call OptionRemoved here in order to avoid
       // https://issues.chromium.org/issues/444330901
-      OptionRemoved(*option);
+      OptionRemoved(*option, option);
     }
   } else if (change.type == ChildrenChangeType::kAllChildrenRemoved) {
     for (Node* node : change.removed_nodes) {
@@ -1370,7 +1399,7 @@ void HTMLSelectElement::ChildrenChanged(const ChildrenChange& change) {
         button_changed = true;
       } else if (auto* option = DynamicTo<HTMLOptionElement>(node)) {
         // See comment in kElementRemoved case.
-        OptionRemoved(*option);
+        OptionRemoved(*option, option);
       }
     }
   }
@@ -1504,10 +1533,11 @@ void HTMLSelectElement::Trace(Visitor* visitor) const {
   visitor->Trace(list_items_);
   visitor->Trace(last_on_change_option_);
   visitor->Trace(suggested_option_);
+  visitor->Trace(active_option_);
+  visitor->Trace(children_descendant_counts_map_);
   visitor->Trace(descendant_selectedcontents_);
   visitor->Trace(select_type_);
   visitor->Trace(descendants_observer_);
-  visitor->Trace(active_option_);
   HTMLFormControlElementWithState::Trace(visitor);
 }
 
@@ -2070,33 +2100,108 @@ void HTMLSelectElement::UpdateIndividualSelectedcontent(
 
 // static
 HTMLSelectElement::SelectOptgroupDatalist
-HTMLSelectElement::AssociatedSelectAndOptgroupAndDatalist(
-    const Element& element) {
+HTMLSelectElement::WalkAncestorsForRelatedParts(const Element& element) {
   HTMLOptGroupElement* ancestor_optgroup = nullptr;
-  for (Node& ancestor : NodeTraversal::AncestorsOf(element)) {
+  ContainerNode* last_ancestor = const_cast<Element*>(&element);
+  for (ContainerNode* ancestor = element.parentNode(); ancestor;
+       ancestor = ancestor->parentNode()) {
     if (IsA<HTMLOptionElement>(ancestor)) {
       // Elements nested inside of an <option> are not associated with the
       // <select>.
-      return {nullptr, ancestor_optgroup, nullptr};
+      return {.optgroup = ancestor_optgroup};
     } else if (auto* new_ancestor_optgroup =
                    DynamicTo<HTMLOptGroupElement>(ancestor)) {
       if (ancestor_optgroup || IsA<HTMLOptGroupElement>(element)) {
         // Doubly-nested <optgroup>s and their descendants are not <select>
         // associated.
-        return {nullptr, ancestor_optgroup, nullptr};
+        return {.optgroup = ancestor_optgroup};
       }
       ancestor_optgroup = new_ancestor_optgroup;
     } else if (IsA<HTMLHRElement>(ancestor)) {
       // Descendants of <hr> elements are not <select> associated.
-      return {nullptr, ancestor_optgroup, nullptr};
+      return {.optgroup = ancestor_optgroup};
     } else if (auto* datalist = DynamicTo<HTMLDataListElement>(ancestor)) {
       // Descendants of <datalist> elements are not <select> associated.
-      return {nullptr, ancestor_optgroup, datalist};
+      return {.optgroup = ancestor_optgroup, .datalist = datalist};
     } else if (auto* select = DynamicTo<HTMLSelectElement>(ancestor)) {
-      return {select, ancestor_optgroup, nullptr};
+      return {.select = select,
+              .optgroup = ancestor_optgroup,
+              .select_child = last_ancestor};
     }
+    last_ancestor = ancestor;
   }
-  return {nullptr, ancestor_optgroup, nullptr};
+  return {.optgroup = ancestor_optgroup};
+}
+
+void HTMLSelectElement::InputInserted(HTMLInputElement* input,
+                                      Node* nearest_ancestor_select_child) {
+  CountedElementInserted(input, nearest_ancestor_select_child);
+  // TODO(crbug.com/402429384): Update the UA ShadowRoot to account for the
+  // added input.
+}
+
+void HTMLSelectElement::InputRemoved(HTMLInputElement* input,
+                                     Node* nearest_ancestor_select_child) {
+  CountedElementRemoved(input, nearest_ancestor_select_child);
+  // TODO(crbug.com/402429384): Update the UA ShadowRoot to account for the
+  // removed input.
+}
+
+void HTMLSelectElement::CountedElementInserted(
+    HTMLElement* element,
+    Node* nearest_ancestor_select_child) {
+  CHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
+  CHECK_EQ(nearest_ancestor_select_child->parentNode(), this);
+
+  auto insert_result = children_descendant_counts_map_.insert(
+      nearest_ancestor_select_child, DescendantCounts{0, 0});
+  if (IsA<HTMLInputElement>(element)) {
+    insert_result.stored_value->value.num_inputs++;
+    num_descendant_inputs_++;
+  } else {
+    CHECK(IsA<HTMLOptionElement>(element));
+    insert_result.stored_value->value.num_options++;
+  }
+  if (insert_result.stored_value->value.num_options &&
+      insert_result.stored_value->value.num_inputs) {
+    LogOptionAndInputWarning(*element);
+  }
+}
+
+void HTMLSelectElement::CountedElementRemoved(
+    HTMLElement* element,
+    Node* nearest_ancestor_select_child) {
+  CHECK(RuntimeEnabledFeatures::FilterableSelectEnabled());
+  CHECK(!nearest_ancestor_select_child->parentNode() ||
+        nearest_ancestor_select_child->parentNode() == this);
+
+  auto it = children_descendant_counts_map_.find(nearest_ancestor_select_child);
+  CHECK_NE(it, children_descendant_counts_map_.end());
+  if (IsA<HTMLInputElement>(element)) {
+    CHECK_GT(it->value.num_inputs, 0u);
+    it->value.num_inputs--;
+    CHECK_GT(num_descendant_inputs_, 0u);
+    num_descendant_inputs_--;
+  } else {
+    CHECK_GT(it->value.num_options, 0u);
+    it->value.num_options--;
+  }
+  if (it->value.num_inputs == 0 && it->value.num_options == 0) {
+    children_descendant_counts_map_.erase(it);
+  }
+}
+
+unsigned HTMLSelectElement::NumDescendantInputs() const {
+#if DCHECK_IS_ON()
+  {
+    unsigned num_inputs_in_map = 0;
+    for (auto& pair : children_descendant_counts_map_) {
+      num_inputs_in_map += pair.value.num_inputs;
+    }
+    DCHECK_EQ(num_inputs_in_map, num_descendant_inputs_);
+  }
+#endif
+  return num_descendant_inputs_;
 }
 
 FocusableState HTMLSelectElement::SupportsFocus(

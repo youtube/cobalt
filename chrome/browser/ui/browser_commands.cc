@@ -82,6 +82,7 @@
 #include "chrome/browser/ui/exclusive_access/fullscreen_controller.h"
 #include "chrome/browser/ui/find_bar/find_bar.h"
 #include "chrome/browser/ui/find_bar/find_bar_controller.h"
+#include "chrome/browser/ui/focus/browser_focus_controller.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
@@ -1499,6 +1500,7 @@ void GroupTab(BrowserWindowInterface* browser) {
 }
 
 void NewSplitTab(BrowserWindowInterface* browser,
+                 split_tabs::SplitTabLayout layout,
                  split_tabs::SplitTabCreatedSource source) {
   TabStripModel* const tab_strip_model = browser->GetTabStripModel();
   const int active_index = tab_strip_model->active_index();
@@ -1511,8 +1513,9 @@ void NewSplitTab(BrowserWindowInterface* browser,
       new_tab_url, active_index + 1, true,
       tab_strip_model->GetTabGroupForTab(active_index),
       tab_strip_model->IsTabPinned(active_index));
-  tab_strip_model->AddToNewSplit({active_index},
-                                 split_tabs::SplitTabVisualData(), source);
+  split_tabs::SplitTabVisualData visual_data = split_tabs::SplitTabVisualData();
+  visual_data.set_split_layout(layout);
+  tab_strip_model->AddToNewSplit({active_index}, visual_data, source);
 
   if (content::WebContents* active_contents =
           tab_strip_model->GetActiveWebContents()) {
@@ -2319,22 +2322,22 @@ void FocusBookmarksToolbar(BrowserWindowInterface* browser) {
 
 void FocusInactivePopupForAccessibility(BrowserWindowInterface* browser) {
   base::RecordAction(UserMetricsAction("FocusInactivePopupForAccessibility"));
-  browser->GetBrowserForMigrationOnly()->window()->FocusInactivePopupForAccessibility();
+  BrowserFocusController::From(browser)->FocusInactivePopupForAccessibility();
 }
 
 void FocusNextPane(BrowserWindowInterface* browser) {
   base::RecordAction(UserMetricsAction("FocusNextPane"));
-  browser->GetBrowserForMigrationOnly()->window()->RotatePaneFocus(true);
+  BrowserFocusController::From(browser)->RotatePaneFocus(true);
 }
 
 void FocusPreviousPane(BrowserWindowInterface* browser) {
   base::RecordAction(UserMetricsAction("FocusPreviousPane"));
-  browser->GetBrowserForMigrationOnly()->window()->RotatePaneFocus(false);
+  BrowserFocusController::From(browser)->RotatePaneFocus(false);
 }
 
 void FocusWebContentsPane(BrowserWindowInterface* browser) {
   base::RecordAction(UserMetricsAction("FocusWebContentsPane"));
-  browser->GetBrowserForMigrationOnly()->window()->FocusWebContentsPane();
+  BrowserFocusController::From(browser)->FocusWebContentsPane();
 }
 
 void ToggleDevToolsWindow(BrowserWindowInterface* browser,

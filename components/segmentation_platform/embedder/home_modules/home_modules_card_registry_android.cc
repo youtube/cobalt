@@ -14,10 +14,10 @@
 #include "components/segmentation_platform/embedder/home_modules/constants.h"
 #include "components/segmentation_platform/embedder/home_modules/default_browser_promo.h"
 #include "components/segmentation_platform/embedder/home_modules/history_sync_promo.h"
+#include "components/segmentation_platform/embedder/home_modules/ntp_theme_promo.h"
 #include "components/segmentation_platform/embedder/home_modules/quick_delete_promo.h"
 #include "components/segmentation_platform/embedder/home_modules/tab_group_promo.h"
 #include "components/segmentation_platform/embedder/home_modules/tab_group_sync_promo.h"
-#include "components/segmentation_platform/embedder/home_modules/tips_notifications_promo.h"
 #include "components/segmentation_platform/public/constants.h"
 #include "components/segmentation_platform/public/features.h"
 
@@ -33,6 +33,11 @@ HomeModulesCardRegistryAndroid::HomeModulesCardRegistryAndroid(
   }
 
   // TODO(crbug.com/420897397): Move the forced card check out from each card.
+  if (NtpThemePromo::IsEnabled(profile_prefs_)) {
+    all_cards_by_priority_.push_back(
+        std::make_unique<NtpThemePromo>(profile_prefs_));
+  }
+
   if (DefaultBrowserPromo::IsEnabled(profile_prefs_)) {
     all_cards_by_priority_.push_back(
         std::make_unique<DefaultBrowserPromo>(profile_prefs_));
@@ -58,10 +63,11 @@ HomeModulesCardRegistryAndroid::HomeModulesCardRegistryAndroid(
         std::make_unique<QuickDeletePromo>(profile_prefs_));
   }
 
-  if (TipsNotificationsPromo::IsEnabled(profile_prefs_)) {
-    all_cards_by_priority_.push_back(
-        std::make_unique<TipsNotificationsPromo>(profile_prefs_));
-  }
+  // TODO(crbug.com/509972652): Clean up the prefs in M153+.
+  profile_prefs_->ClearPref(
+      "ephemeral_pref_counter.tips_notifications_promo_counter");
+  profile_prefs_->ClearPref(
+      "ephemeral_pref_interacted.tips_notifications_promo_interacted");
 
   InitializeAfterAddingCards();
 }
@@ -81,9 +87,15 @@ void HomeModulesCardRegistryAndroid::RegisterProfilePrefs(
   TabGroupPromo::RegisterProfilePrefs(registry);
   TabGroupSyncPromo::RegisterProfilePrefs(registry);
   QuickDeletePromo::RegisterProfilePrefs(registry);
+  NtpThemePromo::RegisterProfilePrefs(registry);
   AuxiliarySearchPromo::RegisterProfilePrefs(registry);
   HistorySyncPromo::RegisterProfilePrefs(registry);
-  TipsNotificationsPromo::RegisterProfilePrefs(registry);
+
+  // TODO(crbug.com/509972652): Clean up the prefs in M153+.
+  registry->RegisterIntegerPref(
+      "ephemeral_pref_counter.tips_notifications_promo_counter", 0);
+  registry->RegisterBooleanPref(
+      "ephemeral_pref_interacted.tips_notifications_promo_interacted", false);
 }
 
 void HomeModulesCardRegistryAndroid::NotifyCardShown(

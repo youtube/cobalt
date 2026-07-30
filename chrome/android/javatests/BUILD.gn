@@ -699,7 +699,10 @@ android_library(
     "src/org/chromium/chrome/browser/contextualsearch/MockContextualSearchPolicy.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/ui/android/overlay_panel:java",
+  ]
 }
 
 android_library("chrome_test_java_org.chromium.chrome.browser.customtabs") {
@@ -800,12 +803,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.download") {
 
   sources = [
     "src/org/chromium/chrome/browser/download/AutoDownloadsTest.java",
-    "src/org/chromium/chrome/browser/download/ChromeDownloadDelegateTest.java",
     "src/org/chromium/chrome/browser/download/DownloadLocationChangeEnd2EndTest.java",
     "src/org/chromium/chrome/browser/download/DownloadManagerServiceTest.java",
     "src/org/chromium/chrome/browser/download/DownloadSettingsTest.java",
     "src/org/chromium/chrome/browser/download/DownloadTest.java",
-    "src/org/chromium/chrome/browser/download/OMADownloadHandlerTest.java",
     "src/org/chromium/chrome/browser/download/ServicificationDownloadTest.java",
     "src/org/chromium/chrome/browser/download/dialogs/DownloadDialogIncognitoTest.java",
   ]
@@ -1167,7 +1168,9 @@ android_library("chrome_test_java_org.chromium.chrome.browser.permissions") {
 
   deps = [
     ":chrome_test_java_helper",
+    "//base:base_java_test_support",
     "//chrome/browser/ui/android/hats:factory_java",
+    "//ui/android:ui_java",
   ]
 }
 
@@ -1619,6 +1622,7 @@ android_library("chrome_test_java_various") {
     "//chrome/browser/commerce/merchant_viewer/android/javatests/src/org/chromium/chrome/browser/merchant_viewer/PageInfoStoreInfoViewTest.java",
     "//chrome/browser/commerce/price_tracking/android/javatests/src/org/chromium/chrome/browser/price_tracking/PriceDropNotificationManagerTest.java",
     "//chrome/browser/commerce/price_tracking/android/javatests/src/org/chromium/chrome/browser/price_tracking/PriceTrackingFeaturesTest.java",
+    "src/org/chromium/chrome/browser/accessibility_annotator/first_run/AccessibilityAnnotatorFirstRunBottomSheetTest.java",
     "src/org/chromium/chrome/browser/automotive/BackButtonToolbarTest.java",
     "src/org/chromium/chrome/browser/background_sync/BackgroundSyncTest.java",
     "src/org/chromium/chrome/browser/background_sync/PeriodicBackgroundSyncTest.java",
@@ -1755,6 +1759,8 @@ java_group("common_unit_test_deps_java") {
     "//chrome/browser/contextmenu:java",
     "//chrome/browser/download/android:file_provider_java",
     "//chrome/browser/download/android:java",
+    "//chrome/browser/enterprise/util:java",
+    "//chrome/browser/enterprise/util:test_support_java",
     "//chrome/browser/feature_engagement:java",
     "//chrome/browser/first_run/android:java",
     "//chrome/browser/flags:java",
@@ -1884,7 +1890,10 @@ android_library(
     "src/org/chromium/chrome/browser/compositor/overlay_panel/OverlayPanelTest.java",
   ]
 
-  deps = [ ":common_unit_test_deps_java" ]
+  deps = [
+    ":common_unit_test_deps_java",
+    "//chrome/browser/ui/android/overlay_panel:java",
+  ]
 }
 
 android_library(
@@ -2001,6 +2010,7 @@ android_library("chrome_unit_test_java_various") {
   deps = [
     ":common_unit_test_deps_java",
     "//chrome/browser/ui/android/actions:java",
+    "//chrome/browser/ui/android/pdf:pdf_utils_java",
     "//components/omnibox/common:features_java",
   ]
 }

@@ -25,10 +25,10 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/passwords/ui_utils.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/webauthn/context_menu_helper.h"
 #include "chrome/browser/user_education/user_education_service.h"
 #include "chrome/grit/generated_resources.h"
-#include "components/accessibility_annotator/core/accessibility_annotator_types.h"
 #include "components/autofill/content/browser/content_autofill_client.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
 #include "components/autofill/core/browser/autofill_feedback_data.h"
@@ -44,6 +44,7 @@
 #include "components/password_manager/core/browser/password_manager_util.h"
 #include "components/password_manager/core/browser/password_manual_fallback_metrics_recorder.h"
 #include "components/password_manager/core/common/password_manager_pref_names.h"
+#include "components/personal_context/core/personal_context_types.h"
 #include "components/plus_addresses/core/browser/grit/plus_addresses_strings.h"
 #include "components/plus_addresses/core/browser/plus_address_service.h"
 #include "components/plus_addresses/core/common/features.h"
@@ -54,6 +55,8 @@
 #include "content/public/browser/web_contents.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
+#include "ui/color/color_id.h"
+#include "ui/menus/simple_menu_model.h"
 
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
 #include "components/plus_addresses/core/browser/resources/vector_icons.h"
@@ -333,9 +336,8 @@ void AutofillContextMenuManager::MaybeAddAutofillAtMemoryItem() {
 
   if (autofill_driver->GetAutofillManager()
           .client()
-          .GetAccessibilityAnnotatorEnablementState() ==
-      accessibility_annotator::RemoteAnnotatorEnablementState::
-          kDisabledNotEligible) {
+          .GetPersonalContextEnablementState() ==
+      personal_context::PersonalContextEnablementState::kDisabledNotEligible) {
     return;
   }
 
@@ -467,6 +469,14 @@ void AutofillContextMenuManager::AddPasswordsManualFallbackItems(
     menu_model_->AddItemWithStringId(
         IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD,
         IDS_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD);
+
+    if (base::FeatureList::IsEnabled(::features::kMenuSimplification)) {
+      menu_model_->SetIconForCommandId(
+          IDC_CONTENT_CONTEXT_AUTOFILL_FALLBACK_PASSWORDS_SELECT_PASSWORD,
+          ui::ImageModel::FromVectorIcon(
+              vector_icons::kPasswordManagerIcon, ui::kColorMenuIcon,
+              ui::SimpleMenuModel::kDefaultIconSize));
+    }
   }
   if (add_password_generation_option) {
     menu_model_->AddItemWithStringId(

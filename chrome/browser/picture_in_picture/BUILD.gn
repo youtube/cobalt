@@ -112,6 +112,7 @@ source_set("impl") {
     ]
     deps += [
       "//chrome/android:chrome_jni_headers",
+      "//chrome/browser/ui/android/overlay",
       "//components/strings:components_strings",
     ]
   } else {
@@ -224,6 +225,7 @@ if (!is_android) {
       "//base",
       "//base/test:test_support",
       "//chrome/browser",
+      "//chrome/browser:chrome_content_browser_client",
       "//chrome/browser/content_settings:content_settings_factory",
       "//chrome/browser/devtools:test_support",
       "//chrome/browser/preloading:test_support",

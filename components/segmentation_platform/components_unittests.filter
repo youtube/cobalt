@@ -52,6 +52,7 @@
 *ModelManagerTest.*
 *ModelProviderFactoryImplTest.*
 *MostVisitedTilesUserTest.*
+*NtpThemePromoTest.*
 *OptimizationGuideSegmentationModelProviderTest.*
 *OptimizationTargetSegmentationDummyTest.*
 *PasswordManagerUserModelTest.*
@@ -101,7 +102,6 @@
 *TabSessionSourceTest.*
 *TabletProductivityUserModelTest.*
 *TipsManagerTest.*
-*TipsNotificationsPromoTest.*
 *TipsNotificationsRankerTest.*
 *TrainingDataCacheTest.*
 *TrainingDataCollectorImplTest.*

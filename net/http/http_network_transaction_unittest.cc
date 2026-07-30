@@ -120,6 +120,7 @@
 #include "net/socket/socket_test_util.h"
 #include "net/socket/socks_connect_job.h"
 #include "net/socket/ssl_client_socket.h"
+#include "net/spdy/spdy_http_utils.h"
 #include "net/spdy/spdy_session.h"
 #include "net/spdy/spdy_session_pool.h"
 #include "net/spdy/spdy_test_util_common.h"
@@ -23707,6 +23708,42 @@ TEST_P(HttpNetworkTransactionTest, CreateWebSocketHandshakeStream) {
   }
 }
 
+TEST_P(HttpNetworkTransactionTest,
+       WebSocketFallbackResultUsesHttp3ConnectionInfo) {
+  base::HistogramTester histogram_tester;
+
+  HttpRequestInfo request;
+  request.method = "GET";
+  request.url = GURL("ws://www.example.org/");
+  AddWebSocketHeaders(&request.extra_headers);
+  request.traffic_annotation =
+      MutableNetworkTrafficAnnotationTag(TRAFFIC_ANNOTATION_FOR_TESTS);
+
+  TestWebSocketHandshakeStreamCreateHelper
+      websocket_handshake_stream_create_helper;
+
+  std::unique_ptr<HttpNetworkSession> session(CreateSession(&session_deps_));
+  HttpNetworkTransaction trans(LOW, session.get());
+  trans.SetWebSocketHandshakeStreamCreateHelper(
+      &websocket_handshake_stream_create_helper);
+
+  trans.request_ = &request;
+  quiche::HttpHeaderBlock h3_response_headers;
+  // HTTP/3 uses the same ":status" pseudo-header as HTTP/2.
+  h3_response_headers[spdy::kHttp2StatusHeader] = "200";
+  EXPECT_THAT(SpdyHeadersToHttpResponse(h3_response_headers, &trans.response_),
+              IsOk());
+  trans.response_.connection_info = HttpConnectionInfo::kQUIC_RFC_V1;
+
+  EXPECT_THAT(trans.DoReadHeadersComplete(OK), IsOk());
+
+  // A completed WebSocket handshake response with QUIC connection info is
+  // recorded as WebSocketFallbackResult::kSuccessHttp3 (5).
+  histogram_tester.ExpectUniqueSample("Net.WebSocket.FallbackResult",
+                                      /*sample=*/5,
+                                      /*expected_bucket_count=*/1);
+}
+
 // Verify that proxy headers are not sent to the destination server when
 // establishing a tunnel for a secure WebSocket connection.
 TEST_P(HttpNetworkTransactionTest, ProxyHeadersNotSentOverWssTunnel) {
@@ -28434,39 +28471,50 @@ TEST_P(HttpNetworkTransactionTest, ProxyAdditionalCapacity) {
   SocketPoolAdditionalCapacity real_poll_128 =
       SocketPoolAdditionalCapacity::CreateForTest(
           /*base=*/0.1, /*capacity=*/128, /*minimum=*/0.3, /*noise=*/0.4);
-  for (bool proxy_pool_randomization : {true, false}) {
-    base::test::ScopedFeatureList feature_list;
-    feature_list.InitWithFeatureState(
-        features::kTcpSocketPoolLimitRandomizationForProxy,
-        proxy_pool_randomization);
-    std::unique_ptr<HttpNetworkSession> session = CreateSession(&session_deps_);
-    EXPECT_EQ(session
-                  ->GetSocketPool(HttpNetworkSession::SocketPoolType::kNormal,
-                                  ProxyChain::Direct())
-                  ->AdditionalCapacityForTest(),
-              real_poll_256);
-    EXPECT_EQ(
-        session
-            ->GetSocketPool(HttpNetworkSession::SocketPoolType::kWebSocket,
-                            ProxyChain::Direct())
-            ->AdditionalCapacityForTest(),
-        real_poll_256);
-    EXPECT_EQ(session
-                  ->GetSocketPool(
-                      HttpNetworkSession::SocketPoolType::kNormal,
-                      ProxyChain(ProxyServer::SCHEME_HTTPS,
-                                 SameProxyWithDifferentSchemesProxyResolver::
-                                     ProxyHostPortPair()))
-                  ->AdditionalCapacityForTest(),
-              proxy_pool_randomization ? real_poll_128 : empty_pool);
-    EXPECT_EQ(session
-                  ->GetSocketPool(
-                      HttpNetworkSession::SocketPoolType::kWebSocket,
-                      ProxyChain(ProxyServer::SCHEME_HTTPS,
-                                 SameProxyWithDifferentSchemesProxyResolver::
-                                     ProxyHostPortPair()))
-                  ->AdditionalCapacityForTest(),
-              proxy_pool_randomization ? real_poll_128 : empty_pool);
+  for (bool allow_proxy_pool_randomization : {true, false}) {
+    ClientSocketPoolManager::set_allow_size_randomization_for_proxy(
+        allow_proxy_pool_randomization);
+    for (bool proxy_pool_randomization_feature : {true, false}) {
+      base::test::ScopedFeatureList feature_list;
+      feature_list.InitWithFeatureState(
+          features::kTcpSocketPoolLimitRandomizationForProxy,
+          proxy_pool_randomization_feature);
+      std::unique_ptr<HttpNetworkSession> session =
+          CreateSession(&session_deps_);
+      EXPECT_EQ(session
+                    ->GetSocketPool(HttpNetworkSession::SocketPoolType::kNormal,
+                                    ProxyChain::Direct())
+                    ->AdditionalCapacityForTest(),
+                real_poll_256);
+      EXPECT_EQ(
+          session
+              ->GetSocketPool(HttpNetworkSession::SocketPoolType::kWebSocket,
+                              ProxyChain::Direct())
+              ->AdditionalCapacityForTest(),
+          real_poll_256);
+      EXPECT_EQ(
+          session
+              ->GetSocketPool(
+                  HttpNetworkSession::SocketPoolType::kNormal,
+                  ProxyChain(ProxyServer::SCHEME_HTTPS,
+                             SameProxyWithDifferentSchemesProxyResolver::
+                                 ProxyHostPortPair()))
+              ->AdditionalCapacityForTest(),
+          allow_proxy_pool_randomization && proxy_pool_randomization_feature
+              ? real_poll_128
+              : empty_pool);
+      EXPECT_EQ(
+          session
+              ->GetSocketPool(
+                  HttpNetworkSession::SocketPoolType::kWebSocket,
+                  ProxyChain(ProxyServer::SCHEME_HTTPS,
+                             SameProxyWithDifferentSchemesProxyResolver::
+                                 ProxyHostPortPair()))
+              ->AdditionalCapacityForTest(),
+          allow_proxy_pool_randomization && proxy_pool_randomization_feature
+              ? real_poll_128
+              : empty_pool);
+    }
   }
 }
 

@@ -377,7 +377,7 @@ void Preferences::RegisterProfilePrefs(
   registry->RegisterIntegerPref(prefs::kKeyEventRemappedToSixPackPageDown, 0);
 
   // Don't sync the note-taking app; it may not be installed on other devices.
-  registry->RegisterStringPref(::prefs::kNoteTakingAppId, std::string());
+  registry->RegisterStringPref(ash::prefs::kNoteTakingAppId, std::string());
 
   registry->RegisterBooleanPref(::prefs::kLockScreenAutoStartOnlineReauth,
                                 false);
@@ -1047,8 +1047,6 @@ void Preferences::ApplyPreferences(ApplyReason reason,
     if (user_is_active) {
       mouse_settings.SetPrimaryButtonRight(right);
     }
-    ReportBooleanPrefApplication(reason, "Mouse.PrimaryButtonRight.Changed",
-                                 "Mouse.PrimaryButtonRight.Started", right);
     // Save owner preference in local state to use on login screen.
     if (user_is_owner) {
       if (local_state_->GetBoolean(prefs::kOwnerPrimaryMouseButtonRight) !=

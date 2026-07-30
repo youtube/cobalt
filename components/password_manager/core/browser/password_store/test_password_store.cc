@@ -33,8 +33,8 @@ void TestPasswordStore::CallSyncEnabledOrDisabledCallbacks() {
 }
 
 void TestPasswordStore::TriggerOnLoginsRetainedForAndroid(
-    const std::vector<PasswordForm>& password_forms) {
-  fake_backend()->TriggerOnLoginsRetainedForAndroid(password_forms);
+    const std::vector<StoredCredential>& credentials) {
+  fake_backend()->TriggerOnLoginsRetainedForAndroid(credentials);
 }
 
 void TestPasswordStore::ReturnErrorOnRequest(
@@ -63,10 +63,11 @@ const FakePasswordStoreBackend* TestPasswordStore::fake_backend() const {
 TestPasswordStore::PasswordMap GetAllLoginsSync(PasswordStoreInterface* store) {
   PasswordStoreResultsObserver observer;
   store->GetAllLogins(observer.GetWeakPtr());
-  std::vector<PasswordForm> results = observer.WaitForResults();
+  std::vector<StoredCredential> results = observer.WaitForResults();
   TestPasswordStore::PasswordMap map;
   for (auto& result : results) {
-    map[result.signon_realm].push_back(std::move(result));
+    std::string signon_realm = result.signon_realm;
+    map[signon_realm].push_back(ToPasswordForm(std::move(result)));
   }
   return map;
 }

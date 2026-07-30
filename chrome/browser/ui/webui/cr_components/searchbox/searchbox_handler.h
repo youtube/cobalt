@@ -63,6 +63,10 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
     bool is_lens = false;
   };
 
+  static bool GetAllVoiceSearchCoherenceComposeboxesEnabled();
+  static bool GetVoiceSearchCoherenceAnySearchboxExperimentEnabled();
+  static bool GetVoiceSearchCoherenceCobrowsingComposeboxEnabled();
+
   static base::DictValue GetWebUIDataSourceDict(Profile* profile);
   static base::DictValue GetWebUIDataSourceDict(Profile* profile,
                                                 WebUIDataSourceOptions options);
@@ -71,9 +75,6 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   // `OmniboxAction::GetIconImage()` to svg resource strings.
   virtual std::string AutocompleteIconToResourceName(
       const gfx::VectorIcon& icon) const;
-
-  // Returns true if the page remote is bound and ready to receive calls.
-  bool IsRemoteBound() const;
 
   // Adds file context to the searchbox from the browser.
   void AddFileContextFromBrowser(
@@ -103,6 +104,8 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
                              bool ctrl_key,
                              bool meta_key,
                              bool shift_key) override;
+  void SetSmartComposeStats(
+      searchbox::mojom::SmartComposeStatsPtr smart_compose_stats) override {}
   void SetPopupSelection(
       searchbox::mojom::OmniboxPopupSelectionPtr selection) override;
   void OpenPopupSelection(uint32_t result_sequence_id,
@@ -138,10 +141,6 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   void AddTabContext(int32_t tab_id,
                      bool delay_upload,
                      AddTabContextCallback) override {}
-  void AddDriveContext(const std::string& drive_id,
-                       const std::string& resource_key,
-                       const std::string& mime_type_string,
-                       AddDriveContextCallback callback) override {}
   void DeleteContext(const base::UnguessableToken& file_token,
                      bool from_automatic_chip) override {}
   void ClearFiles(bool should_block_auto_suggested_tabs) override {}
@@ -160,12 +159,8 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
   void ShouldShowDriveDisclaimer(
       ShouldShowDriveDisclaimerCallback callback) override;
   void OnDriveDisclaimerAccepted() override;
-  void OnDriveUploadClicked() override {}
+  void OnDriveUploadClicked(OnDriveUploadClickedCallback callback) override;
   void GetPageClassification(GetPageClassificationCallback callback) override;
-
-  // Stores `callback` to be run when the page remote is bound and ready to
-  // receive calls. Runs `callback` immediately if the remote is already bound.
-  void set_page_is_bound_callback_for_testing(base::OnceClosure callback);
 
  protected:
   FRIEND_TEST_ALL_PREFIXES(RealboxHandlerTest, AutocompleteController_Start);
@@ -204,7 +199,6 @@ class SearchboxHandler : public searchbox::mojom::PageHandler,
 
   mojo::Receiver<searchbox::mojom::PageHandler> page_handler_;
   mojo::Remote<searchbox::mojom::Page> page_;
-  base::OnceClosure page_is_bound_callback_for_testing_;
 
   searchbox::mojom::AutocompleteResultPtr CreateAutocompleteResult(
       const std::u16string& input,

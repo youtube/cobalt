@@ -83,6 +83,7 @@
 #include "third_party/blink/public/web/blink.h"
 #include "third_party/blink/public/web/web_navigation_type.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_controller.h"
+#include "third_party/blink/renderer/core/ad_tracker/ad_tracker.h"
 #include "third_party/blink/renderer/core/css/style_engine.h"
 #include "third_party/blink/renderer/core/dom/document.h"
 #include "third_party/blink/renderer/core/dom/document_init.h"
@@ -679,8 +680,11 @@ DocumentLoader::DocumentLoader(
   if (was_blocked_by_document_policy_)
     ReplaceWithEmptyDocument();
 
-  for (const auto& resource : params_->early_hints_preloaded_resources)
-    early_hints_preloaded_resources_.insert(resource, EarlyHintsPreloadEntry());
+  for (const auto& resource : params_->early_hints_preloaded_resources) {
+    early_hints_preloaded_resources_.insert(
+        KURL(resource.url),
+        EarlyHintsPreloadEntry(resource.as, resource.cross_origin));
+  }
 
   CHECK_EQ(IsBackForwardOrRestore(params_->frame_load_type), !!history_item_);
 
@@ -774,8 +778,13 @@ DocumentLoader::CreateWebNavigationParamsToCloneDocument() {
       CopyInitiatorOriginTrials(initiator_origin_trial_features_);
   params->force_enabled_origin_trials =
       CopyForceEnabledOriginTrials(force_enabled_origin_trials_);
-  for (const auto& pair : early_hints_preloaded_resources_)
-    params->early_hints_preloaded_resources.push_back(pair.key);
+  for (const auto& pair : early_hints_preloaded_resources_) {
+    WebEarlyHintsPreloadInfo info;
+    info.url = pair.key;
+    info.as = pair.value.as;
+    info.cross_origin = pair.value.cross_origin;
+    params->early_hints_preloaded_resources.push_back(std::move(info));
+  }
   if (ad_auction_components_) {
     params->ad_auction_components.emplace();
     for (const KURL& url : *ad_auction_components_) {
@@ -1123,10 +1132,45 @@ void DocumentLoader::UpdateForSameDocumentNavigation(
   // soft navigation as well. To make this work, we also pass this token to
   // heuristics->SameDocumentNavigationCommitted (see below).
   auto same_document_metrics_token = base::UnguessableToken::Create();
+
+  bool caused_by_ad = false;
+  if (frame_->IsAdFrame()) {
+    caused_by_ad = true;
+  } else if (auto* ad_tracker = frame_->GetAdTracker()) {
+    // Apply a heuristic to mitigate inaccurate stack tagging caused by common
+    // API monkey patches (e.g., pushState or replaceState). This ensures the
+    // execution is attributed to the true originator of the call.
+    AdTracker::MonkeyPatchableApi monkey_patchable_api =
+        AdTracker::MonkeyPatchableApi::kNone;
+    if (same_document_navigation_type ==
+        mojom::blink::SameDocumentNavigationType::kHistoryApi) {
+      if (type == WebFrameLoadType::kStandard) {
+        monkey_patchable_api = AdTracker::MonkeyPatchableApi::kHistoryPushState;
+      } else if (type == WebFrameLoadType::kReplaceCurrentItem) {
+        monkey_patchable_api =
+            AdTracker::MonkeyPatchableApi::kHistoryReplaceState;
+      }
+    }
+
+    caused_by_ad = ad_tracker->IsAdScriptInStack(
+        AdTracker::StackType::kTopOnly,
+        /*ignore_monkey_patch=*/monkey_patchable_api);
+  }
+
+  if (frame_->DomWindow() &&
+      same_document_navigation_type ==
+          mojom::blink::SameDocumentNavigationType::kHistoryApi &&
+      type == WebFrameLoadType::kStandard) {
+    ukm::builders::HistoryApi_PushState(frame_->DomWindow()->UkmSourceID())
+        .SetHasStickyUserActivation(frame_->HasStickyUserActivation())
+        .SetFromAd(caused_by_ad)
+        .Record(frame_->DomWindow()->UkmRecorder());
+  }
+
   GetLocalFrameClient().DidFinishSameDocumentNavigation(
       commit_type, is_synchronously_committed, same_document_navigation_type,
       is_client_redirect_, is_browser_initiated, should_skip_screenshot,
-      same_document_metrics_token);
+      same_document_metrics_token, caused_by_ad);
   probe::DidNavigateWithinDocument(frame_, same_document_navigation_type);
 
   // If intercept() was called during this same-document navigation's

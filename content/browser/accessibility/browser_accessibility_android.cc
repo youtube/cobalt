@@ -778,14 +778,16 @@ bool BrowserAccessibilityAndroid::IsLeaf() const {
     return GetLeafMap()[this];
   }
 
-  // Non-atomic text fields (e.g. contenteditable) should not be leaves when
-  // this flag is enabled, allowing their internal structure to be exposed.
-  // Atomic text fields like <textarea> remain leaves to maintain existing
-  // behavior.
-  if (base::FeatureList::IsEnabled(
-          features::kAccessibilityExposeNonAtomicTextFieldChildren) &&
-      GetData().IsNonAtomicTextField()) {
-    return false;
+  if (GetData().IsNonAtomicTextField()) {
+    // Non-atomic text fields (e.g. contenteditable) should not be leaves when
+    // this flag is enabled, allowing their internal structure to be exposed.
+    // Atomic text fields like <textarea> remain leaves to maintain existing
+    // behavior.
+    if (base::FeatureList::IsEnabled(
+            features::kAccessibilityExposeNonAtomicTextFieldChildren)) {
+      return false;
+    }
+    return !HasFocusableChild();
   }
 
   if (BrowserAccessibility::IsLeaf()) {
@@ -847,6 +849,11 @@ bool BrowserAccessibilityAndroid::IsLeaf() const {
     // is a leaf. For nodes with relevant children, we will return false here
     // and allow the child nodes to be set as a leaf.
 
+    if (GetRole() == ax::mojom::Role::kComboBoxSelect) {
+      GetLeafMap()[this] = true;
+      return true;
+    }
+
     // Headings with text can drop their children (with exceptions).
     std::u16string name = GetSubstringTextContentUTF16(1);
     if (GetRole() == ax::mojom::Role::kHeading && !name.empty()) {
@@ -883,14 +890,13 @@ bool BrowserAccessibilityAndroid::IsLeafConsideringChildren() const {
   //
   // If a node has a child that meets any of these criteria, it is NOT a leaf:
   //
-  //   * child is focusable, and NOT a menu option
+  //   * child is focusable
   //   * child is a table, cell, or row
   //
   for (auto it = InternalChildrenBegin(); it != InternalChildrenEnd(); ++it) {
     BrowserAccessibility* child = it.get();
 
-    if (child->HasState(ax::mojom::State::kFocusable) &&
-        child->GetRole() != ax::mojom::Role::kMenuListOption) {
+    if (child->HasState(ax::mojom::State::kFocusable)) {
       return false;
     }
 
@@ -914,6 +920,21 @@ bool BrowserAccessibilityAndroid::IsLeafConsideringChildren() const {
   // If no such children were found, return true signaling the parent node can
   // be the leaf node.
   return true;
+}
+
+bool BrowserAccessibilityAndroid::HasFocusableChild() const {
+  // This is called from IsLeaf, so don't call PlatformChildCount
+  // from within this!
+  for (auto it = InternalChildrenBegin(); it != InternalChildrenEnd(); ++it) {
+    BrowserAccessibility* child = it.get();
+    if (child->HasState(ax::mojom::State::kFocusable)) {
+      return true;
+    }
+    if (static_cast<BrowserAccessibilityAndroid*>(child)->HasFocusableChild()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 std::u16string BrowserAccessibilityAndroid::GetBrailleLabel() const {

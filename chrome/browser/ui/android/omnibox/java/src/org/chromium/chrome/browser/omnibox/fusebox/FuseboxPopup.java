@@ -13,11 +13,18 @@ import android.widget.ImageView;
 import android.widget.PopupWindow.OnDismissListener;
 import android.widget.TextView;
 
+import androidx.core.graphics.Insets;
+import androidx.core.view.WindowInsetsCompat;
+
 import org.chromium.base.task.PostTask;
 import org.chromium.base.task.TaskTraits;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxProperties.PopupState;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
+import org.chromium.ui.insets.InsetObserver.WindowInsetObserver;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 
 import java.util.HashSet;
@@ -35,6 +42,7 @@ class FuseboxPopup {
 
     /* package */ final AnchoredPopupWindow mPopupWindow;
     /* package */ final ViewGroup mViewGroup;
+    /* package */ final FuseboxScrollView mScrollView;
     /* package */ final View mAddCurrentTab;
     /* package */ final View mTabButton;
     /* package */ final View mClipboardButton;
@@ -52,16 +60,55 @@ class FuseboxPopup {
     /* package */ final List<TextView> mHeaders;
 
     private final DynamicRectProvider mDynamicRectProvider;
+    private final @Nullable InsetObserver mInsetObserver;
+    private final int mInitialScrollPaddingBottom;
+    private @PopupState int mCurrentState = PopupState.HIDDEN;
+
+    private final WindowInsetObserver mWindowInsetObserver =
+            new WindowInsetObserver() {
+                @Override
+                public void onInsetChanged() {
+                    updateLayout();
+                }
+
+                @Override
+                public void onKeyboardInsetChanged(int inset) {
+                    // The popup covers the ime, so we don't need to do anything when it changes.
+                }
+            };
 
     FuseboxPopup(
             Context context,
+            WindowAndroid windowAndroid,
             AnchoredPopupWindow popupWindow,
             View contentView,
             DynamicRectProvider dynamicRectProvider,
             boolean isBottomSheet) {
         mPopupWindow = popupWindow;
+        mPopupWindow.setClippingEnabled(false);
         mDynamicRectProvider = dynamicRectProvider;
+        mInsetObserver = windowAndroid.getInsetObserver();
+        if (mInsetObserver != null) {
+            mInsetObserver.addObserver(mWindowInsetObserver);
+        }
+
         mViewGroup = contentView.findViewById(R.id.fusebox_view_group);
+        mViewGroup.addOnLayoutChangeListener(
+                (v, left, top, right, bottom, oldLeft, oldTop, oldRight, oldBottom) -> {
+                    if (bottom - top != oldBottom - oldTop) {
+                        PostTask.postTask(
+                                TaskTraits.UI_DEFAULT,
+                                () -> {
+                                    updateLayout();
+                                });
+                    }
+                });
+        mScrollView = contentView.findViewById(R.id.fusebox_scroll_view);
+        mInitialScrollPaddingBottom = mScrollView.getPaddingBottom();
+
+        if (isBottomSheet) {
+            mScrollView.setOnSwipeDownListener(this::dismiss);
+        }
 
         ViewStub stub = contentView.findViewById(R.id.fusebox_attachments_stub);
         stub.setLayoutResource(
@@ -80,7 +127,11 @@ class FuseboxPopup {
         mToolsDivider = contentView.findViewById(R.id.fusebox_tools_divider);
         mToolsHeader = contentView.findViewById(R.id.fusebox_tools_header);
 
-        initializeItem(mAddCurrentTab, R.string.fusebox_add_current_tab, 0, 0);
+        initializeItem(
+                mAddCurrentTab,
+                isBottomSheet ? R.string.fusebox_current_tab : R.string.fusebox_add_current_tab,
+                0,
+                0);
         initializeItem(
                 mTabButton,
                 R.string.omnibox_navattach_tabs,
@@ -95,12 +146,12 @@ class FuseboxPopup {
         initializeItem(
                 mCameraButton,
                 R.string.photo_picker_camera,
-                R.drawable.ic_photo_camera,
+                R.drawable.photo_camera_24dp,
                 R.string.accessibility_omnibox_add_camera_picture);
         initializeItem(
                 mGalleryButton,
                 R.string.omnibox_navattach_gallery,
-                R.drawable.ic_photo_library_fill_24dp,
+                R.drawable.photo_24dp,
                 R.string.accessibility_omnibox_add_images);
         initializeItem(
                 mFileButton,
@@ -122,6 +173,13 @@ class FuseboxPopup {
         mHeaders = List.of(mToolsHeader, mModelsHeader);
     }
 
+    void destroy() {
+        if (mInsetObserver != null) {
+            mInsetObserver.removeObserver(mWindowInsetObserver);
+        }
+        mScrollView.setOnSwipeDownListener(null);
+    }
+
     /** Show the popup window. */
     void show() {
         mPopupWindow.show();
@@ -140,7 +198,8 @@ class FuseboxPopup {
      * @param state The target state of the popup.
      */
     void setPopupState(@PopupState int state) {
-        if (state == FuseboxProperties.PopupState.BOTTOM) {
+        mCurrentState = state;
+        if (state == PopupState.BOTTOM) {
             mPopupWindow.setAnimationStyle(R.style.FuseboxBottomSheetAnimation);
         } else {
             mPopupWindow.setAnimationStyle(0);
@@ -155,11 +214,19 @@ class FuseboxPopup {
             return;
         }
 
-        int width =
-                mDynamicRectProvider.getPopupWidth(state, mViewGroup.getContext().getResources());
-
-        mPopupWindow.updateDesiredContentSize(width, /* height= */ 0, /* updateLayout= */ true);
+        updateLayout();
         show();
+    }
+
+    /**
+     * Update the layout of the popup if it is showing. This is useful when contents change
+     * visibility.
+     */
+    void updateLayout() {
+        if (!isShowing() || mCurrentState == PopupState.HIDDEN) return;
+        updateInsets();
+        int width = mDynamicRectProvider.getPopupWidth(mCurrentState, mViewGroup.getResources());
+        mPopupWindow.updateDesiredContentSize(width, /* height= */ 0, /* updateLayout= */ true);
     }
 
     private void initializeItem(View item, int textRes, int iconRes, int a11yRes) {
@@ -216,5 +283,19 @@ class FuseboxPopup {
     /** Add a listener for when the popup is dismissed. */
     void addOnDismissListener(OnDismissListener listener) {
         mPopupWindow.addOnDismissListener(listener);
+    }
+
+    private void updateInsets() {
+        if (mInsetObserver == null || mCurrentState != PopupState.BOTTOM) return;
+
+        WindowInsetsCompat insets = mInsetObserver.getLastRawWindowInsets();
+        if (insets == null) return;
+
+        Insets navBarInsets = insets.getInsets(WindowInsetsCompat.Type.navigationBars());
+        mScrollView.setPaddingRelative(
+                mScrollView.getPaddingStart(),
+                mScrollView.getPaddingTop(),
+                mScrollView.getPaddingEnd(),
+                mInitialScrollPaddingBottom + navBarInsets.bottom);
     }
 }

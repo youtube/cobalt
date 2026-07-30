@@ -13,6 +13,7 @@ struct InternalsDataPayload {
   ProfileEnablement enablement;
   ConfigInfo config;
   bool show_error_allowed;
+  bool experimental_triggering_enabled;
 };
 
 // Configuration options for invoking Glic from the internals page.
@@ -27,11 +28,14 @@ struct TriggerInvokeFromInternalsOptions {
   string? skill_id;
   string? error_message;
   mojo_base.mojom.TimeDelta? timeout;
-  AllowedInflightNavigation allowed_inflight_navigation;
   bool auto_submit;
   FreOverride fre_override = kUnspecified;
   bool wait_for_panel_open;
+  bool? show_panel;
   InvokeTargetSurface surface;
+  ActuationTarget actuation_target;
+  // Source-specific payload for the invocation.
+  InvocationPayload? payload;
 };
 
 // Page handler for the glic internals WebUI.
@@ -56,6 +60,9 @@ interface InternalsPageHandler {
 
   // Sets whether errors are allowed to be shown.
   SetShowErrorAllowed(bool allowed);
+
+  // Shows the experimental opt-in dialog.
+  ShowExperimentalOptIn();
 };
 
 // Factory for InternalsPageHandler used in chrome://glic/internals.

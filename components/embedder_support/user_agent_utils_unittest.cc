@@ -632,28 +632,8 @@ TEST_F(UserAgentUtilsTest, UserAgentMetadata) {
 
 #if BUILDFLAG(IS_WIN)
   VerifyWinPlatformVersion(metadata.platform_version);
-#elif BUILDFLAG(IS_FUCHSIA)
+#elif BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_FUCHSIA)
   EXPECT_EQ(metadata.platform_version, "");
-#elif BUILDFLAG(IS_LINUX)
-  // TODO(crbug.com/40245146): Remove this Blink feature
-  base::test::ScopedFeatureList scoped_feature_list;
-  scoped_feature_list.InitAndEnableFeature(
-      blink::features::kReduceUserAgentDataLinuxPlatformVersion);
-  {
-    auto metadata_reduced = GetUserAgentMetadata();
-    EXPECT_EQ(metadata_reduced.platform_version, "");
-  }
-  scoped_feature_list.Reset();
-
-  scoped_feature_list.InitAndDisableFeature(
-      blink::features::kReduceUserAgentDataLinuxPlatformVersion);
-  {
-    auto metadata_full = GetUserAgentMetadata();
-    int32_t major, minor, bugfix = 0;
-    base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
-    EXPECT_EQ(metadata_full.platform_version,
-              base::StringPrintf("%d.%d.%d", major, minor, bugfix));
-  }
 #else
   int32_t major, minor, bugfix = 0;
   base::SysInfo::OperatingSystemVersionNumbers(&major, &minor, &bugfix);
@@ -720,17 +700,30 @@ TEST_F(UserAgentUtilsTest, UserAgentMetadataForXrDevice) {
   base::android::device_info::set_is_xr_for_testing();
   EXPECT_EQ(base::android::device_info::is_xr(), true);
 
-  // Get unified platform of the user-agent on xr device.
+  // By default (flag disabled), it should return Linux.
   EXPECT_EQ(GetUnifiedPlatformForTesting(), "X11; Linux x86_64");
 
   auto metadata = GetUserAgentMetadata();
+  EXPECT_EQ(metadata.platform, "Linux");
+
+  // Enable the flag to spoof as ChromeOS.
+  {
+    base::test::ScopedFeatureList feature_list;
+    feature_list.InitAndEnableFeature(
+        blink::features::kAndroidDesktopUASpoofAsChromeOS);
+
+    // Get unified platform of the user-agent on xr device.
+    EXPECT_EQ(GetUnifiedPlatformForTesting(), "X11; CrOS x86_64 14541.0.0");
+
+    auto metadata_cros = GetUserAgentMetadata();
+    EXPECT_EQ(metadata_cros.platform, "Chrome OS");
+  }
 
   // Verify the XR specific info set.
   // TODO(crbug.com/433345971) The user agent string should contain the actual
   // cpu type information obtained from the Android device.
   EXPECT_EQ(metadata.architecture, "x86");
   EXPECT_EQ(metadata.bitness, "64");
-  EXPECT_EQ(metadata.platform, "Linux");
   EXPECT_EQ(metadata.mobile, false);
   EXPECT_EQ(metadata.platform_version, "");
 

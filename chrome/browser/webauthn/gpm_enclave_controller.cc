@@ -417,9 +417,7 @@ GPMEnclaveController::GPMEnclaveController(
       PasskeyModelFactory::GetInstance()->GetForProfile(profile);
   creds_ = passkey_model->GetPasskeys(
       rp_id_, webauthn::PasskeyModel::ShadowedCredentials::kExclude);
-  if (base::FeatureList::IsEnabled(device::kWebAuthnSignalApiHidePasskeys)) {
-    std::erase_if(creds_, [](const auto& cred) { return cred.hidden(); });
-  }
+  std::erase_if(creds_, [](const auto& cred) { return cred.hidden(); });
 
   // The following code may do some asynchronous processing. However the control
   // flow terminates, it must have called SetAccountState with some value.
@@ -770,7 +768,7 @@ void GPMEnclaveController::OnOutOfContextRecoveryCompletion(
   }
 }
 
-void GPMEnclaveController::OnKeysStored() {
+void GPMEnclaveController::OnKeysStored(const GaiaId& gaia_id) {
   if (recovered_with_icloud_keychain_) {
     // iCloud keychain recovery.
     device::enclave::RecordEvent(
@@ -787,7 +785,16 @@ void GPMEnclaveController::OnKeysStored() {
     // during a request at a different step on another tab. In case of
     // successful key retrieval in another tab, we conclude that the state of
     // the GPM Enclave Controller has become stale.
-    is_state_stale_ = true;
+    if (gaia_id == user_gaia_id_) {
+      is_state_stale_ = true;
+    }
+    return;
+  }
+
+  if (gaia_id != user_gaia_id_) {
+    FIDO_LOG(ERROR) << "Keys stored for wrong account: " << gaia_id.ToString()
+                    << ", expected: " << user_gaia_id_.ToString();
+    OnEnclaveError();
     return;
   }
 

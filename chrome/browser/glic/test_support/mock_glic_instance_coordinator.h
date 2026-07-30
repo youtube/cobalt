@@ -18,7 +18,7 @@ class MockGlicInstanceCoordinator
   MockGlicInstanceCoordinator();
   ~MockGlicInstanceCoordinator();
 
-  MOCK_METHOD(std::vector<GlicInstance*>, GetInstances, (), (override));
+  MOCK_METHOD(bool, IsAnyPanelShowing, (), (const, override));
   MOCK_METHOD(GlicInstance*,
               GetInstanceForTab,
               (const tabs::TabInterface*),
@@ -29,7 +29,6 @@ class MockGlicInstanceCoordinator
               (BrowserWindowInterface*,
                bool,
                mojom::InvocationSource,
-               std::optional<std::string>,
                std::optional<std::string>),
               (override));
   MOCK_METHOD(void, EnsurePreload, (), (override));

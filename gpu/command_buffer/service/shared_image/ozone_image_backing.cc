@@ -5,6 +5,7 @@
 #include "gpu/command_buffer/service/shared_image/ozone_image_backing.h"
 
 #include <dawn/webgpu.h>
+#include <unistd.h>
 
 #include <memory>
 #include <utility>
@@ -18,6 +19,7 @@
 #include "components/viz/common/gpu/vulkan_context_provider.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/mailbox.h"
+#include "gpu/command_buffer/common/shared_image_info.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
@@ -393,33 +395,22 @@ std::unique_ptr<OverlayImageRepresentation> OzoneImageBacking::ProduceOverlay(
 
 OzoneImageBacking::OzoneImageBacking(
     const Mailbox& mailbox,
-    viz::SharedImageFormat format,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label,
+    const SharedImageInfo& si_info,
     scoped_refptr<SharedContextState> context_state,
     scoped_refptr<gfx::NativePixmap> pixmap,
     const GpuDriverBugWorkarounds& workarounds,
     std::optional<gfx::BufferUsage> buffer_usage)
     : ClearTrackingSharedImageBacking(
           mailbox,
-          format,
-          size,
-          color_space,
-          surface_origin,
-          alpha_type,
-          usage,
-          std::move(debug_label),
+          si_info,
           pixmap ? GetPixmapSizeInBytes(*pixmap) : 0,
           false,
           std::move(buffer_usage)),
       pixmap_(std::move(pixmap)),
       context_state_(std::move(context_state)),
       workarounds_(workarounds),
-      imported_from_exo_(IsExoTexture(this->debug_label())) {
+      imported_from_exo_(IsExoTexture(si_info.debug_label)) {
+  const auto usage = si_info.usage;
   bool used_by_skia = usage.HasAny(SHARED_IMAGE_USAGE_RASTER_READ |
                                    SHARED_IMAGE_USAGE_RASTER_WRITE |
                                    SHARED_IMAGE_USAGE_DISPLAY_READ);
@@ -505,6 +496,24 @@ std::unique_ptr<VulkanImageRepresentation> OzoneImageBacking::ProduceVulkan(
     native_pixmap_handle.planes[0].size = image_size.GetArea();
     native_pixmap_handle.planes[1].offset = image_size.GetArea();
     native_pixmap_handle.planes[1].size = image_size.GetArea() / 2;
+
+#if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
+    base::CheckedNumeric<uint64_t> checked_required =
+        native_pixmap_handle.planes[1].offset;
+    checked_required += native_pixmap_handle.planes[1].size;
+    if (!checked_required.IsValid()) {
+      return nullptr;
+    }
+    const uint64_t required_buf_size = checked_required.ValueOrDie();
+    const off_t dmabuf_size =
+        lseek(native_pixmap_handle.planes[0].fd.get(), 0, SEEK_END);
+    if (dmabuf_size < 0 ||
+        base::saturated_cast<uint64_t>(dmabuf_size) < required_buf_size) {
+      LOG(ERROR) << "MT2T rewrite plane[1] end [" << required_buf_size
+                 << "] exceeds FD[0] size [" << dmabuf_size << "]";
+      return nullptr;
+    }
+#endif  // BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS)
   }
   auto vulkan_image = vulkan_impl.CreateImageFromGpuMemoryHandle(
       vulkan_device_queue,

@@ -51,10 +51,9 @@ class SearchBoxMediator implements DestroyObserver {
     private final TemplateUrlService mTemplateUrlService;
     private final float mTransitionEndOffset;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
+    private final Profile mProfile;
     private final TemplateUrlServiceObserver mTemplateUrlServiceObserver =
             this::onTemplateURLServiceChanged;
-
-    private boolean mIsFuseboxEligible;
 
     SearchBoxMediator(
             Context context,
@@ -72,6 +71,7 @@ class SearchBoxMediator implements DestroyObserver {
         mNewTabPageManager = newTabPageManager;
         mIsIncognito = isIncognito;
         mWindowAndroid = windowAndroid;
+        mProfile = profile;
         mTemplateUrlService = TemplateUrlServiceFactory.getForProfile(profile);
         mTemplateUrlService.addObserver(mTemplateUrlServiceObserver);
         PropertyModelChangeProcessor.create(mModel, mView, new SearchBoxViewBinder());
@@ -161,14 +161,12 @@ class SearchBoxMediator implements DestroyObserver {
     }
 
     private void updateStartIcon() {
-        boolean isMultimodalInputEnabled = OmniboxFeatures.isMultimodalInputEnabled(mContext);
-        boolean isFuseboxSupportedDeviceType = OmniboxFeatures.isFuseboxSupportedDeviceType();
-
         mModel.set(
                 SearchBoxProperties.PLUS_BUTTON_VISIBILITY,
-                isMultimodalInputEnabled
-                        && mIsFuseboxEligible
-                        && isFuseboxSupportedDeviceType
+                OmniboxFeatures.isMultimodalInputEnabled(mContext)
+                        && OmniboxFeatures.sShowNtpPlusButton.getValue()
+                        && OmniboxFeatures.isFuseboxSupportedDeviceType()
+                        && ComposeplateUtils.isComposeplateEnabled(mProfile)
                         && mTemplateUrlService.isDefaultSearchEngineGoogle());
     }
 
@@ -179,11 +177,6 @@ class SearchBoxMediator implements DestroyObserver {
     /** Called to set a drag listener for the search box. */
     void setSearchBoxDragListener(OnDragListener listener) {
         mModel.set(SearchBoxProperties.SEARCH_BOX_DRAG_CALLBACK, listener);
-    }
-
-    void setIsFuseboxEligible(boolean isEligible) {
-        mIsFuseboxEligible = isEligible;
-        updateStartIcon();
     }
 
     /**

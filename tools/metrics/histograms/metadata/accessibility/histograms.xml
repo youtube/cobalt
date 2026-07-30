@@ -3070,7 +3070,7 @@ even if they fit the naming pattern. -->
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.DistillationStatusAfterOmnibox"
-    enum="ReadAnythingDistillationStatus" expires_after="2026-08-30">
+    enum="ReadAnythingDistillationStatus" expires_after="2026-11-01">
   <owner>kristislee@google.com</owner>
   <owner>komo-eng@google.com</owner>
   <summary>
@@ -3372,6 +3372,8 @@ even if they fit the naming pattern. -->
     <variant name="NextButton" summary="next granularity"/>
     <variant name="Pause" summary="pause speech"/>
     <variant name="Play" summary="play speech"/>
+    <variant name="PlayFromLineFocus"
+        summary="play speech from current line focus position"/>
     <variant name="PlayFromSelection"
         summary="play speech from user selection"/>
     <variant name="PreviousButton" summary="previous granularity"/>
@@ -3548,29 +3550,30 @@ even if they fit the naming pattern. -->
   </token>
 </histogram>
 
-<histogram name="Accessibility.ReadAnything.WordsDistilledAfterOmnibox"
-    units="words" expires_after="2026-10-04">
+<histogram name="Accessibility.ReadAnything.WordsDistilled{Type}" units="words"
+    expires_after="2027-01-01">
+  <owner>lwinston@google.com</owner>
   <owner>kristislee@google.com</owner>
-  <owner>komo-eng@google.com</owner>
-  <summary>
-    Records an estimate of how many words were distilled in Reading mode for the
-    page opened via the omnibox entrypoint. Uses built-in web segmenter to count
-    words using the page language. (See
-    https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter)
-  </summary>
-</histogram>
-
-<histogram name="Accessibility.ReadAnything.WordsDistilledByReadability"
-    units="words" expires_after="2027-01-01">
   <owner>martinglopez@google.com</owner>
+  <owner>komo-eng@google.com</owner>
   <owner>chrome-irm-devs@google.com</owner>
   <summary>
-    Records the word count of the distilled content when using the Readability
-    distillation algorithm. This is recorded when the content is successfully
-    updated in the Reading Mode panel. Uses built-in web segmenter to count
-    words using the page language. (See
+    Records the word count of the distilled content {Type}. Uses built-in web
+    segmenter to count words using the page language. (See
     https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Intl/Segmenter)
   </summary>
+  <token key="Type">
+    <variant name="AfterOmnibox"
+        summary="for a page opened via the omnibox entrypoint (estimated
+                 value)"/>
+    <variant name="ByReadability"
+        summary="when using the Readability distillation algorithm, recorded
+                 when the content is successfully updated in the Reading Mode
+                 panel"/>
+    <variant name="OnNewPage"
+        summary="regardless of distillation method, recorded when the content
+                 is successfully updated in the Reading Mode panel"/>
+  </token>
 </histogram>
 
 <histogram name="Accessibility.ReadAnything.WordsHeard" units="words"
@@ -3914,16 +3917,6 @@ even if they fit the naming pattern. -->
   </summary>
 </histogram>
 
-<histogram name="Accessibility.WebSpeech.Duration" units="ms"
-    expires_after="2027-04-20">
-  <owner>evliu@google.com</owner>
-  <owner>chrome-media-ux@google.com</owner>
-  <summary>
-    Measures the duration of a call to the WebSpeech API. Recorded once per call
-    to the Open Speech API that powers the WebSpeech API.
-  </summary>
-</histogram>
-
 <histogram name="Accessibility.WebSpeech.ErrorOccurred"
     enum="SpeechRecognitionErrorCode" expires_after="2027-04-20">
   <owner>evliu@google.com</owner>
@@ -3931,6 +3924,17 @@ even if they fit the naming pattern. -->
   <summary>
     Logged errors fired by the Web Speech API. Logged each time the
     ErrorOccurred event of the Web Speech API is fired.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.WebSpeech.IsGeminiNanoModelAvailable"
+    enum="Boolean" expires_after="2027-04-20">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Records whether the Gemini Nano model is available for Web Speech API.
+    Recorded each time a speech recognition session is started and Gemini Nano
+    is requested.
   </summary>
 </histogram>
 
@@ -3953,6 +3957,17 @@ even if they fit the naming pattern. -->
     Records whether on-device speech recognition is supported on the device.
     Recorded each time the SodaInstaller is initialized during post profile
     init.
+  </summary>
+</histogram>
+
+<histogram name="Accessibility.WebSpeech.IsTinyGemmaModelAvailable"
+    enum="Boolean" expires_after="2027-04-20">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Records whether the TinyGemma model is available for Web Speech API.
+    Recorded each time a speech recognition session is started and TinyGemma is
+    requested.
   </summary>
 </histogram>
 
@@ -3994,6 +4009,38 @@ even if they fit the naming pattern. -->
     Whether on-device speech recognition is used for the Web Speech API. Logged
     when the speech recognition session is created.
   </summary>
+</histogram>
+
+<histogram name="Accessibility.WebSpeech.{SpeechBackend}.Duration" units="ms"
+    expires_after="2027-04-20">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Measures the duration of a call to the WebSpeech API. Recorded once per call
+    to the Open Speech API that powers the WebSpeech API.
+  </summary>
+  <token key="SpeechBackend">
+    <variant name="Cloud" summary="Cloud speech recognition backend"/>
+    <variant name="GeminiNano" summary="Gemini Nano on-device backend"/>
+    <variant name="SODA" summary="SODA on-device backend"/>
+    <variant name="TinyGemma" summary="TinyGemma on-device backend"/>
+  </token>
+</histogram>
+
+<histogram name="Accessibility.WebSpeech.{SpeechBackend}.ErrorOccurred"
+    enum="SpeechRecognitionErrorCode" expires_after="2027-04-20">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-media-ux@google.com</owner>
+  <summary>
+    Logged errors fired by the Web Speech API. Logged each time the
+    ErrorOccurred event of the Web Speech API is fired.
+  </summary>
+  <token key="SpeechBackend">
+    <variant name="Cloud" summary="Cloud speech recognition backend"/>
+    <variant name="GeminiNano" summary="Gemini Nano on-device backend"/>
+    <variant name="SODA" summary="SODA on-device backend"/>
+    <variant name="TinyGemma" summary="TinyGemma on-device backend"/>
+  </token>
 </histogram>
 
 <histogram name="Accessibility.Win.ActiveClientApis" enum="ActiveClientApi"
@@ -4606,6 +4653,45 @@ even if they fit the naming pattern. -->
     <variant name="Failure"/>
     <variant name="Success"/>
   </token>
+</histogram>
+
+<histogram
+    name="SodaInstaller.Language.{SodaLanguageCode}.RedownloadedAfterExpiration"
+    enum="Boolean" expires_after="2027-04-20">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Recorded when a SODA language pack is redownloaded (registered) after having
+    been previously uninstalled due to the 30-day expiration timer. This is
+    recorded as true when the language pack is requested to be installed again.
+  </summary>
+  <token key="SodaLanguageCode" variants="SodaLanguageCode"/>
+</histogram>
+
+<histogram
+    name="SodaInstaller.Language.{SodaLanguageCode}.UninstalledDueToExpiration"
+    enum="Boolean" expires_after="2027-04-20">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Recorded when a SODA language pack is uninstalled due to the 30-day
+    expiration timer, which occurs if the language pack has not been used by any
+    feature relying on SODA for 30 days. This is recorded as true when the
+    uninstallation occurs.
+  </summary>
+  <token key="SodaLanguageCode" variants="SodaLanguageCode"/>
+</histogram>
+
+<histogram name="SodaInstaller.PreemptiveDownloadStarted" enum="Boolean"
+    expires_after="2027-04-20">
+  <owner>evliu@google.com</owner>
+  <owner>chrome-a11y-core@google.com</owner>
+  <summary>
+    Recorded when the browser starts and initiates a preemptive download of the
+    SODA binary and default language pack. This happens exactly once per user
+    installation if the kPreemptiveSodaDownload feature is enabled. It is
+    recorded as true when the preemptive download is triggered.
+  </summary>
 </histogram>
 
 <histogram name="TextToSpeech.Event" enum="TextToSpeechEvent"

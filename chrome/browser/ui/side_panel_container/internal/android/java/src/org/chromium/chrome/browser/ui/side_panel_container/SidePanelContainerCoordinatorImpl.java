@@ -18,6 +18,7 @@ import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
+import org.chromium.build.BuildConfig;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.ui.side_panel.SidePanelCoordinatorAndroid;
@@ -34,8 +35,6 @@ final class SidePanelContainerCoordinatorImpl
         implements SidePanelContainerCoordinator, SideUiContainer {
     private static final String TAG = "SidePanelContainerCoordinatorImpl";
 
-    @VisibleForTesting static final int SIDE_PANEL_MIN_WIDTH_DP = 360;
-
     private static final @AnchorSide int SIDE_PANEL_DEFAULT_ANCHOR_SIDE = AnchorSide.END;
 
     private final Activity mParentActivity;
@@ -44,7 +43,6 @@ final class SidePanelContainerCoordinatorImpl
     private final @SidePanelType int mPanelType;
 
     // TODO(crbug.com/496407828): Use this to notify native side of events like "animation ended".
-    @SuppressWarnings("UnusedVariable")
     private @Nullable SidePanelCoordinatorAndroid mSidePanelCoordinatorAndroid;
 
     private @Nullable SidePanelContent mCurrentContent;
@@ -91,10 +89,11 @@ final class SidePanelContainerCoordinatorImpl
         mContainerView.removeAllViews();
         mContainerView.addView(content.mView);
 
-        // TODO(http://crbug.com/487414343): Refine the side panel width.
-        @Px int sidePanelWidth = ViewUtils.dpToPx(mParentActivity, SIDE_PANEL_MIN_WIDTH_DP);
+        // It's fine to always _request_ the max width. The final width will be determined in
+        // determineContainerWidth().
+        @Px int sidePanelMaxWidth = ViewUtils.dpToPx(mParentActivity, WIDE_SIDE_PANEL_WIDTH_DP);
         mSideUiCoordinator.requestUpdateContainer(
-                new SideUiContainerProperties(SIDE_PANEL_DEFAULT_ANCHOR_SIDE, sidePanelWidth),
+                new SideUiContainerProperties(SIDE_PANEL_DEFAULT_ANCHOR_SIDE, sidePanelMaxWidth),
                 suppressAnimations);
         // TODO(crbug.com/496407828): Move this around so it actually runs after the animation is
         //  finished.
@@ -142,21 +141,38 @@ final class SidePanelContainerCoordinatorImpl
 
     @Override
     @Px
-    public int determineContainerWidth(@Px int availableWidth, @Px int windowWidth) {
-        log(TAG, "determineContainerWidth", availableWidth, windowWidth);
+    public int determineContainerWidth(
+            @Px int requestedWidth, @Px int availableWidth, @Px int windowWidth) {
+        log(TAG, "determineContainerWidth", requestedWidth, availableWidth, windowWidth);
         ThreadUtils.assertOnUiThread();
 
-        // TODO(http://crbug.com/487414343): Refine the implementation.
-        // Calculate the final container width based on "availableWidth" and "windowWidth".
-        return ViewUtils.dpToPx(mParentActivity, SIDE_PANEL_MIN_WIDTH_DP);
+        if (requestedWidth == 0) {
+            return 0;
+        }
+
+        int availableWidthDp = ViewUtils.pxToDp(mParentActivity, availableWidth);
+        int windowWidthDp = ViewUtils.pxToDp(mParentActivity, windowWidth);
+        int containerWidthDp = determineContainerWidthDp(availableWidthDp, windowWidthDp);
+        return ViewUtils.dpToPx(mParentActivity, containerWidthDp);
     }
 
     @Override
     @Px
     public int getCurrentWidth() {
-        log(TAG, "getCurrentWidth");
         ThreadUtils.assertOnUiThread();
-        return mContainerView.getWidth();
+
+        int currentWidth = mContainerView.getWidth();
+        log(TAG, "getCurrentWidth", currentWidth);
+
+        return currentWidth;
+    }
+
+    @Override
+    @AnchorSide
+    public int getAnchorSide() {
+        log(TAG, "getAnchorSide");
+        ThreadUtils.assertOnUiThread();
+        return SIDE_PANEL_DEFAULT_ANCHOR_SIDE;
     }
 
     @Override
@@ -182,5 +198,48 @@ final class SidePanelContainerCoordinatorImpl
         }
 
         // TODO(http://crbug.com/488047364): Notify the SidePanelContent View of the width change.
+    }
+
+    @Override
+    public void onWindowResized(boolean canShowSideUi) {
+        assert mSidePanelCoordinatorAndroid != null;
+        mSidePanelCoordinatorAndroid.onWindowResized(canShowSideUi);
+    }
+
+    /**
+     * Returns the final width (in dp) of the side panel given the available width in the window.
+     */
+    @VisibleForTesting
+    static int determineContainerWidthDp(int availableWidthDp, int windowWidthDp) {
+        // 1. Check if we can use the fixed, larger width.
+        if (windowWidthDp >= MIN_WINDOW_WIDTH_DP_FOR_WIDE_SIDE_PANEL) {
+            assert availableWidthDp >= WIDE_SIDE_PANEL_WIDTH_DP;
+            return WIDE_SIDE_PANEL_WIDTH_DP;
+        }
+
+        // 2. Check if we can use the fixed, smaller width.
+        if (availableWidthDp >= NARROW_SIDE_PANEL_WIDTH_DP) {
+            return NARROW_SIDE_PANEL_WIDTH_DP;
+        }
+
+        // 3. If we can't use the fixed, smaller width, just fill the available space.
+        if (availableWidthDp > 0) {
+            return availableWidthDp;
+        }
+
+        // 4. Special logic for tests.
+        //
+        // As of May 1, 2026, there were side panel browser tests running on _phone_ bots, where
+        // there may not be enough space for SIDE_PANEL_MIN_WIDTH_DP. So we just give side panel
+        // half the available width to make the tests happy.
+        // TODO(crbug.com/510044610): Stop running side panel browser tests on _phone_ bots,
+        // then delete this logic.
+        if (BuildConfig.IS_FOR_TEST) {
+            log(TAG, "availableWidth <= 0; returning half the window width");
+            return windowWidthDp / 2;
+        }
+
+        // 5. Return 0 if there is no available space.
+        return 0;
     }
 }

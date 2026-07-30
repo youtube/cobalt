@@ -4,6 +4,8 @@
 
 #include "components/variations/seed_reader_writer.h"
 
+#include <memory>
+
 #include "base/base64.h"
 #include "base/files/file.h"
 #include "base/files/file_path.h"
@@ -66,13 +68,20 @@ bool Compress(std::string_view uncompressed_data,
               std::string* compressed_data) {
   CHECK(compressed_data) << "compressed_data is null";
 #if USE_ZSTD_FOR_SEEDS
-  auto buff_size = ZSTD_compressBound(uncompressed_data.size());
+  size_t buff_size = ZSTD_compressBound(uncompressed_data.size());
+  if (ZSTD_isError(buff_size)) {
+    return false;
+  }
   compressed_data->resize(buff_size);
-  auto seed_compressed_size = ZSTD_compress(
+  size_t seed_compressed_size = ZSTD_compress(
       /*dst=*/compressed_data->data(), /*dstCapacity=*/buff_size,
       /*src=*/uncompressed_data.data(),
       /*srcSize=*/uncompressed_data.size(), kZstdCompressionLevel);
-  return seed_compressed_size > 0;
+  if (ZSTD_isError(seed_compressed_size)) {
+    return false;
+  }
+  compressed_data->resize(seed_compressed_size);
+  return true;
 #else   // !USE_ZSTD_FOR_SEEDS
   // Android does not support ZSTD because of binary size increase, so use gzip
   // compression instead.
@@ -295,6 +304,35 @@ std::string GetGeoLevel1Pref(const SeedFieldsPrefs& prefs,
                              PrefService& local_state) {
   if (prefs.session_geo_level1) {
     return local_state.GetString(prefs.session_geo_level1);
+  }
+  return "";
+}
+
+// Clears the data field and explicitly deallocates the underlying string
+// buffer. Standard clear_data() might retain the string's capacity for reuse.
+void ClearSeedDataField(StoredSeedInfo& stored_seed_info) {
+  std::unique_ptr<std::string> data(stored_seed_info.release_data());
+}
+
+std::string GetSeedDataFromLocalStatePref(PrefService* local_state,
+                                          std::string_view seed_data_pref) {
+  CHECK(local_state);
+  std::string_view stored_seed_data = local_state->GetString(seed_data_pref);
+  // If the seed is empty or the sentinel value, we don't need to decode it.
+  if (stored_seed_data == kIdenticalToSafeSeedSentinel ||
+      stored_seed_data.empty()) {
+    return std::string(stored_seed_data);
+  }
+  std::string decoded_data;
+  std::string uncompressed_data;
+  bool decoded_successfully =
+      base::Base64Decode(stored_seed_data, &decoded_data);
+  // If the seed is empty, compression::GzipUncompress() will return false.
+  // However, we still want to write an empty seed to the file.
+  if (decoded_successfully &&
+      (decoded_data.empty() ||
+       compression::GzipUncompress(decoded_data, &uncompressed_data))) {
+    return uncompressed_data;
   }
   return "";
 }
@@ -564,7 +602,7 @@ void SeedReaderWriter::StoreRawSeedForTesting(std::string seed_data) {
     seed_writer_->WriteNow(seed_data);
     // Clear the stored seed data in memory so that it is read from the seed
     // file.
-    stored_seed_info_.clear_data();
+    ClearSeedDataField(stored_seed_info_);
   } else {
     local_state_->SetString(fields_prefs_->seed, std::move(seed_data));
   }
@@ -601,7 +639,7 @@ void SeedReaderWriter::AllowToPurgeSeedDataFromMemory() {
       << "AllowToPurgeSeedDataFromMemory() should only be called once.";
   seed_purgeable_from_memory_ = true;
   if (ShouldClearSeedDataFromMemory()) {
-    stored_seed_info_.clear_data();
+    ClearSeedDataField(stored_seed_info_);
   }
 }
 
@@ -692,8 +730,15 @@ bool SeedReaderWriter::ShouldClearSeedDataFromMemory() {
 
 void SeedReaderWriter::OnSeedWriteComplete(bool write_success) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  if (migrating_from_old_source_ && write_success) {
+    // Clients using a seed file should clear seed from local state and the old
+    // seed file, as it will no longer be used.
+    local_state_->ClearPref(fields_prefs_->seed);
+    DeleteOldSeedFile();
+    migrating_from_old_source_ = false;
+  }
   if (ShouldClearSeedDataFromMemory()) {
-    stored_seed_info_.clear_data();
+    ClearSeedDataField(stored_seed_info_);
   }
 }
 
@@ -757,6 +802,9 @@ void SeedReaderWriter::ScheduleSeedFileClear() {
 
   // Set seed data to an empty string so we keep it in memory and don't read it
   // from disk.
+  // We call ClearSeedDataField() to ensure that the memory allocated for the
+  // seed data is freed.
+  ClearSeedDataField(stored_seed_info_);
   stored_seed_info_.set_data("");
   stored_seed_info_.clear_signature();
   stored_seed_info_.clear_milestone();
@@ -797,6 +845,13 @@ void SeedReaderWriter::ReadSeedFile() {
     stored_seed_info_ = std::move(read_seed_info_result.value());
     // Record that the seed file was read successfully.
     seed_source = SeedSource::kSeedFile;
+    // If we're using the seed file, clear the seed from local state and the old
+    // seed file, as it will no longer be used. If they don't exist, this is a
+    // no-op.
+    local_state_->ClearPref(fields_prefs_->seed);
+    // Do a scheduled write immediately instead of waiting to ensure that the
+    // migration to the new seed file is done as soon as possible.
+    DeleteOldSeedFile();
   } else if (read_seed_info_result.error() !=
                  LoadSeedResult::kErrorReadingFile &&
              read_seed_info_result.error() != LoadSeedResult::kFileNotFound) {
@@ -816,7 +871,7 @@ void SeedReaderWriter::ReadSeedFile() {
 
     // Record that the seed file was read successfully.
     seed_source = SeedSource::kOldSeedFile;
-  } else {
+  } else if (MigrateFromLocalStateToSeedFile()) {
     // Export seed data from Local State to a seed file in the following cases.
     // 1. Seed file does not exist because this is the first run. For Windows,
     // the first run seed may be stored in Local State, see
@@ -824,36 +879,7 @@ void SeedReaderWriter::ReadSeedFile() {
     // 2. Seed file does not exist because this is the first time a client is
     // in the seed file experiment's treatment group.
     // 3. Seed file exists and read failed.
-    std::string decoded_data;
-    std::string uncompressed_data;
-    bool decoded_successfully = base::Base64Decode(
-        local_state_->GetString(fields_prefs_->seed), &decoded_data);
-    // If the seed is empty, compression::GzipUncompress() will return false.
-    // However, we still want to write an empty seed to the file.
-    if (decoded_successfully &&
-        (decoded_data.empty() ||
-         compression::GzipUncompress(decoded_data, &uncompressed_data))) {
-      PermanentCountryVersion permanent_country_version =
-          GetPermanentCountryVersion(
-              local_state_, fields_prefs_->permanent_country_code_version);
-      ScheduleSeedFileWrite(ValidatedSeedInfo{
-          .seed_data = uncompressed_data,
-          .signature = local_state_->GetString(fields_prefs_->signature),
-          .milestone = local_state_->GetInteger(fields_prefs_->milestone),
-          .seed_date = local_state_->GetTime(fields_prefs_->seed_date),
-          .client_fetch_time =
-              local_state_->GetTime(fields_prefs_->client_fetch_time),
-          .session_country_code =
-              local_state_->GetString(fields_prefs_->session_country_code),
-          .session_geo_level1 = GetGeoLevel1Pref(*fields_prefs_, *local_state_),
-          .permanent_country_code = permanent_country_version.country,
-          .permanent_country_version = permanent_country_version.version,
-      });
-
-      if (!decoded_data.empty()) {
-        seed_source = SeedSource::kLocalState;
-      }
-    }
+    seed_source = SeedSource::kLocalState;
   }
 
   base::UmaHistogramEnumeration(
@@ -861,13 +887,9 @@ void SeedReaderWriter::ReadSeedFile() {
   base::UmaHistogramBoolean(
       base::StrCat({"Variations.SeedFileRead.", histogram_suffix_}),
       seed_source == SeedSource::kSeedFile);
-
-  // Clients using a seed file should clear seed from local state and the old
-  // seed file, as it will no longer be used.
-  local_state_->ClearPref(fields_prefs_->seed);
-  DeleteOldSeedFile();
 }
 
+// TODO(b/510295477): Remove this function once the migration is complete.
 bool SeedReaderWriter::ReadOldSeedFile() {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   std::string seed_file_data;
@@ -908,9 +930,43 @@ bool SeedReaderWriter::ReadOldSeedFile() {
   stored_seed_info_.set_permanent_version(permanent_country_version.version);
 
   // Schedule a write to the new seed file for future Chrome sessions.
+  migrating_from_old_source_ = true;
   seed_writer_->ScheduleWriteWithBackgroundDataSerializer(this);
+  // Do a scheduled write immediately instead of waiting to ensure that the
+  // migration to the new seed file is done as soon as possible.
+  seed_writer_->DoScheduledWrite();
 
   return success;
+}
+
+bool SeedReaderWriter::MigrateFromLocalStateToSeedFile() {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+
+  std::string seed_data =
+      GetSeedDataFromLocalStatePref(local_state_, fields_prefs_->seed);
+  PermanentCountryVersion permanent_country_version =
+      GetPermanentCountryVersion(local_state_,
+                                 fields_prefs_->permanent_country_code_version);
+  // Schedule a write to the new seed file. If `seed_data` is empty, either
+  // because the Local State pref was empty or because it was corrupt and
+  // failed to decode/uncompress, this will result in an empty seed being
+  // written to the seed file, effectively resetting the seed file.
+  migrating_from_old_source_ = true;
+  ScheduleSeedFileWrite(ValidatedSeedInfo{
+      .seed_data = seed_data,
+      .signature = local_state_->GetString(fields_prefs_->signature),
+      .milestone = local_state_->GetInteger(fields_prefs_->milestone),
+      .seed_date = local_state_->GetTime(fields_prefs_->seed_date),
+      .client_fetch_time =
+          local_state_->GetTime(fields_prefs_->client_fetch_time),
+      .session_country_code =
+          local_state_->GetString(fields_prefs_->session_country_code),
+      .session_geo_level1 = GetGeoLevel1Pref(*fields_prefs_, *local_state_),
+      .permanent_country_code = permanent_country_version.country,
+      .permanent_country_version = permanent_country_version.version,
+  });
+  seed_writer_->DoScheduledWrite();
+  return !seed_data.empty();
 }
 
 StoreSeedResult SeedReaderWriter::ScheduleLocalStateWrite(

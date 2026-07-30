@@ -477,7 +477,11 @@ class BottomSheet extends FrameLayout
         mInsetObserver.addWindowInsetsAnimationListener(
                 new WindowInsetsAnimationListener() {
                     @Override
-                    public void onPrepare(WindowInsetsAnimationCompat animation) {}
+                    public void onPrepare(WindowInsetsAnimationCompat animation) {
+                        for (BottomSheetObserver obs : mObservers) {
+                            obs.beforeInsetAnimationStart();
+                        }
+                    }
 
                     @Override
                     public void onStart(
@@ -495,6 +499,9 @@ class BottomSheet extends FrameLayout
                     @Override
                     public void onEnd(WindowInsetsAnimationCompat animation) {
                         onInsetChanged();
+                        for (BottomSheetObserver obs : mObservers) {
+                            obs.onInsetAnimationEnd();
+                        }
                     }
                 });
 
@@ -1781,9 +1788,7 @@ class BottomSheet extends FrameLayout
     }
 
     private void updateA11yPaneTitle(CharSequence msg) {
-        // Set the pane title for the container. The bottom sheet view is not always accessible
-        // e.g. when sheet is dismissed.
-        ViewCompat.setAccessibilityPaneTitle(mSheetContainer, msg);
+        ViewCompat.setAccessibilityPaneTitle(this, msg);
     }
 
     private void resetCachedKeyboardState() {

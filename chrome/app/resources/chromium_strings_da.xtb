@@ -138,7 +138,7 @@
 <translation id="2384373936468275798">Chromium OS kunne ikke synkronisere dine data, fordi loginoplysningerne til din konto er forældede.</translation>
 <translation id="2398377054246527950">{NUM_DEVICES,plural, =0{En eller flere Chromium-udvidelser havde adgang til 1 HID-enhed}=1{En eller flere Chromium-udvidelser har adgang til 1 HID-enhed}one{En eller flere Chromium-udvidelser har adgang til # HID-enhed}other{En eller flere Chromium-udvidelser har adgang til # HID-enheder}}</translation>
 <translation id="2401032172288869980">Chromium skal have adgangstilladelse til kamera og mikrofon for at bruge dette website</translation>
-<translation id="2403703063067034158">Opstartsfejl: En anden konfigurationen kører i øjeblikket. Prøv igen senere.</translation>
+<translation id="2403703063067034158">Opstartsfejl: En anden konfigurationsinstans kører i øjeblikket. Prøv igen senere.</translation>
 <translation id="2418322681019544463">Åbn links i Chromium fra en hvilken som helst app, og sørg for, at browseren altid er tilgængelig på proceslinjen</translation>
 <translation id="2440750600860946460">Med <ph name="BEGIN_LINK" />værktøjer fra Chromium<ph name="END_LINK" /> kan du søge sikkert på nettet og bevare styringen</translation>
 <translation id="2451727308784734061">Brug din genvej til hurtigt at gå til Adgangs­kode­admin­istrator. Du kan flytte din genvej til din computers startskærm eller appliste.</translation>
@@ -182,7 +182,6 @@
 <translation id="2933336679234709858">Dine data krypteres med din adgangssætning. Angiv adgangssætningen for at bruge og gemme Chromium-data på din Google-konto.</translation>
 <translation id="2945997411976714835">Installationsfejl: Installationsprocessen kunne ikke startes.</translation>
 <translation id="2948852018303413228">Log hurtigere ind på websites ved hjælp af gemte adgangskoder til Chromium i iOS</translation>
-<translation id="2966959524256557996">Tilføj en ny Chromium-profil for at holde bogmærker, adgangskoder og indstillinger adskilt.</translation>
 <translation id="2970426615109535079">Din organisation administrerer Chromium</translation>
 <translation id="2977470724722393594">Chromium er opdateret</translation>
 <translation id="2977506796191543575">Hvis et website forsøger at stjæle din adgangskode, eller hvis du downloader en skadelig fil, sender Chromium muligvis også webadresser, bl.a. mindre mængder sideindhold, til Beskyttet browsing</translation>
@@ -260,7 +259,6 @@
 <translation id="3788675262216168505">Administrer Chromium-profiler</translation>
 <translation id="3790262771324122253">Få flere oplysninger om, hvorfor Chromium blokerer visse downloads</translation>
 <translation id="379589255253486813">Chromium giver dig besked, hvis der er noget, du skal gennemgå</translation>
-<translation id="3798048725356732506">Chromium-profiler hjælper dig med at adskille forskellige dele af dit liv. Tilføj en ny profil nu.</translation>
 <translation id="3802055581630249637">Chromium forudindlæser sider, du sandsynligvis vil besøge, så disse sider indlæses hurtigere, når du besøger dem</translation>
 <translation id="3810973564298564668">Administrer</translation>
 <translation id="3823384748599722168">Hvis du vil bruge dine gemte adgangskoder, skal du følge QR-koden, downloade Chromium til iOS og logge ind på din Google-konto</translation>
@@ -357,7 +355,6 @@
 <translation id="4724676981607797757">Installationen mislykkedes på grund af en fejl med ikke-understøttet protokol.</translation>
 <translation id="4746050847053251315">Vil du slutte Chromium alligevel?</translation>
 <translation id="4748217263233248895">En særlig sikkerhedsopdatering til Chromium blev netop anvendt. Genstart nu, hvorefter vi gendanner dine faner.</translation>
-<translation id="4759645701210484457">Spørg Chromium</translation>
 <translation id="4771701986670315895">Du har ikke besøgt websitet for nylig. Chromium har fjernet <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> og <ph name="COUNT" /> andre.</translation>
 <translation id="4788777615168560705">Chromium kan ikke tjekke dine adgangskoder. Prøv igen efter 24 timer, eller <ph name="BEGIN_LINK" />tjek adgangskoder på din Google-konto<ph name="END_LINK" />.</translation>
 <translation id="479167709087336770">Dette anvender den samme stavekontrol, som anvendes i Google Søgning. Tekst, som du angiver i browseren, sendes til Google. Du kan altid ændre denne adfærd i indstillingerne.</translation>
@@ -410,6 +407,9 @@
 <translation id="5524890928877629608">øverste venstre hjørne af søgeområdet: venstre <ph name="LEFT" /> %, øverste <ph name="TOP" /> %</translation>
 <translation id="5527463683072221100">Åbn PDF-filer i Chromium</translation>
 <translation id="5536164441519929134">Stil spørgsmål<ph name="LINE_BREAK" />om denne fane</translation>
+<translation id="555970465369471303">Af sikkerhedsmæssige årsager deaktiverer Chromium JavaScript-optimering, når du besøger et website for første gang.
+
+Hvis denne side ikke fungerer som forventet, kan du prøve at tillade optimering.</translation>
 <translation id="5579324208890605088">Opstartsfejl: Kør installationsprogrammet som almindelig bruger, ikke som administrator.</translation>
 <translation id="5580770360767802657">Brug Chromium som standard, og fastgør den</translation>
 <translation id="5596627076506792578">Flere valgmuligheder</translation>
@@ -421,7 +421,6 @@
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5698481217667032250">Vis Chromium på dette sprog</translation>
 <translation id="569897634095159764">Der kan ikke oprettes forbindelse til internettet. Proxyserveren kræver godkendelse.</translation>
-<translation id="5713518899297503106">Chromium-profiler giver dig mulighed for at holde personlig browsing og arbejde adskilt. Tilføj en ny profil nu.</translation>
 <translation id="5768371961535086509">Chromium frigør hukommelse fra inaktive faner. Dette tildeler aktive faner og andre apps flere computerressourcer og gør Chromium hurtig. Dine inaktive faner bliver automatisk aktive igen, når du vender tilbage til dem. <ph name="BEGIN_LINK" />Få flere oplysninger om Hukommelsessparefunktion<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">Hvis du glemmer din adgangssætning eller vil ændre denne indstilling, skal du <ph name="SETTINGS_LINK" /> Chromium-dataene på din konto.</translation>
 <translation id="5800158606660203929">Tilpas og styr Chromium. Angiv Chromium som din standardbrowser.</translation>
@@ -524,7 +523,6 @@
 <translation id="6676384891291319759">Få adgang til internettet</translation>
 <translation id="668175097507315160">Chromium OS kunne ikke synkronisere dine data på grund af en loginfejl.</translation>
 <translation id="6691132793308828750">Fjern denne apps data fra Chromium</translation>
-<translation id="6692797197837897398">Chromium giver dig mere kontrol over, hvilke annoncer du får vist, og browseren begrænser, hvilke websites der kan få oplysninger om dig, når de viser dig personligt tilpassede annoncer</translation>
 <translation id="6709350901466051922">Chromium skal have adgangstilladelse til mikrofon for at bruge dette website</translation>
 <translation id="6712881677154121168">Downloadfejl: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6717134281241384636">Din profil kan ikke bruges, da den stammer fra en nyere version af Chromium.
@@ -716,7 +714,6 @@ Chromium kan ikke gendanne dine præferencer.</translation>
 <translation id="8704119203788522458">Dette er din Chromium-browser</translation>
 <translation id="8712637175834984815">Forstået</translation>
 <translation id="8719993436687031146">Vil du logge ind i Chromium?</translation>
-<translation id="8745263398357414606">Hold alting samlet i Chromium</translation>
 <translation id="8747073452963259673">nederste venstre hjørne af søgeområdet: venstre <ph name="LEFT" /> %, nederste <ph name="BOTTOM" /> %</translation>
 <translation id="878572486461146056">Installationsfejl: Din netværksadministrator anvender en gruppepolitik, der forhindrer installationen: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium skal have tilladelse til at bruge dit kamera og din mikrofon på dette website</translation>

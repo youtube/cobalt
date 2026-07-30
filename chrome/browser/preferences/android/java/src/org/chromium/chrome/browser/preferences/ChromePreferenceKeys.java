@@ -927,9 +927,9 @@ public final class ChromePreferenceKeys {
     public static final String SIGNIN_PROMO_LAST_SHOWN_MAJOR_VERSION =
             "signin_promo_last_shown_chrome_version";
 
-    /** Holds the time when the fullscreen signin promo should be shown again. */
-    public static final String SIGNIN_PROMO_NEXT_SHOW_TIME =
-            "Chrome.FullscreenSigninPromo.NextShowTime";
+    /** Holds last promo shown time with a random time offset. */
+    public static final String SIGNIN_PROMO_LAST_SHOWN_TIME_WITH_RANDOM_OFFSET =
+            "Chrome.FullscreenSigninPromo.LastShownTimeWithRandomTimeOffset";
 
     /**
      * Whether the user dismissed the personalized sign in promo from the new tab page. Default
@@ -944,6 +944,9 @@ public final class ChromePreferenceKeys {
             "Chrome.SigninPromoNTP.FirstShownTime";
     public static final String SIGNIN_PROMO_NTP_LAST_SHOWN_TIME =
             "Chrome.SigninPromoNTP.LastShownTime";
+
+    public static final String SIGNIN_PROMO_AUTOFILL_AND_PASSWORDS_DISMISSED =
+            "Chrome.SigninPromoAutofillAndPasswords.Dismissed";
 
     /** Personalized signin promo preference. */
     public static final String SIGNIN_PROMO_BOOKMARKS_DECLINED = "signin_promo_bookmarks_declined";
@@ -1015,10 +1018,6 @@ public final class ChromePreferenceKeys {
     // Number of times in a day the max-instance toast is shown when tab or group tearing fails.
     public static final String TAB_OR_GROUP_TEARING_MAX_INSTANCES_FAILURE_COUNT =
             "Chrome.TabOrGroupTearing.MaxInstancesFailureCount";
-
-    // Whether the Tips Notifications Channel Setting is enabled.
-    public static final String TIPS_NOTIFICATIONS_CHANNEL_ENABLED =
-            "Chrome.TipsNotifications.ChannelEnabled";
 
     // Whether the Tips Notifications Opt In promo has been shown.
     public static final String TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN =
@@ -1270,7 +1269,8 @@ public final class ChromePreferenceKeys {
                 SHARING_TABS_WITH_OS,
                 SHOW_HOME_BUTTON_POLICY_STATE,
                 SYNC_PROMO_SHOW_COUNT.pattern(),
-                SIGNIN_PROMO_NEXT_SHOW_TIME,
+                SIGNIN_PROMO_AUTOFILL_AND_PASSWORDS_DISMISSED,
+                SIGNIN_PROMO_LAST_SHOWN_TIME_WITH_RANDOM_OFFSET,
                 SIGNIN_PROMO_HISTORY_PAGE_DECLINED,
                 SIGNIN_PROMO_HISTORY_PAGE_LAST_SHOWN_TIME,
                 SIGNIN_PROMO_NTP_FIRST_SHOWN_TIME,
@@ -1291,7 +1291,6 @@ public final class ChromePreferenceKeys {
                 TAB_PERSISTENCE_CURRENT_AUTHORITATIVE_STORE.pattern(),
                 TAB_PERSISTENCE_SHADOW_WRITTEN_STORE.pattern(),
                 TAB_PERSISTENCE_STORE_MANAGER_VERSION,
-                TIPS_NOTIFICATIONS_CHANNEL_ENABLED,
                 TIPS_NOTIFICATIONS_OPT_IN_PROMO_SHOWN,
                 TOOLBAR_TOP_ANCHORED,
                 TWA_DISCLOSURE_SEEN_PACKAGES,

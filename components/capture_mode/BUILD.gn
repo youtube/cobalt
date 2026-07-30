@@ -9,6 +9,8 @@ component("capture_mode") {
     "camera_video_frame_handler.cc",
     "camera_video_frame_handler.h",
     "capture_mode_export.h",
+    "capture_mode_util.cc",
+    "capture_mode_util.h",
   ]
 
   defines = [ "CAPTURE_MODE_IMPLEMENTATION" ]
@@ -28,4 +30,19 @@ component("capture_mode") {
   if (is_mac) {
     deps += [ "//media/capture:capture_lib" ]
   }
+}
+source_set("unit_tests") {
+  testonly = true
+  sources = [ "capture_mode_util_unittest.cc" ]
+  deps = [
+    ":capture_mode",
+    "//base",
+    "//base/test:test_support",
+    "//components/viz/common",
+    "//components/viz/test:test_support",
+    "//gpu/config",
+    "//testing/gtest",
+    "//ui/base:features",
+    "//ui/compositor",
+  ]
 }

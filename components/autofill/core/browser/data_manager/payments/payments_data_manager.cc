@@ -254,20 +254,14 @@ PaymentsDataManager::PaymentsDataManager(
     if (IsAutofillPaymentMethodsEnabled()) {
       autofill_metrics::LogIsAutofillPaymentsCvcStorageEnabledAtStartup(
           IsPaymentCvcStorageEnabled());
-#if !BUILDFLAG(IS_IOS)
-      autofill_metrics::LogIsCreditCardBenefitsEnabledAtStartup(
-          prefs::IsPaymentCardBenefitsEnabled(pref_service_));
-#endif  // !BUILDFLAG(IS_IOS)
+      if (IsCardBenefitsSyncEnabled()) {
+        autofill_metrics::LogIsCreditCardBenefitsEnabledAtStartup(
+            prefs::IsPaymentCardBenefitsEnabled(pref_service_));
+      }
     } else {
       autofill_metrics::LogAutofillPaymentMethodsDisabledReasonAtStartup(
           *pref_service_);
     }
-#if !BUILDFLAG(IS_IOS)
-    // Clean up for crbug.com/411681430.
-    if (!IsPaymentCvcStorageEnabled()) {
-      ClearLocalCvcsUpToMay2025();
-    }
-#endif
   }
   if (sync_service_) {
     sync_observer_.Observe(sync_service_);
@@ -1564,17 +1558,6 @@ void PaymentsDataManager::ClearLocalCvcs() {
 
   // Clear the local CVCs in the web database.
   GetLocalDatabase()->ClearLocalCvcs();
-
-  // Refresh our local cache and send notifications to observers.
-  Refresh();
-}
-
-void PaymentsDataManager::ClearLocalCvcsUpToMay2025() {
-  if (!GetLocalDatabase()) {
-    return;
-  }
-
-  GetLocalDatabase()->ClearLocalCvcsUpToMay2025();
 
   // Refresh our local cache and send notifications to observers.
   Refresh();

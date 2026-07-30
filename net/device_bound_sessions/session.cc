@@ -337,7 +337,8 @@ base::TimeDelta Session::MinimumBoundCookieLifetime(
   // The below is all copied from AddCookieHeaderAndStart. We should refactor
   // it.
   CookieStore* cookie_store = request.context()->cookie_store();
-  bool force_ignore_site_for_cookies = request.force_ignore_site_for_cookies();
+  bool force_ignore_site_for_cookies =
+      request.ShouldForceIgnoreSiteForCookies();
   if (cookie_store->cookie_access_delegate() &&
       cookie_store->cookie_access_delegate()->ShouldIgnoreSameSiteRestrictions(
           request.url(), request.site_for_cookies(),
@@ -558,6 +559,7 @@ void Session::InformOfRefreshResult(bool was_proactive,
     case kSigningQuotaExceeded:
       break;
     case kTransientHttpError:
+    case kTransientSigningError:
     case kBoundCookieSetForbidden:
       backoff_.InformOfRequest(/*succeeded=*/false);
       break;
@@ -602,7 +604,8 @@ bool Session::CanSetBoundCookie(
     return false;
   }
 
-  bool force_ignore_site_for_cookies = request.force_ignore_site_for_cookies();
+  bool force_ignore_site_for_cookies =
+      request.ShouldForceIgnoreSiteForCookies();
   if (cookie_store->cookie_access_delegate() &&
       cookie_store->cookie_access_delegate()->ShouldIgnoreSameSiteRestrictions(
           request.url(), request.site_for_cookies(),

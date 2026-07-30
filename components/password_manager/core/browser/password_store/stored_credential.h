@@ -76,6 +76,7 @@ struct StoredCredential {
   // Storage Specifics
   PasswordForm::Store in_store = PasswordForm::Store::kNotSet;
   std::vector<signin::GaiaIdHash> moving_blocked_for_list;
+
   base::flat_map<InsecureType, InsecurityMetadata> password_issues;
   std::vector<PasswordNote> notes;
 
@@ -94,11 +95,30 @@ struct StoredCredential {
   // Actor Login
   bool actor_login_approved = false;
 
+  bool IsUsingAccountStore() const {
+    return (in_store & PasswordForm::Store::kAccountStore) !=
+           PasswordForm::Store::kNotSet;
+  }
+  bool IsUsingProfileStore() const {
+    return (in_store & PasswordForm::Store::kProfileStore) !=
+           PasswordForm::Store::kNotSet;
+  }
+
+  std::optional<std::u16string> GetPasswordBackup() const;
+
 #if defined(UNIT_TEST)
   friend bool operator==(const StoredCredential&,
                          const StoredCredential&) = default;
 #endif
 };
+
+inline auto StoredCredentialUniqueKey(const StoredCredential& f) {
+  return std::tie(f.signon_realm, f.url, f.username_element, f.username_value,
+                  f.password_element);
+}
+
+bool AreStoredCredentialUniqueKeysEqual(const StoredCredential& left,
+                                        const StoredCredential& right);
 
 using BackendLoginsResult = std::vector<StoredCredential>;
 using BackendLoginsResultOrError =

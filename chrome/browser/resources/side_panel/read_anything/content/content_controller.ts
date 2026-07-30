@@ -148,6 +148,11 @@ export class ContentController {
   // reference and do not trigger a "Policy already exists" TypeError.
   private static trustedUpdatePolicy: TrustedTypePolicy|undefined;
 
+  // Holds the text nodes extracted from the current rendered distillation.
+  // This array ensures that we can link a DOM node back to its AXTree
+  // mapping for text selection via its index in this array.
+  private renderedTextNodes_: Node[] = [];
+
   getState(): ContentState {
     return this.currentState_;
   }
@@ -386,6 +391,64 @@ export class ContentController {
 
     this.updateReadAloudState(node);
     return node;
+  }
+
+  onRenderedTextMappingReady() {
+    if (!isDistilledByReadability() ||
+        !chrome.readingMode.isReadabilitySelectTextEnabled) {
+      return;
+    }
+
+    // Iterate through the rendered text nodes by their index.
+    for (let i = 0; i < this.renderedTextNodes_.length; i++) {
+      const node = this.renderedTextNodes_[i];
+      if (!(node instanceof Text) || !node.parentNode) {
+        continue;
+      }
+
+      // Retrieve the mapping segments for this specific block index.
+      const segments = chrome.readingMode.getAxMapping(i);
+      if (segments && segments.length > 0) {
+        this.mapBlockToAxNodes_(node, segments);
+      }
+    }
+
+    // After populating the NodeStore, trigger a selection update to synchronize
+    // any existing selection state.
+    chrome.readingMode.updateSelection();
+  }
+
+  private mapBlockToAxNodes_(
+      node: Text,
+      segments: Array<{axNodeId: number, start: number, end: number}>) {
+    // Link the block (rendered text node) to it's equivalent segment in the
+    // AXnode. For multiple segments, mapping to a single block, we split the
+    // block to create a 1:1 mapping between rendered text and an AXNode.
+    let currentNode: Text = node;
+    let lastOffset = 0;
+
+    for (const segment of segments) {
+      if (segment.start > lastOffset) {
+        const gapLength = segment.start - lastOffset;
+        currentNode = currentNode.splitText(gapLength);
+        lastOffset = segment.start;
+      }
+
+      const nodeLength = currentNode.textContent?.length || 0;
+      const segmentLength = Math.min(segment.end - lastOffset, nodeLength);
+
+      // Only split if there is text remaining in the node to avoid creating
+      // empty trailing nodes.
+      if (segmentLength < nodeLength) {
+        const remainingNode = currentNode.splitText(segmentLength);
+        this.nodeStore_.setDomNode(currentNode, segment.axNodeId);
+        currentNode = remainingNode;
+      } else {
+        this.nodeStore_.setDomNode(currentNode, segment.axNodeId);
+      }
+
+      lastOffset = segment.end;
+    }
   }
 
   updateReadAloudState(rootNode: Node): void {
@@ -667,10 +730,14 @@ export class ContentController {
       return;
     }
 
-    const nodes = getReadingModeTextNodes(container);
+    // Capture the specific node instances currently rendered in the UI.
+    // We store them in an array so that the index becomes the identifier that
+    // links this node to its AXTree mapping in the renderer.
+    this.renderedTextNodes_ = getReadingModeTextNodes(container);
 
-    // Extract the raw text content from each node.
-    const blocks = nodes.map(n => n.textContent || '');
+    // Extract the raw text content from each node to send to the mapping
+    // algorithm in the renderer.
+    const blocks = this.renderedTextNodes_.map(n => n.textContent || '');
 
     chrome.readingMode.onRenderedTextBlocksAvailable(blocks);
   }

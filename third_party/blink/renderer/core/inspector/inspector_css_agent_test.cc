@@ -8,6 +8,7 @@
 
 #include "third_party/blink/renderer/core/css/css_function_rule.h"
 #include "third_party/blink/renderer/core/css/css_property_names.h"
+#include "third_party/blink/renderer/core/css/css_style_declaration.h"
 #include "third_party/blink/renderer/core/css/css_style_rule.h"
 #include "third_party/blink/renderer/core/css/css_test_helpers.h"
 #include "third_party/blink/renderer/core/css/properties/css_property.h"
@@ -15,12 +16,14 @@
 #include "third_party/blink/renderer/core/dom/element.h"
 #include "third_party/blink/renderer/core/dom/pseudo_element.h"
 #include "third_party/blink/renderer/core/dom/shadow_root.h"
+#include "third_party/blink/renderer/core/frame/local_frame.h"
 #include "third_party/blink/renderer/core/inspector/inspected_frames.h"
 #include "third_party/blink/renderer/core/inspector/inspector_dom_agent.h"
 #include "third_party/blink/renderer/core/inspector/inspector_network_agent.h"
 #include "third_party/blink/renderer/core/inspector/inspector_resource_container.h"
 #include "third_party/blink/renderer/core/inspector/inspector_resource_content_loader.h"
 #include "third_party/blink/renderer/core/inspector/inspector_style_resolver.h"
+#include "third_party/blink/renderer/core/inspector/inspector_style_sheet.h"
 #include "third_party/blink/renderer/core/style/computed_style.h"
 #include "third_party/blink/renderer/core/testing/page_test_base.h"
 #include "third_party/blink/renderer/platform/wtf/text/atomic_string.h"
@@ -76,10 +79,9 @@ class InspectorCSSAgentTest : public PageTestBase {
     return agent;
   }
 
-  using FontAtRules =
-      std::unique_ptr<protocol::Array<protocol::CSS::CSSAtRule>>;
-  FontAtRules CollectFontAtRules(const char* selector,
-                                 std::vector<PseudoId> pseudo_ids) {
+  using AtRules = std::unique_ptr<protocol::Array<protocol::CSS::CSSAtRule>>;
+  AtRules CollectFontAtRules(const char* selector,
+                             std::vector<PseudoId> pseudo_ids) {
     Element* e = GetDocument().querySelector(AtomicString(selector),
                                              ASSERT_NO_EXCEPTION);
     CHECK(e);
@@ -92,8 +94,15 @@ class InspectorCSSAgentTest : public PageTestBase {
     return CreateInspectorCSSAgent()->FontAtRulesForNodes(elements);
   }
 
-  FontAtRules CollectFontAtRules(const char* selector) {
+  AtRules CollectFontAtRules(const char* selector) {
     return CollectFontAtRules(selector, {});
+  }
+
+  AtRules CollectCounterAtRules(const char* selector) {
+    Element* e = GetDocument().querySelector(AtomicString(selector),
+                                             ASSERT_NO_EXCEPTION);
+    CHECK(e);
+    return CreateInspectorCSSAgent()->CounterAtRulesForElement(e);
   }
 
   CSSStyleRule* GetSingleNestedStyleRule(TreeScope* tree_scope) {
@@ -504,7 +513,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFaceRule) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -536,7 +545,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFaceRuleNoMatch) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(0u, rules->size());
 }
@@ -563,7 +572,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFaceRuleFromPseudoElement) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules(
+  AtRules rules = CollectFontAtRules(
       "#e", {PseudoId::kPseudoIdBefore, PseudoId::kPseudoIdAfter});
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
@@ -597,7 +606,7 @@ TEST_F(InspectorCSSAgentTest, GetFontPaletteValuesRule) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -618,6 +627,132 @@ TEST_F(InspectorCSSAgentTest, GetFontPaletteValuesRule) {
             "0 red");
 }
 
+TEST_F(InspectorCSSAgentTest, GetCounterStyleRuleSimple) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
+    <style>
+      @counter-style --my-style {
+        system: cyclic;
+        symbols: 'a' 'b' 'c';
+      }
+      #e {
+        display: list-item;
+        list-style-type: --my-style;
+      }
+    </style>
+    <div id=e></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  AtRules rules = CollectCounterAtRules("#e");
+  EXPECT_TRUE(rules);
+  EXPECT_EQ(1u, rules->size());
+  EXPECT_EQ(rules->at(0)->getType(),
+            protocol::CSS::CSSAtRule::TypeEnum::CounterStyle);
+  EXPECT_TRUE(rules->at(0)->getName());
+  EXPECT_EQ(rules->at(0)->getName()->getText(), "--my-style");
+  EXPECT_GE(rules->at(0)->getStyle()->getCssProperties()->size(), 2u);
+  EXPECT_EQ(rules->at(0)->getStyle()->getCssProperties()->at(0)->getName(),
+            "system");
+  EXPECT_EQ(rules->at(0)->getStyle()->getCssProperties()->at(0)->getValue(),
+            "cyclic");
+  EXPECT_EQ(rules->at(0)->getStyle()->getCssProperties()->at(1)->getName(),
+            "symbols");
+  EXPECT_EQ(rules->at(0)->getStyle()->getCssProperties()->at(1)->getValue(),
+            "'a' 'b' 'c'");
+}
+
+TEST_F(InspectorCSSAgentTest, GetCounterStyleRuleTwoFallbacks) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
+    <style>
+      @counter-style style-b {
+        system: cyclic;
+        symbols: 'x' 'y';
+      }
+      @counter-style style-a {
+        system: cyclic;
+        symbols: 'a' 'b';
+        fallback: style-b;
+      }
+      #e {
+        display: list-item;
+        list-style-type: style-a;
+      }
+    </style>
+    <div id=e></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  AtRules rules = CollectCounterAtRules("#e");
+  EXPECT_TRUE(rules);
+  EXPECT_EQ(2u, rules->size());
+  EXPECT_EQ(rules->at(0)->getName()->getText(), "style-a");
+  EXPECT_EQ(rules->at(1)->getName()->getText(), "style-b");
+}
+
+TEST_F(InspectorCSSAgentTest, GetCounterStyleRuleCycle) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
+    <style>
+      @counter-style --my-style {
+        system: cyclic;
+        symbols: 'a' 'b';
+        fallback: --my-style;
+      }
+      #e {
+        display: list-item;
+        list-style-type: --my-style;
+      }
+    </style>
+    <div id=e></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  AtRules rules = CollectCounterAtRules("#e");
+  EXPECT_TRUE(rules);
+  EXPECT_EQ(1u, rules->size());
+  EXPECT_EQ(rules->at(0)->getName()->getText(), "--my-style");
+}
+
+TEST_F(InspectorCSSAgentTest, GetCounterStyleRuleNonExistentFallback) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
+    <style>
+      @counter-style --my-style {
+        system: cyclic;
+        symbols: 'a' 'b';
+        fallback: --non-existent-style;
+      }
+      #e {
+        display: list-item;
+        list-style-type: --my-style;
+      }
+    </style>
+    <div id=e></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  AtRules rules = CollectCounterAtRules("#e");
+  EXPECT_TRUE(rules);
+  EXPECT_EQ(1u, rules->size());
+  EXPECT_EQ(rules->at(0)->getName()->getText(), "--my-style");
+}
+
+TEST_F(InspectorCSSAgentTest, GetCounterStyleRuleBuiltInFallback) {
+  GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
+    <style>
+      @counter-style --my-style {
+        system: cyclic;
+        symbols: 'a' 'b';
+        fallback: decimal;
+      }
+      #e {
+        display: list-item;
+        list-style-type: --my-style;
+      }
+    </style>
+    <div id=e></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+  AtRules rules = CollectCounterAtRules("#e");
+  EXPECT_TRUE(rules);
+  EXPECT_EQ(1u, rules->size());
+  EXPECT_EQ(rules->at(0)->getName()->getText(), "--my-style");
+}
+
 TEST_F(InspectorCSSAgentTest, GetFontPaletteValuesRuleNoMatchPalette) {
   GetDocument().body()->SetHTMLUnsafeWithoutTrustedTypes(R"HTML(
     <style>
@@ -633,7 +768,7 @@ TEST_F(InspectorCSSAgentTest, GetFontPaletteValuesRuleNoMatchPalette) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(0u, rules->size());
 }
@@ -653,7 +788,7 @@ TEST_F(InspectorCSSAgentTest, GetFontPaletteValuesRuleNoMatchFont) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(0u, rules->size());
 }
@@ -680,7 +815,7 @@ TEST_F(InspectorCSSAgentTest, GetFontPaletteValuesRuleFromPseudoElement) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules(
+  AtRules rules = CollectFontAtRules(
       "#e", {PseudoId::kPseudoIdBefore, PseudoId::kPseudoIdAfter});
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
@@ -718,7 +853,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleSwash) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -750,7 +885,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleNoMatchFont) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(0u, rules->size());
 }
@@ -771,7 +906,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleNoMatchFeature) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(0u, rules->size());
 }
@@ -792,7 +927,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleAnnotation) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -818,7 +953,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleOrnaments) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -844,7 +979,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleStylistic) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -870,7 +1005,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleStyleset) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -896,7 +1031,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleCharacterVariant) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -922,7 +1057,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleMultipleFamilies) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(1u, rules->size());
   EXPECT_EQ(rules->at(0)->getType(),
@@ -961,7 +1096,7 @@ TEST_F(InspectorCSSAgentTest, GetFontFeatureValuesRuleMultipleFeatures) {
     <div id=e></div>
   )HTML");
   UpdateAllLifecyclePhasesForTest();
-  FontAtRules rules = CollectFontAtRules("#e");
+  AtRules rules = CollectFontAtRules("#e");
   EXPECT_TRUE(rules);
   EXPECT_EQ(3u, rules->size());
   for (int i = 0; i < 3; ++i) {

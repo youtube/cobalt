@@ -45,6 +45,8 @@ const GroupConfigMap& BuildDefaultGroups() {
         // clang-format off
         {GROUP_MOBILE_SEARCH_READY_OMNIBOX, CreateGroup(SECTION_MOBILE_VERBATIM)},
         {GROUP_MOBILE_CLIPBOARD,            CreateGroup(SECTION_MOBILE_CLIPBOARD)},
+        {GROUP_CROSS_DEVICE_TABS,
+         CreateGroup(SECTION_PERSONALIZED_ZERO_SUGGEST)},
         {GROUP_PERSONALIZED_ZERO_SUGGEST,   CreateGroup(SECTION_PERSONALIZED_ZERO_SUGGEST)},
         {GROUP_MOBILE_MOST_VISITED,
          CreateGroup(SECTION_MOBILE_MOST_VISITED,
@@ -83,7 +85,7 @@ const GroupConfigMap& BuildDefaultHubTypedGroups(bool is_incognito) {
         // clang-format off
                 {GROUP_MOBILE_OPEN_TABS,
 #if BUILDFLAG(IS_ANDROID)
-         base::FeatureList::IsEnabled(kAndroidHubSearchTabGroups) && !is_incognito
+         !is_incognito
              ? CreateGroup(SECTION_MOBILE_OPEN_TABS,
                            GroupConfig_RenderType_DEFAULT_VERTICAL,
                            IDS_OMNIBOX_HUB_TYPED_MATCH_HEADER)

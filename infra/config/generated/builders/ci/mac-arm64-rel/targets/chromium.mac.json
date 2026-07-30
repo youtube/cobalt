@@ -76,109 +76,6 @@
       }
     ]
   },
-  "mac-skia-alt-arm64-rel-tests": {
-    "isolated_scripts": [
-      {
-        "args": [
-          "--flag-specific=enable-skia-graphite",
-          "--skipped=always",
-          "--timeout-ms=20000",
-          "--num-retries=3",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
-        ],
-        "merge": {
-          "args": [
-            "--verbose"
-          ],
-          "script": "//third_party/blink/tools/merge_web_test_results.py"
-        },
-        "module_name": "//:blink_web_tests",
-        "module_scheme": "webtest",
-        "name": "graphite_enabled_blink_web_tests",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "results_handler": "layout tests",
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-15"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 2
-        },
-        "test": "blink_web_tests",
-        "test_id_prefix": "ninja://:blink_web_tests/"
-      },
-      {
-        "args": [
-          "--flag-specific=enable-skia-graphite",
-          "--skipped=always",
-          "--timeout-ms=20000",
-          "--num-retries=3",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
-        ],
-        "merge": {
-          "args": [
-            "--verbose"
-          ],
-          "script": "//third_party/blink/tools/merge_web_test_results.py"
-        },
-        "module_name": "//:blink_wpt_tests",
-        "module_scheme": "webtest",
-        "name": "graphite_enabled_blink_wpt_tests",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "results_handler": "layout tests",
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-15"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "blink_wpt_tests",
-        "test_id_prefix": "ninja://:blink_wpt_tests/"
-      },
-      {
-        "args": [
-          "--flag-specific=enable-skia-graphite",
-          "--skipped=always",
-          "--timeout-multiplier=2",
-          "--inverted-test-launcher-filter-file=../../third_party/blink/web_tests/TestLists/chrome.filter",
-          "--inverted-test-launcher-filter-file=../../third_party/blink/web_tests/TestLists/content_shell.filter",
-          "--write-run-histories-to=${ISOLATED_OUTDIR}/run_histories.json"
-        ],
-        "merge": {
-          "args": [
-            "--verbose"
-          ],
-          "script": "//third_party/blink/tools/merge_web_test_results.py"
-        },
-        "module_name": "//:headless_shell_wpt",
-        "module_scheme": "webtest",
-        "name": "graphite_enabled_headless_shell_wpt_tests",
-        "resultdb": {
-          "enable": true,
-          "has_native_resultdb_integration": true
-        },
-        "results_handler": "layout tests",
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-15"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com",
-          "shards": 7
-        },
-        "test": "headless_shell_wpt",
-        "test_id_prefix": "ninja://:headless_shell_wpt/"
-      }
-    ]
-  },
   "mac12-arm64-rel-tests": {
     "gtest_tests": [
       {
@@ -232,23 +129,6 @@
         "test": "angle_unittests",
         "test_id_prefix": "ninja://third_party/angle/src/tests:angle_unittests/",
         "use_isolated_scripts_api": true
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "module_name": "//extensions/shell:app_shell_unittests",
-        "module_scheme": "gtest",
-        "name": "app_shell_unittests",
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-12"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "app_shell_unittests",
-        "test_id_prefix": "ninja://extensions/shell:app_shell_unittests/"
       },
       {
         "merge": {
@@ -1913,24 +1793,6 @@
         "test": "angle_unittests",
         "test_id_prefix": "ninja://third_party/angle/src/tests:angle_unittests/",
         "use_isolated_scripts_api": true
-      },
-      {
-        "ci_only": true,
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "module_name": "//extensions/shell:app_shell_unittests",
-        "module_scheme": "gtest",
-        "name": "app_shell_unittests",
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-13"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "app_shell_unittests",
-        "test_id_prefix": "ninja://extensions/shell:app_shell_unittests/"
       },
       {
         "ci_only": true,
@@ -3678,24 +3540,6 @@
         "test": "angle_unittests",
         "test_id_prefix": "ninja://third_party/angle/src/tests:angle_unittests/",
         "use_isolated_scripts_api": true
-      },
-      {
-        "ci_only": true,
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "module_name": "//extensions/shell:app_shell_unittests",
-        "module_scheme": "gtest",
-        "name": "app_shell_unittests",
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-14"
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "app_shell_unittests",
-        "test_id_prefix": "ninja://extensions/shell:app_shell_unittests/"
       },
       {
         "ci_only": true,
@@ -5514,29 +5358,6 @@
         "test": "angle_unittests",
         "test_id_prefix": "ninja://third_party/angle/src/tests:angle_unittests/",
         "use_isolated_scripts_api": true
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
-        "module_name": "//extensions/shell:app_shell_unittests",
-        "module_scheme": "gtest",
-        "name": "app_shell_unittests",
-        "retry_only_failed_tests": true,
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "os": "Mac-15"
-          },
-          "optional_dimensions": {
-            "30": {
-              "cpu": "Apple_(Virtual)"
-            }
-          },
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "app_shell_unittests",
-        "test_id_prefix": "ninja://extensions/shell:app_shell_unittests/"
       },
       {
         "merge": {

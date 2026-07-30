@@ -30,6 +30,8 @@ struct NativeWebKeyboardEvent;
 
 namespace glic {
 
+class GlicSharingManager;
+
 class SelectionOverlayController
     : public OverlayBaseController,
       public selection::SelectionOverlayPageHandler {
@@ -65,6 +67,11 @@ class SelectionOverlayController
   // `capture_region_observer_`.
   void BindCaptureRegionObserver(
       mojo::PendingRemote<mojom::CaptureRegionObserver> observer);
+  static void CaptureRegion(
+      tabs::TabInterface* tab,
+      GlicSharingManager& sharing_manager,
+      mojo::PendingRemote<mojom::CaptureRegionObserver> observer,
+      mojom::GetTabContextOptionsPtr options);
 
   void Show(mojom::GetTabContextOptionsPtr options);
   void Close();
@@ -96,6 +103,7 @@ class SelectionOverlayController
   void NotifyIsOverlayShowing(bool is_showing) override;
   int GetToolResourceId() override;
   ui::ElementIdentifier GetViewContainerId() override;
+  bool UsesContentsContainerView() override;
   SidePanelType GetSidePanelType() override;
   bool ShouldCloseSidePanel() override;
   bool ShouldShowPreselectionBubble() override;

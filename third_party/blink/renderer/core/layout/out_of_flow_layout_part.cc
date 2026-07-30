@@ -36,6 +36,7 @@
 #include "third_party/blink/renderer/core/layout/layout_box_utils.h"
 #include "third_party/blink/renderer/core/layout/layout_inline.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/core/layout/layout_object_inlines.h"
 #include "third_party/blink/renderer/core/layout/layout_result.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/logical_fragment.h"
@@ -152,17 +153,13 @@ class OOFCandidateStyleIterator {
       return GetStyle();
     }
     const ComputedStyle& base_style = GetBaseStyle();
-    if (&base_style != &GetStyle()) {
-      element_->GetLayoutObject()->SetStyle(
-          &base_style, LayoutObject::ApplyStyleChanges::kNo);
-    }
+    ActivateStyle(base_style);
     return base_style;
   }
 
   const ComputedStyle& ActivateStyleForChosenFallback() {
     const ComputedStyle& style = GetStyle();
-    element_->GetLayoutObject()->SetStyle(&style,
-                                          LayoutObject::ApplyStyleChanges::kNo);
+    ActivateStyle(style);
     return style;
   }
 
@@ -337,11 +334,25 @@ class OOFCandidateStyleIterator {
             .UpdateStyleAndLayoutTreeForOutOfFlow(
                 *element_, fallback, &anchor_evaluator_,
                 container_writing_direction_)) {
-      CHECK(element_->GetLayoutObject());
+      LayoutObject* layout_object = element_->GetLayoutObject();
+      CHECK(layout_object);
       // Returns LayoutObject ComputedStyle instead of element style for layout
       // purposes. The style may be different, in particular for body -> html
       // propagation of writing modes.
-      style_ = element_->GetLayoutObject()->Style();
+      style_ = &layout_object->StyleRef();
+      layout_object->SetNeedsLayout(
+          layout_invalidation_reason::kAnchorPositioning, kMarkOnlyThis);
+    }
+  }
+
+  void ActivateStyle(const ComputedStyle& new_style) {
+    LayoutObject* layout_object = element_->GetLayoutObject();
+    if (new_style != layout_object->StyleRef()) {
+      layout_object->SetStyle(&new_style, LayoutObject::ApplyStyleChanges::kNo);
+      // We need to invalidate layout in order to avoid invalid cache hits, as
+      // our style isn't part of the LayoutResult cache key.
+      layout_object->SetNeedsLayout(
+          layout_invalidation_reason::kAnchorPositioning, kMarkOnlyThis);
     }
   }
 
@@ -2404,8 +2415,7 @@ OutOfFlowLayoutPart::TryCalculateOffset(
                        candidate_writing_direction);
 
   const LogicalOofInsets insets =
-      ComputeOutOfFlowInsets(candidate_style, space.AvailableSize(), alignment,
-                             candidate_writing_direction);
+      ComputeOutOfFlowInsets(candidate_style, space.AvailableSize(), alignment);
 
   // Adjust the |static_position| (which is currently relative to the default
   // container's border-box) to be relative to the padding-box.
@@ -2442,6 +2452,32 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   const BoxStrut border_padding = ComputeBorders(space, node_info.node) +
                                   ComputePadding(space, candidate_style);
 
+  auto auto_size_behavior = [&](ItemPosition position,
+                                bool has_auto_inset) -> AutoSizeBehavior {
+    // Any auto inset will trigger shrink-to-fit.
+    if (has_auto_inset) {
+      return AutoSizeBehavior::kFitContent;
+    }
+
+    // An explicit stretch will always win.
+    if (position == ItemPosition::kStretch) {
+      return AutoSizeBehavior::kStretchExplicit;
+    }
+
+    // Replaced/tables don't stretch in abspos.
+    if (node_info.node.IsTable() || node_info.node.IsReplaced()) {
+      return AutoSizeBehavior::kFitContent;
+    }
+
+    return position == ItemPosition::kNormal
+               ? AutoSizeBehavior::kStretchImplicit
+               : AutoSizeBehavior::kFitContent;
+  };
+  const AutoSizeBehavior inline_auto_size_behavior = auto_size_behavior(
+      alignment.inline_alignment.GetPosition(), imcb.has_auto_inline_inset);
+  const AutoSizeBehavior block_auto_size_behavior = auto_size_behavior(
+      alignment.block_alignment.GetPosition(), imcb.has_auto_block_inset);
+
   std::optional<LogicalSize> replaced_size;
   if (node_info.node.IsReplaced()) {
     // Create a new space with the IMCB size, and stretch constraints.
@@ -2450,29 +2486,8 @@ OutOfFlowLayoutPart::TryCalculateOffset(
                                    /* is_new_fc */ true);
     builder.SetAvailableSize(imcb.Size());
     builder.SetPercentageResolutionSize(space.PercentageResolutionSize());
-
-    const bool is_parallel =
-        IsParallelWritingMode(container_writing_direction.GetWritingMode(),
-                              candidate_writing_direction.GetWritingMode());
-    const ItemPosition inline_position =
-        (is_parallel ? candidate_style.JustifySelf()
-                     : candidate_style.AlignSelf())
-            .GetPosition();
-    const bool is_inline_stretch = !imcb.has_auto_inline_inset &&
-                                   inline_position == ItemPosition::kStretch;
-    if (is_inline_stretch) {
-      builder.SetInlineAutoBehavior(AutoSizeBehavior::kStretchExplicit);
-    }
-    const ItemPosition block_position =
-        (is_parallel ? candidate_style.AlignSelf()
-                     : candidate_style.JustifySelf())
-            .GetPosition();
-    const bool is_block_stretch =
-        !imcb.has_auto_block_inset && block_position == ItemPosition::kStretch;
-    if (is_block_stretch) {
-      builder.SetBlockAutoBehavior(AutoSizeBehavior::kStretchExplicit);
-    }
-
+    builder.SetInlineAutoBehavior(inline_auto_size_behavior);
+    builder.SetBlockAutoBehavior(block_auto_size_behavior);
     replaced_size =
         ComputeReplacedSize(node_info.node, builder.ToConstraintSpace(),
                             border_padding, ReplacedSizeMode::kNormal);
@@ -2480,7 +2495,6 @@ OutOfFlowLayoutPart::TryCalculateOffset(
 
   const LogicalAnchorCenterPosition anchor_center_position =
       ComputeAnchorCenterPosition(candidate_style, alignment,
-                                  candidate_writing_direction,
                                   space.AvailableSize());
 
   OffsetInfo offset_info;
@@ -2488,16 +2502,13 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   offset_info.inline_size_depends_on_min_max_sizes = ComputeOofInlineDimensions(
       node_info.node, node_info.break_token, candidate_style, space, imcb,
       anchor_center_position, alignment, border_padding, replaced_size,
-      container_insets, container_writing_direction, &node_dimensions);
-
-  // We may have already pre-computed our block-dimensions when determining
-  // our min/max sizes, only run if needed.
-  if (node_dimensions.size.block_size == kIndefiniteSize) {
-    offset_info.initial_layout_result = ComputeOofBlockDimensions(
-        node_info.node, node_info.break_token, candidate_style, space, imcb,
-        anchor_center_position, alignment, border_padding, replaced_size,
-        container_insets, container_writing_direction, &node_dimensions);
-  }
+      container_insets, inline_auto_size_behavior, block_auto_size_behavior,
+      container_writing_direction, &node_dimensions);
+  offset_info.initial_layout_result = ComputeOofBlockDimensions(
+      node_info.node, node_info.break_token, candidate_style, space, imcb,
+      anchor_center_position, alignment, border_padding, replaced_size,
+      container_insets, block_auto_size_behavior, container_writing_direction,
+      &node_dimensions);
 
   if (try_fit_available_space) {
     const PhysicalToLogicalGetter has_non_auto_inset(
@@ -2552,6 +2563,8 @@ OutOfFlowLayoutPart::TryCalculateOffset(
   offset_info.container_content_size =
       ToLogicalSize(container_physical_content_size,
                     candidate_writing_direction.GetWritingMode());
+  offset_info.imcb_block_size = imcb.BlockSize();
+  offset_info.block_auto_size_behavior = block_auto_size_behavior;
 
   if (const BlockBreakToken* break_token = node_info.break_token) {
     DCHECK(RuntimeEnabledFeatures::FragmentedOofInCbEnabled());
@@ -2751,6 +2764,7 @@ const LayoutResult* OutOfFlowLayoutPart::GenerateFragment(
   const BlockBreakToken* break_token = node_info.break_token;
   const BlockNode& node = node_info.node;
   const auto& style = node.Style();
+  const bool is_replaced = node.IsReplaced();
   const LayoutUnit block_offset = offset_info.offset.block_offset;
 
   const bool force_orthogonal_writing_mode_root = !IsParallelWritingMode(
@@ -2762,25 +2776,25 @@ const LayoutResult* OutOfFlowLayoutPart::GenerateFragment(
                                  /* is_new_fc */ true,
                                  /* adjust_inline_size_if_needed */ true,
                                  force_orthogonal_writing_mode_root);
-  builder.SetAvailableSize(offset_info.node_dimensions.size);
+  builder.SetAvailableSize({offset_info.node_dimensions.size.inline_size,
+                            is_replaced
+                                ? offset_info.node_dimensions.size.block_size
+                                : offset_info.imcb_block_size});
   builder.SetPercentageResolutionSize(offset_info.container_content_size);
   builder.SetIsFixedInlineSize(true);
   builder.SetIsHiddenForPaint(
       node_info.base_container_info.is_hidden_for_paint);
 
+  if (is_replaced) {
+    builder.SetIsFixedBlockSize(true);
+  } else {
+    builder.SetBlockAutoBehavior(offset_info.block_auto_size_behavior);
+  }
+
   const bool is_in_block_fragmentation =
       (RuntimeEnabledFeatures::FragmentedOofInCbEnabled() &&
        GetConstraintSpace().HasBlockFragmentation()) ||
       fragmentainer_constraint_space;
-
-  // In some cases we will need the fragment size in order to calculate the
-  // offset. We may have to lay out to get the fragment size. For block
-  // fragmentation, we *need* to know the block-offset before layout. In other
-  // words, in that case, we may have to lay out, calculate the offset, and then
-  // lay out again at the correct block-offset.
-  if (!is_in_block_fragmentation || !offset_info.initial_layout_result) {
-    builder.SetIsFixedBlockSize(true);
-  }
 
   bool is_repeatable = false;
   if (is_in_block_fragmentation) {

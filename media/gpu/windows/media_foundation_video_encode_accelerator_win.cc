@@ -1008,9 +1008,13 @@ void MediaFoundationVideoEncodeAccelerator::RequestEncodingParametersChange(
   frame_rate_ = framerate;
   // For SW BRC we don't reconfigure the encoder.
   if (rate_ctrl_) {
-    rate_ctrl_->UpdateRateControl(CreateRateControllerConfig(
-        bitrate_allocation_, size.value_or(input_visible_size_), frame_rate_,
-        num_temporal_layers_, codec_, content_type_));
+    if (!rate_ctrl_->UpdateRateControl(CreateRateControllerConfig(
+            bitrate_allocation_, size.value_or(input_visible_size_),
+            frame_rate_, num_temporal_layers_, codec_, content_type_))) {
+      NotifyErrorStatus({EncoderStatus::Codes::kEncoderUnsupportedConfig,
+                         "Failed to update rate control parameters"});
+      return;
+    }
   } else {
     VARIANT var;
     var.vt = VT_UI4;
@@ -2868,6 +2872,17 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PerformD3DScaling(
 
     D3D11_TEXTURE2D_DESC input_texture_desc = {};
     input_texture->GetDesc(&input_texture_desc);
+
+    if (visible_rect.x() < 0 || visible_rect.y() < 0 ||
+        visible_rect.right() > static_cast<int>(input_texture_desc.Width) ||
+        visible_rect.bottom() > static_cast<int>(input_texture_desc.Height)) {
+      LOG(ERROR) << "Source visible_rect " << visible_rect.ToString()
+                 << " is out of bounds for texture of size "
+                 << input_texture_desc.Width << "x"
+                 << input_texture_desc.Height;
+      return E_INVALIDARG;
+    }
+
     RECT source_rect = {static_cast<LONG>(visible_rect.x()),
                         static_cast<LONG>(visible_rect.y()),
                         static_cast<LONG>(visible_rect.right()),
@@ -2961,6 +2976,18 @@ HRESULT MediaFoundationVideoEncodeAccelerator::PerformD3DCopy(
         return E_FAIL;
       }
       release_keyed_mutex.emplace(std::move(keyed_mutex), 0);
+    }
+
+    D3D11_TEXTURE2D_DESC input_desc;
+    input_texture->GetDesc(&input_desc);
+
+    if (visible_rect.x() < 0 || visible_rect.y() < 0 ||
+        visible_rect.right() > static_cast<int>(input_desc.Width) ||
+        visible_rect.bottom() > static_cast<int>(input_desc.Height)) {
+      LOG(ERROR) << "Source visible_rect " << visible_rect.ToString()
+                 << " is out of bounds for texture of size " << input_desc.Width
+                 << "x" << input_desc.Height;
+      return E_INVALIDARG;
     }
 
     D3D11_BOX src_box = {static_cast<UINT>(visible_rect.x()),

@@ -5,15 +5,19 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_CORE_SCROLL_SCROLL_PROMISE_RESOLVER_H_
 #define THIRD_PARTY_BLINK_RENDERER_CORE_SCROLL_SCROLL_PROMISE_RESOLVER_H_
 
-#include "base/check_op.h"
+#include <memory>
+
 #include "third_party/blink/renderer/bindings/core/v8/script_promise.h"
-#include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
-#include "third_party/blink/renderer/bindings/core/v8/v8_scroll_result.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
-#include "third_party/blink/renderer/platform/heap/persistent.h"
-#include "third_party/blink/renderer/platform/runtime_enabled_features.h"
+#include "third_party/blink/renderer/platform/heap/member.h"
+#include "third_party/blink/renderer/platform/wtf/forward.h"
 
 namespace blink {
+
+class ScriptState;
+class ScrollResult;
+template <typename T>
+class ScriptPromiseResolver;
 
 // A class to resolve the promise for a programmatic scroll request when all
 // active scrollers for the request are done scrolling. This is achieved by
@@ -36,69 +40,30 @@ class ScrollPromiseResolver : public GarbageCollected<ScrollPromiseResolver> {
     }
 
     void MarkInterrupted() {
-      scroll_promise_resolver_->SetScrollIsInterrupted();
+      scroll_promise_resolver_->scroll_is_interrupted_ = true;
     }
 
    private:
     Persistent<ScrollPromiseResolver> scroll_promise_resolver_;
   };
 
-  explicit ScrollPromiseResolver(ScriptState* script_state) {
-    if (script_state &&
-        RuntimeEnabledFeatures::ProgrammaticScrollPromiseEnabled()) {
-      resolver_ = MakeGarbageCollected<ScriptPromiseResolver<ScrollResult>>(
-          script_state);
-    }
-  }
-
-  ~ScrollPromiseResolver() {
-    CHECK(script_promise_is_created_);
-    CHECK_EQ(num_active_scrolls_, 0U);
-  }
+  explicit ScrollPromiseResolver(ScriptState* script_state);
+  ~ScrollPromiseResolver();
 
   // Returns a tracker for an active scroll. This method must be called before
   // `GetScriptPromise`.
-  std::unique_ptr<ActiveScrollTracker> CreateActiveScrollTracker() {
-    CHECK(!script_promise_is_created_);
-    num_active_scrolls_++;
-    return std::make_unique<ActiveScrollTracker>(this);
-  }
+  std::unique_ptr<ActiveScrollTracker> CreateActiveScrollTracker();
 
   // Returns the promise to be used in JS, after resolving it if there is no
   // active scroll. This method must be called exactly once, and that call must
   // come after any possible calls to `CreateActiveScrollTracker`.
-  ScriptPromise<ScrollResult> CreateScriptPromise() {
-    CHECK(!script_promise_is_created_);
-    script_promise_is_created_ = true;
-    if (!resolver_) {
-      return EmptyPromise();
-    }
-    ResolvePromiseIfIdle();
-    return resolver_->Promise();
-  }
+  ScriptPromise<ScrollResult> CreateScriptPromise();
 
-  void Trace(Visitor* visitor) const { visitor->Trace(resolver_); }
+  void Trace(Visitor* visitor) const;
 
  private:
-  void ActiveScrollTrackerRemoved() {
-    CHECK_GT(num_active_scrolls_, 0U);
-    --num_active_scrolls_;
-    if (script_promise_is_created_ && resolver_) {
-      ResolvePromiseIfIdle();
-    }
-  }
-
-  void ResolvePromiseIfIdle() {
-    CHECK(script_promise_is_created_);
-    CHECK(resolver_);
-    if (num_active_scrolls_ == 0) {
-      auto* result = ScrollResult::Create();
-      result->setInterrupted(scroll_is_interrupted_);
-      resolver_->Resolve(result);
-    }
-  }
-
-  void SetScrollIsInterrupted() { scroll_is_interrupted_ = true; }
+  void ActiveScrollTrackerRemoved();
+  void ResolvePromiseIfIdle();
 
   Member<ScriptPromiseResolver<ScrollResult>> resolver_;
   wtf_size_t num_active_scrolls_ = 0;

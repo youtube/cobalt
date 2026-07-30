@@ -25,7 +25,6 @@
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "chrome/browser/accessibility_annotator/accessibility_annotator_enablement_service_factory.h"
 #include "chrome/browser/accessibility_annotator/accessibility_query_service_factory.h"
 #include "chrome/browser/account_settings/account_setting_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
@@ -47,6 +46,10 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/consent_auditor/consent_auditor_factory.h"
 #include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
+#include "chrome/browser/glic/public/glic_enabling.h"
+#include "chrome/browser/glic/public/glic_invoke_options.h"
+#include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/history/history_service_factory.h"
 #include "chrome/browser/metrics/profile_metrics_service_factory.h"
@@ -56,6 +59,7 @@
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
 #include "chrome/browser/password_manager/factories/password_manager_settings_service_factory.h"
 #include "chrome/browser/password_manager/password_field_classification_model_handler_factory.h"
+#include "chrome/browser/personal_context/personal_context_enablement_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/profiles/profile_manager.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -86,8 +90,6 @@
 #include "chrome/common/channel_info.h"
 #include "chrome/common/url_constants.h"
 #include "chrome/common/webui_url_constants.h"
-#include "components/accessibility_annotator/core/accessibility_annotator_enablement_service.h"
-#include "components/accessibility_annotator/core/accessibility_annotator_types.h"
 #include "components/account_settings/account_setting_service.h"
 #include "components/application_locale_storage/application_locale_storage.h"
 #include "components/autofill/content/browser/content_autofill_driver.h"
@@ -463,14 +465,14 @@ ChromeAutofillClient::GetAccessibilityQueryService() {
   return AccessibilityQueryServiceFactory::GetForProfile(profile);
 }
 
-accessibility_annotator::RemoteAnnotatorEnablementState
-ChromeAutofillClient::GetAccessibilityAnnotatorEnablementState() const {
+personal_context::PersonalContextEnablementState
+ChromeAutofillClient::GetPersonalContextEnablementState() const {
   Profile* profile =
       Profile::FromBrowserContext(web_contents()->GetBrowserContext());
-  accessibility_annotator::AccessibilityAnnotatorEnablementService* service =
-      AccessibilityAnnotatorEnablementServiceFactory::GetForProfile(profile);
+  personal_context::PersonalContextEnablementService* service =
+      PersonalContextEnablementServiceFactory::GetForProfile(profile);
   return service ? service->GetEnablementState()
-                 : accessibility_annotator::RemoteAnnotatorEnablementState::
+                 : personal_context::PersonalContextEnablementState::
                        kDisabledNotEligible;
 }
 
@@ -1234,8 +1236,7 @@ void ChromeAutofillClient::ShowAutofillSuggestionsImpl(
       suggestion_controller_, delegate, web_contents(),
       PopupControllerCommon(
           element_bounds_in_screen_space, open_args.text_direction,
-          web_contents()->GetNativeView(), open_args.anchor_type,
-          open_args.show_tabbed_popup,
+          open_args.anchor_type, open_args.show_tabbed_popup,
           open_args.prefer_prev_arrow_side_on_suggestions_update),
       open_args.form_control_ax_id, open_args.trigger_source);
 
@@ -1352,7 +1353,8 @@ void ChromeAutofillClient::ShowEntityImportBubble(
                            std::move(prompt_result_callback));
   } else {
     std::move(prompt_result_callback)
-        .Run(AutofillClient::AutofillAiBubbleResult::kUnknown, {});
+        .Run(AutofillClient::AutofillAiBubbleResult::kUnknown, std::nullopt,
+             {});
   }
 #endif  // BUILDFLAG(IS_ANDROID)
 }
@@ -1443,6 +1445,27 @@ void ChromeAutofillClient::OnActorTaskStateChange(actor::ActorTask& task) {
   // TODO(crbug.com/469428128): Evaluate whether
   // `actor::ActorTask::State::kCreated` state should enable the actor mode.
   active_actor_task_ = task_id;
+}
+
+void ChromeAutofillClient::OpenGeminiInSidebar(const std::u16string& prompt) {
+  Profile* profile = GetProfile();
+  if (!profile || !glic::GlicEnabling::IsEnabledForProfile(profile)) {
+    return;
+  }
+  glic::GlicKeyedService* glic_keyed_service =
+      glic::GlicKeyedServiceFactory::GetGlicKeyedService(profile);
+  if (!glic_keyed_service) {
+    return;
+  }
+  tabs::TabInterface* tab = GetTabInterface();
+  if (!tab) {
+    return;
+  }
+  glic::Target target(tab);
+  glic::GlicInvokeOptions options(std::move(target),
+                                  glic::mojom::InvocationSource::kAutofill);
+  options.prompts.push_back(base::UTF16ToUTF8(prompt));
+  glic_keyed_service->Invoke(std::move(options));
 }
 
 }  // namespace autofill

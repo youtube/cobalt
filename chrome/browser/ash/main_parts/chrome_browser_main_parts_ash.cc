@@ -175,6 +175,7 @@
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/lifetime/application_lifetime.h"
 #include "chrome/browser/lifetime/termination_notification.h"
+#include "chrome/browser/memory/oom_kills_monitor.h"
 #include "chrome/browser/metrics/chrome_feature_list_creator.h"
 #include "chrome/browser/metrics/structured/chrome_structured_metrics_delegate.h"
 #include "chrome/browser/net/chrome_network_delegate.h"
@@ -195,7 +196,6 @@
 #include "chromeos/ash/components/attestation/attestation_features.h"
 #include "chromeos/ash/components/audio/audio_devices_pref_handler_impl.h"
 #include "chromeos/ash/components/audio/cras_audio_handler.h"
-#include "chromeos/ash/components/audio/public/cpp/sounds/sounds_manager.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_flusher.h"
 #include "chromeos/ash/components/browser_context_helper/browser_context_helper.h"
 #include "chromeos/ash/components/carrier_lock/carrier_lock_manager.h"
@@ -288,6 +288,7 @@
 #include "net/base/network_change_notifier.h"
 #include "net/base/network_change_notifier_passive.h"
 #include "printing/backend/print_backend.h"
+#include "services/audio/public/cpp/sounds/sounds_manager.h"
 #include "third_party/cros_system_api/dbus/service_constants.h"
 #include "third_party/cros_system_api/dbus/vm_launch/dbus-constants.h"
 #include "third_party/cros_system_api/dbus/vm_wl/dbus-constants.h"
@@ -1802,6 +1803,11 @@ void ChromeBrowserMainPartsAsh::PostMainMessageLoopRun() {
   // destroyed, and also before |ShutdownDBus()| is called (where
   // chromeos::PowerManagerClient is destroyed).
   doze_mode_power_status_scheduler_.reset();
+
+  // Shut down OOMKillsMonitor before local_state() is destroyed in
+  // ChromeBrowserMainPartsLinux::PostMainMessageLoopRun(). The singleton
+  // holds a raw_ptr to PrefService that would otherwise dangle.
+  memory::OOMKillsMonitor::GetInstance().Shutdown();
 
   // NOTE: Closes ash and destroys `Shell`.
   ChromeBrowserMainPartsLinux::PostMainMessageLoopRun();

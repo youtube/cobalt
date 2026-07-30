@@ -1657,7 +1657,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.Errors.FilesPolicySetup" enum="Boolean"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>accorsi@google.com</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -1773,7 +1773,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Dlp.FilesDaemonStarted" enum="Boolean"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>poromov@chromium.org</owner>
   <owner>chromeos-dlp@google.com</owner>
   <summary>
@@ -3141,7 +3141,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.Policies" enum="EnterprisePolicies"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>vsavu@google.com</owner>
   <owner>asumaneev@google.com</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
@@ -3998,7 +3998,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.StateDetermination.{RequestType}Request.DmStatusCode"
-    enum="EnterpriseDeviceManagementStatus" expires_after="2026-06-01">
+    enum="EnterpriseDeviceManagementStatus" expires_after="2027-06-01">
   <owner>sergiyb@chromium.org</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -4010,7 +4010,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Enterprise.StateDetermination.{RequestType}Request.NetworkErrorCode"
-    enum="NetErrorCodes" expires_after="2026-06-01">
+    enum="NetErrorCodes" expires_after="2027-06-01">
   <owner>sergiyb@chromium.org</owner>
   <owner>chromeos-commercial-remote-management@google.com</owner>
   <summary>
@@ -4161,7 +4161,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Enterprise.UserPolicyChromeOS.ChildUser.OAuthTokenError"
-    enum="GoogleServiceAuthError" expires_after="2026-08-30">
+    enum="GoogleServiceAuthError" expires_after="2026-11-01">
   <owner>longbowei@google.com</owner>
   <owner>zhangwenyu@google.com</owner>
   <owner>michaelpg@chromium.org</owner>

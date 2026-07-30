@@ -85,15 +85,12 @@ class PLATFORM_EXPORT AudioBus final : public ThreadSafeRefCounted<AudioBus> {
   AudioBus(const AudioBus&) = delete;
   AudioBus& operator=(const AudioBus&) = delete;
 
-  // Tells the given channel to use an externally allocated buffer.
-  // Note: SetChannelMemory must be called on all channels in the bus with the
-  // new length if the length is to be changed.
-  void SetChannelMemory(unsigned channel_index,
-                        float* storage,
-                        uint32_t length);
-  void SetChannelMemory(unsigned channel_index,
-                        base::span<float> storage,
-                        uint32_t length);
+  // Tells the given channel to use externally allocated storage. The channel
+  // length is `storage.size()`. Pass an empty span to clear the channel's
+  // storage reference.
+  // Note: SetChannelMemory must be called on all channels in the bus with
+  // matching lengths if the bus length is to be changed.
+  void SetChannelMemory(unsigned channel_index, base::span<float> storage);
 
   // Channels
   unsigned NumberOfChannels() const { return channels_.size(); }
@@ -175,9 +172,9 @@ class PLATFORM_EXPORT AudioBus final : public ThreadSafeRefCounted<AudioBus> {
   void CopyWithGainFrom(const AudioBus& source_bus, float gain);
 
   // Copies the sourceBus by scaling with sample-accurate gain values.
-  void CopyWithSampleAccurateGainValuesFrom(const AudioBus& source_bus,
-                                            float* gain_values,
-                                            unsigned number_of_gain_values);
+  void CopyWithSampleAccurateGainValuesFrom(
+      const AudioBus& source_bus,
+      base::span<const float> gain_values);
 
   // Returns maximum absolute value across all channels (useful for
   // normalization).

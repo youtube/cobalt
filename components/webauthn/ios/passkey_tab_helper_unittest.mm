@@ -54,7 +54,9 @@ constexpr char kCredentialId[] = "credential_id";
 constexpr char kCredentialId2[] = "credential_id_2";
 constexpr char kWellKnownURL[] = "https://example.com/.well-known/webauthn";
 constexpr char kOriginURL[] = "https://example.com";
+constexpr char kInsecureOriginURL[] = "http://example.com";
 constexpr char kRelatedOriginURL[] = "https://example.ca";
+constexpr char16_t kDeferToRendererJsCall[] = u"deferToRenderer";
 
 constexpr char kWebAuthenticationIOSContentAreaEventHistogram[] =
     "WebAuthentication.IOS.ContentAreaEvent";
@@ -560,7 +562,7 @@ TEST_F(PasskeyTabHelperTest, HandleRegistrationDefersWhenGpmDisabled) {
 TEST_F(PasskeyTabHelperTest, AutomaticPasskeyUpgradeSuccess) {
   password_manager::PasswordForm form;
   form.username_value = u"";
-  form.url = GURL("https://example.com");
+  form.url = GURL(kOriginURL);
   form.date_last_used = base::Time::Now();
 
   std::vector<password_manager::PasswordForm> results;
@@ -575,7 +577,7 @@ TEST_F(PasskeyTabHelperTest, AutomaticPasskeyUpgradeSuccess) {
 TEST_F(PasskeyTabHelperTest, AutomaticPasskeyUpgradeThresholdEnforcement) {
   password_manager::PasswordForm form;
   form.username_value = u"";
-  form.url = GURL("https://example.com");
+  form.url = GURL(kOriginURL);
   form.date_last_used = base::Time::Now() - base::Minutes(6);
 
   std::vector<password_manager::PasswordForm> results;
@@ -590,7 +592,7 @@ TEST_F(PasskeyTabHelperTest, AutomaticPasskeyUpgradeThresholdEnforcement) {
 TEST_F(PasskeyTabHelperTest, AutomaticPasskeyUpgradeRemovalHandling) {
   password_manager::PasswordForm form;
   form.username_value = u"";
-  form.url = GURL("https://example.com");
+  form.url = GURL(kOriginURL);
   form.date_last_used = base::Time::Now();
 
   std::vector<password_manager::PasswordForm> results;
@@ -617,6 +619,95 @@ TEST_F(PasskeyTabHelperTest, AutomaticPasskeyUpgradeRpIdNormalization) {
   RegistrationRequestParams params = BuildRegistrationRequestParams({});
 
   EXPECT_TRUE(CanPerformAutomaticPasskeyUpgrade(params, results));
+}
+
+// Tests that a passkey assertion request defers back to the renderer when
+// OriginAllowedToMakeWebAuthnRequests check fails.
+TEST_F(PasskeyTabHelperTest, HandleGetRequestedEventDefersOnInvalidOrigin) {
+  SetUpWebFramesManagerAndWebFrame(GURL(kInsecureOriginURL));
+  SetUpIOSPasswordManagerDriver();
+
+  passkey_tab_helper()->HandleGetRequestedEvent(
+      BuildAssertionRequestParams({}));
+
+  web::FakeWebFramesManager* frames_manager =
+      static_cast<web::FakeWebFramesManager*>(
+          fake_web_state_.GetWebFramesManager(
+              PasskeyJavaScriptFeature::GetInstance()
+                  ->GetSupportedContentWorld()));
+  web::FakeWebFrame* frame = static_cast<web::FakeWebFrame*>(
+      frames_manager->GetFrameWithId(web::kMainFakeFrameId));
+
+  EXPECT_NE(frame->GetLastJavaScriptCall().find(kDeferToRendererJsCall),
+            std::u16string::npos);
+}
+
+// Tests that a passkey registration request defers back to the renderer when
+// OriginAllowedToMakeWebAuthnRequests check fails.
+TEST_F(PasskeyTabHelperTest, HandleCreateRequestedEventDefersOnInvalidOrigin) {
+  SetUpWebFramesManagerAndWebFrame(GURL(kInsecureOriginURL));
+  SetUpIOSPasswordManagerDriver();
+
+  passkey_tab_helper()->HandleCreateRequestedEvent(
+      BuildRegistrationRequestParams({}));
+
+  web::FakeWebFramesManager* frames_manager =
+      static_cast<web::FakeWebFramesManager*>(
+          fake_web_state_.GetWebFramesManager(
+              PasskeyJavaScriptFeature::GetInstance()
+                  ->GetSupportedContentWorld()));
+  web::FakeWebFrame* frame = static_cast<web::FakeWebFrame*>(
+      frames_manager->GetFrameWithId(web::kMainFakeFrameId));
+
+  EXPECT_NE(frame->GetLastJavaScriptCall().find(kDeferToRendererJsCall),
+            std::u16string::npos);
+}
+
+// Tests that when a passkey creation request is initiated from a cross-origin
+// iframe, the client data JSON is built with the correct top origin and
+// is_cross_origin_iframe = true.
+TEST_F(PasskeyTabHelperTest, StartPasskeyCreationFromCrossOriginIframe) {
+  // Set up main frame and same-site cross-origin subframe.
+  web::ContentWorld passkey_world =
+      PasskeyJavaScriptFeature::GetInstance()->GetSupportedContentWorld();
+  auto frames_manager = std::make_unique<web::FakeWebFramesManager>();
+
+  auto main_frame =
+      web::FakeWebFrame::Create(web::kMainFakeFrameId, /*is_main_frame=*/true,
+                                GURL("https://example.com"));
+  main_frame->set_browser_state(&fake_browser_state_);
+  frames_manager->AddWebFrame(std::move(main_frame));
+
+  auto sub_frame =
+      web::FakeWebFrame::Create(web::kChildFakeFrameId, /*is_main_frame=*/false,
+                                GURL("https://sub.example.com"));
+  sub_frame->set_browser_state(&fake_browser_state_);
+  web::FakeWebFrame* sub_frame_ptr = sub_frame.get();
+  frames_manager->AddWebFrame(std::move(sub_frame));
+
+  fake_web_state_.SetWebFramesManager(passkey_world, std::move(frames_manager));
+  SetUpIOSPasswordManagerDriver();
+
+  // Handle the creation request.
+  RegistrationRequestParams params = BuildRegistrationRequestParams(
+      /*exclude_credentials=*/{},
+      device::UserVerificationRequirement::kPreferred, kFakeRequestId,
+      web::kChildFakeFrameId);
+
+  passkey_tab_helper()->HandleCreateRequestedEvent(std::move(params));
+  EXPECT_TRUE(client_->DidShowCreationBottomSheet());
+
+  // Trigger start of creation.
+  passkey_tab_helper()->StartPasskeyCreation(kFakeRequestId);
+  EXPECT_TRUE(client_->DidFetchKeys());
+
+  // Verify that ResolveAttestationRequest was called on the subframe with the
+  // correct client data JSON.
+  std::u16string last_call = sub_frame_ptr->GetLastJavaScriptCall();
+  EXPECT_NE(last_call.find(u"resolveAttestationRequest"), std::u16string::npos);
+  EXPECT_NE(last_call.find(u"\\\"crossOrigin\\\":true"), std::u16string::npos);
+  EXPECT_NE(last_call.find(u"\\\"topOrigin\\\":\\\"https://example.com\\\""),
+            std::u16string::npos);
 }
 
 }  // namespace webauthn

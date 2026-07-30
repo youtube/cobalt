@@ -30,13 +30,12 @@ std::vector<std::string> GetSomeRules() {
       "||ex.com$image",
       "|http://example.com/?key=value$~third-party,domain=ex.com",
       "&key1=value1&key2=value2|$script,image,font",
-      "domain1.com,domain1.com###id",
       "@@allowlisted.com$document,domain=example.com|~sub.example.com",
-      "###absolute_evil_id",
       "@@allowlisted.com$match-case,document,domain=another.example.com",
-      "domain.com,~sub.domain.com,sub.sub.domain.com#@#id",
-      "#@#absolute_good_id",
       "host$websocket",
+      "###absolute_evil_id",
+      "#@#absolute_good_id",
+      "domain1.com,domain1.com###id",
   };
 }
 
@@ -88,9 +87,6 @@ std::vector<std::string> GetManyRules() {
 
   for (size_t i = 0; i != kNumberOfStyleRules; ++i) {
     std::string text_rule = "domain.com";
-    if (i & 1) {
-      text_rule += ",~but_not.domain.com";
-    }
     text_rule += (i & 3) ? "##" : "#@#";
     text_rule += "#id" + base::NumberToString(i);
     text_rules.push_back(text_rule);
@@ -146,6 +142,12 @@ TEST(RuleStreamTest, WriteAndReadRuleset) {
     TestRulesetContents only_url_rules;
     only_url_rules.url_rules = contents.url_rules;
 
+    std::stable_partition(contents.style_rules.begin(),
+                          contents.style_rules.end(),
+                          [](const url_pattern_index::proto::StyleRule& rule) {
+                            return !rule.domains().empty();
+                          });
+
     for (auto format : {RulesetFormat::kFilterList, RulesetFormat::kProto,
                         RulesetFormat::kUnindexedRuleset}) {
       ScopedTempRulesetFile ruleset_file(format);
@@ -153,6 +155,30 @@ TEST(RuleStreamTest, WriteAndReadRuleset) {
       EXPECT_EQ(ruleset_file.ReadContents(), contents);
     }
   }
+}
+
+TEST(RuleStreamTest, SortStyleRulesInProto) {
+  url_pattern_index::proto::StyleRule generic_rule;
+  generic_rule.set_selector(".generic");
+
+  url_pattern_index::proto::StyleRule site_rule;
+  site_rule.set_selector(".site");
+  site_rule.add_domains()->set_domain("example.com");
+
+  TestRulesetContents contents;
+  // Add site rule first, then generic rule.
+  contents.style_rules.push_back(site_rule);
+  contents.style_rules.push_back(generic_rule);
+
+  ScopedTempRulesetFile ruleset_file(RulesetFormat::kProto);
+  ruleset_file.WriteRuleset(contents);
+
+  TestRulesetContents read_contents = ruleset_file.ReadContents();
+
+  ASSERT_EQ(2u, read_contents.style_rules.size());
+  // The site-specific rule should have been moved to the front.
+  EXPECT_EQ(".site", read_contents.style_rules[0].selector());
+  EXPECT_EQ(".generic", read_contents.style_rules[1].selector());
 }
 
 TEST(RuleStreamTest, WriteAndReadHalfRuleset) {
@@ -327,6 +353,8 @@ TEST(RuleStreamTest, TransferRulesFromFilterListWithUnsupportedOptions) {
   text_rules.push_back("");
   text_rules.insert(text_rules.begin() + text_rules.size() / 2,
                     "host3$collapse");
+  // Style rule with ~ is unsupported and should be ignored.
+  text_rules.push_back("example.com,~however.example.com##div.blocked_class");
 
   ScopedTempRulesetFile source_ruleset(RulesetFormat::kFilterList);
   ScopedTempRulesetFile target_ruleset(RulesetFormat::kFilterList);
@@ -358,7 +386,8 @@ TEST(RuleStreamTest, FilterStyleRules) {
       "###id",               // Supported: global with id anchor
       "example.com##div",    // Supported: site-specific tag
       "##div",               // UNSUPPORTED: global tag
-      "~example.com##div",   // UNSUPPORTED: global exclusion is still global
+      "~example.com##div",   // UNSUPPORTED: ~ in domains is not allowed for
+                             // style rules
       "##div:hover",         // UNSUPPORTED: global pseudo
       "example.com##:hover"  // UNSUPPORTED: site-specific pseudo without anchor
   };
@@ -394,18 +423,26 @@ TEST(RuleStreamTest, FilterStyleRules) {
     ASSERT_EQ(3u, target_contents.style_rules.size())
         << "Failed for format: " << static_cast<int>(format);
 
-    EXPECT_EQ(".class", target_contents.style_rules[0].selector());
-    EXPECT_EQ("#id", target_contents.style_rules[1].selector());
-    EXPECT_EQ("div", target_contents.style_rules[2].selector());
+    if (format == RulesetFormat::kProto) {
+      EXPECT_EQ("div", target_contents.style_rules[0].selector());
+      EXPECT_EQ(".class", target_contents.style_rules[1].selector());
+      EXPECT_EQ("#id", target_contents.style_rules[2].selector());
 
-    // kProto and kUnindexedRuleset preserve pre-parsed anchors, but kFilterList
-    // serializes back to text and loses them.
-    if (format == RulesetFormat::kProto ||
-        format == RulesetFormat::kUnindexedRuleset) {
-      EXPECT_THAT(target_contents.style_rules[0].classes(),
+      EXPECT_THAT(target_contents.style_rules[1].classes(),
                   ::testing::ElementsAre("class"));
-      EXPECT_THAT(target_contents.style_rules[1].ids(),
+      EXPECT_THAT(target_contents.style_rules[2].ids(),
                   ::testing::ElementsAre("id"));
+    } else {
+      EXPECT_EQ(".class", target_contents.style_rules[0].selector());
+      EXPECT_EQ("#id", target_contents.style_rules[1].selector());
+      EXPECT_EQ("div", target_contents.style_rules[2].selector());
+
+      if (format == RulesetFormat::kUnindexedRuleset) {
+        EXPECT_THAT(target_contents.style_rules[0].classes(),
+                    ::testing::ElementsAre("class"));
+        EXPECT_THAT(target_contents.style_rules[1].ids(),
+                    ::testing::ElementsAre("id"));
+      }
     }
   }
 }

@@ -6,7 +6,7 @@
 
 #import "ios/chrome/browser/composebox/menu/ui/composebox_menu_attachment_view.h"
 #import "ios/chrome/browser/composebox/menu/ui/composebox_menu_item.h"
-#import "ios/chrome/browser/composebox/ui/composebox_ui_util.h"
+#import "ios/chrome/browser/composebox/shared/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -30,18 +30,33 @@
 
 - (void)configureWithItem:(ComposeboxMenuItem*)item {
   _attachmentView.title = item.title;
-  _attachmentView.accessibilityLabel = item.title;
+  self.accessibilityLabel = item.title;
+
+  self.accessibilityIdentifier =
+      AccessibilityIdentifierForMenuItemType(item.type);
 
   if (item.disabled) {
-    _attachmentView.image = SymbolWithPalette(
-        item.image, @[ [UIColor colorNamed:kTextSecondaryColor] ]);
+    if (item.favicon) {
+      _attachmentView.image = item.favicon;
+    } else {
+      _attachmentView.image = SymbolWithPalette(
+          item.image, @[ [UIColor colorNamed:kTextSecondaryColor] ]);
+    }
     _attachmentView.alpha = 0.5;
     self.userInteractionEnabled = NO;
+    self.accessibilityTraits |= UIAccessibilityTraitNotEnabled;
+    self.isAccessibilityElement = YES;
   } else {
-    _attachmentView.image = SymbolWithPalette(
-        item.image, @[ [UIColor colorNamed:kTextPrimaryColor] ]);
+    if (item.favicon) {
+      _attachmentView.image = item.favicon;
+    } else {
+      _attachmentView.image = SymbolWithPalette(
+          item.image, @[ [UIColor colorNamed:kTextPrimaryColor] ]);
+    }
     _attachmentView.alpha = 1.0;
     self.userInteractionEnabled = YES;
+    self.accessibilityTraits &= ~UIAccessibilityTraitNotEnabled;
+    self.isAccessibilityElement = YES;
   }
 }
 

@@ -21,6 +21,7 @@
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
+#include "chrome/grit/theme_resources.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/dom_distiller/core/url_constants.h"
 #include "components/omnibox/browser/location_bar_model.h"
@@ -39,6 +40,7 @@
 #include "ui/color/color_provider_utils.h"
 #include "ui/gfx/color_palette.h"
 #include "ui/gfx/geometry/insets.h"
+#include "ui/gfx/image/image_skia.h"
 #include "ui/gfx/vector_icon_types.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/animation/flood_fill_ink_drop_ripple.h"
@@ -256,32 +258,32 @@ void LocationIconView::UpdateIcon() {
       base::BindOnce(&LocationIconView::OnIconFetched,
                      icon_fetch_weak_ptr_factory_.GetWeakPtr()));
 
+  if (icon.IsEmpty()) {
+    return;
+  }
+
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  const bool is_vector_icon = !icon.IsEmpty() && icon.IsVectorIcon() &&
-                              icon.GetVectorIcon().vector_icon();
-  if (is_vector_icon) {
-    const char* const icon_name = icon.GetVectorIcon().vector_icon()->name;
-    if (icon_name == vector_icons::kGoogleSuperGIcon.name ||
-        icon_name == vector_icons::kGoogleGLogoMonochromeIcon.name) {
-      // Remove the inkdrop around the Google G logo since we cannot interact
-      // with it.
-      views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
-    } else {
-      views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
-    }
+  const bool is_super_g = location_bar::IsGradientGoogleSuperGIcon(icon);
+  const bool is_monochrome_g =
+      icon.IsVectorIcon() && icon.GetVectorIcon().vector_icon() &&
+      icon.GetVectorIcon().vector_icon()->name ==
+          vector_icons::kGoogleGLogoMonochromeIcon.name;
 
-    bool has_custom_theme =
-        this->GetWidget() && this->GetWidget()->GetCustomTheme();
+  if (is_super_g || is_monochrome_g) {
+    // Remove the inkdrop around the Google G logos since we cannot interact
+    // with them.
+    views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::OFF);
 
-    if (has_custom_theme && icon_name == vector_icons::kGoogleSuperGIcon.name) {
+    // Handle custom theme backgrounds specifically for the Super G icon.
+    if (is_super_g && GetWidget() && GetWidget()->GetCustomTheme()) {
       SetBackgroundColor(SK_ColorWHITE);
     }
+  } else {
+    views::InkDrop::Get(this)->SetMode(views::InkDropHost::InkDropMode::ON);
   }
 #endif
 
-  if (!icon.IsEmpty()) {
-    SetImageModel(icon);
-  }
+  SetImageModel(icon);
 }
 
 void LocationIconView::UpdateBackground() {

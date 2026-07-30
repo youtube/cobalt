@@ -199,8 +199,6 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                 return "clipboard_permission_list";
             case ContentSettingsType.FILE_SYSTEM_WRITE_GUARD:
                 return "file_system_write_guard_permission_list";
-            case ContentSettingsType.LOCAL_NETWORK_ACCESS:
-                return "local_network_access";
             case ContentSettingsType.LOCAL_NETWORK:
                 return "local_network";
             case ContentSettingsType.LOOPBACK_NETWORK:
@@ -1358,12 +1356,17 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
         preference.setOnPreferenceChangeListener(this);
 
         String summary;
+        boolean isOnlyPreciseLocationBlockedInOs = false;
         if (isEmbargoed) {
             summary = getString(R.string.automatically_blocked);
-        } else if (contentType == ContentSettingsType.GEOLOCATION_WITH_OPTIONS) {
-
-            LocationCategory locationCategory =
-                    new LocationCategory(getBrowserContextHandle(), !mHasApproximateLocationGrant);
+        } else {
+            if (contentType == ContentSettingsType.GEOLOCATION_WITH_OPTIONS) {
+                LocationCategory locationCategory =
+                        new LocationCategory(
+                                getBrowserContextHandle(), !mHasApproximateLocationGrant);
+                isOnlyPreciseLocationBlockedInOs =
+                        locationCategory.hasPreciseOnlyBlockedWarning(getContext());
+            }
             summary =
                     getString(
                             ContentSettingsResources.getCategorySummary(
@@ -1371,12 +1374,7 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
                                     value,
                                     isOneTime,
                                     mHasApproximateLocationGrant,
-                                    locationCategory.hasPreciseOnlyBlockedWarning(getContext())));
-        } else {
-            summary =
-                    getString(
-                            ContentSettingsResources.getCategorySummary(
-                                    contentType, value, isOneTime, mHasApproximateLocationGrant));
+                                    isOnlyPreciseLocationBlockedInOs));
         }
         preference.setSummary(summary);
         if (preference instanceof ChromeImageViewPreference) {
@@ -1404,7 +1402,21 @@ public class SingleWebsiteSettings extends BaseSiteSettingsFragment
             }
         } else {
             ChromeSwitchPreference switchPreference = (ChromeSwitchPreference) preference;
-            switchPreference.setChecked(value == getEnabledValue(contentType));
+            @ContentSetting int enabledValue = getEnabledValue(contentType);
+            switchPreference.setChecked(value == enabledValue);
+
+            if (!isEmbargoed) {
+                String a11ySummary =
+                        getString(
+                                ContentSettingsResources.getCategorySummary(
+                                        contentType,
+                                        enabledValue,
+                                        isOneTime,
+                                        mHasApproximateLocationGrant,
+                                        isOnlyPreciseLocationBlockedInOs));
+                switchPreference.setSummaryOverrideForScreenReader(a11ySummary);
+            }
+
             if (contentType == mHighlightedPermission) {
                 switchPreference.setBackgroundColor(
                         AppCompatResources.getColorStateList(getContext(), mHighlightColor)

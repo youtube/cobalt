@@ -49,6 +49,7 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.base.test.util.UserActionTester;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.composeplate.ComposeplateUtils;
+import org.chromium.chrome.browser.composeplate.ComposeplateUtilsJni;
 import org.chromium.chrome.browser.feed.FeedSurfaceScrollDelegate;
 import org.chromium.chrome.browser.lens.LensController;
 import org.chromium.chrome.browser.lens.LensIntentParams;
@@ -84,6 +85,7 @@ public class SearchBoxMediatorUnitTest {
     @Mock private WindowAndroid mWindowAndroid;
     @Mock private LensController mLensController;
     @Mock private Profile mProfile;
+    @Mock private ComposeplateUtils.Natives mComposeplateUtilsJni;
     @Mock private TemplateUrlService mTemplateUrlService;
     @Captor private ArgumentCaptor<TemplateUrlServiceObserver> mTemplateUrlServiceObserverCaptor;
 
@@ -107,6 +109,9 @@ public class SearchBoxMediatorUnitTest {
         LensController.setInstanceForTesting(mLensController);
         TemplateUrlServiceFactory.setInstanceForTesting(mTemplateUrlService);
         when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(true);
+
+        ComposeplateUtilsJni.setInstanceForTesting(mComposeplateUtilsJni);
+        when(mComposeplateUtilsJni.isAimEntrypointEligible(any())).thenReturn(false);
 
         mMediator =
                 new SearchBoxMediator(
@@ -175,17 +180,28 @@ public class SearchBoxMediatorUnitTest {
     }
 
     @Test
-    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT + ":show_ntp_plus_button/true")
     public void testUpdateStartIcon_AllConditionsMet() {
-        mMediator.setIsFuseboxEligible(true);
+        when(mComposeplateUtilsJni.isAimEntrypointEligible(any())).thenReturn(true);
+        verify(mTemplateUrlService).addObserver(mTemplateUrlServiceObserverCaptor.capture());
+        mTemplateUrlServiceObserverCaptor.getValue().onTemplateURLServiceChanged();
 
         assertTrue(mPropertyModel.get(SearchBoxProperties.PLUS_BUTTON_VISIBILITY));
     }
 
     @Test
+    @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT + ":show_ntp_plus_button/false")
+    public void testUpdateStartIcon_ParamDisabled() {
+        ComposeplateUtils.setIsEnabledForTesting(true);
+        assertFalse(mPropertyModel.get(SearchBoxProperties.PLUS_BUTTON_VISIBILITY));
+    }
+
+    @Test
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testUpdateStartIcon_NotEligible() {
-        mMediator.setIsFuseboxEligible(false);
+        when(mComposeplateUtilsJni.isAimEntrypointEligible(any())).thenReturn(false);
+        verify(mTemplateUrlService).addObserver(mTemplateUrlServiceObserverCaptor.capture());
+        mTemplateUrlServiceObserverCaptor.getValue().onTemplateURLServiceChanged();
 
         assertFalse(mPropertyModel.get(SearchBoxProperties.PLUS_BUTTON_VISIBILITY));
     }
@@ -194,7 +210,7 @@ public class SearchBoxMediatorUnitTest {
     @EnableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testUpdateStartIcon_NotGoogle() {
         when(mTemplateUrlService.isDefaultSearchEngineGoogle()).thenReturn(false);
-        mMediator.setIsFuseboxEligible(true);
+        when(mComposeplateUtilsJni.isAimEntrypointEligible(any())).thenReturn(true);
 
         verify(mTemplateUrlService).addObserver(mTemplateUrlServiceObserverCaptor.capture());
         mTemplateUrlServiceObserverCaptor.getValue().onTemplateURLServiceChanged();
@@ -205,7 +221,9 @@ public class SearchBoxMediatorUnitTest {
     @Test
     @DisableFeatures(OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT)
     public void testUpdateStartIcon_FeatureDisabled() {
-        mMediator.setIsFuseboxEligible(true);
+        when(mComposeplateUtilsJni.isAimEntrypointEligible(any())).thenReturn(true);
+        verify(mTemplateUrlService).addObserver(mTemplateUrlServiceObserverCaptor.capture());
+        mTemplateUrlServiceObserverCaptor.getValue().onTemplateURLServiceChanged();
 
         assertFalse(mPropertyModel.get(SearchBoxProperties.PLUS_BUTTON_VISIBILITY));
     }
@@ -244,7 +262,6 @@ public class SearchBoxMediatorUnitTest {
     public void testApplyWhiteBackgroundWithShadow() {
         Drawable defaultBackground =
                 mContext.getDrawable(R.drawable.home_surface_search_box_background);
-        View searchBoxContainer = mView.findViewById(R.id.search_box_container);
 
         // Tests the case to apply a white background with shadow.
         int resId = R.style.TextAppearance_FakeSearchBoxTextMediumDark;
@@ -257,7 +274,7 @@ public class SearchBoxMediatorUnitTest {
         assertEquals(
                 colorStateList,
                 mPropertyModel.get(SearchBoxProperties.VOICE_SEARCH_COLOR_STATE_LIST));
-        verifyApplyBackground(searchBoxContainer);
+        verifyApplyBackground(mView);
 
         // Tests the case to remove the white background with shadow.
         resId = R.style.TextAppearance_FakeSearchBoxTextMedium;
@@ -270,7 +287,7 @@ public class SearchBoxMediatorUnitTest {
         assertEquals(
                 colorStateList,
                 mPropertyModel.get(SearchBoxProperties.VOICE_SEARCH_COLOR_STATE_LIST));
-        verifyResetBackground(searchBoxContainer, defaultBackground);
+        verifyResetBackground(mView, defaultBackground);
     }
 
     @Test

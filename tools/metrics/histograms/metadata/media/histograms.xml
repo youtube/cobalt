@@ -211,6 +211,198 @@ chromium-metrics-reviews@google.com.
   <variant name="Video"/>
 </variants>
 
+<histogram name="AccessCodeCast.Discovery.AddSinkResult.New"
+    enum="AccessCodeCastAddSinkResult" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The result of adding a cast sink to the media router sink list via the
+    AccessCodeCastSinkService when discovering it using an access code. Recorded
+    after the cast sink is added. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Discovery.AddSinkResult.Remembered"
+    enum="AccessCodeCastAddSinkResult" expires_after="2026-09-13">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The result of adding a cast sink to the media router sink list via the
+    AccessCodeCastSinkService when the device was remembered due to device
+    policy. Recorded after the cast sink is added. Logged only on desktop
+    platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Discovery.CastModeOnSuccess"
+    enum="AccessCodeCastCastMode" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The selected cast mode when a cast session is successfully started
+    (ResultCode::OK) after a user enters an access code. Logged only on desktop
+    platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Discovery.DeviceDurationOnRoute"
+    units="seconds" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The duration in seconds an access code device will stay in the list of cast
+    devices. Recorded on successful creation of a cast session to an access code
+    device. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Discovery.RememberedDevicesCount"
+    units="cast devices" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The count of cast devices which have been successfully remembered via the
+    access code cast sink service. Recorded when the browser starts, and any
+    time the network changes. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Session.FreezeCount" units="instances"
+    expires_after="2026-10-25">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The count of times that a local cast mirroring session is frozen, or paused,
+    during its duration. Recorded at the end of a cast mirroring session. Logged
+    only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Session.FreezeDuration" units="ms"
+    expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The amount of time in milliseconds that a local cast mirroring session is
+    frozen, or paused, until it is resumed or ended. Recorded when the session
+    is resumed, or when the session ends. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Session.NewDeviceRouteCreationDuration"
+    units="ms" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The amount of time in milliseconds that it takes to connect to a new device.
+    It is the combination of connecting to our server, validating the access
+    code, constructing a cast device, opening a channel to that device, and then
+    waiting for success. It is only recorded if the request was successful; not
+    recorded for non-local routes. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Session.RouteDiscoveryTypeAndSource"
+    enum="AccessCodeCastDiscoveryTypeAndSource" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The discovery type of the associated sink and the cast media source for an
+    access code route. Recorded when at the start of a local access code route.
+    Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Session.RouteDuration" units="ms"
+    expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The amount of time in milliseconds that a route to an access code device
+    lasts. Recorded at the end of a local access code route; not recorded for
+    non-local routes. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Session.SavedDeviceRouteCreationDuration"
+    units="ms" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The amount of time in milliseconds that it takes to connect to a saved
+    device. It is a combination of the time to request a mirroring route +
+    waiting for a success. It is only recorded if the request was successful;
+    not recorded for non-local routes. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Ui.AccessCodeInputTime" units="ms"
+    expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The amount of time in milliseconds for the user to input an access code
+    after the UI is enabled for a cast attempt. Recorded when the user presses
+    enter or the submit button after typing an access code. Logged only on
+    desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Ui.AccessCodeNotFoundCount" units="instances"
+    expires_after="2026-10-25">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The count of ACCESS_CODE_NOT_FOUND errors received while the
+    AccessCodeCastDialog is open, correlating to the number of times a user
+    typed an incorrect access code. Recorded after the dialog is closed. Logged
+    only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Ui.CastAttemptLength" units="ms"
+    expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The amount of time in milliseconds that the dialog is loading while
+    attempting to cast to a new device via access code. Recorded after a cast
+    attempt completes, and does not depend on whether the attempt was successful
+    or ended in error. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Ui.DialogCloseReason"
+    enum="AccessCodeCastDialogCloseReason" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The reason why the Access Code Cast dialog closed. Recorded when the Access
+    Code Cast dialog closes. Logged only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Ui.DialogLoadTime" units="ms"
+    expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The length of time for the AccessCodeCast dialog to finish loading after
+    instantiation. Recorded after the UI creates a page handler object. Logged
+    only on desktop platforms.
+  </summary>
+</histogram>
+
+<histogram name="AccessCodeCast.Ui.DialogOpenLocation"
+    enum="AccessCodeCastDialogOpenLocation" expires_after="2027-05-01">
+  <owner>bzielinski@google.com</owner>
+  <owner>cros-edu-eng@google.com</owner>
+  <summary>
+    The location from which the AccessCodeCast dialog is opened. Recorded after
+    the dialog opens. Only logged on desktop platforms.
+  </summary>
+</histogram>
+
 <histogram name="Cast.Channel.Certificate" enum="CastCertificateStatus"
     expires_after="never">
 <!-- expires-never: Used for Cast device health monitoring. -->
@@ -698,7 +890,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Android.AAudioSetDeviceId.{Direction}.{Result}"
-    enum="AndroidAudioDeviceType" expires_after="2026-06-21">
+    enum="AndroidAudioDeviceType" expires_after="M155">
   <owner>mjel@google.com</owner>
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -721,7 +913,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Android.AAudioXRunCount.Input.Interval"
-    units="glitches" expires_after="2026-08-30">
+    units="glitches" expires_after="2026-11-01">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -735,7 +927,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Android.AAudioXRunCount.Input.Short"
-    units="glitches" expires_after="2026-08-30">
+    units="glitches" expires_after="2026-11-01">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -751,7 +943,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Android.AAudioXRunCount.Output.Interval"
-    units="glitches" expires_after="2026-08-30">
+    units="glitches" expires_after="2026-11-01">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -764,7 +956,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Android.AAudioXRunCount.Output.Short"
-    units="glitches" expires_after="2026-08-30">
+    units="glitches" expires_after="2026-11-01">
   <owner>tguilbert@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -950,6 +1142,23 @@ chromium-metrics-reviews@google.com.
     only two valid options, F32 and S16. All other cases will be recorded as
     kUnknownSampleFormat.
   </summary>
+</histogram>
+
+<histogram
+    name="Media.Audio.Capture.Mac.GetApplicationAudioCaptureIdDuration.{Status}"
+    units="ms" expires_after="2027-05-04">
+  <owner>brandstrom@chromium.org</owner>
+  <owner>webrtc-audio-uma@google.com</owner>
+  <summary>
+    Measures the time required to retrieve the ApplicationAudioCaptureId for a
+    given process identifier on macOS. Logged for each call to
+    GetApplicationAudioCaptureIdForProcess() with the status variant (Success or
+    Failure).
+  </summary>
+  <token key="Status">
+    <variant name="Failure"/>
+    <variant name="Success"/>
+  </token>
 </histogram>
 
 <histogram
@@ -1560,7 +1769,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Mac.CatapAudioInputStream.Status.Close"
-    enum="CatapAudioInputStreamStatusClose" expires_after="2026-08-30">
+    enum="CatapAudioInputStreamStatusClose" expires_after="2026-11-01">
   <owner>kron@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -1571,7 +1780,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.Mac.CatapAudioInputStream.Status.Open"
-    enum="CatapAudioInputStreamStatusOpen" expires_after="2026-08-30">
+    enum="CatapAudioInputStreamStatusOpen" expires_after="2026-11-01">
   <owner>kron@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
   <summary>
@@ -1651,7 +1860,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.MakeAudioOutputStreamStatus"
-    enum="MakeAudioStreamStatus" expires_after="2026-08-30">
+    enum="MakeAudioStreamStatus" expires_after="2026-11-01">
   <owner>yuhsuan@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -1680,7 +1889,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Audio.OutputDeviceAuthorizationTime" units="ms"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>guidou@chromium.org</owner>
   <owner>olka@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -4607,6 +4816,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Media.GetDisplayMedia.BasicFlow.Mac.GetAppAudioCaptureIdResult"
+    enum="GetAppAudioCaptureIdMacResult" expires_after="2027-05-06">
+  <owner>brandstrom@chromium.org</owner>
+  <owner>webrtc-audio-uma@google.com</owner>
+  <summary>
+    Records the result of trying to get the audio capture ID of an application
+    whose window was selected in the getDisplayMedia() media picker on macOS.
+    This is recorded once for each call to
+    GetApplicationAudioCaptureIdForProcess().
+  </summary>
+</histogram>
+
 <histogram name="Media.GetDisplayMedia.BasicFlow.Win.GetApplicationIdResult"
     enum="GetAppMainProcessIdWinResult" expires_after="2026-05-11">
   <owner>eladalon@chromium.org</owner>
@@ -4691,7 +4913,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Media.GetDisplayMedia.Constraints.WindowAudio"
     enum="GetDisplayMediaSystemWindowOrExcludeConstraint"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>brandstrom@chromium.org</owner>
   <owner>kron@chromium.org</owner>
   <owner>webrtc-audio-uma@google.com</owner>
@@ -4749,7 +4971,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.GlobalMediaControls.EntryPoint"
-    enum="GlobalMediaControlsEntryPoint" expires_after="2026-08-30">
+    enum="GlobalMediaControlsEntryPoint" expires_after="2026-11-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <owner>media-dev-uma@chromium.org</owner>
@@ -4772,7 +4994,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.GlobalMediaControls.MediaCastMode.{Action}"
-    enum="GlobalMediaControlsCastMode" expires_after="2026-07-01">
+    enum="GlobalMediaControlsCastMode" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -5161,7 +5383,7 @@ chromium-metrics-reviews@google.com.
 <histogram
     name="Media.MediaDevices.EnumerateDevices.FirstStateOnContextDestroyed"
     enum="EnumerateDevicesFirstStateOnContextDestroyed"
-    expires_after="2026-08-28">
+    expires_after="2026-11-01">
   <owner>guidou@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <summary>
@@ -5172,7 +5394,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.EnumerateDevices.GetUserMediaInteraction"
-    enum="EnumerateDevicesGetUserMediaInteraction" expires_after="2026-08-28">
+    enum="EnumerateDevicesGetUserMediaInteraction" expires_after="2026-11-01">
   <owner>guidou@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <summary>
@@ -5284,7 +5506,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevices.GetUserMedia.EchoCancellationMode"
-    enum="EchoCancellationMode" expires_after="2026-08-29">
+    enum="EchoCancellationMode" expires_after="2026-11-01">
   <owner>henrika@chromium.org</owner>
   <owner>guidou@chromium.org</owner>
   <owner>video-cmi-apis@google.com</owner>
@@ -5332,7 +5554,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.MediaDevicesManager.VideoDeviceEnumeration.Result"
-    enum="DeviceEnumerationResult" expires_after="2026-08-30">
+    enum="DeviceEnumerationResult" expires_after="2026-11-01">
   <owner>toprice@chromium.org</owner>
   <owner>agpalak@chromium.org</owner>
   <summary>
@@ -5673,7 +5895,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.MediaFoundationRenderer.PlaybackError.MultiGpuNvidiaActiveWithExternalDisplay"
-    enum="Boolean" expires_after="2026-08-30">
+    enum="Boolean" expires_after="2026-11-01">
   <owner>sangbaekpark@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -5685,7 +5907,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Media.MediaFoundationRenderer.PlaybackError.MultiGpuWithExternalDisplay"
-    enum="Boolean" expires_after="2026-08-30">
+    enum="Boolean" expires_after="2026-11-01">
   <owner>sangbaekpark@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -7363,7 +7585,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.Ui.GetDisplayMedia.BasicFlow.SourceCount.{Type}"
-    units="count" expires_after="2026-05-24">
+    units="count" expires_after="2027-05-24">
   <owner>eladalon@chromium.org</owner>
   <owner>tovep@chromium.org</owner>
   <summary>
@@ -7380,7 +7602,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="Media.Ui.GetDisplayMedia.BasicFlow.UserInteraction"
     enum="MediaUiGetDisplayMediaBasicFlowUserInteraction"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>eladalon@chromium.org</owner>
   <owner>fbeaufort@chromium.org</owner>
   <summary>
@@ -7423,21 +7645,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram
-    name="Media.Ui.GetDisplayMedia.ScreenSharingPermissionInteractionMac"
-    enum="MediaUiGetDisplayMediaPermissionInteraction"
-    expires_after="2026-05-13">
-  <owner>tovep@chromium.org</owner>
-  <owner>eladalon@chromium.org</owner>
-  <owner>kron@chromium.org</owner>
-  <summary>
-    Records how far the user has proceeded in the journey to open the
-    screen-recording settings when trying to share a screen without having the
-    permission to do so. This histogram is recorded each time the dialog is
-    closed.
-  </summary>
-</histogram>
-
 <histogram name="Media.Ui.GetDisplayMedia.TabSharingInfoBarInteraction"
     enum="MediaUiGetDisplayMediaTabSharingInfoBarInteraction"
     expires_after="2026-09-13">
@@ -7446,21 +7653,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records which controls are clicked in the TabSharingInfoBar. The histogram
     is recorded for each click on such a control.
-  </summary>
-</histogram>
-
-<histogram
-    name="Media.Ui.GetDisplayMedia.WindowSharingPermissionInteractionMac"
-    enum="MediaUiGetDisplayMediaPermissionInteraction"
-    expires_after="2026-05-13">
-  <owner>tovep@chromium.org</owner>
-  <owner>eladalon@chromium.org</owner>
-  <owner>kron@chromium.org</owner>
-  <summary>
-    Records how far the user has proceeded in the journey to open the
-    screen-recording settings when trying to share a window without having the
-    permission to do so. This histogram is recorded each time the dialog is
-    closed.
   </summary>
 </histogram>
 
@@ -7789,7 +7981,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.Device.Opened.PixelFormat"
-    enum="VideoPixelFormatUnion" expires_after="2026-08-30">
+    enum="VideoPixelFormatUnion" expires_after="2026-11-01">
   <owner>bryantchandler@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -7811,7 +8003,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.Device.SupportedPixelFormat"
-    enum="VideoPixelFormatUnion" expires_after="2026-08-30">
+    enum="VideoPixelFormatUnion" expires_after="2026-11-01">
   <owner>eshr@google.com</owner>
   <owner>handellm@google.com</owner>
   <owner>bryantchandler@chromium.org</owner>
@@ -7841,7 +8033,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoCapture.Error" enum="VideoCaptureError"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>hiroh@chromium.org</owner>
   <owner>chromeos-gfx-video@chromium.org</owner>
   <owner>guidou@chromium.org</owner>
@@ -8413,7 +8605,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Media.VideoEncoder.{Usage}.{Impl}.Status" enum="EncoderStatus"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>hiroh@chromium.org</owner>
   <owner>media-dev-uma@chromium.org</owner>
   <summary>
@@ -9143,7 +9335,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Cast.App.Availability{MediaRouterSuccess}"
-    units="ms" expires_after="2026-07-05">
+    units="ms" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9218,7 +9410,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Cast.Mdns.Channel.Open_Failure" units="ms"
-    expires_after="2026-07-10">
+    expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9229,7 +9421,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Cast.Mdns.Channel.Open_Success" units="ms"
-    expires_after="2026-07-10">
+    expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9256,18 +9448,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="MediaRouter.CastStreaming.Session.Length.AccessCode"
-    units="ms" expires_after="2025-05-01">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    Total length of a Cast Streaming mirror session of any type, when the cast
-    sink was discovered via access code.
-  </summary>
-</histogram>
-
 <histogram name="MediaRouter.CastStreaming.Session.Length.OffscreenTab"
-    units="ms" expires_after="2026-07-10">
+    units="ms" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -9292,28 +9474,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="MediaRouter.CastStreaming.Start.Failure.AccessCodeManualEntry"
-    enum="MirroringServiceErrorType" expires_after="2025-05-01">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    Whenever a Cast Streaming session to a device discovered by access code
-    manual entry fails to start, record the error associated with the event.
-  </summary>
-</histogram>
-
-<histogram
-    name="MediaRouter.CastStreaming.Start.Failure.AccessCodeRememberedDevice"
-    enum="MirroringServiceErrorType" expires_after="2025-05-01">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    Whenever a Cast Streaming session to a device discovered by access code and
-    remembered via caching fails to start, record the error associated with the
-    event.
-  </summary>
-</histogram>
-
 <histogram name="MediaRouter.CastStreaming.Start.Success" enum="MirrorType"
     expires_after="2026-09-27">
   <owner>muyaoxu@google.com</owner>
@@ -9324,31 +9484,8 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="MediaRouter.CastStreaming.Start.Success.AccessCodeManualEntry"
-    enum="MirrorType" expires_after="2025-05-01">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    Whenever a Cast Streaming session is successfully started, when the device
-    was discovered by access code maual entry, record if it was for a Tab or
-    Desktop mirroring session.
-  </summary>
-</histogram>
-
-<histogram
-    name="MediaRouter.CastStreaming.Start.Success.AccessCodeRememberedDevice"
-    enum="MirrorType" expires_after="2025-05-01">
-  <owner>bzielinski@google.com</owner>
-  <owner>cros-edu-eng@google.com</owner>
-  <summary>
-    Whenever a Cast Streaming session is successfully started, when the device
-    was discovered by access code remembered device caching, record if it was
-    for a Tab or Desktop mirroring session.
-  </summary>
-</histogram>
-
 <histogram name="MediaRouter.Dial.AvailableDevicesCount" units="devices"
-    expires_after="2026-07-10">
+    expires_after="2027-05-01">
   <owner>mfoltz@chromium.org</owner>
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9359,7 +9496,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Dial.CreateRoute"
-    enum="MediaRouterDialCreateRouteResult" expires_after="2026-07-10">
+    enum="MediaRouterDialCreateRouteResult" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9370,7 +9507,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Dial.DeviceDescriptionParsingResult"
-    enum="MediaRouterDeviceDescriptionParsingResult" expires_after="2026-07-10">
+    enum="MediaRouterDeviceDescriptionParsingResult" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9393,7 +9530,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Dial.KnownDevicesCount" units="devices"
-    expires_after="2026-07-10">
+    expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9416,7 +9553,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Icon.Click.Location"
-    enum="MediaRouterDialogActivationLocation" expires_after="2026-07-05">
+    enum="MediaRouterDialogActivationLocation" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>Location the user clicked to open the Media Router dialog.</summary>
@@ -9496,7 +9633,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Provider.JoinRoute.Result{MediaRouteProvider}"
-    enum="MediaRouteProviderResult" expires_after="2026-07-10">
+    enum="MediaRouteProviderResult" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9512,7 +9649,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="MediaRouter.Provider.TerminateRoute.Result{MediaRouteProvider}"
-    enum="MediaRouteProviderResult" expires_after="2026-07-10">
+    enum="MediaRouteProviderResult" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>mfoltz@chromium.org</owner>
   <owner>openscreen-eng@google.com</owner>
@@ -9524,29 +9661,6 @@ chromium-metrics-reviews@google.com.
   <token key="MediaRouteProvider" variants="MediaRouteProvider">
     <variant name=""/>
   </token>
-</histogram>
-
-<histogram name="MediaRouter.RemotePlayback.SessionLoadTime" units="ms"
-    expires_after="2025-05-11">
-  <owner>muyaoxu@chromium.org</owner>
-  <owner>openscreen-eng@google.com</owner>
-  <summary>
-    Measures how long, from the start of a streaming session, until it switches
-    to Remoting for Remote Playback sessions. The start time is measured when
-    the streaming session has started and the end time is measured when the
-    remoting starts. The metric is recorded when both the start time and end
-    time are measured and duration time is calculated.
-  </summary>
-</histogram>
-
-<histogram name="MediaRouter.RemotePlayback.SessionStartsBeforeTimeout"
-    enum="Boolean" expires_after="2025-04-13">
-  <owner>muyaoxu@chromium.org</owner>
-  <owner>openscreen-eng@google.com</owner>
-  <summary>
-    Whether Remoting starts before it timeouts for Remote Playback sessions.
-    Recorded when the timeout callback is fired and when Remoting starts.
-  </summary>
 </histogram>
 
 <histogram name="MediaRouter.Sink.SelectedType" enum="MediaSinkType"
@@ -9575,7 +9689,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Source.CastingSource"
-    enum="MediaRouterSourceTypes" expires_after="2026-07-10">
+    enum="MediaRouterSourceTypes" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -9585,7 +9699,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Ui.Android.DialogAction"
-    enum="MediaRouterAndroidDialogAction" expires_after="2026-07-10">
+    enum="MediaRouterAndroidDialogAction" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -9597,7 +9711,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Ui.Android.DialogType"
-    enum="MediaRouterAndroidDialogType" expires_after="2026-07-10">
+    enum="MediaRouterAndroidDialogType" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -9622,7 +9736,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram name="MediaRouter.Ui.Dialog.ActivationLocationAndCastMode"
     enum="MediaRouterDialogActivationLocationAndCastMode"
-    expires_after="2026-07-10">
+    expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -9643,7 +9757,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Ui.PermissionRejectedViewAction"
-    enum="MediaRouterUiPermissionRejectedViewEvents" expires_after="2026-07-10">
+    enum="MediaRouterUiPermissionRejectedViewEvents" expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -9653,7 +9767,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.Ui.{DialogType}Dialog.LoadedWithData" units="ms"
-    expires_after="2026-07-10">
+    expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>
@@ -9668,7 +9782,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="MediaRouter.WiredDisplay.AvailableDevicesCount" units="units"
-    expires_after="2026-07-05">
+    expires_after="2027-05-01">
   <owner>muyaoxu@google.com</owner>
   <owner>openscreen-eng@google.com</owner>
   <summary>

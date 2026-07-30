@@ -131,6 +131,7 @@ ts_modules = [
   "common/braille/braille_key_types.ts",
   "common/braille/braille_table.ts",
   "common/braille/nav_braille.ts",
+  "services/tenji/sandboxed_tenji_wrapper.ts",
   "common/bridge_constants.ts",
   "common/command.ts",
   "common/command_store.ts",
@@ -165,6 +166,7 @@ ts_modules = [
   "offscreen/earcon_engine.ts",
   "offscreen/offscreen.ts",
   "offscreen/liblouis_worker.ts",
+  "offscreen/tenji_worker.ts",
   "panel/i_search_ui.ts",
   "panel/menu_manager.ts",
   "panel/menu_manager_with_test_endpoints.ts",
@@ -300,6 +302,7 @@ run_jsbundler("copied_files") {
     "offscreen/offscreen.html",
     "panel/panel.css",
     "panel/panel.html",
+    "services/tenji/sandboxed_tenji_wrapper.html",
     "tutorial/practice_areas/jump_commands.html",
     "tutorial/practice_areas/selects.html",
   ]
@@ -459,10 +462,12 @@ js2gtest("chromevox_extension_js_tests") {
   sources += [
     "background/braille/expanding_braille_translator_test.js",
     "background/braille/pan_strategy_test.js",
+    "background/braille/tenji_translator_test.js",
     "background/editing/editable_text_test.js",
     "background/phonetic_data_test.js",
     "common/key_sequence_test.js",
     "common/spannable_test.js",
+    "services/tenji/sandboxed_tenji_wrapper_test.js",
     "testing/mock_feedback_test.js",
   ]
 

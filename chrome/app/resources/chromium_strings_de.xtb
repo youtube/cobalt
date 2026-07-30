@@ -181,7 +181,6 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="2933336679234709858">Deine Daten werden mit deiner Passphrase verschlüsselt. Gib sie ein, um Chromium-Daten in deinem Google-Konto zu verwenden und zu speichern.</translation>
 <translation id="2945997411976714835">Installationsfehler: Das Installationsprogramm konnte nicht gestartet werden.</translation>
 <translation id="2948852018303413228">Mit gespeicherten Passwörtern in Chromium für iOS kannst du dich auf Websites schneller anmelden</translation>
-<translation id="2966959524256557996">Wenn du die Lesezeichen, Passwörter und Einstellungen für verschiedene Themen getrennt halten möchtest, füge ein neues Chromium-Profil für jedes Thema hinzu.</translation>
 <translation id="2970426615109535079">Chromium wird von deiner Organisation verwaltet</translation>
 <translation id="2977470724722393594">Chromium ist auf dem neuesten Stand</translation>
 <translation id="2977506796191543575">Wenn eine Website versucht, dein Passwort zu stehlen, oder wenn du eine schädliche Datei herunterlädst, kann Chromium auch URLs, einschließlich Teile von Seiteninhalten, an Safe Browsing senden</translation>
@@ -259,7 +258,6 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="3788675262216168505">Chromium-Profile verwalten</translation>
 <translation id="3790262771324122253">Gründe, warum Chromium einige Downloads blockiert</translation>
 <translation id="379589255253486813">Solltest du etwas überprüfen müssen, wirst du von Chromium informiert</translation>
-<translation id="3798048725356732506">Mit Chromium-Profilen kannst du Inhalte aus verschiedenen Bereichen deines Lebens voneinander trennen. Füge jetzt ein neues Profil hinzu.</translation>
 <translation id="3802055581630249637">Chromium lädt Seiten vorab, die du wahrscheinlich besuchen wirst, sodass sie dann schneller zur Verfügung stehen</translation>
 <translation id="3810973564298564668">Verwalten</translation>
 <translation id="3823384748599722168">Wenn du deine gespeicherten Passwörter verwenden möchtest, scanne den QR-Code, lade Chromium für iOS herunter und melde dich in deinem Google-Konto an</translation>
@@ -356,7 +354,6 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="4724676981607797757">Die Installation ist aufgrund eines Fehlers mit einem nicht unterstützten Protokoll fehlgeschlagen.</translation>
 <translation id="4746050847053251315">Chromium trotzdem beenden?</translation>
 <translation id="4748217263233248895">Da soeben ein kritisches Sicherheitsupdate für Chromium installiert wurde, solltest du jetzt einen Neustart durchführen. Deine Tabs werden dann automatisch wiederhergestellt.</translation>
-<translation id="4759645701210484457">Chromium fragen</translation>
 <translation id="4771701986670315895">Du hast diese Website in letzter Zeit nicht besucht. Chromium hat „<ph name="PERMISSION_1" />“, „<ph name="PERMISSION_2" />“ und <ph name="COUNT" /> weitere Berechtigungen entfernt.</translation>
 <translation id="4788777615168560705">Chromium kann deine Passwörter nicht prüfen. Versuche es in 24 Stunden noch einmal oder <ph name="BEGIN_LINK" />prüfe die Passwörter in deinem Google-Konto<ph name="END_LINK" />.</translation>
 <translation id="479167709087336770">Es wird dieselbe Rechtschreibprüfung wie in der Google Suche verwendet. Der in den Browser eingegebene Text wird an Google gesendet. Du kannst dies jederzeit in den Einstellungen ändern.</translation>
@@ -409,6 +406,9 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="5524890928877629608">Linke obere Ecke des Suchbereichs: links <ph name="LEFT" /> %, oben <ph name="TOP" /> %</translation>
 <translation id="5527463683072221100">PDFs in Chromium öffnen</translation>
 <translation id="5536164441519929134">Stelle eine Frage<ph name="LINE_BREAK" />zu diesem Tab</translation>
+<translation id="555970465369471303">Aus Sicherheitsgründen deaktiviert Chromium die JavaScript-Optimierung, wenn du eine Website zum ersten Mal besuchst.
+
+Wenn diese Seite nicht wie erwartet funktioniert, kannst du versuchen, die Optimierung zuzulassen.</translation>
 <translation id="5579324208890605088">Fehler beim Starten: Achte darauf, dass du das Installationsprogramm nicht als Admin ausführst.</translation>
 <translation id="5580770360767802657">Chromium standardmäßig verwenden und anpinnen</translation>
 <translation id="5596627076506792578">Weitere Optionen</translation>
@@ -420,7 +420,6 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5698481217667032250">Chromium in dieser Sprache anzeigen</translation>
 <translation id="569897634095159764">Internetverbindung kann nicht hergestellt werden. Für den Proxyserver ist eine Authentifizierung erforderlich.</translation>
-<translation id="5713518899297503106">Mit Chromium-Profilen kannst du private und berufliche Browseraktivitäten getrennt halten. Füge jetzt ein neues Profil hinzu.</translation>
 <translation id="5768371961535086509">In Chromium wird von inaktiven Tabs belegter Arbeitsspeicher freigegeben. Dadurch können aktive Tabs und andere Apps auf mehr Ressourcen zugreifen und Chromium bleibt schnell. Deine inaktiven Tabs werden automatisch wieder aktiviert, sobald du sie aufrufst. <ph name="BEGIN_LINK" />Weitere Informationen zum Arbeitsspeicher-Sparmodus<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">Falls du deine Passphrase vergessen hast oder diese Einstellung ändern möchtest, <ph name="SETTINGS_LINK" /> die Chromium-Daten in deinem Konto</translation>
 <translation id="5800158606660203929">Chromium anpassen und verwalten. Chromium als Standardbrowser festlegen.</translation>
@@ -523,7 +522,6 @@ Diese Aktion wirkt sich nicht auf Lesezeichen, gespeicherte Passwörter und den 
 <translation id="6676384891291319759">Internetzugriff</translation>
 <translation id="668175097507315160">Chromium OS konnte deine Daten aufgrund eines Fehlers bei der Anmeldung nicht synchronisieren.</translation>
 <translation id="6691132793308828750">Daten dieser App aus Chromium entfernen</translation>
-<translation id="6692797197837897398">Mit Chromium hast du mehr Kontrolle darüber, welche Werbung du siehst – außerdem kannst du einschränken, was Websites über dich erfahren können, wenn sie dir personalisierte Werbung zeigen</translation>
 <translation id="6709350901466051922">Chromium benötigt die Mikrofonberechtigung für diese Website</translation>
 <translation id="6712881677154121168">Fehler beim Herunterladen: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6717134281241384636">Dein Profil kann nicht verwendet werden, da es aus einer neueren Version von Chromium stammt.
@@ -715,7 +713,6 @@ Chromium kann deine Einstellungen nicht wiederherstellen.</translation>
 <translation id="8704119203788522458">Dies ist dein persönlicher Chromium-Browser</translation>
 <translation id="8712637175834984815">Ok</translation>
 <translation id="8719993436687031146">In Chromium anmelden?</translation>
-<translation id="8745263398357414606">Alles in Chromium speichern</translation>
 <translation id="8747073452963259673">Linke untere Ecke des Suchbereichs: links <ph name="LEFT" /> %, unten <ph name="BOTTOM" /> %</translation>
 <translation id="878572486461146056">Installationsfehler: Dein Netzwerkadministrator hat eine Gruppenrichtlinie angewendet, die die Installation verhindert: <ph name="INSTALL_ERROR" />.</translation>
 <translation id="8796602469536043152">Chromium benötigt für diese Website die Berechtigung, auf deine Kamera und dein Mikrofon zuzugreifen</translation>

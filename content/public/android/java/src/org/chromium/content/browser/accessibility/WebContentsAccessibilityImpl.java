@@ -719,10 +719,6 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         mHistogramRecorder.recordTotalTimeCreateAccessibilityNodeInfoHistogram();
     }
 
-    public void forceRecordCreateAccessibilityNodeInfoCountHistogramsForTesting() {
-        mHistogramRecorder.recordCreateAccessibilityNodeInfoCountHistogram();
-    }
-
     public void forceRecordFakeCacheHistogramsForTesting() {
         mHistogramRecorder.recordFakeCacheHistograms();
     }
@@ -747,7 +743,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         return new Object[] {startNode, startOffset, endNode, endOffset};
     }
 
-    public boolean setExtendedSelectionForTesting( // IN-TEST
+    public boolean setExtendedSelectionForTesting(
             int id, int startNodeId, int startNodeOffset, int endNodeId, int endNodeOffset) {
         return WebContentsAccessibilityImplJni.get()
                 .setExtendedSelection(
@@ -1205,7 +1201,6 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
             return null;
         }
 
-        mHistogramRecorder.incrementCreateAccessibilityNodeInfoCount();
         mHistogramRecorder.beginAccessibilityNodeInfoConstruction();
 
         // This was previously behind a check `mCurrentRootId == View.NO_ID`, but this was causing

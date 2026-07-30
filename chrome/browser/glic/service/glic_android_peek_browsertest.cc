@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
 #include "chrome/browser/glic/public/widget/glic_side_panel_coordinator_android.h"
 #include "chrome/browser/glic/test_support/glic_browser_test.h"
@@ -116,6 +117,41 @@ IN_PROC_BROWSER_TEST_F(GlicAndroidPeekBrowserTest,
         return instance->GetActiveEmbedderTabForTesting() == active_tab;
       },
       "Active tab didn't become the active embedder after expansion."));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicAndroidPeekBrowserTest,
+                       OnTabAddedToTaskStartsInPeekState) {
+  ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance, OpenGlicForActiveTab());
+
+  tabs::TabInterface* new_tab = CreateAndActivateTab(GetSimpleTestUrl());
+
+  instance->OnTabAddedToTask(actor::TaskId(1), new_tab->GetHandle());
+
+  ASSERT_OK(
+      WaitForSidePanelState(new_tab, GlicSidePanelCoordinator::State::kPeek));
+}
+
+IN_PROC_BROWSER_TEST_F(GlicAndroidPeekBrowserTest,
+                       ShowDoesNotDeactivateActiveEmbedder) {
+  ASSERT_OK_AND_ASSIGN(GlicInstanceImpl * instance, OpenGlicForActiveTab());
+  tabs::TabInterface* tab = GetTabListInterface()->GetActiveTab();
+
+  EXPECT_TRUE(instance->IsShowing());
+  EXPECT_EQ(instance->GetActiveEmbedderTabForTesting(), tab);
+
+  auto* embedder_before = instance->GetEmbedderForTab(tab);
+  ASSERT_TRUE(embedder_before);
+
+  // Call Show again with prefer_peek = true.
+  SidePanelShowOptions side_panel_options{*tab};
+  side_panel_options.prefer_peek = true;
+
+  instance->Show(ShowOptions{side_panel_options});
+
+  // It should still be showing and active.
+  EXPECT_TRUE(instance->IsShowing());
+  EXPECT_EQ(instance->GetActiveEmbedderTabForTesting(), tab);
+  EXPECT_EQ(embedder_before, instance->GetEmbedderForTab(tab));
 }
 
 }  // namespace glic

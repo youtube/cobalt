@@ -23,7 +23,6 @@
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/navigator/browser_navigator.h"
 #include "chrome/browser/ui/navigator/browser_navigator_params.h"
@@ -219,7 +218,6 @@ INSTANTIATE_TEST_SUITE_P(
     ProjectorNavigationCapturingParameterizedTest,
     ::testing::Combine(
         /*link_capturing_feature_version=*/::testing::Values(
-            LinkCapturingFeatureVersion::kV1DefaultOff,
             LinkCapturingFeatureVersion::kV2DefaultOff),
         /*navigate_from_link=*/
         testing::Values(ProjectorAppNavigationType::kFromOmnibox,
@@ -349,8 +347,7 @@ IN_PROC_BROWSER_TEST_P(ProjectorNavigationThrottleRedirectionParameterized,
 INSTANTIATE_TEST_SUITE_P(
     ,
     ProjectorNavigationThrottleRedirectionParameterized,
-    ::testing::Values(LinkCapturingFeatureVersion::kV1DefaultOff,
-                      LinkCapturingFeatureVersion::kV2DefaultOff),
+    ::testing::Values(LinkCapturingFeatureVersion::kV2DefaultOff),
     [](const testing::TestParamInfo<LinkCapturingFeatureVersion>& info) {
       return apps::test::ToString(info.param);
     });

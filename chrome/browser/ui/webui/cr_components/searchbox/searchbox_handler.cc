@@ -17,7 +17,6 @@
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
-#include "chrome/browser/new_tab_page/new_tab_page_util.h"
 #include "chrome/browser/preloading/autocomplete_dictionary_preload_service.h"
 #include "chrome/browser/preloading/autocomplete_dictionary_preload_service_factory.h"
 #include "chrome/browser/preloading/prefetch/search_prefetch/search_prefetch_service.h"
@@ -67,6 +66,7 @@
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/new_tab_page/new_tab_page_util.h"  // nogncheck
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -311,6 +311,34 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(Profile* profile) {
   return GetWebUIDataSourceDict(profile, WebUIDataSourceOptions{});
 }
 
+// Static:
+// Returns if all voice search coherence composeboxes are enabled (the default),
+// and there is no override (cobrowsing only composebox is enabled) for voice
+// coherence.
+bool SearchboxHandler::GetAllVoiceSearchCoherenceComposeboxesEnabled() {
+  return base::FeatureList::IsEnabled(
+             omnibox::kVoiceSearchCoherenceComposeboxes) &&
+         !omnibox::kVoiceSearchCoherenceComposeboxCobrowsingOnly.Get();
+}
+
+// Static:
+// Returns if cobrowsing voice coherence is enabled, regardless of the other
+// surfaces.
+bool SearchboxHandler::GetVoiceSearchCoherenceCobrowsingComposeboxEnabled() {
+  return base::FeatureList::IsEnabled(
+             omnibox::kVoiceSearchCoherenceComposeboxes) ||
+         omnibox::kVoiceSearchCoherenceComposeboxCobrowsingOnly.Get();
+}
+
+// Static:
+// Returns if the new voice search animation/metrics/stop button are enabled,
+// regardless of transcription.
+bool SearchboxHandler::GetVoiceSearchCoherenceAnySearchboxExperimentEnabled() {
+  return base::FeatureList::IsEnabled(
+             omnibox::kVoiceSearchCoherenceSearchbox) ||
+         omnibox::kVoiceSearchCoherenceSearchboxWithLiveTranscription.Get();
+}
+
 // static
 base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
     Profile* profile,
@@ -332,11 +360,18 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
   dict.Set("enableThumbnailSizingTweaks", false);
   dict.Set("enableCsbMotionTweaks", false);
 
-  // Returns if composeboxes voice coherence is not gated. Includes new metrics,
-  // new animation, new submit/stop buttons, no live transcription.
-  dict.Set(
-      "voiceSearchCoherenceComposeboxesEnabled",
-      base::FeatureList::IsEnabled(omnibox::kVoiceSearchCoherenceComposeboxes));
+  // Returns if ALL composeboxe surfaces' voice coherence is not gated. Includes
+  // new metrics, new animation, new submit/stop buttons, no live transcription.
+  // Will be false if "voice search coherence only for cobrowsing" is enabled.
+  dict.Set("voiceSearchCoherenceComposeboxesEnabled",
+           GetAllVoiceSearchCoherenceComposeboxesEnabled());
+
+  // Returns if cobrowsing composebox voice coherence is not gated.
+  // Coherence includes new metrics, new animation, new submit/stop buttons,
+  // no live transcription. Other surfaces can also be not gated if this is
+  // true.
+  dict.Set("voiceSearchCoherenceCobrowsingComposeboxEnabled",
+           GetVoiceSearchCoherenceCobrowsingComposeboxEnabled());
 
   // Enables if voice search ntp searchbox live experiment is on. Includes new
   // metrics, new animation, new submit/stop buttons, no live transcription.
@@ -351,10 +386,8 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
 
   // Enables if either arm of the voice search ntp searchbox live experiment
   // is on.
-  dict.Set(
-      "voiceSearchCoherenceAnySearchboxExperimentEnabled",
-      base::FeatureList::IsEnabled(omnibox::kVoiceSearchCoherenceSearchbox) ||
-          omnibox::kVoiceSearchCoherenceSearchboxWithLiveTranscription.Get());
+  dict.Set("voiceSearchCoherenceAnySearchboxExperimentEnabled",
+           GetVoiceSearchCoherenceAnySearchboxExperimentEnabled());
 
   static constexpr webui::LocalizedString kStrings[] = {
       {"lensSearchButtonLabel", IDS_TOOLTIP_LENS_SEARCH},
@@ -362,6 +395,7 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
       {"removeSuggestion", IDS_OMNIBOX_REMOVE_SUGGESTION},
       {"searchBoxHint", IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MD},
       {"searchBoxHintMultimodal", IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_MULTIMODAL},
+      {"lensSearchHint", IDS_GOOGLE_SEARCH_BOX_EMPTY_HINT_CONTEXTUAL},
       {"searchboxThumbnailLabel",
        IDS_GOOGLE_SEARCH_BOX_MULTIMODAL_IMAGE_THUMBNAIL},
       {"voiceSearchButtonLabel", IDS_TOOLTIP_MIC_SEARCH},
@@ -372,6 +406,8 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
       {"addImage", IDS_NTP_COMPOSE_ADD_IMAGE},
       {"addDriveFile", IDS_NTP_COMPOSE_ADD_DRIVE},
       {"addTab", IDS_NTP_COMPOSEBOX_TAB_PICKER_ADD_TABS_TITLE},
+      {"shareTabs", IDS_NTP_COMPOSEBOX_SHARE_TABS},
+      {"recentTabsSuffix", IDS_NTP_COMPOSEBOX_RECENT_TAB_SUFFIX},
       {"dismissButton", IDS_NTP_DISMISS},
       {"lensSearchLabel", IDS_WEBUI_OMNIBOX_COMPOSE_LENS_OVERLAY},
       {"searchboxComposeButtonText", IDS_NTP_COMPOSE_ENTRYPOINT},
@@ -420,6 +456,7 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
       {"composeFileTypesAllowedError",
        IDS_NTP_COMPOSE_FILE_TYPE_NOT_ALLOWED_ERROR},
       {"voiceClose", IDS_NEW_TAB_VOICE_CLOSE_TOOLTIP},
+      {"voiceStop", IDS_FUSEBOX_VOICE_SEARCH_STOP_TITLE},
       {"voiceDetails", IDS_NEW_TAB_VOICE_DETAILS},
       {"voiceListening", IDS_NEW_TAB_VOICE_LISTENING},
       {"voicePermissionError", IDS_NEW_TAB_VOICE_PERMISSION_ERROR},
@@ -510,10 +547,16 @@ base::DictValue SearchboxHandler::GetWebUIDataSourceDict(
            options.session_allows_drag_and_drop);
 
   auto composebox_config = ntp_composebox::FeatureConfig::Get().config;
+#if !BUILDFLAG(IS_ANDROID)
   dict.Set("searchboxShowComposeAnimation",
            profile->GetPrefs()->GetInteger(
                prefs::kNtpComposeButtonShownCountPrefName) <
                composebox_config.entry_point().num_page_load_animations());
+#else
+  // TODO(b/509722915): Implement NTP compose button shown count pref on
+  // Android.
+  dict.Set("searchboxShowComposeAnimation", false);
+#endif
   dict.Set("contextualMenuUsePecApi",
            base::FeatureList::IsEnabled(omnibox::kAimUsePecApi));
   dict.Set("ShowContextMenuHeaders",
@@ -923,9 +966,6 @@ SearchboxHandler::SearchboxHandler(
       page_handler_(this, std::move(pending_page_handler)),
       page_(std::move(pending_page)) {
   controller_ = owned_controller_.get();
-  if (page_is_bound_callback_for_testing_) {
-    std::move(page_is_bound_callback_for_testing_).Run();
-  }
 }
 
 SearchboxHandler::~SearchboxHandler() {
@@ -933,28 +973,17 @@ SearchboxHandler::~SearchboxHandler() {
   controller_ = nullptr;
 }
 
-// TODO(crbug.com/500739761): Remove this check since searchbox.mojom uses
-// factory pattern for instantiation making the remote and receiver bound
-// at the same time.
-bool SearchboxHandler::IsRemoteBound() const {
-  return page_.is_bound();
-}
-
 void SearchboxHandler::AddFileContextFromBrowser(
     base::UnguessableToken token,
     searchbox::mojom::SelectedFileInfoPtr file_info) {
-  if (page_ && IsRemoteBound()) {
-    page_->AddFileContext(token, std::move(file_info));
-  }
+  page_->AddFileContext(token, std::move(file_info));
 }
 
 void SearchboxHandler::OnContextualInputStatusChanged(
     base::UnguessableToken token,
     contextual_search::ContextUploadStatus status,
     std::optional<contextual_search::ContextUploadErrorType> error_type) {
-  if (page_ && IsRemoteBound()) {
-    page_->OnContextualInputStatusChanged(token, status, error_type);
-  }
+  page_->OnContextualInputStatusChanged(token, status, error_type);
 }
 
 void SearchboxHandler::OnFocusChanged(bool focused) {
@@ -1395,21 +1424,17 @@ void SearchboxHandler::ShouldShowDriveDisclaimer(
 
 void SearchboxHandler::OnDriveDisclaimerAccepted() {}
 
+void SearchboxHandler::OnDriveUploadClicked(
+    OnDriveUploadClickedCallback callback) {
+  std::move(callback).Run(searchbox::mojom::DriveUploadResponse::New());
+}
+
 OmniboxController* SearchboxHandler::omnibox_controller() const {
   return controller_;
 }
 
 AutocompleteController* SearchboxHandler::autocomplete_controller() const {
   return omnibox_controller()->autocomplete_controller();
-}
-
-void SearchboxHandler::set_page_is_bound_callback_for_testing(
-    base::OnceClosure callback) {
-  if (page_.is_bound() && callback) {
-    std::move(callback).Run();
-    return;
-  }
-  page_is_bound_callback_for_testing_ = std::move(callback);
 }
 
 OmniboxEditModel* SearchboxHandler::edit_model() const {

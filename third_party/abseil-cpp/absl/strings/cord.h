@@ -75,6 +75,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
+#include "absl/base/internal/hardening.h"
 #include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
@@ -97,6 +98,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/compare.h"
 #include "absl/types/optional.h"
+#include "absl/types/span.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -106,6 +108,7 @@ template <typename Releaser>
 Cord MakeCordFromExternal(absl::string_view, Releaser&&);
 void CopyCordToString(const Cord& src, std::string* absl_nonnull dst);
 void AppendCordToString(const Cord& src, std::string* absl_nonnull dst);
+[[nodiscard]] size_t CopyCordToSpan(const Cord& src, absl::Span<char> dst);
 
 // Cord memory accounting modes
 enum class CordMemoryAccounting {
@@ -432,6 +435,12 @@ class Cord {
   // conversion operator to `std::string`.
   friend void AppendCordToString(const Cord& src,
                                  std::string* absl_nonnull dst);
+
+  // CopyCordToSpan()
+  //
+  // Copies up to `dest.size()` bytes starting from the beginning of `src` to
+  // `dst`.  Returns the number of bytes copied.
+  friend size_t CopyCordToSpan(const Cord& src, absl::Span<char> dst);
 
   class CharIterator;
 
@@ -1553,8 +1562,8 @@ inline void Cord::ChunkIterator::AdvanceBytesBtree(size_t n) {
 }
 
 inline Cord::ChunkIterator& Cord::ChunkIterator::operator++() {
-  ABSL_HARDENING_ASSERT(bytes_remaining_ > 0 &&
-                        "Attempted to iterate past `end()`");
+  // Failure of this assertion indicates an attempt to iterate past `end()`.
+  absl::base_internal::HardeningAssertGT(bytes_remaining_, size_t{0});
   assert(bytes_remaining_ >= current_chunk_.size());
   bytes_remaining_ -= current_chunk_.size();
   if (bytes_remaining_ > 0) {
@@ -1583,12 +1592,12 @@ inline bool Cord::ChunkIterator::operator!=(const ChunkIterator& other) const {
 }
 
 inline Cord::ChunkIterator::reference Cord::ChunkIterator::operator*() const {
-  ABSL_HARDENING_ASSERT(bytes_remaining_ != 0);
+  absl::base_internal::HardeningAssertGT(bytes_remaining_, size_t{0});
   return current_chunk_;
 }
 
 inline Cord::ChunkIterator::pointer Cord::ChunkIterator::operator->() const {
-  ABSL_HARDENING_ASSERT(bytes_remaining_ != 0);
+  absl::base_internal::HardeningAssertGT(bytes_remaining_, size_t{0});
   return &current_chunk_;
 }
 

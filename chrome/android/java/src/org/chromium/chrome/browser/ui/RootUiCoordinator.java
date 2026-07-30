@@ -80,7 +80,6 @@ import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanel;
 import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanelManager;
-import org.chromium.chrome.browser.compositor.overlay_panel.OverlayPanelManager.OverlayPanelManagerObserver;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulator;
 import org.chromium.chrome.browser.contextmenu.ChromeContextMenuPopulatorFactory;
@@ -139,6 +138,7 @@ import org.chromium.chrome.browser.omnibox.suggestions.action.OmniboxActionDeleg
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
 import org.chromium.chrome.browser.open_in_app.OpenInAppEntryPoint;
 import org.chromium.chrome.browser.open_in_app.OpenInAppMenuItemProvider;
+import org.chromium.chrome.browser.overlay_panel.PanelState;
 import org.chromium.chrome.browser.paint_preview.DemoPaintPreview;
 import org.chromium.chrome.browser.password_manager.ManagePasswordsReferrer;
 import org.chromium.chrome.browser.password_manager.PasswordManagerLauncher;
@@ -167,6 +167,7 @@ import org.chromium.chrome.browser.tab.TabSelectionType;
 import org.chromium.chrome.browser.tab_ui.RecyclerViewPosition;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
 import org.chromium.chrome.browser.tab_ui.TabSwitcher;
+import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModel;
@@ -176,6 +177,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelUtils;
 import org.chromium.chrome.browser.tabstrip.StripVisibilityState;
 import org.chromium.chrome.browser.tabwindow.TabWindowInfo;
 import org.chromium.chrome.browser.theme.AdjustedTopUiThemeColorProvider;
+import org.chromium.chrome.browser.theme.BottomUiThemeColorProvider;
 import org.chromium.chrome.browser.theme.TopUiThemeColorProvider;
 import org.chromium.chrome.browser.toolbar.ToolbarIntentMetadata;
 import org.chromium.chrome.browser.toolbar.ToolbarManager;
@@ -318,7 +320,7 @@ public class RootUiCoordinator
     private @Nullable FindToolbarObserver mFindToolbarObserver;
 
     private @Nullable OverlayPanelManager mOverlayPanelManager;
-    private @Nullable OverlayPanelManagerObserver mOverlayPanelManagerObserver;
+    private @Nullable Callback<Integer> mPanelStateCallback;
 
     protected OneshotSupplier<LayoutStateProvider> mLayoutStateProviderOneShotSupplier;
     protected @Nullable LayoutStateProvider mLayoutStateProvider;
@@ -341,6 +343,9 @@ public class RootUiCoordinator
 
     /** A subclass of TopUiThemeColorProvider to provide adjusted tint color. */
     private @Nullable AdjustedTopUiThemeColorProvider mAdjustedTopUiThemeColorProvider;
+
+    private BottomUiThemeColorProvider mBottomUiThemeColorProvider;
+    private IncognitoStateProvider mIncognitoStateProvider;
 
     private final @Nullable Callback<Boolean> mOnOmniboxFocusChangedListener;
     protected @Nullable ToolbarManager mToolbarManager;
@@ -741,6 +746,8 @@ public class RootUiCoordinator
                             }
                         });
 
+        // TODO(crbug.com/433576895): Remove useSlider parameter and legacy seekbar
+        // logic.
         mPageZoomBarCoordinator =
                 new PageZoomBarCoordinator(
                         new PageZoomBarCoordinatorDelegate() {
@@ -752,7 +759,7 @@ public class RootUiCoordinator
                             }
                         },
                         mPageZoomManager,
-                        /* useSlider= */ ChromeFeatureList.sAndroidSettingsContainment.isEnabled());
+                        /* useSlider= */ true);
 
         if (ChromeFeatureList.sEnableExclusiveAccessManager.isEnabled()) {
             mExclusiveAccessManager =
@@ -790,6 +797,14 @@ public class RootUiCoordinator
         mTopControlsStacker =
                 new TopControlsStacker(
                         mBrowserControlsManager, getAppBrowserControlsVisibilityDelegate());
+        mIncognitoStateProvider = new IncognitoStateProvider();
+        mBottomUiThemeColorProvider =
+                new BottomUiThemeColorProvider(
+                        mTopUiThemeColorProvider,
+                        mBrowserControlsManager,
+                        mBottomControlsStacker,
+                        mIncognitoStateProvider,
+                        mActivity);
 
         if (BrowserControlsUtils.doSyncMinHeightWithTotalHeightV2(mActivity)) {
             mTopControlsLockCoordinator =
@@ -884,8 +899,8 @@ public class RootUiCoordinator
             mMessageContainerCoordinator = null;
         }
 
-        if (mOverlayPanelManager != null) {
-            mOverlayPanelManager.removeObserver(mOverlayPanelManagerObserver);
+        if (mOverlayPanelManager != null && mPanelStateCallback != null) {
+            mOverlayPanelManager.getPanelStateSupplier().removeObserver(mPanelStateCallback);
         }
 
         if (mLayoutStateProvider != null) {
@@ -924,6 +939,16 @@ public class RootUiCoordinator
         if (mAdjustedTopUiThemeColorProvider != null) {
             mAdjustedTopUiThemeColorProvider.destroy();
             mAdjustedTopUiThemeColorProvider = null;
+        }
+
+        if (mBottomUiThemeColorProvider != null) {
+            mBottomUiThemeColorProvider.destroy();
+            mBottomUiThemeColorProvider = null;
+        }
+
+        if (mIncognitoStateProvider != null) {
+            mIncognitoStateProvider.destroy();
+            mIncognitoStateProvider = null;
         }
 
         if (mFindToolbarManager != null) mFindToolbarManager.removeObserver(mFindToolbarObserver);
@@ -1176,6 +1201,7 @@ public class RootUiCoordinator
     @CallSuper
     public void onFinishNativeInitialization() {
         TabModelSelector tabModelSelector = mTabModelSelectorSupplier.asNonNull().get();
+        mIncognitoStateProvider.setTabModelSelector(tabModelSelector);
         Profile profile = mProfileSupplier.get();
         if (profile != null) {
             initProfileDependentFeatures(profile);
@@ -1698,7 +1724,7 @@ public class RootUiCoordinator
         } else if (id == R.id.lens_overlay_menu_id) {
             Tab tab = mActivityTabProvider.get();
             if (tab != null && tab.getWebContents() != null) {
-                new LensOverlayCoordinator(tab.getWebContents())
+                LensOverlayCoordinator.getOrCreateForTab(tab)
                         .start(LensOverlayInvocationSource.APP_MENU);
                 RecordUserAction.record("MobileMenuLensOverlay");
             }
@@ -1809,16 +1835,15 @@ public class RootUiCoordinator
     protected void onLayoutManagerAvailable(LayoutManagerImpl layoutManager) {
         mLayoutManager = layoutManager;
         if (mOverlayPanelManager != null) {
-            assumeNonNull(mOverlayPanelManagerObserver);
-            mOverlayPanelManager.removeObserver(mOverlayPanelManagerObserver);
+            assumeNonNull(mPanelStateCallback);
+            mOverlayPanelManager.getPanelStateSupplier().removeObserver(mPanelStateCallback);
         }
         mOverlayPanelManager = layoutManager.getOverlayPanelManager();
 
-        if (mOverlayPanelManagerObserver == null) {
-            mOverlayPanelManagerObserver =
-                    new OverlayPanelManagerObserver() {
-                        @Override
-                        public void onOverlayPanelShown() {
+        if (mPanelStateCallback == null) {
+            mPanelStateCallback =
+                    state -> {
+                        if (state != PanelState.CLOSED) {
                             if (mFindToolbarManager != null) {
                                 mFindToolbarManager.hideToolbar(false);
                             }
@@ -1828,13 +1853,12 @@ public class RootUiCoordinator
                                 mPageZoomBarCoordinator.hide();
                             }
                         }
-
-                        @Override
-                        public void onOverlayPanelHidden() {}
                     };
         }
 
-        mOverlayPanelManager.addObserver(mOverlayPanelManagerObserver);
+        mOverlayPanelManager
+                .getPanelStateSupplier()
+                .addSyncObserverAndCallIfNonNull(mPanelStateCallback);
     }
 
     protected AdaptiveToolbarBehavior createAdaptiveToolbarBehavior(
@@ -1967,6 +1991,8 @@ public class RootUiCoordinator
                             urlFocusChangedCallback,
                             mTopUiThemeColorProvider,
                             mAdjustedTopUiThemeColorProvider,
+                            mBottomUiThemeColorProvider,
+                            mIncognitoStateProvider,
                             mTabObscuringHandlerSupplier.get(),
                             mShareDelegateSupplier,
                             mAdaptiveToolbarUiCoordinator.getButtonDataProviders(),
@@ -2014,7 +2040,8 @@ public class RootUiCoordinator
                             assertNonNull(mSnackbarManagerSupplier.get()),
                             mOmniboxChipManager,
                             mBottomBarHostManager,
-                            mActionRegistry);
+                            mActionRegistry,
+                            this::toggleGlic);
             if (!mSupportsAppMenuSupplier.getAsBoolean()) {
                 mToolbarManager.getToolbar().disableMenuButton();
             }

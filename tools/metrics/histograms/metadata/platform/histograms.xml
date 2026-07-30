@@ -775,7 +775,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.FileDescriptors.Count" units="count"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>keiichiw@google.com</owner>
   <owner>uekawa@google.com</owner>
   <summary>
@@ -1129,6 +1129,34 @@ chromium-metrics-reviews@google.com.
   <summary>
     Time elapsed between the last two kernel crashes. Sent after every kernel
     crash.
+  </summary>
+</histogram>
+
+<histogram name="Platform.KernelPanicEventsDaily" units="count per day"
+    expires_after="2027-04-16">
+  <owner>saboyapati@google.com</owner>
+  <owner>chromeos-data-eng@google.com</owner>
+  <summary>
+    The number of &quot;kernel panic&quot; events recorded in the BIOS event log
+    per day. This metric is updated by the metrics_daemon, which accumulates
+    events in persistent storage and reports the total exactly once per 24-hour
+    period. Once a report is sent to UMA, the local counter is reset to zero to
+    prevent duplicate reporting. This provides an independent validation of
+    fatal kernel crashes by using firmware persistent memory
+  </summary>
+</histogram>
+
+<histogram name="Platform.KernelWatchdogEventsDaily" units="count per day"
+    expires_after="2027-04-16">
+  <owner>saboyapati@google.com</owner>
+  <owner>chromeos-data-eng@google.com</owner>
+  <summary>
+    The number of &quot;watchdog reset&quot; events recorded in the BIOS event
+    log per day. This metric is updated by the metrics_daemon, which accumulates
+    events in persistent storage and reports the total exactly once per 24-hour
+    period. Once a report is sent to UMA, the local counter is reset to zero to
+    prevent duplicate reporting. This provides an independent validation of
+    fatal kernel crashes by using firmware persistent memory
   </summary>
 </histogram>
 
@@ -1812,7 +1840,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Platform.Missive.StorageUsage" units="MiB"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>nancylanxiao@google.com</owner>
   <owner>xanth@google.com</owner>
   <owner>domfc@google.com</owner>

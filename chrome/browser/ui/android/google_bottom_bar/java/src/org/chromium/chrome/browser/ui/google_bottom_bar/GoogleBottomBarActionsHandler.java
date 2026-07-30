@@ -37,7 +37,6 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.google_bottom_bar.BottomBarConfig.ButtonConfig;
 import org.chromium.chrome.browser.ui.google_bottom_bar.BottomBarConfig.ButtonId;
 import org.chromium.chrome.browser.ui.google_bottom_bar.GoogleBottomBarLogger.GoogleBottomBarButtonEvent;
-import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.components.browser_ui.widget.textbubble.TextBubble;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.WindowAndroid;
@@ -261,14 +260,8 @@ class GoogleBottomBarActionsHandler {
     private void showTooltip(View view, int messageId) {
         ViewRectProvider rectProvider = new ViewRectProvider(view);
         TextBubble textBubble =
-                new TextBubble(
-                        view.getContext(),
-                        view,
-                        /* stringId= */ messageId,
-                        /* accessibilityStringId= */ messageId,
-                        /* showArrow= */ true,
-                        rectProvider,
-                        ChromeAccessibilityUtil.get().isAccessibilityEnabled());
+                new TextBubble.Builder(view.getContext(), view, rectProvider, messageId, messageId)
+                        .build();
         textBubble.setFocusable(true);
         textBubble.setDismissOnTouchInteraction(true);
         textBubble.show();

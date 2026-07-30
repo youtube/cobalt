@@ -92,15 +92,10 @@ BASE_FEATURE(kContextualTasksComposeboxJumpFix,
 // Enables the use of a rounded clip-path for the composebox.
 BASE_FEATURE(kContextualTasksRoundedClipPath, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// On android the menu still needs to be shown in all cases. Enable the feature
-// everywhere else.
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kContextualTasksHideMenuOnAiPage,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-#else
+// Hides the the 3-dot (overflow) menu when viewing an AI page in the side
+// panel. The menu is still shown for lens flows.
 BASE_FEATURE(kContextualTasksHideMenuOnAiPage,
              base::FEATURE_ENABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kContextualTasksHideCloseButtonInVerticalTabs,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -122,6 +117,15 @@ BASE_FEATURE(kContextualTasksCustomNlmUi, base::FEATURE_ENABLED_BY_DEFAULT);
 // When enabled, the back button expands the side panel.
 BASE_FEATURE(kContextualTasksBackButtonExpandsSidePanel,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables the use of APC comparison for webpages in the recontextualization
+// flow.
+BASE_FEATURE(kContextualTasksWebpageApcComparison,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables Java Fusebox on Android. Meant to be used as a fallback until WebUI
+// based fusebox is fully functional.
+BASE_FEATURE(kContextualTasksJavaFusebox, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool GetIsContextualTasksUpdateModeOnNavigationEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksUpdateModelOnNavigation);
@@ -577,6 +581,10 @@ bool IsRoundedClipPathEnabled() {
   return base::FeatureList::IsEnabled(kContextualTasksRoundedClipPath);
 }
 
+bool GetIsWebpageApcComparisonEnabled() {
+  return base::FeatureList::IsEnabled(kContextualTasksWebpageApcComparison);
+}
+
 namespace flag_descriptions {
 
 const char kContextualTasksName[] = "Contextual Tasks";
@@ -596,6 +604,10 @@ const char kContextualTasksSuggestionsEnabledName[] =
     "Contextual Tasks Suggestions Enabled";
 const char kContextualTasksSuggestionsEnabledDescription[] =
     "Enables suggestions for contextual tasks.";
+
+const char kContextualTasksJavaFuseboxName[] = "Contextual Tasks Java Fusebox";
+const char kContextualTasksJavaFuseboxDescription[] =
+    "Enables Java Fusebox for contextual tasks.";
 
 const char kContextualTasksBackButtonExpandsSidePanelName[] =
     "Contextual Tasks Back Button Expands Side Panel";

@@ -22,7 +22,6 @@
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/test/base/testing_browser_process.h"
-#include "chrome/test/base/ui_test_utils.h"
 #include "components/actor/core/actor_features.h"
 #include "components/actor/public/mojom/actor_types.mojom.h"
 #include "components/affiliations/core/browser/mock_affiliation_service.h"
@@ -43,6 +42,10 @@
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/base/window_open_disposition.h"
 #include "url/gurl.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/test/base/ui_test_utils.h"
+#endif
 
 #if BUILDFLAG(IS_OZONE)
 #include "ui/ozone/public/ozone_platform.h"
@@ -113,6 +116,8 @@ std::unique_ptr<KeyedService> CreateMockAffiliationService(
   ON_CALL(*service, GetAffiliationsAndBranding(_, _))
       .WillByDefault(base::test::RunOnceCallbackRepeatedly<1>(
           std::vector<affiliations::Facet>(), /*success=*/true));
+  ON_CALL(*service, UpdateAffiliationsAndBranding(_, _))
+      .WillByDefault(base::test::RunOnceCallbackRepeatedly<1>());
   return service;
 }
 
@@ -258,6 +263,45 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, Basic) {
       uploaded_logs()[0]->actor_login().quality().permission_picked(),
       optimization_guide::proto::ActorLoginQuality_PermissionOption_ALLOW_ONCE);
 }
+
+#if BUILDFLAG(IS_ANDROID)
+IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest,
+                       WaitsForAffiliationUpdateOnAndroid) {
+  const GURL url =
+      embedded_https_test_server().GetURL("example.com", "/actor/blank.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+  mock_login_service().SetCredential(MakeTestCredential(
+      u"username", url, /*immediately_available_to_login=*/true));
+  mock_login_service().SetLoginStatus(
+      actor_login::LoginStatusResult::kSuccessUsernameAndPasswordFilled);
+  base::RunLoop run_loop;
+  base::OnceClosure affiliation_update_callback;
+  EXPECT_CALL(*mock_affiliation_service(), UpdateAffiliationsAndBranding)
+      .WillOnce([&](const std::vector<affiliations::FacetURI>&,
+                    base::OnceClosure cb) {
+        affiliation_update_callback = std::move(cb);
+        run_loop.Quit();
+      });
+
+  std::unique_ptr<ToolRequest> action = MakeAttemptLoginRequest(*active_tab());
+  ActResultFuture result;
+  actor_task().Act(ToRequestList(action), result.GetCallback());
+  // Wait for the affiliation update to be requested.
+  run_loop.Run();
+
+  // Verify that `Act` hasn't finished yet, and `AttemptLogin` hasn't been
+  // called.
+  EXPECT_FALSE(result.IsReady());
+  EXPECT_FALSE(mock_login_service().last_credential_used().has_value());
+
+  // Now invoke the affiliation callback.
+  ASSERT_TRUE(affiliation_update_callback);
+  std::move(affiliation_update_callback).Run();
+  // The tool should now complete successfully.
+  ExpectOkResult(result);
+  EXPECT_TRUE(mock_login_service().last_credential_used().has_value());
+}
+#endif
 
 IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolTest, NoCredentials) {
   const GURL url =
@@ -1163,6 +1207,7 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolFederatedShortDelayTest,
   EXPECT_FALSE(mock_login_service().last_sequence_succeeded());
 }
 
+#if !BUILDFLAG(IS_ANDROID)
 IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolFederatedTest,
                        FederatedLoginClicksProviderButtonWithPopup) {
   const GURL idp_url = GURL("https://accounts.google.com");
@@ -1242,6 +1287,7 @@ IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolFederatedTest,
   EXPECT_EQ(signin_success_url, navigation_observer.last_navigation_url());
   EXPECT_TRUE(mock_login_service().last_sequence_succeeded());
 }
+#endif
 
 IN_PROC_BROWSER_TEST_F(ActorAttemptLoginToolFederatedTest,
                        FederatedLoginFailedButtonClick) {

@@ -127,10 +127,12 @@ export class OmniboxPopupAppElement extends I18nMixinLit
         type: Boolean,
         reflect: true,
       },
+      showContextButtonSuggestionLabel_: {type: Boolean},
       isContentSharingEnabled_: {type: Boolean},
       isLensSearchEnabled_: {type: Boolean},
       isLensSearchEligible_: {type: Boolean},
       isAimPopupEligible_: {type: Boolean},
+      isLensChipShown_: {type: Boolean},
       isAimButtonVisible_: {type: Boolean},
       isRecentTabChipEnabled_: {type: Boolean},
       recentTabForChip_: {type: Object},
@@ -158,6 +160,7 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   protected accessor webuiOmniboxPopupSelectionControlEnabled_: boolean =
       loadTimeData.getBoolean('webuiOmniboxPopupSelectionControlEnabled');
   protected accessor isLensSearchEligible_: boolean = false;
+  protected accessor isLensChipShown_: boolean = false;
   protected accessor isAimPopupEligible_: boolean = false;
   protected accessor isAimButtonVisible_: boolean = false;
   protected accessor recentTabForChip_: TabInfo|null = null;
@@ -169,8 +172,8 @@ export class OmniboxPopupAppElement extends I18nMixinLit
   private eventTracker_ = new EventTracker();
   private hideContextButton_: boolean =
       loadTimeData.getBoolean('hideClassicContextButton');
-  private showContextMenuDescription_: boolean =
-      loadTimeData.getBoolean('composeboxShowContextMenuDescription');
+  protected accessor showContextButtonSuggestionLabel_: boolean =
+      loadTimeData.getBoolean('omniboxShowContextButtonSuggestionLabel');
   private listenerIds_: number[] = [];
   private pageHandler_: SearchboxPageHandlerInterface;
   private popupCallbackRouter_: OmniboxPopupPageCallbackRouter;
@@ -284,6 +287,12 @@ export class OmniboxPopupAppElement extends I18nMixinLit
         changedPrivateProperties.has('result_') ||
         changedPrivateProperties.has('isLensSearchEligible_')) {
       this.showContextEntrypoint_ = this.computeShowContextEntrypoint_();
+    }
+
+    if (changedPrivateProperties.has('isContentSharingEnabled_') ||
+        changedPrivateProperties.has('isLensSearchEligible_')) {
+      this.isLensChipShown_ =
+          this.isContentSharingEnabled_ && this.isLensSearchEligible_;
     }
   }
 
@@ -605,15 +614,6 @@ export class OmniboxPopupAppElement extends I18nMixinLit
         browserTabsAllowedByPecApi &&
         (input?.length === 0 ||
          this.stripUrl_(input) === this.stripUrl_(this.recentTabForChip_?.url));
-  }
-
-  protected computeShowContextEntrypointDescription_(): boolean {
-    if (!this.showContextMenuDescription_) {
-      return false;
-    }
-    const toolChipsVisible = this.isContentSharingEnabled_ &&
-        (this.computeShowRecentTabChip_() || this.isLensSearchEligible_);
-    return !toolChipsVisible;
   }
 
   private stripUrl_(url: string|undefined): string {

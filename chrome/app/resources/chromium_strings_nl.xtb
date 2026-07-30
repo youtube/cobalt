@@ -183,7 +183,6 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="2933336679234709858">Je gegevens zijn versleuteld met je wachtwoordzin. Voer deze in om Chromium-gegevens te gebruiken en op te slaan in je Google-account.</translation>
 <translation id="2945997411976714835">Installatiefout: Het installatieproces kan niet worden gestart.</translation>
 <translation id="2948852018303413228">Log sneller in op sites met opgeslagen wachtwoorden voor Chromium op iOS</translation>
-<translation id="2966959524256557996">Voeg een nieuw Chromium-profiel toe om bookmarks, wachtwoorden en instellingen gescheiden te houden.</translation>
 <translation id="2970426615109535079">Je organisatie beheert Chromium</translation>
 <translation id="2977470724722393594">Chromium is up-to-date</translation>
 <translation id="2977506796191543575">Als een site je wachtwoord probeert te stelen of als je een schadelijk bestand downloadt, kan Chromium ook URL's, inclusief delen van de paginacontent, naar Safe Browsing sturen</translation>
@@ -261,7 +260,6 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="3788675262216168505">Chromium-profielen beheren</translation>
 <translation id="3790262771324122253">Meer informatie over waarom Chromium bepaalde downloads blokkeert</translation>
 <translation id="379589255253486813">Chromium laat het je weten als je iets moet controleren</translation>
-<translation id="3798048725356732506">Met Chromium-profielen kun je verschillende delen van je leven gescheiden houden. Voeg nu een nieuw profiel toe.</translation>
 <translation id="3802055581630249637">Chromium laadt vooraf de pagina's die je waarschijnlijk gaat bezoeken, zodat de pagina's sneller laden als je ze bezoekt.</translation>
 <translation id="3810973564298564668">Beheren</translation>
 <translation id="3823384748599722168">Als je je opgeslagen wachtwoorden wilt gebruiken, volg je de QR-code, download je Chromium voor iOS en log je in op je Google-account</translation>
@@ -358,7 +356,6 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="4724676981607797757">De installatie is mislukt vanwege een fout met een niet-ondersteund protocol.</translation>
 <translation id="4746050847053251315">Chromium toch sluiten?</translation>
 <translation id="4748217263233248895">Er is zojuist een speciale beveiligingsupdate voor Chromium toegepast. Start nu opnieuw op. Je tabbladen worden hersteld.</translation>
-<translation id="4759645701210484457">Chromium vragen</translation>
 <translation id="4771701986670315895">Je bent hier niet recent geweest. Chromium heeft <ph name="PERMISSION_1" />, <ph name="PERMISSION_2" /> en nog <ph name="COUNT" /> verwijderd.</translation>
 <translation id="4788777615168560705">Chromium kan je wachtwoorden niet checken. Probeer het over 24 uur opnieuw of <ph name="BEGIN_LINK" />check de wachtwoorden in je Google-account<ph name="END_LINK" />.</translation>
 <translation id="479167709087336770">Hiervoor wordt dezelfde spellingcontrole gebruikt als voor Google Zoeken. Tekst die je in de browser typt, wordt naar Google gestuurd. Je kunt dit altijd wijzigen in de instellingen.</translation>
@@ -411,6 +408,9 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="5524890928877629608">linkerbovenhoek van zoekgebied: links <ph name="LEFT" />%, boven <ph name="TOP" />%</translation>
 <translation id="5527463683072221100">Pdf's openen in Chromium</translation>
 <translation id="5536164441519929134">Stel vragen<ph name="LINE_BREAK" />over dit tabblad</translation>
+<translation id="555970465369471303">Om veiligheidsredenen zet Chromium JavaScript-optimalisatie uit als je een site voor het eerst bezoekt.
+
+Als deze pagina niet werkt zoals verwacht, kun je optimalisatie toestaan.</translation>
 <translation id="5579324208890605088">Opstartfout: voer het installatieprogramma uit als normale gebruiker, niet als beheerder.</translation>
 <translation id="5580770360767802657">Chromium standaard gebruiken en vastzetten</translation>
 <translation id="5596627076506792578">Meer opties</translation>
@@ -422,7 +422,6 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="5690427481109656848">Google LLC</translation>
 <translation id="5698481217667032250">Chromium bekijken in deze taal</translation>
 <translation id="569897634095159764">Kan geen verbinding maken met internet. Proxyserver vereist verificatie.</translation>
-<translation id="5713518899297503106">Met Chromium-profielen kun je persoonlijk browsen en werk gescheiden houden. Voeg nu een nieuw profiel toe.</translation>
 <translation id="5768371961535086509">Chromium maakt geheugen van inactieve tabbladen vrij. Zo krijgen actieve tabbladen en andere apps meer computerbronnen en blijft Chromium snel. Je inactieve tabbladen worden automatisch weer actief als je ernaar terugkeert. <ph name="BEGIN_LINK" />Meer informatie over Geheugenbesparing<ph name="END_LINK" /></translation>
 <translation id="5775198138441669627">Als je je wachtwoordzin bent vergeten of deze instelling wilt wijzigen, moet je de Chromium-gegevens in je account <ph name="SETTINGS_LINK" /></translation>
 <translation id="5800158606660203929">Pas Chromium aan en beheer de instellingen. Stel Chromium in als je standaardbrowser.</translation>
@@ -525,7 +524,6 @@ Dit heeft geen gevolgen voor bookmarks, geschiedenis en opgeslagen wachtwoorden.
 <translation id="6676384891291319759">Verbinding maken met internet</translation>
 <translation id="668175097507315160">Chromium OS kan je gegevens niet synchroniseren vanwege een fout tijdens het inloggen.</translation>
 <translation id="6691132793308828750">De gegevens van deze app verwijderen uit Chromium</translation>
-<translation id="6692797197837897398">Chromium geeft je meer controle over de advertenties die je te zien krijgt en beperkt wat sites over jou te weten kunnen komen als ze je gepersonaliseerde advertenties tonen</translation>
 <translation id="6709350901466051922">Chromium heeft microfoonrechten nodig voor deze site</translation>
 <translation id="6712881677154121168">Downloadfout: <ph name="DOWNLOAD_ERROR" />.</translation>
 <translation id="6717134281241384636">Je profiel kan niet worden gebruikt, omdat dit is gemaakt in een recentere versie van Chromium.
@@ -717,7 +715,6 @@ Chromium kan je instellingen niet herstellen.</translation>
 <translation id="8704119203788522458">Personaliseer jouw Chromium</translation>
 <translation id="8712637175834984815">Begrepen</translation>
 <translation id="8719993436687031146">Inloggen bij Chromium?</translation>
-<translation id="8745263398357414606">Houd alles in Chromium</translation>
 <translation id="8747073452963259673">linkerbovenhoek van zoekgebied: links <ph name="LEFT" />%, onder <ph name="BOTTOM" />%</translation>
 <translation id="878572486461146056">Installatiefout: Je netwerkbeheerder heeft een groepsbeleid toegepast waardoor er niet kan worden geïnstalleerd: <ph name="INSTALL_ERROR" /></translation>
 <translation id="8796602469536043152">Chromium heeft toegangsrechten voor je camera en microfoon nodig voor deze site</translation>

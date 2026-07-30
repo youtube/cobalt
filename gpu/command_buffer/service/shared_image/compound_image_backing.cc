@@ -6,6 +6,7 @@
 
 #include <ostream>
 
+#include "base/check_is_test.h"
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/logging.h"
@@ -18,6 +19,7 @@
 #include "components/viz/common/resources/shared_image_format.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
 #include "gpu/command_buffer/common/mailbox.h"
+#include "gpu/command_buffer/common/shared_image_info.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
 #include "gpu/command_buffer/service/memory_tracking.h"
 #include "gpu/command_buffer/service/shared_context_state.h"
@@ -134,8 +136,10 @@ class WrappedGLTextureCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<GLTextureImageRepresentation> wrapped)
+      std::unique_ptr<GLTextureImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : GLTextureImageRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     DCHECK(wrapped_);
   }
@@ -171,7 +175,15 @@ class WrappedGLTextureCompoundImageRepresentation
     return wrapped_->GetTexture(plane_index);
   }
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<GLTextureImageRepresentation> wrapped_;
   AccessMode access_mode_ = AccessMode::kNone;
 };
@@ -183,8 +195,10 @@ class WrappedGLTexturePassthroughCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<GLTexturePassthroughImageRepresentation> wrapped)
+      std::unique_ptr<GLTexturePassthroughImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : GLTexturePassthroughImageRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     DCHECK(wrapped_);
   }
@@ -220,7 +234,15 @@ class WrappedGLTexturePassthroughCompoundImageRepresentation
     return wrapped_->GetTexturePassthrough(plane_index);
   }
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<GLTexturePassthroughImageRepresentation> wrapped_;
   AccessMode access_mode_ = AccessMode::kNone;
 };
@@ -233,8 +255,10 @@ class WrappedSkiaGaneshCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<SkiaGaneshImageRepresentation> wrapped)
+      std::unique_ptr<SkiaGaneshImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : SkiaGaneshImageRepresentation(gr_context, manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     DCHECK(wrapped_);
   }
@@ -292,7 +316,15 @@ class WrappedSkiaGaneshCompoundImageRepresentation
     compound_backing()->NotifyEndAccess(wrapped_->backing(), AccessMode::kRead);
   }
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<SkiaGaneshImageRepresentation> wrapped_;
 };
 
@@ -303,8 +335,10 @@ class WrappedSkiaGraphiteCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<SkiaGraphiteImageRepresentation> wrapped)
+      std::unique_ptr<SkiaGraphiteImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : SkiaGraphiteImageRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     CHECK(wrapped_);
   }
@@ -351,7 +385,15 @@ class WrappedSkiaGraphiteCompoundImageRepresentation
     compound_backing()->NotifyEndAccess(wrapped_->backing(), AccessMode::kRead);
   }
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<SkiaGraphiteImageRepresentation> wrapped_;
 };
 
@@ -361,8 +403,10 @@ class WrappedDawnCompoundImageRepresentation : public DawnImageRepresentation {
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<DawnImageRepresentation> wrapped)
+      std::unique_ptr<DawnImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : DawnImageRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     DCHECK(wrapped_);
   }
@@ -389,7 +433,15 @@ class WrappedDawnCompoundImageRepresentation : public DawnImageRepresentation {
     compound_backing()->NotifyEndAccess(wrapped_->backing(), access_mode_);
   }
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<DawnImageRepresentation> wrapped_;
   AccessMode access_mode_ = AccessMode::kNone;
 };
@@ -401,10 +453,19 @@ class WrappedDawnBufferCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<DawnBufferRepresentation> wrapped)
+      std::unique_ptr<DawnBufferRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : DawnBufferRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     DCHECK(wrapped_);
+  }
+
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
   }
 
  private:
@@ -427,6 +488,7 @@ class WrappedDawnBufferCompoundImageRepresentation
     compound_backing()->NotifyEndAccess(wrapped_->backing(), access_mode_);
   }
 
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<DawnBufferRepresentation> wrapped_;
   AccessMode access_mode_ = AccessMode::kNone;
 };
@@ -438,8 +500,10 @@ class WrappedOverlayCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<OverlayImageRepresentation> wrapped)
+      std::unique_ptr<OverlayImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : OverlayImageRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     DCHECK(wrapped_);
   }
@@ -481,7 +545,15 @@ class WrappedOverlayCompoundImageRepresentation
   }
 #endif
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<OverlayImageRepresentation> wrapped_;
 };
 
@@ -492,8 +564,10 @@ class WrappedWebNNTensorCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<WebNNTensorRepresentation> wrapped)
+      std::unique_ptr<WebNNTensorRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : WebNNTensorRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     DCHECK(wrapped_);
   }
@@ -516,6 +590,13 @@ class WrappedWebNNTensorCompoundImageRepresentation
   IOSurfaceRef GetIOSurface() const final { return wrapped_->GetIOSurface(); }
 #endif
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
   CompoundImageBacking* compound_backing() {
     return static_cast<CompoundImageBacking*>(backing());
@@ -534,6 +615,7 @@ class WrappedWebNNTensorCompoundImageRepresentation
                                         AccessMode::kWrite);
   }
 
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<WebNNTensorRepresentation> wrapped_;
 };
 
@@ -544,8 +626,10 @@ class WrappedMemoryCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<MemoryImageRepresentation> wrapped)
+      std::unique_ptr<MemoryImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : MemoryImageRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     CHECK(wrapped_);
   }
@@ -561,7 +645,15 @@ class WrappedMemoryCompoundImageRepresentation
     return wrapped_->BeginReadAccess();
   }
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<MemoryImageRepresentation> wrapped_;
 };
 
@@ -572,8 +664,10 @@ class WrappedVideoCompoundImageRepresentation
       SharedImageManager* manager,
       SharedImageBacking* backing,
       MemoryTypeTracker* tracker,
-      std::unique_ptr<VideoImageRepresentation> wrapped)
+      std::unique_ptr<VideoImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : VideoImageRepresentation(manager, backing, tracker),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     CHECK(wrapped_);
   }
@@ -614,7 +708,15 @@ class WrappedVideoCompoundImageRepresentation
   }
 #endif
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<VideoImageRepresentation> wrapped_;
 };
 
@@ -628,13 +730,15 @@ class WrappedVulkanCompoundImageRepresentation
       MemoryTypeTracker* tracker,
       gpu::VulkanDeviceQueue* vulkan_device_queue,
       gpu::VulkanImplementation& vulkan_impl,
-      std::unique_ptr<VulkanImageRepresentation> wrapped)
+      std::unique_ptr<VulkanImageRepresentation> wrapped,
+      std::unique_ptr<SharedImageBacking> owned_backing)
       : VulkanImageRepresentation(manager,
                                   backing,
                                   tracker,
                                   nullptr,
                                   vulkan_device_queue,
                                   vulkan_impl),
+        owned_backing_(std::move(owned_backing)),
         wrapped_(std::move(wrapped)) {
     DCHECK(wrapped_);
   }
@@ -665,10 +769,17 @@ class WrappedVulkanCompoundImageRepresentation
     return wrapped_->GetVulkanImage();
   }
 
+  void SetClearedRect(const gfx::Rect& cleared_rect) override {
+    SharedImageRepresentation::SetClearedRect(cleared_rect);
+    if (owned_backing_) {
+      wrapped_->SetClearedRect(cleared_rect);
+    }
+  }
+
  private:
+  std::unique_ptr<SharedImageBacking> owned_backing_;
   std::unique_ptr<VulkanImageRepresentation> wrapped_;
 };
-
 #endif
 
 // static
@@ -745,37 +856,34 @@ std::unique_ptr<SharedImageBacking> CompoundImageBacking::Create(
     scoped_refptr<SharedImageCopyManager> copy_manager,
     const Mailbox& mailbox,
     gfx::GpuMemoryBufferHandle handle,
-    viz::SharedImageFormat format,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label) {
+    const SharedImageInfo& si_info) {
+  auto format = si_info.format;
+  auto size = si_info.size;
+  auto usage = si_info.usage;
   if (!IsValidSharedMemoryFormat(size, format)) {
     return nullptr;
   }
 
   auto* gpu_backing_factory = shared_image_factory->GetFactoryByUsage(
-      GetGpuSharedImageUsage(SharedImageUsageSet(usage)), format, size,
+      GetGpuSharedImageUsage(usage), format, size,
       /*pixel_data=*/{}, gfx::EMPTY_BUFFER, /*stream=*/std::nullopt,
       /*params=*/nullptr);
   if (!gpu_backing_factory) {
     return nullptr;
   }
 
+  SharedImageInfo shm_si_info(
+      format, size, si_info.color_space, si_info.surface_origin,
+      si_info.alpha_type, GetShmSharedImageUsage(usage), si_info.debug_label);
   auto shm_backing = SharedMemoryImageBackingFactory().CreateSharedImage(
-      mailbox, format, size, color_space, surface_origin, alpha_type,
-      GetShmSharedImageUsage(usage), debug_label,
-      /*is_thread_safe=*/false, std::move(handle));
+      mailbox, shm_si_info, /*is_thread_safe=*/false, std::move(handle));
   if (!shm_backing) {
     return nullptr;
   }
   shm_backing->SetNotRefCounted();
 
   return base::WrapUnique(new CompoundImageBacking(
-      mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      std::move(debug_label), std::move(shm_backing),
+      mailbox, si_info, std::move(shm_backing),
       shared_image_factory->GetFactoryRef(), gpu_backing_factory->GetWeakPtr(),
       std::move(copy_manager)));
 }
@@ -785,38 +893,36 @@ std::unique_ptr<SharedImageBacking> CompoundImageBacking::Create(
     SharedImageFactory* shared_image_factory,
     scoped_refptr<SharedImageCopyManager> copy_manager,
     const Mailbox& mailbox,
-    viz::SharedImageFormat format,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label,
+    const SharedImageInfo& si_info,
     gfx::BufferUsage buffer_usage) {
+  auto format = si_info.format;
+  auto size = si_info.size;
+  auto usage = si_info.usage;
   if (!IsValidSharedMemoryFormat(size, format)) {
     return nullptr;
   }
 
   auto* gpu_backing_factory = shared_image_factory->GetFactoryByUsage(
-      GetGpuSharedImageUsage(SharedImageUsageSet(usage)), format, size,
+      GetGpuSharedImageUsage(usage), format, size,
       /*pixel_data=*/{}, gfx::EMPTY_BUFFER, /*stream=*/std::nullopt,
       /*params=*/nullptr);
   if (!gpu_backing_factory) {
     return nullptr;
   }
 
+  SharedImageInfo shm_si_info(
+      format, size, si_info.color_space, si_info.surface_origin,
+      si_info.alpha_type, GetShmSharedImageUsage(usage), si_info.debug_label);
   auto shm_backing = SharedMemoryImageBackingFactory().CreateSharedImage(
-      mailbox, format, kNullSurfaceHandle, size, color_space, surface_origin,
-      alpha_type, GetShmSharedImageUsage(usage), debug_label,
-      /*is_thread_safe=*/false, buffer_usage);
+      mailbox, shm_si_info, kNullSurfaceHandle, /*is_thread_safe=*/false,
+      buffer_usage);
   if (!shm_backing) {
     return nullptr;
   }
   shm_backing->SetNotRefCounted();
 
   return base::WrapUnique(new CompoundImageBacking(
-      mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      std::move(debug_label), std::move(shm_backing),
+      mailbox, si_info, std::move(shm_backing),
       shared_image_factory->GetFactoryRef(), gpu_backing_factory->GetWeakPtr(),
       std::move(copy_manager), std::move(buffer_usage)));
 }
@@ -848,27 +954,24 @@ CompoundImageBacking::CreateSharedMemoryForTesting(
     scoped_refptr<SharedImageCopyManager> copy_manager,
     const Mailbox& mailbox,
     gfx::GpuMemoryBufferHandle handle,
-    viz::SharedImageFormat format,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label) {
+    const SharedImageInfo& si_info) {
+  auto format = si_info.format;
+  auto size = si_info.size;
+  auto usage = si_info.usage;
   DCHECK(IsValidSharedMemoryFormat(size, format));
 
+  SharedImageInfo shm_si_info(
+      format, size, si_info.color_space, si_info.surface_origin,
+      si_info.alpha_type, GetShmSharedImageUsage(usage), si_info.debug_label);
   auto shm_backing = SharedMemoryImageBackingFactory().CreateSharedImage(
-      mailbox, format, size, color_space, surface_origin, alpha_type,
-      GetShmSharedImageUsage(usage), debug_label,
-      /*is_thread_safe=*/false, std::move(handle));
+      mailbox, shm_si_info, /*is_thread_safe=*/false, std::move(handle));
   if (!shm_backing) {
     return nullptr;
   }
   shm_backing->SetNotRefCounted();
 
   return base::WrapUnique(new CompoundImageBacking(
-      mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      std::move(debug_label), std::move(shm_backing),
+      mailbox, si_info, std::move(shm_backing),
       /*shared_image_factory=*/nullptr, gpu_backing_factory->GetWeakPtr(),
       std::move(copy_manager)));
 }
@@ -879,41 +982,33 @@ CompoundImageBacking::CreateSharedMemoryForTesting(
     SharedImageBackingFactory* gpu_backing_factory,
     scoped_refptr<SharedImageCopyManager> copy_manager,
     const Mailbox& mailbox,
-    viz::SharedImageFormat format,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label,
+    const SharedImageInfo& si_info,
     gfx::BufferUsage buffer_usage) {
+  auto format = si_info.format;
+  auto size = si_info.size;
+  auto usage = si_info.usage;
   DCHECK(IsValidSharedMemoryFormat(size, format));
 
+  SharedImageInfo shm_si_info(
+      format, size, si_info.color_space, si_info.surface_origin,
+      si_info.alpha_type, GetShmSharedImageUsage(usage), si_info.debug_label);
   auto shm_backing = SharedMemoryImageBackingFactory().CreateSharedImage(
-      mailbox, format, kNullSurfaceHandle, size, color_space, surface_origin,
-      alpha_type, GetShmSharedImageUsage(usage), debug_label,
-      /*is_thread_safe=*/false, buffer_usage);
+      mailbox, shm_si_info, kNullSurfaceHandle, /*is_thread_safe=*/false,
+      buffer_usage);
   if (!shm_backing) {
     return nullptr;
   }
   shm_backing->SetNotRefCounted();
 
   return base::WrapUnique(new CompoundImageBacking(
-      mailbox, format, size, color_space, surface_origin, alpha_type, usage,
-      std::move(debug_label), std::move(shm_backing),
+      mailbox, si_info, std::move(shm_backing),
       /*shared_image_factory=*/nullptr, gpu_backing_factory->GetWeakPtr(),
       std::move(copy_manager), std::move(buffer_usage)));
 }
 
 CompoundImageBacking::CompoundImageBacking(
     const Mailbox& mailbox,
-    viz::SharedImageFormat format,
-    const gfx::Size& size,
-    const gfx::ColorSpace& color_space,
-    GrSurfaceOrigin surface_origin,
-    SkAlphaType alpha_type,
-    SharedImageUsageSet usage,
-    std::string debug_label,
+    const SharedImageInfo& si_info,
     std::unique_ptr<SharedImageBacking> shm_backing,
     scoped_refptr<SharedImageFactoryRef> shared_image_factory,
     base::WeakPtr<SharedImageBackingFactory> gpu_backing_factory,
@@ -921,21 +1016,18 @@ CompoundImageBacking::CompoundImageBacking(
     std::optional<gfx::BufferUsage> buffer_usage)
     : ClearTrackingSharedImageBacking(
           mailbox,
-          format,
-          size,
-          color_space,
-          surface_origin,
-          alpha_type,
-          usage,
-          debug_label,
+          si_info,
           shm_backing->GetEstimatedSize(),
-          ComputeIsThreadSafe(shared_image_factory.get(), usage),
+          ComputeIsThreadSafe(shared_image_factory.get(), si_info.usage),
           std::move(buffer_usage)),
       shared_image_factory_(std::move(shared_image_factory)),
       copy_manager_(std::move(copy_manager)) {
+  CHECK(gpu_backing_factory);
   // If the backing is thread-safe, the base class enables an internal lock that
   // protects the |elements_| vector and other metadata from concurrent access.
   DCHECK(shm_backing);
+  auto size = si_info.size;
+  auto usage = si_info.usage;
   DCHECK_EQ(size, shm_backing->size());
 
   // Create shared-memory element (stream = kMemory).
@@ -960,10 +1052,11 @@ CompoundImageBacking::CompoundImageBacking(
 
   // CreateBackingFromBackingFactory will be called on demand. Hence this is
   // lazy backing creation.
-  gpu_element.create_callback =
-      base::BindOnce(&CompoundImageBacking::CreateBackingFromBackingFactory,
-                     base::Unretained(this), std::move(gpu_backing_factory),
-                     std::move(debug_label), GetGpuSharedImageUsage(usage));
+  SharedImageBackingType factory_type = gpu_backing_factory->GetBackingType();
+  gpu_element.create_callback = base::BindOnce(
+      &CompoundImageBacking::LazyCreateBacking, base::Unretained(this),
+      factory_type, std::move(gpu_backing_factory),
+      GetGpuSharedImageUsage(usage), si_info.debug_label);
   elements_.push_back(std::move(gpu_element));
   max_elements_allocated_ = 2;
 }
@@ -975,13 +1068,13 @@ CompoundImageBacking::CompoundImageBacking(
     scoped_refptr<SharedImageFactoryRef> shared_image_factory)
     : ClearTrackingSharedImageBacking(
           backing->mailbox(),
-          backing->format(),
-          backing->size(),
-          backing->color_space(),
-          backing->surface_origin(),
-          backing->alpha_type(),
-          backing->usage(),
-          backing->debug_label(),
+          SharedImageInfo(backing->format(),
+                          backing->size(),
+                          backing->color_space(),
+                          backing->surface_origin(),
+                          backing->alpha_type(),
+                          backing->usage(),
+                          backing->debug_label()),
           backing->GetEstimatedSize(),
           ComputeIsThreadSafe(shared_image_factory.get(), backing->usage()),
           std::move(buffer_usage)),
@@ -1032,38 +1125,42 @@ void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
                                              RepresentationAccessMode mode,
                                              SharedImageAccessStream stream) {
   AutoLock auto_lock(this);
-  ElementHolder* access_element = GetElement(backing);
-  if (!access_element) {
-    LOG(ERROR) << "Backing (" << backing->GetName()
-               << ") not in the element list";
-    return;
-  }
 
-  // If this element already has the latest content, we're good for read access.
-  if (access_element->content_id_ == latest_content_id_) {
+  // Identify if this backing is a permanent element of the container or a
+  // transient one allocated for a specific representation.
+  ElementHolder* access_element = GetElement(backing);
+
+  // FAST PATH: If this is a permanent element and it already has the latest
+  // content, we can skip synchronization for read access.
+  if (access_element && access_element->content_id_ == latest_content_id_) {
     if (mode == RepresentationAccessMode::kWrite) {
-      // For write access, this backing is about to become the new latest.
+      // For write access, this backing will become the new "source of truth".
       ++latest_content_id_;
       access_element->content_id_ = latest_content_id_;
     }
     return;
   }
 
-  // This backing is stale. We need to find the element which has the latest
-  // content and copy from it.
+  // STALE OR TRANSIENT PATH: Either this permanent backing is out-of-date, or
+  // it's a transient backing that needs to be initialized. We must find the
+  // permanent element that currently holds the latest content and copy from it.
   ElementHolder* latest_content_element = GetElementWithLatestContent();
   bool updated_backing = false;
   bool copy_succeeded = false;
+
   if (latest_content_element) {
+    // Copy data from the latest permanent backing into the current backing
+    // (which could be another permanent backing or a transient one).
     copy_succeeded = copy_manager_->CopyImage(
         /*src_backing=*/latest_content_element->GetBacking(),
-        /*dst_backing=*/access_element->GetBacking());
+        /*dst_backing=*/backing);
+
     if (copy_succeeded) {
       updated_backing = true;
 
-      // Propagate the clear rect from the source backing to the destination
-      // backing as well as all the other child backings and
-      // CompoundImageBacking.
+      // When we sync data, we also sync the logical clear state. Propagate the
+      // clear rect from the source to the destination, all child backings, and
+      // the container itself.
       const gfx::Rect src_cleared_rect =
           latest_content_element->GetBacking()->ClearedRect();
       SetClearedRectInternal(src_cleared_rect);
@@ -1075,8 +1172,7 @@ void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
     } else {
       LOG(ERROR) << "Failed to copy from "
                  << latest_content_element->GetBacking()->GetName() << " to "
-                 << access_element->GetBacking()->GetName()
-                 << ". Backing can be using stale data";
+                 << backing->GetName() << ". Backing can be using stale data";
     }
 
     UMA_HISTOGRAM_BOOLEAN("GPU.CompoundImageBacking.ContentSync.Success",
@@ -1086,7 +1182,7 @@ void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
         latest_content_element->GetBacking()->GetType());
     UMA_HISTOGRAM_ENUMERATION(
         "GPU.CompoundImageBacking.ContentSync.DestBackingType",
-        access_element->GetBacking()->GetType());
+        backing->GetType());
     UMA_HISTOGRAM_ENUMERATION("GPU.CompoundImageBacking.ContentSync.Reason",
                               mode == RepresentationAccessMode::kRead
                                   ? ContentSyncReason::kRead
@@ -1098,16 +1194,19 @@ void CompoundImageBacking::NotifyBeginAccess(SharedImageBacking* backing,
         static_cast<int32_t>(static_cast<uint32_t>(this->usage())));
   }
 
-  // Update content IDs. In case of write, we are updating the
-  // |latest_content_id_| as well as marking the |access_element| as having
-  // latest content irrespective of above copy failures since write will likely
-  // overwrite all of the previous content. Although not necessarily true for
-  // partial writes. For read, we only mark the |access_element| as having
-  // latest content if the copy succeeded.
+  // UPDATE VERSIONING:
+  // 1. For WRITE access: Increment the global version. If this is a permanent
+  //    element, track that it now holds this latest version. Transient backings
+  //    don't track their own version locally as they are destroyed after use,
+  //    but their write will be synced back to permanent elements in EndAccess.
+  // 2. For READ access: If the copy succeeded, mark this permanent element as
+  //    being up-to-date with the latest version.
   if (mode == RepresentationAccessMode::kWrite) {
     ++latest_content_id_;
-    access_element->content_id_ = latest_content_id_;
-  } else if (updated_backing) {
+    if (access_element) {
+      access_element->content_id_ = latest_content_id_;
+    }
+  } else if (updated_backing && access_element) {
     access_element->content_id_ = latest_content_id_;
   }
 }
@@ -1117,34 +1216,31 @@ void CompoundImageBacking::NotifyEndAccess(SharedImageBacking* backing,
   AutoLock auto_lock(this);
   CHECK(backing);
 
+  bool is_transient_backing = !GetElement(backing);
+
   // If the last access was a write and an underlying backing was accessed,
   // propagate its cleared rect to the compound backing if it's different.
   if (mode == RepresentationAccessMode::kWrite) {
     auto cleared_rect = backing->ClearedRect();
     if (cleared_rect != ClearedRect()) {
-      SetClearedRectInternal(cleared_rect);
+      // For transient backings, only update if it's more cleared to avoid
+      // overwriting CSI with stale state.
+      if (!is_transient_backing || cleared_rect.Contains(ClearedRect())) {
+        SetClearedRectInternal(cleared_rect);
+      }
     }
 
     // When is_thread_safe() is true, multiple threads can access the backings.
-    // If a GL backing was written to, we proactively sync its content to all
-    // other backings. This is required to support multithreading scenarios
-    // where GL access happens on the GPU main thread and skia or other kind of
-    // access happens on a different thread. Note that this is only enabled when
-    // kUseDynamicBackingAllocations is enabled where CompoundImageBacking can
-    // dynamically allocate GL backing on a different thread during runtime.
-    // When dynamic allocations are not enabled, existing backings already
-    // handles the proactive sync where needed (eg:
-    // WrappedGraphiteTextureBacking via
-    // GLTexturePassthroughFallbackImageRepresentation). Note that this solution
-    // will not work if we start with GLTextureImageBacking and than want to
-    // reallocate on a different thread where we can't access GL texture. We
-    // will need to handle that case with another solution.
-    // Also note that we are copying back to all the backings here, even to
-    // those that will never be read. This can be a performance bottleneck when
-    // there are multiple backings.
+    // If a backing was written to, we proactively sync its content to all other
+    // backings. This is especially critical for transient backings (which are
+    // not thread-safe but used in a thread-safe container): we must copy their
+    // latest content to the permanent backings before the transient backing is
+    // destroyed. This ensures that subsequent accesses on other threads will
+    // see the updated data. Note that we are copying back to all the backings
+    // here, even to those that will never be read. This can be a performance
+    // bottleneck when there are multiple backings.
     if (base::FeatureList::IsEnabled(features::kUseDynamicBackingAllocations) &&
-        is_thread_safe() &&
-        (backing->GetType() == SharedImageBackingType::kGLTexture)) {
+        is_thread_safe() && is_transient_backing) {
       for (auto& element : elements_) {
         auto* dst_backing = element.GetBacking();
         if (dst_backing && dst_backing != backing &&
@@ -1353,18 +1449,22 @@ std::unique_ptr<DawnImageRepresentation> CompoundImageBacking::ProduceDawn(
   AccessParams access_params;
   access_params.wgpu_device = device;
   access_params.context_state = context_state;
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kDawn, access_params);
-  if (!backing)
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kDawn,
+                                       access_params, transient_backing);
+  if (!backing) {
     return nullptr;
+  }
 
   auto real_rep = backing->ProduceDawn(manager, tracker, device, backend_type,
                                        std::move(view_formats), context_state);
-  if (!real_rep)
+  if (!real_rep) {
     return nullptr;
+  }
 
   return std::make_unique<WrappedDawnCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<DawnBufferRepresentation>
@@ -1377,8 +1477,9 @@ CompoundImageBacking::ProduceDawnBuffer(
   AccessParams access_params;
   access_params.wgpu_device = device;
   access_params.context_state = context_state;
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kDawnBuffer, access_params);
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kDawnBuffer,
+                                       access_params, transient_backing);
   if (!backing) {
     return nullptr;
   }
@@ -1390,7 +1491,8 @@ CompoundImageBacking::ProduceDawnBuffer(
   }
 
   return std::make_unique<WrappedDawnBufferCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<GLTextureImageRepresentation>
@@ -1401,17 +1503,21 @@ CompoundImageBacking::ProduceGLTexture(SharedImageManager* manager,
   // in the future to include GL context information for stricter correctness
   // checks (e.g., ensuring a backing created on one GL context isn't used on
   // another, unless it's an EglImageBacking), it is not currently needed.
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kGL, AccessParams());
-  if (!backing)
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kGL,
+                                       AccessParams(), transient_backing);
+  if (!backing) {
     return nullptr;
+  }
 
   auto real_rep = backing->ProduceGLTexture(manager, tracker);
-  if (!real_rep)
+  if (!real_rep) {
     return nullptr;
+  }
 
   return std::make_unique<WrappedGLTextureCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<GLTexturePassthroughImageRepresentation>
@@ -1421,18 +1527,22 @@ CompoundImageBacking::ProduceGLTexturePassthrough(SharedImageManager* manager,
   // SharedImageAccessStream::kGL is specific enough for backing selection.
   // While AccessParams could be extended in the future to include GL context
   // information for stricter correctness checks, it is not currently needed.
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kGL, AccessParams());
-  if (!backing)
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kGL,
+                                       AccessParams(), transient_backing);
+  if (!backing) {
     return nullptr;
+  }
 
   auto real_rep = backing->ProduceGLTexturePassthrough(manager, tracker);
-  if (!real_rep)
+  if (!real_rep) {
     return nullptr;
+  }
 
   return std::make_unique<
       WrappedGLTexturePassthroughCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<SkiaGaneshImageRepresentation>
@@ -1442,8 +1552,9 @@ CompoundImageBacking::ProduceSkiaGanesh(
     scoped_refptr<SharedContextState> context_state) {
   AccessParams access_params;
   access_params.context_state = context_state;
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kSkia, access_params);
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kSkia,
+                                       access_params, transient_backing);
   if (!backing) {
     return nullptr;
   }
@@ -1455,7 +1566,8 @@ CompoundImageBacking::ProduceSkiaGanesh(
 
   auto* gr_context = context_state ? context_state->gr_context() : nullptr;
   return std::make_unique<WrappedSkiaGaneshCompoundImageRepresentation>(
-      gr_context, manager, this, tracker, std::move(real_rep));
+      gr_context, manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<SkiaGraphiteImageRepresentation>
@@ -1465,8 +1577,9 @@ CompoundImageBacking::ProduceSkiaGraphite(
     scoped_refptr<SharedContextState> context_state) {
   AccessParams access_params;
   access_params.context_state = context_state;
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kSkia, access_params);
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kSkia,
+                                       access_params, transient_backing);
   if (!backing) {
     return nullptr;
   }
@@ -1477,7 +1590,8 @@ CompoundImageBacking::ProduceSkiaGraphite(
   }
 
   return std::make_unique<WrappedSkiaGraphiteCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<OverlayImageRepresentation>
@@ -1485,17 +1599,21 @@ CompoundImageBacking::ProduceOverlay(SharedImageManager* manager,
                                      MemoryTypeTracker* tracker) {
   // For OverlayImageRepresentation, no specific context information is
   // currently required for backing selection, so AccessParams is empty.
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kOverlay, AccessParams());
-  if (!backing)
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kOverlay,
+                                       AccessParams(), transient_backing);
+  if (!backing) {
     return nullptr;
+  }
 
   auto real_rep = backing->ProduceOverlay(manager, tracker);
-  if (!real_rep)
+  if (!real_rep) {
     return nullptr;
+  }
 
   return std::make_unique<WrappedOverlayCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<WebNNTensorRepresentation>
@@ -1503,8 +1621,9 @@ CompoundImageBacking::ProduceWebNNTensor(SharedImageManager* manager,
                                          MemoryTypeTracker* tracker) {
   // For WebNNTensorRepresentation, no specific context information is
   // currently required for backing selection, so AccessParams is empty.
+  std::unique_ptr<SharedImageBacking> transient_backing;
   auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kWebNNTensor,
-                                       AccessParams());
+                                       AccessParams(), transient_backing);
   if (!backing) {
     return nullptr;
   }
@@ -1515,7 +1634,8 @@ CompoundImageBacking::ProduceWebNNTensor(SharedImageManager* manager,
   }
 
   return std::make_unique<WrappedWebNNTensorCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<MemoryImageRepresentation> CompoundImageBacking::ProduceMemory(
@@ -1523,8 +1643,9 @@ std::unique_ptr<MemoryImageRepresentation> CompoundImageBacking::ProduceMemory(
     MemoryTypeTracker* tracker) {
   // For MemoryImageRepresentation, no specific context information is
   // currently required for backing selection, so AccessParams is empty.
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kMemory, AccessParams());
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kMemory,
+                                       AccessParams(), transient_backing);
   if (!backing) {
     return nullptr;
   }
@@ -1535,15 +1656,17 @@ std::unique_ptr<MemoryImageRepresentation> CompoundImageBacking::ProduceMemory(
   }
 
   return std::make_unique<WrappedMemoryCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 std::unique_ptr<VideoImageRepresentation> CompoundImageBacking::ProduceVideo(
     SharedImageManager* manager,
     MemoryTypeTracker* tracker,
     VideoDevice device) {
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kGL, AccessParams());
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kGL,
+                                       AccessParams(), transient_backing);
   if (!backing) {
     return nullptr;
   }
@@ -1554,7 +1677,8 @@ std::unique_ptr<VideoImageRepresentation> CompoundImageBacking::ProduceVideo(
   }
 
   return std::make_unique<WrappedVideoCompoundImageRepresentation>(
-      manager, this, tracker, std::move(real_rep));
+      manager, this, tracker, std::move(real_rep),
+      std::move(transient_backing));
 }
 
 #if BUILDFLAG(ENABLE_VULKAN)
@@ -1565,8 +1689,9 @@ std::unique_ptr<VulkanImageRepresentation> CompoundImageBacking::ProduceVulkan(
     gpu::VulkanImplementation& vulkan_impl,
     bool needs_detiling) {
   // For VulkanImageRepresentation, AccessParams is not needed as of now.
-  auto* backing =
-      GetOrAllocateBacking(SharedImageAccessStream::kVulkan, AccessParams());
+  std::unique_ptr<SharedImageBacking> transient_backing;
+  auto* backing = GetOrAllocateBacking(SharedImageAccessStream::kVulkan,
+                                       AccessParams(), transient_backing);
   if (!backing) {
     return nullptr;
   }
@@ -1579,7 +1704,7 @@ std::unique_ptr<VulkanImageRepresentation> CompoundImageBacking::ProduceVulkan(
 
   return std::make_unique<WrappedVulkanCompoundImageRepresentation>(
       manager, this, tracker, vulkan_device_queue, vulkan_impl,
-      std::move(real_rep));
+      std::move(real_rep), std::move(transient_backing));
 }
 #endif
 
@@ -1672,7 +1797,7 @@ CompoundImageBacking::ElementHolder& CompoundImageBacking::GetShmElement() {
 CompoundImageBacking::ElementHolder* CompoundImageBacking::GetElement(
     const SharedImageBacking* backing) {
   for (auto& element : elements_) {
-    if (element.GetBacking() == backing) {
+    if (element.backing.get() == backing) {
       return &element;
     }
   }
@@ -1695,7 +1820,8 @@ CompoundImageBacking::GetElementWithLatestContent() {
 
 SharedImageBacking* CompoundImageBacking::GetOrAllocateBacking(
     SharedImageAccessStream stream,
-    const AccessParams& params) {
+    const AccessParams& params,
+    std::unique_ptr<SharedImageBacking>& out_transient_backing) {
   AutoLock auto_lock(this);
   ElementHolder* best_match = nullptr;
   ElementHolder* any_match = nullptr;
@@ -1728,35 +1854,51 @@ SharedImageBacking* CompoundImageBacking::GetOrAllocateBacking(
   if (base::FeatureList::IsEnabled(features::kUseDynamicBackingAllocations) &&
       shared_image_factory_) {
     SharedImageUsageSet usage = GetUsageFromAccessStream(stream);
-    SharedImageBackingFactory* gpu_backing_factory = nullptr;
+    std::unique_ptr<SharedImageBacking> new_backing;
     shared_image_factory_->Execute([&](SharedImageFactory* factory) {
-      gpu_backing_factory = factory->GetFactoryByUsage(
-          usage, format(), size(),
-          /*pixel_data=*/{}, gfx::EMPTY_BUFFER, stream, &params);
+      SharedImageBackingFactory* gpu_backing_factory =
+          factory->GetFactoryByUsage(usage, format(), size(),
+                                     /*pixel_data=*/{}, gfx::EMPTY_BUFFER,
+                                     stream, &params);
+      if (gpu_backing_factory) {
+        CreateBackingFromBackingFactory(gpu_backing_factory, debug_label(),
+                                        usage, new_backing);
+      }
     });
 
-    if (gpu_backing_factory) {
+    if (new_backing) {
+      UMA_HISTOGRAM_ENUMERATION(
+          "GPU.CompoundImageBacking.DynamicAllocation.BackingType",
+          new_backing->GetType());
+      UMA_HISTOGRAM_ENUMERATION(
+          "GPU.CompoundImageBacking.DynamicAllocation.AccessStream", stream);
+      UMA_HISTOGRAM_SPARSE(
+          "GPU.CompoundImageBacking.DynamicAllocation."
+          "InitialSharedImageUsage",
+          static_cast<int32_t>(static_cast<uint32_t>(this->usage())));
+
+      // If the CSI container is thread-safe, we treat newly created backings
+      // as transient if they are not thread-safe. They will be owned by the
+      // representation and destroyed after use. This ensures that a
+      // non-thread-safe backing allocated on one thread doesn't persist in
+      // the thread-safe container, which could lead to race conditions if
+      // accessed from another thread later.
+      if (is_thread_safe() && !new_backing->is_thread_safe()) {
+        out_transient_backing = std::move(new_backing);
+        return out_transient_backing.get();
+      }
+
+      // Else we treat the backing as non-transient and add it to the list of
+      // alive elements. This is done when either the container is not
+      // thread-safe or the new backing itself is thread-safe.
       ElementHolder element;
       element.access_streams.Put(stream);
-      CreateBackingFromBackingFactory(gpu_backing_factory->GetWeakPtr(),
-                                      debug_label(), usage, element.backing);
-      if (element.backing) {
-        UMA_HISTOGRAM_ENUMERATION(
-            "GPU.CompoundImageBacking.DynamicAllocation.BackingType",
-            element.backing->GetType());
-        UMA_HISTOGRAM_ENUMERATION(
-            "GPU.CompoundImageBacking.DynamicAllocation.AccessStream", stream);
-        UMA_HISTOGRAM_SPARSE(
-            "GPU.CompoundImageBacking.DynamicAllocation."
-            "InitialSharedImageUsage",
-            static_cast<int32_t>(static_cast<uint32_t>(this->usage())));
-
-        elements_.push_back(std::move(element));
-        if (elements_.size() > max_elements_allocated_) {
-          max_elements_allocated_ = elements_.size();
-        }
-        return elements_.back().GetBacking();
+      element.backing = std::move(new_backing);
+      elements_.push_back(std::move(element));
+      if (elements_.size() > max_elements_allocated_) {
+        max_elements_allocated_ = elements_.size();
       }
+      return elements_.back().GetBacking();
     }
   }
 
@@ -1775,19 +1917,19 @@ SharedImageBacking* CompoundImageBacking::GetGpuBacking() {
 }
 
 void CompoundImageBacking::CreateBackingFromBackingFactory(
-    base::WeakPtr<SharedImageBackingFactory> factory,
+    SharedImageBackingFactory* backing_factory,
     std::string debug_label,
     SharedImageUsageSet usage,
     std::unique_ptr<SharedImageBacking>& backing) {
-  if (!factory) {
-    DLOG(ERROR) << "Can't allocate backing after image has been destroyed";
-    return;
-  }
+  // This method assumes the caller has already ensured the factory is alive
+  // and synchronized (e.g. by holding the SharedImageFactoryRef lock).
+  CHECK(backing_factory);
 
-  backing = factory->CreateSharedImage(
-      mailbox(), format(), kNullSurfaceHandle, size(), color_space(),
-      surface_origin(), alpha_type(), usage, std::move(debug_label),
-      /*is_thread_safe=*/false);
+  SharedImageInfo si_info(format(), size(), color_space(), surface_origin(),
+                          alpha_type(), usage, std::move(debug_label));
+  backing =
+      backing_factory->CreateSharedImage(mailbox(), si_info, kNullSurfaceHandle,
+                                         /*is_thread_safe=*/false);
   if (!backing) {
     DLOG(ERROR) << "Failed to allocate GPU backing";
     return;
@@ -1813,11 +1955,39 @@ void CompoundImageBacking::CreateBackingFromBackingFactory(
   // Update peak GPU memory tracking with the new estimated size.
   size_t estimated_size = 0;
   for (auto& element : elements_) {
-    if (element.backing)
+    if (element.backing) {
       estimated_size += element.backing->GetEstimatedSize();
+    }
   }
 
   UpdateEstimatedSize(estimated_size);
+}
+
+void CompoundImageBacking::LazyCreateBacking(
+    SharedImageBackingType factory_type,
+    base::WeakPtr<SharedImageBackingFactory> test_factory,
+    SharedImageUsageSet usage,
+    std::string debug_label,
+    std::unique_ptr<SharedImageBacking>& backing) {
+  // This method provides a thread-safe way to lazily create a backing.
+  // It uses the factory type to re-identify the correct factory under a lock,
+  // avoiding the use of thread-affine WeakPtrs in production.
+  if (shared_image_factory_) {
+    shared_image_factory_->Execute([&](SharedImageFactory* factory) {
+      // Find the factory by type while holding the lock to ensure its lifetime.
+      auto* bf = factory->GetFactoryByType(factory_type);
+      if (bf) {
+        CreateBackingFromBackingFactory(bf, std::move(debug_label), usage,
+                                        backing);
+      }
+    });
+  } else if (test_factory) {
+    // Fallback for tests where SharedImageFactoryRef is not present.
+    // These tests are currently single-threaded.
+    CHECK_IS_TEST();
+    CreateBackingFromBackingFactory(test_factory.get(), std::move(debug_label),
+                                    usage, backing);
+  }
 }
 
 bool CompoundImageBacking::HasLatestContent(ElementHolder& element) {

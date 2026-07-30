@@ -23,6 +23,7 @@
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/content_settings/host_content_settings_map_factory.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
@@ -64,6 +65,8 @@
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/collaboration/public/features.h"
+#include "components/content_settings/browser/page_specific_content_settings.h"
+#include "components/content_settings/core/common/content_settings_types.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/data_sharing/public/features.h"
 #include "components/metrics/content/subprocess_metrics_provider.h"
@@ -89,6 +92,8 @@
 #include "content/public/test/scoped_accessibility_mode_override.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "net/base/filename_util.h"
+#include "net/dns/mock_host_resolver.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/public/common/page/page_zoom.h"
 #include "third_party/blink/public/common/web_preferences/web_preferences.h"
 #include "third_party/skia/include/core/SkBitmap.h"
@@ -341,6 +346,26 @@ std::string DispatchPointerClick(
       opts.c_str(), pointer_type.c_str(), opts.c_str());
 }
 
+std::string GetContentSettingIcon(
+    toolbar_ui_api::mojom::ContentSettingImageType type) {
+  return base::StringPrintf(R"(
+    ((type) => {
+      const app = document.querySelector('toolbar-app');
+      const locBar = app.shadowRoot.querySelector('#location-bar');
+      const contentSettings = locBar.shadowRoot
+                              .querySelector('#contentSettings');
+      const icon = Array.from(contentSettings.shadowRoot
+                      .querySelectorAll('content-setting-icon'))
+                  .find(el => el.state && el.state.type === type);
+      if (!icon) {
+        console.log('icon of type ' + type + ' not found');
+      }
+      return icon;
+    })(%d)
+  )",
+                            static_cast<int>(type));
+}
+
 class NavigationCounter : public content::WebContentsObserver {
  public:
   explicit NavigationCounter(content::WebContents* web_contents)
@@ -418,6 +443,9 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
 
   void SetUpOnMainThread() override {
     InProcessBrowserTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(embedded_test_server()->Start());
+
     // Force the color mode to light to avoid flakiness.
     ThemeServiceFactory::GetForProfile(browser()->profile())
         ->SetBrowserColorScheme(ThemeService::BrowserColorScheme::kLight);
@@ -632,6 +660,34 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
   EXPECT_EQ("Home", home.GetStringAttribute(ax::mojom::StringAttribute::kName));
   EXPECT_EQ("Open the home page",
             home.GetStringAttribute(ax::mojom::StringAttribute::kDescription));
+
+  // Verify appropriate accessibility properties for content settings icons.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(
+      browser(), embedded_test_server()->GetURL("foo.test", "/title1.html")));
+
+  // Trigger content blocked.
+  content::WebContents* active_web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  Profile* profile =
+      Profile::FromBrowserContext(active_web_contents->GetBrowserContext());
+  HostContentSettingsMapFactory::GetForProfile(profile)
+      ->SetDefaultContentSetting(ContentSettingsType::COOKIES,
+                                 CONTENT_SETTING_BLOCK);
+  auto* settings = content_settings::PageSpecificContentSettings::GetForFrame(
+      active_web_contents->GetPrimaryMainFrame());
+  ASSERT_TRUE(settings);
+  settings->OnContentBlocked(ContentSettingsType::COOKIES);
+  webui_toolbar_view->GetLocationBar()->UpdateContentSettingsIcons();
+
+  std::string cookies_blocked_name =
+      l10n_util::GetStringUTF8(IDS_BLOCKED_ON_DEVICE_SITE_DATA_MESSAGE);
+  content::WaitForAccessibilityTreeToContainNodeWithName(
+      web_view->GetWebContents(), cookies_blocked_name);
+  find_criteria.name = cookies_blocked_name;
+  ui::AXPlatformNodeDelegate* cookies_node =
+      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
+  ASSERT_TRUE(cookies_node);
+  EXPECT_EQ(ax::mojom::Role::kButton, cookies_node->GetData().role);
 }
 
 IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
@@ -662,7 +718,9 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   control_rect.Offset(-view_rect.OffsetFromOrigin());
 
   // Verify reload button background is transparent when not highlighted.
-  EXPECT_EQ(GetCenterPixelColor(web_view, control_rect), SK_ColorTRANSPARENT);
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, control_rect) == SK_ColorTRANSPARENT;
+  }));
 
   // Show reload button context menu.
   webui_toolbar_view->GetReloadControl()->SetDevToolsStatus(true);
@@ -718,8 +776,10 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
                                   1);
 
   // Verify back button background is transparent when not highlighted.
-  EXPECT_EQ(GetCenterPixelColor(web_view, background_probe_rect),
-            SK_ColorTRANSPARENT);
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, background_probe_rect) ==
+           SK_ColorTRANSPARENT;
+  }));
 
   // Show back button context menu.
   webui_toolbar_view->HandleContextMenu(
@@ -777,8 +837,10 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
                                   1);
 
   // Verify forward button background is transparent when not highlighted.
-  EXPECT_EQ(GetCenterPixelColor(web_view, background_probe_rect),
-            SK_ColorTRANSPARENT);
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, background_probe_rect) ==
+           SK_ColorTRANSPARENT;
+  }));
 
   // Show forward button context menu.
   webui_toolbar_view->HandleContextMenu(
@@ -839,8 +901,10 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
                                   1);
 
   // Verify initial state is transparent.
-  EXPECT_EQ(GetCenterPixelColor(web_view, background_probe_rect),
-            SK_ColorTRANSPARENT);
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, background_probe_rect) ==
+           SK_ColorTRANSPARENT;
+  }));
 
   // Show context menu.
   webui_toolbar_view->HandleContextMenu(
@@ -894,8 +958,10 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
                                   1);
 
   // Verify initial state is transparent.
-  EXPECT_EQ(GetCenterPixelColor(web_view, background_probe_rect),
-            SK_ColorTRANSPARENT);
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return GetCenterPixelColor(web_view, background_probe_rect) ==
+           SK_ColorTRANSPARENT;
+  }));
 
   // Show context menu.
   webui_toolbar_view->HandleContextMenu(
@@ -2021,7 +2087,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
       &webui_toolbar_view->split_tabs_control_;
 
   // Create split [A, B].
-  chrome::NewSplitTab(browser(),
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kVertical,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
   auto* tab_strip_model = browser()->tab_strip_model();
   ASSERT_TRUE(base::test::RunUntil(
@@ -2194,7 +2260,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
       WaitForButtonVisible(web_view->GetWebContents(), kSplitTabsSelector));
 
   // Create a split tab group manually to simulate being in split mode.
-  chrome::NewSplitTab(browser(),
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kVertical,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
   auto* tab_strip_model = browser()->tab_strip_model();
   ASSERT_TRUE(base::test::RunUntil(
@@ -2220,7 +2286,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
       WaitForButtonVisible(web_view->GetWebContents(), kSplitTabsSelector));
 
   // Create split [A, B]. A is active.
-  chrome::NewSplitTab(browser(),
+  chrome::NewSplitTab(browser(), split_tabs::SplitTabLayout::kVertical,
                       split_tabs::SplitTabCreatedSource::kToolbarButton);
   auto* tab_strip_model = browser()->tab_strip_model();
   ASSERT_TRUE(base::test::RunUntil(
@@ -2830,6 +2896,18 @@ class WebUIPinnedToolbarActionsBrowserTest
                                  : actions::ActionPinnableState::kNotPinnable));
   }
 
+  views::View* GetLocationBarView() {
+    return BrowserView::GetBrowserViewForBrowser(browser())
+        ->toolbar()
+        ->location_bar_view();
+  }
+
+  views::BubbleAnchor GetToolbarBubbleAnchor(actions::ActionId action_id) {
+    return BrowserView::GetBrowserViewForBrowser(browser())
+        ->toolbar_button_provider()
+        ->GetBubbleAnchor(action_id);
+  }
+
   void PinAction(actions::ActionId action_id,
                  toolbar_ui_api::mojom::PinnedToolbarAction mojom_action) {
     auto* webui_toolbar_view = GetWebUIToolbarWebView(browser());
@@ -2856,6 +2934,8 @@ class WebUIPinnedToolbarActionsBrowserTest
                          missing_anchor = true;
                        }));
     EXPECT_TRUE(missing_anchor);
+    EXPECT_EQ(GetToolbarBubbleAnchor(action_id).GetIfView(),
+              GetLocationBarView());
 
     model_->UpdatePinnedState(action_id, true);
     // Test async anchor fetching.
@@ -2871,6 +2951,7 @@ class WebUIPinnedToolbarActionsBrowserTest
     run_loop.Run();
     // Test sync anchor fetching.
     EXPECT_FALSE(pinned_actions->GetBubbleAnchor(action_id).IsNull());
+    EXPECT_TRUE(GetToolbarBubbleAnchor(action_id).GetIfElement());
     bool found_anchor = false;
     pinned_actions->GetBubbleAnchorAsync(
         action_id, base::BindLambdaForTesting(
@@ -2917,6 +2998,8 @@ class WebUIPinnedToolbarActionsBrowserTest
       }));
     }
     EXPECT_TRUE(pinned_actions->GetBubbleAnchor(action_id).IsNull());
+    EXPECT_EQ(GetToolbarBubbleAnchor(action_id).GetIfView(),
+              GetLocationBarView());
   }
 
   void VerifyPinnedToolbarWidth() {
@@ -3539,6 +3622,64 @@ IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
   ASSERT_FALSE(model_->Contains(action_id));
 }
 
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
+                       AboutThisSiteIcon) {
+  auto* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  // Pin "About This Site" action.
+  PinAction(
+      kActionSidePanelShowAboutThisSite,
+      toolbar_ui_api::mojom::PinnedToolbarAction::kSidePanelShowAboutThisSite);
+
+  // Define the expected icon name.
+  std::string expected_icon;
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  expected_icon = "internal-icons:page_insights";
+#else
+  expected_icon = "pinned-toolbar-action:SidePanelShowAboutThisSite";
+#endif
+
+  // Verify iron-icon attribute in WebUI.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return EvalJsOnPinnedButton(web_contents,
+                                toolbar_ui_api::mojom::PinnedToolbarAction::
+                                    kSidePanelShowAboutThisSite,
+                                "return btn?.getAttribute('iron-icon') || '';")
+               .ExtractString() == expected_icon;
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIPinnedToolbarActionsBrowserTest,
+                       LensOverlayResultsIcon) {
+  auto* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  // Pin "Lens Overlay Results" action.
+  PinAction(kActionSidePanelShowLensOverlayResults,
+            toolbar_ui_api::mojom::PinnedToolbarAction::
+                kSidePanelShowLensOverlayResults);
+
+  // Define the expected icon name.
+  std::string expected_icon;
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+  expected_icon = "internal-icons:google_lens_monochrome_logo";
+#else
+  expected_icon = "pinned-toolbar-action:SidePanelShowLensOverlayResults";
+#endif
+
+  // Verify iron-icon attribute in WebUI.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return EvalJsOnPinnedButton(web_contents,
+                                toolbar_ui_api::mojom::PinnedToolbarAction::
+                                    kSidePanelShowLensOverlayResults,
+                                "return btn?.getAttribute('iron-icon') || '';")
+               .ExtractString() == expected_icon;
+  }));
+}
+
 struct DragTestParam {
   const char* test_name;
   const char* selector;
@@ -3725,4 +3866,157 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarAlreadyExistsForTheSameProfileOnInitTest,
   histogram_tester_->ExpectUniqueSample(
       "InitialWebUI.Toolbar.ProcessAlreadyExistsForTheSameProfileOnCreation",
       false, 1);
+}
+
+class WebUIToolbarWebViewContentSettingsBrowserTest
+    : public WebUIToolbarWebViewBrowserTest {
+ public:
+  WebUIToolbarWebViewContentSettingsBrowserTest()
+      : WebUIToolbarWebViewBrowserTest(
+            {features::kInitialWebUI, features::kWebUIReloadButton,
+             features::kWebUILocationBar,
+             features::kSkipIPCChannelPausingForNonGuests,
+             features::kWebUIInProcessResourceLoadingV2,
+             features::kInitialWebUISyncNavStartToCommit},
+            {}) {}
+
+  void SetUpOnMainThread() override {
+    WebUIToolbarWebViewBrowserTest::SetUpOnMainThread();
+    host_resolver()->AddRule("*", "127.0.0.1");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+
+ protected:
+  void TriggerContentBlocked(content::WebContents* web_contents,
+                             ContentSettingsType type) {
+    Profile* profile =
+        Profile::FromBrowserContext(web_contents->GetBrowserContext());
+    HostContentSettingsMapFactory::GetForProfile(profile)
+        ->SetDefaultContentSetting(type, CONTENT_SETTING_BLOCK);
+
+    auto* settings = content_settings::PageSpecificContentSettings::GetForFrame(
+        web_contents->GetPrimaryMainFrame());
+    ASSERT_TRUE(settings);
+    settings->OnContentBlocked(type);
+
+    WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+    webui_toolbar_view->GetLocationBar()->UpdateContentSettingsIcons();
+  }
+
+  bool IsIconVisible(content::WebContents* web_contents,
+                     toolbar_ui_api::mojom::ContentSettingImageType type) {
+    return content::EvalJs(web_contents,
+                           base::StringPrintf(R"(
+      (() => {
+        const icon = %s;
+        return !!icon && icon.checkVisibility();
+      })()
+    )",
+                                              GetContentSettingIcon(type)))
+        .ExtractBool();
+  }
+
+  GURL GetTestURL() {
+    return embedded_test_server()->GetURL("foo.test", "/title1.html");
+  }
+};
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewContentSettingsBrowserTest,
+                       IconVisibilityAndState) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  ASSERT_TRUE(webui_toolbar_view);
+  ASSERT_TRUE(webui_toolbar_view->GetLocationBar());
+  views::WebView* web_ui_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_ui_contents = web_ui_view->GetWebContents();
+  ASSERT_TRUE(web_ui_contents);
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetTestURL()));
+  content::WebContents* active_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Block images.
+  TriggerContentBlocked(active_contents, ContentSettingsType::IMAGES);
+
+  // Verify icon appears in WebUI.
+  auto type = toolbar_ui_api::mojom::ContentSettingImageType::kImages;
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return IsIconVisible(web_ui_contents, type); }));
+
+  // Verify tooltip and ARIA label.
+  std::string expected_tooltip =
+      l10n_util::GetStringUTF8(IDS_BLOCKED_IMAGES_MESSAGE);
+  EXPECT_EQ(expected_tooltip,
+            content::EvalJs(web_ui_contents, base::StringPrintf(
+                                                 R"(
+    %s.shadowRoot.querySelector('cr-icon-button').title
+  )",
+                                                 GetContentSettingIcon(type))));
+  EXPECT_EQ(expected_tooltip,
+            content::EvalJs(web_ui_contents, base::StringPrintf(
+                                                 R"(
+    %s.shadowRoot.querySelector('cr-icon-button').getAttribute('aria-label')
+  )",
+                                                 GetContentSettingIcon(type))));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewContentSettingsBrowserTest,
+                       ExplanatoryTextAndAnimation) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  ASSERT_TRUE(webui_toolbar_view);
+  ASSERT_TRUE(webui_toolbar_view->GetLocationBar());
+  views::WebView* web_ui_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_ui_contents = web_ui_view->GetWebContents();
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetTestURL()));
+  content::WebContents* active_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  // Block ads, which has explanatory text.
+  TriggerContentBlocked(active_contents, ContentSettingsType::ADS);
+
+  auto type = toolbar_ui_api::mojom::ContentSettingImageType::kAds;
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return IsIconVisible(web_ui_contents, type); }));
+
+  // Verify state property has correct explanatory text.
+  std::string expected_text =
+      l10n_util::GetStringUTF8(IDS_BLOCKED_ADS_PROMPT_TITLE);
+
+  ASSERT_TRUE(base::test::RunUntil([&web_ui_contents, &expected_text, type] {
+    return content::EvalJs(web_ui_contents,
+                           base::StringPrintf(R"(
+    (() => {
+      const icon = %s;
+      return !!icon && icon.state.explanatoryString === '%s';
+    })()
+  )",
+                                              GetContentSettingIcon(type),
+                                              expected_text.c_str()))
+        .ExtractBool();
+  }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewContentSettingsBrowserTest,
+                       MultipleIcons) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  ASSERT_TRUE(webui_toolbar_view);
+  ASSERT_TRUE(webui_toolbar_view->GetLocationBar());
+  views::WebView* web_ui_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_ui_contents = web_ui_view->GetWebContents();
+
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GetTestURL()));
+  content::WebContents* active_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  TriggerContentBlocked(active_contents, ContentSettingsType::COOKIES);
+  TriggerContentBlocked(active_contents, ContentSettingsType::GEOLOCATION);
+
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return IsIconVisible(
+               web_ui_contents,
+               toolbar_ui_api::mojom::ContentSettingImageType::kCookies) &&
+           IsIconVisible(
+               web_ui_contents,
+               toolbar_ui_api::mojom::ContentSettingImageType::kGeolocation);
+  }));
 }

@@ -691,7 +691,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AIPageContent.TotalLatency" units="ms"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <summary>
@@ -703,7 +703,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AnnotatedPageContent.ComputeMetricsLatency"
-    units="microseconds" expires_after="2026-08-30">
+    units="microseconds" expires_after="2026-11-01">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <summary>
@@ -743,7 +743,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="OptimizationGuide.AnnotatedPageContent.TotalWordCount"
-    units="words" expires_after="2026-08-30">
+    units="words" expires_after="2026-11-01">
   <owner>khushalsagar@chromium.org</owner>
   <owner>abigailbklein@google.com</owner>
   <summary>
@@ -1296,7 +1296,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
-    name="OptimizationGuide.ModelExecution.OnDeviceModelInstalledAtRegistrationTime"
+    name="OptimizationGuide.ModelExecution.OnDeviceModelInstalledAtRegistrationTime.{BaseModel}"
     enum="Boolean" expires_after="2027-04-14">
   <owner>holte@chromium.org</owner>
   <owner>wittman@chromium.org</owner>
@@ -1305,6 +1305,7 @@ chromium-metrics-reviews@google.com.
     on-device model installer is registered. This happens at most once per
     restart, when the device becomes eligible for on-device execution.
   </summary>
+  <token key="BaseModel" variants="BaseModel"/>
 </histogram>
 
 <histogram
@@ -1806,6 +1807,19 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="OptimizationGuide.OnDeviceModel.ManifestBrokerInstantiated"
+    enum="Boolean" expires_after="2027-04-14">
+  <owner>zekunjiang@google.com</owner>
+  <owner>holte@chromium.org</owner>
+  <owner>wittman@chromium.org</owner>
+  <summary>
+    Only records `true`. Recorded once when `ManifestBrokerState` is
+    instantiated. This histogram helps compute the number of clients without an
+    installed model, by subtracting from it the clients that have logged to
+    `OptimizationGuide.OnDeviceModel.InstalledModel`.
+  </summary>
+</histogram>
+
 <histogram name="OptimizationGuide.OnDeviceModel.NewModelInstalled"
     enum="InstalledModel" expires_after="2026-10-15">
   <owner>zekunjiang@google.com</owner>
@@ -2181,6 +2195,31 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="OptimizationGuide.PageContentExtraction.EnablementSourcePerNavigation"
+    enum="PageContentExtractionEnablementSource" expires_after="2026-11-05">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the reason (if any) that page content extraction was enabled.
+    Recorded once per cross-document navigation.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentExtraction.HadSettledMonitorAtDidFinishNavigation"
+    enum="Boolean" expires_after="2026-11-07">
+  <owner>linnan@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records whether a PageSettledMonitor was already present when
+    DidFinishNavigation was reached for a primary main frame navigation. If
+    false, it indicates that DidStartNavigation was missed and a fallback
+    monitor was created. Recorded once per committed primary main frame
+    navigation.
+  </summary>
+</histogram>
+
 <histogram name="OptimizationGuide.PageContentExtraction.IsCacheHit"
     enum="BooleanCacheHit" expires_after="2026-09-16">
   <owner>alexmt@chromium.org</owner>
@@ -2188,6 +2227,38 @@ chromium-metrics-reviews@google.com.
   <summary>
     Records whether the requested page content was found in the cache. Recorded
     once for every request to get extracted page content for a page.
+  </summary>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentExtraction.NavigationToReadyLatency.{NavigationType}.{StabilizationMethod}"
+    units="ms" expires_after="2026-11-07">
+  <owner>linnan@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the duration from when a main frame {NavigationType} navigation
+    commits until the page is considered stable and ready for extraction using
+    the {StabilizationMethod} stabilization method. Recorded once per committed
+    primary main frame navigation when the page first becomes stable.
+  </summary>
+  <token key="NavigationType">
+    <variant name="CrossDocument" summary="cross-document navigation"/>
+    <variant name="SameDocument" summary="same-document navigation"/>
+  </token>
+  <token key="StabilizationMethod">
+    <variant name="Legacy" summary="the legacy load completion and FCP"/>
+    <variant name="PageSettledMonitor" summary="the PageSettledMonitor"/>
+  </token>
+</histogram>
+
+<histogram
+    name="OptimizationGuide.PageContentExtraction.ObserverCountPerNavigation"
+    units="count" expires_after="2026-11-05">
+  <owner>alexmt@chromium.org</owner>
+  <owner>chrome-intelligence-core@google.com</owner>
+  <summary>
+    Records the number of active observers for page content extraction during a
+    cross-document navigation. Recorded once per cross-document navigation.
   </summary>
 </histogram>
 

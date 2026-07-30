@@ -6900,6 +6900,27 @@
           }
         ]
       },
+      "android-16-x64-leakcanary-fyi-rel": {
+        "contact_team_email": "clank-engprod@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "android-16-x64-rel": {
         "contact_team_email": "clank-engprod@google.com",
         "problem_specs": [
@@ -8440,7 +8461,7 @@
           }
         ]
       },
-      "android-x64-treesinviz-enabled-rel": {
+      "android-x64-treesinviz-disabled-rel": {
         "contact_team_email": "chrome-gpu-team@google.com",
         "problem_specs": [
           {
@@ -9633,6 +9654,27 @@
           }
         ]
       },
+      "linux-arm64-dbg-tests": {
+        "contact_team_email": "chrome-linux-engprod@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "linux-arm64-rel-fyi": {
         "contact_team_email": "chrome-linux-engprod@google.com",
         "problem_specs": [
@@ -10101,7 +10143,7 @@
           }
         ]
       },
-      "linux-chromeos-treesinviz-enabled-rel": {
+      "linux-chromeos-treesinviz-disabled-rel": {
         "contact_team_email": "chrome-gpu-team@google.com",
         "problem_specs": [
           {
@@ -10644,6 +10686,27 @@
           }
         ]
       },
+      "linux-surface-embed-rel": {
+        "contact_team_email": "chrome-webium-product-eng@google.com",
+        "problem_specs": [
+          {
+            "name": "Unhealthy",
+            "period_days": 7,
+            "score": 5,
+            "thresholds": {
+              "_default": "_default"
+            }
+          },
+          {
+            "name": "Low Value",
+            "period_days": 90,
+            "score": 1,
+            "thresholds": {
+              "_default": "_default"
+            }
+          }
+        ]
+      },
       "linux-swangle-chromium-x64": {
         "contact_team_email": "chrome-gpu-infra@google.com",
         "problem_specs": [
@@ -10749,7 +10812,7 @@
           }
         ]
       },
-      "linux-treesinviz-disabled-rel": {
+      "linux-treesinviz-enabled-rel": {
         "contact_team_email": "chrome-gpu-team@google.com",
         "problem_specs": [
           {
@@ -11676,27 +11739,6 @@
           }
         ]
       },
-      "mac-skia-alt-arm64-rel-tests": {
-        "contact_team_email": "chrome-skia-graphite@google.com",
-        "problem_specs": [
-          {
-            "name": "Unhealthy",
-            "period_days": 7,
-            "score": 5,
-            "thresholds": {
-              "_default": "_default"
-            }
-          },
-          {
-            "name": "Low Value",
-            "period_days": 90,
-            "score": 1,
-            "thresholds": {
-              "_default": "_default"
-            }
-          }
-        ]
-      },
       "mac-swangle-chromium-x64": {
         "contact_team_email": "chrome-gpu-infra@google.com",
         "problem_specs": [
@@ -11718,7 +11760,7 @@
           }
         ]
       },
-      "mac-treesinviz-enabled-rel": {
+      "mac-treesinviz-disabled-rel": {
         "contact_team_email": "chrome-gpu-team@google.com",
         "problem_specs": [
           {
@@ -12916,7 +12958,7 @@
           }
         ]
       },
-      "win-treesinviz-enabled-rel": {
+      "win-treesinviz-disabled-rel": {
         "contact_team_email": "chrome-gpu-team@google.com",
         "problem_specs": [
           {

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <variant>
 
 #include "base/barrier_closure.h"
 #include "base/base64.h"
@@ -26,6 +27,7 @@
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/tools/attempt_form_filling_tool_request.h"
 #include "chrome/browser/actor/tools/attempt_login_tool_request.h"
+#include "chrome/browser/actor/tools/attempt_otp_filling_tool_request.h"
 #include "chrome/browser/actor/tools/click_tool_request.h"
 #include "chrome/browser/actor/tools/drag_and_release_tool_request.h"
 #include "chrome/browser/actor/tools/history_tool_request.h"
@@ -49,6 +51,7 @@
 #include "chrome/common/actor/actor_constants.h"
 #include "chrome/common/actor/actor_logging.h"
 #include "chrome/common/actor/journal_details_builder.h"
+#include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
 #include "components/actor/core/actor_features.h"
 #include "components/actor/core/shared_types.h"
@@ -85,6 +88,7 @@ using apc::ActivateTabAction;
 using apc::ActivateWindowAction;
 using apc::AttemptFormFillingAction;
 using apc::AttemptLoginAction;
+using apc::AttemptOtpFillingAction;
 using apc::ClickAction;
 using apc::CloseTabAction;
 using apc::CloseWindowAction;
@@ -144,12 +148,21 @@ std::optional<PageTarget> ToPageTarget(
                     target.document_identifier().serialized_token()});
   }
 }
-std::unique_ptr<ToolRequest> CreateClickRequest(const ClickAction& action) {
+std::variant<std::unique_ptr<ToolRequest>, mojom::ActionResultCode>
+CreateClickRequest(const ClickAction& action) {
   TabHandle tab_handle = GetTabHandle(action);
 
-  if (!action.has_target() || !action.has_click_count() ||
-      !action.has_click_type() || tab_handle == TabHandle::Null()) {
-    return nullptr;
+  if (tab_handle == TabHandle::Null()) {
+    return mojom::ActionResultCode::kTabWentAway;
+  }
+  if (!action.has_target()) {
+    return mojom::ActionResultCode::kClickMissingTarget;
+  }
+  if (!action.has_click_type()) {
+    return mojom::ActionResultCode::kClickMissingType;
+  }
+  if (!action.has_click_count()) {
+    return mojom::ActionResultCode::kClickInvalidCount;
   }
 
   mojom::ClickCount count;
@@ -190,7 +203,7 @@ std::unique_ptr<ToolRequest> CreateClickRequest(const ClickAction& action) {
 
   auto target = ToPageTarget(action.target());
   if (!target.has_value()) {
-    return nullptr;
+    return mojom::ActionResultCode::kArgumentsInvalid;
   }
 
   return std::make_unique<ClickToolRequest>(tab_handle, target.value(), type,
@@ -597,6 +610,36 @@ std::unique_ptr<ToolRequest> CreateAttemptFormFillingRequest(
                                                          std::move(requests));
 }
 
+std::unique_ptr<ToolRequest> CreateAttemptOtpFillingRequest(
+    const AttemptOtpFillingAction& action) {
+  if (!base::FeatureList::IsEnabled(
+          features::kGlicActorAutofillOneTimePassword)) {
+    return nullptr;
+  }
+
+  const tabs::TabHandle tab_handle = GetTabHandle(action);
+  if (tab_handle == TabHandle::Null()) {
+    return nullptr;
+  }
+
+  if (action.target_fields_size() == 0) {
+    return nullptr;
+  }
+
+  std::vector<PageTarget> trigger_fields;
+  for (const auto& target_field : action.target_fields()) {
+    std::optional<PageTarget> page_target = ToPageTarget(target_field);
+    if (!page_target) {
+      // One of the targets is invalid.
+      return nullptr;
+    }
+    trigger_fields.push_back(*page_target);
+  }
+
+  return std::make_unique<AttemptOtpFillingToolRequest>(
+      tab_handle, std::move(trigger_fields), action.for_signin());
+}
+
 std::unique_ptr<ToolRequest> CreateScriptToolRequest(
     const ScriptToolAction& action) {
   if (!base::FeatureList::IsEnabled(actor::kGlicActorEnableScriptTools)) {
@@ -706,8 +749,8 @@ class ActorJournalFetchPageProgressListener
   std::unique_ptr<AggregatedJournal::PendingAsyncEntry> apc_entry_;
 };
 
-std::unique_ptr<ToolRequest> CreateToolRequest(
-    const optimization_guide::proto::Action& action) {
+std::variant<std::unique_ptr<ToolRequest>, mojom::ActionResultCode>
+CreateToolRequest(const optimization_guide::proto::Action& action) {
   TRACE_EVENT1("actor", "CreateToolRequest", "action_type",
                static_cast<int>(action.action_case()));
   switch (action.action_case()) {
@@ -774,6 +817,11 @@ std::unique_ptr<ToolRequest> CreateToolRequest(
           action.attempt_form_filling();
       return CreateAttemptFormFillingRequest(attempt_form_fill_action);
     }
+    case optimization_guide::proto::Action::kAttemptOtpFilling: {
+      const AttemptOtpFillingAction& attempt_otp_fill_action =
+          action.attempt_otp_filling();
+      return CreateAttemptOtpFillingRequest(attempt_otp_fill_action);
+    }
     case optimization_guide::proto::Action::kScriptTool: {
       const ScriptToolAction& script_tool_action = action.script_tool();
       return CreateScriptToolRequest(script_tool_action);
@@ -818,24 +866,31 @@ std::unique_ptr<ToolRequest> CreateToolRequest(
       break;
   }
 
-  return nullptr;
+  return mojom::ActionResultCode::kArgumentsInvalid;
 }
 
 }  // namespace
 
-base::expected<std::vector<std::unique_ptr<ToolRequest>>, size_t>
+base::expected<std::vector<std::unique_ptr<ToolRequest>>,
+               std::pair<size_t, mojom::ActionResultCode>>
 BuildToolRequest(const optimization_guide::proto::Actions& actions) {
   TRACE_EVENT0("actor", "BuildToolRequest");
   std::vector<std::unique_ptr<ToolRequest>> requests;
   requests.reserve(actions.actions_size());
   for (int i = 0; i < actions.actions_size(); ++i) {
-    std::unique_ptr<ToolRequest> request =
-        CreateToolRequest(actions.actions().at(i));
-    if (request) {
-      requests.push_back(std::move(request));
-    } else {
-      return base::unexpected(base::checked_cast<size_t>(i));
+    auto result = CreateToolRequest(actions.actions().at(i));
+    if (std::holds_alternative<mojom::ActionResultCode>(result)) {
+      return base::unexpected(
+          std::make_pair(base::checked_cast<size_t>(i),
+                         std::get<mojom::ActionResultCode>(result)));
     }
+    auto& tool_request = std::get<std::unique_ptr<ToolRequest>>(result);
+    if (!tool_request) {
+      return base::unexpected(
+          std::make_pair(base::checked_cast<size_t>(i),
+                         mojom::ActionResultCode::kArgumentsInvalid));
+    }
+    requests.push_back(std::move(tool_request));
   }
 
   return requests;

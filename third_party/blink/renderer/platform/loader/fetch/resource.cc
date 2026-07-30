@@ -33,6 +33,7 @@
 #include <variant>
 
 #include "base/feature_list.h"
+#include "base/memory_coordinator/utils.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/default_clock.h"
 #include "build/build_config.h"
@@ -69,6 +70,33 @@
 #include "third_party/blink/renderer/platform/wtf/vector.h"
 
 namespace blink {
+
+String GetAsAttributeFromResourceType(ResourceType type) {
+  switch (type) {
+    case ResourceType::kImage:
+      return "image";
+    case ResourceType::kScript:
+      return "script";
+    case ResourceType::kCSSStyleSheet:
+      return "style";
+    case ResourceType::kTextTrack:
+      return "track";
+    case ResourceType::kFont:
+      return "font";
+    case ResourceType::kRaw:
+    case ResourceType::kMock:
+      return "fetch";
+    case ResourceType::kAudio:
+    case ResourceType::kVideo:
+    case ResourceType::kManifest:
+    case ResourceType::kSpeculationRules:
+    case ResourceType::kDictionary:
+    case ResourceType::kSVGDocument:
+    case ResourceType::kXSLStyleSheet:
+    case ResourceType::kLinkPrefetch:
+      NOTREACHED();
+  }
+}
 
 namespace {
 
@@ -153,10 +181,12 @@ Resource::Resource(const ResourceRequestHead& request,
       response_timestamp_(Now()),
       resource_request_(request),
       overhead_size_(CalculateOverheadSize()),
-      memory_pressure_listener_registration_(
-          FROM_HERE,
-          base::MemoryPressureListenerTag::kResource,
-          this) {
+      memory_consumer_registration_(
+          "Resource",
+          /*traits=*/std::nullopt,  // TODO(crbug.com/489671163): Fill traits.
+          this,
+          MemoryConsumerRegistration::CheckUnregister::kDisabled,
+          MemoryConsumerRegistration::CheckRegistryExists::kDisabled) {
   InstanceCounters::IncrementCounter(InstanceCounters::kResourceCounter);
 }
 
@@ -174,7 +204,7 @@ void Resource::Trace(Visitor* visitor) const {
 }
 
 void Resource::Dispose() {
-  memory_pressure_listener_registration_.Dispose();
+  memory_consumer_registration_.Dispose();
 }
 
 void Resource::SetLoader(ResourceLoader* loader) {
@@ -900,14 +930,15 @@ void Resource::Prune() {
   DestroyDecodedDataIfPossible();
 }
 
-void Resource::OnMemoryPressure(
-    base::MemoryPressureLevel memory_pressure_level) {
-  if (memory_pressure_level == base::MEMORY_PRESSURE_LEVEL_CRITICAL &&
+void Resource::OnReleaseMemory() {
+  if (memory_limit() <= base::kCriticalMemoryPressureThreshold &&
       base::FeatureList::IsEnabled(
           features::kReleaseResourceDecodedDataOnMemoryPressure)) {
     Prune();
   }
 }
+
+void Resource::OnUpdateMemoryLimit() {}
 
 void Resource::OnMemoryDump(WebMemoryDumpLevelOfDetail level_of_detail,
                             WebProcessMemoryDump* memory_dump) const {

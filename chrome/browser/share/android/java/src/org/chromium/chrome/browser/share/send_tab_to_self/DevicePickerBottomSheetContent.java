@@ -179,23 +179,9 @@ class DevicePickerBottomSheetContent implements BottomSheetContent, OnItemClickL
                 mProfile,
                 webContents,
                 targetDeviceInfo.cacheGuid,
+                targetDeviceInfo.deviceName,
                 mUrl,
                 mTitle,
-                this::sendTabToDeviceComplete);
-    }
-
-    private void sendTabToDeviceComplete(@SendTabToSelfResult int result) {
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.SEND_TAB_TO_SELF_POST_SEND_TOAST)) {
-            switch (result) {
-                case SendTabToSelfResult.SUCCESS:
-                case SendTabToSelfResult.SUCCESS_THROTTLED:
-                    Toast.makeText(
-                                    mContext,
-                                    R.string.send_tab_to_self_post_send_success_toast,
-                                    Toast.LENGTH_SHORT)
-                            .show();
-                    break;
-            }
-        }
+                null);
     }
 }

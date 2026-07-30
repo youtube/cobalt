@@ -7,6 +7,7 @@
 #import "base/strings/string_util.h"
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
+#import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_accordion_view.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_consent_mutator.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/shared/ui/buildflags.h"
@@ -30,13 +31,7 @@ const CGFloat kIconSize = 16.0;
 const CGFloat kIconImageViewTopPadding = 18.0;
 const CGFloat kIconImageViewWidth = 32.0;
 
-// Boxes stack view traits.
-const CGFloat kBoxesStackViewSpacing = 2.0;
-const CGFloat kBoxesStackViewCornerRadius = 16.0;
 
-// Inner stack view spacing and padding.
-const CGFloat kInnerStackViewSpacing = 6.0;
-const CGFloat kInnerStackViewPadding = 12.0;
 
 // Live Header traits.
 const CGFloat kLiveHeaderIconContainerCornerRadius = 16.0;
@@ -50,9 +45,45 @@ NSString* const kWarningShieldSymbol = @"exclamationmark.shield";
 // ISO alpha-2 country code for South Korea.
 NSString* const kSouthKoreaCountryCode = @"kr";
 
+// ISO alpha-2 country code for United States.
+NSString* const kUSCountryCode = @"us";
+
+// Returns the default text attributes for consent body text.
+NSDictionary* GetDefaultTextAttributes() {
+  return @{
+    NSFontAttributeName : PreferredFontForTextStyle(UIFontTextStyleBody),
+    NSForegroundColorAttributeName : [UIColor colorNamed:kTextSecondaryColor]
+  };
+}
+
+// Returns the default text attributes for consent body text.
+NSDictionary* GetFootnoteTextAttributes() {
+  NSMutableParagraphStyle* paragraphStyle =
+      [[NSMutableParagraphStyle alloc] init];
+  paragraphStyle.alignment = NSTextAlignmentCenter;
+  return @{
+    NSFontAttributeName :
+        [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
+    NSForegroundColorAttributeName : [UIColor colorNamed:kTextSecondaryColor],
+    NSParagraphStyleAttributeName : paragraphStyle,
+  };
+}
+
+// Returns the text attributes for interactive links.
+NSDictionary* GetLinkAttributes(NSString* action, UIFontTextStyle fontStyle) {
+  return @{
+    NSLinkAttributeName : action,
+    NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color],
+    NSUnderlineStyleAttributeName : @(NSUnderlineStyleNone),
+    NSFontAttributeName :
+        PreferredFontForTextStyle(fontStyle, UIFontWeightSemibold)
+  };
+}
+
 }  // namespace
 
-@interface GeminiConsentViewController () <UITextViewDelegate>
+@interface GeminiConsentViewController () <UITextViewDelegate,
+                                           GeminiConsentAccordionViewDelegate>
 @end
 
 @implementation GeminiConsentViewController {
@@ -64,14 +95,18 @@ NSString* const kSouthKoreaCountryCode = @"kr";
   GeminiFREType _FREType;
   // The country for the consent UI.
   NSString* _country;
+  // Whether the UI must enforce strict legal consent requirements.
+  BOOL _useStrictLegalConsent;
 }
 
 - (instancetype)initWithIsAccountManaged:(BOOL)isAccountManaged
+                   useStrictLegalConsent:(BOOL)useStrictLegalConsent
                                  FREType:(GeminiFREType)FREType
                                  country:(NSString*)country {
   self = [super init];
   if (self) {
     _isAccountManaged = isAccountManaged;
+    _useStrictLegalConsent = useStrictLegalConsent;
     _FREType = FREType;
     _country = country;
   }
@@ -97,170 +132,110 @@ NSString* const kSouthKoreaCountryCode = @"kr";
 
 #pragma mark - Private
 
-// Creates an attributed string with links for a given text.
-- (NSAttributedString*)createAttributedString:(NSString*)text
-                              withLinkActions:(NSArray<NSString*>*)linkActions
-                                     inRanges:(NSArray<NSValue*>*)linkRanges
+// Creates an attributed string by resolving placeholders in a format string,
+// and automatically matching ranges for the provided link actions.
+- (NSAttributedString*)createAttributedString:(NSString*)format
+                                        links:(NSArray<NSString*>*)links
+                                      actions:(NSArray<NSString*>*)actions
                                textAttributes:(NSDictionary*)textAttributes
                                     fontStyle:(UIFontTextStyle)fontStyle {
+  std::vector<std::u16string> substitutions;
+  for (NSString* linkText in links) {
+    substitutions.push_back(base::SysNSStringToUTF16(linkText));
+  }
+
+  std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
+      base::SysNSStringToUTF16(format), substitutions, nullptr);
+  NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
+
   NSMutableAttributedString* attributedText =
-      [[NSMutableAttributedString alloc] initWithString:text
+      [[NSMutableAttributedString alloc] initWithString:fullText
                                              attributes:textAttributes];
 
-  [linkRanges enumerateObjectsUsingBlock:^(NSValue* rangeValue, NSUInteger i,
-                                           BOOL* stop) {
-    NSRange range = rangeValue.rangeValue;
-
-    NSString* linkAction = linkActions[i];
-
-    NSDictionary* linkAttributes = @{
-      NSLinkAttributeName : linkAction,
-      NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color],
-      NSUnderlineStyleAttributeName : @(NSUnderlineStyleNone),
-      NSFontAttributeName :
-          PreferredFontForTextStyle(fontStyle, UIFontWeightSemibold)
-    };
-
-    [attributedText addAttributes:linkAttributes range:range];
-  }];
+  auto styleLinks = ^(NSString* link, NSUInteger idx, BOOL* stop) {
+    NSRange range = [fullText rangeOfString:link];
+    if (range.location != NSNotFound) {
+      NSDictionary* attrs = GetLinkAttributes(actions[idx], fontStyle);
+      [attributedText addAttributes:attrs range:range];
+    }
+  };
+  [links enumerateObjectsUsingBlock:styleLinks];
 
   return [attributedText copy];
 }
 
 // Creates an attributed string for the footnote with hyperlinks.
 - (NSAttributedString*)createFootnoteAttributedText {
-  NSMutableParagraphStyle* paragraphStyle =
-      [[NSMutableParagraphStyle alloc] init];
-  paragraphStyle.alignment = NSTextAlignmentCenter;
+  BOOL isKorea = [_country isEqualToString:kSouthKoreaCountryCode];
+  NSString* baseText = l10n_util::GetNSString(
+      isKorea ? IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA
+              : IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT);
 
-  NSDictionary* textAttributes = @{
-    NSFontAttributeName :
-        [UIFont preferredFontForTextStyle:UIFontTextStyleFootnote],
-    NSForegroundColorAttributeName : [UIColor colorNamed:kTextSecondaryColor],
-    NSParagraphStyleAttributeName : paragraphStyle,
-  };
+  NSArray<NSString*>* links = isKorea ? @[
+    l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_1),
+    l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_2),
+    l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_3),
+  ] : @[
+    l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_LINK_1),
+    l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_LINK_2),
+  ];
 
-  UIFontTextStyle fontStyle = UIFontTextStyleFootnote;
+  NSArray<NSString*>* actions = isKorea ? @[
+    kGeminiFirstFootnoteLinkAction,
+    kGeminiKoreanTermsLinkAction,
+    kGeminiSecondFootnoteLinkAction,
+  ] : @[
+    kGeminiFirstFootnoteLinkAction,
+    kGeminiSecondFootnoteLinkAction,
+  ];
 
-  // Consent footnote for South Korea. Managed and non-managed accounts are the
-  // same.
-  if ([_country isEqualToString:kSouthKoreaCountryCode]) {
-    NSString* link1NSString = l10n_util::GetNSString(
-        IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_1);
-    NSString* link2NSString = l10n_util::GetNSString(
-        IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_2);
-    NSString* link3NSString = l10n_util::GetNSString(
-        IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA_LINK_3);
+  NSMutableAttributedString* footnote =
+      [[self createFooterAttributedText:baseText links:links
+                                actions:actions] mutableCopy];
 
-    std::vector<std::u16string> substitutions;
-    substitutions.push_back(base::SysNSStringToUTF16(link1NSString));
-    substitutions.push_back(base::SysNSStringToUTF16(link2NSString));
-    substitutions.push_back(base::SysNSStringToUTF16(link3NSString));
-
-    std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
-        l10n_util::GetStringUTF16(
-            IDS_IOS_BWG_CONSENT_FOOTNOTE_TEXT_SOUTH_KOREA),
-        substitutions, nullptr);
-
-    NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
-
-    NSRange link1Range = [fullText rangeOfString:link1NSString];
-    NSRange link2Range = [fullText rangeOfString:link2NSString];
-    NSRange link3Range = [fullText rangeOfString:link3NSString];
-
-    NSArray<NSString*>* linkActions = @[
-      kGeminiFirstFootnoteLinkAction, kGeminiKoreanTermsLinkAction,
-      kGeminiSecondFootnoteLinkAction
-    ];
-    NSArray<NSValue*>* linkRanges = @[
-      [NSValue valueWithRange:link1Range], [NSValue valueWithRange:link2Range],
-      [NSValue valueWithRange:link3Range]
-    ];
-
-    return [self createAttributedString:fullText
-                        withLinkActions:linkActions
-                               inRanges:linkRanges
-                         textAttributes:textAttributes
-                              fontStyle:fontStyle];
-  } else if (_isAccountManaged) {
-    // Consent footnote for managed accounts.
-    NSString* linkText =
-        l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_MANAGED_LINK);
-    std::u16string formatStringUTF16 =
-        l10n_util::GetStringUTF16(IDS_IOS_BWG_CONSENT_FOOTNOTE_MANAGED_TEXT);
-
-    std::vector<std::u16string> substitutions;
-    substitutions.push_back(base::SysNSStringToUTF16(linkText));
-    std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
-        formatStringUTF16, substitutions, nullptr);
-    NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
-
-    NSRange linkRange = [fullText rangeOfString:linkText];
-
-    return [self
-        createAttributedString:fullText
-               withLinkActions:@[ kGeminiFootnoteLinkActionManagedAccount ]
-                      inRanges:@[ [NSValue valueWithRange:linkRange] ]
-                textAttributes:textAttributes
-                     fontStyle:fontStyle];
-  } else {
-    NSString* link1NSString =
-        l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_LINK_1);
-    NSString* link2NSString =
-        l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_LINK_2);
-
-    std::vector<std::u16string> substitutions;
-    substitutions.push_back(base::SysNSStringToUTF16(link1NSString));
-    substitutions.push_back(base::SysNSStringToUTF16(link2NSString));
-
-    std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
-        l10n_util::GetStringUTF16(
-            IDS_IOS_BWG_CONSENT_FOOTNOTE_NON_MANAGED_TEXT),
-        substitutions, nullptr);
-
-    NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
-
-    NSRange link1Range = [fullText rangeOfString:link1NSString];
-    NSRange link2Range = [fullText rangeOfString:link2NSString];
-
-    NSArray<NSString*>* linkActions =
-        @[ kGeminiFirstFootnoteLinkAction, kGeminiSecondFootnoteLinkAction ];
-    NSArray<NSValue*>* linkRanges = @[
-      [NSValue valueWithRange:link1Range], [NSValue valueWithRange:link2Range]
-    ];
-
-    return [self createAttributedString:fullText
-                        withLinkActions:linkActions
-                               inRanges:linkRanges
-                         textAttributes:textAttributes
-                              fontStyle:fontStyle];
+  if ([_country isEqualToString:kUSCountryCode]) {
+    NSString* addition =
+        l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_US_ONLY_ADDITION);
+    [[footnote mutableString] appendString:@" "];
+    [[footnote mutableString] appendString:addition];
   }
+
+  if (_useStrictLegalConsent) {
+    NSString* watchLink =
+        l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_FOOTNOTE_WATCH_LINK);
+    NSMutableAttributedString* strictFootnote = [[self
+        createFooterAttributedText:l10n_util::GetNSString(
+                                       IDS_IOS_BWG_CONSENT_FOOTNOTE_WATCH_LABEL)
+                             links:@[ watchLink ]
+                           actions:@[ kGeminiWatchLinkAction ]] mutableCopy];
+    [[strictFootnote mutableString] appendString:@"\n\n"];
+    [strictFootnote appendAttributedString:footnote];
+    footnote = strictFootnote;
+  }
+
+  return [footnote copy];
 }
 
 // Helper to construct attributed text with standard styles and specified links.
-- (NSAttributedString*)createConsentBodyWithFullText:(NSString*)fullText
-                                               links:(NSArray<NSString*>*)links
-                                             actions:
-                                                 (NSArray<NSString*>*)actions {
-  NSDictionary* textAttributes = @{
-    NSFontAttributeName :
-        [UIFont preferredFontForTextStyle:UIFontTextStyleBody],
-    NSForegroundColorAttributeName : [UIColor colorNamed:kTextSecondaryColor],
-  };
-
-  NSMutableArray<NSValue*>* linkRanges = [[NSMutableArray alloc] init];
-  for (NSString* link in links) {
-    NSRange range = [fullText rangeOfString:link];
-    if (range.location != NSNotFound) {
-      [linkRanges addObject:[NSValue valueWithRange:range]];
-    }
-  }
-
-  return [self createAttributedString:fullText
-                      withLinkActions:actions
-                             inRanges:linkRanges
-                       textAttributes:textAttributes
+- (NSAttributedString*)createBodyAttributedText:(NSString*)text
+                                          links:(NSArray<NSString*>*)links
+                                        actions:(NSArray<NSString*>*)actions {
+  return [self createAttributedString:text
+                                links:links
+                              actions:actions
+                       textAttributes:GetDefaultTextAttributes()
                             fontStyle:UIFontTextStyleBody];
+}
+
+// Helper to construct attributed text with footer styles and specified links.
+- (NSAttributedString*)createFooterAttributedText:(NSString*)text
+                                            links:(NSArray<NSString*>*)links
+                                          actions:(NSArray<NSString*>*)actions {
+  return [self createAttributedString:text
+                                links:links
+                              actions:actions
+                       textAttributes:GetFootnoteTextAttributes()
+                            fontStyle:UIFontTextStyleFootnote];
 }
 
 // Creates an attributed string for the standard FRE second box body with a
@@ -269,46 +244,27 @@ NSString* const kSouthKoreaCountryCode = @"kr";
   if (_isAccountManaged) {
     NSString* linkText = l10n_util::GetNSString(
         IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY_LINK);
-    std::u16string formatStringUTF16 =
-        l10n_util::GetStringUTF16(IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY);
-
-    std::vector<std::u16string> substitutions;
-    substitutions.push_back(base::SysNSStringToUTF16(linkText));
-    std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
-        formatStringUTF16, substitutions, nullptr);
-    NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
-
-    return
-        [self createConsentBodyWithFullText:fullText
-                                      links:@[ linkText ]
-                                    actions:@[
-                                      kGeminiSecondBoxLinkActionManagedAccount
-                                    ]];
+    NSString* text =
+        l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_BODY);
+    return [self
+        createBodyAttributedText:text
+                           links:@[ linkText ]
+                         actions:@[ kGeminiSecondBoxLinkActionManagedAccount ]];
   }
 
   NSString* link1NSString = l10n_util::GetNSString(
       IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY_LINK_1);
   NSString* link2NSString = l10n_util::GetNSString(
       IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY_LINK_2);
+  NSString* text =
+      l10n_util::GetNSString(IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY);
 
-  std::vector<std::u16string> substitutions;
-  substitutions.push_back(base::SysNSStringToUTF16(link1NSString));
-  substitutions.push_back(base::SysNSStringToUTF16(link2NSString));
-
-  std::u16string fullTextUTF16 = base::ReplaceStringPlaceholders(
-      l10n_util::GetStringUTF16(
-          IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_BODY),
-      substitutions, nullptr);
-
-  NSString* fullText = base::SysUTF16ToNSString(fullTextUTF16);
-
-  return [self
-      createConsentBodyWithFullText:fullText
-                              links:@[ link1NSString, link2NSString ]
-                            actions:@[
-                              kGeminiSecondBoxLink1ActionNonManagedAccount,
-                              kGeminiSecondBoxLink2ActionNonManagedAccount
-                            ]];
+  return [self createBodyAttributedText:text
+                                  links:@[ link1NSString, link2NSString ]
+                                actions:@[
+                                  kGeminiSecondBoxLink1ActionNonManagedAccount,
+                                  kGeminiSecondBoxLink2ActionNonManagedAccount
+                                ]];
 }
 
 // Creates an attributed string for the Live second box body with links.
@@ -319,15 +275,15 @@ NSString* const kSouthKoreaCountryCode = @"kr";
       @"eiusmod tempor incididunt ut labore et dolore magna aliqua. "
       @"Gemini Apps Privacy Notice, Learn more.";
 
-  return [self
-      createConsentBodyWithFullText:fullText
-                              links:@[
-                                @"Gemini Apps Privacy Notice", @"Learn more"
-                              ]
-                            actions:@[
-                              kGeminiLivePrivacyNoticeLinkAction,
-                              kGeminiLiveLearnMoreLinkAction
-                            ]];
+  return [self createBodyAttributedText:fullText
+                                  links:@[
+                                    @"Gemini Apps Privacy Notice",
+                                    @"Learn more",
+                                  ]
+                                actions:@[
+                                  kGeminiLivePrivacyNoticeLinkAction,
+                                  kGeminiLiveLearnMoreLinkAction
+                                ]];
 }
 
 // Creates an attributed string for the Live third box body with a link.
@@ -337,10 +293,10 @@ NSString* const kSouthKoreaCountryCode = @"kr";
       @"Lorem ipsum dolor sit amet, consectetur adipiscing elit. "
       @"Respect other's privacy ipsum dolor sit amet.";
 
-  return [self
-      createConsentBodyWithFullText:fullText
-                              links:@[ @"Respect other's privacy" ]
-                            actions:@[ kGeminiLivePrivacyPolicyLinkAction ]];
+  return
+      [self createBodyAttributedText:fullText
+                               links:@[ @"Respect other's privacy" ]
+                             actions:@[ kGeminiLivePrivacyPolicyLinkAction ]];
 }
 
 // Configures the main stack view and contains all the content including the
@@ -349,9 +305,7 @@ NSString* const kSouthKoreaCountryCode = @"kr";
   _mainStackView = [[UIStackView alloc] init];
   _mainStackView.axis = UILayoutConstraintAxisVertical;
   _mainStackView.spacing = kMainStackSpacing;
-
   _mainStackView.translatesAutoresizingMaskIntoConstraints = NO;
-
   [self.view addSubview:_mainStackView];
   AddSameConstraints(_mainStackView, self.view);
 
@@ -359,7 +313,7 @@ NSString* const kSouthKoreaCountryCode = @"kr";
     [_mainStackView addArrangedSubview:[self createLiveHeaderView]];
   }
 
-  [_mainStackView addArrangedSubview:[self createBoxesStackView]];
+  [_mainStackView addArrangedSubview:[self createAccordionView]];
   if (_FREType != GeminiFREType::kLive) {
     [_mainStackView addArrangedSubview:[self createFootnoteView]];
   }
@@ -450,11 +404,9 @@ NSString* const kSouthKoreaCountryCode = @"kr";
   return headerView;
 }
 
-// Creates the standard FRE horizontal boxes stack view.
-- (NSArray<UIView*>*)createStandardBoxesWithConfig:
+// Creates the standard FRE consent rows.
+- (NSArray<GeminiConsentRow*>*)createStandardAccordionItemsWithConfig:
     (UIImageSymbolConfiguration*)config {
-  NSMutableArray<UIView*>* boxes = [[NSMutableArray alloc] init];
-
   // First Box
   UIImage* icon1 = CustomSymbolWithConfiguration(kPhoneSparkleSymbol, config);
   NSString* title1 =
@@ -462,11 +414,9 @@ NSString* const kSouthKoreaCountryCode = @"kr";
   NSString* bodyText1 = l10n_util::GetNSString(
       _isAccountManaged ? IDS_IOS_BWG_CONSENT_MANAGED_FIRST_BOX_BODY
                         : IDS_IOS_BWG_CONSENT_NON_MANAGED_FIRST_BOX_BODY);
-  UIView* innerBox1 = [self createFirstBoxWithTitle:title1 bodyText:bodyText1];
-  UIImageView* boxIcon1 = [[UIImageView alloc] initWithImage:icon1];
-  boxIcon1.contentMode = UIViewContentModeScaleAspectFit;
-  [boxes addObject:[self createHorizontalBoxWithIcon:boxIcon1
-                                             boxView:innerBox1]];
+  NSAttributedString* body1 =
+      [[NSAttributedString alloc] initWithString:bodyText1
+                                      attributes:GetDefaultTextAttributes()];
 
   // Second Box
   UIImage* icon2 =
@@ -474,80 +424,62 @@ NSString* const kSouthKoreaCountryCode = @"kr";
   NSString* title2 = l10n_util::GetNSString(
       _isAccountManaged ? IDS_IOS_BWG_CONSENT_MANAGED_SECOND_BOX_TITLE
                         : IDS_IOS_BWG_CONSENT_NON_MANAGED_SECOND_BOX_TITLE);
-  NSAttributedString* bodyText2 =
-      [self createStandardSecondBoxBodyAttributedText];
-  UIView* innerBox2 = [self createSecondBoxWithTitle:title2
-                                  bodyAttributedText:bodyText2];
-  UIImageView* boxIcon2 = [[UIImageView alloc] initWithImage:icon2];
-  boxIcon2.contentMode = UIViewContentModeScaleAspectFit;
-  [boxes addObject:[self createHorizontalBoxWithIcon:boxIcon2
-                                             boxView:innerBox2]];
+  NSAttributedString* body2 = [self createStandardSecondBoxBodyAttributedText];
 
-  return boxes;
+  return @[
+    [[GeminiConsentRow alloc] initWithIcon:icon1 title:title1 body:body1],
+    [[GeminiConsentRow alloc] initWithIcon:icon2 title:title2 body:body2]
+  ];
 }
 
-// Creates the Live FRE horizontal boxes stack view.
-- (NSArray<UIView*>*)createLiveBoxesWithConfig:
+// Creates the Live FRE consent rows.
+- (NSArray<GeminiConsentRow*>*)createLiveAccordionItemsWithConfig:
     (UIImageSymbolConfiguration*)config {
-  NSMutableArray<UIView*>* boxes = [[NSMutableArray alloc] init];
-
   // First Box
   UIImage* icon1 = DefaultSymbolWithConfiguration(kMicrophoneSymbol, config);
   // TODO(crbug.com/498291812): Replace strings placeholders.
   NSString* bodyText1 =
       @"Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do "
       @"eiusmod tempor incididunt ut labore et dolore magna aliqua.";
-  UIView* innerBox1 = [self createFirstBoxWithTitle:nil bodyText:bodyText1];
-  UIImageView* boxIcon1 = [[UIImageView alloc] initWithImage:icon1];
-  boxIcon1.contentMode = UIViewContentModeScaleAspectFit;
-  [boxes addObject:[self createHorizontalBoxWithIcon:boxIcon1
-                                             boxView:innerBox1]];
+  NSAttributedString* body1 =
+      [[NSAttributedString alloc] initWithString:bodyText1
+                                      attributes:GetDefaultTextAttributes()];
 
   // Second Box
   UIImage* icon2 = DefaultSymbolWithConfiguration(kInfoCircleSymbol, config);
-  NSAttributedString* bodyText2 = [self createLiveSecondBoxBodyAttributedText];
-  UIView* innerBox2 = [self createSecondBoxWithTitle:nil
-                                  bodyAttributedText:bodyText2];
-  UIImageView* boxIcon2 = [[UIImageView alloc] initWithImage:icon2];
-  boxIcon2.contentMode = UIViewContentModeScaleAspectFit;
-  [boxes addObject:[self createHorizontalBoxWithIcon:boxIcon2
-                                             boxView:innerBox2]];
+  NSAttributedString* body2 = [self createLiveSecondBoxBodyAttributedText];
 
   // Third Box
   UIImage* icon3 = DefaultSymbolWithConfiguration(kWarningShieldSymbol, config);
-  NSAttributedString* bodyText3 = [self createLiveThirdBoxBodyAttributedText];
-  UIView* innerBox3 = [self createSecondBoxWithTitle:nil
-                                  bodyAttributedText:bodyText3];
-  UIImageView* boxIcon3 = [[UIImageView alloc] initWithImage:icon3];
-  boxIcon3.contentMode = UIViewContentModeScaleAspectFit;
-  [boxes addObject:[self createHorizontalBoxWithIcon:boxIcon3
-                                             boxView:innerBox3]];
+  NSAttributedString* body3 = [self createLiveThirdBoxBodyAttributedText];
 
-  return boxes;
+  return @[
+    [[GeminiConsentRow alloc] initWithIcon:icon1 title:nil body:body1],
+    [[GeminiConsentRow alloc] initWithIcon:icon2 title:nil body:body2],
+    [[GeminiConsentRow alloc] initWithIcon:icon3 title:nil body:body3]
+  ];
 }
 
-// Creates the horizontal boxes stack view.
-- (UIStackView*)createBoxesStackView {
-  UIStackView* boxesStackView = [[UIStackView alloc] init];
-  boxesStackView.axis = UILayoutConstraintAxisVertical;
-  boxesStackView.spacing = kBoxesStackViewSpacing;
-  boxesStackView.layer.cornerRadius = kBoxesStackViewCornerRadius;
-  boxesStackView.clipsToBounds = YES;
-  boxesStackView.translatesAutoresizingMaskIntoConstraints = NO;
-
+// Creates the accordion view using GeminiConsentAccordionView.
+- (UIView*)createAccordionView {
   UIImageSymbolConfiguration* config = [UIImageSymbolConfiguration
       configurationWithPointSize:kIconSize
                           weight:UIImageSymbolWeightMedium];
 
-  NSArray<UIView*>* boxes = (_FREType == GeminiFREType::kLive)
-                                ? [self createLiveBoxesWithConfig:config]
-                                : [self createStandardBoxesWithConfig:config];
+  NSArray<GeminiConsentRow*>* rows =
+      (_FREType == GeminiFREType::kLive)
 
-  for (UIView* box in boxes) {
-    [boxesStackView addArrangedSubview:box];
-  }
+          ? [self createLiveAccordionItemsWithConfig:config]
+          : [self createStandardAccordionItemsWithConfig:config];
 
-  return boxesStackView;
+  // TODO(crbug.com/509551298): useStrictLegalConsent for collapsible parameter
+  // We use non-collapsible mode to match the current static UI behavior.
+  GeminiConsentAccordionView* accordionView =
+      [[GeminiConsentAccordionView alloc] initWithRows:rows collapsible:NO];
+  accordionView.delegate = self;
+  accordionView.translatesAutoresizingMaskIntoConstraints = NO;
+
+  return accordionView;
 }
 
 // Creates horizontal stack view with icon and box view.
@@ -593,90 +525,6 @@ NSString* const kSouthKoreaCountryCode = @"kr";
   return kHistorySymbol;
 }
 
-// Creates the first box view containing the text and the title.
-- (UIView*)createFirstBoxWithTitle:(NSString*)titleText
-                          bodyText:(NSString*)bodyText {
-  UIView* boxView = [[UIView alloc] init];
-  boxView.translatesAutoresizingMaskIntoConstraints = NO;
-
-  UIStackView* innerStackView = [[UIStackView alloc] init];
-  innerStackView.axis = UILayoutConstraintAxisVertical;
-  innerStackView.alignment = UIStackViewAlignmentFill;
-  innerStackView.spacing = kInnerStackViewSpacing;
-
-  innerStackView.translatesAutoresizingMaskIntoConstraints = NO;
-  [boxView addSubview:innerStackView];
-
-  AddSameConstraintsWithInsets(
-      innerStackView, boxView,
-      NSDirectionalEdgeInsetsMake(kInnerStackViewPadding, 0,
-                                  kInnerStackViewPadding,
-                                  kInnerStackViewPadding));
-
-  UILabel* titleLabel = [[UILabel alloc] init];
-  titleLabel.text = titleText;
-  titleLabel.font =
-      PreferredFontForTextStyle(UIFontTextStyleHeadline, UIFontWeightSemibold);
-  titleLabel.accessibilityTraits |= UIAccessibilityTraitHeader;
-
-  titleLabel.numberOfLines = 0;
-  [innerStackView addArrangedSubview:titleLabel];
-
-  UILabel* bodyLabel = [[UILabel alloc] init];
-  bodyLabel.text = bodyText;
-  bodyLabel.font = PreferredFontForTextStyle(UIFontTextStyleBody);
-  bodyLabel.numberOfLines = 0;
-  bodyLabel.textColor = [UIColor colorNamed:kTextSecondaryColor];
-  [innerStackView addArrangedSubview:bodyLabel];
-
-  return boxView;
-}
-
-// Creates the second box view containing the title and an attributed body text.
-- (UIView*)createSecondBoxWithTitle:(NSString*)titleText
-                 bodyAttributedText:(NSAttributedString*)bodyAttributedText {
-  UIView* boxView = [[UIView alloc] init];
-  boxView.translatesAutoresizingMaskIntoConstraints = NO;
-
-  UIStackView* innerStackView = [[UIStackView alloc] init];
-  innerStackView.axis = UILayoutConstraintAxisVertical;
-  innerStackView.alignment = UIStackViewAlignmentFill;
-  innerStackView.spacing = kInnerStackViewSpacing;
-
-  innerStackView.translatesAutoresizingMaskIntoConstraints = NO;
-  [boxView addSubview:innerStackView];
-
-  AddSameConstraintsWithInsets(
-      innerStackView, boxView,
-      NSDirectionalEdgeInsetsMake(kInnerStackViewPadding, 0,
-                                  kInnerStackViewPadding,
-                                  kInnerStackViewPadding));
-
-  UILabel* titleLabel = [[UILabel alloc] init];
-  titleLabel.text = titleText;
-  titleLabel.font =
-      PreferredFontForTextStyle(UIFontTextStyleHeadline, UIFontWeightSemibold);
-  titleLabel.accessibilityTraits |= UIAccessibilityTraitHeader;
-
-  titleLabel.numberOfLines = 0;
-  [innerStackView addArrangedSubview:titleLabel];
-
-  UITextView* bodyTextView = [[UITextView alloc] init];
-  bodyTextView.backgroundColor = [UIColor clearColor];
-  bodyTextView.scrollEnabled = NO;
-  bodyTextView.editable = NO;
-  bodyTextView.textDragInteraction.enabled = NO;
-  bodyTextView.delegate = self;
-  bodyTextView.textContainerInset = UIEdgeInsetsZero;
-  bodyTextView.textContainer.lineFragmentPadding = 0;
-  bodyTextView.linkTextAttributes =
-      @{NSForegroundColorAttributeName : [UIColor colorNamed:kBlue600Color]};
-  bodyTextView.attributedText = bodyAttributedText;
-  [innerStackView addArrangedSubview:bodyTextView];
-
-  return boxView;
-}
-
 // Creates the foot note view.
 - (UITextView*)createFootnoteView {
   UITextView* footNoteTextView = [[UITextView alloc] init];
@@ -697,6 +545,37 @@ NSString* const kSouthKoreaCountryCode = @"kr";
 
 #pragma mark - UITextViewDelegate
 
+// Helper to handle link actions.
+- (void)handleLinkAction:(NSString*)actionString {
+  RecordFREConsentAction(IOSGeminiFREAction::kLinkClick);
+  if ([actionString isEqualToString:kGeminiFirstFootnoteLinkAction]) {
+    [self.mutator openNewTabWithURL:GURL(kFirstFootnoteLinkURL)];
+  } else if ([actionString isEqualToString:kGeminiSecondFootnoteLinkAction]) {
+    [self.mutator openNewTabWithURL:GURL(kSecondFootnoteLinkURL)];
+  } else if ([actionString
+                 isEqualToString:kGeminiSecondBoxLinkActionManagedAccount]) {
+    [self.mutator openNewTabWithURL:GURL(kSecondBoxLinkURLManagedAccount)];
+  } else if ([actionString isEqualToString:
+                               kGeminiSecondBoxLink1ActionNonManagedAccount]) {
+    [self.mutator openNewTabWithURL:GURL(kSecondBoxLink1URLNonManagedAccount)];
+  } else if ([actionString isEqualToString:
+                               kGeminiSecondBoxLink2ActionNonManagedAccount]) {
+    [self.mutator openNewTabWithURL:GURL(kSecondBoxLink2URLNonManagedAccount)];
+  } else if ([actionString
+                 isEqualToString:kGeminiLivePrivacyNoticeLinkAction]) {
+    [self.mutator openNewTabWithURL:GURL(kLivePrivacyNoticeLinkURL)];
+  } else if ([actionString isEqualToString:kGeminiLiveLearnMoreLinkAction]) {
+    [self.mutator openNewTabWithURL:GURL(kLiveLearnMoreLinkURL)];
+  } else if ([actionString
+                 isEqualToString:kGeminiLivePrivacyPolicyLinkAction]) {
+    [self.mutator openNewTabWithURL:GURL(kLivePrivacyPolicyLinkURL)];
+  } else if ([actionString isEqualToString:kGeminiKoreanTermsLinkAction]) {
+    [self.mutator openNewTabWithURL:GURL(kKoreanTermsFootnoteLinkURL)];
+  } else if ([actionString isEqualToString:kGeminiWatchLinkAction]) {
+    [self.mutator openNewTabWithURL:GURL(kWatchLinkURL)];
+  }
+}
+
 // Handles tap on UITextView.
 - (UIAction*)textView:(UITextView*)textView
     primaryActionForTextItem:(UITextItem*)textItem
@@ -705,81 +584,11 @@ NSString* const kSouthKoreaCountryCode = @"kr";
     return nil;
   }
 
-  RecordFREConsentAction(IOSGeminiFREAction::kLinkClick);
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiFirstFootnoteLinkAction]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator openNewTabWithURL:GURL(kFirstFootnoteLinkURL)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiSecondFootnoteLinkAction]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator openNewTabWithURL:GURL(kSecondFootnoteLinkURL)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiFootnoteLinkActionManagedAccount]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator openNewTabWithURL:GURL(kFootnoteLinkURLManagedAccount)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiSecondBoxLinkActionManagedAccount]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator
-          openNewTabWithURL:GURL(kSecondBoxLinkURLManagedAccount)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiSecondBoxLink1ActionNonManagedAccount]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator
-          openNewTabWithURL:GURL(kSecondBoxLink1URLNonManagedAccount)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiSecondBoxLink2ActionNonManagedAccount]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator
-          openNewTabWithURL:GURL(kSecondBoxLink2URLNonManagedAccount)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiLivePrivacyNoticeLinkAction]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator openNewTabWithURL:GURL(kLivePrivacyNoticeLinkURL)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiLiveLearnMoreLinkAction]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator openNewTabWithURL:GURL(kLiveLearnMoreLinkURL)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiLivePrivacyPolicyLinkAction]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator openNewTabWithURL:GURL(kLivePrivacyPolicyLinkURL)];
-    }];
-  }
-  if ([textItem.link.absoluteString
-          isEqualToString:kGeminiKoreanTermsLinkAction]) {
-    __weak __typeof(self) weakSelf = self;
-    return [UIAction actionWithHandler:^(UIAction* action) {
-      [weakSelf.mutator openNewTabWithURL:GURL(kKoreanTermsFootnoteLinkURL)];
-    }];
-  }
-  return defaultAction;
+  NSString* actionString = textItem.link.absoluteString;
+  __weak __typeof(self) weakSelf = self;
+  return [UIAction actionWithHandler:^(UIAction* action) {
+    [weakSelf handleLinkAction:actionString];
+  }];
 }
 
 // If the text item is a link, return nil to prevent the long-press context menu
@@ -791,6 +600,17 @@ NSString* const kSouthKoreaCountryCode = @"kr";
     return nil;
   }
   return defaultMenu;
+}
+
+#pragma mark - GeminiConsentAccordionViewDelegate
+
+- (void)accordionView:(GeminiConsentAccordionView*)view didTapLink:(NSURL*)url {
+  [self handleLinkAction:url.absoluteString];
+}
+
+- (void)accordionView:(GeminiConsentAccordionView*)view
+         didToggleRow:(GeminiConsentRow*)row {
+  [self.delegate consentViewControllerDidExpandAccordionItem:self];
 }
 
 @end

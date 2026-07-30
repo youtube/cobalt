@@ -1278,7 +1278,6 @@ interface CanvasRenderingContext2D
     method getContextAttributes
     method getImageData
     method getLineDash
-    method getTextureFormat
     method getTransform
     method isContextLost
     method isPointInPath
@@ -1302,8 +1301,6 @@ interface CanvasRenderingContext2D
     method strokeRect
     method strokeText
     method strokeTextCluster
-    method transferBackFromGPUTexture
-    method transferToGPUTexture
     method transform
     method translate
     setter direction
@@ -3810,7 +3807,8 @@ interface HTMLElement : Element
     getter draggable
     getter editContext
     getter enterKeyHint
-    getter focusgroup
+    getter focusGroup
+    getter focusGroupStart
     getter hidden
     getter inert
     getter innerText
@@ -3944,6 +3942,7 @@ interface HTMLElement : Element
     getter tabIndex
     getter title
     getter translate
+    getter unbounded
     getter virtualKeyboardPolicy
     getter writingSuggestions
     method attachInternals
@@ -3962,7 +3961,8 @@ interface HTMLElement : Element
     setter draggable
     setter editContext
     setter enterKeyHint
-    setter focusgroup
+    setter focusGroup
+    setter focusGroupStart
     setter hidden
     setter inert
     setter innerText
@@ -4089,6 +4089,7 @@ interface HTMLElement : Element
     setter tabIndex
     setter title
     setter translate
+    setter unbounded
     setter virtualKeyboardPolicy
     setter writingSuggestions
 interface HTMLEmbedElement : HTMLElement
@@ -5871,7 +5872,8 @@ interface MathMLElement : Element
     getter attributeStyleMap
     getter autofocus
     getter dataset
-    getter focusgroup
+    getter focusGroup
+    getter focusGroupStart
     getter nonce
     getter onabort
     getter onanimationcancel
@@ -5990,7 +5992,8 @@ interface MathMLElement : Element
     method constructor
     method focus
     setter autofocus
-    setter focusgroup
+    setter focusGroup
+    setter focusGroupStart
     setter nonce
     setter onabort
     setter onanimationcancel
@@ -6411,6 +6414,7 @@ interface ModelContext : EventTarget
     attribute @@toStringTag
     getter ontoolchange
     method constructor
+    method executeTool
     method getTools
     method registerTool
     setter ontoolchange
@@ -6950,7 +6954,6 @@ interface OffscreenCanvasRenderingContext2D
     method getContextAttributes
     method getImageData
     method getLineDash
-    method getTextureFormat
     method getTransform
     method isContextLost
     method isPointInPath
@@ -6974,8 +6977,6 @@ interface OffscreenCanvasRenderingContext2D
     method strokeRect
     method strokeText
     method strokeTextCluster
-    method transferBackFromGPUTexture
-    method transferToGPUTexture
     method transform
     method translate
     setter direction
@@ -8223,7 +8224,8 @@ interface SVGElement : Element
     getter autofocus
     getter className
     getter dataset
-    getter focusgroup
+    getter focusGroup
+    getter focusGroupStart
     getter nonce
     getter onabort
     getter onanimationcancel
@@ -8344,7 +8346,8 @@ interface SVGElement : Element
     method constructor
     method focus
     setter autofocus
-    setter focusgroup
+    setter focusGroup
+    setter focusGroupStart
     setter nonce
     setter onabort
     setter onanimationcancel
@@ -9577,7 +9580,15 @@ interface SourceBufferList : EventTarget
     setter onremovesourcebuffer
 interface SpeculationData
     attribute @@toStringTag
+    getter navigations
     getter preloads
+    method constructor
+interface SpeculationNavigationData
+    attribute @@toStringTag
+    getter eagerness
+    getter tags
+    getter type
+    getter url
     method constructor
 interface SpeechGrammar
     attribute @@toStringTag

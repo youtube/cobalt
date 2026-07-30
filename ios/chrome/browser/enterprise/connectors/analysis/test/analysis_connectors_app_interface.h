@@ -10,11 +10,17 @@
 // Test app interface for analysis connectors rules.
 @interface AnalysisConnectorsAppInterface : NSObject
 
-// Sets a rules to block all download.
-+ (void)setBlockDownloadRule;
+// Sets the prefs to enable download connectors.
++ (void)setDownloadProtectionRules;
 
 // Clears all download protection rules.
 + (void)clearDownloadProtectionRules;
+
+// Set the browser DM Token.
++ (void)setBrowserDMToken;
+
+// Clear the browser DM Token.
++ (void)clearBrowserDMToken;
 
 @end
 

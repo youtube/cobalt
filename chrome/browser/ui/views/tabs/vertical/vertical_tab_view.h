@@ -34,9 +34,13 @@ class TabCollectionNode;
 class TabIcon;
 class TabTitle;
 
+namespace base {
+class TimeDelta;
+}  // namespace base
+
 namespace glic {
 class TabUnderlineView;
-}
+}  // namespace glic
 
 // The view class for the tab. It is responsible for painting the
 // tab background and displaying the favicon, title, alert indicators and close
@@ -52,6 +56,9 @@ class VerticalTabView : public views::View,
   METADATA_HEADER(VerticalTabView, views::View)
 
  public:
+  static constexpr base::TimeDelta kGlowHoverAnimationDuration =
+      base::Milliseconds(50);
+
   explicit VerticalTabView(TabCollectionNode* collection_node);
   VerticalTabView(const VerticalTabView&) = delete;
   VerticalTabView& operator=(const VerticalTabView&) = delete;
@@ -163,11 +170,12 @@ class VerticalTabView : public views::View,
   void OnAXNameChanged(ax::mojom::StringAttribute attribute,
                        const std::optional<std::string>& name);
   void OnCollapseStateChanged(tabs::VerticalTabStripCollapseState state);
-  void OnDataChanged();
+  void OnTabStateChanged();
+  void OnTabDataChanged(TabChangeType change_type, const tabs::TabData& data);
   void SetSelection(bool selected);
-  void UpdateTabData(tabs::TabInterface* tab);
+  void UpdateTabData(const tabs::TabInterface* tab);
 
-  void UpdateTitle();
+  void UpdateTitle(std::u16string title, bool should_render_loading_title);
   void UpdateBorder();
   void UpdateThemeColors();
   void UpdateColors();
@@ -212,10 +220,11 @@ class VerticalTabView : public views::View,
   raw_ptr<glic::TabUnderlineView> glic_tab_underline_view_ = nullptr;
 
   base::CallbackListSubscription node_destroyed_subscription_;
-  base::CallbackListSubscription data_changed_subscription_;
+  base::CallbackListSubscription tab_state_changed_subscription_;
   base::CallbackListSubscription collapsed_state_changed_subscription_;
   base::CallbackListSubscription paint_as_active_subscription_;
   base::CallbackListSubscription ax_name_changed_subscription_;
+  base::CallbackListSubscription tab_data_changed_subscription_;
 
   tabs::TabData tab_data_;
   bool active_ = false;
@@ -236,6 +245,8 @@ class VerticalTabView : public views::View,
   bool should_fill_background_tab_color_ = false;
 
   std::optional<performance_manager::freezing::FreezingVote> freezing_vote_;
+
+  std::unique_ptr<tabs::TabDataObserver> tab_data_observer_;
 
   base::WeakPtrFactory<VerticalTabView> weak_ptr_factory_{this};
 };

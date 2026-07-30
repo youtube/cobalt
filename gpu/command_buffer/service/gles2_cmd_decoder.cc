@@ -810,6 +810,7 @@ class GLES2DecoderImpl : public GLES2Decoder,
 
   // Workarounds
   void OnFboChanged() const;
+  void ApplyRecreateFboWorkaroundIfNeeded() const;
   void OnUseFramebuffer() const;
   void UpdateFramebufferSRGB(Framebuffer* framebuffer);
 
@@ -4841,11 +4842,13 @@ void GLES2DecoderImpl::DoFinish() {
   api()->glFinishFn();
   ProcessPendingReadPixels(true);
   ProcessPendingQueries(true);
+  ApplyRecreateFboWorkaroundIfNeeded();
 }
 
 void GLES2DecoderImpl::DoFlush() {
   api()->glFlushFn();
   ProcessPendingQueries(false);
+  ApplyRecreateFboWorkaroundIfNeeded();
 }
 
 void GLES2DecoderImpl::DoActiveTexture(GLenum texture_unit) {
@@ -5175,12 +5178,68 @@ uint32_t GLES2DecoderImpl::GetAndClearBackbufferClearBitsForTest() {
   return clear_bits;
 }
 
+void GLES2DecoderImpl::ApplyRecreateFboWorkaroundIfNeeded() const {
+  if (!workarounds().recreate_fbo_upon_flush) {
+    return;
+  }
+
+  Framebuffer* draw_fbo = framebuffer_state_.bound_draw_framebuffer.get();
+  if (!draw_fbo || draw_fbo->service_id() == 0) {
+    return;
+  }
+
+  bool need_workaround = false;
+
+  const GLenum attachments[] = {GL_DEPTH_ATTACHMENT, GL_STENCIL_ATTACHMENT};
+  for (GLenum attachment_point : attachments) {
+    const Framebuffer::Attachment* attachment =
+        draw_fbo->GetAttachment(attachment_point);
+    if (!attachment) {
+      continue;
+    }
+
+    if (attachment->IsRenderbufferAttachment()) {
+      need_workaround = true;
+      break;
+    } else if (attachment->IsTextureAttachment()) {
+      GLuint client_id = attachment->object_name();
+      const TextureRef* texture_ref = texture_manager()->GetTexture(client_id);
+      if (texture_ref) {
+        const Texture* texture = texture_ref->texture();
+        if (texture->HasImmutableStorage()) {
+          GLenum target = attachment->target();
+          GLint level = attachment->level();
+          if (!texture->IsLevelCleared(target, level)) {
+            need_workaround = true;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (need_workaround) {
+    framebuffer_manager_.get()->RecreateFramebufferServiceId(draw_fbo);
+    if (framebuffer_state_.bound_read_framebuffer.get() == draw_fbo) {
+      api()->glBindFramebufferEXTFn(GL_FRAMEBUFFER, draw_fbo->service_id());
+      draw_fbo->ReattachAttachments(GL_FRAMEBUFFER);
+      api()->glReadBufferFn(draw_fbo->read_buffer());
+    } else {
+      api()->glBindFramebufferEXTFn(GL_DRAW_FRAMEBUFFER,
+                                    draw_fbo->service_id());
+      draw_fbo->ReattachAttachments(GL_DRAW_FRAMEBUFFER);
+    }
+  }
+}
+
 void GLES2DecoderImpl::OnFboChanged() const {
   state_.fbo_binding_for_scissor_workaround_dirty = true;
   state_.stencil_state_changed_since_validation = true;
 
-  if (workarounds().flush_on_framebuffer_change)
+  if (workarounds().flush_on_framebuffer_change) {
     api()->glFlushFn();
+    ApplyRecreateFboWorkaroundIfNeeded();
+  }
 }
 
 // Called after the FBO is checked for completeness.
@@ -5494,6 +5553,15 @@ void GLES2DecoderImpl::DoResumeTransformFeedback() {
                        "transform feedback is not active or not paused");
     return;
   }
+
+  if (state_.current_program.get() !=
+      state_.bound_transform_feedback->active_program()) {
+    LOCAL_SET_GL_ERROR(GL_INVALID_OPERATION, "glResumeTransformFeedback",
+                       "current program does not match the program active when "
+                       "transform feedback began");
+    return;
+  }
+
   state_.bound_transform_feedback->DoResumeTransformFeedback();
 }
 
@@ -5599,21 +5667,32 @@ void GLES2DecoderImpl::InvalidateFramebufferImpl(
     translated_attachments[i] = attachment;
   }
 
+  bool skip_api_call = false;
+  if (workarounds().dont_invalidate_incomplete_fbos) {
+    if (DoCheckFramebufferStatus(target) != GL_FRAMEBUFFER_COMPLETE) {
+      skip_api_call = true;
+    }
+  }
+
   bool dirty = false;
   switch (op) {
     case kFramebufferDiscard:
-      if (gl_version_info().is_es3) {
-        api()->glInvalidateFramebufferFn(target, validated_count,
-                                         translated_attachments.data());
-      } else {
-        api()->glDiscardFramebufferEXTFn(target, validated_count,
-                                         translated_attachments.data());
+      if (!skip_api_call) {
+        if (gl_version_info().is_es3) {
+          api()->glInvalidateFramebufferFn(target, validated_count,
+                                           translated_attachments.data());
+        } else {
+          api()->glDiscardFramebufferEXTFn(target, validated_count,
+                                           translated_attachments.data());
+        }
       }
       dirty = true;
       break;
     case kFramebufferInvalidate:
-      api()->glInvalidateFramebufferFn(target, validated_count,
-                                       translated_attachments.data());
+      if (!skip_api_call) {
+        api()->glInvalidateFramebufferFn(target, validated_count,
+                                         translated_attachments.data());
+      }
       dirty = true;
       break;
     case kFramebufferInvalidateSub:
@@ -7014,6 +7093,11 @@ void GLES2DecoderImpl::DoSampleCoverage(GLclampf value, GLboolean invert) {
 // Assumes framebuffer is complete.
 void GLES2DecoderImpl::ClearUnclearedAttachments(
     GLenum target, Framebuffer* framebuffer) {
+  bool rasterizer_discard_enabled = state_.enable_flags.rasterizer_discard;
+  if (rasterizer_discard_enabled) {
+    state_.SetDeviceCapabilityState(GL_RASTERIZER_DISCARD, false);
+  }
+
   // Clear textures that we can't use glClear first. These textures will be
   // marked as cleared after the call and no longer be part of the following
   // code.
@@ -7097,6 +7181,10 @@ void GLES2DecoderImpl::ClearUnclearedAttachments(
 
   framebuffer_manager()->MarkAttachmentsAsCleared(
       framebuffer, renderbuffer_manager(), texture_manager());
+
+  if (rasterizer_discard_enabled) {
+    state_.SetDeviceCapabilityState(GL_RASTERIZER_DISCARD, true);
+  }
 }
 
 void GLES2DecoderImpl::RestoreClearState() {
@@ -14720,6 +14808,12 @@ error::Error GLES2DecoderImpl::HandleRequestExtensionCHROMIUM(
   if (feature_str.contains("GL_OES_fbo_render_mipmap ")) {
     feature_info_->EnableOESFboRenderMipmap();
   }
+  if (feature_str.contains("GL_ANGLE_compressed_texture_etc ")) {
+    feature_info_->EnableWebGLCompressedTextureETC();
+  }
+  if (feature_str.contains("GL_OES_compressed_ETC1_RGB8_texture ")) {
+    feature_info_->EnableWebGLCompressedTextureETC1();
+  }
 
   UpdateCapabilities();
 
@@ -16433,7 +16527,9 @@ GLsync GLES2DecoderImpl::DoFenceSync(GLenum condition, GLbitfield flags) {
     LOCAL_SET_GL_ERROR(GL_INVALID_VALUE, function_name, "invalid flags");
     return 0;
   }
-  return api()->glFenceSyncFn(condition, flags);
+  GLsync sync = api()->glFenceSyncFn(condition, flags);
+  ApplyRecreateFboWorkaroundIfNeeded();
+  return sync;
 }
 
 GLsizei GLES2DecoderImpl::InternalFormatSampleCountsHelper(

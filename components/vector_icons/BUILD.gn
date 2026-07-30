@@ -114,6 +114,7 @@ if (current_toolchain == default_toolchain) {
       "forward_10.icon",
       "forward_arrow.icon",
       "forward_arrow_chrome_refresh.icon",
+      "g_translate.icon",
       "globe.icon",
       "google_color.icon",
       "gpp_maybe.icon",
@@ -256,12 +257,12 @@ if (current_toolchain == default_toolchain) {
       "thumb_up_filled.icon",
       "touchpad_mouse.icon",
       "touchpad_mouse_off.icon",
-      "translate.icon",
       "trip.icon",
       "undo.icon",
       "usb.icon",
       "usb_chrome_refresh.icon",
       "usb_off_chrome_refresh.icon",
+      "v8_off.icon",
       "video_library.icon",
       "videocam.icon",
       "videocam_chrome_refresh.icon",
@@ -314,7 +315,6 @@ if (current_toolchain == default_toolchain) {
         "google_chrome/google_sheets.icon",
         "google_chrome/google_sites.icon",
         "google_chrome/google_slides.icon",
-        "google_chrome/google_super_g.icon",
         "google_chrome/google_wallet.icon",
         "google_chrome/google_wallet_monochrome.icon",
         "google_chrome/gshield.icon",
@@ -322,7 +322,6 @@ if (current_toolchain == default_toolchain) {
         "google_chrome/page_insights_color.icon",
         "google_chrome/pen_spark.icon",
         "google_chrome/play_circle_spark.icon",
-        "google_chrome/v8_off.icon",
       ]
     }
   }

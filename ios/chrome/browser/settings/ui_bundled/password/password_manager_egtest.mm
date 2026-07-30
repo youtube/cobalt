@@ -747,10 +747,6 @@ void OpenPasswordManagerWidgetPromoInstructions() {
     config.iph_feature_enabled = "IPH_iOSPromoPasswordManagerWidget";
   }
 
-  if ([self isRunningTest:@selector
-            (MAYBE_testTappingInfoButtonForHiddenPasskey)]) {
-    config.features_enabled.push_back(kCredentialProviderSignalAPI);
-  }
 
   return config;
 }
@@ -2501,7 +2497,7 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 }
 
 // TODO(crbug.com/477806564): Test is flaky.
-- (void)DISABLED_testRemovingMultiplePasswords {
+- (void)testRemovingMultiplePasswords {
   constexpr int kPasswordsCount = 4;
 
   // Send the passwords to the queue to be added to the ProfilePasswordStore.
@@ -2533,13 +2529,18 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   [ChromeEarlGreyUI waitForAppToIdle];
 
   // Check that saved forms header is removed.
-  [[EarlGrey selectElementWithMatcher:SavedPasswordsPasskeysHeaderMatcher()]
-      assertWithMatcher:grey_nil()];
+  [ChromeEarlGrey waitForNotSufficientlyVisibleElementWithMatcher:
+                      SavedPasswordsPasskeysHeaderMatcher()];
 
   // Verify that the deletion was propagated to the ProfilePasswordStore.
-  GREYAssertEqual(
-      0, [PasswordSettingsAppInterface passwordProfileStoreResultsCount],
-      @"Stored password was not removed from ProfilePasswordStore.");
+  bool success =
+      base::test::ios::WaitUntilConditionOrTimeout(base::Seconds(5), ^bool {
+        return
+            [PasswordSettingsAppInterface passwordProfileStoreResultsCount] ==
+            0;
+      });
+  GREYAssertTrue(success,
+                 @"Stored password was not removed from ProfilePasswordStore.");
 
   // Finally, verify that the Add button is visible and enabled, because there
   // are no other password entries left for deletion via the "Edit" mode.
@@ -3104,14 +3105,8 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   id<GREYMatcher> onMatcher = grey_allOf(
       grey_accessibilityLabel(l10n_util::GetNSString(IDS_IOS_SETTING_ON)),
       grey_sufficientlyVisible(), nil);
-
-  id<GREYMatcher> offMatcher = grey_allOf(
-      grey_accessibilityLabel(l10n_util::GetNSString(IDS_IOS_SETTING_OFF)),
-      grey_sufficientlyVisible(), nil);
-  if (@available(iOS 18, *)) {
-    offMatcher = grey_allOf(TurnOnPasswordsInOtherAppsButton(),
-                            grey_sufficientlyVisible(), nil);
-  }
+  id<GREYMatcher> offMatcher = grey_allOf(TurnOnPasswordsInOtherAppsButton(),
+                                          grey_sufficientlyVisible(), nil);
 
   [ChromeEarlGrey waitForUIElementToAppearWithMatcher:offMatcher];
   [[EarlGrey selectElementWithMatcher:onMatcher] assertWithMatcher:grey_nil()];
@@ -3130,67 +3125,47 @@ void OpenPasswordManagerWidgetPromoInstructions() {
   OpenSettingsSubmenu();
 
   // Check initial visibility. AutoFill is off by default.
-  id<GREYMatcher> initialVisibilityMatcher = grey_nil();
-  if (@available(iOS 18, *)) {
-    initialVisibilityMatcher = grey_sufficientlyVisible();
-  }
   [[EarlGrey selectElementWithMatcher:TurnOnPasswordsInOtherAppsButton()]
-      assertWithMatcher:initialVisibilityMatcher];
+      assertWithMatcher:grey_sufficientlyVisible()];
 
   // Turn on AutoFill. The button should not be visible afterwards.
   [PasswordsInOtherAppsAppInterface startFakeManagerWithAutoFillStatus:YES];
-  if (@available(iOS 18, *)) {
-    id<GREYMatcher> turnOnButtonNotVisibleMatcher =
-        grey_allOf(TurnOnPasswordsInOtherAppsButton(), grey_notVisible(), nil);
-    [ChromeEarlGrey waitForMatcher:turnOnButtonNotVisibleMatcher];
-  } else {
-    [[EarlGrey selectElementWithMatcher:TurnOnPasswordsInOtherAppsButton()]
-        assertWithMatcher:grey_nil()];
-  }
+  [ChromeEarlGrey waitForMatcher:grey_allOf(TurnOnPasswordsInOtherAppsButton(),
+                                            grey_notVisible(), nil)];
 
   // Turn off AutoFill. The button should only become visible on iOS 18+.
   [PasswordsInOtherAppsAppInterface setAutoFillStatus:NO];
-  if (@available(iOS 18, *)) {
-    [ChromeEarlGrey
-        waitForUIElementToAppearWithMatcher:TurnOnPasswordsInOtherAppsButton()];
-  } else {
-    [[EarlGrey selectElementWithMatcher:TurnOnPasswordsInOtherAppsButton()]
-        assertWithMatcher:grey_nil()];
-  }
+  [ChromeEarlGrey
+      waitForUIElementToAppearWithMatcher:TurnOnPasswordsInOtherAppsButton()];
 }
 
 // Tests that the "Turn on AutoFill…" button becomes enabled when tapped, and
 // gets re-enabled after a 10 seconds delay.
 - (void)testTapsOnTurnOnPasswordsInOtherAppsItem {
-  if (@available(iOS 18, *)) {
-    OpenPasswordManager();
-    OpenSettingsSubmenu();
+  OpenPasswordManager();
+  OpenSettingsSubmenu();
 
-    [[EarlGrey selectElementWithMatcher:TurnOnPasswordsInOtherAppsButton()]
-        performAction:grey_tap()];
+  [[EarlGrey selectElementWithMatcher:TurnOnPasswordsInOtherAppsButton()]
+      performAction:grey_tap()];
 
-    // After being pressed, the button should become disabled.
+  // After being pressed, the button should become disabled.
+  [[EarlGrey selectElementWithMatcher:TurnOnPasswordsInOtherAppsButton(
+                                          /*enabled=*/NO)]
+      assertWithMatcher:grey_sufficientlyVisible()];
+
+  // The button should become enabled again after a delay (10 seconds in
+  // normal time, 2 seconds in the context of EG tests).
+  ConditionBlock condition = ^{
+    NSError* error = nil;
     [[EarlGrey selectElementWithMatcher:TurnOnPasswordsInOtherAppsButton(
-                                            /*enabled=*/NO)]
-        assertWithMatcher:grey_sufficientlyVisible()];
-
-    // The button should become enabled again after a delay (10 seconds in
-    // normal time, 2 seconds in the context of EG tests).
-    ConditionBlock condition = ^{
-      NSError* error = nil;
-      [[EarlGrey selectElementWithMatcher:TurnOnPasswordsInOtherAppsButton(
-                                              /*enabled=*/YES)]
-          assertWithMatcher:grey_sufficientlyVisible()
-                      error:&error];
-      return error == nil;
-    };
-    GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
-                   kReEnableTurnOnPasswordsInOtherAppsButtonTimeout, condition),
-               @"Waiting for the 'Turn on AutoFill' button to become enabled.");
-  } else {
-    EARL_GREY_TEST_SKIPPED(
-        @"The 'Turn on AutoFill…' button is only available on iOS 18+.");
-  }
+                                            /*enabled=*/YES)]
+        assertWithMatcher:grey_sufficientlyVisible()
+                    error:&error];
+    return error == nil;
+  };
+  GREYAssert(base::test::ios::WaitUntilConditionOrTimeout(
+                 kReEnableTurnOnPasswordsInOtherAppsButtonTimeout, condition),
+             @"Waiting for the 'Turn on AutoFill' button to become enabled.");
 }
 
 // Tests that the detail view is dismissed when the last password is deleted,
@@ -4049,7 +4024,15 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
 // Checks password details page offers move to account option if the password is
 // saved in the local store.
-- (void)testMovePasswordToAccountStoreIfSignedIn {
+// TODO(crbug.com/512447836): Test is flaky.
+#if !TARGET_OS_SIMULATOR
+#define MAYBE_testMovePasswordToAccountStoreIfSignedIn \
+  FLAKY_testMovePasswordToAccountStoreIfSignedIn
+#else
+#define MAYBE_testMovePasswordToAccountStoreIfSignedIn \
+  testMovePasswordToAccountStoreIfSignedIn
+#endif
+- (void)MAYBE_testMovePasswordToAccountStoreIfSignedIn {
   // Save form to be moved to account later.
   SavePasswordFormToProfileStore();
 

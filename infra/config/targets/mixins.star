@@ -209,6 +209,13 @@ targets.mixin(
 )
 
 targets.mixin(
+    name = "skylab-use-tauto-chromium-wrapper",
+    skylab = targets.skylab(
+        autotest_name = "chromium",
+    ),
+)
+
+targets.mixin(
     name = "skylab-50-tests-per-shard",
     skylab = targets.skylab(
         cros_test_max_in_shard = 50,
@@ -1199,8 +1206,8 @@ targets.mixin(
     name = "linux_amd_rx_5500_xt",
     swarming = targets.swarming(
         dimensions = {
-            "gpu": "1002:7340-23.2.1|1002:7340-25.2.8",
-            "os": "Ubuntu-22.04|Ubuntu-24.04",
+            "gpu": "1002:7340-25.2.8",
+            "os": "Ubuntu-24.04",
             "display_attached": "1",
             "display_server": "x11",
             "pool": "chromium.tests.gpu",

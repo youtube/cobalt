@@ -17,9 +17,9 @@ SendTabToSelfBubbleView::SendTabToSelfBubbleView(
     views::BubbleAnchor anchor,
     content::WebContents* web_contents)
     : LocationBarBubbleDelegateView(anchor, web_contents),
-      controller_(SendTabToSelfBubbleController::CreateOrGetFromWebContents(
-                      web_contents)
-                      ->AsWeakPtr()) {
+      controller_(
+          SendTabToSelfBubbleController::GetOrCreateForWebContents(web_contents)
+              ->AsWeakPtr()) {
   DCHECK(controller_);
   SetShowCloseButton(true);
   SetTitle(IDS_SEND_TAB_TO_SELF);
@@ -27,24 +27,10 @@ SendTabToSelfBubbleView::SendTabToSelfBubbleView(
       views::DISTANCE_BUBBLE_PREFERRED_WIDTH));
 }
 
-void SendTabToSelfBubbleView::NotifyControllerBubbleClosed() {
-  if (controller_) {
-    controller_->OnBubbleClosed();
-    controller_ = nullptr;
-  }
-}
-
-SendTabToSelfBubbleView::~SendTabToSelfBubbleView() {
-  NotifyControllerBubbleClosed();
-}
+SendTabToSelfBubbleView::~SendTabToSelfBubbleView() = default;
 
 void SendTabToSelfBubbleView::Hide() {
-  NotifyControllerBubbleClosed();
   CloseBubble();
-}
-
-void SendTabToSelfBubbleView::WindowClosing() {
-  NotifyControllerBubbleClosed();
 }
 
 void SendTabToSelfBubbleView::AddedToWidget() {

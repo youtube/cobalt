@@ -63,25 +63,6 @@
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
-        "module_name": "//extensions/shell:app_shell_unittests",
-        "module_scheme": "gtest",
-        "name": "app_shell_unittests",
-        "swarming": {
-          "dimensions": {
-            "cpu": "arm64",
-            "gce": "1",
-            "os": "Ubuntu-22.04"
-          },
-          "expiration": 43200,
-          "service_account": "chromium-tester@chops-service-accounts.iam.gserviceaccount.com"
-        },
-        "test": "app_shell_unittests",
-        "test_id_prefix": "ninja://extensions/shell:app_shell_unittests/"
-      },
-      {
-        "merge": {
-          "script": "//testing/merge_scripts/standard_gtest_merge.py"
-        },
         "module_name": "//ui/aura:aura_unittests",
         "module_scheme": "gtest",
         "name": "aura_unittests",
@@ -258,6 +239,9 @@
         "test_id_prefix": "ninja://third_party/boringssl:boringssl_ssl_tests/"
       },
       {
+        "args": [
+          "--test-launcher-filter-file=../../testing/buildbot/filters/linux-arm64-rel-fyi.browser_tests.filter"
+        ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
@@ -434,6 +418,9 @@
         "test_id_prefix": "ninja://ui/compositor:compositor_unittests/"
       },
       {
+        "args": [
+          "--test-launcher-filter-file=../../testing/buildbot/filters/linux-arm64-rel-fyi.content_browsertests.filter"
+        ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
@@ -816,6 +803,9 @@
         "test_id_prefix": "ninja://headless:headless_unittests/"
       },
       {
+        "args": [
+          "--test-launcher-filter-file=../../testing/buildbot/filters/linux-arm64-rel-fyi.interactive_ui_tests.filter"
+        ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
@@ -1332,6 +1322,9 @@
         "test_id_prefix": "ninja://storage:storage_unittests/"
       },
       {
+        "args": [
+          "--test-launcher-filter-file=../../testing/buildbot/filters/linux-arm64-rel-fyi.sync_integration_tests.filter"
+        ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },
@@ -1409,6 +1402,9 @@
         "test_id_prefix": "ninja://ui/tests:ui_unittests/"
       },
       {
+        "args": [
+          "--test-launcher-filter-file=../../testing/buildbot/filters/linux-arm64-rel-fyi.unit_tests.filter"
+        ],
         "merge": {
           "script": "//testing/merge_scripts/standard_gtest_merge.py"
         },

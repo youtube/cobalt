@@ -17,6 +17,7 @@ if (is_android) {
 
 source_set("actor") {
   public = [
+    "actor_container_config.h",
     "actor_keyed_service.h",
     "actor_keyed_service_factory.h",
     "actor_metrics.h",
@@ -103,6 +104,7 @@ source_set("impl") {
   sources = [
     "action_tracker_for_metrics.cc",
     "action_tracker_for_metrics.h",
+    "actor_container_config.cc",
     "actor_keyed_service.cc",
     "actor_keyed_service_factory.cc",
     "actor_metrics.cc",
@@ -321,21 +323,20 @@ source_set("test_support") {
 source_set("unit_tests") {
   testonly = true
   sources = [
+    "actor_container_config_unittest.cc",
     "actor_keyed_service_unittest.cc",
     "actor_metrics_unittest.cc",
     "actor_navigation_throttle_unittest.cc",
+    "actor_tab_data_unittest.cc",
     "actor_task_metadata_unittest.cc",
     "actor_test_util_unittest.cc",
     "aggregated_journal_unittest.cc",
     "execution_engine_unittest.cc",
     "site_policy_unittest.cc",
     "tools/attempt_form_filling_tool_request_unittest.cc",
+    "tools/attempt_login_tool_request_unittest.cc",
+    "tools/attempt_otp_filling_tool_request_unittest.cc",
   ]
-
-  if (!skip_android_unmigrated_actor_files) {
-    sources += [ "tools/attempt_login_tool_request_unittest.cc" ]
-  }
-
   deps = [
     ":actor",
     ":impl",
@@ -371,6 +372,7 @@ source_set("tools_test_support") {
     ":test_support",
     "//chrome/browser/glic",
     "//chrome/browser/optimization_guide:test_support",
+    "//chrome/browser/page_content_annotations:test_support",
     "//chrome/browser/ui:ui_features",
     "//chrome/browser/ui/zoom",
     "//chrome/test:test_support",
@@ -390,6 +392,7 @@ source_set("browser_tests") {
   sources = [
     "actor_keyed_service_browsertest.cc",
     "actor_util_browsertest.cc",
+    "tools/attempt_login_tool_browsertest.cc",
   ]
   deps = [
     ":actor",
@@ -397,6 +400,7 @@ source_set("browser_tests") {
     ":test_support",
     ":tools_test_support",
     "ui:event_dispatcher",
+    "//chrome/browser:chrome_content_browser_client",
     "//chrome/browser/affiliations",
     "//chrome/browser/glic",
     "//chrome/browser/glic/actor:browser_tests",
@@ -436,8 +440,8 @@ source_set("browser_tests") {
     deps += [ "//ui/ozone" ]
   }
 
-  # TODO(crbug.com/482145079): Migrate over history_tool, media_control_tool, and
-  # attempt_form_filling_tool tests once flakiness is resolved.
+  # TODO(crbug.com/482145079): Migrate over history_tool, media_control_tool,
+  # and attempt_form_filling_tool tests once flakiness is resolved.
   if (!skip_android_unmigrated_actor_files) {
     sources += [
       "execution_engine_browsertest.cc",
@@ -446,7 +450,6 @@ source_set("browser_tests") {
       "tab_observation_controller_browsertest.cc",
       "tools/action_tracker_for_metrics_browsertest.cc",
       "tools/attempt_form_filling_tool_browsertest.cc",
-      "tools/attempt_login_tool_browsertest.cc",
       "tools/attempt_otp_filling_tool_browsertest.cc",
       "tools/click_tool_browsertest.cc",
       "tools/drag_and_release_tool_browsertest.cc",
@@ -472,6 +475,7 @@ source_set("browser_tests") {
       "tools/window_management_tool_browsertest.cc",
     ]
     deps += [
+      "//chrome/browser/autofill",
       "//chrome/browser/autofill/actor:test_support",
       "//chrome/browser/ui/views:file_system_access_test_support",
       "//components/autofill/core/browser:test_support",

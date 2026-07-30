@@ -145,7 +145,7 @@ class LocationBarView
   // Initializes the LocationBarView.
   void Init();
 
-  bool in_popup_state_transition() const { return in_popup_state_transition_; }
+  bool in_popup_state_transition() const override;
 
   // Returns a background that paints an (optionally stroked) rounded rect with
   // the given color.
@@ -614,6 +614,9 @@ class LocationBarView
   // An [x] that appears in touch mode (when the OSK is visible) and allows the
   // user to clear all text.
   raw_ptr<views::ImageButton> clear_all_button_ = nullptr;
+
+  // A label to show the AI Mode hint text.
+  raw_ptr<views::Label> ai_mode_hint_label_ = nullptr;
 
   // Animation to change whole location bar background color on hover.
   gfx::SlideAnimation hover_animation_{this};

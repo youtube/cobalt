@@ -96,7 +96,6 @@
 <translation id="2018528049276128029">В каждом профиле отдельно хранятся данные пользователей Chrome, такие как закладки, история просмотров и пароли.</translation>
 <translation id="2018879682492276940">Ошибка установки. Повторите попытку.</translation>
 <translation id="2024959665595762054">Чтобы использовать и сохранять данные Chrome в аккаунте Google, подтвердите свою личность.</translation>
-<translation id="2026377840141807639">Профили Chrome позволяют разделить личные и рабочие данные. Добавьте новый профиль.</translation>
 <translation id="2034233344106846793">Chrome автоматически использует HTTPS для незащищенных подключений, когда это возможно.</translation>
 <translation id="2039417478970545937">настройки.</translation>
 <translation id="2066690553719545730">Всегда показывать режим ИИ</translation>
@@ -119,7 +118,6 @@
 <translation id="2174917724755363426">Установка не завершена. Отменить ее?</translation>
 <translation id="2186206192313702726">Google Объектив</translation>
 <translation id="2190166659037789668">Ошибка проверки обновлений: <ph name="UPDATE_CHECK_ERROR" />.</translation>
-<translation id="2199691482078155239">Chrome дает больше контроля над тем, какие объявления вы видите и какую информацию о вас могут получать сайты при персонализации рекламы</translation>
 <translation id="2216543877350048334">Чтобы удалить аккаунт Google из браузера, выйдите из Chrome</translation>
 <translation id="2236949375853147973">Мои действия</translation>
 <translation id="22791603784558743">Закрыть Gemini в Chrome для разработчиков</translation>
@@ -146,6 +144,9 @@
 <translation id="2569974318947988067">Chrome будет менять используемый протокол на HTTPS, где это возможно.</translation>
 <translation id="2571392474191184472">Ваша организация управляет Chrome</translation>
 <translation id="2574930892358684005">Пользователь <ph name="EXISTING_USER" /> уже вошел в этот профиль Chrome. Вы можете создать свой профиль, чтобы использовать браузер Chrome отдельно.</translation>
+<translation id="2575799939951057838">В целях безопасности Chrome отключает оптимизацию JavaScript, когда вы впервые посещаете сайт.
+
+Если эта страница работает не так, как ожидалось, попробуйте разрешить оптимизацию.</translation>
 <translation id="2580411288591421699">Не удается установить версию Google Chrome, аналогичную уже выполняемой. Закройте Google Chrome и повторите попытку.</translation>
 <translation id="2586406160782125153">Данные о работе в браузере будут удалены с устройства. Чтобы восстановить данные позже, войдите в Chrome как <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">Не удалось кешировать скачанный установщик. Ошибка: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -447,7 +448,6 @@
 <translation id="5736850870166430177">Кроме того, если вы скачаете вредоносный файл или сайт попытается похитить ваш пароль, Chrome может отправить URL с образцами контента на проверку с помощью Безопасного просмотра.</translation>
 <translation id="5756509061973259733">На данном устройстве уже есть профиль Chrome для этого аккаунта.</translation>
 <translation id="5759947850379142561">Выберите текст или изображение для поиска с помощью Google Объектива или нажмите клавишу Escape, чтобы его закрыть</translation>
-<translation id="5762867845020858790">Добавьте новый профиль Chrome, чтобы хранить закладки, пароли и настройки отдельно.</translation>
 <translation id="5779427581965287859">Сделайте Chrome браузером по умолчанию и закрепите его на панели задач</translation>
 <translation id="5795887333006832406"><ph name="PAGE_TITLE" /> – Google Chrome Canary</translation>
 <translation id="5804318322022881572">Не удалось запустить Chrome. Повторите попытку.</translation>
@@ -561,7 +561,6 @@
 <translation id="6800285125190089494">Входите на сайты быстрее, используя сохраненные пароли в Chrome для iOS.</translation>
 <translation id="6831043979455480757">Перевести</translation>
 <translation id="683440813066116847">Разрешить в Google Chrome Canary передачу входящего трафика по протоколу mDNS</translation>
-<translation id="6841242485723266823">Профили Chrome помогают разделять разные сферы жизни. Добавьте новый профиль.</translation>
 <translation id="684888714667046800">Не удалось подключиться к интернету. Если вы используете брандмауэр, убедитесь, что в белом списке есть файл <ph name="PRODUCT_EXE_NAME" />.</translation>
 <translation id="6859580922007887573">Нажмите Tab, чтобы продолжить</translation>
 <translation id="6877155553248388166">правый нижний угол области поиска: <ph name="RIGHT" /> % справа, <ph name="BOTTOM" /> % снизу</translation>
@@ -651,7 +650,6 @@
 <translation id="7655472416356262023">Удалить аккаунт из Chrome</translation>
 <translation id="7658239707568436148">Отмена</translation>
 <translation id="7670287553302121848">Необходимо снова войти в аккаунт Chrome</translation>
-<translation id="7675756456029023637">Спросить Chrome</translation>
 <translation id="769538538642757151">Мы сообщим, если потребуется что-то проверить</translation>
 <translation id="769906121737764913">Закрыть Gemini в бета-версии Chrome</translation>
 <translation id="7716950018788545737">Одна или несколько задач прерваны.</translation>
@@ -753,7 +751,6 @@
 <translation id="8625237574518804553">{0,plural, =1{Chrome перезапустится через 1 минуту}one{Chrome перезапустится через # минуту}few{Chrome перезапустится через # минуты}many{Chrome перезапустится через # минут}other{Chrome перезапустится через # минуты}}</translation>
 <translation id="8637932705841171563">Чтобы запустить демонстрацию окна, в системных настройках разрешите Chrome записывать видео с экрана.</translation>
 <translation id="8641606876632989680">Вы получите уведомление от Chrome, если войдете в аккаунт с паролем, который был раскрыт.</translation>
-<translation id="8647930742055103497">Храните все в Chrome</translation>
 <translation id="8656634243791296665">Открыть Gemini в Chrome для разработчиков</translation>
 <translation id="8669527147644353129">Google Chrome Helper</translation>
 <translation id="8679801911857917785">Кроме того, расширение изменило стартовую страницу Chrome.</translation>

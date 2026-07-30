@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+import("//content/public/common/features.gni")
 import("//extensions/buildflags/buildflags.gni")
 import("//mojo/public/tools/bindings/mojom.gni")
 
@@ -14,6 +15,9 @@ mojom("mojo_bindings") {
   enabled_features = []
   if (enable_extensions) {
     enabled_features += [ "enable_extensions" ]
+  }
+  if (enable_plugins) {
+    enabled_features += [ "enable_plugins" ]
   }
   if (is_win && is_chrome_branded) {
     enabled_features += [ "is_win_and_chrome_branded" ]
@@ -48,12 +52,13 @@ source_set("impl") {
     ":infobar_internals",
     ":mojo_bindings",
     "//chrome/browser:browser_process",
+    "//chrome/browser:buildflags",
     "//chrome/browser:global_features",
     "//chrome/browser/devtools",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/resources/infobar_internals:resources",
     "//chrome/browser/ui/browser_window",
-    "//components/infobars/content:content",
+    "//components/infobars/content",
     "//content/public/browser",
   ]
 
@@ -77,10 +82,16 @@ source_set("impl") {
     ]
   }
 
+  if (is_mac) {
+    deps += [ "//chrome/browser/ui/cocoa" ]
+  }
+
   if (enable_extensions) {
     deps += [
+      "//chrome/browser/extensions",
       "//chrome/browser/extensions/api/debugger",
       "//chrome/browser/extensions/api/messaging",
+      "//chrome/browser/themes",
       "//extensions/browser",
       "//extensions/common",
     ]

@@ -72,6 +72,9 @@ import org.chromium.components.content_settings.CookieControlsState;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.AutocompleteRequestType;
+import org.chromium.components.omnibox.OmniboxFeatureList;
+import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.permissions.PermissionDialogController;
 import org.chromium.components.prefs.PrefService;
 import org.chromium.components.search_engines.TemplateUrlService;
@@ -112,6 +115,7 @@ public final class StatusMediatorUnitTest {
     @Mock private OnClickListener mOnClickListener;
     @Mock private PageInfoAction mPageInfoAction;
     @Mock private Runnable mTogglePopupCallback;
+    @Mock private Runnable mOnStatusViewHiddenForPageInfoRemoval;
 
     @Captor private ArgumentCaptor<PermissionDialogController.Observer> mPermissionObserverCaptor;
 
@@ -126,6 +130,8 @@ public final class StatusMediatorUnitTest {
             ObservableSuppliers.createNonNull(FuseboxState.DISABLED);
     private final SettableNullableObservableSupplier<GURL> mExactMatchUrlSupplier =
             ObservableSuppliers.createNullable();
+    private final SettableNonNullObservableSupplier<Integer> mRequestTypeSupplier =
+            ObservableSuppliers.createNonNull(AutocompleteRequestType.SEARCH);
 
     @Before
     public void setUp() {
@@ -137,6 +143,7 @@ public final class StatusMediatorUnitTest {
         doReturn(false).when(mLocationBarDataProvider).isIncognito();
         doReturn(mNewTabPageDelegate).when(mLocationBarDataProvider).getNewTabPageDelegate();
         doReturn(mAutocompleteInput).when(mFuseboxSessionState).getAutocompleteInput();
+        doReturn(mRequestTypeSupplier).when(mAutocompleteInput).getRequestTypeSupplier();
 
         mContext =
                 new ContextThemeWrapper(
@@ -375,6 +382,21 @@ public final class StatusMediatorUnitTest {
         assertEquals(
                 R.string.accessibility_toolbar_exit_hub_search,
                 mModel.get(StatusProperties.STATUS_ACCESSIBILITY_DOUBLE_TAP_DESCRIPTION_RES));
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures(OmniboxFeatureList.EXACT_MATCH_FAVICONS)
+    public void testStatusIcon_hubSearchWithExactMatchFaviconEnabled() {
+        doReturn(PageClassification.ANDROID_HUB_VALUE)
+                .when(mLocationBarDataProvider)
+                .getPageClassification(/* prefetch= */ false);
+        mExactMatchUrlSupplier.set(JUnitTestGURLs.BLUE_1);
+        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
+
+        assertEquals(
+                R.drawable.ic_arrow_back_24dp,
+                mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
     }
 
     @Test
@@ -711,8 +733,13 @@ public final class StatusMediatorUnitTest {
 
     @Test
     @SmallTest
-    public void testFuseboxCompactMode() {
+    public void testFuseboxCompactMode_plusButton_allConditionsMet() {
         mFuseboxStateSupplier.set(FuseboxState.COMPACT);
+        mMediator.beginInput(mFuseboxSessionState);
+        OmniboxFeatures.setIsDesktopPlatformForTesting(true);
+        doReturn(AutocompleteRequestType.SEARCH).when(mAutocompleteInput).getRequestType();
+
+        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
 
         assertNotNull(mModel.get(StatusProperties.STATUS_ICON_RESOURCE));
         assertEquals(
@@ -722,6 +749,51 @@ public final class StatusMediatorUnitTest {
         assertNotNull(mModel.get(StatusProperties.STATUS_CLICK_LISTENER));
         mModel.get(StatusProperties.STATUS_CLICK_LISTENER).onClick(/* view= */ null);
         verify(mTogglePopupCallback).run();
+    }
+
+    @Test
+    @SmallTest
+    @EnableFeatures({ChromeFeatureList.ANDROID_PAGE_INFO_AS_APP_MENU_ITEM})
+    public void testCallbackTriggeredWhenStatusViewHidden() {
+        mMediator.setOnStatusViewHiddenForPageInfoRemoval(mOnStatusViewHiddenForPageInfoRemoval);
+
+        mMediator.updateSecurityIcon(R.drawable.ic_logo_googleg_20dp, 0, 0);
+        mMediator.updateVerboseStatus(ConnectionSecurityLevel.SECURE, false, false);
+        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
+
+        verify(mOnStatusViewHiddenForPageInfoRemoval, times(3)).run();
+    }
+
+    @Test
+    @SmallTest
+    public void testFuseboxCompactMode_fallbackToSpark_notDesktop() {
+        mFuseboxStateSupplier.set(FuseboxState.COMPACT);
+        mMediator.beginInput(mFuseboxSessionState);
+        OmniboxFeatures.setIsDesktopPlatformForTesting(false);
+        doReturn(AutocompleteRequestType.SEARCH).when(mAutocompleteInput).getRequestType();
+
+        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
+
+        assertNotNull(mModel.get(StatusProperties.STATUS_ICON_RESOURCE));
+        assertEquals(
+                R.drawable.ic_add_round_20dp_with_inset,
+                mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
+    }
+
+    @Test
+    @SmallTest
+    public void testFuseboxCompactMode_fallbackToSpark_notConventional() {
+        mFuseboxStateSupplier.set(FuseboxState.COMPACT);
+        mMediator.beginInput(mFuseboxSessionState);
+        OmniboxFeatures.setIsDesktopPlatformForTesting(true);
+        doReturn(AutocompleteRequestType.AI_MODE).when(mAutocompleteInput).getRequestType();
+
+        mMediator.updateLocationBarIcon(IconTransitionType.CROSSFADE);
+
+        assertNotNull(mModel.get(StatusProperties.STATUS_ICON_RESOURCE));
+        assertEquals(
+                R.drawable.search_spark_black_24dp,
+                mModel.get(StatusProperties.STATUS_ICON_RESOURCE).getIconRes());
     }
 
     private String getIconIdentifierForTesting() {

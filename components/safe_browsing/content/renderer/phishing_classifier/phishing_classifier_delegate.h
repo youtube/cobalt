@@ -59,7 +59,10 @@ enum class SBPhishingClassifierEvent {
   // There is an ongoing classification at the time of classification start
   // request.
   kOngoingClassificationAtAnotherClassificationRequest = 12,
-  kMaxValue = kOngoingClassificationAtAnotherClassificationRequest,
+  // A new page has loaded while the browser request has been waiting for page
+  // to finish loading in order to start classification.
+  kNewPageLoadWhileBrowserRequestWaitsForLoad = 13,
+  kMaxValue = kNewPageLoadWhileBrowserRequestWaitsForLoad,
 };
 
 class PhishingClassifierDelegate : public content::RenderFrameObserver,
@@ -78,15 +81,16 @@ class PhishingClassifierDelegate : public content::RenderFrameObserver,
 
   ~PhishingClassifierDelegate() override;
 
-  // Called by the RenderFrame once a page has finished loading.  Updates the
-  // last-loaded URL, then starts classification if all other
-  // conditions are met (see MaybeStartClassification for details).
-  // We ignore preliminary captures, since these happen before the page has
-  // finished loading. The page_text was used for DOM classification, which is
-  // now deprecated. This observer function will stay to update the last loaded
-  // URL until further changes.
-  void PageCaptured(scoped_refptr<const base::RefCountedString16> page_text,
-                    bool preliminary_capture);
+  // Called by the RenderFrame once a page has finished loading and it has
+  // captured the page text. Updates the last-loaded URL, then starts
+  // classification if all other conditions are met (see
+  // MaybeStartClassification for details). We ignore preliminary captures,
+  // since these happen before the page has finished loading.
+  //
+  // Note: Previously, this method accepted the page text as a parameter for DOM
+  // classification, which is now deprecated. This observer function will stay
+  // to update the last loaded URL until further changes.
+  void PageCaptured(bool preliminary_capture);
 
   // RenderFrameObserver implementation, public for testing.
 

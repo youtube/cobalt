@@ -12,9 +12,11 @@
 #include "base/functional/callback_helpers.h"
 #include "base/metrics/user_metrics.h"
 #include "base/metrics/user_metrics_action.h"
+#include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/extensions/extensions_menu_view_model.h"
 #include "chrome/browser/ui/toolbar/toolbar_action_view_model.h"
@@ -26,6 +28,7 @@
 #include "chrome/grit/generated_resources.h"
 #include "extensions/common/extension_features.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
+#include "ui/accessibility/platform/ax_platform.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/base/models/image_model.h"
@@ -77,15 +80,36 @@ std::u16string GetPinButtonPressedAccText(bool is_pinned) {
                                              : IDS_EXTENSION_UNPINNED);
 }
 
+class ExtensionsMenuHoverButton : public HoverButton {
+ public:
+  using HoverButton::HoverButton;
+
+  void StateChanged(views::Button::ButtonState old_state) override {
+    views::LabelButton::StateChanged(old_state);
+
+    if (GetState() == STATE_HOVERED && old_state != STATE_PRESSED) {
+#if BUILDFLAG(IS_WIN)
+      if (ui::AXPlatform::GetInstance().GetMode().has_mode(
+              ui::AXMode::kScreenReader)) {
+        return;
+      }
+#endif
+      RequestFocus();
+    } else if (GetState() == STATE_NORMAL && HasFocus()) {
+      GetFocusManager()->SetFocusedView(nullptr);
+    }
+  }
+};
+
 }  // namespace
 
 ExtensionMenuItemView::ExtensionMenuItemView(
-    Browser* browser,
+    BrowserWindowInterface* browser,
     std::unique_ptr<ToolbarActionViewModel> view_model,
     bool allow_pinning)
     : browser_(browser),
       view_model_(std::move(view_model)),
-      model_(ToolbarActionsModel::Get(browser_->profile())) {
+      model_(ToolbarActionsModel::Get(browser_->GetProfile())) {
   CHECK(!base::FeatureList::IsEnabled(
       extensions_features::kExtensionsMenuAccessControl));
 
@@ -110,7 +134,7 @@ ExtensionMenuItemView::ExtensionMenuItemView(
                                    views::MinimumFlexSizeRule::kScaleToZero,
                                    views::MaximumFlexSizeRule::kUnbounded)),
               views::Builder<HoverButton>(
-                  std::make_unique<HoverButton>(
+                  std::make_unique<ExtensionsMenuHoverButton>(
                       views::Button::PressedCallback(), std::u16string()))
                   .CopyAddressTo(&context_menu_button_)
                   .SetID(EXTENSION_CONTEXT_MENU)
@@ -138,7 +162,7 @@ ExtensionMenuItemView::ExtensionMenuItemView(
     int index = 1;
     builder.AddChildAt(
         views::Builder<HoverButton>(
-            std::make_unique<HoverButton>(
+            std::make_unique<ExtensionsMenuHoverButton>(
                 base::BindRepeating(&ExtensionMenuItemView::OnPinButtonPressed,
                                     base::Unretained(this)),
                 std::u16string()))
@@ -182,7 +206,7 @@ void ExtensionMenuItemView::UpdatePinButton(bool is_force_pinned,
   // Extension pinning is not available in Incognito as it leaves a trace of
   // user activity.
   pin_button_->SetEnabled(!is_force_pinned &&
-                          !browser_->profile()->IsOffTheRecord());
+                          !browser_->GetProfile()->IsOffTheRecord());
 
   // Update the icon based on whether the extension is pinned.
   const gfx::VectorIcon& icon = is_pinned ? kKeepOffIcon : kKeepIcon;

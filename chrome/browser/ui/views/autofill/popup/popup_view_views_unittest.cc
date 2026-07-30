@@ -1481,6 +1481,70 @@ TEST_F(PopupViewViewsTestKeyboard, NoFillOnTabPressedWithModifiers) {
                    /*non_shift_modifier_pressed=*/true);
 }
 
+TEST_F(PopupViewViewsTestKeyboard, TabFocusesFootnoteLink) {
+  controller().set_suggestions(
+      {Suggestion(u"BNPL Footnote", SuggestionType::kBnplFootnote)});
+  CreateAndShowView();
+
+  PopupBnplFootnoteView* bnpl_footnote = test_api(view()).GetBnplFootnoteView();
+  ASSERT_TRUE(bnpl_footnote);
+
+  ASSERT_FALSE(bnpl_footnote->IsSettingsLinkFocused());
+
+  SimulateKeyPress(ui::VKEY_TAB);
+
+  EXPECT_TRUE(bnpl_footnote->IsSettingsLinkFocused());
+
+  ui::AXNodeData node_data;
+  bnpl_footnote->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+  EXPECT_TRUE(node_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+}
+
+TEST_F(PopupViewViewsTestKeyboard, EnterHandledByFootnoteWhenLinkIsFocused) {
+  controller().set_suggestions(
+      {Suggestion(u"BNPL Footnote", SuggestionType::kBnplFootnote)});
+  CreateAndShowView();
+
+  PopupBnplFootnoteView* bnpl_footnote = test_api(view()).GetBnplFootnoteView();
+  ASSERT_TRUE(bnpl_footnote);
+
+  ASSERT_FALSE(SimulateKeyPress(ui::VKEY_RETURN));
+
+  SimulateKeyPress(ui::VKEY_TAB);
+  ASSERT_TRUE(bnpl_footnote->IsSettingsLinkFocused());
+
+  // Forces `PopupBnplFootnoteView::ActivateSettingsLink` to return early, since
+  // `chrome::ShowSettingsSubPageForProfile` crashes in this test environment.
+  ON_CALL(controller(), GetWebContents())
+      .WillByDefault(testing::Return(nullptr));
+
+  EXPECT_TRUE(SimulateKeyPress(ui::VKEY_RETURN));
+}
+
+TEST_F(PopupViewViewsTestKeyboard, UnfocusFootnoteLinkOnSuggestionSelection) {
+  controller().set_suggestions(
+      {Suggestion(u"Credit Card", SuggestionType::kCreditCardEntry),
+       Suggestion(u"BNPL Footnote", SuggestionType::kBnplFootnote)});
+  CreateAndShowView();
+
+  PopupBnplFootnoteView* bnpl_footnote = test_api(view()).GetBnplFootnoteView();
+  ASSERT_TRUE(bnpl_footnote);
+
+  SimulateKeyPress(ui::VKEY_TAB);
+
+  ui::AXNodeData node_data;
+  bnpl_footnote->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+  ASSERT_TRUE(node_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+  ASSERT_TRUE(bnpl_footnote->IsSettingsLinkFocused());
+
+  view().SetSelectedCell(CellIndex{0u, CellType::kContent},
+                         PopupCellSelectionSource::kKeyboard);
+
+  bnpl_footnote->GetViewAccessibility().GetAccessibleNodeData(&node_data);
+  EXPECT_FALSE(node_data.GetBoolAttribute(ax::mojom::BoolAttribute::kSelected));
+  EXPECT_FALSE(bnpl_footnote->IsSettingsLinkFocused());
+}
+
 // Verify that pressing the tab key while the "Manage addresses..." entry is
 // selected does not trigger "accepting" the entry (which would mean opening
 // a tab with the autofill settings).
@@ -2795,7 +2859,7 @@ TEST_F(PopupViewViewsTest, SearchBar_RemainVisibleEvenWithNoSuggestions) {
   CreateAndShowView(/*ids=*/{}, CreateParamsForTestWidget(),
                     AutofillPopupView::SearchBarConfig{
                         .placeholder = u"Recall from memory",
-                        .no_results_message = u"No results found"});
+                        .no_results_message = u""});
 
   // The popup should not be hidden due to no suggestions.
   EXPECT_CALL(controller(), Hide(SuggestionHidingReason::kNoSuggestions))
@@ -2819,7 +2883,7 @@ TEST_F(PopupViewViewsTest, AtMemory_KeyboardNavigation) {
                     CreateParamsForTestWidget(),
                     AutofillPopupView::SearchBarConfig{
                         .placeholder = u"Recall from memory",
-                        .no_results_message = u"No results found"});
+                        .no_results_message = u""});
 
   // The width should be kAtMemoryPopupWidth.
   EXPECT_EQ(view().GetPreferredSize().width(),

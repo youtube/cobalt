@@ -47,10 +47,10 @@ namespace blink {
 
 // We should use this class only for LocalizedNumberICU.cpp,
 // LocalizedDateICU.cpp, and LocalizedNumberICUTest.cpp.
-class PLATFORM_EXPORT LocaleICU : public Locale {
+class PLATFORM_EXPORT LocaleIcu : public Locale {
  public:
-  explicit LocaleICU(const std::string&);
-  ~LocaleICU() override;
+  explicit LocaleIcu(const std::string&);
+  ~LocaleIcu() override;
 
   const Vector<String>& WeekDayShortLabels() override;
   unsigned FirstDayOfWeek() override;
@@ -66,7 +66,7 @@ class PLATFORM_EXPORT LocaleICU : public Locale {
   const Vector<String>& ShortMonthLabels() override;
   const Vector<String>& StandAloneMonthLabels() override;
   const Vector<String>& ShortStandAloneMonthLabels() override;
-  const Vector<String>& TimeAMPMLabels() override;
+  const Vector<String>& TimeAmPmLabels() override;
 
  private:
   String DecimalSymbol(UNumberFormatSymbol);

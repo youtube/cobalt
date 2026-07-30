@@ -21,10 +21,10 @@
 
 InstalledWebappGeolocationBridge::InstalledWebappGeolocationBridge(
     mojo::PendingReceiver<Geolocation> receiver,
-    const GURL& url,
+    const url::Origin& origin,
     InstalledWebappGeolocationContext* context)
     : context_(context),
-      url_(url),
+      origin_(origin),
       high_accuracy_(false),
       receiver_(this, std::move(receiver)) {
   DCHECK(context_);
@@ -42,7 +42,7 @@ void InstalledWebappGeolocationBridge::StartListeningForUpdates() {
   if (java_ref_.is_null()) {
     java_ref_.Reset(InstalledWebappGeolocationBridgeJni::create(
         env, reinterpret_cast<intptr_t>(this),
-        url::GURLAndroid::FromNativeGURL(env, url_)));
+        url::GURLAndroid::FromNativeGURL(env, origin_.GetURL())));
   }
   java_ref_->start(env, high_accuracy_);
 }
@@ -80,6 +80,15 @@ void InstalledWebappGeolocationBridge::QueryNextPosition(
   if (current_position_) {
     ReportCurrentPosition();
   }
+}
+
+// QueryCachedPosition is not supported by this provider since it is not
+// needed by Trusted Web Activities.
+void InstalledWebappGeolocationBridge::QueryCachedPosition(
+    QueryCachedPositionCallback callback) {
+  std::move(callback).Run(device::mojom::GeopositionResult::NewError(
+      device::mojom::GeopositionError::New(
+          device::mojom::GeopositionErrorCode::kPositionUnavailable, "", "")));
 }
 
 void InstalledWebappGeolocationBridge::SetOverride(

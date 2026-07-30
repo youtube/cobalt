@@ -44,6 +44,7 @@
 #include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service_factory.h"
 #include "components/prefs/scoped_user_pref_update.h"
+#include "components/surface_embed/common/surface_embed.mojom.h"
 #include "components/variations/service/variations_service.h"
 #include "content/public/browser/client_certificate_delegate.h"
 #include "content/public/browser/login_delegate.h"
@@ -52,6 +53,7 @@
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/page_navigator.h"
 #include "content/public/browser/render_process_host.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_view_delegate.h"
@@ -216,9 +218,11 @@ void BindMediaFoundationPreferences(
     mojo::PendingReceiver<media::mojom::MediaFoundationPreferences> receiver) {
   // Passing in a NullCallback since we don't have MediaFoundationServiceMonitor
   // in content.
-  MediaFoundationPreferencesImpl::Create(
-      frame_host->GetSiteInstance()->GetSiteURL(), base::NullCallback(),
-      std::move(receiver));
+  MediaFoundationPreferencesImpl::Create(frame_host->GetSiteInstance()
+                                             ->GetSecurityPrincipal()
+                                             .GetDeprecatedSiteURL(),
+                                         base::NullCallback(),
+                                         std::move(receiver));
 }
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -622,6 +626,17 @@ void ShellContentBrowserClient::RegisterBrowserInterfaceBindersForFrame(
   map->Add<media::mojom::MediaFoundationPreferences>(
       &BindMediaFoundationPreferences);
 #endif  // BUILDFLAG(IS_WIN)
+  map->Add<surface_embed::mojom::SurfaceEmbedHost>(base::BindRepeating(
+      [](content::RenderFrameHost* render_frame_host,
+         mojo::PendingReceiver<surface_embed::mojom::SurfaceEmbedHost>
+             receiver) {
+        // Since ShellContentRenderClient can try to create a
+        // SurfaceEmbedWebPlugin on any page, we have to handle its binding on
+        // any page, so the renderer doesn't get killed. We don't want the
+        // operation to actually succeed in general, however, so we just let the
+        // pipe get closed by going out of scope unbound. Tests that need the
+        // functionality can override this method to provide it.
+      }));
 }
 
 void ShellContentBrowserClient::OpenURL(
@@ -759,7 +774,8 @@ void ShellContentBrowserClient::OnNetworkServiceCreated(
         /*secure_dns_mode=*/net::SecureDnsMode::kAutomatic,
         net::DnsOverHttpsConfig(),
         /*additional_dns_types_enabled=*/true,
-        /*fallback_doh_nameservers=*/{});
+        /*fallback_doh_nameservers=*/{},
+        /*insecure_dns_via_platform_apis_enabled=*/false);
   }
 #endif
 }

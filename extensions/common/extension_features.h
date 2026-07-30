@@ -81,7 +81,21 @@ BASE_DECLARE_FEATURE(kApiGlicAccessFromGoogleWebpage);
 extern const base::FeatureParam<std::string> kProdPromptEndpointUrlParam;
 extern const base::FeatureParam<std::string> kGlicInvokeApiOAuth2ScopeParam;
 extern const base::FeatureParam<bool> kGlicRequireConsentForInvokeParam;
-extern const base::FeatureParam<bool> kGlicOpenNewTabInForegroundParam;
+
+enum class GlicOpenNewTabDisposition {
+  kForeground,                // Always open in foreground.
+  kBackground,                // Always open in background.
+  kForegroundIfNotConsented,  // Open in foreground if user has not consented,
+                              // else in background.
+};
+extern const base::FeatureParam<GlicOpenNewTabDisposition>
+    kGlicOpenNewTabDispositionParam;
+
+// String constants for GlicOpenNewTabDisposition.
+inline constexpr char kGlicOpenNewTabDispositionForeground[] = "foreground";
+inline constexpr char kGlicOpenNewTabDispositionBackground[] = "background";
+inline constexpr char kGlicOpenNewTabDispositionForegroundIfNotConsented[] =
+    "foreground_if_not_consented";
 
 // Controls the availability of the new `proxyOverrideRulesPrivate` API.
 BASE_DECLARE_FEATURE(kApiProxyOverrideRulesPrivate);
@@ -220,6 +234,9 @@ BASE_DECLARE_FEATURE(kStructuredCloningForMessaging);
 // approval will be enabled. Read more about the platform here:
 // https://chromium.googlesource.com/chromium/src/+/master/docs/telemetry_extension/README.md.
 BASE_DECLARE_FEATURE(kTelemetryExtensionPendingApprovalApi);
+
+// Controls whether the component webstore hosted app is loaded.
+BASE_DECLARE_FEATURE(kWebstoreHostedApp);
 
 // Used to control whether downloads initiated by `WebstoreInstaller` are marked
 // as having a corresponding user gesture or not.

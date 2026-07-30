@@ -2442,6 +2442,13 @@ void LocalFrameView::UpdateLifecyclePhasesInternal(
     bool run_more_lifecycle_phases =
         RunStyleAndLayoutLifecyclePhases(target_state);
     if (!run_more_lifecycle_phases) {
+      // When visual lifecycle phases are skipped early (style/layout not
+      // dirty), accessibility updates would not normally run because we
+      // return early here. Call RunAccessibilitySteps() directly to ensure
+      // deferred accessibility updates (from dynamic ARIA changes that do
+      // not invalidate layout) are still committed and serialized once
+      // per lifecycle cycle.
+      RunAccessibilitySteps();
       return;
     }
     DCHECK(Lifecycle().GetState() >= DocumentLifecycle::kLayoutClean);
@@ -3824,13 +3831,14 @@ void LocalFrameView::ServiceScrollAnimations(base::TimeTicks start_time) {
   }
 }
 
-void LocalFrameView::ScheduleAnimation(base::TimeDelta delay,
+void LocalFrameView::ScheduleAnimation(cc::BeginMainFrameReason reason,
+                                       base::TimeDelta delay,
                                        base::Location location,
                                        bool urgent) {
   TRACE_EVENT("cc", "LocalFrameView::ScheduleAnimation", "frame", GetFrame(),
               "delay", delay, "location", location);
   if (auto* client = GetChromeClient())
-    client->ScheduleAnimation(this, delay, urgent);
+    client->ScheduleAnimation(this, reason, delay, urgent);
 }
 
 void LocalFrameView::OnCommitRequested() {

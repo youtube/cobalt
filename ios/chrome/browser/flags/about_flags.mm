@@ -43,6 +43,7 @@
 #import "components/enterprise/buildflags/buildflags.h"
 #import "components/enterprise/client_certificates/core/features.h"
 #import "components/enterprise/connectors/core/features.h"
+#import "components/enterprise/data_controls/core/browser/features.h"
 #import "components/feature_engagement/public/feature_constants.h"
 #import "components/feature_engagement/public/feature_list.h"
 #import "components/feed/feed_feature_list.h"
@@ -84,6 +85,7 @@
 #import "components/sync/base/features.h"
 #import "components/sync/base/pref_names.h"
 #import "components/sync_preferences/features.h"
+#import "components/tab_groups/features.h"
 #import "components/translate/core/browser/translate_prefs.h"
 #import "components/translate/core/common/translate_util.h"
 #import "components/variations/net/variations_command_line.h"
@@ -1361,12 +1363,16 @@ const FeatureEntry::FeatureParam kAfterEditForExplainGeminiEditMenu[] = {
     {kExplainGeminiEditMenuParams, "1"}};
 const FeatureEntry::FeatureParam kAfterSearchForExplainGeminiEditMenu[] = {
     {kExplainGeminiEditMenuParams, "2"}};
+const FeatureEntry::FeatureParam kAdjacentForExplainGeminiEditMenu[] = {
+    {kExplainGeminiEditMenuParams, "3"}};
 
 const FeatureEntry::FeatureVariation kPositionForExplainGeminiEditMenu[] = {
     {"Explain Gemini shows up after Edit", kAfterEditForExplainGeminiEditMenu,
      nullptr},
     {"Explain Gemini shows up after Search with Google",
-     kAfterSearchForExplainGeminiEditMenu, nullptr}};
+     kAfterSearchForExplainGeminiEditMenu, nullptr},
+    {"Explain Gemini shows up adjacent to Search with Google",
+     kAdjacentForExplainGeminiEditMenu, nullptr}};
 
 const FeatureEntry::FeatureParam kPageActionMenuIconSparkles1[] = {
     {kPageActionMenuIconParams, "1"}};
@@ -1497,10 +1503,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(
          autofill::features::debug::kAutofillShowTypePredictions)},
-    {"ntp-background-customization",
-     flag_descriptions::kNTPBackgroundCustomizationName,
-     flag_descriptions::kNTPBackgroundCustomizationDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kNTPBackgroundCustomization)},
     {"ntp-header-use-transforms-for-animations",
      flag_descriptions::kNTPHeaderUseTransformsForAnimationsName,
      flag_descriptions::kNTPHeaderUseTransformsForAnimationsDescription,
@@ -1805,10 +1807,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kViewCertificateInformationDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(page_info_certificate::kViewCertificateInformation)},
-    {"cpe-passkey-prf-support",
-     flag_descriptions::kCredentialProviderPasskeyPRFName,
-     flag_descriptions::kCredentialProviderPasskeyPRFDescription,
-     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kCredentialProviderPasskeyPRF)},
     {"migrate-ios-keychain-accessibility",
      flag_descriptions::kMigrateIOSKeychainAccessibilityName,
      flag_descriptions::kMigrateIOSKeychainAccessibilityDescription,
@@ -1963,6 +1961,9 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kLensSingleTapTextSelectionDisabledName,
      flag_descriptions::kLensSingleTapTextSelectionDisabledDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kLensSingleTapTextSelectionDisabled)},
+    {"update-tab-group-colors", flag_descriptions::kUpdateTabGroupColorsName,
+     flag_descriptions::kUpdateTabGroupColorsDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(tab_groups::kUpdateTabGroupColors)},
     {"updated-fre-screens-sequence", flag_descriptions::kUpdatedFRESequenceName,
      flag_descriptions::kUpdatedFRESequenceDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(first_run::kUpdatedFirstRunSequence,
@@ -2386,9 +2387,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kPersistTabContext,
                                     kPersistTabContextVariations,
                                     "PersistTabContext")},
-    {"composebox-immersive-srp", flag_descriptions::kComposeboxImmersiveSRPName,
-     flag_descriptions::kComposeboxImmersiveSRPDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kComposeboxImmersiveSRP)},
     {"composebox-uses-chrome-compose-client",
      flag_descriptions::kNtpComposeboxUsesChromeComposeClientName,
      flag_descriptions::kNtpComposeboxUsesChromeComposeClientDescription,
@@ -2871,9 +2869,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSCobaltDeveloperModeName,
      flag_descriptions::kIOSCobaltDeveloperModeDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(web::features::kIOSCobaltDeveloperMode)},
-    {"synced-group-color", flag_descriptions::kSyncedGroupColorName,
-     flag_descriptions::kSyncedGroupColorDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kSyncedGroupColor)},
     {"cobrowse-aim-history", flag_descriptions::kCobrowseAimHistoryName,
      flag_descriptions::kCobrowseAimHistoryDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kCobrowseAimHistory)},
@@ -2921,6 +2916,17 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kIOSMiniMapUniversalLinkCounterfactualDescription,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kIOSMiniMapUniversalLinkCounterfactual)},
+    {"ios-level-up", flag_descriptions::kIOSLevelUpName,
+     flag_descriptions::kIOSLevelUpDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kIOSLevelUp)},
+    {"ios-backend-promo-service-integration",
+     flag_descriptions::kIOSBackendPromoServiceIntegrationName,
+     flag_descriptions::kIOSBackendPromoServiceIntegrationDescription,
+     flags_ui::kOsIos, FEATURE_VALUE_TYPE(kIOSBackendPromoServiceIntegration)},
+    {"data-controls-search-with",
+     flag_descriptions::kDataControlsSearchWithName,
+     flag_descriptions::kDataControlsSearchWithDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(data_controls::kDataControlsSearchWith)},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

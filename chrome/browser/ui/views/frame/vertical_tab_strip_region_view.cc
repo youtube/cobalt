@@ -9,6 +9,7 @@
 #include <variant>
 
 #include "base/callback_list.h"
+#include "base/check_is_test.h"
 #include "base/containers/adapters.h"
 #include "base/functional/bind.h"
 #include "base/i18n/number_formatting.h"
@@ -61,8 +62,6 @@
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/color/color_id.h"
-#include "ui/compositor/compositor.h"
-#include "ui/compositor/compositor_observer.h"
 #include "ui/compositor/layer.h"
 #include "ui/display/screen.h"
 #include "ui/events/event.h"
@@ -100,82 +99,6 @@ constexpr ShadowFrameView::ShadowAlpha kExpandOnHoverShadowAlpha(
 
 DEFINE_CLASS_CUSTOM_ELEMENT_EVENT_TYPE(VerticalTabStripRegionView,
                                        kAnimationCompletedEvent);
-
-class VerticalTabStripRegionView::AnimationPerfReporter
-    : public ui::CompositorObserver {
- public:
-  AnimationPerfReporter(BrowserAnimationMotion animation_type,
-                        base::TimeDelta total_animation_time,
-                        views::Widget* widget)
-      : animation_type_(animation_type),
-        total_animation_time_(total_animation_time) {
-    compositor_observation_.Observe(widget->GetCompositor());
-  }
-
-  ~AnimationPerfReporter() override {
-    if (animation_status_ == BrowserAnimationUpdate::kEnded &&
-        total_animation_time_.is_positive()) {
-      int animation_fps =
-          static_cast<int>(std::round(animation_presented_times_.size() /
-                                      total_animation_time_.InSecondsF()));
-      if (animation_fps > 0) {
-        base::UmaHistogramCounts100(
-            base::StrCat(
-                {"TabStrip.Vertical.", GetAnimationNameFor(), ".AnimationFPS"}),
-            animation_fps);
-      }
-    }
-  }
-
-  AnimationPerfReporter(const AnimationPerfReporter&) = delete;
-  AnimationPerfReporter& operator=(const AnimationPerfReporter&) = delete;
-
-  void SetCompletionStatus(BrowserAnimationUpdate completion_status) {
-    DCHECK(completion_status == BrowserAnimationUpdate::kEnded ||
-           completion_status == BrowserAnimationUpdate::kCanceled);
-    animation_status_ = completion_status;
-  }
-
- private:
-  // ui::CompositorObserver:
-  void OnDidPresentCompositorFrame(
-      ui::Compositor* compositor,
-      uint32_t frame_token,
-      const gfx::PresentationFeedback& feedback) override {
-    if (animation_status_ == BrowserAnimationUpdate::kStarted &&
-        !feedback.failed()) {
-      animation_presented_times_.push_back(feedback.timestamp);
-    }
-  }
-
-  void OnCompositingShuttingDown(ui::Compositor* compositor) override {
-    compositor_observation_.Reset();
-  }
-
-  std::string_view GetAnimationNameFor() const {
-    if (animation_type_ == TabStripAnimations::kCollapse) {
-      return "Collapse";
-    } else if (animation_type_ == TabStripAnimations::kExpand) {
-      return "Expand";
-    } else if (animation_type_ == TabStripAnimations::kCollapseOnHover) {
-      return "CollapseOnHover";
-    } else if (animation_type_ == TabStripAnimations::kExpandOnHover) {
-      return "ExpandOnHover";
-    }
-    NOTREACHED() << "Unsupported Animation Type";
-  }
-
-  const BrowserAnimationMotion animation_type_;
-  BrowserAnimationUpdate animation_status_ = BrowserAnimationUpdate::kStarted;
-  const base::TimeDelta total_animation_time_;
-
-  // Tracks all the successfully presented compositor frame during the
-  // course of the animation. This is used to compute the animation FPS.
-  std::vector<base::TimeTicks> animation_presented_times_;
-
-  base::ScopedObservation<ui::Compositor, ui::CompositorObserver>
-      compositor_observation_{this};
-};
 
 VerticalTabStripRegionView::VerticalTabStripRegionView(
     tabs::VerticalTabStripStateController* state_controller,
@@ -254,13 +177,6 @@ VerticalTabStripRegionView::VerticalTabStripRegionView(
       l10n_util::GetStringUTF16(IDS_VERTICAL_RESIZE_AREA));
   resize_area_->GetViewAccessibility().SetRole(ax::mojom::Role::kSlider);
 
-  on_animation_update_subscription_ =
-      BrowserAnimationController::From(browser_view_->browser())
-          ->Subscribe(TabStripAnimations::kVerticalTabStrip,
-                      base::BindRepeating(
-                          &VerticalTabStripRegionView::OnAnimationProgressed,
-                          base::Unretained(this)));
-
   state_controller_->SetDelegate(this);
   target_collapse_state_ = state_controller_->GetState();
   OnCollapseStateChanged(state_controller_->GetCollapseState());
@@ -328,10 +244,6 @@ void VerticalTabStripRegionView::OnAnimationProgressed(
     case BrowserAnimationUpdate::kStarted: {
       const auto motion =
           controller->GetCurrentMotion(TabStripAnimations::kVerticalTabStrip);
-      const auto duration =
-          controller->GetMotionDuration(TabStripAnimations::kVerticalTabStrip);
-      animation_perf_reporter_ = std::make_unique<AnimationPerfReporter>(
-          motion, duration, GetWidget());
       if (motion == TabStripAnimations::kExpand) {
         update_state_controller_collapsed_callback_.Run(false);
       }
@@ -346,8 +258,6 @@ void VerticalTabStripRegionView::OnAnimationProgressed(
       InvalidateLayout();
       break;
     case BrowserAnimationUpdate::kEnded: {
-      animation_perf_reporter_->SetCompletionStatus(status);
-      animation_perf_reporter_.reset();
       hover_card_animation_lock_.reset();
       if (tab_strip_view_) {
         tab_strip_view_->SetIsAnimatingSize(false);
@@ -366,8 +276,6 @@ void VerticalTabStripRegionView::OnAnimationProgressed(
       break;
     }
     case BrowserAnimationUpdate::kCanceled:
-      animation_perf_reporter_->SetCompletionStatus(status);
-      animation_perf_reporter_.reset();
       hover_card_animation_lock_.reset();
       if (tab_strip_view_) {
         tab_strip_view_->SetIsAnimatingSize(false);
@@ -528,24 +436,15 @@ gfx::Size VerticalTabStripRegionView::CalculatePreferredSize(
       BrowserAnimationController::From(browser_view_->browser());
   const auto motion =
       controller->GetCurrentMotion(TabStripAnimations::kVerticalTabStrip);
-  if (motion == TabStripAnimations::kExpand ||
-      motion == TabStripAnimations::kCollapse) {
-    const double value =
-        *BrowserAnimationController::From(browser_view_->browser())
-             ->GetCurrentValue(TabStripAnimations::kVerticalTabStrip,
-                               TabStripAnimations::kTabStripWidth);
-    size.set_width(
-        kCollapsedWidth +
-        (motion == TabStripAnimations::kExpand
-             ? std::floor<double>
-             : std::ceil<double>)((target_collapse_state_.uncollapsed_width -
-                                   kCollapsedWidth) *
-                                  value));
-  } else {
-    size.set_width(target_collapse_state_.collapsed
-                       ? kCollapsedWidth
-                       : target_collapse_state_.uncollapsed_width);
-  }
+  const int expand_amount =
+      std::max(0, target_collapse_state_.uncollapsed_width - kCollapsedWidth);
+  const double expand_percent =
+      *controller->GetCurrentValue(TabStripAnimations::kVerticalTabStrip,
+                                   TabStripAnimations::kTabStripWidth);
+  size.set_width(kCollapsedWidth +
+                 (motion == TabStripAnimations::kExpand
+                      ? std::floor<double>
+                      : std::ceil<double>)(expand_amount * expand_percent));
   return size;
 }
 
@@ -993,6 +892,7 @@ bool VerticalTabStripRegionView::IsCollapsing() {
 
 void VerticalTabStripRegionView::RequestCollapse(bool collapse) {
   target_collapse_state_.collapsed = collapse;
+  CHECK(tab_strip_view_);
   const auto motion =
       collapse ? TabStripAnimations::kCollapse : TabStripAnimations::kExpand;
   BrowserAnimationController::From(browser_view_->browser())
@@ -1058,11 +958,17 @@ views::View* VerticalTabStripRegionView::SetTabStripView(
           base::BindRepeating(&VerticalTabStripRegionView::OnActiveTabChanged,
                               base::Unretained(this)));
 
-  on_animation_update_subscription_ =
-      BrowserAnimationController::From(browser_view_->browser())
-          ->Subscribe(TabStripAnimations::kVerticalTabStrip,
-                      base::BindRepeating(
-                          &VerticalTabStripRegionView::OnAnimationProgressed,
+  // Pre-set the animation values to the appropriate state.
+  auto* const animation_controller =
+      BrowserAnimationController::From(browser_view_->browser());
+  animation_controller->Reset(TabStripAnimations::kVerticalTabStrip,
+                              target_collapse_state_.collapsed
+                                  ? TabStripAnimations::kCollapse
+                                  : TabStripAnimations::kExpand);
+
+  on_animation_update_subscription_ = animation_controller->Subscribe(
+      TabStripAnimations::kVerticalTabStrip,
+      base::BindRepeating(&VerticalTabStripRegionView::OnAnimationProgressed,
                           base::Unretained(this)));
 
   expand_on_hover_enabled_changed_subscription_ =

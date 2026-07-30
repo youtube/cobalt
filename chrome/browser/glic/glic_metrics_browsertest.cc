@@ -36,10 +36,6 @@
 #include "ui/ozone/public/ozone_platform.h"
 #endif
 
-#if !BUILDFLAG(IS_ANDROID)
-#include "chrome/browser/glic/selection/selection_overlay_controller.h"
-#endif
-
 namespace glic {
 namespace {
 
@@ -303,8 +299,7 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest,
   glic_service->instance_coordinator().Toggle(
       /*browser=*/nullptr, /*prevent_close=*/false,
       mojom::InvocationSource::kOsHotkey,
-      /*deprecated_prompt_suggestion=*/std::nullopt,
-      /*deprecated_conversation_id=*/std::nullopt);
+      /*deprecated_prompt_suggestion=*/std::nullopt);
 
   histogram_tester.ExpectUniqueSample("Glic.Instance.Floaty.ToggleSource",
                                       mojom::InvocationSource::kOsHotkey, 1);
@@ -315,40 +310,12 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest,
   glic_service->instance_coordinator().Toggle(
       /*browser=*/nullptr, /*prevent_close=*/false,
       mojom::InvocationSource::kOsHotkey,
-      /*deprecated_prompt_suggestion=*/std::nullopt,
-      /*deprecated_conversation_id=*/std::nullopt);
+      /*deprecated_prompt_suggestion=*/std::nullopt);
 
   histogram_tester.ExpectUniqueSample("Glic.Instance.Floaty.ToggleSource",
                                       mojom::InvocationSource::kOsHotkey, 2);
   histogram_tester.ExpectUniqueSample("Glic.Instance.Floaty.OpenSource",
                                       mojom::InvocationSource::kOsHotkey, 1);
-}
-
-IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest, PercentOverlapRounding) {
-  base::HistogramTester histogram_tester;
-  auto* glic_service =
-      GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile());
-
-  // Ensure browser is visible for the IsBrowserVisible() check.
-  browser()->window()->Show();
-
-  gfx::Rect browser_bounds = BrowserView::GetBrowserViewForBrowser(browser())
-                                 ->GetWidget()
-                                 ->GetWindowBoundsInScreen();
-  gfx::Rect glic_bounds = browser_bounds;
-
-  // Shift the bounds so they overlap by exactly 46%.
-  // Without the fix: 10 * 46 / 100 = 4 (integer division) -> 40%
-  // With the fix: 10.0 * 46 / 100 = 4.6 -> round(4.6) = 5 -> 50%
-  int overlap_height = browser_bounds.height() * 46 / 100;
-  int y_offset = browser_bounds.height() - overlap_height;
-  glic_bounds.Offset(0, y_offset);
-
-  glic_service->metrics()->OnGlicWindowClose(browser(), std::nullopt,
-                                             glic_bounds);
-
-  histogram_tester.ExpectUniqueSample("Glic.PercentOverlapWithBrowser.OnClose",
-                                      PercentOverlap::k50, 1);
 }
 
 IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest, ZoomLevel_OnOpen) {
@@ -365,78 +332,6 @@ IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTest, ZoomLevel_OnOpen) {
   // Verify that Glic.ZoomLevel.OnOpen was logged with the correct value.
   histogram_tester.ExpectUniqueSample("Glic.ZoomLevel.OnOpen", 150, 1);
 }
-
-class GlicMetricsBrowserTestWithCaptureRegion : public GlicMetricsBrowserTest {
- public:
-  GlicMetricsBrowserTestWithCaptureRegion()
-      : GlicMetricsBrowserTest(
-            /*extra_enabled_features=*/{features::kGlicCaptureRegion},
-            /*extra_disabled_features=*/
-            {}) {}
-};
-
-#if !BUILDFLAG(IS_ANDROID)
-// TODO(crbug.com/500964398): This test is flaky.
-IN_PROC_BROWSER_TEST_F(GlicMetricsBrowserTestWithCaptureRegion,
-                       DISABLED_SelectionUsedFromController) {
-  // The feature is enabled in constructor of
-  // GlicMetricsBrowserTestWithCaptureRegion but let's double check.
-  ASSERT_TRUE(base::FeatureList::IsEnabled(features::kGlicCaptureRegion));
-
-  base::HistogramTester histogram_tester;
-  // Open the side panel
-  GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile())
-      ->ToggleUI(browser(), /*prevent_close=*/false,
-                 mojom::InvocationSource::kOsButton);
-
-  content::WebContents* web_contents =
-      browser()->tab_strip_model()->GetActiveWebContents();
-  // Simulate showing the overlay.
-  auto* controller =
-      SelectionOverlayController::FromTabWebContents(web_contents);
-  controller->Show(/*options=*/nullptr);
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return controller->state() == SelectionOverlayController::State::kOverlay;
-  }));
-  static_cast<selection::SelectionOverlayPageHandler*>(controller)
-      ->AdjustRegion(selection::SelectedRegion::New(
-          base::UnguessableToken::Create(),
-          selection::RegionShape::NewRect(gfx::RectF(10, 10, 10, 10))));
-
-  auto* tab_interface = tabs::TabInterface::GetFromContents(web_contents);
-  glic::GlicInstanceTracker tracker(browser()->profile());
-  tracker.TrackGlicInstanceWithTabHandle(tab_interface->GetHandle());
-  auto* host = tracker.GetHost();
-  CHECK(host);
-
-  host->instance_metrics_backwards_compatibility().OnUserInputSubmitted(
-      mojom::WebClientMode::kText);
-  histogram_tester.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.SelectionCount", 1, 1);
-
-  // Submit another input, should still log 1.
-  host->instance_metrics_backwards_compatibility().OnUserInputSubmitted(
-      mojom::WebClientMode::kText);
-  histogram_tester.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.SelectionCount", 1, 2);
-
-  // Close the overlay.
-  SelectionOverlayController::FromTabWebContents(web_contents)->Close();
-
-  // Submit another input, should log 0.
-  host->instance_metrics_backwards_compatibility().OnUserInputSubmitted(
-      mojom::WebClientMode::kText);
-  histogram_tester.ExpectBucketCount(
-      "Glic.Instance.InputSubmitted.SelectionCount", 0, 1);
-  histogram_tester.ExpectTotalCount(
-      "Glic.Instance.InputSubmitted.SelectionCount", 3);
-
-  // Close the side panel
-  GlicKeyedServiceFactory::GetGlicKeyedService(browser()->profile())
-      ->ToggleUI(browser(), /*prevent_close=*/false,
-                 mojom::InvocationSource::kOsButton);
-}
-#endif
 
 }  // namespace
 }  // namespace glic

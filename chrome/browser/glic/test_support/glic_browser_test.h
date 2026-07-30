@@ -19,6 +19,7 @@
 #include "base/test/gmock_expected_support.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
+#include "base/test/test_future.h"
 #include "base/types/expected.h"
 #include "base/types/expected_macros.h"
 #include "build/android_buildflags.h"
@@ -409,12 +410,66 @@ class GlicBrowserTestMixin : public T {
     glic_test_environment_.SetGlicFreUrlOverride(url);
   }
 
+  [[nodiscard]] TestResult<void> WaitForGlicClient(GlicInstance* instance) {
+    if (!instance) {
+      instance = GetOnlyGlicInstance();
+    }
+    return RunUntilEqual(
+        [&]() { return instance->host().IsWebClientConnected(); }, true,
+        "WaitForGlicClient: client client did not connect");
+  }
+
+  // Create an actor task for the instance.
+  [[nodiscard]] TestResult<actor::TaskId> CreateActorTask(
+      GlicInstance* instance = nullptr) {
+    auto instance_impl = GetInstanceImpl(instance);
+    base::test::TestFuture<
+        base::expected<int32_t, glic::mojom::CreateTaskErrorReason>>
+        create_task_future;
+    RETURN_IF_ERROR(WaitForGlicClient(instance));
+    instance_impl->GetActorTaskManager()
+        ->GetClientSessionForTesting()
+        ->CreateTask(actor::webui::mojom::TaskOptions::New(),
+                     create_task_future.GetCallback());
+    return create_task_future.Get()
+        .transform(
+            [](int32_t id) -> actor::TaskId { return actor::TaskId(id); })
+        .transform_error([](const auto& e) -> std::string {
+          std::stringstream ss;
+          ss << "Failed to create actor task: " << e;
+          return ss.str();
+        });
+  }
+
  protected:
   GlicTestEnvironment& glic_test_environment() {
     return glic_test_environment_;
   }
 
+  GlicInstanceImpl* GetInstanceImpl(GlicInstance* instance = nullptr) {
+    if (!instance) {
+      instance = GetOnlyGlicInstance();
+    }
+    return static_cast<GlicInstanceImpl*>(instance);
+  }
+
  private:
+  // Hide functionality not available on Android to discourage use.
+  // Callers can instead use, e.g. PlatformBrowserTest::browser(), or
+  // redeclare PlatformBrowserTest::browser as public on the test fixture.
+#if !BUILDFLAG(IS_ANDROID)
+  // Alternative: CreateAndActivateTab(GURL("about:blank"))
+  using T::AddBlankTabAndShow;
+  // Alternative: GetBrowser()
+  using T::browser;
+  // Alternative:
+  // chrome/browser/ui/browser_window/public/create_browser_window.h.
+  using T::CreateBrowser;
+  using T::CreateBrowserForApp;
+  using T::CreateBrowserForPopup;
+  using T::CreateIncognitoBrowser;
+  using T::OpenURLOffTheRecord;
+#endif
   GlicTestEnvironment glic_test_environment_;
   base::test::ScopedFeatureList scoped_feature_list_;
 #if defined(USE_MOCK_ACTIVATION_CONTROLLER)

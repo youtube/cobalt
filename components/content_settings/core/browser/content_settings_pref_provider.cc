@@ -229,7 +229,7 @@ bool PrefProvider::SetWebsiteSetting(
     const ContentSettingsPattern& primary_pattern,
     const ContentSettingsPattern& secondary_pattern,
     ContentSettingsType content_type,
-    base::Value&& in_value,
+    const base::Value& in_value,
     const ContentSettingConstraints& constraints) {
   DCHECK(CalledOnValidThread());
   DCHECK(prefs_);
@@ -278,16 +278,18 @@ bool PrefProvider::SetWebsiteSetting(
         primary_pattern, secondary_pattern, content_type, in_value, constraints,
         &session_model);
     if (new_value.has_value()) {
-      in_value = std::move(new_value).value();
       metadata.set_session_model(session_model);
-    } else {
-      return true;
+      GetPref(content_type)
+          ->SetWebsiteSetting(primary_pattern, secondary_pattern,
+                              std::move(new_value).value(),
+                              std::move(metadata));
     }
+    return true;
   }
 
   GetPref(content_type)
-      ->SetWebsiteSetting(primary_pattern, secondary_pattern,
-                          std::move(in_value), std::move(metadata));
+      ->SetWebsiteSetting(primary_pattern, secondary_pattern, in_value.Clone(),
+                          std::move(metadata));
   return true;
 }
 
@@ -592,13 +594,11 @@ void PrefProvider::MigrateLocalNetworkAccessExceptions() {
     return;
   }
 
-  // Migrate when the feature gets enabled the first time.
+  // Migrate only once, if the pref is not set yet.
   // All exceptions get migrated to LOCAL_NETWORK, but only ALLOW exceptions get
   // migrated to LOOPBACK_NETWORK, as the old prompt language was biased towards
   // LOCAL_NETWORK.
-  if (base::FeatureList::IsEnabled(
-          network::features::kLocalNetworkAccessChecksSplitPermissions) &&
-      !prefs_->GetBoolean(kLocalNetworkAccessMigrateExceptionsPref)) {
+  if (!prefs_->GetBoolean(kLocalNetworkAccessMigrateExceptionsPref)) {
     auto* old_pref = GetPref(ContentSettingsType::LOCAL_NETWORK_ACCESS);
     auto* local_pref = GetPref(ContentSettingsType::LOCAL_NETWORK);
     auto* loopback_pref = GetPref(ContentSettingsType::LOOPBACK_NETWORK);
@@ -619,22 +619,6 @@ void PrefProvider::MigrateLocalNetworkAccessExceptions() {
     it.reset();
     old_pref->ClearAllContentSettingsRules();
     prefs_->SetBoolean(kLocalNetworkAccessMigrateExceptionsPref, true);
-  }
-
-  // If the feature is turned off, then don't attempt to migrate back, as it is
-  // unclear in all cases of how to reconcile the differences. But make sure to
-  // clear the new exceptions and unset the migration pref so that when the
-  // feature gets turned back on we'll migrate again.
-  if (base::FeatureList::IsEnabled(
-          network::features::kLocalNetworkAccessChecks) &&
-      !base::FeatureList::IsEnabled(
-          network::features::kLocalNetworkAccessChecksSplitPermissions) &&
-      prefs_->GetBoolean(kLocalNetworkAccessMigrateExceptionsPref)) {
-    auto* local_pref = GetPref(ContentSettingsType::LOCAL_NETWORK);
-    local_pref->ClearAllContentSettingsRules();
-    auto* loopback_pref = GetPref(ContentSettingsType::LOOPBACK_NETWORK);
-    loopback_pref->ClearAllContentSettingsRules();
-    prefs_->SetBoolean(kLocalNetworkAccessMigrateExceptionsPref, false);
   }
 }
 #endif  // !BUILDFLAG(IS_IOS)

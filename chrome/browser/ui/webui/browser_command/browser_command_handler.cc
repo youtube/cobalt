@@ -404,13 +404,7 @@ void BrowserCommandHandler::OpenGlicSettings() {
       return;
     }
 
-    std::string ks_param;
-#if BUILDFLAG(IS_WIN)
-    ks_param = "chrome_ks_win";
-#elif BUILDFLAG(IS_MAC)
-    ks_param = "chrome_ks_mac";
-#endif
-    NavigateToURL(net::AppendOrReplaceQueryParameter(GURL(url), "p", ks_param),
+    NavigateToURL(glic::GetHelpCenterUrl(url),
                   WindowOpenDisposition::SINGLETON_TAB);
   }
 }
@@ -420,6 +414,7 @@ void BrowserCommandHandler::OpenSplitView() {
       tabs::TabInterface::MaybeGetFromContents(web_contents_);
   if (tab && !tab->IsSplit()) {
     chrome::NewSplitTab(tab->GetBrowserWindowInterface(),
+                        split_tabs::SplitTabLayout::kVertical,
                         split_tabs::SplitTabCreatedSource::kWhatsNew);
   }
 }

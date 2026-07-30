@@ -45,7 +45,6 @@ import org.chromium.ui.UiUtils;
 import org.chromium.ui.hierarchicalmenu.FlyoutController;
 import org.chromium.ui.hierarchicalmenu.FlyoutController.FlyoutHandler;
 import org.chromium.ui.hierarchicalmenu.HierarchicalMenuController;
-import org.chromium.ui.listmenu.ListMenuSubmenuItemProperties;
 import org.chromium.ui.listmenu.ListMenuUtils;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
@@ -383,7 +382,7 @@ public abstract class TabOverflowMenuCoordinator<T>
                     modelList, mCollaborationService.getCurrentUserRoleForGroup(collaborationId));
         }
         // Set up callbacks for submenu navigation.
-        mHierarchicalMenuController.setupCallbacksRecursively(
+        mHierarchicalMenuController.setupCallbacks(
                 /* headerModelList= */ null,
                 modelList,
                 () -> {
@@ -562,8 +561,9 @@ public abstract class TabOverflowMenuCoordinator<T>
 
     @Override
     public TabOverflowMenuHolder<T> createAndShowFlyoutPopup(
-            ListItem item, View view, Runnable dismissRunnable) {
-        ModelList modelList = getModelListSubtree(item);
+            List<ListItem> items, View view, Runnable dismissRunnable) {
+        ModelList modelList = new ModelList();
+        modelList.addAll(items);
 
         Rect anchorRect =
                 FlyoutController.calculateFlyoutAnchorRect(
@@ -600,13 +600,5 @@ public abstract class TabOverflowMenuCoordinator<T>
 
         menuHolder.show();
         return menuHolder;
-    }
-
-    private static ModelList getModelListSubtree(ListItem item) {
-        ModelList modelList = new ModelList();
-        for (ListItem listItem : item.model.get(ListMenuSubmenuItemProperties.SUBMENU_ITEMS)) {
-            modelList.add(listItem);
-        }
-        return modelList;
     }
 }

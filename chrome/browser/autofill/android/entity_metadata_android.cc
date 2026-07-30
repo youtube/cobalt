@@ -4,6 +4,7 @@
 
 #include "chrome/browser/autofill/android/entity_metadata_android.h"
 
+#include "base/android/jni_string.h"
 #include "components/autofill/android/main_autofill_jni_headers/EntityMetadata_jni.h"
 
 namespace autofill {
@@ -11,32 +12,33 @@ namespace autofill {
 base::android::ScopedJavaLocalRef<jobject> EntityMetadataAndroid::Create(
     JNIEnv* env,
     const EntityMetadataAndroid& metadata) {
-  base::Time::Exploded exploded;
-  metadata.date_modified.LocalExplode(&exploded);
-  return Java_EntityMetadata_Constructor(env, exploded.day_of_month,
-                                         exploded.month, exploded.year,
-                                         metadata.use_count);
+  return Java_EntityMetadata_Constructor(
+      env, metadata.guid, metadata.date_modified.InMillisecondsSinceUnixEpoch(),
+      metadata.use_count, metadata.use_date.InMillisecondsSinceUnixEpoch());
 }
 
 EntityMetadataAndroid EntityMetadataAndroid::FromJavaEntityMetadata(
     JNIEnv* env,
     const base::android::JavaRef<jobject>& j_metadata) {
-  base::Time::Exploded exploded = {};
-  exploded.day_of_month = Java_EntityMetadata_getModifiedDay(env, j_metadata);
-  exploded.month = Java_EntityMetadata_getModifiedMonth(env, j_metadata);
-  exploded.year = Java_EntityMetadata_getModifiedYear(env, j_metadata);
-  base::Time date_modified;
-  bool success = base::Time::FromLocalExploded(exploded, &date_modified);
-  DCHECK(success);
+  std::string guid = Java_EntityMetadata_getGuid(env, j_metadata);
+  base::Time date_modified = base::Time::FromMillisecondsSinceUnixEpoch(
+      Java_EntityMetadata_getModifiedTimeMillis(env, j_metadata));
+  int64_t use_count = Java_EntityMetadata_getUseCount(env, j_metadata);
+  base::Time use_date = base::Time::FromMillisecondsSinceUnixEpoch(
+      Java_EntityMetadata_getUseDateMillis(env, j_metadata));
 
-  int use_count = Java_EntityMetadata_getUseCount(env, j_metadata);
-
-  return EntityMetadataAndroid(date_modified, use_count);
+  return EntityMetadataAndroid(std::move(guid), date_modified, use_count,
+                               use_date);
 }
 
-EntityMetadataAndroid::EntityMetadataAndroid(base::Time date_modified,
-                                             int use_count)
-    : date_modified(date_modified), use_count(use_count) {}
+EntityMetadataAndroid::EntityMetadataAndroid(std::string guid,
+                                             base::Time date_modified,
+                                             int64_t use_count,
+                                             base::Time use_date)
+    : guid(std::move(guid)),
+      date_modified(date_modified),
+      use_count(use_count),
+      use_date(use_date) {}
 
 EntityMetadataAndroid::EntityMetadataAndroid(const EntityMetadataAndroid&) =
     default;

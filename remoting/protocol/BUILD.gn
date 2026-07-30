@@ -25,6 +25,7 @@ static_library("transport") {
 
 static_library("protocol") {
   sources = [
+    "audio_sample_info.h",
     "audio_stub.h",
     "auth_util.cc",
     "auth_util.h",
@@ -174,6 +175,8 @@ static_library("protocol") {
     "video_renderer.h",
     "video_stats_stub.h",
     "video_stub.h",
+    "webrtc_audio_fifo_sink_adapter.cc",
+    "webrtc_audio_fifo_sink_adapter.h",
     "webrtc_audio_module.cc",
     "webrtc_audio_module.h",
     "webrtc_audio_sink_adapter.cc",
@@ -296,6 +299,8 @@ static_library("test_support") {
       "fake_connection_to_client.h",
       "fake_desktop_capturer.cc",
       "fake_desktop_capturer.h",
+      "fake_webrtc_audio_classes.cc",
+      "fake_webrtc_audio_classes.h",
     ]
   }
 
@@ -355,6 +360,7 @@ source_set("unit_tests") {
   if (enable_remoting_host) {
     sources += [
       "connection_unittest.cc",
+      "webrtc_audio_fifo_sink_adapter_unittest.cc",
       "webrtc_audio_source_adapter_unittest.cc",
       "webrtc_frame_scheduler_unittest.cc",
       "webrtc_transport_unittest.cc",

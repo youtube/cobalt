@@ -174,7 +174,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
       net::SecureDnsMode secure_dns_mode,
       const net::DnsOverHttpsConfig& dns_over_https_config,
       bool additional_dns_types_enabled,
-      const std::vector<net::IPEndPoint>& fallback_doh_nameservers) override;
+      const std::vector<net::IPEndPoint>& fallback_doh_nameservers,
+      bool insecure_dns_via_platform_apis_enabled) override;
   void DisableQuic() override;
   void SetUpHttpAuth(
       mojom::HttpAuthStaticParamsPtr http_auth_static_params) override;
@@ -184,7 +185,8 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkService
                            const std::vector<url::Origin>& origins) override;
   void SetMaxConnectionsPerProxyChain(
       std::optional<uint32_t> max_connection_normal,
-      std::optional<uint32_t> max_connection_websocket) override;
+      std::optional<uint32_t> max_connection_websocket,
+      bool allow_size_randomization) override;
   void GetNetworkChangeManager(
       mojo::PendingReceiver<mojom::NetworkChangeManager> receiver) override;
   void GetNetworkQualityEstimatorManager(

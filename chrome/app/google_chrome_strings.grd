@@ -2554,20 +2554,8 @@ Google Chrome is unable to recover your settings.
         <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_V2" desc="Title of a screen that lets the user choose which profile to use when browsing the web. *If the EN source doesn't translate well in your language, an alternative string 'Which Chrome profile would you like to use?' may be used instead">
           Who's using Chrome?
         </message>
-        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_TITLE_KEEP_EVERYTHING_IN_CHROME" desc="Profile picker main view title.">
-          Keep everything in Chrome
-        </message>
         <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE" desc="Profile picker main view subtitle">
           With Chrome profiles, you can separate all your Chrome stuff. Create profiles for friends and family, or split between work and fun.
-        </message>
-        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_KEEP_WORK_AND_LIFE_SEPARATE" desc="Profile picker main view subtitle.">
-          Chrome profiles let you keep personal browsing and work apart. Add a new profile now.
-        </message>
-        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_GOT_ANOTHER_GOOGLE_ACCOUNT" desc="Profile picker main view subtitle.">
-          Chrome profiles help you separate different parts of your life. Add a new profile now.
-        </message>
-        <message name="IDS_PROFILE_PICKER_MAIN_VIEW_SUBTITLE_KEEP_TASKS_SEPARATE" desc="Profile picker main view subtitle.">
-          Add a new Chrome profile to keep bookmarks, passwords, and settings apart.
         </message>
         <message name="IDS_PROFILE_PICKER_PROFILE_CREATION_FLOW_PROFILE_TYPE_CHOICE_TITLE" desc="Profile picker profile type choice title">
           Set up your new Chrome profile
@@ -3035,7 +3023,7 @@ Google Chrome is unable to recover your settings.
       <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is closed." formatter_data="android_java">
         Open Gemini in Chrome
       </message>
-      <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is open.">
+      <message name="IDS_GLIC_TAB_STRIP_BUTTON_TOOLTIP_CLOSE" desc="This is the tooltip shown when hovering over the Gemini entry button in the tab strip while the Gemini window is open." formatter_data="android_java">
         Close Gemini in Chrome
       </message>
 
@@ -3124,11 +3112,6 @@ Google Chrome is unable to recover your settings.
       <!-- Glic button and tab strip context menu -->
       <message name="IDS_GLIC_CONTEXTUAL_CUEING_ANNOUNCEMENT" desc="Polite voice over announcement that happens when a contextual nudge is shown next to the Gemini button.">
         To open Gemini in Chrome, press <ph name="GLOBAL_HOTKEY">$1<ex>⌘+G</ex></ph>
-      </message>
-
-      <!-- Variant of the label on the Gemini button in the tabstrip-->
-      <message name="IDS_GLIC_BUTTON_ENTRYPOINT_ASK_BROWSER_LABEL" desc="Label on the button used to open Gemini in Chrome.">
-        Ask Chrome
       </message>
 
       <!-- UNO Promo strings for extensions -->
@@ -3291,8 +3274,15 @@ Google Chrome is unable to recover your settings.
 
       <!-- JS optimizations bubble -->
       <message name="IDS_JS_OPTIMIZATION_BUBBLE_BODY_NON_POLICY_BODY" desc="Body text for the JavaScript optimization bubble when disabled for other reasons.">
-        Chrome turns off JavaScript optimization when you visit a site for the first time.&#xA;
+        For security, Chrome turns off JavaScript optimization when you visit a site for the first time.&#xA;
 If this page isn’t working as expected, try allowing optimization.
+      </message>
+      <!-- Send Tab To Self -->
+      <message name="IDS_SEND_TAB_TO_SELF_SIGN_IN_PROMO_TITLE" desc="Title of the send-tab-to-self sign-in promo bubble.">
+        Sign in to Chrome
+      </message>
+      <message name="IDS_SEND_TAB_TO_SELF_SIGN_IN_PROMO_BUTTON_LABEL" desc="Label of the sign-in button in the send-tab-to-self sign-in promo bubble.">
+        Sign in to Chrome
       </message>
     </messages>
   </release>

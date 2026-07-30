@@ -50,18 +50,22 @@ constexpr base::FeatureParam<AddContextButtonVariant>::Option
 // Configures the placement of the "Add Context" button in the Omnibox popup.
 const base::FeatureParam<AddContextButtonVariant>
     kWebUIOmniboxAimPopupAddContextButtonVariantParam{
-        &internal::kWebUIOmniboxAimPopup, "Omnibox_AddContextButtonVariant",
+        &internal::kWebUIOmniboxSimplification, "Omnibox_AddContextButtonVariant",
         AddContextButtonVariant::kBelowResults,
         &kAddContextButtonVariantOptions};
 // If true, hides the "Add Context" button in the "classic" popup.
 const base::FeatureParam<bool> kHideClassicContextButton{
-    &internal::kWebUIOmniboxAimPopup, "Omnibox_HideClassicContextButton",
-    false};
+    &internal::kWebUIOmniboxSimplification, "Omnibox_HideClassicContextButton",
+    true};
 
 // When enabled, clicking aim button in omnibox always navigates directly to
 // g.com/aimode, e.g. instead of opening the AI Mode popup
 // (`omnibox::internal::kWebUIOmniboxAimPopup`).
 BASE_FEATURE(kAiModeEntryPointAlwaysNavigates, DISABLED);
+// If enabled, pressing space when the AI mode button has fake focus will
+// insert a space into the omnibox and restore focus to the omnibox instead of
+// interacting with the button.
+BASE_FEATURE(kAiModeSpaceDoesNotActivate, DISABLED);
 // If enabled, disables caret color animation for the WebUI Omnibox AIM popup.
 BASE_FEATURE(kWebUIOmniboxDisableCaretColorAnimation, ENABLED);
 // If enabled, there will no longer be animation when opening the WebUI Omnibox
@@ -133,7 +137,8 @@ omnibox::NTPComposeboxConfig GetNTPComposeboxConfig() {
       "heic");
 
   auto* attachment_upload = composebox->mutable_attachment_upload();
-  attachment_upload->set_max_size_bytes(200000000);
+  // File upload size limit: 100 MiB.
+  attachment_upload->set_max_size_bytes(100 * 1024 * 1024);
   attachment_upload->set_mime_types_allowed(".pdf,application/pdf");
 
   composebox->set_input_placeholder_text(
@@ -322,9 +327,9 @@ const base::FeatureParam<bool> kShowContextMenuTabPreviews(
     "Omnibox_ShowContextMenuTabPreviews",
     true);
 const base::FeatureParam<bool> kShowLensSearchChip(
-    &internal::kWebUIOmniboxAimPopup,
+    &internal::kWebUIOmniboxSimplification,
     "Omnibox_ShowLensSearchChip",
-    true);
+    false);
 const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick(
     &internal::kWebUIOmniboxAimPopup,
     "Omnibox_AddTabUploadDelayOnRecentTabChipClick",
@@ -332,7 +337,7 @@ const base::FeatureParam<bool> kAddTabUploadDelayOnRecentTabChipClick(
 const base::FeatureParam<bool> kShowRecentTabChip(
     &internal::kWebUIOmniboxAimPopup,
     "Omnibox_ShowRecentTabChip",
-    true);
+    false);
 const base::FeatureParam<bool> kShowSmartCompose(
     &internal::kWebUIOmniboxAimPopup,
     "Omnibox_ShowSmartCompose",
@@ -355,12 +360,9 @@ const base::FeatureParam<bool> kContextButtonHasBackground{
 const base::FeatureParam<bool> kContextButtonShapeIsOblong{
     &internal::kWebUIOmniboxSimplification,
     "Omnibox_ContextButtonShapeIsOblong", false};
-const base::FeatureParam<bool> kContextButtonShowAskAboutTabsLabel{
+const base::FeatureParam<bool> kContextButtonShowSuggestionLabel{
     &internal::kWebUIOmniboxSimplification,
-    "Omnibox_ContextButtonShowAskAboutTabsLabel", false};
-const base::FeatureParam<bool> kContextMenuShowAskAboutTabsAction{
-    &internal::kWebUIOmniboxSimplification,
-    "Omnibox_ContextMenuShowAskAboutTabsAction", false};
+    "Omnibox_ContextButtonShowSuggestionLabel", false};
 
 FeatureConfig::FeatureConfig() : config(GetNTPComposeboxConfig()) {}
 

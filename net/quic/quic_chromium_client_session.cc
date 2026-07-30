@@ -52,6 +52,7 @@
 #include "net/log/net_log_event_type.h"
 #include "net/log/net_log_source_type.h"
 #include "net/log/net_log_values.h"
+#include "net/net_buildflags.h"
 #include "net/quic/address_utils.h"
 #include "net/quic/crypto/proof_verifier_chromium.h"
 #include "net/quic/quic_chromium_connection_helper.h"
@@ -1238,7 +1239,7 @@ void QuicChromiumClientSession::OnHttp3GoAway(uint64_t id) {
 
   PerformActionOnActiveStreams([id](quic::QuicStream* stream) {
     if (stream->id() >= id) {
-      static_cast<QuicChromiumClientStream*>(stream)->OnError(
+      static_cast<QuicChromiumClientStreamBase*>(stream)->OnError(
           ERR_QUIC_GOAWAY_REQUEST_CAN_BE_RETRIED);
     }
     return true;
@@ -1429,6 +1430,10 @@ bool QuicChromiumClientSession::WasConnectionEverUsed() {
   return stats.bytes_sent > 0 || stats.bytes_received > 0;
 }
 
+bool QuicChromiumClientSession::was_ever_used_to_create_streams() const {
+  return num_total_streams_ > 0;
+}
+
 QuicChromiumClientStream*
 QuicChromiumClientSession::CreateOutgoingBidirectionalStream() {
   NOTREACHED() << "CreateOutgoingReliableStreamImpl should be called directly";
@@ -1491,6 +1496,9 @@ bool QuicChromiumClientSession::GetSSLInfo(SSLInfo* ssl_info) const {
 
   ssl_info->signed_certificate_timestamps = cert_verify_result_->scts;
   ssl_info->ct_policy_compliance = cert_verify_result_->policy_compliance;
+#if BUILDFLAG(CHROME_ROOT_STORE_SUPPORTED)
+  ssl_info->crs_root_id = cert_verify_result_->crs_root_id;
+#endif
 
   DCHECK(connection()->version().IsIetfQuic());
   const auto& crypto_params = crypto_stream_->crypto_negotiated_params();
@@ -1623,34 +1631,6 @@ QuicChromiumClientStream* QuicChromiumClientSession::CreateIncomingStream(
   return CreateIncomingReliableStreamImpl(id, traffic_annotation);
 }
 
-QuicChromiumClientStream* QuicChromiumClientSession::CreateIncomingStream(
-    quic::PendingStream* pending) {
-  net::NetworkTrafficAnnotationTag traffic_annotation =
-      net::DefineNetworkTrafficAnnotation(
-          "quic_chromium_incoming_pending_session", R"(
-      semantics {
-        sender: "Quic Chromium Client Session Pending Stream"
-        description:
-          "When a web server needs to push a response to a client, an incoming "
-          "stream is created to reply to the client with pushed message instead "
-          "of a message from the network."
-        trigger:
-          "A request by a server to push a response to the client."
-        data: "This stream is only used to receive data from the server."
-        destination: OTHER
-        destination_other:
-          "The web server pushing the response."
-      }
-      policy {
-        cookies_allowed: NO
-        setting: "This feature cannot be disabled in settings."
-        policy_exception_justification:
-          "Essential for network access."
-      }
-  )");
-  return CreateIncomingReliableStreamImpl(pending, traffic_annotation);
-}
-
 QuicChromiumClientStream*
 QuicChromiumClientSession::CreateIncomingReliableStreamImpl(
     quic::QuicStreamId id,
@@ -1660,19 +1640,6 @@ QuicChromiumClientSession::CreateIncomingReliableStreamImpl(
   QuicChromiumClientStream* stream = new QuicChromiumClientStream(
       id, this, server_id(), quic::READ_UNIDIRECTIONAL, net_log_,
       traffic_annotation, /*max_stream_limit_pending_delay=*/std::nullopt);
-  ActivateStream(base::WrapUnique(stream));
-  ++num_total_streams_;
-  return stream;
-}
-
-QuicChromiumClientStream*
-QuicChromiumClientSession::CreateIncomingReliableStreamImpl(
-    quic::PendingStream* pending,
-    const NetworkTrafficAnnotationTag& traffic_annotation) {
-  DCHECK(connection()->connected());
-
-  QuicChromiumClientStream* stream = new QuicChromiumClientStream(
-      pending, this, server_id(), net_log_, traffic_annotation);
   ActivateStream(base::WrapUnique(stream));
   ++num_total_streams_;
   return stream;
@@ -3277,7 +3244,7 @@ void QuicChromiumClientSession::CloseSessionOnErrorLater(
 
 void QuicChromiumClientSession::NotifyAllStreamsOfError(int net_error) {
   PerformActionOnActiveStreams([net_error](quic::QuicStream* stream) {
-    static_cast<QuicChromiumClientStream*>(stream)->OnError(net_error);
+    static_cast<QuicChromiumClientStreamBase*>(stream)->OnError(net_error);
     return true;
   });
 }
@@ -3723,7 +3690,7 @@ bool QuicChromiumClientSession::CheckIdleTimeExceedsIdleMigrationPeriod() {
 
   HistogramAndLogMigrationFailure(MIGRATION_STATUS_IDLE_MIGRATION_TIMEOUT,
                                   connection_id(),
-                                  "Ilde migration period exceeded");
+                                  "Idle migration period exceeded");
   CloseSessionOnErrorLater(ERR_NETWORK_CHANGED, quic::QUIC_NETWORK_IDLE_TIMEOUT,
                            quic::ConnectionCloseBehavior::SILENT_CLOSE);
   return true;
@@ -3733,13 +3700,12 @@ void QuicChromiumClientSession::ResetNonMigratableStreams() {
   // TODO(zhongyi): may close non-migratable draining streams as well to avoid
   // sending additional data on alternate networks.
   PerformActionOnActiveStreams([](quic::QuicStream* stream) {
-    QuicChromiumClientStream* chrome_stream =
-        static_cast<QuicChromiumClientStream*>(stream);
-    if (!chrome_stream->can_migrate_to_cellular_network()) {
+    if (!static_cast<QuicChromiumClientStreamBase*>(stream)
+             ->CanMigrateToCellularNetwork()) {
       // Close the stream in both direction by resetting the stream.
       // TODO(zhongyi): use a different error code to reset streams for
       // connection migration.
-      chrome_stream->Reset(quic::QUIC_STREAM_CANCELLED);
+      stream->Reset(quic::QUIC_STREAM_CANCELLED);
     }
     return true;
   });

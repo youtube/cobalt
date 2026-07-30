@@ -39,6 +39,7 @@ static_library("safe_browsing") {
     "//chrome/app:generated_resources",
     "//chrome/browser:browser_features",
     "//chrome/browser:browser_process",
+    "//chrome/browser:file_util_service",
     "//chrome/browser/enterprise",
     "//chrome/browser/enterprise/connectors/reporting",
     "//chrome/browser/google",
@@ -115,10 +116,17 @@ static_library("safe_browsing") {
   if (is_android) {
     deps += [
       "//chrome/browser/password_manager/android:utils",
+      "//chrome/browser/ui/android/safe_browsing",
       "//chrome/browser/ui/android/tab_model",
       "//components/safe_browsing/android:safe_browsing_api_handler",
       "//components/safe_browsing/android:safe_browsing_api_handler_util",
     ]
+
+    # android/safe_browsing:safe_browsing includes
+    # chrome/browser/safe_browsing/android/password_reuse_controller_android.h
+    # (password_reuse_dialog_view_android.cc) which is owned by this target.
+    allow_circular_includes_from +=
+        [ "//chrome/browser/ui/android/safe_browsing:safe_browsing" ]
   }
 
   if (!is_android) {

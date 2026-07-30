@@ -5,6 +5,9 @@
 #ifndef CC_TREES_CLIENT_LAYER_TREE_HOST_IMPL_H_
 #define CC_TREES_CLIENT_LAYER_TREE_HOST_IMPL_H_
 
+#include <memory>
+#include <vector>
+
 #include "cc/cc_export.h"
 #include "cc/trees/layer_tree_host_impl.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
@@ -24,7 +27,7 @@ class CC_EXPORT ClientLayerTreeHostImpl : public LayerTreeHostImpl {
       RasterDarkModeFilter* dark_mode_filter,
       int id,
       scoped_refptr<base::SequencedTaskRunner> image_worker_task_runner,
-      LayerTreeHostSchedulingClient* scheduling_client);
+      LayerTreeHostSchedulingDelegate* scheduling_delegate);
 
   using LayerTreeHostImpl::LayerTreeHostImpl;
   ~ClientLayerTreeHostImpl() override;
@@ -52,6 +55,7 @@ class CC_EXPORT ClientLayerTreeHostImpl : public LayerTreeHostImpl {
   virtual void SetTreePriority(TreePriority priority);
   virtual void CreatePendingTree();
 
+  void AnimatePendingTreeAfterCommit();
   void RecordGpuRasterizationHistogram();
 
  private:
@@ -61,7 +65,6 @@ class CC_EXPORT ClientLayerTreeHostImpl : public LayerTreeHostImpl {
       PaintImageIdFlatSet* dirty_paint_worklet_ids) const;
   void OnPaintWorkletResultsReady(PaintWorkletJobMap results);
   void NotifyPendingTreeFullyPainted();
-  void AnimatePendingTreeAfterCommit();
 };
 
 }  // namespace cc

@@ -42,12 +42,12 @@ const ICON_TYPE_TO_NAME: {[id: number]: string} = {
 
 function recordVoiceSearchAction(voiceSearchState: VoiceSearchState) {
   // Safety return statement in rare case chrome metrics is not available.
-  if (!chrome.metricsPrivate) {
+  if (!chrome.histograms) {
     return;
   }
 
-  chrome.metricsPrivate.recordEnumerationValue(
-      'ContextualTasks.VoiceSearch.State', voiceSearchState,
+  chrome.histograms.recordEnumerationValue(
+      'ContextualTasks.VoiceSearch.StateV2', voiceSearchState,
       VoiceSearchState.MAX_VALUE + 1);
 }
 
@@ -115,6 +115,10 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
         type: Boolean,
         value: loadTimeData.getBoolean('composeboxShowContextMenu'),
       },
+      voiceSearchCoherenceEnabled_: {
+        type: Boolean,
+        reflect: true,
+      },
       zeroStateSuggestions_: {type: Object},
       inputState_: {
         type: Object,
@@ -144,6 +148,7 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
       lensButtonDisabled_: {type: Boolean},
       isCanvasQuerySubmitted: {type: Boolean},
       caretAnimationsEnabled_: {type: Boolean},
+      usePecApi_: {type: Boolean},
       energyEffectEnabled_: {type: Boolean, reflect: true},
       energyEffectAnimationEnabled_: {type: Boolean, reflect: true},
     };
@@ -175,6 +180,8 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   protected accessor isComposeboxFocused_: boolean = false;
   protected accessor showContextMenu_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenu');
+  protected accessor voiceSearchCoherenceEnabled_: boolean =
+      loadTimeData.getBoolean('voiceSearchCoherenceComposeboxesEnabled');
   protected accessor inputState_: InputState|null = null;
   protected accessor showSuggestionsActivityLink_: boolean = false;
   protected accessor inVoiceSearchMode_: boolean = false;
@@ -201,6 +208,8 @@ export class ContextualTasksComposeboxElement extends I18nMixinLit
   private forceSkipSubmitGlifAnimation_: boolean = false;
   protected accessor caretAnimationsEnabled_: boolean =
       loadTimeData.getBoolean('caretAnimationEnabled');
+  protected accessor usePecApi_: boolean =
+      loadTimeData.getBoolean('contextualMenuUsePecApi');
   protected accessor energyEffectEnabled_: boolean =
       loadTimeData.getBoolean('energyEffectEnabled');
   // The use of energyEffectEnabled to set energyEffectAnimationEnabled_ is

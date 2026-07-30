@@ -226,19 +226,6 @@ void DownloadManagerService::OpenDownload(download::DownloadItem* download,
   Java_DownloadManagerService_openDownloadItem(env, java_ref_, j_item, source);
 }
 
-void DownloadManagerService::HandleOMADownload(download::DownloadItem* download,
-                                               int64_t system_download_id) {
-  if (java_ref_.is_null())
-    return;
-
-  JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> j_item =
-      JNI_DownloadManagerService_CreateJavaDownloadItem(env, download);
-
-  Java_DownloadManagerService_handleOMADownload(env, java_ref_, j_item,
-                                                system_download_id);
-}
-
 void DownloadManagerService::OpenDownload(JNIEnv* env,
                                           const std::string& download_guid,
                                           const JavaRef<jobject>& j_profile_key,
@@ -396,11 +383,17 @@ void DownloadManagerService::OnDownloadsInitialized(
     download::SimpleDownloadManagerCoordinator* coordinator,
     bool active_downloads_only) {
   if (active_downloads_only) {
-    OnPendingDownloadsLoaded();
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(&DownloadManagerService::OnPendingDownloadsLoaded,
+                       base::Unretained(this)));
     return;
   }
   is_manager_initialized_ = true;
-  OnPendingDownloadsLoaded();
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE,
+      base::BindOnce(&DownloadManagerService::OnPendingDownloadsLoaded,
+                     base::Unretained(this)));
   while (!profiles_with_pending_get_downloads_actions_.empty()) {
     ProfileKey* profile_key =
         profiles_with_pending_get_downloads_actions_.back();
@@ -563,9 +556,9 @@ void DownloadManagerService::OnPendingDownloadsLoaded() {
   auto result =
       std::ranges::find_if_not(coordinators_, &ProfileKey::IsOffTheRecord,
                                &Coordinators::value_type::first);
-  CHECK(result != coordinators_.end())
-      << "A non-OffTheRecord coordinator should exist when "
-         "OnPendingDownloadsLoaded is triggered.";
+  if (result == coordinators_.end()) {
+    return;
+  }
   ProfileKey* profile_key = result->first;
 
   // Kick-off the auto-resumption handler.

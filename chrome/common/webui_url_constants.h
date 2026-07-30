@@ -180,6 +180,10 @@ inline constexpr char kChromeUIGlicUntrustedHost[] = "glic";
 inline constexpr char kChromeUIGlicUntrustedURL[] = "chrome-untrusted://glic/";
 inline constexpr char kChromeUIGlicSelectionOverlayURL[] =
     "chrome-untrusted://glic/selection-overlay/";
+inline constexpr char kChromeUIGlicExperimentalOptInHost[] =
+    "glic-experimental-opt-in";
+inline constexpr char kChromeUIGlicExperimentalOptInURL[] =
+    "chrome://glic-experimental-opt-in";
 inline constexpr char kChromeUIHangUIHost[] = "uithreadhang";
 inline constexpr char kChromeUIHelpHost[] = "help";
 inline constexpr char kChromeUIHelpURL[] = "chrome://help/";
@@ -413,6 +417,8 @@ inline constexpr char kChromeUILensUntrustedSidePanelURL[] =
 inline constexpr char kChromeUILensOverlayHost[] = "lens-overlay";
 inline constexpr char kChromeUILensOverlayUntrustedURL[] =
     "chrome-untrusted://lens-overlay/";
+inline constexpr char kChromeUIMultistepFilterInternalsHost[] =
+    "multistep-filter-internals";
 inline constexpr char kChromeUINearbyInternalsHost[] = "nearby-internals";
 inline constexpr char kChromeUINearbyShareHost[] = "nearby";
 inline constexpr char kChromeUINearbyShareURL[] = "chrome://nearby/";
@@ -490,6 +496,8 @@ inline constexpr char kChromeUIIntroDefaultBrowserURL[] =
     "chrome://intro/default-browser";
 inline constexpr char kChromeUIIntroSignInCelebrationSubPage[] =
     "sign-in-celebration";
+inline constexpr char kChromeUIIntroSignInCelebrationURL[] =
+    "chrome://intro/sign-in-celebration";
 inline constexpr char kChromeUIIntroHost[] = "intro";
 inline constexpr char kChromeUIIntroURL[] = "chrome://intro";
 inline constexpr char kChromeUIManagedUserProfileNoticeHost[] =

@@ -430,7 +430,7 @@ void AXObject::SetAncestorsHaveDirtyDescendants() {
   AXObject* ancestor = this;
 
   while (true) {
-    ancestor = ancestor->ParentObject();
+    ancestor = ancestor->ParentObjectIfPresent();
     if (!ancestor) {
       break;
     }
@@ -445,15 +445,15 @@ void AXObject::SetAncestorsHaveDirtyDescendants() {
     if (!ancestor->CachedIsIncludedInTree()) {
       continue;
     }
-    if (ancestor->has_dirty_descendants_) {
-      break;
+    if (!ancestor->has_dirty_descendants_) {
+      ancestor->SetHasDirtyDescendants(true);
     }
-    ancestor->SetHasDirtyDescendants(true);
   }
 #if AX_FAIL_FAST_BUILD()
   // Walk up the tree looking for dirty bits that failed to be set. If any
   // are found, this is a bug.
-  for (auto* obj = ParentObject(); obj; obj = obj->ParentObject()) {
+  for (auto* obj = ParentObjectIfPresent(); obj;
+       obj = obj->ParentObjectIfPresent()) {
     if (obj->CachedIsIncludedInTree() && !obj->has_dirty_descendants_) {
       NOTREACHED() << "Failed to set dirty bits on some ancestors:\n"
                    << ParentChainToStringHelper(this);
@@ -3674,11 +3674,8 @@ void AXObject::UpdateCachedAttributeValuesIfNeeded(
         // Defers a ChildrenChanged() on the first included ancestor.
         // Must defer it, otherwise it can cause reentry into
         // UpdateCachedAttributeValuesIfNeeded() on |this|.
-        // During deferred event processing, ChildrenChangedOnAncestorOf() can
-        // immediately update an ancestor's children and detach |this| before
-        // this cached-value update finishes.
-        AXObjectCache().ChildrenChangedOnAncestorOf(
-            this, /*allow_immediate_update=*/false);
+        // ParentObjectUnignored()->SetNeedsToUpdateChildren();
+        AXObjectCache().ChildrenChangedOnAncestorOf(this);
       }
     } else if (included_in_tree_changed && AXObjectCache().IsUpdatingTree()) {
       // In some cases changes to inherited properties can cause an object

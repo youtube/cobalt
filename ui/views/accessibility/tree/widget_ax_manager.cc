@@ -34,9 +34,6 @@ bool ShouldSerializeEvent(Event event_type) {
     case Event::kAlert:
     case Event::kControlsChanged:
     case Event::kEndOfTest:
-    // TODO(crbug.com/40672441): kFocus is only needed here for tests while
-    // are migrating to ViewsAX.
-    case Event::kFocus:
     case Event::kTooltipClosed:
     case Event::kTooltipOpened:
     case Event::kWindowActivated:
@@ -56,6 +53,7 @@ bool ShouldSerializeEvent(Event event_type) {
     case Event::kChildrenChanged:
     case Event::kEnabledChanged:
     case Event::kExpandedChanged:
+    case Event::kFocus:
     case Event::kLiveRegionChanged:
     case Event::kSelection:
     case Event::kSelectedChildrenChanged:
@@ -90,7 +88,6 @@ bool ShouldSerializeEvent(Event event_type) {
   // being addressed incrementally, one event at a time.
   switch (event_type) {
     case Event::kFocusAfterMenuClose:
-    case Event::kFocusContext:
     case Event::kMenuEnd:
     case Event::kMenuPopupEnd:
     case Event::kMenuPopupStart:
@@ -169,6 +166,19 @@ void WidgetAXManager::OnEvent(ViewAccessibility& view_ax,
   }
 }
 
+void WidgetAXManager::OnTransientFocusRequested(ViewAccessibility& view_ax) {
+  if (!is_enabled_) {
+    return;
+  }
+
+  CHECK(tree_source_);
+  pending_data_updates_.insert(view_ax.GetUniqueId());
+  tree_source_->SetTransientFocusIdForNextSerialization(view_ax.GetUniqueId());
+  auto clear_transient_focus = absl::MakeCleanup(
+      [this] { tree_source_->ClearTransientFocusIdForNextSerialization(); });
+  SendPendingUpdate();
+}
+
 void WidgetAXManager::OnDataChanged(ViewAccessibility& view_ax) {
   if (!is_enabled_) {
     return;
@@ -235,7 +245,7 @@ void WidgetAXManager::OnWidgetCreated(Widget* widget) {
 }
 
 void WidgetAXManager::OnWidgetDestroyed(Widget* widget) {
-  DCHECK_EQ(widget_, widget);
+  CHECK_EQ(widget_, widget);
   widget_observation_.Reset();
 }
 
@@ -688,15 +698,13 @@ void WidgetAXManager::SendPendingUpdate() {
     return;
   }
 
-#if DCHECK_IS_ON()
   for (const auto& update : tree_updates) {
     for (const auto& node : update.nodes) {
-      DCHECK(cache_->Get(node.id))
+      CHECK(cache_->Get(node.id))
           << "Unknown serialized node. All nodes we serialize should be known "
              "to the WidgetAXManager.";
     }
   }
-#endif  // DCHECK_IS_ON()
 
   maybe_updates_and_events.emplace();
   maybe_updates_and_events->ax_tree_id = ax_tree_id_;

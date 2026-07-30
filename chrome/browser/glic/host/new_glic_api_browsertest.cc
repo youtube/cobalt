@@ -131,6 +131,10 @@ std::vector<std::string> GetTestSuiteNames() {
       "NewGlicApiTestWithPixelOutput",
       "NewGlicApiTestWithGeminiActOnWebPolicy",
       "NewGlicApiMultiProfileTest",
+      "NewGlicApiTestWithDefaultTabContextDisabled",
+      "NewGlicApiTestWithDefaultTabContextEnabled",
+      "NewGlicApiTestWithWebActuationSettingDisabled",
+      "NewGlicApiTestWithWebActuationSettingEnabled",
 #if !BUILDFLAG(IS_ANDROID)
       "NewGlicApiTestWithSkills",
 #endif
@@ -241,8 +245,8 @@ class NewGlicApiTest : public GlicApiBrowserTest,
 
 #if !BUILDFLAG(IS_ANDROID)
   void CloseMainBrowserWithIncognitoKeepAlive() {
-    CreateIncognitoBrowser();
-    CloseBrowserAsynchronously(browser());
+    PlatformBrowserTest::CreateIncognitoBrowser();
+    CloseBrowserAsynchronously(GetBrowserWindowInterface());
   }
 #endif
 
@@ -260,7 +264,7 @@ class NewGlicApiMultiProfileTest : public NewGlicApiTest {
         profile_manager->GenerateNextProfileDirectoryPath();
     Profile& new_profile =
         profiles::testing::CreateProfileSync(profile_manager, new_path);
-    return CreateBrowser(&new_profile);
+    return PlatformBrowserTest::CreateBrowser(&new_profile);
 #else
     NOTREACHED();
 #endif
@@ -298,6 +302,94 @@ class NewGlicApiTestWithPixelOutput : public NewGlicApiTest {
     EnablePixelOutput(2.0f);
   }
 };
+
+class NewGlicApiTestWithDefaultTabContextDisabled : public NewGlicApiTest {
+ public:
+  NewGlicApiTestWithDefaultTabContextDisabled() {
+    feature_list_.InitWithFeatures({},
+                                   {features::kGlicDefaultTabContextSetting});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithDefaultTabContextDisabled,
+                       testDefaultTabContextApiIsUndefinedWhenFeatureDisabled) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+class NewGlicApiTestWithDefaultTabContextEnabled : public NewGlicApiTest {
+ public:
+  NewGlicApiTestWithDefaultTabContextEnabled() {
+    feature_list_.InitWithFeatures({features::kGlicDefaultTabContextSetting},
+                                   {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithDefaultTabContextEnabled,
+                       testGetDefaultTabContextPermissionState) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+  GetProfile()->GetPrefs()->SetBoolean(prefs::kGlicDefaultTabContextEnabled,
+                                       false);
+  ContinueJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithDefaultTabContextEnabled,
+                       testPinOnBind) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithDefaultTabContextEnabled,
+                       testNoPinOnBindWhenSettingOff) {
+  GetProfile()->GetPrefs()->SetBoolean(prefs::kGlicDefaultTabContextEnabled,
+                                       false);
+
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
+
+class NewGlicApiTestWithWebActuationSettingEnabled : public NewGlicApiTest {
+ public:
+  NewGlicApiTestWithWebActuationSettingEnabled() {
+    feature_list_.InitWithFeatures({features::kGlicWebActuationSetting}, {});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithWebActuationSettingEnabled,
+                       testGetWebActuationSetting) {
+  service()->enabling().SetUserEnabledActuationOnWeb(false);
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+
+  service()->enabling().SetUserEnabledActuationOnWeb(true);
+  ContinueJsTest();
+}
+
+class NewGlicApiTestWithWebActuationSettingDisabled : public NewGlicApiTest {
+ public:
+  NewGlicApiTestWithWebActuationSettingDisabled() {
+    feature_list_.InitWithFeatures({}, {features::kGlicWebActuationSetting});
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithWebActuationSettingDisabled,
+                       testWebActuationSettingIsUndefinedWhenFeatureDisabled) {
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+}
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithWebContentsWarming,
                        testWebClientReadyOnPreload) {
@@ -356,6 +448,24 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testShowClientErrorDialog) {
                                       /*kDisabledByOrganization*/ 1, 1);
 
   // Verify that the pref was reset.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return service()->GetAuthController().NeedsSyncForTesting(); }));
+}
+
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testReportClientTransientError) {
+  glic::GlicHistogramTester histogram_tester;
+  ASSERT_OK(OpenGlicForActiveTab());
+  ExecuteJsTest();
+
+  // Wait for the histogram to be recorded.
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return histogram_tester.GetAllSamples("Glic.Api.Client.TransientError")
+               .size() > 0;
+  }));
+  histogram_tester.ExpectUniqueSample("Glic.Api.Client.TransientError",
+                                      /*kUnauthenticated*/ 16, 1);
+
+  // Verify that the pref was set to true.
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return service()->GetAuthController().NeedsSyncForTesting(); }));
 }
@@ -471,8 +581,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testInvocationSource) {
     // Toggle Glic from source.
     coordinator().Toggle(GetBrowser(), /*prevent_close=*/false,
                          /*source=*/source,
-                         /*deprecated_prompt_suggestion=*/std::nullopt,
-                         /*deprecated_conversation_id=*/std::nullopt);
+                         /*deprecated_prompt_suggestion=*/std::nullopt);
 
     ASSERT_OK(WaitForGlicOpen());
 
@@ -517,25 +626,12 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithPixelOutput, testFaviconIsUpdated) {
   ASSERT_OK(OpenGlicForActiveTab());
 
   ExecuteJsTest();
-
-  ASSERT_TRUE(
-      content::ExecJs(GetTabListInterface()->GetTab(0)->GetContents(), R"js(
-    var link = document.querySelector("link[rel~='icon']");
-    link.href = "./red.ico";
-  )js"));
-
-  ContinueJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithPixelOutput, testFaviconIsRemoved) {
   ASSERT_OK(OpenGlicForActiveTab());
 
   ExecuteJsTest();
-
-  ASSERT_TRUE(content::NavigateToURL(
-      GetTabListInterface()->GetActiveTab()->GetContents(),
-      GetTestUrl("page_no_favicon.html")));
-  ContinueJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithPixelOutput,
@@ -742,20 +838,6 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testGetPageMetadataUpdates) {
       embedded_test_server()->GetURL("/glic/browser_tests/test.html")));
   ASSERT_OK(OpenGlicForActiveTab());
   ExecuteJsTest();
-
-  // The JS test is now paused. We can now modify the page.
-  content::WebContents* web_contents =
-      GetTabListInterface()->GetActiveTab()->GetContents();
-  ASSERT_TRUE(web_contents);
-
-  // Change the content of the 'author' meta tag from "George" to "Ruth".
-  const char* script =
-      "document.querySelector('meta[name=\"author\"]').setAttribute('content', "
-      "'Ruth')";
-  ASSERT_TRUE(content::ExecJs(web_contents, script));
-
-  // Continue the JS test to verify the metadata update.
-  ContinueJsTest();
 }
 
 // TODO(harringtond): Times out on Android.
@@ -779,9 +861,6 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, MAYBE_testGetPageMetadataTabDestroyed) {
        GetTabListInterface()->GetTab(1)->GetHandle()});
 
   ExecuteJsTest();
-  GetTabListInterface()->CloseTab(
-      GetTabListInterface()->GetTab(1)->GetHandle());
-  ContinueJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testAdditionalContext) {
@@ -853,13 +932,37 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testAdditionalContext) {
   ContinueJsTest();
 }
 
+IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testAdditionalContextQueued) {
+  ASSERT_TRUE(content::NavigateToURL(
+      GetTabListInterface()->GetActiveTab()->GetContents(),
+      embedded_test_server()->GetURL("/glic/browser_tests/test.html")));
+
+  ToggleGlicForActiveTab(/*prevent_close=*/true);
+  ASSERT_TRUE(GetOnlyGlicInstance());
+
+  glic::mojom::AdditionalContextPtr additional_context =
+      glic::mojom::AdditionalContext::New();
+  additional_context->name = "queued part";
+  additional_context->tab_id = 1;
+  additional_context->frameUrl = GURL("http://example.com");
+
+  std::vector<uint8_t> data = {'q', 'u', 'e', 'u', 'e', 'd'};
+  additional_context->parts.push_back(
+      glic::mojom::AdditionalContextPart::NewData(glic::mojom::ContextData::New(
+          "text/plain", mojo_base::BigBuffer(data))));
+
+  service()->SendAdditionalContext(
+      GetTabListInterface()->GetActiveTab()->GetHandle(),
+      std::move(additional_context));
+
+  ASSERT_OK(WaitForGlicOpen());
+
+  ExecuteJsTest();
+}
+
 IN_PROC_BROWSER_TEST_P(NewGlicApiTest, testCancelActions) {
   ASSERT_OK(OpenGlicForActiveTab());
-  // Task with id 12345 does not exist.
-  ExecuteJsTest({.params = base::Value(12345)});
-  EXPECT_EQ(std::to_underlying(glic::mojom::CancelActionsResult::kTaskNotFound),
-            step_data()->GetInt());
-  ContinueJsTest();
+  ExecuteJsTest();
 }
 
 class NewGlicApiTestWithGeminiActOnWebPolicy : public NewGlicApiTest {
@@ -1109,7 +1212,7 @@ IN_PROC_BROWSER_TEST_P(NewGlicApiTestWithSkills,
 #if !BUILDFLAG(IS_ANDROID)  // TODO(harringtond): Enable skills on Android.
   ASSERT_OK_AND_ASSIGN(auto* instance, OpenGlicForActiveTabAndDetach());
   BrowserWindowInterface* browser_to_close = GetBrowserWindowInterface();
-  CreateIncognitoBrowser();
+  PlatformBrowserTest::CreateIncognitoBrowser();
   CloseBrowserAsynchronously(browser_to_close);
 
   ui_test_utils::WaitForBrowserToClose(browser_to_close);
@@ -1162,6 +1265,26 @@ INSTANTIATE_TEST_SUITE_P(,
                          DefaultTestParamSet(),
                          &WithTestParams::PrintTestVariant);
 
+INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestWithDefaultTabContextDisabled,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+
+INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestWithDefaultTabContextEnabled,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+
+INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestWithWebActuationSettingDisabled,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+
+INSTANTIATE_TEST_SUITE_P(,
+                         NewGlicApiTestWithWebActuationSettingEnabled,
+                         DefaultTestParamSet(),
+                         &WithTestParams::PrintTestVariant);
+
 // Skills are not supported yet on Android.
 #if !BUILDFLAG(IS_ANDROID)
 INSTANTIATE_TEST_SUITE_P(,
@@ -1177,6 +1300,14 @@ GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiTestWithPixelOutput);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
     NewGlicApiTestWithGeminiActOnWebPolicy);
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiMultiProfileTest);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    NewGlicApiTestWithDefaultTabContextDisabled);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    NewGlicApiTestWithDefaultTabContextEnabled);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    NewGlicApiTestWithWebActuationSettingDisabled);
+GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(
+    NewGlicApiTestWithWebActuationSettingEnabled);
 #if !BUILDFLAG(IS_ANDROID)
 GTEST_ALLOW_UNINSTANTIATED_PARAMETERIZED_TEST(NewGlicApiTestWithSkills);
 #endif

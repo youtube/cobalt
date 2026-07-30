@@ -64,8 +64,8 @@
 #include "chrome/browser/task_manager/task_manager_browsertest_util.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/hid/hid_chooser_controller.h"
@@ -6696,7 +6696,27 @@ IN_PROC_BROWSER_TEST_P(WebstoreWebViewTest, NoRendererKillWithChromeWebStore) {
   content::TestFrameNavigationObserver error_observer(guest);
   EXPECT_TRUE(ExecJs(guest, "location.href = '" + url.spec() + "';"));
   error_observer.Wait();
-  EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, error_observer.last_net_error_code());
+
+  // Navigation should be blocked if it corresponds to the webstore.
+  // * This is always true for the "new" webstore URL
+  //   (chromewebstore.google.com). This is the URL used in production.
+  // * This is always true for a URL provided by the test switch to set a
+  //   webstore URL (used in testing / staging).
+  // * This is true for the legacy webstore URL (chrome.google.com/webstore) if
+  //   any only if the legacy hosted app is installed. If the app isn't
+  //   installed, navigation to its URL should succeed (it's treated like a
+  //   normal URL).
+  bool expect_blocked =
+      webstore_url() == GURL(kNewWebstoreURL) ||
+      webstore_url() == GURL(kWebstoreURLOverride) ||
+      (webstore_url() == GURL(kWebstoreURL) &&
+       base::FeatureList::IsEnabled(extensions_features::kWebstoreHostedApp));
+
+  if (expect_blocked) {
+    EXPECT_EQ(net::ERR_BLOCKED_BY_CLIENT, error_observer.last_net_error_code());
+  } else {
+    EXPECT_TRUE(error_observer.last_navigation_succeeded());
+  }
 
   guest = GetGuestRenderFrameHost();
   EXPECT_TRUE(guest->IsRenderFrameLive());
@@ -6810,8 +6830,10 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWebViewTest, SimpleNavigations) {
 
   // Ensure the guest SiteInstance reflects the proper site and actually uses
   // site isolation.
-  EXPECT_EQ("http://a.test/",
-            main_frame->GetSiteInstance()->GetSiteURL().spec());
+  EXPECT_EQ("http://a.test/", main_frame->GetSiteInstance()
+                                  ->GetSecurityPrincipal()
+                                  .GetDeprecatedSiteURL()
+                                  .spec());
   EXPECT_TRUE(main_frame->GetSiteInstance()->RequiresDedicatedProcess());
   EXPECT_TRUE(main_frame->GetProcess()->IsProcessLockedToSiteForTesting());
 
@@ -6838,7 +6860,10 @@ IN_PROC_BROWSER_TEST_P(SitePerProcessWebViewTest, SimpleNavigations) {
                 .GetStoragePartitionConfig());
   EXPECT_EQ(subframe->GetProcess()->GetStoragePartition(),
             main_frame->GetProcess()->GetStoragePartition());
-  EXPECT_EQ("http://b.test/", subframe->GetSiteInstance()->GetSiteURL().spec());
+  EXPECT_EQ("http://b.test/", subframe->GetSiteInstance()
+                                  ->GetSecurityPrincipal()
+                                  .GetDeprecatedSiteURL()
+                                  .spec());
   EXPECT_TRUE(subframe->GetSiteInstance()->RequiresDedicatedProcess());
   EXPECT_TRUE(subframe->GetProcess()->IsProcessLockedToSiteForTesting());
 }
@@ -8208,12 +8233,15 @@ IN_PROC_BROWSER_TEST_P(ContextualTasksWebViewTest, OpenLinkInNewTab) {
   // Click on open link in incognito windown and verify a new incognito window
   // is created.
   {
-    int incognito_browser_count = chrome::GetIncognitoBrowserCount();
+    int incognito_browser_count =
+        GlobalBrowserCollection::GetInstance()->GetIncognitoBrowserCount();
     ContextMenuWaiter waiter(IDC_CONTENT_CONTEXT_OPENLINKOFFTHERECORD);
     OpenContextMenu(guest_view2->GetGuestMainFrame());
     waiter.WaitForMenuOpenAndClose();
     EXPECT_TRUE(waiter.IsCommandExecuted().value());
-    EXPECT_EQ(incognito_browser_count + 1, chrome::GetIncognitoBrowserCount());
+    EXPECT_EQ(
+        incognito_browser_count + 1,
+        GlobalBrowserCollection::GetInstance()->GetIncognitoBrowserCount());
   }
 }
 

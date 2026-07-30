@@ -22,6 +22,8 @@ std::string GetDaisyChainSourceString(DaisyChainSource source) {
       return "AutoOpenPdf";
     case DaisyChainSource::kLastActiveInstance:
       return "LastActiveInstance";
+    case DaisyChainSource::kBookmark:
+      return "Bookmark";
     case DaisyChainSource::kUnknown:
       return "Unknown";
   }
@@ -82,6 +84,8 @@ std::string GetInvocationSourceString(mojom::InvocationSource source) {
       return "OsButtonMenu";
     case mojom::InvocationSource::kOsHotkey:
       return "OsHotkey";
+    case mojom::InvocationSource::kPasswordChange:
+      return "PasswordChange";
     case mojom::InvocationSource::kPdfSummarizeButton:
       return "PdfSummarizeButton";
     case mojom::InvocationSource::kProfilePicker:
@@ -110,6 +114,8 @@ std::string GetInvocationSourceString(mojom::InvocationSource source) {
       return "WebContentsContextMenu";
     case mojom::InvocationSource::kWhatsNew:
       return "WhatsNew";
+    case mojom::InvocationSource::kAutofill:
+      return "Autofill";
     case mojom::InvocationSource::kZeroStateAutoSummarize:
       return "ZeroStateAutoSummarize";
   }

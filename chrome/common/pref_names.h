@@ -475,12 +475,6 @@ inline constexpr char kShowMobileDataNotification[] =
 inline constexpr char kChromeOSReleaseNotesVersion[] =
     "settings.release_notes.version";
 
-// A string pref that contains either a Chrome app ID (see
-// extensions::ExtensionId) or an Android package name (using Java package
-// naming conventions) of the preferred note-taking app. An empty value
-// indicates that the user hasn't selected an app yet.
-inline constexpr char kNoteTakingAppId[] = "settings.note_taking_app_id";
-
 // Automatically open online re-authentication window on the lock screen.
 inline constexpr char kLockScreenAutoStartOnlineReauth[] =
     "lock_screen_auto_start_online_reauth";
@@ -506,16 +500,6 @@ inline constexpr char kTouchVirtualKeyboardEnabled[] =
 // A boolean pref to enable virtual keyboard smart visibility.
 inline constexpr char kVirtualKeyboardSmartVisibilityEnabled[] =
     "ui.virtual_keyboard_smart_visibility_enabled";
-
-// A dictionary pref mapping public keys that identify platform keys to its
-// properties like whether it's meant for corporate usage.
-inline constexpr char kPlatformKeys[] = "platform_keys";
-
-// A boolean preference that will be registered in local_state prefs to track
-// migration of permissions on device-wide key pairs and will be registered in
-// Profile prefs to track migration of permissions on user-owned key pairs.
-inline constexpr char kKeyPermissionsOneTimeMigrationDone[] =
-    "key_permissions_one_time_migration_done";
 
 // A boolean preference that is registered in user prefs to tracks that at least
 // one PKCS#12 certificate+key pair was dual written into NSS software-backed
@@ -594,31 +578,10 @@ inline constexpr char kTextToSpeechPitch[] = "settings.tts.speech_pitch";
 // system volume, and higher than 1.0 is louder.
 inline constexpr char kTextToSpeechVolume[] = "settings.tts.speech_volume";
 
-// Boolean pref indicating whether the message displayed on the login screen for
-// the managed guest session should be the full warning or not.
-// True means the full warning should be displayed.
-// False means the normal warning should be displayed.
-// It's true by default, unless it's ensured that all extensions are "safe".
-inline constexpr char kManagedSessionUseFullLoginWarning[] =
-    "managed_session.use_full_warning";
-
-
-// Last time the kChildScreenTimeMilliseconds was saved.
-inline constexpr char kLastChildScreenTimeSaved[] =
-    "last_child_screen_time_saved";
-
-// Last time that the kChildScreenTime pref was reset.
-inline constexpr char kLastChildScreenTimeReset[] =
-    "last_child_screen_time_reset";
-
 // Amount of times the release notes suggestion chip should be
 // shown before it disappears.
 inline constexpr char kReleaseNotesSuggestionChipTimesLeftToShow[] =
     "times_left_to_show_release_notes_suggestion_chip";
-
-
-
-
 
 // A string pref storing the path of device wallpaper image file.
 inline constexpr char kDeviceWallpaperImageFilePath[] =
@@ -1713,8 +1676,10 @@ inline constexpr char kDisableExtensions[] = "extensions.disabled";
 inline constexpr char kNtpCollapsedForeignSessions[] =
     "ntp.collapsed_foreign_sessions";
 
+// LINT.IfChange
 inline constexpr char kNtpCustomBackgroundDict[] =
     "ntp.custom_background_dict2";
+// LINT.ThenChange(//components/segmentation_platform/embedder/home_modules/ntp_theme_promo.cc)
 inline constexpr char kNtpCustomBackgroundLocalToDevice[] =
     "ntp.custom_background_local_to_device";
 inline constexpr char kNtpCustomBackgroundLocalToDeviceId[] =
@@ -2490,6 +2455,8 @@ inline constexpr char kMaxConnectionsPerProxy[] =
     "net.max_connections_per_proxy";
 inline constexpr char kMaxConnectionsPerProxyForWebSocket[] =
     "net.max_connections_per_proxy_for_websocket";
+inline constexpr char kAllowSocketPoolSizeRandomizationForProxies[] =
+    "net.allow_socket_pool_size_randomization_for_proxies";
 
 #if BUILDFLAG(IS_MAC)
 // A boolean that tracks whether to show a notification when trying to quit
@@ -2640,21 +2607,6 @@ inline constexpr char kSigninInterceptionEnabled[] =
 // an offer is checked.
 inline constexpr char kEchoCheckedOffers[] = "EchoCheckedOffers";
 #endif  // BUILDFLAG(IS_CHROMEOS)
-
-// Device identifier used by CryptAuth stored in local state. This ID is
-// combined with a user ID before being registered with the CryptAuth server,
-// so it can't correlate users on the same device.
-// Note: This constant was previously specific to EasyUnlock, so the string
-//       constant contains "easy_unlock".
-inline constexpr char kCryptAuthDeviceId[] = "easy_unlock.device_id";
-
-// The most recently retrieved Instance ID and Instance ID token for the app ID,
-// "com.google.chrome.cryptauth", used by the CryptAuth client. These prefs are
-// used to track how often (if ever) the Instance ID and Instance ID token
-// rotate because CryptAuth assumes the Instance ID is static.
-inline constexpr char kCryptAuthInstanceId[] = "cryptauth.instance_id";
-inline constexpr char kCryptAuthInstanceIdToken[] =
-    "cryptauth.instance_id_token";
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
 // Policy that indicates how to handle animated images.
@@ -3440,9 +3392,8 @@ inline constexpr char kAppRatingPromptShown[] = "app_rating_prompt_shown";
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // Integer value for overriding the CPU performance tier.
-// Controlled by enterprise policy.
-inline constexpr char kCpuPerformanceTierPolicyOverride[] =
-    "cpu_performance_tier_policy_override";
+inline constexpr char kCpuPerformanceTierOverride[] =
+    "cpu_performance_tier_override";
 
 // Value indicating that the CPU performance tier has not been overridden.
 inline constexpr int kCpuPerformanceTierOverrideNone = -1;

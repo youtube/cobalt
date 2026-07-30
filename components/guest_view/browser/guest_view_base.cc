@@ -26,6 +26,7 @@
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
+#include "content/public/browser/security_principal.h"
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/content_features.h"
@@ -90,7 +91,8 @@ class GuestViewBase::OwnerContentsObserver : public WebContentsObserver {
   void RenderFrameHostChanged(content::RenderFrameHost* old_host,
                               content::RenderFrameHost* new_host) override {
     if (old_host && guest_->owner_rfh_id_ == old_host->GetGlobalId() &&
-        new_host && guest_->element_instance_id_ == kInstanceIDNone) {
+        new_host && guest_->element_instance_id_ == kInstanceIDNone &&
+        old_host->GetProcess() == new_host->GetProcess()) {
       // TODO(crbug.com/40202416): Do something similar for MPArch.
       guest_->owner_rfh_id_ = new_host->GetGlobalId();
     }
@@ -598,7 +600,10 @@ const GURL& GuestViewBase::GetOwnerLastCommittedURL() const {
 }
 
 const GURL& GuestViewBase::GetOwnerSiteURL() const {
-  return owner_rfh()->GetSiteInstance()->GetSiteURL();
+  return owner_rfh()
+      ->GetSiteInstance()
+      ->GetSecurityPrincipal()
+      .GetDeprecatedSiteURL();
 }
 
 void GuestViewBase::SetAttachParams(const base::DictValue& params) {

@@ -5,6 +5,10 @@
 package org.chromium.chrome.browser.tab_bottom_sheet;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import android.content.Context;
@@ -13,6 +17,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.Window;
 import android.widget.FrameLayout;
 
 import androidx.test.ext.junit.rules.ActivityScenarioRule;
@@ -29,7 +34,9 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.context_sharing.R;
 import org.chromium.components.thinwebview.ThinWebView;
+import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.base.WindowAndroid;
 
 /** Unit tests for {@link WebViewResizingHelper}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -42,6 +49,10 @@ public class WebViewResizingHelperUnitTest {
             new ActivityScenarioRule<>(TestActivity.class);
 
     @Mock private ThinWebView mMockThinWebView;
+    @Mock private WebContents mMockWebContents;
+    @Mock private WindowAndroid mMockWindowAndroid;
+    @Mock private Window mMockWindow;
+    @Mock private View mMockDecorView;
 
     private Context mContext;
     private View mView;
@@ -54,8 +65,12 @@ public class WebViewResizingHelperUnitTest {
         mView = new View(mContext);
         when(mMockThinWebView.getView()).thenReturn(mView);
 
+        when(mMockWindowAndroid.getWindow()).thenReturn(mMockWindow);
+        when(mMockWindow.getDecorView()).thenReturn(mMockDecorView);
+        when(mMockDecorView.getHeight()).thenReturn(1000);
+
         mContainerView = LayoutInflater.from(mContext).inflate(R.layout.tab_bottom_sheet, null);
-        mHelper = new WebViewResizingHelper(mContainerView, Color.WHITE);
+        mHelper = new WebViewResizingHelper(mContainerView, mMockWindowAndroid, Color.WHITE);
     }
 
     @Test
@@ -66,19 +81,19 @@ public class WebViewResizingHelperUnitTest {
 
     @Test
     public void testSetThinWebView() {
-        mHelper.setThinWebView(mMockThinWebView);
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
 
         FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
         assertEquals(2, container.getChildCount());
         assertEquals(mView, container.getChildAt(1));
 
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) mView.getLayoutParams();
-        assertEquals(Gravity.BOTTOM, layoutParams.gravity);
+        assertEquals(Gravity.TOP, layoutParams.gravity);
     }
 
     @Test
     public void testReset() {
-        mHelper.setThinWebView(mMockThinWebView);
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
         mHelper.reset();
 
         FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
@@ -87,25 +102,26 @@ public class WebViewResizingHelperUnitTest {
 
     @Test
     public void testRequestResize() {
-        mHelper.setThinWebView(mMockThinWebView);
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
         mView.layout(0, 0, 100, 200);
         FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
         View placeholder = container.getChildAt(0);
 
         WebViewResizingHelper.ResizeLock lock = mHelper.requestResize();
         FrameLayout.LayoutParams layoutParams = (FrameLayout.LayoutParams) mView.getLayoutParams();
-        assertEquals(200, layoutParams.height);
+
+        assertEquals(1000, layoutParams.height);
         assertEquals(View.VISIBLE, placeholder.getVisibility());
 
         lock.unlock();
-        assertEquals(ViewGroup.LayoutParams.MATCH_PARENT, layoutParams.height);
+        assertEquals(1000, layoutParams.height);
         assertEquals(View.VISIBLE, mView.getVisibility());
     }
 
     @Test
     public void testSetThinWebViewMultipleTimes() {
-        mHelper.setThinWebView(mMockThinWebView);
-        mHelper.setThinWebView(mMockThinWebView);
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
 
         FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
         assertEquals(2, container.getChildCount());
@@ -127,5 +143,42 @@ public class WebViewResizingHelperUnitTest {
 
         mHelper.setToFixedHeight(500);
         assertEquals(500, expandedContent.getLayoutParams().height);
+    }
+
+    @Test
+    public void testUpdateBounds_EarlyReturn() {
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
+        FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
+
+        clearInvocations(mMockWebContents);
+
+        // Case 1: width == 0
+        container.layout(0, 0, 0, 100);
+        verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
+
+        // Case 2: height == 0
+        container.layout(0, 0, 100, 0);
+        verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
+
+        // Case 3: width == mWebContents.getWidth() && height == mWebContents.getHeight()
+        when(mMockWebContents.getWidth()).thenReturn(100);
+        when(mMockWebContents.getHeight()).thenReturn(200);
+        container.layout(0, 0, 100, 200);
+        verify(mMockWebContents, never()).setSize(anyInt(), anyInt());
+    }
+
+    @Test
+    public void testUpdateBounds_SetsSize() {
+        mHelper.setThinWebView(mMockThinWebView, mMockWebContents);
+        FrameLayout container = (FrameLayout) mHelper.getResizingContainer();
+
+        when(mMockWebContents.getWidth()).thenReturn(50);
+        when(mMockWebContents.getHeight()).thenReturn(50);
+
+        clearInvocations(mMockWebContents);
+
+        container.layout(0, 0, 100, 200);
+
+        verify(mMockWebContents).setSize(100, 200);
     }
 }

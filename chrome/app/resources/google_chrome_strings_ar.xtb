@@ -98,7 +98,6 @@
 <translation id="2018528049276128029">‏يحتفظ كل ملف شخصي بالمعلومات الخاصة به على Chrome، مثل الإشارات المرجعية والسجلّ وكلمات المرور وغير ذلك.</translation>
 <translation id="2018879682492276940">تعذّر التثبيت. يُرجى إعادة المحاولة.</translation>
 <translation id="2024959665595762054">‏يجب إثبات هويتك لاستخدام بيانات Chrome وحفظها في حسابك على Google</translation>
-<translation id="2026377840141807639">‏تتيح لك الملفات الشخصية على Chrome الفصل بين التصفّح الشخصي والتصفّح الخاص بالعمل. بإمكانك إضافة ملف شخصي جديد الآن.</translation>
 <translation id="2034233344106846793">‏يرقِّي متصفِّح Chrome الاتصالات غير الآمنة إلى اتصالات عبر بروتوكول HTTPS تلقائيًا إن أمكن ذلك</translation>
 <translation id="2039417478970545937">الإعدادات</translation>
 <translation id="2066690553719545730">‏عرض "وضع AI" دائمًا</translation>
@@ -121,7 +120,6 @@
 <translation id="2174917724755363426">لم يكتمل التثبيت. هل تريد فعلاً الإلغاء؟</translation>
 <translation id="2186206192313702726">‏عدسة Google</translation>
 <translation id="2190166659037789668">خطأ في عملية التحقق من التحديث: <ph name="UPDATE_CHECK_ERROR" />.</translation>
-<translation id="2199691482078155239">‏يتيح لك Chrome التحكّم بشكل أكبر في الإعلانات التي تظهر لك والحدّ من مقدار معلوماتك التي يمكن للمواقع الإلكترونية معرفتها عندما تعرض لك إعلانات مخصّصة</translation>
 <translation id="2216543877350048334">‏لإزالة حسابك على Google من Chrome، يجب تسجيل الخروج</translation>
 <translation id="2236949375853147973">نشاطي</translation>
 <translation id="22791603784558743">‏إغلاق Gemini في إصدار مطوّري البرامج من Chrome</translation>
@@ -148,6 +146,9 @@
 <translation id="2569974318947988067">‏سيحاول Chrome ترقية عمليات الانتقال إلى بروتوكول HTTPS.</translation>
 <translation id="2571392474191184472">‏تدير مؤسستك متصفِّح Chrome</translation>
 <translation id="2574930892358684005">‏سبَق تسجيل دخول <ph name="EXISTING_USER" /> إلى هذا الملف الشخصي على Chrome. للحصول على تجربة تصفّح منفصلة، يمكن لمتصفِّح Chrome إنشاء ملف شخصي خاص بك.</translation>
+<translation id="2575799939951057838">‏للحفاظ على الأمان، يوقف Chrome ميزة تحسين محتوى JavaScript عند زيارة موقع إلكتروني للمرة الأولى.
+
+فإذا كانت هذه الصفحة لا تعمل على النحو المتوقّع، يُرجى السماح بميزة التحسين.</translation>
 <translation id="2580411288591421699">‏لا يمكن تثبيت نفس الإصدار المثبت من Google Chrome والذي يتم تشغيله حاليًا. يُرجى إغلاق Google Chrome وإعادة المحاولة.</translation>
 <translation id="2586406160782125153">‏سيؤدي هذا إلى حذف بيانات التصفح من هذا الجهاز. لاسترداد بياناتك لاحقًا، سجّل الدخول إلى Chrome كـ <ph name="USER_EMAIL" />.</translation>
 <translation id="259935314519650377">تعذَّر إجراء تخزين مؤقت للمثبّت الذي تم تنزيله. الخطأ: <ph name="UNPACK_CACHING_ERROR_CODE" />.</translation>
@@ -452,7 +453,6 @@
 <translation id="5736850870166430177">‏إذا حاول موقع إلكتروني سرقة كلمة المرور أو إذا نزّلت ملفًا ضارًا، قد يرسِل متصفِّح Chrome أيضًا عناوين URL تتضمّن أجزاءً من محتوى الصفحة إلى خدمة "التصفُّح الآمن".</translation>
 <translation id="5756509061973259733">‏يتوفّر حاليًا على هذا الجهاز ملف شخصي لهذا الحساب على Chrome.</translation>
 <translation id="5759947850379142561">‏يُرجى اختيار أي نصوص أو صور للبحث عنها باستخدام خدمة "عدسة Google" أو الضغط على مفتاح Escape للخروج من الخدمة</translation>
-<translation id="5762867845020858790">‏يمكنك إضافة ملف شخصي جديد على Chrome للفصل بين الإشارات المرجعية وكلمات المرور والإعدادات.</translation>
 <translation id="5779427581965287859">‏ضبط Chrome كمتصفّح تلقائي وتثبيته في شريط المهام</translation>
 <translation id="5795887333006832406"><ph name="PAGE_TITLE" /> - Google Chrome Canary</translation>
 <translation id="5804318322022881572">‏تعذَّر إطلاق Chrome. يُرجى إعادة المحاولة.</translation>
@@ -566,7 +566,6 @@
 <translation id="6800285125190089494">‏يمكنك تسجيل الدخول بشكل أسرع إلى المواقع الإلكترونية باستخدام كلمات المرور المحفوظة في Chrome على أجهزة iOS</translation>
 <translation id="6831043979455480757">ترجمة</translation>
 <translation id="683440813066116847">‏قاعدة الوارد إلى Google Chrome Canary للسماح بحركة مرور mDNS.</translation>
-<translation id="6841242485723266823">‏تساعدك الملفات الشخصية على Chrome في الفصل بين جوانب حياتك المختلفة. بإمكانك إضافة ملف شخصي جديد الآن.</translation>
 <translation id="684888714667046800">يتعذّر الاتصال بالإنترنت. في حال استخدام جدار حماية، يُرجى التأكّد من إدراج <ph name="PRODUCT_EXE_NAME" /> في القائمة المسموح بها.</translation>
 <translation id="6859580922007887573">‏يجب النقر على مفتاح Tab للمتابعة</translation>
 <translation id="6877155553248388166">أسفل يسار مساحة البحث: %<ph name="RIGHT" /> من الجهة اليسرى و%<ph name="BOTTOM" /> من الأسفل</translation>
@@ -656,7 +655,6 @@
 <translation id="7655472416356262023">‏إزالة الحساب من Chrome</translation>
 <translation id="7658239707568436148">إلغاء</translation>
 <translation id="7670287553302121848">‏يتطلب حساب Chrome إعادة المصادقة</translation>
-<translation id="7675756456029023637">‏طرح سؤال في Chrome</translation>
 <translation id="769538538642757151">‏سيُعلِمك Chrome في حال العثور على اقتراحات مطلوب مراجعتها.</translation>
 <translation id="769906121737764913">‏إغلاق Gemini في الإصدار التجريبي من Chrome</translation>
 <translation id="7716950018788545737">انتهت المهام.</translation>
@@ -758,7 +756,6 @@
 <translation id="8625237574518804553">{0,plural, =1{‏ستتم إعادة تشغيل Chrome في غضون دقيقة واحدة}zero{‏ستتم إعادة تشغيل Chrome في غضون # دقيقة}two{‏ستتم إعادة تشغيل Chrome في غضون دقيقتين}few{‏ستتم إعادة تشغيل Chrome في غضون # دقائق}many{‏ستتم إعادة تشغيل Chrome في غضون # دقيقةً}other{‏ستتم إعادة تشغيل Chrome في غضون # دقيقة}}</translation>
 <translation id="8637932705841171563">‏لمشاركة النافذة، يجب السماح بتسجيل الشاشة في Chrome ضِمن "إعدادات النظام" (System Settings)</translation>
 <translation id="8641606876632989680">‏في حال تسجيل الدخول باستخدام كلمة مرور محتمَل تعرّضها للاختراق، سيرسل Chrome إشعارات إليك.</translation>
-<translation id="8647930742055103497">‏الاحتفاظ بكل البيانات في Chrome</translation>
 <translation id="8656634243791296665">‏فتح Gemini في إصدار مطوّري البرامج من Chrome</translation>
 <translation id="8669527147644353129">‏مساعد Google Chrome</translation>
 <translation id="8679801911857917785">‏كما أنها تتحكم في الصفحة التي تظهر عند تشغيل Chrome.</translation>

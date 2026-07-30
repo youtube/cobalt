@@ -28,9 +28,14 @@
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/common/chrome_features.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/experimental_opt_in/glic_experimental_opt_in_controller.h"
+#endif
 
 namespace glic {
 
@@ -145,6 +150,9 @@ void GlicInternalsPageHandler::GetInternalsDataPayload(
                                     ->GetPrefs()
                                     ->GetBoolean(prefs::kGlicShowErrorAllowed);
 
+  payload->experimental_triggering_enabled =
+      base::FeatureList::IsEnabled(features::kGlicExperimentalTriggering);
+
   payload->config = std::move(config);
 
   std::move(callback).Run(std::move(payload));
@@ -180,11 +188,16 @@ void GlicInternalsPageHandler::TriggerInvokeFromInternalsAction(
     return;
   }
 
-  GlicInvokeOptions options{mojo_options->invocation_source};
+  GlicInvokeOptions options =
+      mojo_options->payload
+          ? GlicInvokeOptions(std::move(mojo_options->payload))
+          : GlicInvokeOptions(mojo_options->invocation_source);
   options.prompts = std::move(mojo_options->prompts);
 
   if (mojo_options->additional_context) {
-    options.additional_context = std::move(mojo_options->additional_context);
+    options.additional_context = AdditionalTabContext(
+        std::move(mojo_options->additional_context),
+        content::GlobalRenderFrameHostId(), PolicyCheck::kClipboard);
   }
 
   if (mojo_options->conversation->is_new_conversation()) {
@@ -207,19 +220,7 @@ void GlicInternalsPageHandler::TriggerInvokeFromInternalsAction(
   options.timeout = mojo_options->timeout;
   options.fre_override = mojo_options->fre_override;
   options.wait_for_panel_open = mojo_options->wait_for_panel_open;
-
-  switch (mojo_options->allowed_inflight_navigation) {
-    case mojom::AllowedInflightNavigation::kSameDomain:
-      options.allowed_inflight_navigation =
-          AllowedInflightNavigation::kSameDomain;
-      break;
-    case mojom::AllowedInflightNavigation::kNone:
-      options.allowed_inflight_navigation = AllowedInflightNavigation::kNone;
-      break;
-    case mojom::AllowedInflightNavigation::kAll:
-      options.allowed_inflight_navigation = AllowedInflightNavigation::kAll;
-      break;
-  }
+  options.target.actuation_target = mojo_options->actuation_target;
 
   auto split_callback = base::SplitOnceCallback(std::move(callback));
 
@@ -271,8 +272,13 @@ void GlicInternalsPageHandler::TriggerInvokeFromInternalsAction(
   }
 
   if (mojo_options->auto_submit) {
+    GlicInvokeWithAutoSubmitOptions auto_submit_options;
+    if (mojo_options->show_panel.has_value()) {
+      auto_submit_options.show_panel = mojo_options->show_panel.value();
+    }
     service->InvokeWithAutoSubmit(
-        InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), std::move(options));
+        InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), std::move(options),
+        std::move(auto_submit_options));
   } else {
     static_cast<GlicInstanceCoordinatorImpl&>(service->instance_coordinator())
         .Invoke(std::move(options));
@@ -290,6 +296,17 @@ void GlicInternalsPageHandler::SetShowErrorAllowed(bool allowed) {
   Profile::FromBrowserContext(browser_context_)
       ->GetPrefs()
       ->SetBoolean(prefs::kGlicShowErrorAllowed, allowed);
+}
+
+void GlicInternalsPageHandler::ShowExperimentalOptIn() {
+#if !BUILDFLAG(IS_ANDROID)
+  GlicKeyedService* service = GetGlicService();
+  if (!service) {
+    return;
+  }
+
+  service->opt_in_controller().ShowDialog(webui_contents_);
+#endif
 }
 
 }  // namespace glic

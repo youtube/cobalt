@@ -382,8 +382,10 @@ TEST_F(WidgetAXManagerTest, OnEvent_PostsSingleTaskAndQueuesCorrectly) {
 
   // Fire an event on v1, one on v2, before the first send.
   auto before = task_environment()->GetPendingMainThreadTaskCount();
-  manager()->OnEvent(v1->GetViewAccessibility(), ax::mojom::Event::kFocus);
-  manager()->OnEvent(v2->GetViewAccessibility(), ax::mojom::Event::kFocus);
+  manager()->OnEvent(v1->GetViewAccessibility(),
+                     ax::mojom::Event::kControlsChanged);
+  manager()->OnEvent(v2->GetViewAccessibility(),
+                     ax::mojom::Event::kControlsChanged);
 
   // Still just one task posted.
   EXPECT_EQ(task_environment()->GetPendingMainThreadTaskCount(), before + 1u);
@@ -402,9 +404,9 @@ TEST_F(WidgetAXManagerTest, OnEvent_PostsSingleTaskAndQueuesCorrectly) {
   ASSERT_EQ(api.last_serialization().events.size(), 2u);
   ASSERT_GE(api.last_serialization().updates.size(), 1u);
   EXPECT_EQ(api.last_serialization().events[0].event_type,
-            ax::mojom::Event::kFocus);
+            ax::mojom::Event::kControlsChanged);
   EXPECT_EQ(api.last_serialization().events[1].event_type,
-            ax::mojom::Event::kFocus);
+            ax::mojom::Event::kControlsChanged);
 }
 
 TEST_F(WidgetAXManagerTest, DiesOnUnhandledEventRouting) {
@@ -467,7 +469,8 @@ TEST_F(WidgetAXManagerTest, OnEvent_CanScheduleAgainAfterSend) {
   api.WaitForNextSerialization();
 
   // First batch.
-  manager()->OnEvent(v->GetViewAccessibility(), ax::mojom::Event::kFocus);
+  manager()->OnEvent(v->GetViewAccessibility(),
+                     ax::mojom::Event::kControlsChanged);
   api.WaitForNextSerialization();
 
   EXPECT_FALSE(api.processing_update_posted());
@@ -475,11 +478,12 @@ TEST_F(WidgetAXManagerTest, OnEvent_CanScheduleAgainAfterSend) {
   EXPECT_TRUE(api.pending_data_updates().empty());
   ASSERT_EQ(api.last_serialization().events.size(), 1u);
   EXPECT_EQ(api.last_serialization().events[0].event_type,
-            ax::mojom::Event::kFocus);
+            ax::mojom::Event::kControlsChanged);
 
   // Second batch.
   auto before = task_environment()->GetPendingMainThreadTaskCount();
-  manager()->OnEvent(v->GetViewAccessibility(), ax::mojom::Event::kFocus);
+  manager()->OnEvent(v->GetViewAccessibility(),
+                     ax::mojom::Event::kControlsChanged);
   EXPECT_EQ(task_environment()->GetPendingMainThreadTaskCount(), before + 1u);
   EXPECT_TRUE(api.processing_update_posted());
   EXPECT_EQ(api.pending_events().size(), 1u);
@@ -488,7 +492,7 @@ TEST_F(WidgetAXManagerTest, OnEvent_CanScheduleAgainAfterSend) {
   api.WaitForNextSerialization();
   ASSERT_EQ(api.last_serialization().events.size(), 1u);
   EXPECT_EQ(api.last_serialization().events[0].event_type,
-            ax::mojom::Event::kFocus);
+            ax::mojom::Event::kControlsChanged);
 }
 
 TEST_F(WidgetAXManagerTest, OnDataChanged_CanScheduleAgainAfterSend) {
@@ -566,12 +570,12 @@ TEST_F(WidgetAXManagerTest, SendPendingUpdate_SendsSerializedUpdates) {
   api.Enable();
 
   manager()->OnEvent(widget()->GetRootView()->GetViewAccessibility(),
-                     ax::mojom::Event::kFocus);
+                     ax::mojom::Event::kControlsChanged);
   api.WaitForNextSerialization();
 
   EXPECT_EQ(api.last_serialization().events.size(), 1u);
   EXPECT_EQ(api.last_serialization().events[0].event_type,
-            ax::mojom::Event::kFocus);
+            ax::mojom::Event::kControlsChanged);
 
   EXPECT_FALSE(api.last_serialization().updates.empty());
 
@@ -1078,6 +1082,115 @@ TEST_F(WidgetAXManagerTest, FocusTracking_FocusIdUpdatesOnFocusChange) {
     }
   }
   EXPECT_TRUE(found_v2);
+}
+
+TEST_F(WidgetAXManagerTest, TransientFocus_SerializesBeforeRestoredFocus) {
+  struct FocusEvent {
+    ui::AXNodeID id;
+    std::string name;
+  };
+
+  WidgetAXManagerTestApi api(manager());
+  api.Enable();
+
+  auto* root = widget()->GetRootView();
+  auto* focused_view = AddFocusableView();
+  api.WaitForNextSerialization();
+
+  widget()->Show();
+
+  const ui::AXNodeID root_id =
+      static_cast<ui::AXNodeID>(root->GetViewAccessibility().GetUniqueId());
+  const ui::AXNodeID focused_view_id = static_cast<ui::AXNodeID>(
+      focused_view->GetViewAccessibility().GetUniqueId());
+
+  std::vector<FocusEvent> focus_events;
+  ui::AXTreeManager::SetFocusChangeCallbackForTesting(base::BindRepeating(
+      [](std::vector<FocusEvent>* focus_events,
+         ui::BrowserAccessibilityManager* manager) {
+        ui::BrowserAccessibility* focus = manager->GetFocus();
+        focus_events->push_back({focus ? focus->GetId() : ui::kInvalidAXNodeID,
+                                 focus ? focus->GetStringAttribute(
+                                             ax::mojom::StringAttribute::kName)
+                                       : std::string()});
+      },
+      &focus_events, api.ax_tree_manager()));
+  base::ScopedClosureRunner reset_focus_callback(base::BindOnce(
+      []() { ui::AXTreeManager::SetFocusChangeCallbackForTesting({}); }));
+
+  constexpr char kUpdatedTitle[] = "Updated window title";
+  root->GetViewAccessibility().SetName(kUpdatedTitle);
+  root->GetViewAccessibility().NotifyTransientFocus();
+
+  bool found_context_focus_id = false;
+  bool found_updated_root = false;
+  for (const auto& update : api.last_serialization().updates) {
+    if (update.has_tree_data && update.tree_data.focus_id == root_id) {
+      found_context_focus_id = true;
+    }
+    for (const auto& node : update.nodes) {
+      if (node.id == root_id &&
+          node.GetStringAttribute(ax::mojom::StringAttribute::kName) ==
+              kUpdatedTitle) {
+        found_updated_root = true;
+      }
+    }
+  }
+  EXPECT_TRUE(found_context_focus_id);
+  EXPECT_TRUE(found_updated_root);
+  EXPECT_TRUE(api.last_serialization().events.empty());
+  ASSERT_EQ(focus_events.size(), 1u);
+  EXPECT_EQ(focus_events[0].id, root_id);
+  EXPECT_EQ(focus_events[0].name, kUpdatedTitle);
+  EXPECT_EQ(api.ax_tree_manager()->GetTreeData().focus_id, root_id);
+
+  focused_view->RequestFocus();
+  api.WaitForNextSerialization();
+
+  ASSERT_GE(focus_events.size(), 2u);
+  EXPECT_EQ(focus_events[0].id, root_id);
+  EXPECT_EQ(focus_events[1].id, focused_view_id);
+  EXPECT_EQ(api.ax_tree_manager()->GetTreeData().focus_id, focused_view_id);
+}
+
+TEST_F(WidgetAXManagerTest, TransientFocus_SerializesVirtualView) {
+  auto* root = widget()->GetRootView();
+  auto* container = root->AddChildView(std::make_unique<View>());
+  auto virtual_context = std::make_unique<AXVirtualView>();
+  auto* virtual_context_ptr = virtual_context.get();
+  virtual_context_ptr->SetRole(ax::mojom::Role::kGroup);
+  virtual_context_ptr->SetName("Virtual context");
+  const ui::AXNodeID virtual_context_id = static_cast<ui::AXNodeID>(
+      virtual_context_ptr->ViewAccessibility::GetUniqueId());
+  container->GetViewAccessibility().AddVirtualChildView(
+      std::move(virtual_context));
+
+  WidgetAXManagerTestApi api(manager());
+  api.Enable();
+
+  constexpr char kUpdatedContextName[] = "Updated virtual context";
+  virtual_context_ptr->SetName(kUpdatedContextName);
+  virtual_context_ptr->NotifyTransientFocus();
+
+  bool found_virtual_focus_id = false;
+  bool found_updated_virtual_context = false;
+  for (const auto& update : api.last_serialization().updates) {
+    if (update.has_tree_data &&
+        update.tree_data.focus_id == virtual_context_id) {
+      found_virtual_focus_id = true;
+    }
+    for (const auto& node : update.nodes) {
+      if (node.id == virtual_context_id &&
+          node.GetStringAttribute(ax::mojom::StringAttribute::kName) ==
+              kUpdatedContextName) {
+        found_updated_virtual_context = true;
+      }
+    }
+  }
+  EXPECT_TRUE(found_virtual_focus_id);
+  EXPECT_TRUE(found_updated_virtual_context);
+  EXPECT_TRUE(api.last_serialization().events.empty());
+  EXPECT_EQ(api.ax_tree_manager()->GetTreeData().focus_id, virtual_context_id);
 }
 
 TEST_F(WidgetAXManagerTest, TextSelection_PopulatesTreeData) {

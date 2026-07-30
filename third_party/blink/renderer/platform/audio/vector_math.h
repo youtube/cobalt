@@ -60,13 +60,6 @@ PLATFORM_EXPORT void PrepareFilterForConv(base::span<const float> filter,
 // different results from what linux and windows would do.
 PLATFORM_EXPORT void Vsma(const float* source_p,
                           int source_stride,
-                          const float* scale,
-                          float* dest_p,
-                          int dest_stride,
-                          uint32_t frames_to_process);
-
-PLATFORM_EXPORT void Vsma(const float* source_p,
-                          int source_stride,
                           float scale,
                           float* dest_p,
                           int dest_stride,
@@ -77,21 +70,7 @@ PLATFORM_EXPORT void Vsma(const float* source_p,
 // dest[k*dest_stride] = scale * source[k*source_stride]
 PLATFORM_EXPORT void Vsmul(const float* source_p,
                            int source_stride,
-                           const float* scale,
-                           float* dest_p,
-                           int dest_stride,
-                           uint32_t frames_to_process);
-
-PLATFORM_EXPORT void Vsmul(const float* source_p,
-                           int source_stride,
                            float scale,
-                           float* dest_p,
-                           int dest_stride,
-                           uint32_t frames_to_process);
-
-PLATFORM_EXPORT void Vsadd(const float* source_p,
-                           int source_stride,
-                           const float* addend,
                            float* dest_p,
                            int dest_stride,
                            uint32_t frames_to_process);
@@ -169,18 +148,18 @@ PLATFORM_EXPORT void Zvmul(const float* real1p,
 //
 // where y = clip(x, low, high) = max(low, min(x, high)), effectively making
 // low <= y <= high.
-PLATFORM_EXPORT void Vclip(base::span<const float> source_p,
+PLATFORM_EXPORT void Vclip(base::span<const float> source,
                            int source_stride,
-                           const float* low_threshold_p,
-                           const float* high_threshold_p,
-                           base::span<float> dest_p,
+                           float low_threshold,
+                           float high_threshold,
+                           base::span<float> dest,
                            int dest_stride);
 
-PLATFORM_EXPORT void Vclip(const float* source_p,
+PLATFORM_EXPORT void Vclip(base::span<const float> source,
                            int source_stride,
-                           float low_threshold_p,
-                           float high_threshold_p,
-                           float* dest_p,
+                           float low_threshold,
+                           float high_threshold,
+                           base::span<float> dest,
                            int dest_stride,
                            uint32_t frames_to_process);
 

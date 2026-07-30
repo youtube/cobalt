@@ -72,9 +72,7 @@ int AutocompleteClassifier::DefaultOmniboxProviders(bool is_low_memory_device) {
       // Only enabled for hub search.
       AutocompleteProvider::TYPE_OPEN_TAB |
       // Only enabled for hub search.
-      (base::FeatureList::IsEnabled(omnibox::kAndroidHubSearchTabGroups)
-           ? AutocompleteProvider::TYPE_TAB_GROUP
-           : 0) |
+      AutocompleteProvider::TYPE_TAB_GROUP |
       // Keyword search for Android.
       (base::FeatureList::IsEnabled(omnibox::kOmniboxSiteSearch)
            ? AutocompleteProvider::TYPE_KEYWORD |
@@ -94,6 +92,9 @@ int AutocompleteClassifier::DefaultOmniboxProviders(bool is_low_memory_device) {
            : 0) |
       (OmniboxFieldTrial::IsOnDeviceHeadSuggestEnabledForAnyMode()
            ? AutocompleteProvider::TYPE_ON_DEVICE_HEAD
+           : 0) |
+      (base::FeatureList::IsEnabled(omnibox::kOmniboxCrossDeviceTabZeroSuggest)
+           ? AutocompleteProvider::TYPE_CROSS_DEVICE_TAB
            : 0) |
       AutocompleteProvider::TYPE_BOOKMARK | AutocompleteProvider::TYPE_BUILTIN |
       AutocompleteProvider::TYPE_HISTORY_QUICK |

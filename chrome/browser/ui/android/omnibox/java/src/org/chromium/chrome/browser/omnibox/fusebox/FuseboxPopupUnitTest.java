@@ -4,15 +4,25 @@
 
 package org.chromium.chrome.browser.omnibox.fusebox;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import android.app.Activity;
+import android.os.Looper;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.accessibility.AccessibilityEvent;
+
+import androidx.core.graphics.Insets;
+import androidx.core.view.WindowInsetsCompat;
 
 import org.junit.Before;
 import org.junit.Rule;
@@ -22,12 +32,15 @@ import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.Robolectric;
+import org.robolectric.Shadows;
 import org.robolectric.annotation.Config;
 
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.base.WindowAndroid;
+import org.chromium.ui.insets.InsetObserver;
 import org.chromium.ui.widget.AnchoredPopupWindow;
 
 /** Unit tests for FuseboxPopup. */
@@ -39,6 +52,9 @@ public class FuseboxPopupUnitTest {
     private @Mock AnchoredPopupWindow mPopupWindow;
     private @Mock View.AccessibilityDelegate mAccessibilityDelegate;
     private @Mock DynamicRectProvider mDynamicRectProvider;
+    private @Mock WindowAndroid mWindowAndroid;
+    private @Mock InsetObserver mInsetObserver;
+    private @Mock WindowInsetsCompat mWindowInsets;
 
     private Activity mActivity;
     private FuseboxPopup mFuseboxPopup;
@@ -50,9 +66,13 @@ public class FuseboxPopupUnitTest {
         mActivity = Robolectric.setupActivity(TestActivity.class);
         mContentView = LayoutInflater.from(mActivity).inflate(R.layout.fusebox_context_popup, null);
         mViewGroup = mContentView.findViewById(R.id.fusebox_view_group);
+
+        when(mWindowAndroid.getInsetObserver()).thenReturn(mInsetObserver);
+
         mFuseboxPopup =
                 new FuseboxPopup(
                         mActivity,
+                        mWindowAndroid,
                         mPopupWindow,
                         mContentView,
                         mDynamicRectProvider,
@@ -121,6 +141,7 @@ public class FuseboxPopupUnitTest {
     @Test
     public void testSetPopupState_Floating() {
         mFuseboxPopup.setPopupState(FuseboxProperties.PopupState.FLOATING);
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
         verify(mDynamicRectProvider).setPopupState(FuseboxProperties.PopupState.FLOATING);
         verify(mPopupWindow).show();
     }
@@ -146,13 +167,18 @@ public class FuseboxPopupUnitTest {
 
     @Test
     public void testDynamicInflation_VerticalLayout() {
-        OmniboxFeatures.sShowBottomSheetPopup.setForTesting(false);
+        OmniboxFeatures.setShowBottomSheetPopupForTesting(false);
 
         // Re-create content view and popup to trigger new inflation logic
         mContentView = LayoutInflater.from(mActivity).inflate(R.layout.fusebox_context_popup, null);
         mFuseboxPopup =
                 new FuseboxPopup(
-                        mActivity, mPopupWindow, mContentView, mDynamicRectProvider, false);
+                        mActivity,
+                        mWindowAndroid,
+                        mPopupWindow,
+                        mContentView,
+                        mDynamicRectProvider,
+                        /* isBottomSheet= */ false);
 
         // Verify that we can find the elements
         assertNotNull(mFuseboxPopup.mAddCurrentTab);
@@ -165,13 +191,15 @@ public class FuseboxPopupUnitTest {
 
     @Test
     public void testDynamicInflation_HorizontalLayout() {
-        OmniboxFeatures.sShowBottomSheetPopup.setForTesting(true);
+        OmniboxFeatures.setIsDesktopPlatformForTesting(false);
+        OmniboxFeatures.setShowBottomSheetPopupForTesting(true);
 
         // Re-create content view and popup to trigger new inflation logic
         mContentView = LayoutInflater.from(mActivity).inflate(R.layout.fusebox_context_popup, null);
         mFuseboxPopup =
                 new FuseboxPopup(
                         mActivity,
+                        mWindowAndroid,
                         mPopupWindow,
                         mContentView,
                         mDynamicRectProvider,
@@ -184,5 +212,103 @@ public class FuseboxPopupUnitTest {
         assertNotNull(mFuseboxPopup.mCameraButton);
         assertNotNull(mFuseboxPopup.mGalleryButton);
         assertNotNull(mFuseboxPopup.mFileButton);
+    }
+
+    @Test
+    public void testUpdateLayout() {
+        doReturn(100)
+                .when(mDynamicRectProvider)
+                .getPopupWidth(eq(FuseboxProperties.PopupState.FLOATING), any());
+
+        doReturn(true).when(mPopupWindow).isShowing();
+
+        mFuseboxPopup.setPopupState(FuseboxProperties.PopupState.FLOATING);
+
+        Shadows.shadowOf(Looper.getMainLooper()).idle();
+
+        verify(mPopupWindow, atLeastOnce()).updateDesiredContentSize(100, 0, true);
+    }
+
+    @Test
+    public void testUpdateInsets_ImeVisible() {
+        Insets imeInsets = Insets.of(0, 0, 0, 100);
+        Insets navBarInsets = Insets.of(0, 0, 0, 50);
+        Insets statusBarsInsets = Insets.of(0, 20, 0, 0);
+
+        when(mInsetObserver.getLastRawWindowInsets()).thenReturn(mWindowInsets);
+        when(mWindowInsets.getInsets(WindowInsetsCompat.Type.ime())).thenReturn(imeInsets);
+        when(mWindowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()))
+                .thenReturn(navBarInsets);
+        when(mWindowInsets.getInsets(WindowInsetsCompat.Type.statusBars()))
+                .thenReturn(statusBarsInsets);
+
+        doReturn(true).when(mPopupWindow).isShowing();
+        mFuseboxPopup.setPopupState(FuseboxProperties.PopupState.FLOATING);
+
+        // First layout update.
+        mFuseboxPopup.updateLayout();
+        assertEquals(0, mFuseboxPopup.mScrollView.getPaddingBottom());
+
+        // Second layout update to test idempotency.
+        mFuseboxPopup.updateLayout();
+        assertEquals(0, mFuseboxPopup.mScrollView.getPaddingBottom());
+    }
+
+    @Test
+    public void testUpdateInsets_ImeHidden() {
+        Insets imeInsets = Insets.of(0, 0, 0, 0);
+        Insets navBarInsets = Insets.of(0, 0, 0, 50);
+        Insets statusBarsInsets = Insets.of(0, 20, 0, 0);
+
+        when(mInsetObserver.getLastRawWindowInsets()).thenReturn(mWindowInsets);
+        when(mWindowInsets.getInsets(WindowInsetsCompat.Type.ime())).thenReturn(imeInsets);
+        when(mWindowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()))
+                .thenReturn(navBarInsets);
+        when(mWindowInsets.getInsets(WindowInsetsCompat.Type.statusBars()))
+                .thenReturn(statusBarsInsets);
+
+        doReturn(true).when(mPopupWindow).isShowing();
+        mFuseboxPopup.setPopupState(FuseboxProperties.PopupState.FLOATING);
+
+        // First layout update
+        mFuseboxPopup.updateLayout();
+        assertEquals(0, mFuseboxPopup.mScrollView.getPaddingBottom());
+
+        // Second layout update to test idempotency
+        mFuseboxPopup.updateLayout();
+        assertEquals(0, mFuseboxPopup.mScrollView.getPaddingBottom());
+    }
+
+    @Test
+    public void testUpdateInsets_BottomSheet() {
+        Insets navBarInsets = Insets.of(0, 0, 0, 50);
+        when(mInsetObserver.getLastRawWindowInsets()).thenReturn(mWindowInsets);
+        when(mWindowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()))
+                .thenReturn(navBarInsets);
+        doReturn(true).when(mPopupWindow).isShowing();
+
+        mFuseboxPopup.setPopupState(FuseboxProperties.PopupState.BOTTOM);
+        mFuseboxPopup.updateLayout();
+
+        assertEquals(50, mFuseboxPopup.mScrollView.getPaddingBottom());
+    }
+
+    @Test
+    public void testFlingDismissesPopup_whenBottomSheet() {
+        mContentView = LayoutInflater.from(mActivity).inflate(R.layout.fusebox_context_popup, null);
+        mFuseboxPopup =
+                new FuseboxPopup(
+                        mActivity,
+                        mWindowAndroid,
+                        mPopupWindow,
+                        mContentView,
+                        mDynamicRectProvider,
+                        /* isBottomSheet= */ true);
+
+        // Call onFling directly on the exposed listener to avoid flaky MotionEvents.
+        int minFlingVelocity = ViewConfiguration.get(mActivity).getScaledMinimumFlingVelocity();
+        mFuseboxPopup.mScrollView.mGestureListener.onFling(null, null, 0, minFlingVelocity + 1);
+
+        verify(mPopupWindow).dismiss();
     }
 }

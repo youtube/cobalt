@@ -229,13 +229,9 @@ class ToolbarView : public views::AccessiblePaneView,
 
   // GlicNudgeDelegate:
   // Called when the glic nudge UI needs to be triggered. `label' holds the
-  // nudge label.
-  void OnTriggerGlicNudgeUI(std::string label) override;
-  // Show an anchored message bubble via the page action framework.
-  void OnTriggerAnchoredMessage(
-      std::string label,
-      std::string anchored_message_text,
-      std::optional<std::string> prompt_suggestion) override;
+  // nudge label. `anchored_message_text` and `prompt_suggestion` are unused in
+  // this UI.
+  void OnTriggerGlicNudgeUI(glic::NudgeParams params) override;
   // Called when the glic nudge UI needs to be hidden.
   void OnHideGlicNudgeUI() override;
   // Called when we want to check if the UI is currently showing.
@@ -288,7 +284,6 @@ class ToolbarView : public views::AccessiblePaneView,
   gfx::Rect GetFindBarBoundingBox(int contents_bottom) override;
   void FocusToolbar() override;
   views::AccessiblePaneView* GetAsAccessiblePaneView() override;
-  views::View* GetAnchorView(std::optional<actions::ActionId> action_id);
   views::BubbleAnchor GetBubbleAnchor(
       std::optional<actions::ActionId> action_id) override;
   void ZoomChangedForActiveTab(bool can_show_bubble) override;
@@ -313,6 +308,10 @@ class ToolbarView : public views::AccessiblePaneView,
   // views::MouseWatcherListener:
   void MouseMovedOutOfHost() override;
 
+  // May return a View that is not drawn; prefer using GetBubbleAnchor().
+  views::BubbleAnchor FindBubbleAnchor(
+      std::optional<actions::ActionId> action_id);
+
   // Changes the visibility of the Chrome Labs entry point based on prefs.
   void OnChromeLabsPrefChanged();
 
@@ -324,8 +323,6 @@ class ToolbarView : public views::AccessiblePaneView,
   void OnShowHomeButtonChanged();
 
   void OnTouchUiChanged();
-
-  void NewTabButtonPressed(const ui::Event& event);
 
   void InitGlicContainer();
 
@@ -339,8 +336,6 @@ class ToolbarView : public views::AccessiblePaneView,
   std::unique_ptr<glic::ToolbarGlicButton> CreateGlicButton();
   void OnGlicButtonClicked();
   void OnGlicButtonDismissed();
-  void OnGlicButtonHovered();
-  void OnGlicButtonMouseDown();
   void OnGlicButtonAnimationEnded();
   void ShowToolbarNudge(glic::GlicButtonInterface* button);
   void HideToolbarNudge(glic::GlicButtonInterface* button);

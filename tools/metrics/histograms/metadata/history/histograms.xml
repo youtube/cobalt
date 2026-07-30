@@ -120,7 +120,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.BrowsingHistoryResult.{LocalOrRemote}.{VisitAge}"
-    units="visits" expires_after="2026-08-30">
+    units="visits" expires_after="2026-11-08">
   <owner>treib@chromium.org</owner>
   <owner>src/components/sync/OWNERS</owner>
   <component>1456716</component>
@@ -1848,7 +1848,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.Embeddings.Embedder.CpuUsage2" units="1/100 %"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>sophiechang@chromium.org</owner>
   <owner>zekunjiang@google.com</owner>
   <summary>
@@ -1860,7 +1860,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.Embeddings.Embedder.CpuUsage2.NotRunning"
-    units="1/100 %" expires_after="2026-09-06">
+    units="1/100 %" expires_after="2026-11-08">
   <owner>sophiechang@chromium.org</owner>
   <owner>zekunjiang@google.com</owner>
   <owner>orinj@chromium.org</owner>
@@ -1873,7 +1873,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.Embeddings.Embedder.CpuUsage2.Running" units="1/100 %"
-    expires_after="2026-09-06">
+    expires_after="2026-11-08">
   <owner>sophiechang@chromium.org</owner>
   <owner>zekunjiang@google.com</owner>
   <owner>orinj@chromium.org</owner>
@@ -1909,7 +1909,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.Embeddings.Embedder.EmbeddingsModelLoadDuration"
-    units="ms" expires_after="2026-08-30">
+    units="ms" expires_after="2026-11-01">
   <owner>sophiechang@chromium.org</owner>
   <owner>zekunjiang@google.com</owner>
   <summary>
@@ -2936,7 +2936,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.WebHistory.QueryHistoryResultsCount" units="visits"
-    expires_after="2026-09-01">
+    expires_after="2026-11-01">
   <owner>treib@chromium.org</owner>
   <owner>src/components/history/OWNERS</owner>
   <component>1456716</component>
@@ -2947,7 +2947,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.WebHistory.QueryWebAndAppActivityResult"
-    enum="BooleanOptedIn" expires_after="2026-09-01">
+    enum="BooleanOptedIn" expires_after="2026-11-01">
   <owner>treib@chromium.org</owner>
   <owner>src/components/history/OWNERS</owner>
   <component>1456716</component>

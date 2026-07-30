@@ -85,6 +85,10 @@ class MediaPlayerAction;
 }
 }  // namespace blink
 
+namespace dictation {
+class DictationMenuObserver;
+}
+
 namespace ui {
 class DataTransferEndpoint;
 }
@@ -109,7 +113,6 @@ class RenderViewContextMenu
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kExitFullscreenMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kComposeMenuItem);
-  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kGlicCloseMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kGlicReloadMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kGlicArchiveConversationMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kGlicShareImageMenuItem);
@@ -322,6 +325,7 @@ class RenderViewContextMenu
   // Returns true if the items were appended. This might not happen in all
   // cases, e.g. these are only appended if a screen reader is enabled.
   bool AppendAccessibilityLabelsItems();
+  void AppendDictationItems();
   void AppendSearchProvider();
 #if BUILDFLAG(ENABLE_EXTENSIONS)
   void AppendCurrentExtensionItems();
@@ -419,6 +423,12 @@ class RenderViewContextMenu
   void PluginActionAt(const gfx::Point& location,
                       blink::mojom::PluginActionType plugin_action);
   void OpenTextQueryInLens();
+
+  // Returns the WebContents used for data control policy checks. This usually
+  // returns the source WebContents, but if the context menu is shown in a
+  // Reading Mode side panel or immersive view, it returns the WebContents of
+  // the original page being distilled.
+  content::WebContents* GetWebContentsForDataControls() const;
 
   // Returns a list of registered ProtocolHandlers that can handle the clicked
   // on URL.
@@ -546,6 +556,8 @@ class RenderViewContextMenu
 #endif
 
   std::unique_ptr<LinkToTextMenuObserver> link_to_text_menu_observer_;
+
+  std::unique_ptr<dictation::DictationMenuObserver> dictation_menu_observer_;
 
   // In the case of a MimeHandlerView this will point to the WebContents that
   // embeds the MimeHandlerViewGuest. Otherwise this will be the same as

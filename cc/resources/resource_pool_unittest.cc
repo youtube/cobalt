@@ -13,8 +13,10 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/test/scoped_feature_list.h"
 #include "base/test/test_mock_time_task_runner.h"
 #include "base/time/time.h"
+#include "cc/base/features.h"
 #include "components/viz/client/client_resource_provider.h"
 #include "components/viz/common/resources/returned_resource.h"
 #include "components/viz/common/resources/shared_image_format_utils.h"
@@ -526,6 +528,117 @@ TEST_F(ResourcePoolTest, ReuseResource) {
   CheckAndReturnResource(std::move(resource));
 }
 
+TEST_F(ResourcePoolTest, ReuseResourceExactMatchFirstEnabled) {
+  if (!resource_pool_->AllowsNonExactReUseForTesting()) {
+    GTEST_SKIP();
+  }
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(
+      features::kResourcePoolPreferExactSizeReuse);
+
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+
+  // Create a resource with size 70x70.
+  ResourcePool::InUsePoolResource larger_resource =
+      resource_pool_->AcquireResource(gfx::Size(70, 70), format, color_space);
+  auto larger_id = larger_resource.unique_id_for_testing();
+
+  // Create a resource with size 50x50.
+  ResourcePool::InUsePoolResource exact_resource =
+      resource_pool_->AcquireResource(gfx::Size(50, 50), format, color_space);
+  auto exact_id = exact_resource.unique_id_for_testing();
+
+  // Return both resources to the pool.
+  // We return the 50x50 one first, so it is further from the front (LRU
+  // compared to 70x70).
+  CheckAndReturnResource(std::move(exact_resource));
+  CheckAndReturnResource(std::move(larger_resource));
+
+  // Request a 50x50 resource.
+  // 70x70 is MRU and fits (area ratio 1.96 < 2.0).
+  // 50x50 is LRU and is an exact match.
+  // We should get the 50x50 one because exact matches are prioritized when
+  // the feature is enabled.
+  ResourcePool::InUsePoolResource reused =
+      resource_pool_->AcquireResource(gfx::Size(50, 50), format, color_space);
+  EXPECT_EQ(exact_id, reused.unique_id_for_testing());
+  EXPECT_NE(larger_id, reused.unique_id_for_testing());
+  CheckAndReturnResource(std::move(reused));
+}
+
+TEST_F(ResourcePoolTest, ReuseResourceExactMatchFirstDisabled) {
+  if (!resource_pool_->AllowsNonExactReUseForTesting()) {
+    GTEST_SKIP();
+  }
+
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(
+      features::kResourcePoolPreferExactSizeReuse);
+
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+
+  // Create a resource with size 70x70.
+  ResourcePool::InUsePoolResource larger_resource =
+      resource_pool_->AcquireResource(gfx::Size(70, 70), format, color_space);
+  auto larger_id = larger_resource.unique_id_for_testing();
+
+  // Create a resource with size 50x50.
+  ResourcePool::InUsePoolResource exact_resource =
+      resource_pool_->AcquireResource(gfx::Size(50, 50), format, color_space);
+  auto exact_id = exact_resource.unique_id_for_testing();
+
+  // Return both resources to the pool.
+  // We return the 50x50 one first, so it is further from the front (LRU
+  // compared to 70x70).
+  CheckAndReturnResource(std::move(exact_resource));
+  CheckAndReturnResource(std::move(larger_resource));
+
+  // Request a 50x50 resource.
+  // 70x70 is MRU and fits (area ratio 1.96 < 2.0).
+  // 50x50 is LRU and is an exact match.
+  // When the feature is disabled, we should get the MRU one (70x70), NOT the
+  // exact match.
+  ResourcePool::InUsePoolResource reused =
+      resource_pool_->AcquireResource(gfx::Size(50, 50), format, color_space);
+  EXPECT_EQ(larger_id, reused.unique_id_for_testing());
+  EXPECT_NE(exact_id, reused.unique_id_for_testing());
+  CheckAndReturnResource(std::move(reused));
+}
+
+TEST_F(ResourcePoolTest, ReuseResourceNoExactMatchMRU) {
+  if (!resource_pool_->AllowsNonExactReUseForTesting()) {
+    GTEST_SKIP();
+  }
+
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+
+  // Create two resources that fit a 50x50 request but are not exact matches.
+  // R1: 60x60 (3600), R2: 70x70 (4900). Both fit 50x50 (2500) because ratio <=
+  // 2.0.
+  ResourcePool::InUsePoolResource r1 =
+      resource_pool_->AcquireResource(gfx::Size(60, 60), format, color_space);
+  auto r1_id = r1.unique_id_for_testing();
+
+  ResourcePool::InUsePoolResource r2 =
+      resource_pool_->AcquireResource(gfx::Size(70, 70), format, color_space);
+  auto r2_id = r2.unique_id_for_testing();
+
+  // Return R1 then R2. R2 is MRU.
+  CheckAndReturnResource(std::move(r1));
+  CheckAndReturnResource(std::move(r2));
+
+  // Request 50x50. Should get R2 (MRU).
+  ResourcePool::InUsePoolResource reused =
+      resource_pool_->AcquireResource(gfx::Size(50, 50), format, color_space);
+  EXPECT_EQ(r2_id, reused.unique_id_for_testing());
+  EXPECT_NE(r1_id, reused.unique_id_for_testing());
+  CheckAndReturnResource(std::move(reused));
+}
+
 TEST_F(ResourcePoolTest, InvalidateResources) {
   // Limits high enough to not be hit by this test.
   size_t bytes_limit = 10 * 1024 * 1024;
@@ -714,6 +827,152 @@ TEST_F(ResourcePoolTest, InvalidResource) {
   resource = resource_pool_->AcquireResource(size, format, color_space);
   EXPECT_FALSE(resource.backing());
   resource_pool_->ReleaseResource(std::move(resource));
+}
+
+TEST_F(ResourcePoolTest, NotifyOfViewportSizeChangeDisabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndDisableFeature(kInvalidateResourcesOnSizeChange);
+
+  gfx::Size size(100, 100);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+
+  // Create an unused resource.
+  CheckAndReturnResource(
+      resource_pool_->AcquireResource(size, format, color_space));
+  EXPECT_EQ(1u, resource_pool_->GetTotalResourceCountForTesting());
+
+  // Notify of viewport size change.
+  resource_pool_->NotifyOfViewportSizeChange(gfx::Size(100, 100),
+                                             gfx::Size(200, 200));
+
+  // Resource should still be there.
+  EXPECT_EQ(1u, resource_pool_->GetTotalResourceCountForTesting());
+}
+
+TEST_F(ResourcePoolTest, NotifyOfViewportSizeChangeEnabled) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kInvalidateResourcesOnSizeChange);
+
+  gfx::Size size(100, 100);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+
+  // Create an unused resource.
+  CheckAndReturnResource(
+      resource_pool_->AcquireResource(size, format, color_space));
+  EXPECT_EQ(1u, resource_pool_->GetTotalResourceCountForTesting());
+
+  // Notify of viewport size change.
+  resource_pool_->NotifyOfViewportSizeChange(gfx::Size(100, 100),
+                                             gfx::Size(200, 200));
+
+  // Unused resource should have been evicted.
+  EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
+}
+
+TEST_F(ResourcePoolTest, NotifyOfViewportSizeChangeEnabledBusy) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kInvalidateResourcesOnSizeChange);
+
+  gfx::Size size(100, 100);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+
+  // Create a resource and export it (making it busy).
+  ResourcePool::InUsePoolResource resource =
+      resource_pool_->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource);
+  EXPECT_TRUE(resource_pool_->PrepareForExport(
+      resource, viz::TransferableResource::ResourceSource::kTest));
+
+  std::vector<viz::TransferableResource> transfers;
+  resource_provider_->PrepareSendToParent(
+      {resource.resource_id_for_export()}, &transfers,
+      context_provider_->SharedImageInterface());
+
+  // Return to pool, it should go to busy_resources_.
+  resource_pool_->ReleaseResource(std::move(resource));
+  EXPECT_EQ(1u, resource_pool_->GetBusyResourceCountForTesting());
+
+  // Notify of viewport size change.
+  resource_pool_->NotifyOfViewportSizeChange(gfx::Size(100, 100),
+                                             gfx::Size(200, 200));
+
+  // It should still be busy.
+  EXPECT_EQ(1u, resource_pool_->GetBusyResourceCountForTesting());
+
+  // Now return it from the parent.
+  auto returned_resources =
+      viz::TransferableResource::ReturnResources(transfers);
+  resource_provider_->ReceiveReturnsFromParent(std::move(returned_resources));
+
+  // It should have been deleted because it was marked avoid_reuse.
+  EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
+}
+
+TEST_F(ResourcePoolTest, NotifyOfViewportSizeChangeEnabledInUse) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kInvalidateResourcesOnSizeChange);
+
+  gfx::Size size(100, 100);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+
+  // Create a resource and keep it in use.
+  ResourcePool::InUsePoolResource resource =
+      resource_pool_->AcquireResource(size, format, color_space);
+  EXPECT_EQ(1u, resource_pool_->resource_count());
+
+  // Notify of viewport size change.
+  resource_pool_->NotifyOfViewportSizeChange(gfx::Size(100, 100),
+                                             gfx::Size(200, 200));
+
+  // It should still be in use.
+  EXPECT_EQ(1u, resource_pool_->resource_count());
+
+  // Return to pool. It should be deleted immediately because it was marked
+  // avoid_reuse.
+  resource_pool_->ReleaseResource(std::move(resource));
+  EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
+}
+
+TEST_F(ResourcePoolTest, PeakMetrics) {
+  // Limits high enough to not be hit by this test.
+  size_t bytes_limit = 10 * 1024 * 1024;
+  size_t count_limit = 100;
+  resource_pool_->SetResourceUsageLimits(bytes_limit, count_limit);
+
+  gfx::Size size(100, 100);
+  viz::SharedImageFormat format = viz::SinglePlaneFormat::kRGBA_8888;
+  gfx::ColorSpace color_space = gfx::ColorSpace::CreateSRGB();
+  size_t resource_bytes = format.EstimatedSizeInBytes(size);
+
+  ResourcePool::InUsePoolResource resource1 =
+      resource_pool_->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource1);
+  EXPECT_EQ(resource_bytes, resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(1u, resource_pool_->GetTotalResourceCountForTesting());
+
+  ResourcePool::InUsePoolResource resource2 =
+      resource_pool_->AcquireResource(size, format, color_space);
+  SetBackingOnResource(resource2);
+  EXPECT_EQ(2 * resource_bytes,
+            resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(2u, resource_pool_->GetTotalResourceCountForTesting());
+
+  // Release resources, peak should stay the same.
+  resource_pool_->ReleaseResource(std::move(resource1));
+  resource_pool_->ReleaseResource(std::move(resource2));
+  EXPECT_EQ(2 * resource_bytes,
+            resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(2u, resource_pool_->GetTotalResourceCountForTesting());
+
+  // Evict resources, peak should still stay the same.
+  resource_pool_->SetResourceUsageLimits(0u, 0u);
+  resource_pool_->ReduceResourceUsage();
+  EXPECT_EQ(0u, resource_pool_->GetTotalMemoryUsageForTesting());
+  EXPECT_EQ(0u, resource_pool_->GetTotalResourceCountForTesting());
 }
 
 }  // namespace cc

@@ -45,6 +45,7 @@
 
 namespace blink {
 
+class CSSCounterStyleRule;
 class CSSKeyframeRule;
 class CSSMediaRule;
 class CSSContainerRule;
@@ -203,6 +204,11 @@ class InspectorStyleSheet : public InspectorStyleSheetBase {
                                          SourceRange* new_range,
                                          String* old_text,
                                          ExceptionState&);
+  CSSContainerRule* SetContainerRuleConditionText(const SourceRange&,
+                                                  const String& text,
+                                                  SourceRange* new_range,
+                                                  String* old_text,
+                                                  ExceptionState&);
   CSSScopeRule* SetScopeRuleText(const SourceRange&,
                                  const String& text,
                                  SourceRange* new_range,
@@ -249,6 +255,8 @@ class InspectorStyleSheet : public InspectorStyleSheetBase {
   std::unique_ptr<protocol::CSS::CSSAtRule>
   BuildAtRuleObjectForFontFeatureValuesRule(CSSFontFeatureValuesRule*,
                                             StyleRuleFontFeature::FeatureType);
+  std::unique_ptr<protocol::CSS::CSSAtRule>
+  BuildAtRuleObjectForCounterStyleRule(CSSCounterStyleRule*);
   std::unique_ptr<protocol::CSS::CSSPropertyRule> BuildObjectForPropertyRule(
       CSSPropertyRule*);
   std::unique_ptr<protocol::CSS::CSSKeyframeRule> BuildObjectForKeyframeRule(
@@ -275,6 +283,9 @@ class InspectorStyleSheet : public InspectorStyleSheetBase {
   CSSRuleSourceData* FindRuleByHeaderRange(const SourceRange&);
   CSSRuleSourceData* FindRuleByDeclarationsRange(const SourceRange&);
   CSSRule* RuleForSourceData(CSSRuleSourceData*);
+  CSSContainerRule* ContainerRuleFromSourceData(const String& query_text,
+                                                CSSRuleSourceData*,
+                                                ExceptionState&);
   CSSStyleRule* InsertCSSOMRuleInStyleSheet(CSSRule* insert_before,
                                             const String& rule_text,
                                             ExceptionState&);

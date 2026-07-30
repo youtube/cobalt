@@ -41,11 +41,20 @@ _DEBUG_SCRIPT = pathlib.Path('/tmp/debug_generate_system_modulemap.sh')
 _STRIP = re.compile(r'\nmodule _Builtin_stdatomic \[system\] \{.*?\}\n',
                     re.MULTILINE | re.DOTALL)
 
+_MODULEMAP_START = re.compile(
+    r'^\b(?:(?:explicit|framework)\s+)*module\s+"?([^" ]+)"?\s.*\{',
+    re.MULTILINE)
+
 
 # Path.absolute() only exists in python 3.11, gmacs still have python3.9
 # Similar to Path.resolve() but doesn't follow symlinks.
 def _absolute(p: pathlib.Path) -> pathlib.Path:
   return pathlib.Path(os.path.abspath(p))
+
+
+# Usually ../.., but not always.
+_SRC_PREFIX = pathlib.Path(
+    os.path.relpath(pathlib.Path(__file__).parents[3], os.getcwd()))
 
 
 # We consider sysroot headers to be, by default, private.
@@ -58,7 +67,7 @@ def _absolute(p: pathlib.Path) -> pathlib.Path:
 # Thus, this is a list of *every* sysroot file directly included by chromium to
 # be precompiled.
 def parse_allowlist():
-  path = pathlib.Path(__file__).parent / '../../include_sysroot_allowlist.txt'
+  path = _SRC_PREFIX / 'build/include_sysroot_allowlist.txt'
   lines = [
       line.strip() for line in path.read_text().split('\n')
       if line and not line.startswith('#')
@@ -150,6 +159,30 @@ class Header:
   private: bool
   textual: bool
   requires: list[str] = dataclasses.field(default_factory=list)
+
+
+def split_modulemap(modulemap: str) -> dict[str, str]:
+  results = {}
+  upto = 0
+  for m in _MODULEMAP_START.finditer(modulemap):
+    # This is a submodule of a previously referenced module
+    if m.start() < upto:
+      continue
+    depth = 0
+    for c in range(m.start(), len(modulemap)):
+      # Brace counting is pretty rudimentary, and could fail in theory.
+      # However, in practice, they seem to work pretty well.
+      # A user is highly unlikely to write a "{" without a "}" in a comment, for
+      # example.
+      if modulemap[c] == '{':
+        depth += 1
+      elif modulemap[c] == '}':
+        depth -= 1
+        if depth == 0:
+          upto = c + 1
+          results[m.group(1)] = modulemap[m.start():upto]
+          break
+  return results
 
 
 def parse_modulemap(
@@ -283,9 +316,8 @@ cd "{os.getcwd()}"
 
     ps = subprocess.run(cmd, check=False)
     if ps.returncode != 0:
-      print(
-          f"Suggestion: Run `cd {os.getcwd()} && {shlex.join(sys.argv)} --debug` to debug"
-      )
+      print(f"Suggestion: Run `cd {os.getcwd()} && {shlex.join(sys.argv)} "
+            "--debug` to debug")
       sys.exit(ps.returncode)
 
     dep_content = dep_file.read_text().replace('\\\n', '')
@@ -319,15 +351,19 @@ cd "{os.getcwd()}"
     return headers
 
 
-def combine_modulemaps(out: pathlib.Path, modulemaps: list[pathlib.Path],
-                       headers: List[Header], module_name: str) -> str:
+def combine_modulemaps(out: pathlib.Path,
+                       modulemaps: list[pathlib.Path],
+                       headers: List[Header],
+                       module_name: str,
+                       extra_modules: list[(str, pathlib.Path)] = []) -> str:
   """Generates the combined modulemap output string from dependencies."""
-  custom_header_prefix = os.path.relpath('../../buildtools/third_party/libc++',
-                                         out.parent)
+  custom_header_prefix = os.path.relpath(
+      _SRC_PREFIX / 'buildtools/third_party/libc++', out.parent)
 
   with io.StringIO() as s:
     modules = {'system': 1}
-    s.write(f'module "{module_name}" [system] {{\n')
+    if module_name:
+      s.write(f'module "{module_name}" [system] {{\n')
     for mm in modulemaps:
       prefix = os.path.relpath(mm.parent, out.parent)
 
@@ -372,61 +408,73 @@ def combine_modulemaps(out: pathlib.Path, modulemaps: list[pathlib.Path],
       s.write('  export *\n')
       s.write('}\n')
 
-    s.write('}\n')
+    for content, source_modulemap in extra_modules:
+      prefix = os.path.relpath(source_modulemap.parent, out.parent)
+
+      def rebase_path(p: str) -> str:
+        return os.path.normpath(os.path.join(prefix, p))
+
+      mm_content = _SIMPLE_HEADER_RE.sub(
+          lambda m: f'{m.group(1)}{rebase_path(m.group(2))}{m.group(3)}',
+          content)
+      s.write(mm_content)
+      s.write('\n')
+
+    if module_name:
+      s.write('}\n')
     return s.getvalue()
 
 
-def main(args):
+def main(args, extra_args):
   """Executes the modulemap generation pipeline."""
-  clang_cpu = _CPU_ARG[args.cpu]
-  if args.os == 'android':
-    # The real triple is x86_64-linux-android29, for example, but it appears
-    # to work fine without the version number, and this way we don't have to
-    # keep updating it.
-    target = f'{clang_cpu}-linux-android'
-  elif args.os == 'fuchsia':
-    target = f'{clang_cpu}-unknown-fuchsia'
-  elif args.os == "mac":
-    target = f'{clang_cpu}-apple-macos'
-  elif args.os == "ios":
-    target = f'{clang_cpu}-apple-ios'
-  else:
-    target = f'{clang_cpu}-unknown-{args.os}-gnu'
-  deps = calculate_transitive_headers(
-      clang_args=[
-          str(args.clang),
-          # Some files are only read with optimization flags enabled.
-          '-O2',
-          '-D_FORTIFY_SOURCE=3',
-          # Target architecture is required for preprocessor to define built-in
-          # target-specific macros (e.g., __x86_64__).
-          f'--target={target}',
-          f'--sysroot={args.sysroot}',
-          # Ensure we're using the right libc++
-          '-nostdinc++',
-          '-I../../third_party/libc++/src/include',
-          '-I../../third_party/libc++abi/src/include',
-          '-I../../buildtools/third_party/libc++',
-          # Libc++ feature/hardening macros required by libc++ headers.
-          '-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE',
-          '-D_LIBCPP_BUILDING_LIBRARY',
-          '-std=c++23',
-          # Ensures that paths to compiler builtin headers are kept relative
-          # rather than being resolved to absolute/canonical symlinked paths.
-          '-no-canonical-prefixes',
-      ],
-      include_dirs=[parse_modulemap(mm) for mm in args.modulemap],
-      sysroot=args.sysroot,
-      extra_public_headers=_HEADERS,
-      target_os=args.os,
-      target_cpu=args.cpu,
-      debug=args.debug,
-  )
+  deps = []
+  if args.sysroot:
+    deps = calculate_transitive_headers(
+        clang_args=[
+            str(args.clang),
+            # Some files are only read with optimization flags enabled.
+            '-O2',
+            '-D_FORTIFY_SOURCE=3',
+            f'--sysroot={args.sysroot}',
+            # Ensure we're using the right libc++
+            '-nostdinc++',
+            f'-I{_SRC_PREFIX}/third_party/libc++/src/include',
+            f'-I{_SRC_PREFIX}/third_party/libc++abi/src/include',
+            f'-I{_SRC_PREFIX}/buildtools/third_party/libc++',
+            # Libc++ feature/hardening macros required by libc++ headers.
+            '-D_LIBCPP_HARDENING_MODE=_LIBCPP_HARDENING_MODE_EXTENSIVE',
+            '-D_LIBCPP_BUILDING_LIBRARY',
+            '-std=c++23',
+            # Ensures that paths to compiler builtin headers are kept relative
+            # rather than being resolved to absolute/canonical symlinked paths.
+            '-no-canonical-prefixes',
+            *extra_args,
+        ],
+        include_dirs=[parse_modulemap(mm) for mm in args.modulemap],
+        sysroot=args.sysroot,
+        extra_public_headers=_HEADERS,
+        target_os=args.os,
+        target_cpu=args.cpu,
+        debug=args.debug,
+    )
 
-  out_str = combine_modulemaps(out=args.output,
-                               modulemaps=args.modulemap,
-                               headers=deps,
-                               module_name=args.module_name)
+  known_modules = {}
+  for modulemap in args.partial_modulemap:
+    for name, content in split_modulemap(modulemap.read_text()).items():
+      known_modules[name] = (content, modulemap)
+
+  for module in args.module:
+    if module not in known_modules:
+      available = ', '.join(sorted(known_modules))
+      raise ValueError(f"Module '{module}' not found in partial modulemaps. "
+                       f"Available: {available}")
+
+  out_str = combine_modulemaps(
+      out=args.output,
+      modulemaps=args.modulemap,
+      headers=deps,
+      module_name=args.module_name,
+      extra_modules=[known_modules[module] for module in args.module])
   args.output.write_text(out_str)
 
 
@@ -435,29 +483,43 @@ if __name__ == '__main__':
       description='Generate a system modulemap using clang to discover deps')
   parser.add_argument('--clang',
                       type=pathlib.Path,
-                      required=True,
                       help='Path to the Clang compiler binary.')
   parser.add_argument('--sysroot',
                       type=pathlib.Path,
-                      required=True,
                       help='Path to the sysroot directory.')
   parser.add_argument('--output',
                       type=pathlib.Path,
                       required=True,
                       help='Path where the merged modulemap will be written.')
-  parser.add_argument('--module-name', required=True, help='Name of the module')
+  parser.add_argument('--module-name', help='Name of the module')
   parser.add_argument(
       '--modulemap',
       action='append',
       type=pathlib.Path,
       required=True,
       help='Path to a modulemap to merge. Can be specified multiple times.')
-  parser.add_argument('--os', required=True, help="GN's $target_os variable")
-  parser.add_argument('--cpu', required=True, help="GN's $target_cpu variable")
+  parser.add_argument(
+      '--partial-modulemap',
+      action='append',
+      type=pathlib.Path,
+      default=[],
+      help=('Path to a modulemap to partially merge. '
+            'Top-level modules must be specified via --module.'))
+  parser.add_argument('--module',
+                      action='append',
+                      type=str,
+                      default=[],
+                      help=('Name of a top-level module to selectively extract '
+                            'from partial modulemaps.'))
+  parser.add_argument('--os', help="GN's $target_os variable")
+  parser.add_argument('--cpu', help="GN's $target_cpu variable")
   parser.add_argument(
       '--debug',
       action='store_true',
       help=(
           f'Instead of compiling, generate a bash script {str(_DEBUG_SCRIPT)} '
           'that attempts to compile'))
-  main(parser.parse_args())
+  args, remaining_args = parser.parse_known_args()
+  if remaining_args and remaining_args[0] == '--':
+    remaining_args.pop(0)
+  main(args, remaining_args)

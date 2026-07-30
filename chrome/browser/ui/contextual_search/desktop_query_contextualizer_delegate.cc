@@ -8,7 +8,6 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_context_service.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
-#include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "components/contextual_tasks/public/features.h"
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/tabs/public/tab_interface.h"
@@ -59,14 +58,14 @@ void DesktopQueryContextualizerDelegate::GetPageContext(
     return;
   }
 
-  auto* tab_features = tab->GetTabFeatures();
-  if (!tab_features || !tab_features->tab_contextualization_controller()) {
+  auto* tab_contextualization_controller =
+      lens::TabContextualizationController::From(tab);
+  if (!tab_contextualization_controller) {
     std::move(callback).Run(nullptr);
     return;
   }
 
-  tab_features->tab_contextualization_controller()->GetPageContext(
-      std::move(callback));
+  tab_contextualization_controller->GetPageContext(std::move(callback));
 }
 
 bool DesktopQueryContextualizerDelegate::IsTabValid(

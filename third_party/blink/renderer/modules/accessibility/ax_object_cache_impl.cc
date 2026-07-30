@@ -1615,8 +1615,13 @@ AXObject* AXObjectCacheImpl::CreateAndInit(Node* node,
   new_obj->Init(parent);
   MaybeDisallowImplicitSelectionWithCleanLayout(new_obj);
 
-#if AX_FAIL_FAST_BUILD()
   Element* element = DynamicTo<Element>(node);
+  if (element && !element->IsPseudoElement() &&
+      AXObject::HasARIAOwns(element)) {
+    relation_cache_->QueueOwnerToUpdate(new_obj);
+  }
+
+#if AX_FAIL_FAST_BUILD()
   if (element && !element->IsPseudoElement()) {
     // Ensure that the relation cache is properly initialized with information
     // from this element.
@@ -2109,10 +2114,27 @@ void AXObjectCacheImpl::RemoveSubtree(const Node* node) {
 void AXObjectCacheImpl::RemoveSubtree(const Node* node,
                                       bool remove_root,
                                       bool notify_parent) {
+  HashSet<AXID> removing_subtree_axids;
+  RemoveSubtreeInternal(node, remove_root, notify_parent,
+                        removing_subtree_axids);
+}
+
+void AXObjectCacheImpl::RemoveSubtreeInternal(
+    const Node* node,
+    bool remove_root,
+    bool notify_parent,
+    HashSet<AXID>& removing_subtree_axids) {
   DCHECK(node);
   AXObject* object = Get(node);
+  AXID ax_id = object ? object->AXObjectID() : 0;
+  if (ax_id && !removing_subtree_axids.insert(ax_id).is_new_entry) {
+    return;
+  }
+
   if (!object && !remove_root) {
-    // Nothing remaining to do for this subtree. Already removed.
+    // With remove_root=false, this operation prunes a cached AX subtree
+    // anchored at the root object. If the root has no cached AXObject, there is
+    // no such subtree to prune.
     return;
   }
 
@@ -2140,8 +2162,8 @@ void AXObjectCacheImpl::RemoveSubtree(const Node* node,
   // Remove children found through dom traversal.
   for (Node* child_node = NodeTraversal::FirstChild(*node); child_node;
        child_node = NodeTraversal::NextSibling(*child_node)) {
-    RemoveSubtree(child_node, /* remove_root */ true,
-                  /* notify_parent */ false);
+    RemoveSubtreeInternal(child_node, /* remove_root */ true,
+                          /* notify_parent */ false, removing_subtree_axids);
   }
 
   if (!object) {
@@ -2160,9 +2182,9 @@ void AXObjectCacheImpl::RemoveSubtree(const Node* node,
       Remove(ax_included_child, /* notify_parent */ false);
     } else if (ax_included_child->GetNode()) {
       DCHECK(ax_included_child->GetNode() != node);
-      RemoveSubtree(ax_included_child->GetNode(),
-                    /* remove_root */ true,
-                    /* notify_parent */ false);
+      RemoveSubtreeInternal(ax_included_child->GetNode(),
+                            /* remove_root */ true,
+                            /* notify_parent */ false, removing_subtree_axids);
     } else {
       RemoveIncludedSubtree(ax_included_child, /* remove_root */ true);
     }
@@ -3008,18 +3030,12 @@ void AXObjectCacheImpl::NodeIsAttachedWithCleanLayout(Node* node) {
   }
 }
 
-void AXObjectCacheImpl::NotifyParentChildrenChanged(
-    AXObject* parent,
-    bool allow_immediate_update) {
+void AXObjectCacheImpl::NotifyParentChildrenChanged(AXObject* parent) {
   if (!parent) {
     return;
   }
   if (lifecycle_.StateAllowsImmediateTreeUpdates()) {
-    if (allow_immediate_update) {
-      ChildrenChangedWithCleanLayout(parent);
-    } else {
-      InvalidateChildren(parent);
-    }
+    ChildrenChangedWithCleanLayout(parent);
   } else {
     AXObject* ax_ancestor = ChildrenChanged(parent);
     if (!ax_ancestor) {
@@ -3037,18 +3053,15 @@ void AXObjectCacheImpl::NotifyParentChildrenChanged(
 
 // Note: do not call this when a child is becoming newly included, because
 // it will return early if |obj| was last known to be unincluded.
-void AXObjectCacheImpl::ChildrenChangedOnAncestorOf(
-    AXObject* obj,
-    bool allow_immediate_update) {
+void AXObjectCacheImpl::ChildrenChangedOnAncestorOf(AXObject* obj) {
   DCHECK(obj);
   DCHECK(!obj->IsDetached());
-  AXObject* parent = obj->ParentObjectIfPresent();
 
   // Clear children of ancestors in order to ensure this detached object is not
   // cached in an ancestor's list of children:
   // Any ancestor up to the first included ancestor can contain the now-detached
   // child in it's cached children, and therefore must update children.
-  NotifyParentChildrenChanged(parent, allow_immediate_update);
+  NotifyParentChildrenChanged(obj->ParentObjectIfPresent());
 }
 
 void AXObjectCacheImpl::ChildrenChangedWithCleanLayout(AXObject* obj) {
@@ -5386,7 +5399,7 @@ bool AXObjectCacheImpl::IsImmediateProcessingRequiredForEvent(
     case ax::mojom::blink::Event::kEnabledChanged:
     case ax::mojom::blink::Event::kEndOfTest:
     case ax::mojom::blink::Event::kFocusAfterMenuClose:
-    case ax::mojom::blink::Event::kFocusContext:
+    case ax::mojom::blink::Event::kFocusContextDeprecated:
     case ax::mojom::blink::Event::kHide:
     case ax::mojom::blink::Event::kHitTestResult:
     case ax::mojom::blink::Event::kImageFrameUpdated:

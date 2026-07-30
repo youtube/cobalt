@@ -204,13 +204,14 @@ BookmarksSidePanelUI::BookmarksSidePanelUI(content::WebUI* web_ui)
   source->AddBoolean("guestMode", profile->IsGuestSession());
   source->AddBoolean("incognitoMode", profile->IsIncognitoProfile());
   source->AddBoolean("isIncognitoModeAvailable", IsIncognitoModeAvailable());
-  source->AddBoolean(
-      "bookmarksTreeViewEnabled",
-      base::FeatureList::IsEnabled(features::kBookmarksTreeView));
 
   source->AddBoolean(
       "isBookmarksMigrationUiChanges",
       base::FeatureList::IsEnabled(switches::kBookmarksMigrateUiChanges));
+
+  source->AddBoolean("menuSimplification", base::FeatureList::IsEnabled(
+                                               features::kMenuSimplification));
+
   source->AddInteger(
       "sortOrder",
       prefs->GetInteger(bookmarks_webui::prefs::kBookmarksSortOrder));

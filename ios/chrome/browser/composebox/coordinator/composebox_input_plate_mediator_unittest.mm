@@ -6,8 +6,12 @@
 
 #import <unordered_set>
 
+#import "base/files/file_util.h"
+#import "base/files/scoped_temp_dir.h"
 #import "base/no_destructor.h"
 #import "base/run_loop.h"
+#import "base/strings/sys_string_conversions.h"
+#import "base/test/run_until.h"
 #import "base/test/scoped_feature_list.h"
 #import "base/test/task_environment.h"
 #import "components/contextual_search/contextual_search_context_controller.h"
@@ -39,6 +43,7 @@
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/web/public/test/fakes/fake_web_state.h"
+#import "net/base/apple/url_conversions.h"
 #import "services/network/public/cpp/shared_url_loader_factory.h"
 #import "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
 #import "services/network/test/test_url_loader_factory.h"
@@ -140,6 +145,14 @@ class ComposeboxInputPlateMediatorTest : public PlatformTest {
             pref_service_, template_url_service(),
             test_url_loader_factory->GetSafeWeakWrapper(),
             IdentityManagerFactory::GetForProfile(profile_.get()));
+
+    ON_CALL(*aim_eligibility_service_,
+            RegisterEligibilityChangedCallback(testing::_))
+        .WillByDefault([this](base::RepeatingClosure callback) {
+          this->aim_eligibility_callback_ = callback;
+          return base::CallbackListSubscription();
+        });
+
     auto session_handle = service_->CreateSession(
         std::move(config_params),
         contextual_search::ContextualSearchSource::kUnknown,
@@ -274,7 +287,11 @@ class ComposeboxInputPlateMediatorTest : public PlatformTest {
   }
 
   void ForwardSearchboxConfig() {
-    [mediator_ setSearchboxConfig:&searchbox_config_];
+    EXPECT_CALL(*aim_eligibility_service_, GetSearchboxConfig())
+        .WillRepeatedly(testing::Return(&searchbox_config_));
+    if (aim_eligibility_callback_) {
+      aim_eligibility_callback_.Run();
+    }
   }
 
   void EraseOmniboxText() { SetOmniboxText(u""); }
@@ -321,6 +338,7 @@ class ComposeboxInputPlateMediatorTest : public PlatformTest {
 
   base::test::TaskEnvironment task_environment_;
   TestingPrefServiceSimple pref_service_;
+  base::RepeatingClosure aim_eligibility_callback_;
   std::unique_ptr<TestProfileIOS> profile_;
   network::TestURLLoaderFactory test_factory_;
   scoped_refptr<network::SharedURLLoaderFactory> shared_url_loader_factory_;
@@ -625,6 +643,116 @@ TEST_F(ComposeboxInputPlateMediatorTest,
   [[NSNotificationCenter defaultCenter]
       postNotificationName:UIApplicationWillEnterForegroundNotification
                     object:nil];
+
+  [test_mediator disconnect];
+}
+
+// Tests that PDF files are uploaded with the PDF MIME type.
+TEST_F(ComposeboxInputPlateMediatorTest, UploadsPDFFilesWithPDFMimeType) {
+  auto config_params = std::make_unique<
+      contextual_search::ContextualSearchContextController::ConfigParams>();
+  auto real_session = service_->CreateSession(
+      std::move(config_params),
+      contextual_search::ContextualSearchSource::kUnknown, std::nullopt);
+  auto* real_controller = real_session->GetController();
+
+  auto mock_session = std::make_unique<testing::NiceMock<
+      contextual_search::MockContextualSearchSessionHandle>>();
+  contextual_search::MockContextualSearchSessionHandle* raw_mock =
+      mock_session.get();
+
+  ON_CALL(*raw_mock, GetController())
+      .WillByDefault(testing::Return(real_controller));
+
+  ComposeboxInputPlateMediator* test_mediator =
+      [[ComposeboxInputPlateMediator alloc]
+          initWithContextualSearchSession:std::move(mock_session)
+                             webStateList:web_state_list_.get()
+                            faviconLoader:nullptr
+                   persistTabContextAgent:nullptr
+                              isIncognito:NO
+                               modeHolder:[[ComposeboxModeHolder alloc] init]
+                       templateURLService:template_url_service()
+                    aimEligibilityService:aim_eligibility_service_.get()
+                              prefService:&pref_service_
+                                  profile:profile_.get()
+                     cobrowseBrowserAgent:nil
+                browserCoordinatorHandler:nil
+                             sceneHandler:nil
+                               entrypoint:ComposeboxEntrypoint::kOther];
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath file_path = temp_dir.GetPath().AppendASCII("test.pdf");
+  ASSERT_TRUE(base::WriteFile(file_path, "dummy pdf content"));
+
+  NSURL* file_url =
+      [NSURL fileURLWithPath:base::SysUTF8ToNSString(file_path.value())];
+  GURL file_gurl = net::GURLWithNSURL(file_url);
+
+  bool called = false;
+  EXPECT_CALL(*raw_mock, StartFileContextUploadFlow(testing::_, testing::_,
+                                                    "application/pdf",
+                                                    testing::_, testing::_))
+      .WillOnce(testing::InvokeWithoutArgs([&called]() { called = true; }));
+
+  [test_mediator processFileURL:file_gurl isPDF:YES];
+  ASSERT_TRUE(base::test::RunUntil([&]() { return called; }));
+
+  [test_mediator disconnect];
+}
+
+// Tests that raw files are uploaded with their dynamically computed MIME type.
+TEST_F(ComposeboxInputPlateMediatorTest, UploadsRawFilesWithDynamicMimeType) {
+  auto config_params = std::make_unique<
+      contextual_search::ContextualSearchContextController::ConfigParams>();
+  auto real_session = service_->CreateSession(
+      std::move(config_params),
+      contextual_search::ContextualSearchSource::kUnknown, std::nullopt);
+  auto* real_controller = real_session->GetController();
+
+  auto mock_session = std::make_unique<testing::NiceMock<
+      contextual_search::MockContextualSearchSessionHandle>>();
+  contextual_search::MockContextualSearchSessionHandle* raw_mock =
+      mock_session.get();
+
+  ON_CALL(*raw_mock, GetController())
+      .WillByDefault(testing::Return(real_controller));
+
+  ComposeboxInputPlateMediator* test_mediator =
+      [[ComposeboxInputPlateMediator alloc]
+          initWithContextualSearchSession:std::move(mock_session)
+                             webStateList:web_state_list_.get()
+                            faviconLoader:nullptr
+                   persistTabContextAgent:nullptr
+                              isIncognito:NO
+                               modeHolder:[[ComposeboxModeHolder alloc] init]
+                       templateURLService:template_url_service()
+                    aimEligibilityService:aim_eligibility_service_.get()
+                              prefService:&pref_service_
+                                  profile:profile_.get()
+                     cobrowseBrowserAgent:nil
+                browserCoordinatorHandler:nil
+                             sceneHandler:nil
+                               entrypoint:ComposeboxEntrypoint::kOther];
+
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath file_path = temp_dir.GetPath().AppendASCII("test.txt");
+  ASSERT_TRUE(base::WriteFile(file_path, "dummy plain text content"));
+
+  NSURL* file_url =
+      [NSURL fileURLWithPath:base::SysUTF8ToNSString(file_path.value())];
+  GURL file_gurl = net::GURLWithNSURL(file_url);
+
+  bool called = false;
+  EXPECT_CALL(*raw_mock,
+              StartFileContextUploadFlow(testing::_, testing::_, "text/plain",
+                                         testing::_, testing::_))
+      .WillOnce(testing::InvokeWithoutArgs([&called]() { called = true; }));
+
+  [test_mediator processFileURL:file_gurl isPDF:NO];
+  ASSERT_TRUE(base::test::RunUntil([&]() { return called; }));
 
   [test_mediator disconnect];
 }

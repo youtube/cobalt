@@ -9,8 +9,6 @@ import org.chromium.components.autofill.autofill_ai.EntityInstanceWithLabels;
 import org.chromium.components.autofill.autofill_ai.EntityType;
 import org.chromium.components.autofill.autofill_ai.EntityTypeName;
 
-import java.time.LocalDate;
-import java.time.ZoneId;
 import java.util.Collections;
 import java.util.UUID;
 
@@ -95,12 +93,10 @@ public final class TestUtils {
             EntityType entityType, String label, String subLabel) {
         EntityInstance entityInstance =
                 new EntityInstance.Builder(entityType)
-                        .setGUID(UUID.randomUUID().toString())
-                        .setModifiedDate(LocalDate.now(ZoneId.systemDefault()))
-                        .setUseCount(0)
+                        .setGuid(UUID.randomUUID().toString())
                         .build();
         return new EntityInstanceWithLabels(
-                entityInstance.getGUID(),
+                entityInstance.getGuid(),
                 entityType,
                 label,
                 subLabel,

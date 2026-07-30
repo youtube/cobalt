@@ -22,6 +22,27 @@ import {GlowAnimationState} from './constants.js';
  * Transcript and receivedSpeech are optional. Allows for audio to simulate
  * audio input without opening audio stream.
  */
+if (window.CSS && CSS.registerProperty) {
+  try {
+    CSS.registerProperty({
+      name: '--gradient-angle',
+      syntax: '<angle>',
+      inherits: true,
+      initialValue: '0deg',
+    });
+  } catch (_e) {
+  }
+  try {
+    CSS.registerProperty({
+      name: '--mask-angle',
+      syntax: '<angle>',
+      inherits: true,
+      initialValue: '0deg',
+    });
+  } catch (_e) {
+  }
+}
+
 export class SearchAnimatedGlowElement extends CrLitElement {
   static get is() {
     return 'search-animated-glow';
@@ -37,6 +58,7 @@ export class SearchAnimatedGlowElement extends CrLitElement {
 
   static override get properties() {
     return {
+      coloredTicTacVoiceAnimationEnabled: {type: Boolean},
       animationState: {
         type: String,
         reflect: true,
@@ -57,9 +79,11 @@ export class SearchAnimatedGlowElement extends CrLitElement {
         type: Boolean,
         reflect: true,
       },
-      voiceSearchCoherenceComposeboxesEnabled_: {type: Boolean},
-      voiceSearchCoherenceSearchboxEnabled_: {type: Boolean},
       energyEffectAnimationEnabled: {
+        type: Boolean,
+        reflect: true,
+      },
+      isZeroState: {
         type: Boolean,
         reflect: true,
       },
@@ -77,12 +101,9 @@ export class SearchAnimatedGlowElement extends CrLitElement {
   // Source of truth for voice search (as not every parent has
   // `animationState`).
   accessor inVoiceSearchMode: boolean = false;
-  protected accessor voiceSearchCoherenceComposeboxesEnabled_: boolean =
-      loadTimeData.getBoolean('voiceSearchCoherenceComposeboxesEnabled');
-  protected accessor voiceSearchCoherenceSearchboxEnabled_: boolean =
-      loadTimeData.getBoolean(
-          'voiceSearchCoherenceAnySearchboxExperimentEnabled');
+  accessor coloredTicTacVoiceAnimationEnabled: boolean = false;
   accessor energyEffectAnimationEnabled: boolean = false;
+  accessor isZeroState: boolean = false;
 
   private targetAngle_: number = 0;
   private maskCurrAngle_: number = 0;

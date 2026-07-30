@@ -20,6 +20,7 @@
 #include "base/trace_event/typed_macros.h"
 #include "base/tracing/protos/chrome_track_event.pbzero.h"
 #include "base/win/win_util.h"
+#include "base/win/windowsx_shim.h"
 #include "base/win/wrapped_window_proc.h"
 #include "content/browser/accessibility/browser_accessibility_state_impl.h"
 #include "content/browser/renderer_host/direct_manipulation_helper_win.h"
@@ -114,10 +115,26 @@ void LegacyRenderWidgetHostHWND::UpdateParent(HWND new_parent) {
   // call altogether.
   const HWND current_parent = GetParent();
   if (current_parent != new_parent) {
+    // ::SetParent and CreateDirectManipulationHelper (CoCreateInstance /
+    // IDirectManipulationManager::Activate / Enable) can synchronously dispatch
+    // window messages. Re-entrant dispatch may reach
+    // RenderWidgetHostViewAura::OnWindowDestroying ->
+    // LegacyRenderWidgetHostHWND::Destroy() -> ::DestroyWindow() ->
+    // WM_NCDESTROY -> OnNCDestroy -> delete this. Guard against |this| being
+    // freed mid-method, matching the pattern used in OnKeyboardRange et al.
+    base::WeakPtr<LegacyRenderWidgetHostHWND> ref(
+        msg_handler_weak_factory_.GetWeakPtr());
+
     ::SetParent(hwnd(), new_parent);
+    if (!ref) {
+      return;
+    }
 
     if (!only_update_direct_manipulation_helper) {
       CreateDirectManipulationHelper();
+      if (!ref) {
+        return;
+      }
     }
 
     // Reset tooltips when parent changed; otherwise tooltips could stay open as
@@ -141,7 +158,12 @@ void LegacyRenderWidgetHostHWND::UpdateParent(HWND new_parent) {
     // subsequently changes.
     if (!only_update_direct_manipulation_helper &&
         !direct_manipulation_helper_) {
+      base::WeakPtr<LegacyRenderWidgetHostHWND> ref(
+          msg_handler_weak_factory_.GetWeakPtr());
       CreateDirectManipulationHelper();
+      if (!ref) {
+        return;
+      }
     }
   }
 

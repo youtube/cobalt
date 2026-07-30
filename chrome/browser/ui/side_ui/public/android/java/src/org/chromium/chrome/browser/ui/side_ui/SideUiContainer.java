@@ -10,6 +10,7 @@ import android.view.ViewGroup;
 import androidx.annotation.Px;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.ui.side_ui.SideUiCoordinator.AnchorSide;
 
 /**
  * Container for a side UI view that will be anchored to either the left or right side of the main
@@ -34,22 +35,29 @@ public interface SideUiContainer {
     View getView();
 
     /**
-     * Called by {@link SideUiCoordinator} to determine the container's desired width given the
-     * available width and window width.
+     * Called by {@link SideUiCoordinator} for this container to determine its final width given the
+     * constraints of {@code availableWidth} and {@code windowWidth}.
      *
      * <p>Notably, no UI changes should actually occur in this method. The {@link SideUiCoordinator}
      * that is hosting this container is responsible for calling {@link #setWidth}, etc. to actually
-     * reflect the newly calculated width.
+     * apply the final width.
      *
+     * @param requestedWidth The width requested by this container via {@link
+     *     SideUiCoordinator#requestUpdateContainer}, in px.
      * @param availableWidth The available width that this container can consume in px.
      * @param windowWidth The new window width in px.
      */
     @Px
-    int determineContainerWidth(@Px int availableWidth, @Px int windowWidth);
+    int determineContainerWidth(
+            @Px int requestedWidth, @Px int availableWidth, @Px int windowWidth);
 
     /** Returns the container's current width. */
     @Px
     int getCurrentWidth();
+
+    /** Returns the container's current anchor side. */
+    @AnchorSide
+    int getAnchorSide();
 
     /**
      * Sets the new width. <strong>Important:</strong> this should only be called by the {@link
@@ -58,4 +66,19 @@ public interface SideUiContainer {
      * @param width The new width in px.
      */
     void setWidth(@Px int width);
+
+    /**
+     * Called when a window size change affects this container's visibility.
+     *
+     * <p>For example, when the window becomes too small, we may need to hide this container. When
+     * the window becomes large enough again, the container can be re-shown.
+     *
+     * <p>This method won't be called if a window size change doesn't affect the container's
+     * visibility.
+     *
+     * @param canShowSideUi Whether this container <i>can</i> be shown after a window size change.
+     *     This parameter doesn't mean this container <i>must</i> be shown or hidden. The final
+     *     decision should be made by this container.
+     */
+    void onWindowResized(boolean canShowSideUi);
 }

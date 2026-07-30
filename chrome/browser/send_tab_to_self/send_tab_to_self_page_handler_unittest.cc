@@ -23,6 +23,7 @@
 #include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
+#include "components/send_tab_to_self/stub_send_tab_to_self_sync_service.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -40,6 +41,11 @@ namespace send_tab_to_self {
 namespace {
 
 constexpr char kExampleUrl[] = "https://www.example.com";
+
+std::unique_ptr<KeyedService> BuildStubSendTabToSelfSyncService(
+    content::BrowserContext* context) {
+  return std::make_unique<StubSendTabToSelfSyncService>();
+}
 
 using base::test::ScopedFeatureList;
 using base::test::TestFuture;
@@ -126,18 +132,6 @@ class MockTextFragmentReceiver : public blink::mojom::TextFragmentReceiver {
   base::OnceClosure on_request_selector_called_;
 };
 
-class StubSendTabToSelfSyncService : public SendTabToSelfSyncService {
- public:
-  explicit StubSendTabToSelfSyncService(FakeSendTabToSelfModel* model)
-      : model_(model) {}
-  ~StubSendTabToSelfSyncService() override = default;
-
-  SendTabToSelfModel* GetSendTabToSelfModel() override { return model_; }
-  FakeSendTabToSelfModel* GetModelFake() { return model_; }
-
- private:
-  raw_ptr<FakeSendTabToSelfModel> model_;
-};
 
 class SendTabToSelfPageHandlerTest : public ChromeRenderViewHostTestHarness {
  public:
@@ -157,11 +151,7 @@ class SendTabToSelfPageHandlerTest : public ChromeRenderViewHostTestHarness {
     ChromeRenderViewHostTestHarness::SetUp();
 
     SendTabToSelfSyncServiceFactory::GetInstance()->SetTestingFactory(
-        profile(),
-        base::BindLambdaForTesting([this](content::BrowserContext* context) {
-          return std::unique_ptr<KeyedService>(
-              std::make_unique<StubSendTabToSelfSyncService>(&model_));
-        }));
+        profile(), base::BindRepeating(&BuildStubSendTabToSelfSyncService));
 
     NavigateAndCommit(GURL(kExampleUrl));
 
@@ -188,12 +178,15 @@ class SendTabToSelfPageHandlerTest : public ChromeRenderViewHostTestHarness {
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
-  FakeSendTabToSelfModel* model() { return &model_; }
+  FakeSendTabToSelfModel* model() {
+    return static_cast<StubSendTabToSelfSyncService*>(
+               SendTabToSelfSyncServiceFactory::GetForProfile(profile()))
+        ->GetFakeSendTabToSelfModel();
+  }
 
  protected:
   ScopedFeatureList scoped_feature_list_;
   MockTextFragmentReceiver mock_receiver_;
-  FakeSendTabToSelfModel model_;
 
  private:
   base::WeakPtrFactory<SendTabToSelfPageHandlerTest> weak_ptr_factory_{this};
@@ -216,7 +209,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Initiate the send to device action. This will trigger an asynchronous
   // Mojo call to the renderer to generate the scroll position context.
-  handler->SendTabToDevice(device_id, url, title);
+  handler->SendTabToDevice(device_id, url, title, base::DoNothing());
 
   // Wait for the asynchronous Mojo request to reach our mock renderer.
   mock_receiver_.WaitForRequestSelector();
@@ -245,7 +238,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
   model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
-  handler->SendTabToDevice(device_id, url, title);
+  handler->SendTabToDevice(device_id, url, title, base::DoNothing());
 
   // Wait for the asynchronous Mojo request to reach our mock renderer.
   mock_receiver_.WaitForRequestSelector();
@@ -276,7 +269,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
   model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
-  handler->SendTabToDevice(device_id, url, title);
+  handler->SendTabToDevice(device_id, url, title, base::DoNothing());
 
   // Wait for the asynchronous Mojo request to reach our mock renderer.
   mock_receiver_.WaitForRequestSelector();
@@ -307,7 +300,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
   model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
-  handler->SendTabToDevice(device_id, url, title);
+  handler->SendTabToDevice(device_id, url, title, base::DoNothing());
 
   // Wait for the asynchronous Mojo request to reach our mock renderer.
   mock_receiver_.WaitForRequestSelector();
@@ -342,7 +335,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
   model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
-  handler->SendTabToDevice(device_id, url, title);
+  handler->SendTabToDevice(device_id, url, title, base::DoNothing());
 
   // Wait for the asynchronous Mojo request to reach our mock renderer.
   mock_receiver_.WaitForRequestSelector();
@@ -381,7 +374,7 @@ TEST_F(SendTabToSelfPageHandlerWithNavigationHistoryTest,
   TestFuture<const SendTabToSelfEntry*> future;
   model()->SetSendEntryCallback(future.GetRepeatingCallback());
 
-  handler->SendTabToDevice(device_id, url, title);
+  handler->SendTabToDevice(device_id, url, title, base::DoNothing());
 
   EXPECT_THAT(future.Get()->GetNavigationHistory(), IsValidNavigationHistory());
 }
@@ -453,7 +446,7 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Initiate the send to device action for a DIFFERENT URL than the current
   // page (which is `kExampleUrl`).
-  handler->SendTabToDevice(device_id, link_url, title);
+  handler->SendTabToDevice(device_id, link_url, title, base::DoNothing());
 
   // Verify the model received the entry but without any context.
   EXPECT_TRUE(future.Get()

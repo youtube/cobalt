@@ -12,6 +12,7 @@ static_library("utils") {
 
   deps = [
     "//chrome/browser/content_settings:content_settings_factory",
+    "//chrome/browser/search_engines",
     "//components/content_settings/browser/ui",
     "//components/content_settings/core/browser",
     "//components/content_settings/core/common",
@@ -53,6 +54,7 @@ static_library("site_protection") {
     "//components/history/core/browser",
     "//components/keyed_service/core",
     "//components/prefs",
+    "//components/safe_browsing/content/browser/web_ui",
     "//components/safe_browsing/core/browser/db:database_manager",
     "//components/safe_browsing/core/common",
     "//components/safe_browsing/core/common:safe_browsing_prefs",

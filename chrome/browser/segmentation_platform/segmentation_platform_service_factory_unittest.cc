@@ -19,7 +19,9 @@
 #include "components/commerce/core/mock_shopping_service.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
 #include "components/prefs/pref_change_registrar.h"
+#include "components/prefs/pref_registry_simple.h"
 #include "components/prefs/pref_service.h"
+#include "components/prefs/testing_pref_service.h"
 #include "components/segmentation_platform/embedder/default_model/chrome_user_engagement.h"
 #include "components/segmentation_platform/embedder/default_model/contextual_page_actions_model.h"
 #include "components/segmentation_platform/embedder/default_model/metrics_clustering.h"
@@ -123,7 +125,8 @@ class SegmentationPlatformServiceFactoryTest : public testing::Test {
          {features::kSegmentationPlatformEphemeralCardRanker, {}},
          {features::kSegmentationSurveyPage, {}},
          {features::kSegmentationPlatformFedCmUser, {}},
-         {features::kAndroidTipsNotifications, {}}},
+         {features::kAndroidTipsNotifications, {}},
+         {features::kNewTabPageCustomizationV2, {{"show_promo", "true"}}}},
         {});
 
     // Creating profile and initialising segmentation service.
@@ -646,6 +649,9 @@ TEST_F(SegmentationPlatformServiceFactoryTest, EphemeralHomeModuleBackend) {
   input_context->metadata_args.emplace(
       "auxiliary_search_available", processing::ProcessedValue::FromFloat(0));
   input_context->metadata_args.emplace(
+      "support_customized_ntp_theme",
+      processing::ProcessedValue::FromFloat(1.0));
+  input_context->metadata_args.emplace(
       "is_user_signed_in", processing::ProcessedValue::FromFloat(0));
   input_context->metadata_args.emplace(
       "should_show_non_role_manager_default_browser_promo",
@@ -662,8 +668,6 @@ TEST_F(SegmentationPlatformServiceFactoryTest, EphemeralHomeModuleBackend) {
   input_context->metadata_args.emplace(
       "is_eligible_to_history_opt_in",
       processing::ProcessedValue::FromFloat(0));
-  input_context->metadata_args.emplace(
-      "is_eligible_to_tips_opt_in", processing::ProcessedValue::FromFloat(0));
 
   // No cards are added, the model fetches no results and fails.
   ExpectGetAnnotatedNumericResult(

@@ -990,7 +990,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Birch.Bar.Impression" units="count"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>jamescook@chromium.org</owner>
   <owner>chromeos-launcher@google.com</owner>
   <summary>
@@ -3388,7 +3388,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.EventLatency.Core.TotalLatency" units="ms"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>vincentchiang@chromium.org</owner>
   <owner>zoraiznaeem@chromium.org</owner>
   <owner>cros-sw-perf@google.com</owner>
@@ -3988,7 +3988,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.GameDashboard.ControlsFeatureToggleState"
-    enum="BooleanEnabled" expires_after="2026-08-30">
+    enum="BooleanEnabled" expires_after="2026-11-01">
   <owner>cuicuiruan@google.com</owner>
   <owner>phshah@chromium.org</owner>
   <summary>
@@ -4018,7 +4018,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.GameDashboard.FunctionTriggered"
-    enum="GameDashboardFunction" expires_after="2026-08-30">
+    enum="GameDashboardFunction" expires_after="2026-11-01">
   <owner>cuicuiruan@google.com</owner>
   <owner>phshah@chromium.org</owner>
   <summary>
@@ -4059,7 +4059,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.GameDashboard.ToolbarClickToExpandState"
-    enum="BooleanEnabled" expires_after="2026-08-30">
+    enum="BooleanEnabled" expires_after="2026-11-01">
   <owner>cuicuiruan@google.com</owner>
   <owner>phshah@chromium.org</owner>
   <summary>
@@ -4068,7 +4068,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.GameDashboard.ToolbarNewLocation"
-    enum="GameDashboardToolbarSnapLocation" expires_after="2026-08-30">
+    enum="GameDashboardToolbarSnapLocation" expires_after="2026-11-01">
   <owner>cuicuiruan@google.com</owner>
   <owner>phshah@chromium.org</owner>
   <summary>Records where the toolbar is repositioned.</summary>
@@ -4082,7 +4082,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.GameDashboard.WelcomeDialogNotificationToggleState"
-    enum="BooleanEnabled" expires_after="2026-08-30">
+    enum="BooleanEnabled" expires_after="2026-11-01">
   <owner>cuicuiruan@google.com</owner>
   <owner>phshah@chromium.org</owner>
   <summary>
@@ -4626,7 +4626,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Ash.Lobster.State" enum="LobsterState"
-    expires_after="2026-08-30">
+    expires_after="2026-11-01">
   <owner>hdchuong@google.com</owner>
   <owner>essential-inputs-team@google.com</owner>
   <summary>
@@ -5187,43 +5187,6 @@ chromium-metrics-reviews@google.com.
     Record the time cost of successful {MantaMetricType} requests.
   </summary>
   <token key="MantaMetricType" variants="MantaMetricType"/>
-</histogram>
-
-<histogram name="Ash.Media.CameraPrivacySwitch.Event"
-    enum="CameraPrivacySwitchEvent" expires_after="2023-09-03">
-  <owner>tbarzic@chromium.org</owner>
-  <owner>gzadina@google.com</owner>
-  <summary>
-    Reports events related to camera privacy switch state. The camera privacy
-    switch is a hardware toggle supported by some Chrome OS devices that
-    disables the built in camera video feed. The histogram is reported (1) when
-    a camera privacy switch state change is detected (which generally causes a
-    system toast to get shown), and (2) when a notification informing the user
-    that the camera privacy switch is on (the notification is shown if the user
-    tries to use their camera with the privacy switch tuned on). The camera
-    privacy switch state is only recorded if the state change is a result of a
-    user action - it will not be recorded for state changes that are a result of
-    camera privacy switch state initialization.
-  </summary>
-</histogram>
-
-<histogram name="Ash.Media.CameraPrivacySwitch.TimeFromNotificationToOff"
-    units="5 seconds" expires_after="2023-09-10">
-  <owner>tbarzic@chromium.org</owner>
-  <owner>gzadina@google.com</owner>
-  <summary>
-    Time from showing a notification informing the user about the camera privacy
-    switch to the user turning the privacy switch off. The camera privacy switch
-    is a hardware switch supported by some Chrome OS devices that cuts the video
-    camera feed off. The Chrome OS UI shows a notification if the user tries to
-    use the camera with the privacy switch on. The intention is to track the
-    time it takes for the user to flip the privacy switch after they're notified
-    the camera is disabled. The histogram is recorded if the user toggles the
-    camera privacy switch after seeing the notification about the privacy switch
-    being on (if the switch is toggled more than once after the notification
-    gets shown, only the first toggle action will be reported). The time is
-    reported in seconds with 5 second granularity.
-  </summary>
 </histogram>
 
 <histogram name="Ash.MessageCenter.Scroll.PresentationTime" units="ms"
@@ -7905,17 +7868,6 @@ chromium-metrics-reviews@google.com.
   <token key="SearchType" variants="DriveFsSearchType"/>
 </histogram>
 
-<histogram name="Ash.SearchModelUpdateTime.{TabletOrClamshellMode}" units="ms"
-    expires_after="2023-10-01">
-  <owner>yulunwu@google.com</owner>
-  <owner>tbarzic@google.com</owner>
-  <summary>
-    Records the time interval between user-initiated search model updates after
-    the user starts a search query. Used to record how quickly users update the
-    search model in {TabletOrClamshellMode} after the first keystroke.
-  </summary>
-</histogram>
-
 <histogram
     name="Ash.ServerBasedSpeechRecognition.AudioLengthLeftWhenAudioCaptureEnd"
     units="ms" expires_after="2026-09-27">
@@ -9015,27 +8967,6 @@ chromium-metrics-reviews@google.com.
     the unit_id field. Older versions of ChromeOS (pre M107) did not set this
     field, so this metric tracks how many users selected an older online
     wallpaper and have not updated it since.
-  </summary>
-</histogram>
-
-<histogram name="Ash.Wallpaper.MigrationFailureReason"
-    enum="WallpaperMigrationFailureReason" expires_after="2025-05-30">
-  <owner>jasontt@chromium.org</owner>
-  <owner>cros-p13n-eng@google.com</owner>
-  <summary>
-    Tracks the reason for the versioned wallpaper migration failure. Recorded
-    when the migration fails on user's login.
-  </summary>
-</histogram>
-
-<histogram name="Ash.Wallpaper.Online.Result" enum="SetWallpaperResult"
-    expires_after="2023-08-31">
-  <owner>jasontt@chromium.org</owner>
-  <owner>cros-p13n-eng@google.com</owner>
-  <summary>
-    Tracks the result of user's attempt to set a wallpaper. Recorded when a user
-    selects a wallpaper from the personalization hub. b/285387348: Add more
-    variants and fix incorrect metric recording for online wallpapers.
   </summary>
 </histogram>
 
@@ -10233,25 +10164,6 @@ chromium-metrics-reviews@google.com.
     Mouse.Sensitivity.Started metric. Only reported on Chrome OS.
 
     Expired from 2022-12-04 to M113. May be missing some data.
-  </summary>
-</histogram>
-
-<histogram name="Mouse.PrimaryButtonRight.Changed" enum="PrimaryButtonRight"
-    expires_after="2024-03-10">
-  <owner>gavinwill@google.com</owner>
-  <owner>cros-device-enablement@chromium.org</owner>
-  <summary>
-    Tracks mouse PrimaryButtonRight setting. Only reported on Chrome OS.
-  </summary>
-</histogram>
-
-<histogram name="Mouse.PrimaryButtonRight.Started" enum="PrimaryButtonRight"
-    expires_after="2024-03-10">
-  <owner>gavinwill@google.com</owner>
-  <owner>cros-device-enablement@chromium.org</owner>
-  <summary>
-    Tracks mouse PrimaryButtonRight setting on startup. Only reported on Chrome
-    OS.
   </summary>
 </histogram>
 

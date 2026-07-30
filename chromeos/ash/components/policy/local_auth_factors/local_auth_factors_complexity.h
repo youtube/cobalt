@@ -12,12 +12,22 @@
 
 namespace policy::local_auth_factors {
 
+// LINT.IfChange(PasswordComplexityResult)
+enum class PasswordComplexityResult {
+  kOk,
+  kTooShort,
+  kMissesCharacters,
+  kContainsTrivialSequence,
+};
+// LINT.ThenChange(//chromeos/ash/services/auth_factor_config/public/mojom/auth_factor_config.mojom:PasswordComplexity)
+
 // Checks the complexity of the given password according to the
-// `LocalAuthFactorsComplexity` policy and returns true if the password passes
-// the complexity check and false otherwise.
+// `LocalAuthFactorsComplexity` policy and returns the result of the complexity
+// check.
 COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_POLICY)
-bool CheckPasswordComplexity(std::string_view password,
-                             ash::LocalAuthFactorsComplexity complexity);
+PasswordComplexityResult CheckPasswordComplexity(
+    std::string_view password,
+    ash::LocalAuthFactorsComplexity complexity);
 
 // Checks the complexity of the given pin according to the
 // `LocalAuthFactorsComplexity` policy and returns true if the pin passes the

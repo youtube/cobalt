@@ -126,6 +126,7 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHReadingModeKeyboardShortcutFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHReadingModePageActionLabelFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHReadingModeSidePanelFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHShoppingCollectionFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHSmartTabSharingFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHSideBySidePinnableFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHSideBySideTabSwitchFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHVerticalTabsExpandOnHoverFeature);
@@ -372,6 +373,7 @@ FEATURE_CONSTANTS_DECLARE_FEATURE(
     kIPHiOSOneTimeDefaultBrowserNotificationFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSGeminiImageRemixFeature);
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSNewIAPromoFeature);
+FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSGeminiExternalAppStoreEvent);
 
 // FET feature flag that enables AI Hub "New" badge.
 FEATURE_CONSTANTS_DECLARE_FEATURE(kIPHiOSAIHubNewBadge);
@@ -455,6 +457,9 @@ BASE_DECLARE_FEATURE_PARAM(std::string, kSearchPromotionStoreUrl);
 COMPONENT_EXPORT(FEATURE_ENGAGEMENT_FEATURE_CONSTANTS)
 BASE_DECLARE_FEATURE_PARAM(std::string, kSearchPromotionInstructionsUrl);
 
+inline constexpr char kSearchPromotionArmDefault[] = "disabled";
+inline constexpr char kSearchPromotionArmA[] = "arm_a";
+inline constexpr char kSearchPromotionArmB[] = "arm_b";
 #endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace feature_engagement

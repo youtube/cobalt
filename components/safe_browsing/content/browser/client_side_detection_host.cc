@@ -1919,16 +1919,27 @@ void ClientSideDetectionHost::PhishingImageEmbeddingDone(
       base::StrCat({"SBClientPhishing.PhishingImageEmbeddingResult.",
                     request_type_name}),
       result);
+
+  // If the embedding was not possible due to an invalid document, then exit
+  // early without sending a ping since feature extraction is not possible.
+  if (result == mojom::PhishingImageEmbeddingResult::kInvalidURLFormatRequest ||
+      result == mojom::PhishingImageEmbeddingResult::kInvalidDocumentLoader) {
+    is_csd_running_ = false;
+    if (verdict->client_side_detection_type() ==
+        ClientSideDetectionType::USER_REPORT) {
+      MaybeRunUserReportCallback();
+    }
+    return;
+  }
+
   if (result == mojom::PhishingImageEmbeddingResult::kSuccess) {
     std::optional<ImageFeatureEmbedding> embedding;
     if (image_feature_embedding_wrapper.has_value()) {
       embedding = image_feature_embedding_wrapper->As<ImageFeatureEmbedding>();
     }
     if (embedding.has_value()) {
-      if (base::FeatureList::IsEnabled(kClientSideDetectionDeprecateDOMModel)) {
-        embedding->set_embedding_model_version(
-            csd_service_->GetImageEmbeddingModelVersion());
-      }
+      embedding->set_embedding_model_version(
+          csd_service_->GetImageEmbeddingModelVersion());
       *verdict->mutable_image_feature_embedding() =
           std::move(embedding.value());
       // Tier 2 and higher will add embedding metadata information because lower

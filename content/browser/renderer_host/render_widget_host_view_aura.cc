@@ -16,6 +16,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
+#include "base/memory/weak_auto_reset.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/notimplemented.h"
 #include "base/strings/strcat.h"
@@ -2235,7 +2236,13 @@ std::optional<gfx::Size> RenderWidgetHostViewAura::GetMaximumSize() const {
 
 void RenderWidgetHostViewAura::OnBoundsChanged(const gfx::Rect& old_bounds,
                                                const gfx::Rect& new_bounds) {
-  base::AutoReset<bool> in_bounds_changed(&in_bounds_changed_, true);
+  // OnCaretBoundsChanged() below may call out to a third-party TSF IME on
+  // Windows, which can re-entrantly destroy `this`. Use WeakAutoReset so the
+  // unwind write does not land in freed memory (AutoReset::scoped_variable_ is
+  // RAW_PTR_EXCLUSION and not BRP-protected).
+  base::WeakAutoReset in_bounds_changed(
+      weak_ptr_factory_.GetWeakPtr(),
+      &RenderWidgetHostViewAura::in_bounds_changed_, true);
   // We care about this whenever RenderWidgetHostViewAura is not owned by a
   // WebContentsViewAura since changes to the Window's bounds need to be
   // messaged to the renderer.  WebContentsViewAura invokes SetSize() or
@@ -2244,7 +2251,12 @@ void RenderWidgetHostViewAura::OnBoundsChanged(const gfx::Rect& old_bounds,
   SetSize(new_bounds.size());
 
   if (GetInputMethod()) {
+    auto weak_this = weak_ptr_factory_.GetWeakPtr();
     GetInputMethod()->OnCaretBoundsChanged(this);
+    // `this` may have been deleted inside the IME callout.
+    if (!weak_this) {
+      return;
+    }
     UpdateInsetsWithVirtualKeyboardEnabled();
   }
 }
@@ -2511,8 +2523,11 @@ void RenderWidgetHostViewAura::OnStartStylusWriting() {
   // callback response from the renderer process. This will be used to discard
   // responses in OnFocusHandled()/OnFocusFailed() later for such cases.
   handwriting_controller->OnStartStylusWriting(
-      base::BindRepeating(&RenderWidgetHostViewAura::OnFocusHandwritingTarget,
-                          weak_ptr_factory_.GetWeakPtr()),
+      stylus_handwriting_focus_callback_.is_null()
+          ? base::BindRepeating(
+                &RenderWidgetHostViewAura::OnFocusHandwritingTarget,
+                weak_ptr_factory_.GetWeakPtr())
+          : std::move(stylus_handwriting_focus_callback_),
       last_stylus_handwriting_properties_.value());
   last_stylus_handwriting_properties_.reset();
 }
@@ -2560,14 +2575,24 @@ void RenderWidgetHostViewAura::OnEditElementFocusedForStylusWriting(
                : handwriting_controller->OnFocusFailed();
 }
 
+void RenderWidgetHostViewAura::SetStylusHandwritingFocusCallback(
+    OnFocusHandwritingTargetCallback callback) {
+  stylus_handwriting_focus_callback_ = std::move(callback);
+}
+
 void RenderWidgetHostViewAura::OnFocusHandwritingTarget(
     const gfx::Rect& focus_screen_rect_in_dips,
     const gfx::Size& tolerance_screen_distance_in_dips) {
   // TODO(crbug.com/355578906): Consider `tolerance_screen_distance_in_dips`.
-  if (host()) {
-    host()->UpdateElementFocusForStylusWriting(
-        ConvertRectFromScreen(focus_screen_rect_in_dips));
+  if (!host()) {
+    if (StylusHandwritingControllerWin::GetInstance()) {
+      StylusHandwritingControllerWin::GetInstance()->OnFocusFailed();
+    }
+    return;
   }
+
+  host()->UpdateElementFocusForStylusWriting(
+      ConvertRectFromScreen(focus_screen_rect_in_dips));
 }
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -2996,6 +3021,11 @@ void RenderWidgetHostViewAura::ResetGestureDetection() {
   // implement this as well so that suppressing input
   // (WebContentsImpl::IgnoreInputEvents) doesn't continue to generate gestures
   // which can confuse event validation.
+}
+
+void RenderWidgetHostViewAura::SetShouldUseDefaultDeadlineOnResize(
+    bool enable) {
+  use_default_deadline_on_resize_ = enable;
 }
 
 bool RenderWidgetHostViewAura::FocusedFrameHasStickyActivation() const {
@@ -3526,6 +3556,10 @@ ui::Compositor* RenderWidgetHostViewAura::GetCompositor() {
     return nullptr;
 
   return window_->GetHost()->compositor();
+}
+
+bool RenderWidgetHostViewAura::ShouldUseDefaultDeadlineOnResize() const {
+  return use_default_deadline_on_resize_;
 }
 
 #if BUILDFLAG(IS_WIN)

@@ -102,6 +102,7 @@
 #include "components/no_state_prefetch/renderer/no_state_prefetch_render_frame_observer.h"
 #include "components/no_state_prefetch/renderer/no_state_prefetch_utils.h"
 #include "components/optimization_guide/core/optimization_guide_features.h"
+#include "components/page_content_annotations/content/renderer/page_stability_monitor_manager.h"
 #include "components/page_content_annotations/core/page_content_annotations_features.h"
 #include "components/page_load_metrics/renderer/metrics_render_frame_observer.h"
 #include "components/paint_preview/buildflags/buildflags.h"
@@ -194,7 +195,6 @@
 #if BUILDFLAG(IS_ANDROID)
 #include "chrome/renderer/sandbox_status_extension_android.h"
 #include "chrome/renderer/wallet/boarding_pass_extractor.h"
-#include "components/feed/content/renderer/rss_link_reader.h"
 #include "components/feed/feed_feature_list.h"
 #else
 #include "chrome/renderer/indigo/indigo_agent.h"
@@ -754,13 +754,6 @@ void ChromeContentRendererClient::RenderFrameCreated(
   new SpellCheckPanel(render_frame, registry, this);
 #endif  // BUILDFLAG(HAS_SPELLCHECK_PANEL)
 #endif
-#if BUILDFLAG(IS_ANDROID)
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(feed::switches::kEnableRssLinkReader) &&
-      render_frame->IsMainFrame()) {
-    new feed::RssLinkReader(render_frame, registry);
-  }
-#endif
 
 #if BUILDFLAG(IS_WIN)
   if (render_frame->IsMainFrame()) {
@@ -793,6 +786,10 @@ void ChromeContentRendererClient::RenderFrameCreated(
     WebUIBrowserRendererExtension::Create(render_frame);
   }
 #endif
+
+  // Wire up the PageStabilityMonitorManager to allow components to
+  // request stability monitors for this frame.
+  new page_content_annotations::PageStabilityMonitorManager(render_frame);
 }
 
 void ChromeContentRendererClient::WebViewCreated(
@@ -1582,14 +1579,17 @@ bool ChromeContentRendererClient::IsSafeRedirectTarget(
     const std::optional<url::Origin>& request_initiator) {
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
   if (target_url.SchemeIs(extensions::kExtensionScheme)) {
-    const extensions::Extension* extension =
-        extensions::RendererExtensionRegistry::Get()->GetExtensionOrAppByURL(
-            target_url, /*include_guid=*/true);
+    // Use a scoped_refptr to keep the extension alive, since this code can be
+    // executed on a worker thread. See https://crbug.com/500566906.
+    scoped_refptr<const extensions::Extension> extension =
+        extensions::RendererExtensionRegistry::Get()
+            ->GetRefCountedExtensionOrAppByURL(target_url,
+                                               /*include_guid=*/true);
     if (!extension) {
       return false;
     }
     if (extensions::WebAccessibleResourcesInfo::IsResourceWebAccessibleRedirect(
-            extension, target_url, request_initiator, upstream_url)) {
+            extension.get(), target_url, request_initiator, upstream_url)) {
       return true;
     }
     return extension->guid() == upstream_url.GetHost();

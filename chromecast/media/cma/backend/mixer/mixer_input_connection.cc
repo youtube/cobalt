@@ -17,6 +17,7 @@
 #include "base/functional/bind.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/numerics/checked_math.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
@@ -373,7 +374,7 @@ MixerInputConnection::MixerInputConnection(
       focus_type_(params.has_focus_type()
                       ? audio_service::ConvertContentType(params.focus_type())
                       : content_type_),
-      playout_channel_(params.channel_selection()),
+      playout_channel_(std::max(params.channel_selection(), kChannelAll)),
       pts_is_timestamp_(params.has_timestamped_audio_config()),
       max_timestamp_error_(GetMaxTimestampError(params)),
       never_crop_(params.timestamped_audio_config().never_crop()),
@@ -421,6 +422,18 @@ MixerInputConnection::MixerInputConnection(
   DCHECK(socket_);
   CHECK_GT(num_channels_, 0);
   CHECK_GT(input_samples_per_second_, 0);
+  if (channel_layout_ != ::media::CHANNEL_LAYOUT_DISCRETE &&
+      ::media::ChannelLayoutToChannelCount(channel_layout_) != num_channels_) {
+    LOG(ERROR) << "Invalid channel layout/count: " << channel_layout_ << " / "
+               << num_channels_;
+    // Setting state_ to kRemoved or setting a flag might be needed.
+    // Instead we can just CHECK, but it might be untrusted renderer input.
+    // However, since it's a constructor, we can just let it fail gracefully
+    // later or here we just set a flag. Or we can just CHECK to fail safe if
+    // the renderer is compromised anyway.
+    CHECK_EQ(::media::ChannelLayoutToChannelCount(channel_layout_),
+             num_channels_);
+  }
   DCHECK_LE(start_threshold_frames_, max_queued_frames_);
 
   socket_->SetDelegate(this);
@@ -449,8 +462,17 @@ void MixerInputConnection::CreateBufferPool(int frame_count) {
   DCHECK_GT(frame_count, 0);
   buffer_pool_frames_ = frame_count;
 
-  int converted_buffer_size =
-      kAudioMessageHeaderSize + num_channels_ * sizeof(float) * frame_count;
+  base::CheckedNumeric<int> size(frame_count);
+  size *= sizeof(float);
+  size *= num_channels_;
+  size += kAudioMessageHeaderSize;
+
+  if (!size.IsValid()) {
+    LOG(ERROR) << "Buffer size is invalid.";
+    OnConnectionError();
+    return;
+  }
+  int converted_buffer_size = size.ValueOrDie();
   buffer_pool_ = base::MakeRefCounted<IOBufferPool>(
       converted_buffer_size, std::numeric_limits<size_t>::max(),
       true /* threadsafe */);

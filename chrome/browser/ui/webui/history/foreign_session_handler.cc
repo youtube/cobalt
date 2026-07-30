@@ -25,7 +25,10 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sessions/session_restore.h"
+#include "chrome/browser/sync/device_info_sync_service_factory.h"
 #include "chrome/browser/sync/session_sync_service_factory.h"
+#include "chrome/browser/ui/ui_features.h"
+#include "chrome/browser/ui/views/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_metrics.h"
 #include "chrome/browser/ui/webui/ntp/new_tab_ui.h"
 #include "chrome/browser/ui/webui/side_panel/tabs_from_other_devices/tabs_from_other_devices_side_panel_ui.h"
 #include "chrome/common/pref_names.h"
@@ -34,6 +37,8 @@
 #include "components/prefs/pref_service.h"
 #include "components/prefs/scoped_user_pref_update.h"
 #include "components/strings/grit/components_strings.h"
+#include "components/sync_device_info/device_info_sync_service.h"
+#include "components/sync_device_info/device_info_tracker.h"
 #include "components/sync_sessions/session_sync_service.h"
 #include "components/sync_sessions/synced_session.h"
 #include "content/public/browser/url_data_source.h"
@@ -139,6 +144,35 @@ history::mojom::ForeignSessionWindowPtr SessionWindowToMojom(
   return window_mojom;
 }
 
+std::string GetDeviceNameSuffixFromSyncUserAgent(
+    const std::string& user_agent) {
+  if (user_agent.find("channel(canary)") != std::string::npos) {
+    return " (Canary)";
+  }
+  if (user_agent.find("channel(dev)") != std::string::npos) {
+    return " (Dev)";
+  }
+  if (user_agent.find("channel(beta)") != std::string::npos) {
+    return " (Beta)";
+  }
+  if (user_agent.find("-devel") != std::string::npos) {
+    return " (developer build)";
+  }
+  return "";
+}
+
+void FilterStableChannelSessions(
+    const syncer::DeviceInfoTracker& device_info_tracker,
+    std::vector<raw_ptr<const sync_sessions::SyncedSession,
+                        VectorExperimental>>& sessions) {
+  std::erase_if(sessions, [&](const sync_sessions::SyncedSession* session) {
+    const syncer::DeviceInfo* device_info =
+        device_info_tracker.GetDeviceInfo(session->GetSessionTag());
+    return device_info && device_info->sync_user_agent().find(
+                              "channel(stable)") != std::string::npos;
+  });
+}
+
 }  // namespace
 
 ForeignSessionHandler::ForeignSessionHandler(
@@ -208,6 +242,10 @@ void ForeignSessionHandler::GetForeignSessions(
 
 void ForeignSessionHandler::OpenForeignSessionAllTabs(
     const std::string& session_tag) {
+  // This is not used by the side panel. If it becomes used in the future, the
+  // metrics should be updated to cover this case.
+  CHECK(!side_panel_ui_);
+
   sync_sessions::OpenTabsUIDelegate* open_tabs =
       GetOpenTabsUIDelegate(profile_);
   if (!open_tabs) {
@@ -264,6 +302,10 @@ void ForeignSessionHandler::OpenForeignSessionTab(
                            ->GetActiveWebContents()
                      : web_contents_.get();
   restore_tab_callback_.Run(web_contents, *tab, disposition);
+
+  if (side_panel_ui_ && side_panel_ui_->metrics_recorder()) {
+    side_panel_ui_->metrics_recorder()->RecordTabOpened();
+  }
 }
 
 void ForeignSessionHandler::DeleteForeignSession(
@@ -324,6 +366,26 @@ ForeignSessionHandler::GetForeignSessionsInternal() {
     base::DictValue collapsed_sessions = current_collapsed_sessions.Clone();
     current_collapsed_sessions.clear();
 
+    std::map<std::string, int> name_counts;
+    const syncer::DeviceInfoTracker* device_info_tracker = nullptr;
+    if (side_panel_ui_) {
+      syncer::DeviceInfoSyncService* device_info_sync_service =
+          DeviceInfoSyncServiceFactory::GetForProfile(profile_);
+      if (device_info_sync_service) {
+        device_info_tracker = device_info_sync_service->GetDeviceInfoTracker();
+      }
+
+      if (base::FeatureList::IsEnabled(
+              features::kTabsFromOtherDevicesSidePanelExcludeStableChannel) &&
+          device_info_tracker) {
+        FilterStableChannelSessions(*device_info_tracker, sessions);
+      }
+
+      for (const sync_sessions::SyncedSession* session : sessions) {
+        ++name_counts[session->GetSessionName()];
+      }
+    }
+
     // Note: we don't own the SyncedSessions themselves.
     for (size_t i = 0; i < sessions.size() && i < kMaxSessionsToShow; ++i) {
       const sync_sessions::SyncedSession* session = sessions[i];
@@ -331,6 +393,15 @@ ForeignSessionHandler::GetForeignSessionsInternal() {
       auto session_mojom = history::mojom::ForeignSession::New();
       session_mojom->tag = session_tag;
       session_mojom->name = session->GetSessionName();
+      if (side_panel_ui_ && name_counts[session_mojom->name] > 1 &&
+          device_info_tracker) {
+        const syncer::DeviceInfo* device_info =
+            device_info_tracker->GetDeviceInfo(session_tag);
+        if (device_info) {
+          session_mojom->name += GetDeviceNameSuffixFromSyncUserAgent(
+              device_info->sync_user_agent());
+        }
+      }
       session_mojom->modified_time =
           base::UTF16ToUTF8(FormatSessionTime(session->GetModifiedTime()));
       session_mojom->timestamp =

@@ -6,11 +6,13 @@ source_set("dictation") {
   public = [
     "dictation_keyed_service.h",
     "dictation_keyed_service_factory.h",
+    "features.h",
     "session_controller.h",
     "session_controller_delegate.h",
+    "session_ui.h",
+    "session_ui_delegate.h",
     "stream_provider.h",
     "target.h",
-    "ui.h",
   ]
   public_deps = [
     "//base",
@@ -23,13 +25,15 @@ source_set("impl") {
     "dictation_keyed_service.cc",
     "dictation_keyed_service_factory.cc",
     "features.cc",
-    "features.h",
     "session_controller.cc",
+    "session_ui_impl.cc",
+    "session_ui_impl.h",
   ]
 
   deps = [
     ":dictation",
     "//base",
+    "//chrome/browser/ui/browser_window",
     "//content/public/browser",
   ]
 }
@@ -60,6 +64,7 @@ source_set("unit_tests") {
     ":impl",
     ":test_support",
     "//base/test:test_support",
+    "//chrome/browser/ui:test_support",
   ]
 }
 

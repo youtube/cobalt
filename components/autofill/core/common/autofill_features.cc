@@ -65,10 +65,6 @@ BASE_FEATURE(kAutofillActorSuppressImport, base::FEATURE_DISABLED_BY_DEFAULT);
 // longer depends on address-based Autofill being enabled.
 BASE_FEATURE(kAutofillAddOtherDatatypesPref, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Controls whether to improve the building number regex.
-// TODO(crbug.com/376084078): Cleanup when launched.
-BASE_FEATURE(kAutofillAddressImproveBuildingNumberRegex,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Kill switch: If enabled, NameFieldParser will parse 'Last name, First name'
 // sequence.
@@ -175,6 +171,13 @@ BASE_FEATURE(kAutofillAiCreateEntityDataManager,
 BASE_FEATURE(kAutofillAiDedupeEntities,
              IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
                                      : base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_ANDROID)
+// When enabled, the entity save/update prompt displays an edit button that
+// opens the entity editor on click.
+BASE_FEATURE(kAutofillAiEditEntitiesFromSaveUpdatePrompt,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_ANDROID)
 
 // When enabled, a HaTS survey is shown after a walletable suggestion is
 // displayed and the form submitted. The survey does not require the suggestion
@@ -680,7 +683,7 @@ BASE_FEATURE(kAutofillIgnoreCheckableElements,
 // suggestion UI.
 // TODO(crbug.com/381531027): Remove when launched.
 BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, a new grammar for phone numbers is considered and we get
 // slightly better at detecting cases where the generic regex for
@@ -1084,7 +1087,7 @@ BASE_FEATURE(kYourSavedInfoPolicyAndExtentionToggleIndicators,
 
 // Defines if the "Your Saved Info" page is eligible to be shown in Chrome
 // settings.
-BASE_FEATURE(kYourSavedInfoSettingsPage, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kYourSavedInfoSettingsPage, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Defines if the shipping and order data is included in the "Your Saved Info"
 // settings page.

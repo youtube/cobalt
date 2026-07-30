@@ -69,4 +69,10 @@ public interface ContextMenuNativeDelegate {
      *     request exiting.
      */
     void setPictureInPicture(boolean enterPip);
+
+    /** Copies the current video frame to the clipboard. */
+    void copyVideoFrame();
+
+    /** Download the current video frame to the device. */
+    void downloadVideoFrame();
 }

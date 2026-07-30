@@ -404,8 +404,9 @@ public class AppMenuTest {
                                                     AppMenuItemProperties.TITLE,
                                                     "Menu Item With Submenu")
                                             .with(
-                                                    AppMenuItemWithSubmenuProperties.SUBMENU_ITEMS,
-                                                    submenuItems)
+                                                    AppMenuItemWithSubmenuProperties
+                                                            .SUBMENU_PROVIDER,
+                                                    () -> submenuItems)
                                             .build());
 
                     mAppMenuHandler.getModelListForTesting().add(menuItemWithSubmenu);
@@ -413,6 +414,10 @@ public class AppMenuTest {
                     PropertyModel submenuItemOneModel =
                             AppMenuTestSupport.getMenuItemPropertyModel(
                                     mAppMenuCoordinator, menuItemSubmenuOneId);
+
+                    Assert.assertNull(submenuItemOneModel.get(AppMenuItemProperties.CLICK_HANDLER));
+                    mAppMenuHandler.onSubmenuLoaded(submenuItems);
+
                     Assert.assertNotNull(
                             submenuItemOneModel.get(AppMenuItemProperties.CLICK_HANDLER));
                     Assert.assertEquals(0, submenuItemOneModel.get(AppMenuItemProperties.POSITION));

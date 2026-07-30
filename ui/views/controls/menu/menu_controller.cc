@@ -956,6 +956,8 @@ void MenuController::OnMouseReleased(SubmenuView* source,
                                      const ui::MouseEvent& event) {
   current_mouse_pressed_state_ &= ~event.changed_button_flags();
 
+  auto this_ref = AsWeakPtr();
+
   if (current_mouse_event_target_) {
     // If this was the final mouse button, then remove the forwarding target.
     // We need to do this *before* dispatching the event to the root view
@@ -1031,6 +1033,12 @@ void MenuController::OnMouseReleased(SubmenuView* source,
     // User either clicked on empty space, or a menu that has children.
     SetSelection(part.menu ? part.menu.get() : state_.item.get(),
                  SELECTION_OPEN_SUBMENU | SELECTION_UPDATE_IMMEDIATELY);
+    // On the rare, off chance that an accessibility event is fired as a result
+    // of the selection changing *and* the Accessibility tool causes the menu to
+    // be closed, `this` will be otherwise dangling. Guard against that.
+    if (!this_ref) {
+      return;
+    }
   }
   SendMouseCaptureLostToActiveView();
   MaybeForwardToAnnotation(source, event);
@@ -3758,6 +3766,10 @@ void MenuController::SetHotTrackedButton(Button* new_hot_button) {
         submenu->GetViewAccessibility().SetActiveDescendant(*hot_button_);
       }
     }
+
+    // TODO(crbug.com/40672441): Handle this manually fired event for ViewsAX.
+    hot_button_->NotifyAccessibilityEventDeprecated(
+        ax::mojom::Event::kSelection, true);
   } else {
     // When clearing the hot button, restore active descendant to the selected
     // menu item if one exists.

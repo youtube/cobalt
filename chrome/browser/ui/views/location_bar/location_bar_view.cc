@@ -45,7 +45,6 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
@@ -59,10 +58,10 @@
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
+#include "chrome/browser/ui/page_action/action_ids.h"
+#include "chrome/browser/ui/page_action/page_action_controller.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
-#include "chrome/browser/ui/page_actions/action_ids.h"
-#include "chrome/browser/ui/page_actions/page_action_controller.h"
-#include "chrome/browser/ui/page_actions/page_action_properties_provider.h"
+#include "chrome/browser/ui/page_action/page_action_properties_provider.h"
 #include "chrome/browser/ui/passwords/manage_passwords_ui_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/saved_tab_groups/saved_tab_group_utils.h"
@@ -85,6 +84,7 @@
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_aim_presenter.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
+#include "chrome/browser/ui/views/omnibox/omnibox_popup_view_full_webui.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_views.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_webui.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_webui_base_content.h"
@@ -383,9 +383,14 @@ void LocationBarView::Init() {
       ((web_ui_popup_dropdown_only &&
         !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopupDebug)) ||
        omnibox::IsWebUIOmniboxFullPopupEnabled())) {
-    omnibox_popup_view_ = std::make_unique<OmniboxPopupViewWebUI>(
-        /*omnibox_view=*/omnibox_view_, omnibox_controller_.get(),
-        /*location_bar=*/this, /*presenter_delegate=*/*this);
+    omnibox_popup_view_ =
+        base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)
+            ? std::make_unique<OmniboxPopupViewFullWebUI>(
+                  /*omnibox_view=*/omnibox_view_, omnibox_controller_.get(),
+                  /*location_bar=*/this, /*presenter_delegate=*/*this)
+            : std::make_unique<OmniboxPopupViewWebUI>(
+                  /*omnibox_view=*/omnibox_view_, omnibox_controller_.get(),
+                  /*location_bar=*/this, /*presenter_delegate=*/*this);
   } else {
     omnibox_popup_view_ = std::make_unique<OmniboxPopupViewViews>(
         /*omnibox_view=*/omnibox_view_, omnibox_controller_.get(),
@@ -598,6 +603,12 @@ void LocationBarView::Init() {
       l10n_util::GetStringUTF16(IDS_OMNIBOX_CLEAR_ALL));
   clear_all_button_ = AddChildView(std::move(clear_all_button));
   RefreshClearAllButtonIcon();
+
+  auto ai_mode_hint_label = std::make_unique<views::Label>(
+      std::u16string(), CONTEXT_OMNIBOX_PRIMARY, views::style::STYLE_PRIMARY);
+  ai_mode_hint_label->SetHorizontalAlignment(gfx::ALIGN_LEFT);
+  ai_mode_hint_label->SetVisible(false);
+  ai_mode_hint_label_ = AddChildView(std::move(ai_mode_hint_label));
 
   // Initialize the location entry. We do this to avoid a black flash which is
   // visible when the location entry has just been initialized.
@@ -1020,6 +1031,8 @@ void LocationBarView::Layout(PassKey) {
                               : kTrailingEdgePaddingForNonAim);
   add_trailing_decoration(page_action_container_,
                           /*intra_item_padding=*/0,
+                          /*edge_padding=*/trailing_decorations_edge_padding);
+  add_trailing_decoration(ai_mode_hint_label_, /*intra_item_padding=*/0,
                           /*edge_padding=*/trailing_decorations_edge_padding);
   for (ContentSettingImageView* view : base::Reversed(content_setting_views_)) {
     int intra_item_padding = kContentSettingIntraItemPadding;
@@ -1669,13 +1682,27 @@ void LocationBarView::RefreshAiModePageActionIconView() {
     if (aim_page_action_controller) {
       aim_page_action_controller->UpdatePageAction();
     }
-    return;
+  } else {
+    PageActionIconView* aim_icon_view =
+        page_action_icon_controller_->GetIconView(PageActionIconType::kAiMode);
+    if (aim_icon_view) {
+      aim_icon_view->Update();
+    }
   }
 
-  PageActionIconView* aim_icon_view =
-      page_action_icon_controller_->GetIconView(PageActionIconType::kAiMode);
-  if (aim_icon_view) {
-    aim_icon_view->Update();
+  if (omnibox::kShowRhsAimHint.Get()) {
+    if (omnibox_controller_->popup_state_manager()->popup_state() ==
+        OmniboxPopupState::kClassic) {
+      ai_mode_hint_label_->SetVisible(true);
+    } else {
+      ai_mode_hint_label_->SetVisible(false);
+    }
+#if BUILDFLAG(IS_MAC)
+    ai_mode_hint_label_->SetText(u"⌘ + return for AI Mode");
+#else
+    ai_mode_hint_label_->SetText(u"Ctrl + Enter for AI Mode");
+#endif
+    ai_mode_hint_label_->SetEnabledColor(kColorOmniboxTextDimmed);
   }
 }
 
@@ -1909,9 +1936,11 @@ void LocationBarView::OnPopupStateChanged(OmniboxPopupState old_state,
   // Hide the old popup.
   switch (old_state) {
     case OmniboxPopupState::kClassic:
-      // Normally, the classic popup hides itself in `UpdatePopupAppearance()`
-      // before updating the popup state. However, explicitly hide the classic
-      // popup for scenario of transitioning from the classic to the aim popup.
+    case OmniboxPopupState::kFull:
+      // Normally, the classic/full popup hides itself in
+      // `UpdatePopupAppearance()` before updating the popup state. However,
+      // explicitly hide the classic/full popup for scenario of transitioning
+      // from the classic/full to the aim popup.
       if (omnibox_popup_view_->IsOpen()) {
         omnibox_popup_view_->UpdatePopupAppearance();
       }
@@ -1928,7 +1957,8 @@ void LocationBarView::OnPopupStateChanged(OmniboxPopupState old_state,
   // Show the new popup.
   switch (new_state) {
     case OmniboxPopupState::kClassic:
-      // The classic popup shows itself in `UpdatePopupAppearance()` before
+    case OmniboxPopupState::kFull:
+      // The classic/full popup shows itself in `UpdatePopupAppearance()` before
       // updating the popup state.
       break;
     case OmniboxPopupState::kAim:
@@ -1974,8 +2004,7 @@ void LocationBarView::ValidatePopupState(OmniboxPopupState state) {
   // Note: GetWidget() returns the BrowserView's widget, not the popup widget.
   if (views::Widget* widget = GetWidget();
       !widget || !widget->IsVisible() ||
-      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup) ||
-      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopupV2)) {
+      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup)) {
     return;
   }
 
@@ -1990,9 +2019,11 @@ void LocationBarView::ValidatePopupState(OmniboxPopupState state) {
           << " aim=" << aim_is_shown;
       break;
     case OmniboxPopupState::kClassic:
+    case OmniboxPopupState::kFull:
       DCHECK(classic_is_open && !aim_is_shown)
-          << "Widget state mismatch in kClassic: classic=" << classic_is_open
-          << " aim=" << aim_is_shown;
+          << "Widget state mismatch in "
+          << (state == OmniboxPopupState::kClassic ? "kClassic" : "kFull")
+          << ": classic=" << classic_is_open << " aim=" << aim_is_shown;
       break;
     case OmniboxPopupState::kAim:
       DCHECK(!classic_is_open && aim_is_shown)
@@ -2365,6 +2396,10 @@ ui::MouseEvent LocationBarView::AdjustMouseEventLocationForOmniboxView(
 
 bool LocationBarView::GetPopupMode() const {
   return is_popup_mode_;
+}
+
+bool LocationBarView::in_popup_state_transition() const {
+  return in_popup_state_transition_;
 }
 
 page_actions::PageActionController* LocationBarView::GetPageActionController() {

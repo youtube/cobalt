@@ -223,6 +223,9 @@ BASE_FEATURE(kIPHReadingModeSidePanelFeature,
 BASE_FEATURE(kIPHShoppingCollectionFeature,
              "IPH_ShoppingCollectionFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kIPHSmartTabSharingFeature,
+             "IPH_SmartTabSharingFeature",
+             base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSideBySidePinnableFeature,
              "IPH_SideBySidePinnableFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -234,12 +237,7 @@ BASE_FEATURE(kIPHVerticalTabsExpandOnHoverFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHVerticalTabstripTutorialFeature,
              "IPH_VerticalTabstripTutorialFeature",
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kIPHSidePanelGenericPinnableFeature,
              "IPH_SidePanelGenericPinnableFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -890,6 +888,10 @@ BASE_FEATURE(kIPHiOSNewIAPromoFeature,
              "IPH_iOSNewIAPromoFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+BASE_FEATURE(kIPHiOSGeminiExternalAppStoreEvent,
+             "IPH_iOSGeminiExternalAppStoreEvent",
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kIPHiOSPinMostVisitedSiteFeature,
              "IPH_iOSPinMostVisitedSiteFeature",
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1036,7 +1038,7 @@ BASE_FEATURE(kIPHSearchPromotionFeature,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 constinit const base::FeatureParam<std::string> kSearchPromotionArm{
-    &kIPHSearchPromotionFeature, "arm", "disabled"};
+    &kIPHSearchPromotionFeature, "arm", kSearchPromotionArmDefault};
 constinit const base::FeatureParam<std::string> kSearchPromotionStoreUrl{
     &kIPHSearchPromotionFeature, "store_url",
     "https://microsoftedge.microsoft.com/addons/detail/google-search-for-edge/"

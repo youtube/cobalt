@@ -457,6 +457,7 @@
 <translation id="2475783092753560388">Infoga <ph name="SEARCH_RESULT_TEXT" /></translation>
 <translation id="2475982808118771221">Det uppstod ett fel</translation>
 <translation id="2478076885740497414">Installera appen</translation>
+<translation id="2479148705183875116">Öppna inställningarna</translation>
 <translation id="2482878487686419369">Aviseringar</translation>
 <translation id="2484513351006226581">Tryck på <ph name="KEYBOARD_SHORTCUT" /> om du vill byta tangentbordslayout.</translation>
 <translation id="2485422356828889247">Avinstallera</translation>
@@ -1047,6 +1048,7 @@ Vissa funktioner är begränsade för att förlänga batteritiden.</translation>
 <translation id="4239069858505860023">GPRS</translation>
 <translation id="4240486403425279990">Översiktsläge</translation>
 <translation id="4242533952199664413">Öppna Inställningar</translation>
+<translation id="4244765461494758482">De här inställningarna synkroniseras på dina andra ChromeOS-enheter. Du kan ändra dem här eller hantera hela listan i Inställningar.</translation>
 <translation id="4247123849143712100">Uppdatera och stäng av</translation>
 <translation id="4249248555939881673">Väntar på nätverksanslutning ...</translation>
 <translation id="4250229828105606438">Skärmbild</translation>
@@ -1105,7 +1107,7 @@ Vissa funktioner är begränsade för att förlänga batteritiden.</translation>
 <translation id="439598569299422042">Pausad, <ph name="SIZE_INFO" /></translation>
 <translation id="440113666232554208">Det gick inte att spara screencast</translation>
 <translation id="4405151984121254935">Typen av kringutrustning som är ansluten stöds inte</translation>
-<translation id="4406883609789734330">Live Caption</translation>
+<translation id="4406883609789734330">Livetextning</translation>
 <translation id="4412698727486357573">Hjälpcenter</translation>
 <translation id="4412944820643904175"><ph name="FEATURE_NAME" /> är av.</translation>
 <translation id="44141919652824029">Vill du ge <ph name="APP_NAME" /> åtkomstbehörighet till listan med anslutna USB-enheter?</translation>
@@ -2327,6 +2329,7 @@ Stäng av enheten genom att hålla av/på-knappen nedtryckt igen.</translation>
 <translation id="8051716679295756675">Det finns redan en mall som heter <ph name="DESK_TEMPLATE_NAME" /></translation>
 <translation id="8052898407431791827">Kopierat till urklipp</translation>
 <translation id="8054466585765276473">Batteritiden beräknas.</translation>
+<translation id="8063363226185507157">Synkroniserade tillgänglighetsinställningar</translation>
 <translation id="8076492880354921740">Flikar</translation>
 <translation id="8079538659226626406">Skärmdelning</translation>
 <translation id="8083540854303889870">Har sparats till senare</translation>
