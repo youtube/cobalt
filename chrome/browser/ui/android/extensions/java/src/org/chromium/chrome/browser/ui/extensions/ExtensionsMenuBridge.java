@@ -29,11 +29,18 @@ public class ExtensionsMenuBridge implements Destroyable {
     private long mNativeExtensionsMenuDelegateAndroid;
     private final Observer mObserver;
 
-    public ExtensionsMenuBridge(ChromeAndroidTask task, Profile profile, Observer observer) {
+    public ExtensionsMenuBridge(
+            ChromeAndroidTask task,
+            Profile profile,
+            ExtensionsToolbarBridge toolbarBridge,
+            Observer observer) {
         mObserver = observer;
         mNativeExtensionsMenuDelegateAndroid =
                 ExtensionsMenuBridgeJni.get()
-                        .init(this, task.getOrCreateNativeBrowserWindowPtr(profile));
+                        .init(
+                                this,
+                                task.getOrCreateNativeBrowserWindowPtr(profile),
+                                toolbarBridge.getNativePtr());
     }
 
     @Override
@@ -76,6 +83,19 @@ public class ExtensionsMenuBridge implements Destroyable {
     /** Returns the site settings state from native. */
     public ExtensionsMenuTypes.SiteSettingsState getSiteSettingsState() {
         return ExtensionsMenuBridgeJni.get().getSiteSettings(mNativeExtensionsMenuDelegateAndroid);
+    }
+
+    /**
+     * Called when a site access option for an extension is selected in the UI.
+     *
+     * @param extensionId The ID of the extension.
+     * @param siteAccess The selected site access option.
+     */
+    public void onExtensionSiteAccessSelected(
+            String extensionId, @ExtensionsMenuTypes.UserSiteAccess int siteAccess) {
+        ExtensionsMenuBridgeJni.get()
+                .onSiteAccessSelected(
+                        mNativeExtensionsMenuDelegateAndroid, extensionId, siteAccess);
     }
 
     /**
@@ -269,7 +289,10 @@ public class ExtensionsMenuBridge implements Destroyable {
          * @param bridge The Java bridge object.
          * @param browserWindowInterfacePtr The pointer to the native BrowserWindowInterface.
          */
-        long init(ExtensionsMenuBridge bridge, long browserWindowInterfacePtr);
+        long init(
+                ExtensionsMenuBridge bridge,
+                long browserWindowInterfacePtr,
+                long nativeExtensionsToolbarAndroid);
 
         /** Destroys the native ExtensionsMenuDelegateAndroid. */
         void destroy(long nativeExtensionsMenuDelegateAndroid);
@@ -295,6 +318,12 @@ public class ExtensionsMenuBridge implements Destroyable {
 
         /** Returns the optional section to display in the menu. */
         int getOptionalSection(long nativeExtensionsMenuDelegateAndroid);
+
+        /** Called when a site access option for an extension is selected in the UI. */
+        void onSiteAccessSelected(
+                long nativeExtensionsMenuDelegateAndroid,
+                @JniType("std::string") String extensionId,
+                @JniType("extensions::PermissionsManager::UserSiteAccess") int siteAccess);
 
         /** Called when the site access toggle for an extension is changed in the UI. */
         void onExtensionToggleSelected(

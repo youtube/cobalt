@@ -55,7 +55,7 @@ class NullImageResourceInfo final
   base::TimeTicks DiscoveryTime() const override { return base::TimeTicks(); }
   const ResourceResponse& GetResponse() const override { return response_; }
   bool IsCacheValidator() const override { return false; }
-  bool IsAccessAllowed(
+  bool IsCorsSameOrigin(
       DoesCurrentFrameHaveSingleSecurityOrigin) const override {
     return true;
   }
@@ -338,8 +338,9 @@ gfx::Size ImageResourceContent::IntrinsicSize(
 
 RespectImageOrientationEnum ImageResourceContent::ForceOrientationIfNecessary(
     RespectImageOrientationEnum default_orientation) const {
-  if (image_ && image_->IsBitmapImage() && !IsAccessAllowed())
+  if (image_ && image_->IsBitmapImage() && !IsCorsSameOrigin()) {
     return kRespectImageOrientation;
+  }
   return default_orientation;
 }
 
@@ -524,15 +525,14 @@ ImageResourceContent::UpdateImageResult ImageResourceContent::UpdateImage(
         return UpdateImageResult::kNoDecodeError;
 
       if (image_) {
-        // Mime type could be null, see https://crbug.com/1485926.
-        if (!image_->MimeType()) {
-          return UpdateImageResult::kShouldDecodeError;
-        }
+        // The MIME type can be null if no decoder was found.
+        const AtomicString& mime_type = image_->MimeType();
         const HashSet<String>* unsupported_mime_types =
             info_->GetUnsupportedImageMimeTypes();
-        if (unsupported_mime_types &&
-            unsupported_mime_types->Contains(image_->MimeType())) {
-          return UpdateImageResult::kShouldDecodeError;
+        if (mime_type && unsupported_mime_types &&
+            unsupported_mime_types->Contains(mime_type)) {
+          // Drop the Image, simulating a missing decoder.
+          image_ = nullptr;
         }
       }
 
@@ -649,8 +649,8 @@ void ImageResourceContent::Changed(const blink::Image* image) {
   NotifyObservers(kDoNotNotifyFinish, CanDeferInvalidation::kYes);
 }
 
-bool ImageResourceContent::IsAccessAllowed() const {
-  return info_->IsAccessAllowed(
+bool ImageResourceContent::IsCorsSameOrigin() const {
+  return info_->IsCorsSameOrigin(
       GetImage()->HasSingleSecurityOrigin()
           ? ImageResourceInfo::kHasSingleSecurityOrigin
           : ImageResourceInfo::kHasMultipleSecurityOrigin);

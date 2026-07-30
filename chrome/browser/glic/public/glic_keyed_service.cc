@@ -126,12 +126,11 @@ std::unique_ptr<GlicInstanceCoordinator> CreateWindowController(
 
 std::unique_ptr<GlicSharingManager> CreateSharingManager(
     Profile* profile,
-    GlicInstanceCoordinator* window_controller,
-    GlicMetrics* metrics,
+    GlicInstanceCoordinator* instance_coordinator,
     GlicEnabling* glic_enabling) {
   return std::make_unique<GlicActiveInstanceSharingManager>(
       profile, glic_enabling,
-      static_cast<GlicInstanceCoordinatorImpl*>(window_controller));
+      static_cast<GlicInstanceCoordinatorImpl*>(instance_coordinator));
 }
 
 void WriteGuestUrlPresetToPrefs(const char* switch_name,
@@ -182,21 +181,19 @@ GlicKeyedService::GlicKeyedService(
                                                 contextual_cueing_service)),
       sharing_manager_(CreateSharingManager(profile,
                                             &instance_coordinator(),
-                                            metrics_.get(),
                                             enabling_.get())),
 #if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: CaptureRegion
       region_capture_controller_(
           std::make_unique<GlicRegionCaptureController>()),
 #endif
-      auth_controller_(std::make_unique<AuthController>(profile,
-                                                        identity_manager,
-                                                        /*use_for_fre=*/false)),
+      auth_controller_(
+          std::make_unique<AuthController>(profile, identity_manager)),
 
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
       occlusion_notifier_(nullptr),
 #endif
-      tab_data_observer_(std::make_unique<GlicTabDataObserver>()),
-      tab_favicon_observer_(std::make_unique<GlicTabFaviconObserver>()),
+      tab_data_observer_(std::make_unique<GlicTabDataObserver>(profile)),
+      tab_favicon_observer_(std::make_unique<GlicTabFaviconObserver>(profile)),
       web_contents_warming_pool_(
           std::make_unique<GlicWebContentsWarmingPool>(profile)),
       contextual_cueing_service_(contextual_cueing_service) {
@@ -208,9 +205,6 @@ GlicKeyedService::GlicKeyedService(
   metrics_->ClearControllers();
   metrics_->RecordGlicProfilePreferences();
 
-  memory_pressure_listener_registration_ =
-      std::make_unique<base::MemoryPressureListenerRegistration>(
-          FROM_HERE, base::MemoryPressureListenerTag::kGlicKeyedService, this);
   if (base::FeatureList::IsEnabled(features::kGlicShareImage)) {
     share_image_handler_ = std::make_unique<GlicShareImageHandler>(*this);
   }
@@ -344,8 +338,8 @@ bool GlicKeyedService::MaybeInvoke(
     if (prompt_suggestion) {
       options.prompts.push_back(*prompt_suggestion);
     }
-    Invoke(TabListInterface::From(target_bwi)->GetActiveTab(),
-           std::move(options));
+    options.target.surface = TabListInterface::From(target_bwi)->GetActiveTab();
+    Invoke(std::move(options));
     return true;
   }
 
@@ -354,7 +348,6 @@ bool GlicKeyedService::MaybeInvoke(
 
 void GlicKeyedService::InvokeWithAutoSubmit(
     InvokeWithAutoSubmitPasskey auto_submit_passkey,
-    tabs::TabInterface* tab,
     GlicInvokeOptions options) {
   CHECK(GlicEnabling::IsEnabledForProfile(profile_));
 
@@ -364,11 +357,10 @@ void GlicKeyedService::InvokeWithAutoSubmit(
   }
 
   static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator())
-      .InvokeWithAutoSubmit(auto_submit_passkey, tab, std::move(options));
+      .InvokeWithAutoSubmit(auto_submit_passkey, std::move(options));
 }
 
-void GlicKeyedService::Invoke(tabs::TabInterface* tab,
-                              GlicInvokeOptions options) {
+void GlicKeyedService::Invoke(GlicInvokeOptions options) {
   CHECK(GlicEnabling::IsEnabledForProfile(profile_));
 
   GlicProfileManager* glic_profile_manager = GlicProfileManager::GetInstance();
@@ -377,7 +369,7 @@ void GlicKeyedService::Invoke(tabs::TabInterface* tab,
   }
 
   static_cast<GlicInstanceCoordinatorImpl&>(instance_coordinator())
-      .Invoke(tab, std::move(options));
+      .Invoke(std::move(options));
 }
 
 void GlicKeyedService::OpenFreDialogInNewTab(BrowserWindowInterface* bwi,
@@ -417,7 +409,7 @@ GlicFreController& GlicKeyedService::fre_controller() {
   return *fre_controller_.get();
 }
 
-GlicSharingManager& GlicKeyedService::sharing_manager() {
+GlicSharingManager& GlicKeyedService::active_instance_sharing_manager() {
   return *sharing_manager_.get();
 }
 
@@ -460,11 +452,7 @@ bool GlicKeyedService::IsWindowDetached() const {
 }
 
 bool GlicKeyedService::IsWindowOrFreShowing() const {
-  return IsWindowShowing() || IsFreShowing();
-}
-
-bool GlicKeyedService::IsFreShowing() const {
-  return fre_controller_->IsShowingDialog();
+  return IsWindowShowing();
 }
 
 base::CallbackListSubscription
@@ -635,14 +623,6 @@ void GlicKeyedService::Reload(content::RenderFrameHost* render_frame_host) {
   instance_coordinator().Reload(render_frame_host);
 }
 
-void GlicKeyedService::OnMemoryPressure(base::MemoryPressureLevel level) {
-  if (level == base::MEMORY_PRESSURE_LEVEL_NONE ||
-      (this == GlicProfileManager::GetInstance()->GetLastActiveGlic())) {
-    return;
-  }
-  // TODO(crbug.com/453747043): Handle Multi Instance.
-}
-
 base::WeakPtr<GlicKeyedService> GlicKeyedService::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
@@ -651,8 +631,7 @@ bool GlicKeyedService::IsActiveWebContents(content::WebContents* contents) {
   if (!contents) {
     return false;
   }
-  return host_manager().IsGlicWebUi(contents) ||
-         contents == fre_controller().GetWebContents();
+  return host_manager().IsGlicWebUi(contents);
 }
 
 void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
@@ -671,12 +650,6 @@ void GlicKeyedService::FinishPreload(GlicPrewarmingChecksResult result) {
 
 bool GlicKeyedService::IsProcessHostForGlic(
     content::RenderProcessHost* process_host) {
-  auto* fre_contents = fre_controller().GetWebContents();
-  if (fre_contents) {
-    if (fre_contents->GetPrimaryMainFrame()->GetProcess() == process_host) {
-      return true;
-    }
-  }
   return host_manager().IsGlicWebUiHost(process_host);
 }
 
@@ -724,8 +697,14 @@ void GlicKeyedService::SendAdditionalContext(
     tabs::TabHandle tab_handle,
     mojom::AdditionalContextPtr context) {
   auto* tab = tab_handle.Get();
-  auto* host = &instance_coordinator().GetInstanceForTab(tab)->host();
-  host->NotifyAdditionalContext(std::move(context));
+  if (!tab) {
+    return;
+  }
+  auto* instance = instance_coordinator().GetInstanceForTab(tab);
+  if (!instance) {
+    return;
+  }
+  instance->host().NotifyAdditionalContext(std::move(context));
 }
 
 void GlicKeyedService::Close(

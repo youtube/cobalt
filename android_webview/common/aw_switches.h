@@ -31,13 +31,12 @@ extern const char kWebViewUseStartupTasksLogic[];
 extern const char kWebViewUseStartupTasksLogicP2[];
 extern const char kWebViewStartupTasksYieldToNative[];
 extern const char kStartupNonBlockingWebViewConstructor[];
+extern const char kPostChromiumStartupInWebViewConstructor[];
 extern const char kWebViewDeferStartupGmsCalls[];
 extern const char kWebViewOptInToGmsBindServiceOptimization[];
 extern const char kWebViewRendererLibraryPrefetch[];
 extern const char kWebViewRendererLibraryPrefetchDisabled[];
 extern const char kWebViewRendererLibraryPrefetchEnabled[];
-extern const char kWebViewStartupTasksPlusMultiProcess[];
-extern const char kWebViewStopBrowserStartupInIsMultiProcessEnabled[];
 extern const char kWebViewReduceUserAgentMinorVersion[];
 extern const char kWebViewReduceUAAndroidVersionDeviceModel[];
 

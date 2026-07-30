@@ -198,7 +198,7 @@ void StartURLLoader(
   const ui::TemplateReplacements* replacements = nullptr;
   const std::string mime_type = source->source()->GetMimeType(request.url);
   if (mime_type == "text/html" || mime_type == "text/css" || replace_in_js)
-    replacements = source->source()->GetReplacements();
+    replacements = source->GetReplacements();
 
   // To keep the same behavior as the old WebUI code, we call the source to get
   // the value for |replacements| on the IO thread. Since |replacements| is
@@ -288,7 +288,8 @@ class WebUIURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
            allowed_hosts_.find(request.url.GetHost()) != allowed_hosts_.end()))
         << "Incorrect host: " << request.url.GetHost();
 
-    if (request.url.host() == kChromeUIBlobInternalsHost) {
+    if (request.url.scheme() == kChromeUIScheme &&
+        request.url.host() == kChromeUIBlobInternalsHost) {
       GetIOThreadTaskRunner({})->PostTask(
           FROM_HERE,
           base::BindOnce(
@@ -301,8 +302,9 @@ class WebUIURLLoaderFactory : public network::SelfDeletingURLLoaderFactory {
     // This path is entered on user-trigger navigations (e.g. from omnibox or
     // links) to chrome://network-error or chrome://dino. Actual network error
     // does not trigger this path.
-    if (request.url.host() == kChromeUINetworkErrorHost ||
-        request.url.host() == kChromeUIDinoHost) {
+    if (request.url.scheme() == kChromeUIScheme &&
+        (request.url.host() == kChromeUINetworkErrorHost ||
+         request.url.host() == kChromeUIDinoHost)) {
       // Simulate a network error.
       StartNetworkErrorsURLLoader(request, std::move(client));
       // Logs WebUI usage. These WebUIs don't create a WebUI object.

@@ -159,7 +159,7 @@
 #include "chrome/browser/password_manager/android/password_manager_launcher_android.h"
 #include "chrome/browser/password_manager/android/password_manager_ui_util_android.h"
 #include "chrome/browser/touch_to_fill/password_manager/password_generation/android/touch_to_fill_password_generation_controller.h"
-#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller_autofill_delegate.h"
+#include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_controller_autofill_delegate.h"  // nogncheck
 #include "chrome/browser/touch_to_fill/password_manager/touch_to_fill_view.h"
 #include "components/password_manager/content/browser/keyboard_replacing_surface_visibility_controller_impl.h"
 #include "components/password_manager/core/browser/credential_cache.h"
@@ -671,13 +671,13 @@ void ChromePasswordManagerClient::ContinueShowKeyboardReplacingSurface(
     }
   }
 
-  const PasswordForm* form_to_fill =
-      password_manager_.GetParsedObservedForm(driver, request.field.element_id);
+  const PasswordForm* form_to_fill = password_manager_.GetParsedObservedForm(
+      driver, request.field.element_id.renderer_id);
   auto ttf_controller_autofill_delegate =
       std::make_unique<TouchToFillControllerAutofillDelegate>(
           this, GetDeviceAuthenticator(), webauthn_delegate->AsWeakPtr(),
           std::make_unique<PasswordCredentialFillerImpl>(weak_driver, request),
-          form_to_fill, request.field.element_id,
+          form_to_fill, request.field.element_id.renderer_id,
           TouchToFillControllerAutofillDelegate::ShowHybridOption(
               should_show_hybrid_option));
 
@@ -1921,6 +1921,28 @@ void ChromePasswordManagerClient::ResourceLoadComplete(
             render_frame_host),
         resource_load_info.original_url);
   }
+}
+
+void ChromePasswordManagerClient::OnFedCmFederatedLogin(bool success) {
+  // If the federated login flow happens in the popup window, the owner of the
+  // window needs to handle the notification because the window usually gets
+  // destroyed right after the login.
+  content::RenderFrameHost* opener_rfh = web_contents()->GetOpener();
+  content::WebContents* opener_web_contents =
+      opener_rfh ? content::WebContents::FromRenderFrameHost(opener_rfh)
+                 : nullptr;
+  ChromePasswordManagerClient* opener_client =
+      opener_web_contents
+          ? ChromePasswordManagerClient::FromWebContents(opener_web_contents)
+          : nullptr;
+  if (opener_client) {
+    opener_client->OnFedCmFederatedLogin(success);
+    return;
+  }
+
+  // TODO(crbug.com/498593355): Propagate the call to the password manager. Only
+  // the password manager click from the last opener will handle the federated
+  // login.
 }
 
 void ChromePasswordManagerClient::OnFieldTypesDetermined(

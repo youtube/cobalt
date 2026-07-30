@@ -82,13 +82,12 @@ class MockIdentityRequestDialogController
               (override));
   MOCK_METHOD(WebContents*,
               ShowModalDialog,
-              (const GURL&, blink::mojom::RpMode rp_mode, DismissCallback),
+              (const GURL&,
+               blink::mojom::RpMode rp_mode,
+               DismissCallback,
+               ShownModalAsyncCallback),
               (override));
   MOCK_METHOD(void, CloseModalDialog, (), (override));
-  MOCK_METHOD(void,
-              OnFlowCompleted,
-              (content::webid::FederatedLoginResult),
-              (override));
   MOCK_METHOD(void, NotifyAutofillSourceReadyForTesting, (), (override));
 
   // Request the IdP Registration permission.

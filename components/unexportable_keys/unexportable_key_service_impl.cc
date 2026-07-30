@@ -45,15 +45,17 @@ std::string_view GetApplicationTag(
 
 }  // namespace
 
-// Class holding either an `UnexportableKeyId` or a list of callbacks waiting
-// for the key creation.
+// Class holding either an `UnexportableSigningKeyId` or a list of callbacks
+// waiting for the key creation.
+// TODO(crbug.com/501307307): Rename to `MaybePendingUnexportableSigningKeyId`
+// once we introduce `MaybePendingUnexportableAttestationKeyId`.
 class MaybePendingUnexportableKeyId {
  public:
   using CallbackType =
-      base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)>;
+      base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>;
   using PendingCallbacks = std::vector<CallbackType>;
   using PendingCallbacksOrKeyId =
-      std::variant<PendingCallbacks, UnexportableKeyId>;
+      std::variant<PendingCallbacks, UnexportableSigningKeyId>;
 
   // Constructs an instance holding a list of callbacks.
   MaybePendingUnexportableKeyId() = default;
@@ -62,7 +64,7 @@ class MaybePendingUnexportableKeyId {
       default;
 
   // Constructs an instance holding `key_id`.
-  explicit MaybePendingUnexportableKeyId(UnexportableKeyId key_id)
+  explicit MaybePendingUnexportableKeyId(UnexportableSigningKeyId key_id)
       : pending_callbacks_or_key_id_(key_id) {}
 
   ~MaybePendingUnexportableKeyId() {
@@ -74,14 +76,14 @@ class MaybePendingUnexportableKeyId {
   // Returns true if a key has been assigned to this instance. Otherwise,
   // returns false which means that this instance holds a list of callbacks.
   bool HasKeyId() const {
-    return std::holds_alternative<UnexportableKeyId>(
+    return std::holds_alternative<UnexportableSigningKeyId>(
         pending_callbacks_or_key_id_);
   }
 
   // This method should be called only if `HasKeyId()` is true.
-  UnexportableKeyId GetKeyId() const {
+  UnexportableSigningKeyId GetKeyId() const {
     CHECK(HasKeyId());
-    return std::get<UnexportableKeyId>(pending_callbacks_or_key_id_);
+    return std::get<UnexportableSigningKeyId>(pending_callbacks_or_key_id_);
   }
 
   // These methods should be called only if `HasKeyId()` is false.
@@ -93,7 +95,7 @@ class MaybePendingUnexportableKeyId {
     return GetCallbacks().size();
   }
 
-  void SetKeyIdAndRunCallbacks(UnexportableKeyId key_id) {
+  void SetKeyIdAndRunCallbacks(UnexportableSigningKeyId key_id) {
     CHECK(!HasKeyId());
     PendingCallbacksOrKeyId pending_callbacks =
         std::exchange(pending_callbacks_or_key_id_, key_id);
@@ -147,21 +149,23 @@ void UnexportableKeyServiceImpl::GenerateSigningKeySlowlyAsync(
     base::span<const crypto::SignatureVerifier::SignatureAlgorithm>
         acceptable_algorithms,
     BackgroundTaskPriority priority,
-    base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)> callback) {
+    base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+        callback) {
   task_manager_->GenerateSigningKeySlowlyAsync(
       task_origin_, config_, acceptable_algorithms, priority,
       WrapCallbackWithErrorIfCancelled(
           std::move(callback),
           // SAFETY: `this` is guaranteed to be alive if the projection callback
           // is invoked.
-          base::BindOnce(&UnexportableKeyServiceImpl::OnKeyGeneratedImpl,
+          base::BindOnce(&UnexportableKeyServiceImpl::OnSigningKeyGeneratedImpl,
                          base::Unretained(this))));
 }
 
 void UnexportableKeyServiceImpl::FromWrappedSigningKeySlowlyAsync(
     base::span<const uint8_t> wrapped_key,
     BackgroundTaskPriority priority,
-    base::OnceCallback<void(ServiceErrorOr<UnexportableKeyId>)> callback) {
+    base::OnceCallback<void(ServiceErrorOr<UnexportableSigningKeyId>)>
+        callback) {
   // Construct a key_view from the wrapped key and application tag stored in the
   // config. Materialize it into the map only if needed.
   //
@@ -379,7 +383,7 @@ UnexportableKeyServiceImpl::OnGetAllSigningKeysForGarbageCollectionSlowlyImpl(
   key_ids.reserve(keys.size());
   for (scoped_refptr<RefCountedUnexportableSigningKey>& key : keys) {
     CHECK(key);
-    UnexportableKeyId key_id = key->id();
+    UnexportableSigningKeyId key_id(key->id());
     auto [it, inserted] = key_id_by_wrapped_key_and_tag_.try_emplace(
         GetWrappedKeyAndTag(*key), key_id);
 
@@ -411,15 +415,15 @@ UnexportableKeyServiceImpl::OnGetAllSigningKeysForGarbageCollectionSlowlyImpl(
   return key_ids;
 }
 
-ServiceErrorOr<UnexportableKeyId>
-UnexportableKeyServiceImpl::OnKeyGeneratedImpl(
+ServiceErrorOr<UnexportableSigningKeyId>
+UnexportableKeyServiceImpl::OnSigningKeyGeneratedImpl(
     ServiceErrorOr<scoped_refptr<RefCountedUnexportableSigningKey>>
         key_or_error) {
   ASSIGN_OR_RETURN(scoped_refptr<RefCountedUnexportableSigningKey> key,
                    std::move(key_or_error));
   // `key` must be non-null if `key_or_error` holds a value.
   CHECK(key);
-  UnexportableKeyId key_id = key->id();
+  UnexportableSigningKeyId key_id(key->id());
   if (!key_id_by_wrapped_key_and_tag_
            .try_emplace(GetWrappedKeyAndTag(*key), key_id)
            .second) {
@@ -431,7 +435,7 @@ UnexportableKeyServiceImpl::OnKeyGeneratedImpl(
   }
   // A newly generated key ID must be unique.
   CHECK(key_by_key_id_.try_emplace(key_id, std::move(key)).second);
-  return key_id;
+  return UnexportableSigningKeyId(key_id);
 }
 
 void UnexportableKeyServiceImpl::OnKeyCreatedFromWrappedKeyAndTag(
@@ -462,7 +466,7 @@ void UnexportableKeyServiceImpl::OnKeyCreatedFromWrappedKeyAndTag(
   CHECK(key);
   CHECK(wrapped_key_and_tag == GetWrappedKeyAndTag(*key));
 
-  UnexportableKeyId key_id = key->id();
+  UnexportableSigningKeyId key_id(key->id());
   // A newly created key ID must be unique.
   CHECK(key_by_key_id_.try_emplace(key_id, std::move(key)).second);
   maybe_pending_callbacks.SetKeyIdAndRunCallbacks(key_id);

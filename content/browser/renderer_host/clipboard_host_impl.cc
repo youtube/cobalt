@@ -124,7 +124,7 @@ void ClipboardHostImpl::ReadAvailableTypes(
     ui::ClipboardBuffer clipboard_buffer,
     ReadAvailableTypesCallback callback) {
   auto* clipboard = ui::Clipboard::GetForCurrentThread();
-  auto data_endpoint = CreateDataEndpoint();
+  auto data_endpoint = CreateDataEndpoint(render_frame_host());
 
   // If an enterprise Data Controls rule modified the clipboard, get the last
   // replaced clipboard types instead.
@@ -191,7 +191,7 @@ void ClipboardHostImpl::IsFormatAvailable(blink::mojom::ClipboardFormat format,
                                           ui::ClipboardBuffer clipboard_buffer,
                                           IsFormatAvailableCallback callback) {
   ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
-  auto data_endpoint = CreateDataEndpoint();
+  auto data_endpoint = CreateDataEndpoint(render_frame_host());
   clipboard->GetAllAvailableFormats(
       clipboard_buffer, data_endpoint,
       base::BindOnce(
@@ -235,7 +235,7 @@ void ClipboardHostImpl::ReadText(ui::ClipboardBuffer clipboard_buffer,
     return;
   }
 
-  ExtractText(clipboard_buffer, CreateDataEndpoint(),
+  ExtractText(clipboard_buffer, CreateDataEndpoint(render_frame_host()),
               base::BindOnce(&ClipboardHostImpl::OnReadText,
                              weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
                              std::move(callback)));
@@ -269,7 +269,7 @@ void ClipboardHostImpl::ReadHtml(ui::ClipboardBuffer clipboard_buffer,
     return;
   }
   ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
-  auto data_dst = CreateDataEndpoint();
+  auto data_dst = CreateDataEndpoint(render_frame_host());
   clipboard->ReadHTML(clipboard_buffer, data_dst,
                       base::BindOnce(&ClipboardHostImpl::OnReadHtml,
                                      weak_ptr_factory_.GetWeakPtr(),
@@ -309,7 +309,7 @@ void ClipboardHostImpl::ReadSvg(ui::ClipboardBuffer clipboard_buffer,
     std::move(callback).Run(std::u16string());
     return;
   }
-  auto data_dst = CreateDataEndpoint();
+  auto data_dst = CreateDataEndpoint(render_frame_host());
   ui::Clipboard::GetForCurrentThread()->ReadSvg(
       clipboard_buffer, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadSvg,
@@ -345,7 +345,7 @@ void ClipboardHostImpl::ReadRtf(ui::ClipboardBuffer clipboard_buffer,
     return;
   }
 
-  auto data_dst = CreateDataEndpoint();
+  auto data_dst = CreateDataEndpoint(render_frame_host());
   ui::Clipboard::GetForCurrentThread()->ReadRTF(
       clipboard_buffer, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadRtf,
@@ -380,7 +380,7 @@ void ClipboardHostImpl::ReadPng(ui::ClipboardBuffer clipboard_buffer,
     std::move(callback).Run(mojo_base::BigBuffer());
     return;
   }
-  auto data_dst = CreateDataEndpoint();
+  auto data_dst = CreateDataEndpoint(render_frame_host());
   ui::Clipboard::GetForCurrentThread()->ReadPng(
       clipboard_buffer, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadPng,
@@ -392,7 +392,7 @@ void ClipboardHostImpl::OnReadPng(ui::ClipboardBuffer clipboard_buffer,
                                   ReadPngCallback callback,
                                   const std::vector<uint8_t>& data) {
   // Pass both image and associated text for content analysis.
-  ExtractText(clipboard_buffer, CreateDataEndpoint(),
+  ExtractText(clipboard_buffer, CreateDataEndpoint(render_frame_host()),
               base::BindOnce(&ClipboardHostImpl::OnReadPngWithText,
                              weak_ptr_factory_.GetWeakPtr(), clipboard_buffer,
                              std::move(callback), std::move(data)));
@@ -431,7 +431,7 @@ void ClipboardHostImpl::ReadFiles(ui::ClipboardBuffer clipboard_buffer,
   }
 
   ui::Clipboard* clipboard = ui::Clipboard::GetForCurrentThread();
-  auto data_dst = CreateDataEndpoint();
+  auto data_dst = CreateDataEndpoint(render_frame_host());
   clipboard->ReadFilenames(
       clipboard_buffer, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadFiles,
@@ -516,7 +516,7 @@ void ClipboardHostImpl::ReadDataTransferCustomData(
     return;
   }
 
-  auto data_dst = CreateDataEndpoint();
+  auto data_dst = CreateDataEndpoint(render_frame_host());
   ui::Clipboard::GetForCurrentThread()->ReadDataTransferCustomData(
       clipboard_buffer, type, data_dst,
       base::BindOnce(&ClipboardHostImpl::OnReadDataTransferCustomData,
@@ -553,7 +553,7 @@ void ClipboardHostImpl::WriteText(const std::u16string& text) {
   data.text = text;
   ++pending_writes_;
   GetContentClient()->browser()->IsClipboardCopyAllowedByPolicy(
-      CreateClipboardEndpoint(),
+      CreateClipboardEndpoint(render_frame_host()),
       {
           .size = text.size() * sizeof(std::u16string::value_type),
           .format_type = ui::ClipboardFormatType::PlainTextType(),
@@ -569,7 +569,7 @@ void ClipboardHostImpl::WriteHtml(const std::u16string& markup,
   data.html = markup;
   ++pending_writes_;
   GetContentClient()->browser()->IsClipboardCopyAllowedByPolicy(
-      CreateClipboardEndpoint(),
+      CreateClipboardEndpoint(render_frame_host()),
       {
           .size = markup.size() * sizeof(std::u16string::value_type),
           .format_type = ui::ClipboardFormatType::HtmlType(),
@@ -584,7 +584,7 @@ void ClipboardHostImpl::WriteSvg(const std::u16string& markup) {
   data.svg = markup;
   ++pending_writes_;
   GetContentClient()->browser()->IsClipboardCopyAllowedByPolicy(
-      CreateClipboardEndpoint(),
+      CreateClipboardEndpoint(render_frame_host()),
       {
           .size = markup.size() * sizeof(std::u16string::value_type),
           .format_type = ui::ClipboardFormatType::SvgType(),
@@ -612,7 +612,7 @@ void ClipboardHostImpl::WriteDataTransferCustomData(
 
   ++pending_writes_;
   GetContentClient()->browser()->IsClipboardCopyAllowedByPolicy(
-      CreateClipboardEndpoint(),
+      CreateClipboardEndpoint(render_frame_host()),
       {
           .size = total_size,
           .format_type = ui::ClipboardFormatType::DataTransferCustomType(),
@@ -633,7 +633,7 @@ void ClipboardHostImpl::WriteImage(const SkBitmap& bitmap) {
   data.bitmap = bitmap;
   ++pending_writes_;
   GetContentClient()->browser()->IsClipboardCopyAllowedByPolicy(
-      CreateClipboardEndpoint(),
+      CreateClipboardEndpoint(render_frame_host()),
       {
           .size = bitmap.computeByteSize(),
           .format_type = ui::ClipboardFormatType::BitmapType(),
@@ -674,7 +674,7 @@ void ClipboardHostImpl::ReadAvailableCustomAndStandardFormats(
     return;
   }
 
-  auto data_endpoint = CreateDataEndpoint();
+  auto data_endpoint = CreateDataEndpoint(render_frame_host());
   ui::Clipboard::GetForCurrentThread()
       ->ReadAvailableStandardAndCustomFormatNames(
           ui::ClipboardBuffer::kCopyPaste, data_endpoint,
@@ -706,7 +706,7 @@ void ClipboardHostImpl::ReadUnsanitizedCustomFormat(
   // Extract the custom format names and then query the web custom format
   // corresponding to the MIME type.
   std::string format_name = base::UTF16ToASCII(format);
-  auto data_endpoint = CreateDataEndpoint();
+  auto data_endpoint = CreateDataEndpoint(render_frame_host());
   ui::Clipboard::GetForCurrentThread()->ExtractCustomPlatformNames(
       ui::ClipboardBuffer::kCopyPaste, data_endpoint,
       base::BindOnce(&ClipboardHostImpl::OnExtractCustomPlatformNames,
@@ -743,30 +743,9 @@ void ClipboardHostImpl::OnReadUnsanitizedCustomFormat(
     std::move(callback).Run(mojo_base::BigBuffer());
     return;
   }
-  // Custom format data is opaque binary; pass empty `ClipboardPasteData`.
-  // TODO(crbug.com/485537271): Update ClipboardPasteData to include custom
-  // format payload to allow for deep content scanning.
-  ClipboardPasteData clipboard_paste_data;
-  PasteIfPolicyAllowed(
-      ui::ClipboardBuffer::kCopyPaste,
-      ui::ClipboardFormatType::WebCustomFormatMap(),
-      std::move(clipboard_paste_data),
-      base::BindOnce(
-          [](std::string result, ReadUnsanitizedCustomFormatCallback callback,
-             std::optional<ClipboardPasteData> clipboard_paste_data) {
-            if (!clipboard_paste_data || !clipboard_paste_data->empty()) {
-              // If policy engine blocks the paste or attempts to substitute a
-              // string warning, block custom format read entirely. Custom
-              // formats are opaque binary objects and cannot be cleanly
-              // replaced with text.
-              std::move(callback).Run(mojo_base::BigBuffer());
-              return;
-            }
-
-            std::move(callback).Run(
-                mojo_base::BigBuffer(base::as_byte_span(result)));
-          },
-          std::move(result), std::move(callback)));
+  base::span<const uint8_t> span = base::as_byte_span(result);
+  mojo_base::BigBuffer buffer = mojo_base::BigBuffer(span);
+  std::move(callback).Run(std::move(buffer));
 }
 
 void ClipboardHostImpl::WriteUnsanitizedCustomFormat(
@@ -778,46 +757,10 @@ void ClipboardHostImpl::WriteUnsanitizedCustomFormat(
   if (data.size() >= blink::mojom::ClipboardHost::kMaxDataSize)
     return;
 
-  // Defer writing to the clipboard until the policy check completes.
-  // Custom format data is opaque binary; pass empty `ClipboardPasteData`.
-  // TODO(crbug.com/485537271): Update ClipboardPasteData to include custom
-  // format payload to allow for deep content scanning.
-
-  size_t data_size = data.size();
-  ++pending_writes_;
-  GetContentClient()->browser()->IsClipboardCopyAllowedByPolicy(
-      CreateClipboardEndpoint(),
-      {
-          .size = data_size,
-          .format_type = ui::ClipboardFormatType::WebCustomFormatMap(),
-      },
-      ClipboardPasteData(),
-      base::BindOnce(&ClipboardHostImpl::OnCopyCustomFormatAllowedResult,
-                     weak_ptr_factory_.GetWeakPtr(), format, std::move(data)));
-}
-
-void ClipboardHostImpl::OnCopyCustomFormatAllowedResult(
-    const std::u16string& format,
-    mojo_base::BigBuffer data,
-    const ui::ClipboardFormatType&,
-    const ClipboardPasteData&,
-    std::optional<std::u16string> replacement_data) {
-  DCHECK_GT(pending_writes_, 0);
-  --pending_writes_;
-
-  AddSourceDataToClipboardWriter(*clipboard_writer_, render_frame_host());
-
-  if (replacement_data) {
-    clipboard_writer_->WriteText(std::move(*replacement_data));
-  } else {
-    // The `format` is mapped to user agent defined web custom format before
-    // writing to the clipboard. This happens in
-    // `ScopedClipboardWriter::WriteData`.
-    clipboard_writer_->WriteData(format, std::move(data));
-  }
-  if (pending_commit_write_) {
-    CommitWrite();
-  }
+  // The `format` is mapped to user agent defined web custom format before
+  // writing to the clipboard. This happens in
+  // `ScopedClipboardWriter::WriteData`.
+  clipboard_writer_->WriteData(format, std::move(data));
 }
 
 void ClipboardHostImpl::PasteIfPolicyAllowed(
@@ -833,7 +776,7 @@ void ClipboardHostImpl::PasteIfPolicyAllowed(
   ui::ClipboardSequenceNumberToken seqno =
       ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(clipboard_buffer);
 
-  auto data_dst = CreateClipboardEndpoint();
+  auto data_dst = CreateClipboardEndpoint(render_frame_host());
   const ui::DataTransferEndpoint* data_dst_endpoint =
       base::OptionalToPtr(data_dst.data_transfer_endpoint());
 
@@ -851,8 +794,8 @@ void ClipboardHostImpl::OnGetSourceClipboardEndpoint(
     IsClipboardPasteAllowedCallback callback,
     std::optional<size_t> data_size,
     ui::ClipboardSequenceNumberToken seqno,
-    content::ClipboardEndpoint data_dst,
-    content::ClipboardEndpoint source) {
+    ClipboardEndpoint data_dst,
+    ClipboardEndpoint source) {
   static_cast<RenderFrameHostImpl&>(render_frame_host())
       .IsClipboardPasteAllowedByPolicy(std::move(source), std::move(data_dst),
                                        {
@@ -931,48 +874,8 @@ void ClipboardHostImpl::OnCopyAllowedResult(
   }
 }
 
-std::optional<ui::DataTransferEndpoint>
-ClipboardHostImpl::CreateDataEndpoint() {
-  auto* render_frame_host_main_frame = render_frame_host().GetMainFrame();
-  auto source_url = render_frame_host_main_frame->GetLastCommittedURL();
-  if (!source_url.is_valid()) {
-    return std::nullopt;
-  }
-
-  if (auto maybe_url = GetContentClient()
-                           ->browser()
-                           ->MaybeOverrideSourceURLForClipboardAccess(
-                               render_frame_host_main_frame, source_url)) {
-    source_url = *maybe_url;
-  }
-
-  return ui::DataTransferEndpoint(
-      source_url,
-      ui::DataTransferEndpointOptions{
-          .notify_if_restricted =
-              render_frame_host().HasTransientUserActivation(),
-          .off_the_record =
-              render_frame_host().GetBrowserContext()->IsOffTheRecord(),
-      });
-}
-
-ClipboardEndpoint ClipboardHostImpl::CreateClipboardEndpoint() {
-  return ClipboardEndpoint(
-      CreateDataEndpoint(),
-      base::BindRepeating(
-          [](GlobalRenderFrameHostId rfh_id) -> BrowserContext* {
-            auto* rfh = RenderFrameHost::FromID(rfh_id);
-            if (!rfh) {
-              return nullptr;
-            }
-            return rfh->GetBrowserContext();
-          },
-          render_frame_host().GetGlobalId()),
-      render_frame_host());
-}
-
 void ClipboardHostImpl::ResetClipboardWriter() {
-  auto data_endpoint = CreateDataEndpoint();
+  auto data_endpoint = CreateDataEndpoint(render_frame_host());
   std::unique_ptr<ui::DataTransferEndpoint> data_endpoint_ptr;
   if (data_endpoint) {
     data_endpoint_ptr =
@@ -993,7 +896,7 @@ void ClipboardHostImpl::OnClipboardDataChanged() {
     return;
   }
 
-  auto data_endpoint = CreateDataEndpoint();
+  auto data_endpoint = CreateDataEndpoint(render_frame_host());
   ui::Clipboard::GetForCurrentThread()->ReadAvailableTypes(
       ui::ClipboardBuffer::kCopyPaste, data_endpoint,
       base::BindOnce(&ClipboardHostImpl::OnReadAvailableTypesForUpdate,

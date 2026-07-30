@@ -82,14 +82,14 @@ class StringImpl;
 //
 class BLINK_PLATFORM_EXPORT WebString {
  public:
-  enum class UTF8ConversionMode {
+  enum class Utf8ConversionMode {
     // Ignores errors for invalid characters.
     kLenient,
     // Errors out on invalid characters, returns null string.
     kStrict,
     // Replace invalid characters with 0xFFFD.
     // (This is the same conversion mode as base::UTF16ToUTF8)
-    kStrictReplacingErrorsWithFFFD,
+    kStrictReplacingErrors,
   };
 
   ~WebString();
@@ -119,7 +119,7 @@ class BLINK_PLATFORM_EXPORT WebString {
   bool IsEmpty() const { return !length(); }
   bool IsNull() const { return !impl_; }
 
-  std::string Utf8(UTF8ConversionMode = UTF8ConversionMode::kLenient) const;
+  std::string Utf8(Utf8ConversionMode = Utf8ConversionMode::kLenient) const;
 
   WebString Substring(size_t pos,
                       size_t len = std::numeric_limits<size_t>::max()) const;
@@ -128,8 +128,6 @@ class BLINK_PLATFORM_EXPORT WebString {
   // This returns a null WebString if the input data contains invalid
   // UTF-8 sequences.
   static WebString FromUtf8(std::string_view s);
-  // This is deprecated. Use FromUtf8() instead.
-  static WebString FromUTF8(std::string_view s) { return FromUtf8(s); }
 
   std::u16string Utf16() const;
 
@@ -156,11 +154,11 @@ class BLINK_PLATFORM_EXPORT WebString {
 
   template <int N>
   WebString(const char (&data)[N])
-      : WebString(FromUTF8(std::string_view(data, N - 1))) {}
+      : WebString(FromUtf8(std::string_view(data, N - 1))) {}
 
   template <int N>
   WebString& operator=(const char (&data)[N]) {
-    *this = FromUTF8(std::string_view(data, N - 1));
+    *this = FromUtf8(std::string_view(data, N - 1));
     return *this;
   }
 

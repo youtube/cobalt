@@ -57,6 +57,7 @@
 #include "content/public/browser/global_routing_id.h"
 #include "content/public/browser/media_stream_request.h"
 #include "content/public/browser/preloading.h"
+#include "content/public/browser/tracing_support.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_capability_type.h"
 #include "content/public/browser/web_contents_observer.h"
@@ -78,7 +79,6 @@
 #include "third_party/blink/public/mojom/choosers/popup_menu.mojom-forward.h"
 #include "third_party/blink/public/mojom/frame/blocked_navigation_types.mojom-shared.h"
 #include "third_party/blink/public/mojom/frame/frame.mojom-forward.h"
-#include "third_party/blink/public/mojom/frame/text_autosizer_page_info.mojom.h"
 #include "third_party/blink/public/mojom/input/input_handler.mojom-shared.h"
 #include "third_party/blink/public/mojom/loader/resource_load_info.mojom-forward.h"
 #include "third_party/blink/public/mojom/media/capture_handle_config.mojom.h"
@@ -176,6 +176,10 @@ class CreateNewWindowParams;
 class WebContentsAndroid;
 class SelectionPopupDelegate;
 #endif
+
+namespace webid {
+enum class FederatedLoginResult;
+}
 
 // CreatedWindow holds the WebContentsImpl and target url between IPC calls to
 // CreateNewWindow and ShowCreatedWindow.
@@ -393,6 +397,8 @@ class CONTENT_EXPORT WebContentsImpl
   const NavigationControllerImpl& GetController() const override;
   BrowserContext* GetBrowserContext() override;
   base::WeakPtr<WebContents> GetWeakPtr() override;
+  const UniqueToken& GetUniqueToken() const override;
+  const perfetto::NamedTrack& GetTracingTrack() const override;
   const GURL& GetURL() override;
   const GURL& GetVisibleURL() override;
   const GURL& GetLastCommittedURL() const override;
@@ -664,8 +670,8 @@ class CONTENT_EXPORT WebContentsImpl
   void SetSupportsDraggableRegions(bool supports_draggable_regions) override;
   void SetV8CompileHints(base::ReadOnlySharedMemoryRegion data) override;
   void SetTabSwitchStartTime(base::TimeTicks start_time,
-                             bool destination_is_loaded) override;
-
+                             bool destination_is_loaded,
+                             bool had_saved_frame_at_start) override;
   WindowOpenDisposition GetOriginalWindowOpenDisposition() const override;
 
   // Implementation of PageNavigator.
@@ -718,6 +724,7 @@ class CONTENT_EXPORT WebContentsImpl
       RenderFrameHostImpl* render_frame_host) override;
   void WebAuthnAssertionRequestSucceeded(
       RenderFrameHostImpl* render_frame_host) override;
+  void OnFedCmFederatedLogin(webid::FederatedLoginResult result) override;
   void BindDisplayCutoutHost(
       RenderFrameHostImpl* render_frame_host,
       mojo::PendingAssociatedReceiver<blink::mojom::DisplayCutoutHost> receiver)
@@ -1186,9 +1193,11 @@ class CONTENT_EXPORT WebContentsImpl
   // bool IsFullscreen() const override;
   blink::mojom::DisplayMode GetDisplayMode() const override;
   ui::mojom::WindowShowState GetWindowShowState() override;
-  blink::mojom::DevicePostureProvider* GetDevicePostureProvider() override;
+  DevicePostureProviderImpl* GetDevicePostureProvider() override;
   bool GetResizable() override;
   void LostPointerLock(RenderWidgetHostImpl* render_widget_host) override;
+  bool IsPointerLockSandboxedForWidget(
+      RenderWidgetHostImpl* render_widget_host) override;
   bool HasPointerLock(RenderWidgetHostImpl* render_widget_host) override;
   RenderWidgetHostImpl* GetPointerLockWidget() override;
   bool OnRenderFrameProxyVisibilityChanged(
@@ -1690,7 +1699,6 @@ class CONTENT_EXPORT WebContentsImpl
   FRIEND_TEST_ALL_PREFIXES(SitePerProcessBrowserTest, CrossSiteIframe);
   FRIEND_TEST_ALL_PREFIXES(SitePerProcessBrowserTest,
                            TwoSubframesCreatePopupsSimultaneously);
-  FRIEND_TEST_ALL_PREFIXES(SitePerProcessBrowserTest, TextAutosizerPageInfo);
   FRIEND_TEST_ALL_PREFIXES(SitePerProcessBrowserTest,
                            TwoSubframesCreatePopupMenuWidgetsSimultaneously);
   FRIEND_TEST_ALL_PREFIXES(SitePerProcessAccessibilityBrowserTest,
@@ -2779,6 +2787,10 @@ class CONTENT_EXPORT WebContentsImpl
 #if BUILDFLAG(IS_ANDROID)
   bool supports_forward_transition_animation_ = true;
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+  const UniqueToken web_contents_token_;
+  const base::trace_event::TrackRegistration<perfetto::NamedTrack>
+      tracing_track_;
 
   base::WeakPtrFactory<WebContentsImpl> loading_weak_factory_{this};
   base::WeakPtrFactory<WebContentsImpl> weak_factory_{this};

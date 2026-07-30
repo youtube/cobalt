@@ -8,7 +8,9 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 
+#include "base/containers/flat_set.h"
 #include "base/containers/queue.h"
 #include "base/functional/callback.h"
 #include "base/memory/ref_counted.h"
@@ -92,6 +94,9 @@ class DaemonController : public base::RefCountedThreadSafe<DaemonController> {
   typedef base::OnceCallback<void(const UsageStatsConsent&)>
       GetUsageStatsConsentCallback;
 
+  // The configuration keys whose values may be read by GetConfig().
+  static const base::flat_set<std::string_view>& GetUnprivilegedConfigKeys();
+
   // Interface representing the platform-spacific back-end. Most of its methods
   // are blocking and should be called on a background thread. There are two
   // exceptions:
@@ -140,7 +145,31 @@ class DaemonController : public base::RefCountedThreadSafe<DaemonController> {
 
     // Get the user's consent to crash reporting.
     virtual UsageStatsConsent GetUsageStatsConsent() = 0;
+
+    // Returns true if the current process has the required privileges to change
+    // the daemon. Note that read-only operations such as GetState() are always
+    // unprivileged.
+    virtual bool is_privileged() const = 0;
   };
+
+#if BUILDFLAG(IS_LINUX)
+  enum class DelegateType {
+    // Automatically determine the delegate type by checking if the
+    // corresponding service is running. If none is running, the single process
+    // delegate will be used. This is the default.
+    kAuto,
+
+    // Always use DaemonControllerDelegateLinuxSingleProcess.
+    kSingleProcess,
+
+    // Always use DaemonControllerDelegateLinuxMultiProcess.
+    kMultiProcess,
+  };
+
+  // Change the delegate type. The default is kAuto, but you may want to set an
+  // explicit value for SetConfigAndStart().
+  static void SetDelegateType(DelegateType type);
+#endif
 
   static scoped_refptr<DaemonController> Create();
 
@@ -198,6 +227,11 @@ class DaemonController : public base::RefCountedThreadSafe<DaemonController> {
 
   // Get the user's consent to crash reporting.
   void GetUsageStatsConsent(GetUsageStatsConsentCallback done);
+
+  // Returns true if the current process has the required privileges to change
+  // the daemon. Note that read-only operations such as GetState() are always
+  // unprivileged.
+  bool is_privileged() const;
 
  private:
   friend class base::RefCountedThreadSafe<DaemonController>;

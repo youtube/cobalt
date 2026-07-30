@@ -124,7 +124,6 @@ class WebSettings {
   virtual void SetDefaultTextEncodingName(const WebString&) = 0;
   virtual void SetDefaultVideoPosterURL(const WebString&) = 0;
   void SetDeferred2dCanvasEnabled(bool) {}  // temporary stub
-  virtual void SetDeviceScaleAdjustment(float) = 0;
   virtual void SetDisableReadingFromCanvas(bool) = 0;
   virtual void SetDontSendKeyEventsToJavascript(bool) = 0;
   virtual void SetDoubleTapToZoomEnabled(bool) = 0;
@@ -152,6 +151,7 @@ class WebSettings {
   virtual void SetFullscreenSupported(bool) = 0;
   virtual void SetHideDownloadUI(bool) = 0;
   virtual void SetHighlightAds(bool) = 0;
+  virtual void SetInspectorHighlightAds(bool) = 0;
   virtual void SetHyperlinkAuditingEnabled(bool) = 0;
   virtual void SetIgnoreMainFrameOverflowHiddenQuirk(bool) = 0;
   virtual void SetImageAnimationPolicy(mojom::ImageAnimationPolicy) = 0;
@@ -226,10 +226,10 @@ class WebSettings {
   // TODO(https://crbug.com/404106817): Remove once Chrome Apps are deprecated.
   virtual void SetIgnorePermissionForDeviceChangedEvent(bool) = 0;
   virtual void SetTextAreasAreResizable(bool) = 0;
-  virtual void SetTextAutosizingEnabled(bool) = 0;
   virtual void SetAccessibilityFontScaleFactor(float) = 0;
   virtual void SetAccessibilityTextSizeContrastFactor(int) = 0;
   virtual void SetAccessibilityAlwaysShowFocus(bool) = 0;
+  virtual void SetTextSizeAdjustEnabled(bool) = 0;
   virtual void SetTextTrackKindUserPreference(TextTrackKindUserPreference) = 0;
   virtual void SetTextTrackBackgroundColor(const WebString&) = 0;
   virtual void SetTextTrackFontFamily(const WebString&) = 0;

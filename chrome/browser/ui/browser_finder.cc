@@ -333,34 +333,6 @@ Browser* FindBrowserWithProfile(const Profile* profile) {
   return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
 }
 
-std::vector<Browser*> FindAllTabbedBrowsersWithProfile(const Profile* profile) {
-  std::vector<Browser*> browsers;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (BrowserMatches(browser, profile,
-                           Browser::WindowFeature::kFeatureNone, kMatchNormal,
-                           display::kInvalidDisplayId)) {
-          browsers.emplace_back(browser->GetBrowserForMigrationOnly());
-        }
-        return true;
-      });
-  return browsers;
-}
-
-std::vector<Browser*> FindAllBrowsersWithProfile(const Profile* profile) {
-  std::vector<Browser*> browsers;
-  ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
-      [&](BrowserWindowInterface* browser) {
-        if (BrowserMatches(browser, profile,
-                           Browser::WindowFeature::kFeatureNone, kMatchAny,
-                           display::kInvalidDisplayId)) {
-          browsers.emplace_back(browser->GetBrowserForMigrationOnly());
-        }
-        return true;
-      });
-  return browsers;
-}
-
 Browser* FindBrowserWithID(SessionID desired_id) {
   Browser* found = nullptr;
   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
@@ -436,12 +408,11 @@ Browser* FindBrowserWithUiElementContext(ui::ElementContext context) {
   return found;
 }
 
-Browser* FindLastActiveWithProfile(Profile* profile) {
+BrowserWindowInterface* FindLastActiveWithProfile(Profile* profile) {
   // We are only interested in last active browsers, so we don't fall back to
   // all browsers like FindBrowserWith* do.
-  BrowserWindowInterface* browser = FindBrowserOrderedByActivationMatching(
+  return FindBrowserOrderedByActivationMatching(
       profile, Browser::WindowFeature::kFeatureNone, kMatchAny);
-  return browser ? browser->GetBrowserForMigrationOnly() : nullptr;
 }
 
 BrowserWindowInterface* FindLastActive() {

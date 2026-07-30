@@ -317,6 +317,10 @@ void PolicyUIHandler::HandleRestartBrowser(const base::ListValue& args) {
 }
 
 void PolicyUIHandler::RestartBrowser(const std::string& policies) {
+  if (!PolicyUI::ShouldLoadTestPage(&*profile_)) {
+    return;
+  }
+
   // Set policies to preference
   PrefService* prefs = GetApplicationContext()->GetLocalState();
   prefs->SetString(policy::policy_prefs::kLocalTestPoliciesForNextStartup,
@@ -366,6 +370,10 @@ const std::string& PolicyUIHandler::GetAppliedTestPoliciesImpl() {
 void PolicyUIHandler::HandleGetPolicyLogs(const base::ListValue& args) {
   web_ui()->ResolveJavascriptCallback(
       args[0], policy::PolicyLogger::GetInstance()->GetAsList());
+}
+
+void PolicyUIHandler::GetPolicyLogs(GetPolicyLogsCallback callback) {
+  std::move(callback).Run(policy::PolicyLogger::GetInstance()->GetAsMojoList());
 }
 
 std::string PolicyUIHandler::GetPoliciesAsJson() {

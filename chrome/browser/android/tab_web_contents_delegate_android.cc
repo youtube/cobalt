@@ -21,6 +21,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/rand_util.h"
+#include "base/task/single_thread_task_runner.h"
 #include "chrome/browser/android/customtabs/client_data_header_web_contents_observer.h"
 #include "chrome/browser/android/framebust_intervention/framebust_blocked_delegate_android.h"
 #include "chrome/browser/android/tab_android.h"
@@ -197,6 +198,27 @@ bool TabWebContentsDelegateAndroid::ShouldFocusLocationBarByDefault(
   return false;
 }
 
+void TabWebContentsDelegateAndroid::NavigationStateChanged(
+    WebContents* source,
+    content::InvalidateTypes changed_flags) {
+  if (base::FeatureList::IsEnabled(
+          chrome::android::kDeferNavigationStateChanged)) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE,
+        base::BindOnce(
+            &TabWebContentsDelegateAndroid::NavigationStateChangedDeferred,
+            weak_ptr_factory_.GetWeakPtr(), source, changed_flags));
+    return;
+  }
+  NavigationStateChangedDeferred(source, changed_flags);
+}
+
+void TabWebContentsDelegateAndroid::NavigationStateChangedDeferred(
+    WebContents* source,
+    content::InvalidateTypes changed_flags) {
+  WebContentsDelegateAndroid::NavigationStateChanged(source, changed_flags);
+}
+
 void TabWebContentsDelegateAndroid::FindReply(
     WebContents* web_contents,
     int request_id,
@@ -288,17 +310,6 @@ WebContents* TabWebContentsDelegateAndroid::OpenURLFromTab(
     // We can't handle this here.  Give the parent a chance.
     return WebContentsDelegateAndroid::OpenURLFromTab(
         source, params, std::move(navigation_handle_callback));
-  }
-
-  if (base::FeatureList::IsEnabled(
-          external_intents::kNavigationCaptureRefactorAndroid)) {
-    if (IsCustomTab() &&
-        disposition == WindowOpenDisposition::NEW_BACKGROUND_TAB) {
-      if (OpenInAppOrChromeFromCct(params.url)) {
-        // Navigation handled, stop here. Otherwise proceed normally.
-        return nullptr;
-      }
-    }
   }
 
   Profile* profile = Profile::FromBrowserContext(source->GetBrowserContext());
@@ -567,23 +578,6 @@ bool TabWebContentsDelegateAndroid::IsPictureInPictureEnabled() const {
                                                                           obj);
 }
 
-bool TabWebContentsDelegateAndroid::IsNightModeEnabled() const {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
-  if (obj.is_null())
-    return false;
-  return Java_TabWebContentsDelegateAndroidImpl_isNightModeEnabled(env, obj);
-}
-
-bool TabWebContentsDelegateAndroid::IsForceDarkWebContentEnabled() const {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
-  if (obj.is_null())
-    return false;
-  return Java_TabWebContentsDelegateAndroidImpl_isForceDarkWebContentEnabled(
-      env, obj);
-}
-
 bool TabWebContentsDelegateAndroid::CanShowAppBanners() const {
   JNIEnv* env = base::android::AttachCurrentThread();
   ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
@@ -637,18 +631,6 @@ bool TabWebContentsDelegateAndroid::IsDynamicSafeAreaInsetsEnabled() const {
   }
   return Java_TabWebContentsDelegateAndroidImpl_isDynamicSafeAreaInsetsEnabled(
       env, obj);
-}
-
-bool TabWebContentsDelegateAndroid::OpenInAppOrChromeFromCct(GURL url) {
-  JNIEnv* env = base::android::AttachCurrentThread();
-  ScopedJavaLocalRef<jobject> obj = GetJavaDelegate(env);
-  if (obj.is_null()) {
-    return false;
-  }
-  ScopedJavaLocalRef<jobject> jurl = url::GURLAndroid::FromNativeGURL(env, url);
-
-  return Java_TabWebContentsDelegateAndroidImpl_openInAppOrChromeFromCct(
-      env, obj, jurl);
 }
 
 content::KeyboardEventProcessingResult

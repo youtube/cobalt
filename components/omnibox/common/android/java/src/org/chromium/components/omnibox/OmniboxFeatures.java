@@ -14,6 +14,7 @@ import com.google.android.gms.location.Priority;
 import org.chromium.base.BaseSwitches;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ContextUtils;
+import org.chromium.base.Log;
 import org.chromium.base.ResettersForTesting;
 import org.chromium.base.SysUtils;
 import org.chromium.base.TimeUtils;
@@ -37,6 +38,8 @@ import java.util.List;
 /** This is the place where we define these: List of Omnibox features and parameters. */
 @NullMarked
 public class OmniboxFeatures {
+    private static final String TAG = "OmniboxFeatures";
+
     @IntDef({FeatureState.DISABLED, FeatureState.ENABLED_IN_TEST, FeatureState.ENABLED_IN_PROD})
     @Retention(RetentionPolicy.SOURCE)
     @interface FeatureState {
@@ -150,6 +153,9 @@ public class OmniboxFeatures {
     public static final BooleanCachedFeatureParam sRedirectComposeplateButton =
             newBooleanParam(sOmniboxMultimodalInput, "redirect_composeplate_button", true);
 
+    public static final BooleanCachedFeatureParam sEnableAllFileTypes =
+            newBooleanParam(sOmniboxMultimodalInput, "all_file_types", false);
+
     /** A necessary but not sufficient condition to show the current tab button. */
     public static final BooleanCachedFeatureParam sAllowCurrentTab =
             newBooleanParam(sOmniboxMultimodalInput, "allow_current_tab", true);
@@ -175,13 +181,16 @@ public class OmniboxFeatures {
             newFlag(OmniboxFeatureList.ANDROID_HUB_SEARCH_TAB_GROUPS, FeatureState.ENABLED_IN_PROD);
 
     public static final CachedFlag sOmniboxImprovementForLFF =
-            newFlag(OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF, FeatureState.ENABLED_IN_TEST);
+            newFlag(OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF, FeatureState.ENABLED_IN_PROD);
 
-    public static final CachedFlag sRemoveSearchReadyOmnibox =
-            newFlag(OmniboxFeatureList.REMOVE_SEARCH_READY_OMNIBOX, FeatureState.DISABLED);
+    public static final CachedFlag sAIMSuppressVerbatimMatch =
+            newFlag(OmniboxFeatureList.AIM_SUPPRESS_VERBATIM_MATCH, FeatureState.ENABLED_IN_PROD);
 
     public static final CachedFlag sOmniboxItemDecoration =
             newFlag(OmniboxFeatureList.OMNIBOX_ITEM_DECORATION, FeatureState.DISABLED);
+
+    public static final CachedFlag sExactMatchFavicons =
+            newFlag(OmniboxFeatureList.EXACT_MATCH_FAVICONS, FeatureState.DISABLED);
 
     public static final CachedFlag sServeJavaCachedZeroSuggest =
             newFlag(
@@ -191,9 +200,6 @@ public class OmniboxFeatures {
     public static final CachedFlag sResetSuggestionsScroll =
             newFlag(OmniboxFeatureList.RESET_SUGGESTIONS_SCROLL, FeatureState.DISABLED);
 
-    public static final BooleanCachedFeatureParam sRemoveSroIncludingVerbatimMatch =
-            newBooleanParam(
-                    sRemoveSearchReadyOmnibox, "remove_sro_including_verbatim_match", false);
     public static final IntCachedFeatureParam sGeolocationRequestTimeoutMinutes =
             newIntParam(
                     sUseFusedLocationProvider,
@@ -252,13 +258,13 @@ public class OmniboxFeatures {
 
     // This parameter enables showing the switch-to-tab chip on large form factors.
     public static final BooleanCachedFeatureParam sOmniboxImprovementForLFFSwitchToTabChip =
-            newBooleanParam(sOmniboxImprovementForLFF, "switch_to_tab_chip", false);
+            newBooleanParam(sOmniboxImprovementForLFF, "switch_to_tab_chip", true);
 
     // This parameter enables removing suggestion via "x" button.
     public static final BooleanCachedFeatureParam
             sOmniboxImprovementForLFFRemoveSuggestionViaButton =
                     newBooleanParam(
-                            sOmniboxImprovementForLFF, "remove_suggestion_via_button", false);
+                            sOmniboxImprovementForLFF, "remove_suggestion_via_button", true);
 
     // This parameter enables persisting editing state.
     public static final BooleanCachedFeatureParam sOmniboxImprovementForLFFPersistEditingState =
@@ -404,13 +410,25 @@ public class OmniboxFeatures {
     }
 
     /**
-     * @return Whether the device is in a desktop-like configuration (tablet with a physical
-     *     keyboard and precision pointer).
+     * Return whether the device is in a desktop-like configuration (interacted with using physical
+     * keyboard and precision pointer).
+     *
+     * <p>We're not limiting to tablet modes here, because narrow windows on LFF devices are
+     * eligible for Desktop treatment, too.
      */
     public static boolean isDesktopMode() {
-        return DeviceFormFactor.isTablet()
-                && DeviceInput.supportsAlphabeticKeyboard()
-                && DeviceInput.supportsPrecisionPointer();
+        if (sDiagInputConnection.getValue()) {
+            // TODO(crbug.com/492224343): Remove diagnostics once we understand the edge case.
+            Log.i(
+                    TAG,
+                    "Desktop mode check: A:%b K:%b M:%b S:%b",
+                    DeviceInput.supportsAlphabeticKeyboard(),
+                    DeviceInput.supportsKeyboard(ContextUtils.getApplicationContext()),
+                    DeviceInput.supportsPrecisionPointer(),
+                    DeviceFormFactor.isTablet());
+        }
+
+        return DeviceInput.supportsAlphabeticKeyboard() && DeviceInput.supportsPrecisionPointer();
     }
 
     /**

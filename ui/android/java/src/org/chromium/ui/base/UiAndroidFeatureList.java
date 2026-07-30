@@ -6,7 +6,11 @@ package org.chromium.ui.base;
 
 import org.chromium.base.MutableFlagWithSafeDefault;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.components.cached_flags.BooleanCachedFeatureParam;
+import org.chromium.components.cached_flags.CachedFeatureParam;
 import org.chromium.components.cached_flags.CachedFlag;
+import org.chromium.components.cached_flags.IntCachedFeatureParam;
+import org.chromium.components.cached_flags.StringCachedFeatureParam;
 
 import java.util.List;
 
@@ -29,6 +33,10 @@ public class UiAndroidFeatureList {
             newMutableFlagWithSafeDefault(
                     UiAndroidFeatures.REQUIRE_LEADING_IN_TEXT_VIEW_WITH_LEADING, false);
 
+    public static final MutableFlagWithSafeDefault sAndroidUpdateDisplayForContext =
+            newMutableFlagWithSafeDefault(
+                    UiAndroidFeatures.ANDROID_UPDATE_DISPLAY_FOR_CONTEXT, true);
+
     public static final CachedFlag sAndroidUseDisplayTopology =
             newCachedFlag(
                     UiAndroidFeatures.ANDROID_USE_DISPLAY_TOPOLOGY,
@@ -40,6 +48,30 @@ public class UiAndroidFeatureList {
                     UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION,
                     /* defaultValue= */ false,
                     /* defaultValueInTests= */ false);
+
+    // Whether to apply optimizations to the window when it is occluded. When false, occlusion
+    // metrics will still be collected, but the actual behavior of the window remains unchanged.
+    public static final BooleanCachedFeatureParam sAndroidWindowOcclusionOptimizations =
+            new BooleanCachedFeatureParam(
+                    UiAndroidFeatureMap.getInstance(),
+                    UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION,
+                    "occlusion_optimizations",
+                    false);
+
+    public static final IntCachedFeatureParam
+            sAndroidWindowOcclusionMinimumVisibilitySizeThreshold =
+                    new IntCachedFeatureParam(
+                            UiAndroidFeatureMap.getInstance(),
+                            UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION,
+                            "minimum_visibility_size_threshold",
+                            0);
+
+    public static final StringCachedFeatureParam sAndroidWindowOcclusionTrackingMode =
+            new StringCachedFeatureParam(
+                    UiAndroidFeatureMap.getInstance(),
+                    UiAndroidFeatures.ANDROID_WINDOW_OCCLUSION,
+                    "tracking_mode",
+                    "self_occlusion");
 
     public static final CachedFlag sBlockMouseEventsOnView =
             newCachedFlag(
@@ -75,4 +107,13 @@ public class UiAndroidFeatureList {
                     sAndroidUseDisplayTopology,
                     sAndroidWindowOcclusion,
                     sRefactorMinWidthContextOverride);
+
+    public static final List<CachedFeatureParam<?>> sParamsCached =
+            List.of(
+                    // keep-sorted start
+                    sAndroidWindowOcclusionMinimumVisibilitySizeThreshold,
+                    sAndroidWindowOcclusionOptimizations,
+                    sAndroidWindowOcclusionTrackingMode
+                    // keep-sorted end
+                    );
 }

@@ -113,6 +113,15 @@ export function getHtml(this: GlicInternalsAppElement) {
           ?hidden="${this.selectedTabIndex_ !== 1}">
         <h2>Debug Controls</h2>
         <div class="presets-container">
+          <h3>Panel</h3>
+          <div style="display: flex; gap: 16px; align-items: center;">
+            <label>
+              <input type="checkbox"
+                  .checked="${!!this.data_?.showErrorAllowed}"
+                  @change="${this.onShowErrorAllowedChange}">
+              Allow Showing Errors
+            </label>
+          </div>
           <h3>Invoke</h3>
           <label for="invokePromptInput">Prompt</label>
           <input id="invokePromptInput" .value="${this.invokePrompt_}"
@@ -130,6 +139,14 @@ export function getHtml(this: GlicInternalsAppElement) {
               Wait for Panel Open
             </label>
           </div>
+          <label for="invokeInvocationSourceSelect">Invocation Source</label>
+          <select id="invokeInvocationSourceSelect"
+              .value="${this.invokeInvocationSource_.toString()}"
+              @change="${this.onInvokeInvocationSourceChange_}">
+            ${this.getInvocationSourceOptions_().map(option => html`
+              <option value="${option.value}">${option.name}</option>
+            `)}
+          </select>
           <label for="invokeFreOverrideSelect">FRE Override</label>
           <select id="invokeFreOverrideSelect"
               .value="${this.invokeFreOverride_.toString()}"
@@ -139,6 +156,28 @@ export function getHtml(this: GlicInternalsAppElement) {
             <option value="2">TrustFirstClick</option>
             <option value="3">TrustFirstInline</option>
           </select>
+          <label for="invokeFeatureModeSelect">Feature Mode</label>
+          <select id="invokeFeatureModeSelect"
+              .value="${this.invokeFeatureMode_.toString()}"
+              @change="${this.onInvokeFeatureModeChange_}">
+            ${this.featureModeEnumValues_.map(item => html`
+              <option value="${item.value}">${item.name}</option>
+            `)}
+          </select>
+
+          <div style="display: flex; gap: 8px; align-items: center;">
+            <label for="invokeSurfaceTypeSelect">Target Surface</label>
+            <select id="invokeSurfaceTypeSelect"
+                .value="${this.invokeSurfaceType_}"
+                @change="${this.onInvokeSurfaceTypeChange_}">
+              <option value="default">Default</option>
+              <option value="newTab">New Tab</option>
+            </select>
+            ${this.invokeSurfaceType_ === 'default' ? html`
+              <span style="color: gray;">(Uses this window)</span>
+            ` : html``}
+          </div>
+
           <cr-button @click="${this.onTriggerInvokeClick_}">
             Trigger Invoke
           </cr-button>

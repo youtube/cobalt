@@ -28,16 +28,6 @@ if (is_android) {
   import("//build/config/ios/bundle_data_from_filelist.gni")
 }
 
-# Android:
-# The way the cache uses mmap() is inefficient on some Android devices. If
-# this flag is set, we hackily avoid using mmap() in the disk cache. We are
-# pretty confident that mmap-ing the index would not hurt any existing x86
-# android devices, but we cannot be so sure about the variety of ARM devices.
-# So enable it for x86 only for now.
-# Fuchsia:
-# Writable mmap isn't supported on Fuchsia, so it should be bypassed.
-posix_bypass_mmap = (is_android && current_cpu != "x86") || is_fuchsia
-
 enable_built_in_dns = use_blink
 
 # TODO(droger): Support client auth on iOS. See http://crbug.com/145954).
@@ -93,7 +83,6 @@ config("net_test_config") {
 buildflag_header("buildflags") {
   header = "net_buildflags.h"
   flags = [
-    "POSIX_BYPASS_MMAP=$posix_bypass_mmap",
     "DISABLE_FILE_SUPPORT=$disable_file_support",
     "ENABLE_MDNS=$enable_mdns",
     "ENABLE_REPORTING=$enable_reporting",
@@ -1563,11 +1552,7 @@ component("net") {
     if (!is_ios) {
       sources += [ "disk_cache/blockfile/file_posix.cc" ]
     }
-    if (posix_bypass_mmap) {
-      sources += [ "disk_cache/blockfile/mapped_file_bypass_mmap_posix.cc" ]
-    } else {
-      sources += [ "disk_cache/blockfile/mapped_file_posix.cc" ]
-    }
+    sources += [ "disk_cache/blockfile/mapped_file_posix.cc" ]
   }
 
   if (is_android || is_chromeos || is_linux) {
@@ -1889,6 +1874,10 @@ component("net") {
       "disk_cache/sql/exclusive_operation_coordinator.cc",
       "disk_cache/sql/exclusive_operation_coordinator.h",
       "disk_cache/sql/indexed_pair_set.h",
+      "disk_cache/sql/sql_async_task_manager.cc",
+      "disk_cache/sql/sql_async_task_manager.h",
+      "disk_cache/sql/sql_async_task_token.cc",
+      "disk_cache/sql/sql_async_task_token.h",
       "disk_cache/sql/sql_backend_aliases.h",
       "disk_cache/sql/sql_backend_constants.h",
       "disk_cache/sql/sql_backend_impl.cc",
@@ -1906,6 +1895,7 @@ component("net") {
       "disk_cache/sql/sql_persistent_store_queries.h",
       "disk_cache/sql/sql_read_cache_memory_monitor.cc",
       "disk_cache/sql/sql_read_cache_memory_monitor.h",
+      "disk_cache/sql/sql_tracked_sequence_bound.h",
       "disk_cache/sql/sql_write_buffer_memory_monitor.cc",
       "disk_cache/sql/sql_write_buffer_memory_monitor.h",
     ]
@@ -2827,6 +2817,7 @@ target(_test_target_type, "net_unittests") {
     "base/fake_proxy_delegate.h",
     "base/file_stream_unittest.cc",
     "base/filename_util_unittest.cc",
+    "base/hash_value_unittest.cc",
     "base/host_mapping_rules_unittest.cc",
     "base/host_port_pair_unittest.cc",
     "base/interval_test.cc",
@@ -3637,9 +3628,13 @@ target(_test_target_type, "net_unittests") {
       "disk_cache/sql/eviction_candidate_aggregator_unittest.cc",
       "disk_cache/sql/exclusive_operation_coordinator_unittest.cc",
       "disk_cache/sql/indexed_pair_set_unittest.cc",
+      "disk_cache/sql/sql_async_task_manager_unittest.cc",
       "disk_cache/sql/sql_backend_impl_unittest.cc",
       "disk_cache/sql/sql_persistent_store_in_memory_index_unittest.cc",
       "disk_cache/sql/sql_persistent_store_unittest.cc",
+      "disk_cache/sql/sql_tracked_sequence_bound_unittest.cc",
+      "disk_cache/sql/test_util.cc",
+      "disk_cache/sql/test_util.h",
     ]
 
     deps += [ "//components/performance_manager/scenario_api:test_support" ]

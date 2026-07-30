@@ -12,10 +12,11 @@ source_set("suggestions") {
     "contextual_cueing_helper.h",
     "contextual_cueing_prefs.h",
     "contextual_cueing_service_factory.h",
-    "nudge_cap_tracker.h",
+    "glic_cue_target.h",
   ]
   public_deps = [
     "//base",
+    "//chrome/browser/contextual_cueing",
     "//chrome/browser/profiles:profile",
     "//components/optimization_guide/core",
     "//components/prefs",
@@ -30,7 +31,7 @@ source_set("impl") {
     "contextual_cueing_page_data.cc",
     "contextual_cueing_page_data.h",
     "contextual_cueing_prefs.cc",
-    "nudge_cap_tracker.cc",
+    "glic_cue_target.cc",
     "zero_state_suggestions_page_data.cc",
     "zero_state_suggestions_page_data.h",
     "zero_state_suggestions_request.cc",
@@ -40,7 +41,9 @@ source_set("impl") {
     ":suggestions",
     "//chrome/browser:browser_process",
     "//chrome/browser/actor",
+    "//chrome/browser/contextual_cueing",
     "//chrome/browser/glic",
+    "//chrome/browser/glic/browser_ui",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/page_content_annotations:extraction_service",
     "//chrome/browser/profiles:profile",
@@ -89,7 +92,7 @@ source_set("unit_tests") {
     "contextual_cueing_helper_unittest.cc",
     "contextual_cueing_page_data_unittest.cc",
     "contextual_cueing_service_unittest.cc",
-    "nudge_cap_tracker_unittest.cc",
+    "glic_cue_target_unittest.cc",
   ]
   deps = [
     ":impl",
@@ -97,6 +100,7 @@ source_set("unit_tests") {
     ":test_support",
     "//base/test:test_support",
     "//chrome/browser:global_features",
+    "//chrome/browser/actor:test_support",
     "//chrome/browser/content_extraction",
     "//chrome/browser/glic",
     "//chrome/browser/glic/test_support",

@@ -108,10 +108,10 @@
 #include "chrome/browser/ui/views/zoom/zoom_view_controller.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_dialog_utils.h"
+#include "chrome/browser/ui/webauthn/ambient/ambient_signin_controller.h"
 #include "chrome/browser/ui/webid/account_selection_view.h"
 #include "chrome/browser/ui/webui/side_panel/customize_chrome/customize_chrome_section.h"
 #include "chrome/common/chrome_features.h"
-#include "chrome/common/record_replay/record_replay_features.h"
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/collaboration/public/messaging/activity_log.h"
@@ -125,6 +125,7 @@
 #include "components/omnibox/browser/omnibox_field_trial.h"
 #include "components/omnibox/browser/vector_icons.h"
 #include "components/policy/core/common/policy_pref_names.h"
+#include "components/record_replay/core/common/record_replay_features.h"
 #include "components/saved_tab_groups/public/features.h"
 #include "components/search_engines/template_url.h"
 #include "components/search_engines/template_url_service.h"
@@ -517,6 +518,25 @@ void BrowserActions::InitializePageActionIconActions() {
           .SetEnabled(true)
           .Build());
 
+  root_action_item_->AddChild(
+      actions::ActionItem::Builder(
+          base::BindRepeating(
+              [](BrowserWindowInterface* bwi, actions::ActionItem* item,
+                 actions::ActionInvocationContext context) {
+                auto* web_contents =
+                    bwi->GetActiveTabInterface()->GetContents();
+                auto* controller = ambient_signin::AmbientSigninController::
+                    GetForCurrentDocument(web_contents->GetPrimaryMainFrame());
+                if (!controller) {
+                  return;
+                }
+                controller->TriggerPageActionSignIn();
+              },
+              bwi))
+          .SetActionId(kActionWebAuthnAmbientSignin)
+          .SetEnabled(true)
+          .Build());
+
   if (base::FeatureList::IsEnabled(
           content_settings::features::
               kBlockV8OptimizerOnUnfamiliarSitesSetting)) {
@@ -773,7 +793,7 @@ void BrowserActions::InitializeChromeMenuActions() {
               },
               bwi),
           kActionTabSearch, IDS_TAB_SEARCH_MENU, IDS_TAB_SEARCH_MENU,
-          kTabSearchTabStripIcon)
+          vector_icons::kExpandMoreIcon)
           .SetProperty(
               actions::kActionItemPinnableKey,
               static_cast<std::underlying_type_t<actions::ActionPinnableState>>(
@@ -1238,7 +1258,9 @@ void BrowserActions::InitializeToolbarAndMiscActions() {
           base::BindRepeating(
               [](BrowserWindowInterface* bwi, actions::ActionItem* item,
                  actions::ActionInvocationContext context) {
-                bwi->GetFeatures().download_toolbar_ui_controller()->InvokeUI();
+                if (auto* controller = DownloadToolbarUIController::From(bwi)) {
+                  controller->InvokeUI();
+                }
               },
               bwi),
           kActionShowDownloads, IDS_SHOW_DOWNLOADS, IDS_TOOLTIP_DOWNLOAD_ICON,

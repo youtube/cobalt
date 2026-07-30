@@ -237,6 +237,12 @@ class OzonePlatformWayland : public OzonePlatform,
     return connection_->xdg_decoration_manager_v1() == nullptr;
   }
 
+  void OnPreSandboxStartup() override {
+    // TODO(https://crbug.com/40083534): It may not be necessary to set this
+    // environment variable when using swiftshader.
+    setenv("EGL_PLATFORM", "wayland", 0);
+  }
+
   bool InitializeUI(const InitParams& args) override {
     if (ShouldFailInitializeUIForTest()) {
       LOG(ERROR) << "Failing for test";
@@ -359,6 +365,11 @@ class OzonePlatformWayland : public OzonePlatform,
       // their position on screens and always assume they are located at some
       // arbitrary position.
       properties->supports_global_screen_coordinates = false;
+
+      // Sever communicates a preferred drm device for chrome to both composite
+      // and decode video. This is a workaround to prevent decoding and
+      // compositing on different GPUs.
+      properties->webgpu_on_vulkan_via_gl_interop = true;
 
       initialised = true;
     }

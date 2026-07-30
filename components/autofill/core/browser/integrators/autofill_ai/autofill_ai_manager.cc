@@ -148,6 +148,27 @@ base::flat_set<EntityTypeName> GetSaveEntitiesTypesNames(
   return entity_types;
 }
 
+EntityInstance GetMergedEntity(
+    const EntityInstance& observed_entity,
+    const EntityInstance& saved_entity,
+    const EntityInstance::EntityMergeability& mergeability,
+    EntityInstance::RecordType target_record_type) {
+  // This will contain the attributes of the new merged entity.
+  base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
+      new_attributes = mergeability.mergeable_attributes;
+  // First add the attributes from the observed entity since the saved
+  // entity only has masked attributes.
+  new_attributes.insert_range(observed_entity.attributes());
+  // Add the remaining attributes from the saved entity.
+  new_attributes.insert_range(saved_entity.attributes());
+  return EntityInstance(saved_entity.type(), std::move(new_attributes),
+                        saved_entity.guid(), saved_entity.nickname(),
+                        base::Time::Now(), saved_entity.use_count(),
+                        base::Time::Now(), target_record_type,
+                        EntityInstance::AreAttributesReadOnly(false),
+                        /*frecency_override=*/"");
+}
+
 }  // namespace
 
 AutofillAiManager::EntityImportPromptCandidate::EntityImportPromptCandidate(
@@ -416,13 +437,16 @@ void AutofillAiManager::HandlePromptResult(
         // doesn't require a valid `session_id`.
         if (base::FeatureList::IsEnabled(
                 wallet::features::kWalletApiPrivatePassesConsent)) {
-          // Wallet private pass save/migrate prompts include a consent that the
-          // user needs to accept to proceed.
-          CHECK(ui_context.consent_string_id.has_value());
-          CHECK(ui_context.clicked_button_string_id.has_value());
+          // TODO(crbug.com/489354073): Remove the value_or() usage and instead
+          // CHECK() that the `ui_context` fields are populated properly.
+          // For now, since the same strings are used across platforms and since
+          // `ui_context` is not populated from the UI code yet, they are
+          // hardcoded here.
           session_id = RecordWalletPrivatePassConsent(
-              *ui_context.consent_string_id,
-              *ui_context.clicked_button_string_id, *client_);
+              ui_context.accepted_consent_string_id.value_or(
+                  IDS_AUTOFILL_AI_SAVE_ENTITY_TO_WALLET_DIALOG_SUBTITLE_NEW),
+              ui_context.accept_button_string_id.value_or(IDS_SAVE),
+              *client_->GetConsentAuditor(), *client_->GetIdentityManager());
         }
         wallet_manager->SaveWalletEntityInstance(entity, session_id,
                                                  std::move(callback));
@@ -763,28 +787,25 @@ AutofillAiManager::GetUpdatePromptCandidates(
           IsUpdateBlockedByStrikeDatabase(saved_entity.guid())) {
         continue;
       }
-      // Do not update a server entity into a local entity.
-      if (saved_entity.record_type() ==
-              EntityInstance::RecordType::kServerWallet &&
-          observed_entity.record_type() == EntityInstance::RecordType::kLocal) {
-        continue;
+      if (base::FeatureList::IsEnabled(
+              features::kAutofillAiWalletPrivatePasses)) {
+        // If the record type changes, it's a migration.
+        if (saved_entity.record_type() != observed_entity.record_type()) {
+          continue;
+        }
+      } else {
+        // Do not update a server entity into a local entity.
+        if (saved_entity.record_type() ==
+                EntityInstance::RecordType::kServerWallet &&
+            observed_entity.record_type() ==
+                EntityInstance::RecordType::kLocal) {
+          continue;
+        }
       }
-      // This will contain the attributes of the new to-be-updated entity.
-      base::flat_set<AttributeInstance, AttributeInstance::CompareByType>
-          new_attributes = std::move(mergeability->mergeable_attributes);
-      // First add the attributes from the observed entity since the saved
-      // entity only has masked attributes.
-      new_attributes.insert_range(observed_entity.attributes());
-      // Add the remaining attributes from the saved entity.
-      new_attributes.insert_range(saved_entity.attributes());
       update_candidates.emplace_back(
           AutofillClient::AutofillAiImportPromptType::kUpdate,
-          EntityInstance(saved_entity.type(), std::move(new_attributes),
-                         saved_entity.guid(), saved_entity.nickname(),
-                         base::Time::Now(), saved_entity.use_count(),
-                         base::Time::Now(), observed_entity.record_type(),
-                         EntityInstance::AreAttributesReadOnly(false),
-                         /*frecency_override=*/""));
+          GetMergedEntity(observed_entity, saved_entity, *mergeability,
+                          observed_entity.record_type()));
     }
   }
   return update_candidates;
@@ -843,12 +864,29 @@ AutofillAiManager::GetMigratePromptCandidates(
     }
 
     for (const EntityInstance* local_entity : saved_local_entities) {
-      if (local_entity->type() == observed_entity.type() &&
-          observed_entity.IsSubsetOf(*local_entity)) {
+      if (local_entity->type() != observed_entity.type()) {
+        continue;
+      }
+      if (!base::FeatureList::IsEnabled(
+              features::kAutofillAiWalletPrivatePasses)) {
+        if (observed_entity.IsSubsetOf(*local_entity)) {
+          migrate_candidates.emplace_back(
+              AutofillClient::AutofillAiImportPromptType::kMigrate,
+              local_entity->CopyWithNewRecordType(
+                  EntityInstance::RecordType::kServerWallet));
+        }
+        continue;
+      }
+      // TODO(crbug.com/449694495): Reuse the mergeabilities computed in
+      // `GetEntityPromptCandidates()`.
+      EntityInstance::EntityMergeability mergeability =
+          local_entity->GetEntityMergeability(observed_entity);
+      if (mergeability.is_subset ||
+          !mergeability.mergeable_attributes.empty()) {
         migrate_candidates.emplace_back(
             AutofillClient::AutofillAiImportPromptType::kMigrate,
-            local_entity->CopyWithNewRecordType(
-                EntityInstance::RecordType::kServerWallet));
+            GetMergedEntity(observed_entity, *local_entity, mergeability,
+                            EntityInstance::RecordType::kServerWallet));
       }
     }
   }

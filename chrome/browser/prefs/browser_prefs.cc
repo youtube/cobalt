@@ -311,7 +311,7 @@
 #include "chrome/browser/upgrade_detector/upgrade_detector.h"
 #include "chrome/browser/user_education/browser_user_education_storage_service.h"
 #include "chrome/browser/webauthn/chrome_authenticator_request_delegate.h"
-#include "components/headless/policy/headless_mode_prefs.h"
+#include "components/headless/policy/headless_mode_prefs.h"  // nogncheck crbug.com/40147906
 #include "components/lens/lens_overlay_permission_utils.h"
 #include "components/live_caption/live_caption_controller.h"
 #include "components/live_caption/live_translate_controller.h"
@@ -499,15 +499,13 @@
 #include "chrome/browser/media/media_foundation_service_monitor.h"
 #include "chrome/browser/os_crypt/app_bound_encryption_provider_win.h"
 #include "chrome/browser/webnn/webnn_prefs.h"
+#include "components/os_crypt/async/browser/dpapi_key_provider.h"
+#include "components/os_crypt/async/browser/os_crypt_win.h"
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/enterprise/platform_auth/platform_auth_policy_observer.h"
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_ANDROID)
-
-#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
-#include "components/os_crypt/sync/os_crypt.h"  // nogncheck
-#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
@@ -1587,7 +1585,7 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
 #endif
 
 #if BUILDFLAG(IS_WIN)
-  OSCrypt::RegisterLocalPrefs(registry);
+  os_crypt_async::RegisterLocalPrefs(registry);
   registry->RegisterBooleanPref(prefs::kRendererAppContainerEnabled, true);
   registry->RegisterBooleanPref(prefs::kBlockBrowserLegacyExtensionPoints,
                                 true);
@@ -2360,6 +2358,11 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
 
   // Added 04/2026.
   local_state->ClearPref(kTpcdMetadataCohorts);
+
+#if !BUILDFLAG(IS_ANDROID)
+  // Added 04/2026.
+  tabs::MigrateHoverCardMemoryPref(local_state);
+#endif  // BUILDFLAG(IS_ANDROID)
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS

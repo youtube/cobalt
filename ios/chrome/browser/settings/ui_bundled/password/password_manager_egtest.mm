@@ -29,7 +29,7 @@
 #import "ios/chrome/browser/passwords/model/metrics/ios_password_manager_metrics.h"
 #import "ios/chrome/browser/passwords/model/password_manager_app_interface.h"
 #import "ios/chrome/browser/policy/model/policy_earl_grey_utils.h"
-#import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
+#import "ios/chrome/browser/settings/manage_sync/public/manage_sync_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_details/password_details_table_view_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_manager_egtest_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_settings/password_settings_constants.h"
@@ -2983,22 +2983,24 @@ void OpenPasswordManagerWidgetPromoInstructions() {
 
 // Tests that the percentage of favicons for the password manager metric is
 // logged properly when there are passwords with a favicon.
-// TODO(crbug.com/413072881): Test is failing on ios-fieldtrial-rel, and flaky
-// on device.
-- (void)DISABLED_testLogFaviconsForPasswordsPercentageMetricWithPassword {
+- (void)testLogFaviconsForPasswordsPercentageMetricWithPassword {
   // Sign-in and wait for fully active sync.
   FakeSystemIdentity* fakeIdentity = [FakeSystemIdentity fakeIdentity1];
   [SigninEarlGrey signinWithFakeIdentity:fakeIdentity];
   [ChromeEarlGrey
       waitForSyncTransportStateActiveWithTimeout:kSyncActiveTimeout];
 
-  SaveExamplePasswordForms();
+  // Use unique domains to avoid favicon cache pollution between tests.
+  SavePasswordFormToProfileStore(@"password1", @"user1",
+                                 @"https://favicon-test-1.com");
+  SavePasswordFormToProfileStore(@"password2", @"user2",
+                                 @"https://favicon-test-2.com");
   OpenPasswordManager();
 
   // Metrics are logged when the password list view is disappearing, tap on a
   // password entry to trigger that. Make sure the details view is loaded
   // properly before verifying that.
-  [[self interactionForSinglePasswordEntryWithDomain:@"example12.com"]
+  [[self interactionForSinglePasswordEntryWithDomain:@"favicon-test-2.com"]
       performAction:grey_tap()];
   ConditionBlock condition = ^{
     NSError* error = nil;

@@ -95,6 +95,7 @@ std::unique_ptr<FrameNodeImpl> PerformanceManagerImpl::CreateFrameNode(
     FrameNodeImpl* outer_document_for_fenced_frame,
     int render_frame_id,
     const blink::LocalFrameToken& frame_token,
+    const perfetto::NamedTrack& tracing_track,
     content::BrowsingInstanceId browsing_instance_id,
     content::SiteInstanceGroupId site_instance_group_id,
     bool is_current,
@@ -102,19 +103,21 @@ std::unique_ptr<FrameNodeImpl> PerformanceManagerImpl::CreateFrameNode(
   return CreateNodeImpl<FrameNodeImpl>(
       process_node, page_node, parent_frame_node,
       outer_document_for_fenced_frame, render_frame_id, frame_token,
-      browsing_instance_id, site_instance_group_id, is_current, is_active);
+      tracing_track, browsing_instance_id, site_instance_group_id, is_current,
+      is_active);
 }
 
 // static
 std::unique_ptr<PageNodeImpl> PerformanceManagerImpl::CreatePageNode(
     base::WeakPtr<content::WebContents> web_contents,
+    const content::WebContents::UniqueToken& web_contents_token,
     const std::string& browser_context_id,
     const GURL& visible_url,
     PagePropertyFlags initial_property_flags,
     base::TimeTicks visibility_change_time) {
   return CreateNodeImpl<PageNodeImpl>(
-      std::move(web_contents), browser_context_id, visible_url,
-      initial_property_flags, visibility_change_time);
+      std::move(web_contents), web_contents_token, browser_context_id,
+      visible_url, initial_property_flags, visibility_change_time);
 }
 
 // static

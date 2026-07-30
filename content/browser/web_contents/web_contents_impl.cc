@@ -172,6 +172,8 @@
 #include "content/public/browser/web_contents_delegate.h"
 #include "content/public/browser/web_contents_view_delegate.h"
 #include "content/public/browser/web_ui_controller.h"
+#include "content/public/browser/webid/federated_embedder_login_request.h"
+#include "content/public/browser/webid/identity_credential_source.h"
 #include "content/public/browser/webui_config.h"
 #include "content/public/browser/webui_config_map.h"
 #include "content/public/common/content_client.h"
@@ -464,27 +466,6 @@ base::flat_set<raw_ptr<WebContentsImpl>> GetAllOpeningWebContents(
 
   return result;
 }
-
-#if BUILDFLAG(IS_ANDROID)
-float GetDeviceScaleAdjustment(int min_width) {
-  static const float kMinFSM = 1.05f;
-  static const int kWidthForMinFSM = 320;
-  static const float kMaxFSM = 1.3f;
-  static const int kWidthForMaxFSM = 800;
-
-  if (min_width <= kWidthForMinFSM) {
-    return kMinFSM;
-  }
-  if (min_width >= kWidthForMaxFSM) {
-    return kMaxFSM;
-  }
-
-  // The font scale multiplier varies linearly between kMinFSM and kMaxFSM.
-  float ratio = static_cast<float>(min_width - kWidthForMinFSM) /
-                (kWidthForMaxFSM - kWidthForMinFSM);
-  return ratio * (kMaxFSM - kMinFSM) + kMinFSM;
-}
-#endif
 
 // Store a set of fullscreen WebContents and metadata for the browser context.
 // Storing this information on the browser context is done for two reasons. One,
@@ -1355,7 +1336,8 @@ WebContentsImpl::WebContentsImpl(BrowserContext* browser_context)
       prerender_host_registry_(std::make_unique<PrerenderHostRegistry>(*this)),
       compositor_frame_sink_grouping_id_(base::UnguessableToken::Create()),
       fenced_frame_viewport_observer_(
-          std::make_unique<FencedFrameViewportObserver>(this)) {
+          std::make_unique<FencedFrameViewportObserver>(this)),
+      tracing_track_(content::GetWebContentsTracingTrack(web_contents_token_)) {
   TRACE_EVENT0("content", "WebContentsImpl::WebContentsImpl");
   WebContentsOfBrowserContext::Attach(*this);
   node_.SetFocusedFrameTree(&primary_frame_tree_);
@@ -1694,6 +1676,14 @@ BrowserContext* WebContentsImpl::GetBrowserContext() {
 
 base::WeakPtr<WebContents> WebContentsImpl::GetWeakPtr() {
   return weak_factory_.GetWeakPtr();
+}
+
+const WebContents::UniqueToken& WebContentsImpl::GetUniqueToken() const {
+  return web_contents_token_;
+}
+
+const perfetto::NamedTrack& WebContentsImpl::GetTracingTrack() const {
+  return *tracing_track_;
 }
 
 const GURL& WebContentsImpl::GetURL() {
@@ -2202,6 +2192,24 @@ void WebContentsImpl::DidCapturedSurfaceControl() {
   DCHECK_CURRENTLY_ON(BrowserThread::UI);
 
   observers_.NotifyObservers(&WebContentsObserver::OnCapturedSurfaceControl);
+}
+
+void WebContentsImpl::OnFedCmFederatedLogin(
+    webid::FederatedLoginResult result) {
+  observers_.NotifyObservers(&WebContentsObserver::OnFedCmFederatedLogin,
+                             result == webid::FederatedLoginResult::kSuccess);
+
+  // OnFedCmFederatedLogin() may be invoked while the WebContents is being
+  // destroyed, so be careful when trying to access the Page.
+  if (IsBeingDestroyed()) {
+    return;
+  }
+
+  webid::FederatedEmbedderLoginRequest* embedder_login_request =
+      webid::FederatedEmbedderLoginRequest::Get(this);
+  if (embedder_login_request) {
+    embedder_login_request->OnFederatedResultReceived(result);
+  }
 }
 
 void WebContentsImpl::ResetAccessibility() {
@@ -3523,10 +3531,19 @@ void WebContentsImpl::SetSurfaceEmbedConnector(
   }
 
   RecursivelyRegisterRenderWidgetHostViews();
+
+  surface_embed_connector_->UpdateViewForCurrentRenderFrameHost();
 }
 
 void WebContentsImpl::ClearSurfaceEmbedConnector() {
   CHECK(surface_embed_connector_);
+
+  // Because there may be child frames, we need to unregister all RWHVs before
+  // destroying main frames views which could prevent child frames from finding
+  // the root view for unregistering observer from
+  // TouchSelectionControllerClient, and before clearing the connector, which
+  // will change the TextInputManager and InputEventRouter for this WebContents.
+  RecursivelyUnregisterRenderWidgetHostViews();
 
   // RenderWidgetHostView of main frames that are of type
   // RenderWidgetHostViewChildFrame should be re-created with appropriate
@@ -3548,11 +3565,6 @@ void WebContentsImpl::ClearSurfaceEmbedConnector() {
     render_view_host_delegate_view_ = nullptr;
     view_ = nullptr;
   }
-
-  // Because there may be child frames, we need to unregister all RWHVs before
-  // clearing the connector, which will change the TextInputManager and
-  // InputEventRouter for this WebContents.
-  RecursivelyUnregisterRenderWidgetHostViews();
 
   surface_embed_connector_.reset();
 
@@ -3933,10 +3945,6 @@ const blink::web_pref::WebPreferences WebContentsImpl::ComputeWebPreferences(
     prefs.media_controls_enabled = false;
   }
 
-#if BUILDFLAG(IS_ANDROID)
-  prefs.device_scale_adjustment = GetDeviceScaleAdjustment(min_width_in_dp);
-#endif  // BUILDFLAG(IS_ANDROID)
-
   // GuestViews in the same StoragePartition need to find each other's frames.
   prefs.renderer_wide_named_frame_lookup =
       IsGuest() || main_frame->frame_tree()->is_guest();
@@ -3999,8 +4007,6 @@ const blink::web_pref::WebPreferences WebContentsImpl::ComputeWebPreferences(
 
       // Ensure no further viewport scaling
       prefs.shrinks_viewport_contents_to_fit = false;
-      // Not needed for larger form factors
-      prefs.text_autosizing_enabled = false;
     }
   }
 
@@ -4962,8 +4968,7 @@ ui::mojom::WindowShowState WebContentsImpl::GetWindowShowState() {
                        : ui::mojom::WindowShowState::kDefault;
 }
 
-blink::mojom::DevicePostureProvider*
-WebContentsImpl::GetDevicePostureProvider() {
+DevicePostureProviderImpl* WebContentsImpl::GetDevicePostureProvider() {
   return DevicePostureProviderImpl::GetOrCreate(this);
 }
 
@@ -5277,6 +5282,24 @@ void WebContentsImpl::LostPointerLock(
   if (delegate_) {
     delegate_->LostPointerLock();
   }
+}
+
+bool WebContentsImpl::IsPointerLockSandboxedForWidget(
+    RenderWidgetHostImpl* render_widget_host) {
+  // Check the sandbox flags of the frame that owns the requesting widget.
+  // It is ok to only check the top-most frame of the widget, because any
+  // subframes within the widget will be at least as restrictive as it. Any
+  // additional restrictions imposed on subframes of the widget cannot be
+  // enforced by the browser process, because they share a renderer process
+  // with the top-most frame of the widget.
+  // Note: crbug.com/492211919
+  for (FrameTreeNode* node : GetPrimaryFrameTree().Nodes()) {
+    RenderFrameHostImpl* rfh = node->current_frame_host();
+    if (rfh && rfh->GetRenderWidgetHost() == render_widget_host) {
+      return rfh->IsSandboxed(network::mojom::WebSandboxFlags::kPointerLock);
+    }
+  }
+  return false;
 }
 
 bool WebContentsImpl::HasPointerLock(RenderWidgetHostImpl* render_widget_host) {
@@ -7952,7 +7975,13 @@ void WebContentsImpl::DidNavigateAnyFramePreCommit(
   }
 
   if (should_exit_fullscreen) {
+    base::WeakPtr<WebContentsImpl> weak_this = weak_factory_.GetWeakPtr();
     ExitFullscreen(false);
+
+    // If `this` gets destructed due to ExitFullscreen(), we need to exit early.
+    if (!weak_this) {
+      return;
+    }
     CancelKeyboardLock(keyboard_lock_widget_);
   }
 }
@@ -10817,19 +10846,6 @@ bool WebContentsImpl::CreateRenderViewForRenderManager(
     return false;
   }
 
-  // Set the TextAutosizer state from the main frame's renderer on the new view,
-  // but only if it's not for the main frame. Main frame renderers should create
-  // this state themselves from up-to-date values, so we shouldn't override it
-  // with the cached values.
-  if (!rvh_impl->GetMainRenderFrameHost() && proxy_host) {
-    proxy_host->GetAssociatedRemoteMainFrame()->UpdateTextAutosizerPageInfo(
-        proxy_host->frame_tree_node()
-            ->current_frame_host()
-            ->GetPage()
-            .text_autosizer_page_info()
-            .Clone());
-  }
-
   // If `render_view_host` is for an inner WebContents, ensure that its
   // RenderWidgetHostView is properly reattached to the outer WebContents. Note
   // that this should only be done when `render_view_host` is already the
@@ -12271,14 +12287,14 @@ void WebContentsImpl::SetV8CompileHints(base::ReadOnlySharedMemoryRegion data) {
 }
 
 void WebContentsImpl::SetTabSwitchStartTime(base::TimeTicks start_time,
-                                            bool destination_is_loaded) {
+                                            bool destination_is_loaded,
+                                            bool had_saved_frame_at_start) {
   GetVisibleTimeRequestTrigger().UpdateRequest(blink::VisibleTimeEvent{
       .event_start_time = start_time,
-      .reason =
-          blink::VisibleTimeEvent::TabSwitchReason(destination_is_loaded)});
+      .reason = blink::VisibleTimeEvent::TabSwitchReason{
+          .destination_is_loaded = destination_is_loaded,
+          .had_saved_frame_at_start = had_saved_frame_at_start}});
 }
-
-
 
 VisibleTimeRequestTrigger& WebContentsImpl::GetVisibleTimeRequestTrigger() {
   return visible_time_request_trigger_;

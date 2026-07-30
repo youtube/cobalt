@@ -43,7 +43,7 @@
 #include "chrome/browser/extensions/corrupted_extension_reinstaller.h"
 #include "chrome/browser/extensions/cws_info_service_factory.h"
 #include "chrome/browser/extensions/extension_action_storage_manager.h"
-#include "chrome/browser/extensions/extension_allowlist.h"
+#include "chrome/browser/extensions/extension_allowlist_factory.h"
 #include "chrome/browser/extensions/extension_disabled_ui.h"
 #include "chrome/browser/extensions/extension_error_controller.h"
 #include "chrome/browser/extensions/extension_special_storage_policy.h"
@@ -52,8 +52,6 @@
 #include "chrome/browser/extensions/external_provider_manager.h"
 #include "chrome/browser/extensions/install_verifier_factory.h"
 #include "chrome/browser/extensions/installed_loader.h"
-#include "chrome/browser/extensions/manifest_v2_experiment_manager.h"
-#include "chrome/browser/extensions/mv2_experiment_stage.h"
 #include "chrome/browser/extensions/omaha_attributes_handler.h"
 #include "chrome/browser/extensions/profile_util.h"
 #include "chrome/browser/extensions/sync/extension_sync_service.h"
@@ -83,6 +81,7 @@
 #include "extensions/browser/delayed_install_manager.h"
 #include "extensions/browser/disable_reason.h"
 #include "extensions/browser/event_router.h"
+#include "extensions/browser/extension_allowlist.h"
 #include "extensions/browser/extension_file_task_runner.h"
 #include "extensions/browser/extension_host.h"
 #include "extensions/browser/extension_registrar.h"
@@ -95,6 +94,8 @@
 #include "extensions/browser/install_flag.h"
 #include "extensions/browser/install_verifier.h"
 #include "extensions/browser/management_policy.h"
+#include "extensions/browser/manifest_v2_experiment_manager.h"
+#include "extensions/browser/mv2_experiment_stage.h"
 #include "extensions/browser/pending_extension_manager.h"
 #include "extensions/browser/permissions/permissions_updater.h"
 #include "extensions/browser/pref_names.h"
@@ -203,7 +204,7 @@ ExtensionService::ExtensionService(
       system_(ExtensionSystem::Get(profile)),
       extension_prefs_(extension_prefs),
       blocklist_(blocklist),
-      allowlist_(ExtensionAllowlist::Get(profile)),
+      allowlist_(ExtensionAllowlistFactory::GetForBrowserContext(profile)),
       registry_(ExtensionRegistry::Get(profile)),
       pending_extension_manager_(PendingExtensionManager::Get(profile)),
       external_provider_manager_(ExternalProviderManager::Get(profile)),

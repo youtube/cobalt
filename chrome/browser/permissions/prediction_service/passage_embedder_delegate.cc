@@ -50,7 +50,7 @@ void PassageEmbedderDelegate::CreatePassageEmbeddingsFromRenderedText(
   VLOG(1) << "[PermissionsAIv4] "
              "PassageEmbedderDelegate::CreatePassageEmbeddingsFromRenderedText";
   if (text.empty() || passage_count < 1) {
-    std::move(fallback_callback_).Run();
+    std::move(fallback_callback).Run();
     return;
   }
 
@@ -182,21 +182,17 @@ void PassageEmbedderDelegate::OnPassageEmbeddingsComputed(
   // as the AIv4 model expects only one vector as input. We do this by
   // computing the mathematical mean of the embedding vectors.
   // This matches how the model is trained by the AI researchers.
-  size_t dimensions = embeddings[0].Dimensions();
-  std::vector<float> averaged_data(dimensions, 0.0f);
+  std::vector<float> averaged_data(embeddings[0].GetData().size(), 0.0f);
   for (const auto& embedding : embeddings) {
-    if (embedding.Dimensions() != dimensions) {
-      std::move(fallback_callback_).Run();
-      return;
-    }
     const auto& data = embedding.GetData();
-    for (size_t i = 0; i < dimensions; ++i) {
+    DCHECK_EQ(data.size(), averaged_data.size());
+    for (size_t i = 0; i < averaged_data.size(); ++i) {
       averaged_data[i] += data[i];
     }
   }
 
-  for (size_t i = 0; i < dimensions; ++i) {
-    averaged_data[i] /= embeddings.size();
+  for (float& val : averaged_data) {
+    val /= embeddings.size();
   }
 
   std::move(on_passage_embeddings_computed_)

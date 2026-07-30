@@ -11,6 +11,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 
+import androidx.annotation.ColorInt;
+import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 
 import org.jni_zero.CalledByNative;
@@ -20,6 +22,7 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.context_sharing.R;
 import org.chromium.chrome.browser.contextual_tasks.fusebox.ContextualTasksFusebox;
+import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetProperties.ResizingState;
 import org.chromium.content_public.browser.WebContents;
 
 /**
@@ -28,9 +31,9 @@ import org.chromium.content_public.browser.WebContents;
  */
 @NullMarked
 public class CoBrowseViews {
-    private final @Nullable TabBottomSheetToolbar mToolbar;
     private final @Nullable TabBottomSheetWebUi mWebUi;
     private final @Nullable ContextualTasksFusebox mFusebox;
+    private final @ColorInt int mBackgroundColor;
     private final View mView;
     private @Nullable View mPeekView;
 
@@ -38,19 +41,24 @@ public class CoBrowseViews {
      * Constructor for CoBrowseViews.
      *
      * @param context The context for the view.
-     * @param toolbar The toolbar for the view.
      * @param webUi The web UI for the view.
      * @param fusebox The fusebox for the view.
+     * @param backgroundColor The background color for the view.
      */
     public CoBrowseViews(
             Context context,
-            @Nullable TabBottomSheetToolbar toolbar,
             @Nullable TabBottomSheetWebUi webUi,
-            @Nullable ContextualTasksFusebox fusebox) {
-        mToolbar = toolbar;
+            @Nullable ContextualTasksFusebox fusebox,
+            @ColorInt int backgroundColor) {
         mWebUi = webUi;
         mFusebox = fusebox;
+        mBackgroundColor = backgroundColor;
         mView = buildView(context);
+    }
+
+    /** Returns the background color for the co-browse view. */
+    public @ColorInt int getBackgroundColor() {
+        return mBackgroundColor;
     }
 
     /** Sets the touch handler for the Web UI container. */
@@ -58,11 +66,6 @@ public class CoBrowseViews {
         TabBottomSheetWebUiContainer webUiContainer =
                 assertNonNull(mView.findViewById(R.id.web_ui_container));
         webUiContainer.setTouchHandler(touchHandler);
-    }
-
-    /** Returns whether the toolbar is present. */
-    public boolean hasToolbar() {
-        return mToolbar != null;
     }
 
     /** Returns the view for the co-browse content. */
@@ -79,13 +82,9 @@ public class CoBrowseViews {
     @CalledByNative
     @VisibleForTesting
     void destroy() {
-        ViewGroup toolbarContainer = mView.findViewById(R.id.toolbar_container);
         ViewGroup webUiContainer = mView.findViewById(R.id.web_ui_container);
         ViewGroup fuseboxContainer = mView.findViewById(R.id.fusebox_container);
         ViewGroup peekContainer = mView.findViewById(R.id.actor_control_container);
-        if (mToolbar != null) {
-            toolbarContainer.removeAllViews();
-        }
         if (mWebUi != null) {
             webUiContainer.removeAllViews();
             mWebUi.destroy();
@@ -96,16 +95,34 @@ public class CoBrowseViews {
         }
         if (mPeekView != null) {
             peekContainer.removeAllViews();
+            mPeekView = null;
         }
     }
 
-    /** Attaches the peek view for the co-browse content. */
+    /**
+     * Attaches the peek view for the co-browse content.
+     *
+     * @param peekView The peek view to attach.
+     */
     public void attachPeekView(View peekView) {
         ViewGroup peekContainer = mView.findViewById(R.id.actor_control_container);
         assert peekContainer.getChildCount() == 0;
         detachFromParent(peekView);
         mPeekView = peekView;
         peekContainer.addView(mPeekView);
+    }
+
+    /**
+     * Detaches the peek view if it matches the provided view.
+     *
+     * @param peekView The peek view to be removed.
+     */
+    public void removePeekView(View peekView) {
+        if (mPeekView == peekView) {
+            ViewGroup peekContainer = mView.findViewById(R.id.actor_control_container);
+            peekContainer.removeView(mPeekView);
+            mPeekView = null;
+        }
     }
 
     /** Sets the WebContents of the WebUi. */
@@ -129,11 +146,18 @@ public class CoBrowseViews {
         return mWebUi != null ? mWebUi.getWebContents() : null;
     }
 
-    /** Sets the sheet's height. */
-    public void setSheetHeight(int height) {
+    /** Sets whether the sheet is resizing. */
+    public void setIsResizing(boolean isResizing) {
+        if (mWebUi != null) {
+            mWebUi.setIsResizing(isResizing);
+        }
+    }
+
+    /** Sets the resizing state of the sheet. */
+    public void setResizingState(ResizingState resizingState) {
+        @Px int height = resizingState.webUiContainerHeight;
         ViewGroup sheetContent = mView.findViewById(R.id.expanded_content_group);
         ViewGroup.LayoutParams sheetContentParams = sheetContent.getLayoutParams();
-
         if (sheetContentParams.height != height) {
             sheetContentParams.height = height;
             sheetContent.setLayoutParams(sheetContentParams);
@@ -141,9 +165,6 @@ public class CoBrowseViews {
     }
 
     int getToolbarHeight() {
-        if (mToolbar != null) {
-            return mToolbar.getToolbarView().getHeight();
-        }
         return 0;
     }
 
@@ -163,16 +184,10 @@ public class CoBrowseViews {
 
     private View buildView(Context context) {
         View view = LayoutInflater.from(context).inflate(R.layout.tab_bottom_sheet, null);
-        ViewGroup toolbarContainer = view.findViewById(R.id.toolbar_container);
         ViewGroup webUiContainer = view.findViewById(R.id.web_ui_container);
         ViewGroup fuseboxContainer = view.findViewById(R.id.fusebox_container);
         ViewGroup peekContainer = view.findViewById(R.id.actor_control_container);
 
-        if (mToolbar != null) {
-            View toolbarView = mToolbar.getToolbarView();
-            detachFromParent(toolbarView);
-            toolbarContainer.addView(toolbarView);
-        }
         if (mWebUi != null) {
             View webUiView = mWebUi.getWebUiView();
             detachFromParent(webUiView);

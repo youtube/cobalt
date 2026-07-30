@@ -33,7 +33,7 @@ const LayoutObject* PositionAnchorObject(const LayoutBox& box) {
   }
 }
 
-const HeapVector<NonOverflowingScrollRange>* GetNonOverflowingScrollRanges(
+const GCedHeapVector<NonOverflowingScrollRange>* GetNonOverflowingScrollRanges(
     const LayoutObject* layout_object) {
   if (!layout_object || !layout_object->IsOutOfFlowPositioned()) {
     return nullptr;
@@ -171,7 +171,7 @@ AnchorPositionScrollData::ComputeAdjustmentContainersData(
       }
     }
     if (const auto* box_model = DynamicTo<LayoutBoxModelObject>(container)) {
-      if (box_model->StickyConstraints()) {
+      if (box_model->StickyConstraints().HasAnyConstraint()) {
         result.adjustment_container_ids.push_back(
             CompositorElementIdFromUniqueObjectId(
                 box_model->UniqueId(),
@@ -285,8 +285,9 @@ AnchorPositionScrollData::TakeAndCompareSnapshot(bool update) {
 
 bool AnchorPositionScrollData::IsFallbackPositionValid(
     const AdjustmentData& new_adjustment_data) const {
-  const HeapVector<NonOverflowingScrollRange>* non_overflowing_scroll_ranges =
-      GetNonOverflowingScrollRanges(anchored_element_->GetLayoutObject());
+  const GCedHeapVector<NonOverflowingScrollRange>*
+      non_overflowing_scroll_ranges =
+          GetNonOverflowingScrollRanges(anchored_element_->GetLayoutObject());
   if (!non_overflowing_scroll_ranges ||
       non_overflowing_scroll_ranges->empty()) {
     return true;

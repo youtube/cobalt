@@ -171,35 +171,12 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="Responsive"/>
   <int value="7" label="Responsive Inactive"/>
   <int value="8" label="Unresponsive Inactive"/>
-  <int value="9" label="Mojo pipe closed unexpectedly"/>
+  <int value="9" label="(Obsolete) Mojo pipe closed unexpectedly"/>
+  <int value="10" label="Mojo pipe closed unexpectedly before initialize"/>
+  <int value="11" label="Mojo pipe closed unexpectedly after initialization"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/resources/glic/glic_api_impl/host/glic_api_host.ts:DetailedWebClientState) -->
-
-<!-- LINT.IfChange(GlicEntrypoint) -->
-
-<enum name="GlicEntrypoint">
-  <int value="0" label="Button in the OS"/>
-  <int value="1" label="OS-level hotkey"/>
-  <int value="2" label="Button in top-chrome"/>
-  <int value="3" label="From tab strip nudge"/>
-  <int value="4" label="From 3-dot menu"/>
-  <int value="5" label="From the What's New page"/>
-  <int value="6" label="User shared a tab"/>
-  <int value="7" label="User shared an image"/>
-  <int value="8" label="From invoking skills"/>
-  <int value="9" label="Automatically opened by contextual cueing"/>
-  <int value="10" label="User clicked the summarize button in the PDF viewer"/>
-  <int value="11" label="From navigation capture"/>
-  <int value="12" label="Automatically opened for a PDF"/>
-  <int value="13" label="IPH"/>
-  <int value="14" label="Other"/>
-  <int value="15" label="Context menu"/>
-  <int value="16" label="Text selection nudge"/>
-  <int value="17" label="Text selection widget"/>
-</enum>
-
-<!-- LINT.ThenChange(//chrome/browser/glic/service/metrics/metrics_types.h:GlicEntrypoint) -->
 
 <!-- LINT.IfChange(GlicEntryPointStatus) -->
 
@@ -383,7 +360,6 @@ chromium-metrics-reviews@google.com.
   <int value="76" label="ActivateTab"/>
   <int value="77" label="CreateActorTab"/>
   <int value="78" label="OpenPasswordManagerSettingsPage"/>
-  <int value="79" label="LoadAndExtractContent"/>
   <int value="80" label="SetOnboardingCompleted"/>
   <int value="81" label="SubscribeToTabData"/>
   <int value="82" label="CreateSkill"/>
@@ -526,6 +502,9 @@ chromium-metrics-reviews@google.com.
   <int value="23" label="Context menu"/>
   <int value="24" label="Text selection nudge"/>
   <int value="25" label="Text selection widget"/>
+  <int value="26" label="Zero-state Auto-summarize"/>
+  <int value="27" label="From the universal cart"/>
+  <int value="28" label="Experimental triggering"/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/glic.mojom:InvocationSource) -->
@@ -612,6 +591,24 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/public/glic_keyed_service.h:GlicPrewarmingFreSource) -->
+
+<!-- LINT.IfChange(GlicPrivateApiStatusCodeHistogramValue) -->
+
+<enum name="GlicPrivateApiStatusCodeHistogramValue">
+  <int value="0" label="Success"/>
+  <int value="1" label="LocalInvalidInvocationSource"/>
+  <int value="2" label="LocalMissingPromptId"/>
+  <int value="3" label="ServerMissingPrompt"/>
+  <int value="4" label="HttpError"/>
+  <int value="5" label="ParseError"/>
+  <int value="6" label="LocalNoActiveTab"/>
+  <int value="7" label="LocalGlicNotEnabled"/>
+  <int value="8" label="LocalGlicNotReady"/>
+  <int value="9" label="LocalGlicActuationNotAllowed"/>
+  <int value="10" label="LocalGlicNotEnabledAndConsented"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/extensions/api/glic_private/glic_private_api.cc:GlicPrivateApiStatusCodeHistogramValue) -->
 
 <enum name="GlicProfileEnablementReason">
   <int value="0" label="Feature disabled"/>
@@ -757,6 +754,18 @@ chromium-metrics-reviews@google.com.
   <int value="102" label="Text selection widget, attached, audio mode."/>
   <int value="103" label="Text selection widget, detached, text mode."/>
   <int value="104" label="Text selection widget, detached, audio mode."/>
+  <int value="105" label="Zero-state Auto-summarize, attached, text mode."/>
+  <int value="106" label="Zero-state Auto-summarize, attached, audio mode."/>
+  <int value="107" label="Zero-state Auto-summarize, detached, text mode."/>
+  <int value="108" label="Zero-state Auto-summarize, detached, audio mode."/>
+  <int value="109" label="Universal cart, attached, text mode."/>
+  <int value="110" label="Universal cart, attached, audio mode."/>
+  <int value="111" label="Universal cart, detached, text mode."/>
+  <int value="112" label="Universal cart, detached, audio mode."/>
+  <int value="113" label="Experimental triggering, attached, text mode."/>
+  <int value="114" label="Experimental triggering, attached, audio mode."/>
+  <int value="115" label="Experimental triggering, detached, text mode."/>
+  <int value="116" label="Experimental triggering, detached, audio mode."/>
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/service/metrics/metrics_types.h:ResponseSegmentation) -->
@@ -917,6 +926,16 @@ chromium-metrics-reviews@google.com.
 </enum>
 
 <!-- LINT.ThenChange(//chrome/browser/glic/host/context/glic_page_features_manager.h:GlicYoutubeSummarizeVideoZSSResult) -->
+
+<!-- LINT.IfChange(GlicZoomAction) -->
+
+<enum name="GlicZoomAction">
+  <int value="0" label="Zoom In"/>
+  <int value="1" label="Zoom Out"/>
+  <int value="2" label="Reset"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/browser/glic/glic_enums.h:GlicZoomAction) -->
 
 <!-- LINT.IfChange(LoadingStage) -->
 

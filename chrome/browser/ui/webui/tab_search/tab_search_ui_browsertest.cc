@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <string>
 
+#include "base/base64.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
 #include "base/test/run_until.h"
@@ -17,6 +18,8 @@
 #include "chrome/common/chrome_isolated_world_ids.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
+#include "components/metrics/mapping/metrics_mapping_features.h"
+#include "components/metrics/mapping/metrics_name_mapping.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -202,21 +205,64 @@ class TabSearchUIBundledCodeCacheBrowserTest
       public testing::WithParamInterface<std::tuple<bool, bool>> {
  public:
   TabSearchUIBundledCodeCacheBrowserTest() {
-    scoped_feature_list_.InitWithFeatureState(features::kWebUIBundledCodeCache,
-                                              WebUIBundledCodeCacheEnabled());
-
     // Bundled code caching should be resillient to fieldtrial variations.
     if (ShouldEnableFieldTrialTestingConfig()) {
       variations::EnableTestingConfig();
     } else {
       variations::DisableTestingConfig();
     }
+
+    std::vector<base::test::FeatureRefAndParams> enabled_features;
+    std::vector<base::test::FeatureRef> disabled_features;
+
+    if (WebUIBundledCodeCacheEnabled()) {
+      enabled_features.push_back({features::kWebUIBundledCodeCache, {}});
+    } else {
+      disabled_features.push_back(features::kWebUIBundledCodeCache);
+    }
+
+    if (base::FeatureList::IsEnabled(
+            metrics::features::kWebiumMetricsMapping)) {
+      // Construct a config that allows our specific test histograms.
+      metrics::MetricsNameMappingConfiguration config;
+      config.add_rules()->set_metric_name(
+          "Blink.ResourceRequest.WebUIBundledCodeCacheFetcher."
+          "DidReceiveCachedCode");
+      config.add_rules()->set_metric_name(
+          "Blink.ResourceRequest.WebUIBundledCachedMetadataHandler."
+          "ConsumeCache");
+
+      // Maintain existing guardrail metrics to match production behavior.
+      config.add_rules()->set_metric_name(
+          "EventLatency.GestureScrollUpdate.Touchscreen.TotalLatency");
+      config.add_rules()->set_metric_name(
+          "PageLoad.InteractiveTiming.InputDelay3");
+      config.add_rules()->set_metric_name(
+          "Graphics.Smoothness.PercentDroppedFrames3.AllSequences");
+
+      std::string test_allowlist_config =
+          base::Base64Encode(config.SerializeAsString());
+
+      enabled_features.push_back({metrics::features::kWebiumMetricsMapping,
+                                  {{"config", test_allowlist_config}}});
+    }
+
+    scoped_feature_list_.InitWithFeaturesAndParameters(enabled_features,
+                                                       disabled_features);
   }
 
   bool WebUIBundledCodeCacheEnabled() const { return std::get<0>(GetParam()); }
   bool ShouldEnableFieldTrialTestingConfig() const {
     return std::get<1>(GetParam());
   }
+
+ protected:
+  void FetchAndMergeHistograms() {
+    content::FetchHistogramsFromChildProcesses();
+    metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  }
+
+  base::HistogramTester histogram_tester_;
 
  private:
   base::test::ScopedFeatureList scoped_feature_list_;
@@ -227,37 +273,38 @@ IN_PROC_BROWSER_TEST_P(TabSearchUIBundledCodeCacheBrowserTest,
   // Assert the bundled code-cache map is non-empty.
   EXPECT_FALSE(webui::GetWebUIResourceUrlToCodeCacheMap().empty());
 
-  base::HistogramTester histogram_tester;
-  EXPECT_EQ(histogram_tester.GetBucketCount(
-                "Blink.ResourceRequest.WebUIBundledCodeCacheFetcher."
-                "DidReceiveCachedCode",
-                true),
-            0);
-  EXPECT_EQ(histogram_tester.GetBucketCount(
-                "Blink.ResourceRequest.WebUIBundledCachedMetadataHandler."
-                "ConsumeCache",
-                true),
-            0);
+  // Fetch initial histogram counts. We cannot assume these are 0 since other
+  // WebUIs (e.g. InitialWebUI) might have loaded during browser startup and
+  // fetched shared resources from the bundled cache. We instead verify that
+  // the counts strictly increase after navigating to Tab Search.
+  FetchAndMergeHistograms();
+
+  const int initial_received_success_count = histogram_tester_.GetBucketCount(
+      "Blink.ResourceRequest.WebUIBundledCodeCacheFetcher.DidReceiveCachedCode",
+      true);
+  const int initial_consumed_success_count = histogram_tester_.GetBucketCount(
+      "Blink.ResourceRequest.WebUIBundledCachedMetadataHandler.ConsumeCache",
+      true);
 
   // Load tab search and collect all renderer metrics.
   content::WaitForLoadStop(chrome::AddAndReturnTabAt(
       browser(), GURL(chrome::kChromeUITabSearchURL), -1, /*foreground=*/true));
-  content::FetchHistogramsFromChildProcesses();
-  metrics::SubprocessMetricsProvider::MergeHistogramDeltasForTesting();
+  FetchAndMergeHistograms();
 
   // Assert code cache resources were successfully fetched and loaded by blink.
-  const int received_success_count = histogram_tester.GetBucketCount(
+  const int received_success_count = histogram_tester_.GetBucketCount(
       "Blink.ResourceRequest.WebUIBundledCodeCacheFetcher.DidReceiveCachedCode",
       true);
-  const int consumed_success_count = histogram_tester.GetBucketCount(
+  const int consumed_success_count = histogram_tester_.GetBucketCount(
       "Blink.ResourceRequest.WebUIBundledCachedMetadataHandler.ConsumeCache",
       true);
+
   if (WebUIBundledCodeCacheEnabled()) {
-    EXPECT_GT(received_success_count, 0);
-    EXPECT_GT(consumed_success_count, 0);
+    EXPECT_GT(received_success_count, initial_received_success_count);
+    EXPECT_GT(consumed_success_count, initial_consumed_success_count);
   } else {
-    EXPECT_EQ(received_success_count, 0);
-    EXPECT_EQ(consumed_success_count, 0);
+    EXPECT_EQ(received_success_count, initial_received_success_count);
+    EXPECT_EQ(consumed_success_count, initial_consumed_success_count);
   }
 }
 

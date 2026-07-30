@@ -12,6 +12,7 @@
 #include "gpu/command_buffer/client/shared_image_interface.h"
 #include "gpu/command_buffer/common/capabilities.h"
 #include "gpu/command_buffer/common/shared_image_usage.h"
+#include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/skia/include/core/SkPixmap.h"
 #include "third_party/skia/include/core/SkYUVAInfo.h"
 #include "third_party/skia/include/core/SkYUVAPixmaps.h"
@@ -45,7 +46,6 @@ scoped_refptr<VideoFrame> CreateSharedImageFrame(
     scoped_refptr<gpu::ClientSharedImage> shared_image,
     const gpu::SyncToken& sync_token,
     GLenum texture_target,
-    const gfx::Size& coded_size,
     const gfx::Rect& visible_rect,
     const gfx::Size& natural_size,
     base::TimeDelta timestamp,
@@ -54,7 +54,7 @@ scoped_refptr<VideoFrame> CreateSharedImageFrame(
                                  std::move(destroyed_callback));
   auto frame = VideoFrame::WrapSharedImage(
       format, std::move(shared_image), sync_token, std::move(callback),
-      coded_size, visible_rect, natural_size, timestamp);
+      visible_rect, natural_size, timestamp);
   return frame;
 }
 
@@ -97,10 +97,10 @@ scoped_refptr<VideoFrame> CreateSharedImageRGBAFrame(
                               gfx::ColorSpace(), kUsages, "RGBAVideoFrame"},
                              pixels);
 
-  return CreateSharedImageFrame(
-      VideoPixelFormat::PIXEL_FORMAT_ABGR, shared_image, {}, GL_TEXTURE_2D,
-      coded_size, visible_rect, visible_rect.size(), base::Seconds(1),
-      std::move(destroyed_callback));
+  return CreateSharedImageFrame(VideoPixelFormat::PIXEL_FORMAT_ABGR,
+                                shared_image, {}, GL_TEXTURE_2D, visible_rect,
+                                visible_rect.size(), base::Seconds(1),
+                                std::move(destroyed_callback));
 }
 
 scoped_refptr<VideoFrame> CreateSharedImageI420Frame(
@@ -182,8 +182,8 @@ scoped_refptr<VideoFrame> CreateSharedImageI420Frame(
 
   return CreateSharedImageFrame(
       VideoPixelFormat::PIXEL_FORMAT_I420, shared_image, sync_token,
-      GL_TEXTURE_2D, coded_size, visible_rect, visible_rect.size(),
-      base::Seconds(1), std::move(destroyed_callback));
+      GL_TEXTURE_2D, visible_rect, visible_rect.size(), base::Seconds(1),
+      std::move(destroyed_callback));
 }
 
 scoped_refptr<VideoFrame> CreateSharedImageNV12Frame(
@@ -264,8 +264,93 @@ scoped_refptr<VideoFrame> CreateSharedImageNV12Frame(
 
   return CreateSharedImageFrame(
       VideoPixelFormat::PIXEL_FORMAT_NV12, shared_image, sync_token,
-      GL_TEXTURE_2D, coded_size, visible_rect, visible_rect.size(),
-      base::Seconds(1), std::move(destroyed_callback));
+      GL_TEXTURE_2D, visible_rect, visible_rect.size(), base::Seconds(1),
+      std::move(destroyed_callback));
+}
+
+scoped_refptr<VideoFrame> CreateCroppedFrame() {
+  scoped_refptr<VideoFrame> cropped_frame = VideoFrame::CreateFrame(
+      PIXEL_FORMAT_I420, gfx::Size(16, 16), gfx::Rect(6, 6, 8, 6),
+      gfx::Size(8, 6), base::Milliseconds(4));
+  // Make sure the cropped video frame's aspect ratio matches the output device.
+  // Update cropped_frame_'s crop dimensions if this is not the case.
+  CHECK_EQ(cropped_frame->visible_rect().width() * 240,
+           cropped_frame->visible_rect().height() * 320);
+
+  // Fill in the cropped frame's entire data with colors:
+  //
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   Bl Bl Bl Bl Bl Bl Bl Bl R  R  R  R  R  R  R  R
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //   G  G  G  G  G  G  G  G  B  B  B  B  B  B  B  B
+  //
+  // The visible crop of the frame (as set by its visible_rect_) has contents:
+  //
+  //   Bl Bl R  R  R  R  R  R
+  //   Bl Bl R  R  R  R  R  R
+  //   G  G  B  B  B  B  B  B
+  //   G  G  B  B  B  B  B  B
+  //   G  G  B  B  B  B  B  B
+  //   G  G  B  B  B  B  B  B
+  //
+  // Each color region in the cropped frame is on a 2x2 block granularity, to
+  // avoid sharing UV samples between regions.
+
+  static const uint8_t cropped_y_plane[] = {
+      0,   0,   0,   0,   0,   0,   0,   0,   76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0,   76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0,   76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0,   76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0,   76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0,   76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0,   76, 76, 76, 76, 76, 76, 76, 76,
+      0,   0,   0,   0,   0,   0,   0,   0,   76, 76, 76, 76, 76, 76, 76, 76,
+      149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+      149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+      149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+      149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+      149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+      149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+      149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+      149, 149, 149, 149, 149, 149, 149, 149, 29, 29, 29, 29, 29, 29, 29, 29,
+  };
+
+  static const uint8_t cropped_u_plane[] = {
+      128, 128, 128, 128, 84,  84,  84,  84,  128, 128, 128, 128, 84,
+      84,  84,  84,  128, 128, 128, 128, 84,  84,  84,  84,  128, 128,
+      128, 128, 84,  84,  84,  84,  43,  43,  43,  43,  255, 255, 255,
+      255, 43,  43,  43,  43,  255, 255, 255, 255, 43,  43,  43,  43,
+      255, 255, 255, 255, 43,  43,  43,  43,  255, 255, 255, 255,
+  };
+  static const uint8_t cropped_v_plane[] = {
+      128, 128, 128, 128, 255, 255, 255, 255, 128, 128, 128, 128, 255,
+      255, 255, 255, 128, 128, 128, 128, 255, 255, 255, 255, 128, 128,
+      128, 128, 255, 255, 255, 255, 21,  21,  21,  21,  107, 107, 107,
+      107, 21,  21,  21,  21,  107, 107, 107, 107, 21,  21,  21,  21,
+      107, 107, 107, 107, 21,  21,  21,  21,  107, 107, 107, 107,
+  };
+
+  libyuv::I420Copy(cropped_y_plane, 16, cropped_u_plane, 8, cropped_v_plane, 8,
+                   cropped_frame->writable_data(VideoFrame::Plane::kY),
+                   cropped_frame->stride(VideoFrame::Plane::kY),
+                   cropped_frame->writable_data(VideoFrame::Plane::kU),
+                   cropped_frame->stride(VideoFrame::Plane::kU),
+                   cropped_frame->writable_data(VideoFrame::Plane::kV),
+                   cropped_frame->stride(VideoFrame::Plane::kV), 16, 16);
+
+  return cropped_frame;
 }
 
 }  // namespace media

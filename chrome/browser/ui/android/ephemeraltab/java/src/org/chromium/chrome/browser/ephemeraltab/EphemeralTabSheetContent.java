@@ -35,6 +35,7 @@ import org.chromium.components.embedder_support.contextmenu.ContextMenuPopulator
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.components.embedder_support.view.ContentView;
 import org.chromium.components.thinwebview.ThinWebView;
+import org.chromium.components.thinwebview.ThinWebViewAttachParams;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
 import org.chromium.components.thinwebview.ThinWebViewFactory;
 import org.chromium.components.thinwebview.internal.ThinWebViewContextMenuItemDelegate;
@@ -133,9 +134,11 @@ public class EphemeralTabSheetContent implements BottomSheetContent {
         mThinWebView.attachWebContents(
                 mWebContents,
                 mWebContentView,
-                delegate,
-                mContextMenuPopulatorFactory,
-                /* selectionDropdownMenuDelegate= */ null);
+                new ThinWebViewAttachParams.Builder()
+                        .setWebContentsDelegate(delegate)
+                        .setContextMenuPopulatorFactory(mContextMenuPopulatorFactory)
+                        .setSupportTheming(true)
+                        .build());
 
         // Initialize the supplier of {@link ShareDelegate} for the WindowAndroid used by
         // ThinWebView.  The {@link ShareDelegate} itself is not set by design in order to leave
@@ -153,7 +156,10 @@ public class EphemeralTabSheetContent implements BottomSheetContent {
     private void createThinWebView(int maxSheetHeight, IntentRequestTracker intentRequestTracker) {
         mThinWebView =
                 ThinWebViewFactory.create(
-                        mContext, new ThinWebViewConstraints(), intentRequestTracker);
+                        mContext,
+                        new ThinWebViewConstraints(),
+                        intentRequestTracker,
+                        /* enablePermissionRequests= */ false);
 
         mSheetContentView = new FrameLayout(mContext);
         mThinWebView

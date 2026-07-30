@@ -53,7 +53,9 @@ class FilesRequestHandlerBase : public RequestHandlerBase {
         size_t index,
         const AnalysisSettings& settings,
         base::OnceCallback<void(ScanRequestUploadResult,
-                                ContentAnalysisResponse)> callback) = 0;
+                                ContentAnalysisResponse)> callback,
+        base::OnceCallback<void(const BinaryUploadRequest&)>
+            request_start_callback) = 0;
 
     // Called when a user bypasses a scanning warning.
     virtual void ReportWarningBypass(
@@ -68,7 +70,11 @@ class FilesRequestHandlerBase : public RequestHandlerBase {
 
     // Updates the file_info for a given `index`.
     virtual void UpdateFileInfo(size_t index,
-                                BinaryUploadRequest::Data data) = 0;
+                                BinaryUploadRequest::Data data,
+                                BinaryUploadRequest* request) = 0;
+
+    // Called when the hash for the file at `index` is obtained.
+    virtual void OnGotHash(size_t index, std::string hash) = 0;
 
     // Updates the `RequestHandlerResult` in `result_` for a scanning request
     // corresponding to the given `index`, and update the file_warnings_
@@ -87,6 +93,12 @@ class FilesRequestHandlerBase : public RequestHandlerBase {
     // Returns the number of files to be scanned.
     virtual size_t GetFileCount() const = 0;
 
+    // Set the scan start time of the file for the given index.
+    virtual void SetFileScanStartTime(size_t index) = 0;
+
+    // Returns the start time of the file scan for the given index.
+    virtual const base::TimeTicks GetFileScanStartTime(size_t index) = 0;
+
     // Returns the reporting event router.
     virtual ReportingEventRouter* GetReportingEventRouter() = 0;
 
@@ -99,6 +111,13 @@ class FilesRequestHandlerBase : public RequestHandlerBase {
 
     // Sets the handler for this delegate.
     virtual void SetHandler(FilesRequestHandlerBase* handler) = 0;
+
+    // Cancels any pending file requests and reports the cancellation for any
+    // files that have not been reported yet.
+    virtual void MaybeCancelAndReport() = 0;
+
+    // Marks the file at the given index as reported.
+    virtual void MarkFileAsReported(size_t index) = 0;
   };
 
   // `content_analysis_info` and `upload_service` are used to manage the deep
@@ -128,6 +147,9 @@ class FilesRequestHandlerBase : public RequestHandlerBase {
   // Prepares an upload request for the file at `index`.
   FileAnalysisRequestBase* PrepareFileRequest(size_t index);
 
+  // Reports a user cancellation for the file at `index`.
+  void ReportCanceledFile(size_t index);
+
  protected:
   // Initiates scanning for all files managed by the delegate.
   bool UploadDataImpl() override;
@@ -138,6 +160,8 @@ class FilesRequestHandlerBase : public RequestHandlerBase {
                            OnGotFileInfo_EmptyFile);
   FRIEND_TEST_ALL_PREFIXES(FilesRequestHandlerBaseTest, OnGotFileInfo_Failure);
   FRIEND_TEST_ALL_PREFIXES(FilesRequestHandlerBaseTest, FileRequestCallback);
+  FRIEND_TEST_ALL_PREFIXES(FilesRequestHandlerBaseTest,
+                           Destructor_ReportsCancellation);
 
   void OnGotFileInfo(std::unique_ptr<BinaryUploadRequest> request,
                      size_t index,
@@ -161,6 +185,9 @@ class FilesRequestHandlerBase : public RequestHandlerBase {
       size_t index,
       ScanRequestUploadResult upload_result,
       enterprise_connectors::ContentAnalysisResponse response);
+
+  void FileRequestStartCallback(size_t index,
+                                const BinaryUploadRequest& request);
 
   // This is set to true as soon as a TOO_MANY_REQUESTS response is obtained. No
   // more data should be upload for `this` at that point.

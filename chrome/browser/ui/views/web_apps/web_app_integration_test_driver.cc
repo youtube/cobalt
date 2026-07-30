@@ -55,13 +55,16 @@
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_commands.h"
+#include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
+#include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
@@ -78,6 +81,7 @@
 #include "chrome/browser/ui/views/page_action/page_action_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_bubble_view.h"
 #include "chrome/browser/ui/views/page_info/page_info_view_factory.h"
+#include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/file_handler_launch_dialog_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
@@ -357,7 +361,8 @@ base::flat_map<Site, SiteConfig> g_site_configs = {
       .relative_manifest_id = "webapps_integration/not_promotable/basic.html",
       .app_name = "Site C",
       .wco_not_enabled_title = u"Site C",
-      .icon_color = SK_ColorTRANSPARENT}},
+      .icon_color = SK_ColorTRANSPARENT,
+      .alternate_titles = {"Site C - Updated name"}}},
     {Site::kWco,
      {.relative_url = "/webapps_integration/wco/basic.html",
       .relative_manifest_id = "webapps_integration/wco/basic.html",
@@ -843,7 +848,9 @@ class MenuButtonUpdateListener {
   MenuButtonUpdateListener(Browser& app_browser, bool should_expect_expanded) {
     BrowserView& browser_view = app_browser.GetBrowserView();
     WebAppMenuButton* menu_button = views::AsViewClass<WebAppMenuButton>(
-        browser_view.toolbar_button_provider()->GetAppMenuButton());
+        views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+            kToolbarAppMenuButtonElementId,
+            views::ElementTrackerViews::GetContextForView(&browser_view)));
     if (menu_button->IsLabelPresentAndVisible() == should_expect_expanded) {
       return;
     }
@@ -2417,12 +2424,14 @@ void WebAppIntegrationTestDriver::ManifestUpdateTitle(Site site, Title title) {
   if (!BeforeStateChangeAction(__FUNCTION__)) {
     return;
   }
-  ASSERT_EQ(Site::kStandalone, site)
-      << "Only site mode of 'Standalone' is supported";
-  ASSERT_EQ(Title::kStandaloneUpdated, title)
-      << "Only site mode of 'kStandaloneUpdated' is supported";
+  ASSERT_TRUE(site == Site::kStandalone || site == Site::kNotPromotable)
+      << "Only site modes of 'Standalone' and 'NotPromotable' are supported";
+  ASSERT_TRUE(
+      (site == Site::kStandalone && title == Title::kStandaloneUpdated) ||
+      (site == Site::kNotPromotable && title == Title::kNotPromotableUpdated))
+      << "Only supported title updates are Standalone->StandaloneUpdated and "
+         "NotPromotable->NotPromotableUpdated";
 
-  auto relative_url_path = GetSiteConfiguration(site).relative_url;
   GURL url = GetUrlForSite(site, "?manifest=manifest_title.json");
   webapps::AppId app_id = GetAppIdBySiteMode(site);
 
@@ -2640,8 +2649,8 @@ void WebAppIntegrationTestDriver::SwitchActiveProfile(
   active_profile_ = GetOrCreateProfile(profile_name);
   // Make sure the profile has at least one browser by creating one if one
   // doesn't exist already.
-  if (!chrome::FindTabbedBrowser(active_profile_,
-                                 /*match_original_profiles=*/false)) {
+  if (!ProfileBrowserCollection::GetForProfile(active_profile_)
+           ->FindTabbedBrowser()) {
     delegate_->CreateBrowser(active_profile_);
   }
   AfterStateChangeAction();
@@ -3365,6 +3374,12 @@ void WebAppIntegrationTestDriver::CheckAppTitle(Site site, Title title) {
   ASSERT_TRUE(app_state);
   std::string expected;
   switch (title) {
+    case Title::kNotPromotableOriginal:
+      expected = "Site C";
+      break;
+    case Title::kNotPromotableUpdated:
+      expected = "Site C - Updated name";
+      break;
     case Title::kStandaloneOriginal:
       expected = "Site A";
       break;
@@ -4143,7 +4158,9 @@ void WebAppIntegrationTestDriver::CheckMenuButtonPendingUpdate(
 
   BrowserView& app_browser_view = app_browser()->GetBrowserView();
   WebAppMenuButton* const menu_button = views::AsViewClass<WebAppMenuButton>(
-      app_browser_view.toolbar_button_provider()->GetAppMenuButton());
+      views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+          kToolbarAppMenuButtonElementId,
+          views::ElementTrackerViews::GetContextForView(&app_browser_view)));
   EXPECT_EQ(should_expect_expanded, menu_button->IsLabelPresentAndVisible());
   AfterStateCheckAction();
 }
@@ -4894,11 +4911,11 @@ bool WebAppIntegrationTestDriver::LaunchFromAppShim(
 #endif
 
 Browser* WebAppIntegrationTestDriver::browser() {
-  Browser* browser =
-      chrome::FindTabbedBrowser(profile(), /*match_original_profiles=*/false);
-  CHECK(browser);
-  CHECK(browser->tab_strip_model()->count());
-  return browser;
+  BrowserWindowInterface* browser_window_interface =
+      ProfileBrowserCollection::GetForProfile(profile())->FindTabbedBrowser();
+  CHECK(browser_window_interface);
+  CHECK(browser_window_interface->GetTabStripModel()->count());
+  return browser_window_interface->GetBrowserForMigrationOnly();
 }
 
 Profile* WebAppIntegrationTestDriver::profile() {

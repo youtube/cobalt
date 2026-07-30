@@ -85,15 +85,13 @@ void AddTestAccountToFakeAccountManagerFacade(const std::string& email,
           "()Lorg/chromium/components/signin/AccountManagerFacade;");
 
   // 6. Get AccountManagerFacade instance
-  base::android::ScopedJavaLocalRef<jobject> facade_obj =
-      base::android::ScopedJavaLocalRef<jobject>::Adopt(
-          env, env->CallStaticObjectMethod(provider_class.obj(),
-                                           get_instance_method));
+  base::android::ScopedJavaLocalRef<jobject> facade_obj = jni_zero::AdoptRef(
+      env,
+      env->CallStaticObjectMethod(provider_class.obj(), get_instance_method));
 
   // 7. Get addAccount method (FakeAccountManagerFacade specific)
   base::android::ScopedJavaLocalRef<jclass> facade_class =
-      base::android::ScopedJavaLocalRef<jclass>::Adopt(
-          env, env->GetObjectClass(facade_obj.obj()));
+      jni_zero::AdoptRef(env, env->GetObjectClass(facade_obj.obj()));
   jmethodID add_account_method =
       base::android::MethodID::Get<base::android::MethodID::TYPE_INSTANCE>(
           env, facade_class.obj(), "addAccount",
@@ -118,27 +116,16 @@ GlicTestEnvironmentConfig& GetConfig() {
 // A fake GlicCookieSynchronizer.
 class TestCookieSynchronizer : public glic::GlicCookieSynchronizer {
  public:
-  static std::pair<TestCookieSynchronizer*, TestCookieSynchronizer*>
-  InjectForProfile(Profile* profile) {
+  static TestCookieSynchronizer* InjectForProfile(Profile* profile) {
     GlicKeyedService* service =
         GlicKeyedServiceFactory::GetGlicKeyedService(profile, true);
     auto cookie_synchronizer = std::make_unique<TestCookieSynchronizer>(
-        profile, IdentityManagerFactory::GetForProfile(profile),
-        /*for_fre=*/false);
+        profile, IdentityManagerFactory::GetForProfile(profile));
     TestCookieSynchronizer* ptr = cookie_synchronizer.get();
     service->GetAuthController().SetCookieSynchronizerForTesting(
         std::move(cookie_synchronizer));
 
-    auto fre_cookie_synchronizer = std::make_unique<TestCookieSynchronizer>(
-        profile, IdentityManagerFactory::GetForProfile(profile),
-        /*for_fre=*/true);
-    TestCookieSynchronizer* fre_cookie_synchronizer_ptr =
-        fre_cookie_synchronizer.get();
-    service->fre_controller()
-        .GetAuthControllerForTesting()
-        .SetCookieSynchronizerForTesting(std::move(fre_cookie_synchronizer));
-
-    return std::make_pair(ptr, fre_cookie_synchronizer_ptr);
+    return ptr;
   }
 
   using GlicCookieSynchronizer::GlicCookieSynchronizer;
@@ -370,13 +357,10 @@ const std::optional<GURL>& GlicTestEnvironment::GetGlicFreUrl() const {
 
 GlicTestEnvironmentService::GlicTestEnvironmentService(Profile* profile)
     : profile_(profile) {
-  std::pair<internal::TestCookieSynchronizer*,
-            internal::TestCookieSynchronizer*>
-      cookie_synchronizers =
-          internal::TestCookieSynchronizer::InjectForProfile(profile);
+  internal::TestCookieSynchronizer* cookie_synchronizer =
+      internal::TestCookieSynchronizer::InjectForProfile(profile);
 
-  cookie_synchronizer_ = cookie_synchronizers.first->GetWeakPtr();
-  fre_cookie_synchronizer_ = cookie_synchronizers.second->GetWeakPtr();
+  cookie_synchronizer_ = cookie_synchronizer->GetWeakPtr();
   const GlicTestEnvironmentConfig& config = internal::GetConfig();
   if (config.fre_status) {
     SetFRECompletion(*config.fre_status);
@@ -425,11 +409,6 @@ GlicKeyedService* GlicTestEnvironmentService::GetService() {
 
 void GlicTestEnvironmentService::SetResultForFutureCookieSync(bool result) {
   cookie_synchronizer_->set_copy_cookies_result(result);
-}
-
-void GlicTestEnvironmentService::SetResultForFutureCookieSyncInFre(
-    bool result) {
-  fre_cookie_synchronizer_->set_copy_cookies_result(result);
 }
 
 void GlicTestEnvironmentService::SetFRECompletion(prefs::FreStatus fre_status) {

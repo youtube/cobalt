@@ -8,6 +8,8 @@
 #include <string>
 #include <vector>
 
+#include "base/functional/callback.h"
+#include "base/functional/callback_helpers.h"
 #include "base/observer_list.h"
 #include "components/send_tab_to_self/page_context.h"
 #include "components/send_tab_to_self/send_tab_to_self_entry.h"
@@ -17,6 +19,17 @@
 namespace send_tab_to_self {
 
 struct TargetDeviceInfo;
+
+// GENERATED_JAVA_ENUM_PACKAGE: (
+//   org.chromium.chrome.browser.share.send_tab_to_self)
+enum class SendTabToSelfResult {
+  kSuccess = 0,
+  kSuccessThrottled = 1,
+  kFailureNotTrackingMetadata = 2,
+  kFailureInvalidUrl = 3,
+  kFailureModelNotReady = 4,
+  kMaxValue = kFailureModelNotReady,
+};
 
 // The send tab to self model contains a list of entries of shared urls.
 // This object should only be accessed from one thread, which is usually the
@@ -40,17 +53,17 @@ class SendTabToSelfModel {
   // Adds |url| at the top of the entries. The entry title will be a
   // trimmed copy of |title|. Allows clients to modify the state of the model
   // as driven by user behaviors.
-  // Returns the entry if it was successfully added.
+  // Returns the entry if it was successfully added to the local model.
+  // `commit_confirmation` is an asynchronous callback that will be invoked
+  // once the entry has been successfully queued in the local sync pipeline or
+  // if it failed to be queued.
   virtual const SendTabToSelfEntry* AddEntry(
       const GURL& url,
       const std::string& title,
       const std::string& target_device_cache_guid,
       const PageContext& context,
-      NavigationHistory navigation_history) = 0;
-
-  // Remove entry with |guid| from entries. Allows clients to modify the state
-  // of the model as driven by user behaviors.
-  virtual void DeleteEntry(const std::string& guid) = 0;
+      NavigationHistory navigation_history,
+      base::OnceCallback<void(SendTabToSelfResult)> commit_confirmation) = 0;
 
   // Dismiss entry with key |guid|. Allows clients to modify the state
   // of the model as driven by user behaviors.

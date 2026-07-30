@@ -81,6 +81,7 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
     private ImageView mAnimationImage;
 
     private @Nullable Drawable mIconDrawable;
+    private @Nullable Drawable mCollapsedIconDrawable;
 
     private @MonotonicNonNull ViewGroup mTransitionRoot;
     private @Nullable String mContentDescription;
@@ -102,6 +103,7 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
     private @AdaptiveToolbarButtonVariant int mCurrentButtonVariant =
             AdaptiveToolbarButtonVariant.NONE;
     private boolean mCanCurrentButtonShow;
+    private int mActionChipCollapseDelayMs;
 
     // Indicates whether this optional button can change its own the visibility or leave the control
     // to some other entity. {@code true} by default.
@@ -289,9 +291,11 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
 
         mCurrentButtonVariant = buttonSpec.getButtonVariant();
         mCanCurrentButtonShow = true;
+        mActionChipCollapseDelayMs = buttonSpec.getActionChipCollapseDelayMs();
         mCurrentButtonSupportsTinting = buttonSpec.getSupportsTinting();
 
         mIconDrawable = buttonSpec.getDrawable();
+        mCollapsedIconDrawable = buttonSpec.getCollapsedDrawable();
 
         boolean isCpaCheckedState = buttonData.getButtonSpec().isChecked();
 
@@ -522,9 +526,10 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
      */
     @Override
     public void onTransitionEnd(@Nullable Transition transition) {
-        if (mTransitionFinishedCallback != null
-                && getCurrentTransitionType() != TransitionType.NONE) {
-            mTransitionFinishedCallback.onResult(getCurrentTransitionType());
+        @TransitionType int transitionType = getCurrentTransitionType();
+
+        if (mTransitionFinishedCallback != null && transitionType != TransitionType.NONE) {
+            mTransitionFinishedCallback.onResult(transitionType);
         }
 
         mState = getNextState();
@@ -537,7 +542,13 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
             if (mCanChangeOwnVisibility) this.setVisibility(GONE);
         } else {
             mButton.setVisibility(VISIBLE);
-            mButton.setImageDrawable(mIconDrawable);
+            Drawable drawableToUse =
+                    (transitionType == TransitionType.COLLAPSING_ACTION_CHIP
+                                    && mCollapsedIconDrawable != null)
+                            ? mCollapsedIconDrawable
+                            : mIconDrawable;
+
+            mButton.setImageDrawable(drawableToUse);
             ImageViewCompat.setImageTintList(
                     mButton, mCurrentButtonSupportsTinting ? mForegroundColorTint : null);
             mButton.setOnClickListener(mClickListener);
@@ -546,13 +557,9 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
             mButton.setContentDescription(mContentDescription);
         }
 
-        // When finished expanding the action chip schedule the collapse transition in 3 seconds.
+        // When finished expanding the action chip schedule the collapse transition.
         if (mState == State.SHOWING_ACTION_CHIP) {
-            getHandler()
-                    .postDelayed(
-                            mCollapseActionChipRunnable,
-                            AdaptiveToolbarFeatures.getContextualPageActionDelayMs(
-                                    mCurrentButtonVariant));
+            getHandler().postDelayed(mCollapseActionChipRunnable, mActionChipCollapseDelayMs);
         }
     }
 
@@ -915,7 +922,9 @@ class OptionalButtonView extends FrameLayout implements TransitionListener {
         mAnimationImage.setVisibility(GONE);
         mActionChipLabel.setVisibility(GONE);
 
-        mButton.setImageDrawable(mIconDrawable);
+        Drawable drawableToUse =
+                (mCollapsedIconDrawable != null) ? mCollapsedIconDrawable : mIconDrawable;
+        mButton.setImageDrawable(drawableToUse);
         ImageViewCompat.setImageTintList(
                 mButton, mCurrentButtonSupportsTinting ? mForegroundColorTint : null);
 

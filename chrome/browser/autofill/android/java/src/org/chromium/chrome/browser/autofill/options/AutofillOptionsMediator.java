@@ -77,10 +77,6 @@ public class AutofillOptionsMediator implements ModalDialogProperties.Controller
             "Autofill.Settings.AutofillOptionsRestartAccepted";
 
     @VisibleForTesting
-    // TODO(b/494484717): Update with the actual URL.
-    static final String ACCESSIBILITY_ANNOTATOR_SETTINGS_URL = "https://chromium.org";
-
-    @VisibleForTesting
     static final String HISTOGRAM_ACCESSIBILITY_ANNOTATOR_SETTINGS_LINK_ROW_CLICK =
             "Autofill.Settings.AccessibilityAnnotatorSettingsLinkRowClick";
 
@@ -194,11 +190,12 @@ public class AutofillOptionsMediator implements ModalDialogProperties.Controller
 
     private boolean isAutofillAiAccessibilityAnnotatorVisible(int referrer) {
         return isAutofillAiVisible(referrer)
-                && AutofillOptionsFragment.isAutofillAiAccessibilityAnnotatorEnabled();
+                && EntityDataManager.isAccessibilityAnnotatorSettingVisible(mProfile);
     }
 
     private void onAutofillAiAccessibilityAnnotatorClicked() {
-        AutofillUiUtils.openLink(mContext, ACCESSIBILITY_ANNOTATOR_SETTINGS_URL);
+        AutofillUiUtils.openLink(
+                mContext, EntityDataManager.getAccessibilityAnnotatorSettingsUrl());
         RecordUserAction.record(HISTOGRAM_ACCESSIBILITY_ANNOTATOR_SETTINGS_LINK_ROW_CLICK);
     }
 

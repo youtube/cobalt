@@ -11,8 +11,6 @@
 #import "base/metrics/user_metrics.h"
 #import "base/metrics/user_metrics_action.h"
 #import "components/signin/public/base/signin_metrics.h"
-#import "components/signin/public/identity_manager/identity_manager.h"
-#import "components/signin/public/identity_manager/objc/identity_manager_observer_bridge.h"
 #import "ios/chrome/browser/app_bar/ui/app_bar_consumer.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/cobrowse/model/cobrowse_context.h"
@@ -21,19 +19,23 @@
 #import "ios/chrome/browser/fullscreen/public/fullscreen_metrics.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_element.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intents/model/intents_donation_helper.h"
+#import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/policy/model/policy_util.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/incognito_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/state/tab_grid_state.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/url/chrome_url_constants.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_group.h"
+#import "ios/chrome/browser/shared/model/web_state_list/tab_group_utils.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list.h"
 #import "ios/chrome/browser/shared/model/web_state_list/web_state_list_observer_bridge.h"
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
+#import "ios/chrome/browser/shared/public/commands/lens_commands.h"
+#import "ios/chrome/browser/shared/public/commands/open_lens_input_selection_command.h"
 #import "ios/chrome/browser/shared/public/commands/open_new_tab_command.h"
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
@@ -42,10 +44,6 @@
 #import "ios/chrome/browser/shared/public/commands/tab_groups_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
-#import "ios/chrome/browser/signin/model/authentication_service_observer_bridge.h"
-#import "ios/chrome/browser/signin/model/avatar/avatar_provider.h"
-#import "ios/chrome/browser/signin/model/chrome_account_manager_service.h"
-#import "ios/chrome/browser/signin/model/system_identity.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_menu_factory.h"
 #import "ios/chrome/browser/toolbar/ui/buttons/toolbar_button_menu_factory_delegate.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
@@ -53,9 +51,7 @@
 #import "ios/web/public/web_state.h"
 #import "url/gurl.h"
 
-@interface AppBarMediator () <AuthenticationServiceObserving,
-                              IdentityManagerObserverBridgeDelegate,
-                              IncognitoStateObserver,
+@interface AppBarMediator () <IncognitoStateObserver,
                               TabGridStateObserver,
                               ToolbarButtonMenuFactoryDelegate,
                               WebStateListObserving>
@@ -70,8 +66,6 @@
 
 @implementation AppBarMediator {
   std::unique_ptr<WebStateListObserverBridge> _observerBridge;
-  std::unique_ptr<AuthenticationServiceObserverBridge> _authServiceBridge;
-  std::unique_ptr<signin::IdentityManagerObserverBridge> _identityManagerBridge;
   raw_ptr<WebStateList> _regularWebStateList;
   raw_ptr<WebStateList> _incognitoWebStateList;
   raw_ptr<FullscreenController> _regularFullscreenController;
@@ -86,9 +80,7 @@
       _incognitoFullscreenObserver;
   raw_ptr<PrefService> _prefService;
   raw_ptr<AuthenticationService> _authenticationService;
-  raw_ptr<BwgService> _geminiService;
-  raw_ptr<ChromeAccountManagerService> _accountManagerService;
-  raw_ptr<signin::IdentityManager> _identityManager;
+  raw_ptr<GeminiService> _geminiService;
   raw_ptr<UrlLoadingBrowserAgent> _URLLoader;
   raw_ptr<TemplateURLService> _templateURLService;
   TabGridPage _currentPage;
@@ -116,10 +108,7 @@
                  templateURLService:(TemplateURLService*)templateURLService
               authenticationService:
                   (AuthenticationService*)authenticationService
-                      geminiService:(BwgService*)geminiService
-              accountManagerService:
-                  (ChromeAccountManagerService*)accountManagerService
-                    identityManager:(signin::IdentityManager*)identityManager
+                      geminiService:(GeminiService*)geminiService
                           URLLoader:(UrlLoadingBrowserAgent*)URLLoader
                        tabGridState:(TabGridState*)tabGridState
                      incognitoState:(IncognitoState*)incognitoState {
@@ -140,16 +129,8 @@
     _templateURLService = templateURLService;
 
     _authenticationService = authenticationService;
-    _authServiceBridge = std::make_unique<AuthenticationServiceObserverBridge>(
-        _authenticationService, self);
 
     _geminiService = geminiService;
-    _accountManagerService = accountManagerService;
-
-    _identityManager = identityManager;
-    _identityManagerBridge =
-        std::make_unique<signin::IdentityManagerObserverBridge>(
-            _identityManager, self);
 
     _tabGridState = tabGridState;
     [_tabGridState addObserver:self];
@@ -283,9 +264,6 @@
   _incognitoFullscreenBrowserAgent = nullptr;
   [_tabGridState removeObserver:self];
   [_incognitoState removeObserver:self];
-  _identityManager = nullptr;
-  _authServiceBridge.reset();
-  _identityManagerBridge.reset();
   _observerBridge.reset();
   _regularWebStateList = nullptr;
   _incognitoWebStateList = nullptr;
@@ -293,7 +271,6 @@
   _templateURLService = nullptr;
   _authenticationService = nullptr;
   _geminiService = nullptr;
-  _accountManagerService = nullptr;
   _URLLoader = nullptr;
   _incognitoState = nil;
   _tabGridState = nil;
@@ -304,6 +281,10 @@
 - (void)didChangeWebStateList:(WebStateList*)webStateList
                        change:(const WebStateListChange&)change
                        status:(const WebStateListStatus&)status {
+  if (status.active_web_state_change() && !_tabGridState.tabGridVisible) {
+    self.currentTabGroup = GetGroupForActiveWebState(webStateList);
+  }
+
   switch (change.type()) {
     case WebStateListChange::Type::kStatusOnly:
     case WebStateListChange::Type::kMove:
@@ -384,6 +365,7 @@
 }
 
 - (void)willExitTabGrid {
+  self.currentTabGroup = GetGroupForActiveWebState(self.currentWebStateList);
   [self updateForIncognitoVisible:_incognitoState.incognitoContentVisible];
 }
 
@@ -403,10 +385,10 @@
 }
 
 - (void)willHideTabGroup {
-  self.currentTabGroup = nullptr;
   if (!_tabGridState.tabGridVisible) {
     return;
   }
+  self.currentTabGroup = nullptr;
   [self updateForTabGridPage:_tabGridState.currentPage];
 }
 
@@ -418,32 +400,6 @@
   } else {
     [self updateButtonsForCurrentTabGridPage];
   }
-}
-
-#pragma mark - AuthenticationServiceObserving
-
-- (void)onServiceStatusChanged {
-  [self updateAssistantButton];
-}
-
-#pragma mark - IdentityManagerObserverBridgeDelegate
-
-- (void)onPrimaryAccountChanged:
-    (const signin::PrimaryAccountChangeEvent&)event {
-  [self updateAssistantButton];
-}
-
-- (void)onAccountsOnDeviceChanged {
-  [self updateAssistantButton];
-}
-
-- (void)onExtendedAccountInfoUpdated:(const AccountInfo&)info {
-  [self updateAssistantButton];
-}
-
-- (void)onIdentityManagerShutdown:(signin::IdentityManager*)identityManager {
-  _identityManager = nullptr;
-  _identityManagerBridge.reset();
 }
 
 #pragma mark - AppBarMutator
@@ -479,24 +435,24 @@
 
 - (void)assistantButtonTappedWithState:(AppBarAssistantButtonState)state {
   switch (state) {
-    case AppBarAssistantButtonState::kSignedOut: {
-      ShowSigninCommand* command = [[ShowSigninCommand alloc]
-          initWithOperation:AuthenticationOperation::kSigninOnly
-                accessPoint:signin_metrics::AccessPoint::kIosAppBar];
-      [self.sceneHandler showSignin:command
-                 baseViewController:self.baseViewController];
-      break;
-    }
-    case AppBarAssistantButtonState::kAccount: {
-      [self.settingsHandler
-          showAccountsSettingsFromViewController:self.baseViewController
-                            skipIfUINotAvailable:NO];
+    case AppBarAssistantButtonState::kLens: {
+      OpenLensInputSelectionCommand* command =
+          [[OpenLensInputSelectionCommand alloc]
+                  initWithEntryPoint:LensEntrypoint::AppBar
+                   presentationStyle:LensInputSelectionPresentationStyle::
+                                         SlideFromRight
+              presentationCompletion:nil];
+      [self.lensHandler openLensInputSelection:command];
       break;
     }
     case AppBarAssistantButtonState::kAsk: {
       if (!_authenticationService->HasPrimaryIdentity(
               signin::ConsentLevel::kSignin)) {
-        // TODO(crbug.com/484000888): Prompt user to sign in.
+        ShowSigninCommand* command = [[ShowSigninCommand alloc]
+            initWithOperation:AuthenticationOperation::kSigninOnly
+                  accessPoint:signin_metrics::AccessPoint::kIosAppBar];
+        [self.sceneHandler showSignin:command
+                   baseViewController:self.baseViewController];
         return;
       }
       if (!_geminiService || !_geminiService->IsProfileEligibleForGemini()) {
@@ -534,7 +490,7 @@
 
 - (void)moveCurrentTabToGroup:(const TabGroup*)destinationGroup {
   CHECK(base::FeatureList::IsEnabled(kTabGroupInTabIconContextMenu));
-  CHECK([self activeWebStateInGroup]);
+  CHECK(GetGroupForActiveWebState(self.currentWebStateList));
   int tabIndex = self.currentWebStateList->active_index();
   self.currentWebStateList->MoveToGroup({tabIndex}, destinationGroup);
   [self updateConsumer];
@@ -542,7 +498,7 @@
 
 - (void)removeCurrentTabFromGroup {
   CHECK(base::FeatureList::IsEnabled(kTabGroupInTabIconContextMenu));
-  CHECK([self activeWebStateInGroup]);
+  CHECK(GetGroupForActiveWebState(self.currentWebStateList));
   int tabIndex = self.currentWebStateList->active_index();
   self.currentWebStateList->RemoveFromGroups({tabIndex});
   [self updateConsumer];
@@ -550,7 +506,7 @@
 
 - (void)addCurrentTabToGroup:(const TabGroup*)destinationGroup {
   CHECK(base::FeatureList::IsEnabled(kTabGroupInTabIconContextMenu));
-  CHECK(![self activeWebStateInGroup]);
+  CHECK(!GetGroupForActiveWebState(self.currentWebStateList));
   int tabIndex = self.currentWebStateList->active_index();
   if (destinationGroup) {
     self.currentWebStateList->MoveToGroup({tabIndex}, destinationGroup);
@@ -578,7 +534,13 @@
   if (_currentWebStateList) {
     _currentWebStateList->RemoveObserver(_observerBridge.get());
   }
-  _currentWebStateList = currentWebStateList;
+
+  if (currentWebStateList != _currentWebStateList) {
+    self.currentTabGroup = _tabGridState.visibleTabGroup
+                               ? GetGroupForActiveWebState(currentWebStateList)
+                               : nullptr;
+    _currentWebStateList = currentWebStateList;
+  }
 
   if (_currentWebStateList) {
     _currentWebStateList->AddObserver(_observerBridge.get());
@@ -602,17 +564,21 @@
     return;
   }
   NSUInteger tabCount;
+
+  // Determine the tab count to display in the tab grid button.
   if (self.currentTabGroup) {
     tabCount = static_cast<NSUInteger>(self.currentTabGroup->range().count());
   } else {
-    tabCount = self.currentWebStateList->count();
+    tabCount = static_cast<NSUInteger>(self.currentWebStateList->count());
   }
+
   [self.consumer updateTabCount:tabCount];
   [self.consumer setTabGridVisible:_tabGridState.tabGridVisible];
   [self.consumer setTabGroupsPageVisible:_tabGridState.currentPage ==
                                          TabGridPageTabGroups];
   [self.consumer setTabGroupVisible:_tabGridState.visibleTabGroup];
-  [self.consumer setInTabGroup:[self activeWebStateInGroup]];
+  [self.consumer
+      setInTabGroup:GetGroupForActiveWebState(self.currentWebStateList)];
 
   BOOL incognito = self.currentWebStateList == _incognitoWebStateList;
   ToolbarButtonMenuFactory* buttonMenuFactory =
@@ -667,28 +633,15 @@
 
 // Updates the consumer with the latest state of the assistant button.
 - (void)updateAssistantButton {
-  AppBarAssistantButtonState state = AppBarAssistantButtonState::kSignedOut;
-  UIImage* avatar = nil;
+  AppBarAssistantButtonState state = AppBarAssistantButtonState::kLens;
 
   if (IsPageActionMenuEnabled()) {
     state = AppBarAssistantButtonState::kAsk;
   } else if (IsAimCobrowseEnabled() && IsAssistantContainerEnabled()) {
     state = AppBarAssistantButtonState::kAIM;
-  } else if (_authenticationService->HasPrimaryIdentity(
-                 signin::ConsentLevel::kSignin)) {
-    state = AppBarAssistantButtonState::kAccount;
-    id<SystemIdentity> identity = _authenticationService->GetPrimaryIdentity(
-        signin::ConsentLevel::kSignin);
-    ApplicationContext* context = GetApplicationContext();
-    signin::AvatarProvider* avatarProvider =
-        context ? context->GetIdentityAvatarProvider() : nullptr;
-    if (avatarProvider) {
-      avatar = avatarProvider->GetIdentityAvatar(
-          identity, IdentityAvatarSize::TableViewIcon);
-    }
   }
 
-  [self.consumer setAssistantButtonState:state avatar:avatar];
+  [self.consumer setAssistantButtonState:state];
 }
 
 // Updates for `incognito` being visible.
@@ -763,19 +716,6 @@
   _URLLoader->Load(params);
 
   return webStateListCount != webStateList->count();
-}
-
-// Returns whether the active web state in the current web state list is in a
-// tab group.
-- (BOOL)activeWebStateInGroup {
-  if (!self.currentWebStateList) {
-    return NO;
-  }
-  int activeIndex = self.currentWebStateList->active_index();
-  if (activeIndex == WebStateList::kInvalidIndex) {
-    return NO;
-  }
-  return self.currentWebStateList->GetGroupOfWebStateAt(activeIndex) != nullptr;
 }
 
 // Triggers the creation of a New Tab Group with 'identifiers'.

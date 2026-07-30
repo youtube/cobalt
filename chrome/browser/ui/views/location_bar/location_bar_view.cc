@@ -310,12 +310,12 @@ void LocationBarView::Init() {
         std::make_unique<PermissionDashboardController>(
             this, this, permission_dashboard_view_);
   } else {
-    chip_controller_ = std::make_unique<ChipController>(
-        this, this,
+    chip_view_ =
         AddChildViewAt(std::make_unique<PermissionChipView>(
                            PermissionChipView::Role::kPermissionRequestChip,
                            PermissionChipView::PressedCallback()),
-                       0));
+                       0);
+    chip_controller_ = std::make_unique<ChipController>(this, this, chip_view_);
   }
 
   const auto& typography_provider = views::TypographyProvider::Get();
@@ -370,7 +370,7 @@ void LocationBarView::Init() {
   }
 
   const bool web_ui_popup_dropdown_only =
-      base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxPopup) &&
+      omnibox::IsWebUIOmniboxPopupEnabled() &&
       !base::FeatureList::IsEnabled(omnibox::kWebUIOmniboxFullPopup);
 
   // Default to the legacy popup view for web apps and devtools windows since
@@ -913,9 +913,10 @@ void LocationBarView::Layout(PassKey) {
                                         false, 0, /*intra_item_padding=*/0,
                                         icon_left, permission_dashboard_view_);
     } else {
+      CHECK(chip_view_);
       leading_decorations.AddDecoration(vertical_padding, location_height,
                                         false, 0, /*intra_item_padding=*/0,
-                                        icon_left, chip_controller_->chip());
+                                        icon_left, chip_view_);
     }
   }
 
@@ -1243,7 +1244,7 @@ std::optional<bubble_anchor_util::AnchorConfiguration>
 LocationBarView::GetChipAnchor() {
   auto* chip = GetChipController()->chip();
   if (chip->GetVisible()) {
-    return {{views::BubbleAnchor(chip),
+    return {{chip->GetAnchor(),
              PermissionChipView::kPermissionRequestChipElementId,
              views::BubbleBorder::TOP_LEFT}};
   }
@@ -1942,6 +1943,13 @@ void LocationBarView::OnPopupStateChanged(OmniboxPopupState old_state,
   // Perform UI updates that apply to any popup state change.
   RefreshBackground();
   UpdateWithoutTabRestore();
+
+  if (base::FeatureList::IsEnabled(
+          omnibox::kOmniboxAimDeferShowUntilVisualStateReady)) {
+    // Ensure the omnibox view repaints to reflect potential placeholder text
+    // visibility changes.
+    omnibox_view_->SchedulePaint();
+  }
 
   // Update the focus ring visibility.
   if (views::FocusRing::Get(this)) {

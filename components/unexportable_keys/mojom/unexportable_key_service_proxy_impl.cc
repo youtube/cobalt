@@ -43,8 +43,8 @@ ServiceErrorOr<std::optional<T>> AdaptOperationNotSupported(
 
 ServiceErrorOr<mojom::NewKeyDataPtr> PopulateNewKeyData(
     unexportable_keys::UnexportableKeyService& unexportable_key_service,
-    const ServiceErrorOr<UnexportableKeyId> error_or_key_id) {
-  ASSIGN_OR_RETURN(UnexportableKeyId key_id, error_or_key_id);
+    const ServiceErrorOr<UnexportableSigningKeyId> error_or_key_id) {
+  ASSIGN_OR_RETURN(UnexportableSigningKeyId key_id, error_or_key_id);
   auto new_key_data = mojom::NewKeyData::New();
   new_key_data->key_id = key_id;
 
@@ -76,7 +76,8 @@ ServiceErrorOr<std::vector<mojom::NewKeyDataPtr>> PopulateAllNewKeyData(
   new_key_data.reserve(key_ids.size());
   for (UnexportableKeyId key_id : key_ids) {
     ASSIGN_OR_RETURN(mojom::NewKeyDataPtr data,
-                     PopulateNewKeyData(unexportable_key_service, key_id));
+                     PopulateNewKeyData(unexportable_key_service,
+                                        UnexportableSigningKeyId(key_id)));
     new_key_data.push_back(std::move(data));
   }
   return new_key_data;

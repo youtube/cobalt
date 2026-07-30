@@ -19,6 +19,7 @@
 #include "components/accessibility_annotator/core/prefs.h"
 #include "components/account_settings/account_setting_service.h"
 #include "components/prefs/pref_service.h"
+#include "components/signin/public/identity_manager/account_info.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/subscription_eligibility/subscription_eligibility_service.h"
 
@@ -37,7 +38,6 @@ void MaybeOutputReason(std::string* out, std::string_view message) {
   const base::Feature* const kRequiredFeatures[] = {
       &features::kAccessibilityAnnotator,
       &features::kAccessibilityAnnotatorFirstRun,
-      &features::kAccessibilityAnnotatorDatabaseStorage,
   };
 
   for (const base::Feature* feature : kRequiredFeatures) {
@@ -91,14 +91,22 @@ const base::flat_set<int32_t>& GetAnnotatorEligibleTiers() {
     return false;
   }
 
+  const AccountInfo extended_account_info =
+      identity_manager->FindExtendedAccountInfo(
+          identity_manager->GetPrimaryAccountInfo(
+              signin::ConsentLevel::kSignin));
+
+  // Consumer account checks.
+  if (extended_account_info.IsManaged() == signin::Tribool::kTrue) {
+    MaybeOutputReason(debug_message, "The account is not a consumer account");
+    return false;
+  }
+
   // TODO(crbug.com/494149753): This `can_use_model_execution_features()`
   // check is a very hacky way to check whether the user is underaged.
   // Consider defining a separate capability or syncing a separate setting
   // through ACCOUNT_SETTING instead.
-  if (identity_manager
-          ->FindExtendedAccountInfo(identity_manager->GetPrimaryAccountInfo(
-              signin::ConsentLevel::kSignin))
-          .capabilities.can_use_model_execution_features() !=
+  if (extended_account_info.capabilities.can_use_model_execution_features() !=
       signin::Tribool::kTrue) {
     MaybeOutputReason(debug_message, "User is underaged.");
     return false;
@@ -122,8 +130,28 @@ const base::flat_set<int32_t>& GetAnnotatorEligibleTiers() {
 
 // Checks whether all opt-in for `AccountSettingService` state are met.
 [[nodiscard]] bool SatisfiesOptInRequirements(
-    account_settings::AccountSettingService* account_settings) {
-  // TODO(crbug.com/494149753) Implement
+    account_settings::AccountSettingService* account_settings,
+    std::string* debug_message = nullptr) {
+  if (!account_settings) {
+    MaybeOutputReason(debug_message, "Account settings service not available.");
+    return false;
+  }
+
+  if (!account_settings->GetBoolean(account_settings::kAccountSettingContext)
+           .value_or(false)) {
+    MaybeOutputReason(debug_message, "Account is opted out of context");
+    return false;
+  }
+
+  if (!account_settings
+           ->GetBoolean(account_settings::kAccountSettingContextWorkspace)
+           .value_or(false) &&
+      !account_settings
+           ->GetBoolean(account_settings::kAccountSettingContextPhotos)
+           .value_or(false)) {
+    MaybeOutputReason(debug_message, "No context sources are enabled.");
+    return false;
+  }
   return true;
 }
 
@@ -173,9 +201,25 @@ AccessibilityAnnotatorEnablementServiceImpl::
       subscription_eligibility_service_(subscription_eligibility_service),
       pref_service_(pref_service),
       country_code_(std::move(country_code)) {
+  if (account_settings_service_) {
+    account_settings_observation_.Observe(account_settings_service_);
+  }
   if (identity_manager) {
     identity_manager_observer_.Observe(identity_manager);
   }
+  if (subscription_eligibility_service_) {
+    subscription_eligibility_observer_.Observe(
+        subscription_eligibility_service_);
+  }
+  if (pref_service_) {
+    pref_registrar_.Init(pref_service_);
+    pref_registrar_.Add(
+        prefs::kShouldShowRemoteAnnotatorFirstRunInfo,
+        base::BindRepeating(
+            &AccessibilityAnnotatorEnablementServiceImpl::UpdateEnablementState,
+            base::Unretained(this)));
+  }
+  UpdateEnablementState();
 }
 
 AccessibilityAnnotatorEnablementServiceImpl::
@@ -193,13 +237,19 @@ void AccessibilityAnnotatorEnablementServiceImpl::RemoveObserver(
 
 RemoteAnnotatorEnablementState
 AccessibilityAnnotatorEnablementServiceImpl::GetEnablementState() {
-  using enum RemoteAnnotatorEnablementState;
   if (base::FeatureList::IsEnabled(
           features::debug::kAccessibilityAnnotatorForceEnablementState)) {
     return static_cast<RemoteAnnotatorEnablementState>(
         features::debug::kAccessibilityAnnotatorForceEnablementStateParam
             .Get());
   }
+
+  return enablement_state_;
+}
+
+RemoteAnnotatorEnablementState
+AccessibilityAnnotatorEnablementServiceImpl::ComputeEnablementState() {
+  using enum RemoteAnnotatorEnablementState;
 
   if (!SatisfiesFeatureRequirements()) {
     return kDisabledNotEligible;
@@ -221,6 +271,16 @@ AccessibilityAnnotatorEnablementServiceImpl::GetEnablementState() {
   return SatisfiesPreferenceRequirements(pref_service_.get());
 }
 
+void AccessibilityAnnotatorEnablementServiceImpl::UpdateEnablementState() {
+  RemoteAnnotatorEnablementState new_state = ComputeEnablementState();
+  if (new_state != enablement_state_) {
+    enablement_state_ = new_state;
+    observers_.Notify(&AccessibilityAnnotatorEnablementService::Observer::
+                          OnEnablementStateChanged,
+                      enablement_state_);
+  }
+}
+
 void AccessibilityAnnotatorEnablementServiceImpl::OnPrimaryAccountChanged(
     const signin::PrimaryAccountChangeEvent& event_details) {
   if (event_details.GetEventTypeFor(signin::ConsentLevel::kSignin) ==
@@ -229,11 +289,27 @@ void AccessibilityAnnotatorEnablementServiceImpl::OnPrimaryAccountChanged(
       pref_service_->ClearPref(prefs::kShouldShowRemoteAnnotatorFirstRunInfo);
     }
   }
+  UpdateEnablementState();
 }
 
 void AccessibilityAnnotatorEnablementServiceImpl::OnIdentityManagerShutdown(
     signin::IdentityManager* identity_manager) {
   identity_manager_observer_.Reset();
+}
+
+void AccessibilityAnnotatorEnablementServiceImpl::OnExtendedAccountInfoUpdated(
+    const AccountInfo& info) {
+  UpdateEnablementState();
+}
+
+void AccessibilityAnnotatorEnablementServiceImpl::OnAiSubscriptionTierUpdated(
+    int32_t new_subscription_tier) {
+  UpdateEnablementState();
+}
+
+void AccessibilityAnnotatorEnablementServiceImpl::OnAccountSettingDataUpdated(
+    const std::string& setting_name) {
+  UpdateEnablementState();
 }
 
 }  // namespace accessibility_annotator

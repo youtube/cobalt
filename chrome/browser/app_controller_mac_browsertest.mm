@@ -25,6 +25,7 @@
 #include "base/strings/sys_string_conversions.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/task/thread_pool/thread_pool_instance.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/threading/thread_restrictions.h"
@@ -729,9 +730,9 @@ IN_PROC_BROWSER_TEST_F(AppControllerReplaceNTPBrowserTest,
 // Regression test for https://crbug.com/757253, https://crbug.com/1444747
 IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenInRegularBrowser) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  AppController* ac =
-      base::apple::ObjCCastStrict<AppController>([NSApp delegate]);
-  ASSERT_TRUE(ac);
+  // Ensure the AppController is the NSApp delegate.
+  std::ignore = AppController.sharedController;
+
   // Create an incognito browser and make it the last active browser.
   Browser* incognito_browser = CreateIncognitoBrowser(browser()->profile());
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
@@ -768,9 +769,9 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenInRegularBrowser) {
 IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
                        OpenInRegularBrowserWhenOnlyIncognitoBrowserIsOpened) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  AppController* ac =
-      base::apple::ObjCCastStrict<AppController>([NSApp delegate]);
-  ASSERT_TRUE(ac);
+  // Ensure the AppController is the NSApp delegate.
+  std::ignore = AppController.sharedController;
+
   EXPECT_EQ(chrome::GetTotalBrowserCount(), 1u);
   // Close the current browser.
   Profile* profile = browser()->profile();
@@ -813,9 +814,9 @@ IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest,
 // in the guest browser.
 IN_PROC_BROWSER_TEST_F(AppControllerBrowserTest, OpenUrlInGuestBrowser) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  AppController* ac =
-      base::apple::ObjCCastStrict<AppController>([NSApp delegate]);
-  ASSERT_TRUE(ac);
+  // Ensure the AppController is the NSApp delegate.
+  std::ignore = AppController.sharedController;
+
   // Create a guest browser and make it the last active browser.
   Browser* guest_browser = CreateGuestBrowser();
   EXPECT_EQ(1, browser()->tab_strip_model()->count());
@@ -929,9 +930,8 @@ using AppControllerShortcutsNotAppsBrowserTest = InProcessBrowserTest;
 IN_PROC_BROWSER_TEST_F(AppControllerShortcutsNotAppsBrowserTest,
                        OpenChromeWeblocFile) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  AppController* ac =
-      base::apple::ObjCCastStrict<AppController>([NSApp delegate]);
-  ASSERT_TRUE(ac);
+  // Ensure the AppController is the NSApp delegate.
+  std::ignore = AppController.sharedController;
 
   // Create and open a .crwebloc file
   GURL simple(embedded_test_server()->GetURL("/simple.html"));
@@ -965,11 +965,49 @@ IN_PROC_BROWSER_TEST_F(AppControllerShortcutsNotAppsBrowserTest,
 }
 
 IN_PROC_BROWSER_TEST_F(AppControllerShortcutsNotAppsBrowserTest,
+                       DisallowChromeUrlWeblocFile) {
+  // Ensure the AppController is the NSApp delegate.
+  std::ignore = AppController.sharedController;
+
+  // Create and open a .crwebloc file with a chrome:// URL.
+  GURL chrome_url("chrome://settings/");
+  base::ScopedTempDir temp_dir;
+  base::FilePath crwebloc_file;
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+    crwebloc_file = temp_dir.GetPath().AppendASCII("test_shortcut.crwebloc");
+    ASSERT_TRUE(shortcuts::ChromeWeblocFile(
+                    chrome_url, *base::SafeBaseName::Create(
+                                    browser()->profile()->GetPath()))
+                    .SaveToFile(crwebloc_file));
+  }
+
+  int initial_tab_count = browser()->tab_strip_model()->count();
+  content::WebContents* current_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+
+  SendOpenUrlToAppController(net::FilePathToFileURL(crwebloc_file));
+  // Wait for any background tasks to complete and send its replies to the UI
+  // thread. This helps ensure that SendOpenUrlToAppController() completes.
+  base::ThreadPoolInstance::Get()->FlushForTesting();
+  base::RunLoop().RunUntilIdle();
+
+  // It should not be opened in the browser.
+  EXPECT_EQ(initial_tab_count, browser()->tab_strip_model()->count());
+  EXPECT_NE(chrome_url, current_contents->GetLastCommittedURL());
+
+  {
+    base::ScopedAllowBlockingForTesting allow_blocking;
+    EXPECT_TRUE(temp_dir.Delete());
+  }
+}
+
+IN_PROC_BROWSER_TEST_F(AppControllerShortcutsNotAppsBrowserTest,
                        OpenChromeWeblocFileInSecondProfile) {
   ASSERT_TRUE(embedded_test_server()->Start());
-  AppController* ac =
-      base::apple::ObjCCastStrict<AppController>([NSApp delegate]);
-  ASSERT_TRUE(ac);
+  // Ensure the AppController is the NSApp delegate.
+  std::ignore = AppController.sharedController;
 
   // Create profile 2.
   Profile* profile2_ptr = nullptr;

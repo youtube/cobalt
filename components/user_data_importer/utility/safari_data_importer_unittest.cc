@@ -325,8 +325,8 @@ class SafariDataImporterTest : public testing::Test {
 
     CompleteImport({});
 
-    EXPECT_THAT(account_store()->stored_passwords(), SizeIs(1));
-    EXPECT_THAT(profile_store()->stored_passwords(), IsEmpty());
+    EXPECT_THAT(GetAllLoginsSync(account_store()), SizeIs(1));
+    EXPECT_THAT(GetAllLoginsSync(profile_store()), IsEmpty());
   }
 
   // Helper function for the "sync disabled" test.
@@ -356,8 +356,8 @@ class SafariDataImporterTest : public testing::Test {
 
     CompleteImport({});
 
-    EXPECT_THAT(profile_store()->stored_passwords(), SizeIs(1));
-    EXPECT_THAT(account_store()->stored_passwords(), IsEmpty());
+    EXPECT_THAT(GetAllLoginsSync(profile_store()), SizeIs(1));
+    EXPECT_THAT(GetAllLoginsSync(account_store()), IsEmpty());
   }
 
   // Helper to set up common expectations for the "Ready" phase of an
@@ -1238,7 +1238,8 @@ TEST_F(SafariDataImporterTest, ImportToBothStoresSequentially) {
 
   // Clear the account store before the next import since
   // `PasswordsImportToProfileStore` expects account store to be empty.
-  account_store()->Clear();
+  account_store()->RemoveLoginsCreatedBetween(FROM_HERE, base::Time(),
+                                              base::Time::Max());
 
   PasswordsImportToProfileStore();
 }
@@ -1266,8 +1267,8 @@ TEST_F(SafariDataImporterTest, ImportPasswordsBlockedByPolicy) {
 
   CompleteImport({});
 
-  EXPECT_THAT(profile_store()->stored_passwords(), IsEmpty());
-  EXPECT_THAT(account_store()->stored_passwords(), IsEmpty());
+  EXPECT_THAT(GetAllLoginsSync(profile_store()), IsEmpty());
+  EXPECT_THAT(GetAllLoginsSync(account_store()), IsEmpty());
 }
 
 // Tests that password import is directed to the local store when password sync
@@ -1304,8 +1305,8 @@ TEST_F(SafariDataImporterTest,
 
   CompleteImport({});
 
-  EXPECT_THAT(profile_store()->stored_passwords(), SizeIs(1));
-  EXPECT_THAT(account_store()->stored_passwords(), IsEmpty());
+  EXPECT_THAT(GetAllLoginsSync(profile_store()), SizeIs(1));
+  EXPECT_THAT(GetAllLoginsSync(account_store()), IsEmpty());
 }
 
 // Tests that history import is blocked when disabled by enterprise policy.

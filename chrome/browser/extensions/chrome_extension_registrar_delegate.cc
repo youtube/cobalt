@@ -15,14 +15,13 @@
 #include "chrome/browser/extensions/component_loader.h"
 #include "chrome/browser/extensions/corrupted_extension_reinstaller.h"
 #include "chrome/browser/extensions/data_deleter.h"
-#include "chrome/browser/extensions/extension_allowlist.h"
+#include "chrome/browser/extensions/extension_allowlist_factory.h"
 #include "chrome/browser/extensions/extension_disabled_ui.h"
 #include "chrome/browser/extensions/extension_management.h"
 #include "chrome/browser/extensions/extension_special_storage_policy.h"
 #include "chrome/browser/extensions/external_install_manager.h"
 #include "chrome/browser/extensions/install_verifier_factory.h"
 #include "chrome/browser/extensions/installed_loader.h"
-#include "chrome/browser/extensions/managed_installation_mode.h"
 #include "chrome/browser/extensions/profile_util.h"
 #include "chrome/browser/extensions/updater/extension_updater.h"
 #include "chrome/browser/profiles/profile.h"
@@ -31,6 +30,7 @@
 #include "components/favicon_base/favicon_url_parser.h"
 #include "extensions/browser/delayed_install_manager.h"
 #include "extensions/browser/disable_reason.h"
+#include "extensions/browser/extension_allowlist.h"
 #include "extensions/browser/extension_assets_manager.h"
 #include "extensions/browser/extension_file_task_runner.h"
 #include "extensions/browser/extension_prefs.h"
@@ -446,7 +446,8 @@ void ChromeExtensionRegistrarDelegate::OnExtensionInstalled(
 
   RecordInstallHistograms(extension);
 
-  ExtensionAllowlist::Get(profile_)->OnExtensionInstalled(id, install_flags);
+  ExtensionAllowlistFactory::GetForBrowserContext(profile_)
+      ->OnExtensionInstalled(id, install_flags);
 
   DelayedInstallManager* delayed_install_manager =
       DelayedInstallManager::Get(profile_);

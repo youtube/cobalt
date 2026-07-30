@@ -140,14 +140,11 @@ AttemptLoginTool::~AttemptLoginTool() {
   OptimizationGuideKeyedService* opt_guide_service =
       OptimizationGuideKeyedServiceFactory::GetForProfile(profile);
 
-  // Disable MQLS upload if FedCM support or Password Checkup is enabled
-  // while prototyping to avoid uploading incorrect logs.
-  // TODO(crbug.com/480920277): Remove this check once the prototyping is
-  // complete for FedCM.
+  // Disable MQLS upload if Password Checkup is enabled while prototyping to
+  // avoid uploading incorrect logs.
   // TODO(crbug.com/485620841): Remove this check once the prototyping is
   // complete for Automated Password Change.
   bool prototype_features_enabled =
-      base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin) ||
       base::FeatureList::IsEnabled(
           password_manager::features::kPasswordCheckupPrototype);
 
@@ -459,9 +456,7 @@ void AttemptLoginTool::OnAttemptLogin(
     return;
   }
 
-  if (base::FeatureList::IsEnabled(
-          password_manager::features::kActorLoginFederatedClickFromActor) &&
-      login_status.value() ==
+  if (login_status.value() ==
           actor_login::LoginStatusResult::kRequiresButtonClick &&
       selected_credential.type == actor_login::CredentialType::kFederated &&
       selected_credential.federation_detail->idp_origin ==
@@ -478,8 +473,6 @@ void AttemptLoginTool::OnAttemptLogin(
   // The availability of the password submit target is bundled with federated
   // support.
   if (base::FeatureList::IsEnabled(features::kFedCmEmbedderInitiatedLogin) &&
-      base::FeatureList::IsEnabled(
-          password_manager::features::kActorLoginFederatedClickFromActor) &&
       (login_status.value() ==
            actor_login::LoginStatusResult::kSuccessUsernameAndPasswordFilled ||
        login_status.value() ==
@@ -604,7 +597,7 @@ AttemptLoginTool::GetObservationDelayer(
 
 void AttemptLoginTool::UpdateTaskBeforeInvoke(ActorTask& task,
                                               ToolCallback callback) const {
-  task.AddTab(tab_handle_, std::move(callback));
+  task.AddTab(tab_handle_, /*stop_task_on_detach=*/true, std::move(callback));
 }
 
 tabs::TabHandle AttemptLoginTool::GetTargetTab() const {

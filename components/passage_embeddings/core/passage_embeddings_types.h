@@ -115,6 +115,12 @@ class EmbedderMetadataProvider {
 };
 
 // Encapsulate embeddings and related helpers.
+//
+// Invariants for Embeddings produced by passage_embeddings::Embedder:
+// * Embeddings always have non-zero lengths.
+// * Embeddings produced in the same run of Chrome will have consistent lengths.
+// * Embeddings produced in different runs of Chrome can have different lengths
+//   only if the embeddings model version was changed.
 class Embedding {
  public:
   explicit Embedding(std::vector<float> data);
@@ -124,9 +130,6 @@ class Embedding {
   Embedding(Embedding&&);
   Embedding& operator=(Embedding&&);
 
-  // The number of elements in the data vector.
-  size_t Dimensions() const;
-
   // The length of the vector.
   float Magnitude() const;
 
@@ -134,6 +137,20 @@ class Embedding {
   void Normalize();
 
   // Compares one embedding with another and returns a similarity measure.
+  //
+  // Note: Even if embeddings correspond to semantically unrelated texts the
+  // similarity could be substantially high (and this is not a bug). This
+  // phenomenon is known as "embedding anisotropy": embedding vectors might
+  // belong to a narrow cone (instead of spreading across the entire space),
+  // causing unrelated words or texts to have high similarity.
+  //
+  // In practice this means:
+  // - You should calibrate the usage of embeddings similarity score according
+  //   to your use case (e.g., "Is 0.5 a good threshold for your use case?").
+  //   Also, consider using a downstream model which would use embeddings as its
+  //   inputs.
+  // - Alternatively, whenever possible, instead of relying on the absolute
+  //   value of similarity score - consider using it for sorting (ranking).
   float ScoreWith(const Embedding& other_embedding) const;
 
   // Const accessor used for storage.
@@ -155,6 +172,13 @@ class Embedder {
   // the same number of passages and embeddings and in the same order as
   // `passages`. Otherwise the callback will return the original passages but
   // with an empty embeddings vector.
+  //
+  // Requirements on the implementation of this interface:
+  // * Embeddings must always have non-zero lengths.
+  // * Embeddings produced in the same run of Chrome must have consistent
+  //   lengths.
+  // * Embeddings produced in different runs of Chrome can have different
+  //   lengths only if the embeddings model version was changed.
   using ComputePassagesEmbeddingsCallback =
       base::OnceCallback<void(std::vector<std::string> passages,
                               std::vector<Embedding> embeddings,

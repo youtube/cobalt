@@ -30,7 +30,6 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/signin_hats_util.h"
 #include "chrome/browser/ui/hats/survey_config.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller.h"
 #include "chrome/browser/ui/views/profiles/profile_management_flow_controller_impl.h"
@@ -324,18 +323,15 @@ class DefaultBrowserStepController : public ProfileManagementStepController {
       // Check if Chrome can pin to the taskbar, which is an async call. When it
       // finishes, the result will be recorded and
       // `show_default_browser_screen_callback_` will be run.
-      if (base::FeatureList::IsEnabled(
-              features::kOfferPinToTaskbarInFirstRunExperience)) {
-        browser_util::ShouldOfferToPin(
-            ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
-            browser_util::PinAppToTaskbarChannel::kFirstRunExperience,
-            base::BindOnce(
-                &DefaultBrowserStepController::OnCanPinToTaskbarResult,
-                weak_ptr_factory_.GetWeakPtr()));
-        return;
-      }
-#endif  // BUILDFLAG(IS_WIN)
+      browser_util::ShouldOfferToPin(
+          ShellUtil::GetBrowserModelId(InstallUtil::IsPerUserInstall()),
+          browser_util::PinAppToTaskbarChannel::kFirstRunExperience,
+          base::BindOnce(&DefaultBrowserStepController::OnCanPinToTaskbarResult,
+                         weak_ptr_factory_.GetWeakPtr()));
+      return;
+#else
       std::move(show_default_browser_screen_callback_).Run();
+#endif  // BUILDFLAG(IS_WIN)
     } else {
       // Mark that this step was skipped and proceed with the next one.
       std::move(step_shown_callback_.value()).Run(false);
@@ -447,15 +443,16 @@ class FirstRunPostSignInAdapter : public ProfilePickerPostSignInAdapter {
   }
 
   PostHostClearedCallback CreateSupervisedUserIphCallback() {
-    return PostHostClearedCallback(base::BindOnce([](Browser* browser) {
-      CHECK(browser);
-      BrowserView* browser_view =
-          BrowserView::GetBrowserViewForBrowser(browser);
-      if (!browser_view) {
-        return;
-      }
-      browser_view->MaybeShowSupervisedUserProfileSignInIPH();
-    }));
+    return PostHostClearedCallback(
+        base::BindOnce([](BrowserWindowInterface* browser) {
+          CHECK(browser);
+          BrowserView* browser_view =
+              BrowserView::GetBrowserViewForBrowser(browser);
+          if (!browser_view) {
+            return;
+          }
+          browser_view->MaybeShowSupervisedUserProfileSignInIPH();
+        }));
   }
 
   void FinishAndOpenBrowserInternal(
@@ -473,7 +470,7 @@ class FirstRunPostSignInAdapter : public ProfilePickerPostSignInAdapter {
     callbacks.push_back(std::move(post_host_cleared_callback));
     callbacks.push_back(CreateSupervisedUserIphCallback());
     auto combined_callback =
-        CombineCallbacks<PostHostClearedCallback, Browser*>(
+        CombineCallbacks<PostHostClearedCallback, BrowserWindowInterface*>(
             std::move(callbacks));
     std::move(step_completed_callback_)
         .Run(std::move(combined_callback), is_continue_callback);
@@ -491,6 +488,13 @@ std::unique_ptr<ProfileManagementStepController> CreateIntroStep(
     bool enable_animations) {
   return std::make_unique<IntroStepController>(host, std::move(choice_callback),
                                                enable_animations);
+}
+
+std::unique_ptr<ProfileManagementStepController> CreateDefaultBrowserStep(
+    ProfilePickerWebContentsHost* host,
+    base::OnceClosure step_completed_callback) {
+  return std::make_unique<DefaultBrowserStepController>(
+      host, std::move(step_completed_callback));
 }
 
 FirstRunFlowController::FirstRunFlowController(
@@ -702,7 +706,7 @@ FirstRunFlowController::RegisterPostIdentitySteps(
       base::BindOnce(&FirstRunFlowController::AdvanceToNextPostIdentityStep,
                      base::Unretained(this));
   RegisterStep(Step::kDefaultBrowser,
-               std::make_unique<DefaultBrowserStepController>(
+               CreateDefaultBrowserStep(
                    host(), std::move(default_browser_promo_step_completed)));
   post_identity_steps.emplace(
       ProfileManagementFlowController::Step::kDefaultBrowser);

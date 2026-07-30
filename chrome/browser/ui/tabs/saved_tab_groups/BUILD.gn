@@ -96,6 +96,7 @@ source_set("impl") {
     "//chrome/browser/profiles",
     "//chrome/browser/profiles:profile",
     "//chrome/browser/renderer_host",
+    "//chrome/browser/resource_coordinator",
     "//chrome/browser/signin",
     "//chrome/browser/sync",
     "//chrome/browser/sync:factories",
@@ -215,6 +216,7 @@ source_set("browser_tests") {
     "collaboration_messaging_observer_browsertest.cc",
     "collaboration_messaging_page_action_controller_browsertest.cc",
     "saved_tab_group_web_contents_listener_browsertest.cc",
+    "shared_tab_group_feedback_controller_browsertest.cc",
     "tab_group_sync_delegate_browsertest.cc",
     "tab_group_sync_navigation_browser_test.cc",
   ]

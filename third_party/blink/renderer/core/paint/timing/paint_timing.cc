@@ -256,12 +256,12 @@ void PaintTiming::MarkPaintTimingInternal() {
       ImageElementTiming::From(*GetFrame()->DomWindow())
           .TakePaintTimingCallback();
   // 4. Let paintedTextNodes be a new ordered set
-  auto add_painted_text_entries =
+  auto compute_painted_text_entries =
       detector->GetTextPaintTimingDetector().TakePaintTimingCallback();
 
   // TODO(crbug.com/381270287) expose PaintTiming also for LCP, and ensure
   // entries are queued in spec order.
-  auto add_image_lcp_entries =
+  auto compute_painted_image_entries =
       detector->GetImagePaintTimingDetector().TakePaintTimingCallback();
 
   // 7. Let reportedPaints be the document’s set of previously reported paints.
@@ -288,89 +288,101 @@ void PaintTiming::MarkPaintTimingInternal() {
           : nullptr;
 
   if (paint_timing_record.paint_events.empty() && !frame_timing_info &&
-      !add_painted_images_element_timing_entries && !add_painted_text_entries &&
-      !add_image_lcp_entries) {
+      !add_painted_images_element_timing_entries &&
+      !compute_painted_text_entries && !compute_painted_image_entries) {
     return;
   }
 
   // 10. Let flushPaintTimings be the following steps:
-  PaintTimingCallback flush_paint_timings =
-      blink::BindOnce(
-          [](WindowPerformance* performance,
-             const PendingPaintTimingRecord& record,
-             AnimationFrameTimingInfo* frame_timing_info,
-             OptionalPaintTimingCallback image_lcp_callback,
-             OptionalPaintTimingCallback painted_images_callback,
-             OptionalPaintTimingCallback painted_text_callback,
-             PaintTimingDetector* paint_timing_detector,
-             SoftNavigationHeuristics* soft_navigation_heuristics,
-             const base::TimeTicks& raw_presentation_timestamp,
-             const DOMPaintTimingInfo& paint_timing_info) {
-            // If the frame was detached between scheduling the coarsening task
-            // and running it, do nothing. This matches the non-coarsening case,
-            // which already checks detach via `GetPerformanceInstance()`.
-            if (!performance || !performance->GetExecutionContext()) {
-              return;
-            }
+  PaintTimingCallback flush_paint_timings = blink::BindOnce(
+      [](WindowPerformance* performance, const PendingPaintTimingRecord& record,
+         AnimationFrameTimingInfo* frame_timing_info,
+         OptionalPaintTimingDetectorCallback<ImageRecord>
+             compute_painted_images_callback,
+         OptionalPaintTimingDetectorCallback<TextRecord>
+             compute_painted_text_callback,
+         OptionalPaintTimingCallback element_timing_painted_images_callback,
+         PaintTimingDetector* paint_timing_detector,
+         TextElementTiming* text_element_timing,
+         SoftNavigationHeuristics* soft_navigation_heuristics,
+         const base::TimeTicks& raw_presentation_timestamp,
+         const DOMPaintTimingInfo& paint_timing_info) {
+        // If the frame was detached between scheduling the coarsening task
+        // and running it, do nothing. This matches the non-coarsening case,
+        // which already checks detach via `GetPerformanceInstance()`.
+        if (!performance || !performance->GetExecutionContext()) {
+          return;
+        }
 
-            // 10.1. If document should report first paint,
-            // then: Report paint timing given document,
-            // "first-paint", and paintTimingInfo.
-            if (record.paint_events.Contains(PaintEvent::kFirstPaint)) {
-              performance->AddFirstPaintTiming(paint_timing_info);
-            }
+        // First, compute the paintedImages and paintedTextNodes by invoking the
+        // text and image paint timing detector callbacks. This only computes
+        // the candidates to feed into various algorithms, it does not update
+        // any metrics or emit any web-exposed performance entries.
+        HeapVector<Member<ImageRecord>> image_records;
+        if (compute_painted_images_callback) {
+          std::move(*compute_painted_images_callback)
+              .Run(raw_presentation_timestamp, paint_timing_info,
+                   image_records);
+        }
+        HeapVector<Member<TextRecord>> text_records;
+        if (compute_painted_text_callback) {
+          std::move(*compute_painted_text_callback)
+              .Run(raw_presentation_timestamp, paint_timing_info, text_records);
+        }
+        const bool may_have_lcp =
+            !image_records.empty() || !text_records.empty();
 
-            // 10.2. If document should report first contentful paint,
-            // then: Report paint timing given document,
-            // "first-contentful-paint", and paintTimingInfo.
-            if (record.paint_events.Contains(
-                    PaintEvent::kFirstContentfulPaint)) {
-              performance->AddFirstContentfulPaintTiming(paint_timing_info);
-            }
+        // 10.1. If document should report first paint,
+        // then: Report paint timing given document,
+        // "first-paint", and paintTimingInfo.
+        if (record.paint_events.Contains(PaintEvent::kFirstPaint)) {
+          performance->AddFirstPaintTiming(paint_timing_info);
+        }
 
-            // 10.3. Report largest contentful paint given document,
-            // paintTimingInfo, paintedImages and paintedTextNodes.
-            if (image_lcp_callback) {
-              std::move(image_lcp_callback.value())
-                  .Run(raw_presentation_timestamp, paint_timing_info);
-            }
+        // 10.2. If document should report first contentful paint,
+        // then: Report paint timing given document,
+        // "first-contentful-paint", and paintTimingInfo.
+        if (record.paint_events.Contains(PaintEvent::kFirstContentfulPaint)) {
+          performance->AddFirstContentfulPaintTiming(paint_timing_info);
+        }
 
-            const bool may_have_lcp =
-                image_lcp_callback || painted_text_callback;
+        // 10.3. Report largest contentful paint given document,
+        // paintTimingInfo, paintedImages and paintedTextNodes.
+        if (paint_timing_detector && may_have_lcp) {
+          paint_timing_detector->OnFramePresented(image_records, text_records);
+        }
 
-            // 10.4 Report element timing given document, paintTimingInfo,
-            // paintedImages and paintedTextNodes.
-            if (painted_images_callback) {
-              std::move(painted_images_callback.value())
-                  .Run(raw_presentation_timestamp, paint_timing_info);
-            }
-            if (painted_text_callback) {
-              std::move(painted_text_callback.value())
-                  .Run(raw_presentation_timestamp, paint_timing_info);
-            }
+        // 10.4 Report element timing given document, paintTimingInfo,
+        // paintedImages and paintedTextNodes.
+        if (element_timing_painted_images_callback) {
+          std::move(*element_timing_painted_images_callback)
+              .Run(raw_presentation_timestamp, paint_timing_info);
+        }
+        if (text_element_timing && !text_records.empty()) {
+          text_element_timing->OnFramePresented(text_records);
+        }
 
-            if (paint_timing_detector && may_have_lcp) {
-              paint_timing_detector->UpdateLcpCandidate();
-            }
+        if (soft_navigation_heuristics && may_have_lcp) {
+          soft_navigation_heuristics->OnFramePresented(image_records,
+                                                       text_records);
+        }
 
-            if (soft_navigation_heuristics && may_have_lcp) {
-              soft_navigation_heuristics->UpdateSoftLcpCandidate();
-            }
-
-            // 10.5 If frameTimingInfo is not null, then queue a long
-            // animation frame entry given document, frameTimingInfo, and
-            // paintTimingInfo.
-            if (frame_timing_info) {
-              performance->QueueLongAnimationFrameTiming(frame_timing_info,
-                                                         paint_timing_info);
-            }
-          },
-          WrapWeakPersistent(GetPerformanceInstance(GetFrame())),
-          paint_timing_record, WrapPersistent(frame_timing_info),
-          std::move(add_image_lcp_entries),
-          std::move(add_painted_images_element_timing_entries),
-          std::move(add_painted_text_entries), WrapWeakPersistent(detector),
-          WrapWeakPersistent(soft_navigation_heuristics));
+        // 10.5 If frameTimingInfo is not null, then queue a long
+        // animation frame entry given document, frameTimingInfo, and
+        // paintTimingInfo.
+        if (frame_timing_info) {
+          performance->QueueLongAnimationFrameTiming(frame_timing_info,
+                                                     paint_timing_info);
+        }
+      },
+      WrapWeakPersistent(GetPerformanceInstance(GetFrame())),
+      paint_timing_record, WrapPersistent(frame_timing_info),
+      std::move(compute_painted_image_entries),
+      std::move(compute_painted_text_entries),
+      std::move(add_painted_images_element_timing_entries),
+      WrapWeakPersistent(detector),
+      WrapWeakPersistent(text_element_timing_.Get()),
+      WrapWeakPersistent(soft_navigation_heuristics));
 
   // 11. If the user-agent does not support implementation-defined presentation
   // times, call flushPaintTimings and return.
@@ -470,14 +482,24 @@ void PaintTiming::SetTickClockForTesting(const base::TickClock* clock) {
 
 void PaintTiming::Trace(Visitor* visitor) const {
   visitor->Trace(fmp_detector_);
+  visitor->Trace(text_element_timing_);
   visitor->Trace(callback_manager_);
   Supplement<Document>::Trace(visitor);
 }
 
 PaintTiming::PaintTiming(Document& document)
     : Supplement<Document>(document),
+      text_element_timing_(
+          MakeGarbageCollected<TextElementTiming>(*document.domWindow())),
       fmp_detector_(MakeGarbageCollected<FirstMeaningfulPaintDetector>(this)),
-      clock_(base::DefaultTickClock::GetInstance()) {}
+      clock_(base::DefaultTickClock::GetInstance()) {
+  // `window` will be null if `document` has already been shut down (frame
+  // detach). Typically `PaintTiming` will be created before this, but this
+  // isn't guaranteed since it's created lazily.
+  if (LocalDOMWindow* window = document.domWindow()) {
+    text_element_timing_ = MakeGarbageCollected<TextElementTiming>(*window);
+  }
+}
 
 LocalFrame* PaintTiming::GetFrame() const {
   return GetSupplementable()->GetFrame();

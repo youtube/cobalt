@@ -32,10 +32,10 @@ DEFINE_ELEMENT_IDENTIFIER_VALUE(kSearchAIModeSignInPromoFrameViewId);
 DEFINE_ELEMENT_IDENTIFIER_VALUE(kSearchAIModeSignInPromoViewId);
 
 SearchAIModeSignInPromoView::SearchAIModeSignInPromoView(
-    views::View* anchor_view,
+    views::BubbleAnchor anchor,
     content::WebContents* web_contents,
     base::WeakPtr<SearchAIModeSignInPromoController> controller)
-    : LocationBarBubbleDelegateView(anchor_view, web_contents),
+    : LocationBarBubbleDelegateView(anchor, web_contents),
       controller_(std::move(controller)) {
   CHECK(web_contents);
   CHECK(base::FeatureList::IsEnabled(switches::kEnableSearchAIModeSigninPromo));
@@ -61,13 +61,19 @@ SearchAIModeSignInPromoView::SearchAIModeSignInPromoView(
 
 SearchAIModeSignInPromoView::~SearchAIModeSignInPromoView() {
   if (controller_) {
-    controller_->OnBubbleClosed();
+    controller_->OnViewIsDeleting();
   }
 }
 
 void SearchAIModeSignInPromoView::FireTimerForTesting() {
   CHECK_IS_TEST();
   self_dismissal_timer_.FireNow();
+}
+
+void SearchAIModeSignInPromoView::WindowClosing() {
+  if (controller_) {
+    controller_->HandlePromoClosing(GetWidget()->closed_reason());
+  }
 }
 
 void SearchAIModeSignInPromoView::AddedToWidget() {

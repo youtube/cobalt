@@ -17,12 +17,16 @@
 #include "chrome/browser/ui/views/location_bar/webui_content_setting_image_control.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_view_webui.h"
 #include "chrome/browser/ui/views/omnibox/webui_readonly_omnibox.h"
+#include "chrome/browser/ui/views/permissions/chip/chip_controller.h"
+#include "chrome/browser/ui/views/permissions/chip/permission_chip_view.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_dashboard_controller.h"
 #include "chrome/browser/ui/views/permissions/chip/permission_dashboard_view.h"
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 #include "components/browser_apis/ui_controllers/toolbar/toolbar_ui_api_data_model.mojom.h"
 #include "components/omnibox/browser/location_bar_model.h"
+#include "components/strings/grit/components_strings.h"
 #include "ui/base/interaction/element_events.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/views/bubble/bubble_border.h"
 
 namespace {
@@ -176,8 +180,14 @@ LocationBarModel* WebUILocationBar::GetLocationBarModel() {
 
 std::optional<bubble_anchor_util::AnchorConfiguration>
 WebUILocationBar::GetChipAnchor() {
-  NOTIMPLEMENTED();
-  return {{views::BubbleAnchor(), std::nullopt, views::BubbleBorder::TOP_LEFT}};
+  if (auto* chip_controller = GetChipController()) {
+    if (auto* chip = chip_controller->chip(); chip && chip->GetVisible()) {
+      return {{chip->GetAnchor(),
+               PermissionChipView::kPermissionRequestChipElementId,
+               views::BubbleBorder::TOP_LEFT}};
+    }
+  }
+  return std::nullopt;
 }
 
 ui::TrackedElement* WebUILocationBar::GetAnchorOrNull() {
@@ -276,10 +286,14 @@ void WebUILocationBar::UpdateLhsChipsState() {
   auto mojo_security_chip_icon = GetMojoSecurityChipIcon(security_chip_icon);
   auto mojo_security_level = GetMojoSecurityLevel(model->GetSecurityLevel());
 
+  bool is_text_dangerous =
+      security_chip_text ==
+      l10n_util::GetStringUTF16(IDS_DANGEROUS_VERBOSE_STATE);
+
   auto lhs_chips_state = toolbar_ui_api::mojom::LhsChipsState::New(
       toolbar_ui_api::mojom::SecurityChipState::New(
           mojo_security_chip_icon, mojo_security_level, security_chip_text,
-          is_clickable),
+          is_clickable, is_text_dangerous),
       std::vector<toolbar_ui_api::mojom::ContentSettingImageStatePtr>());
 
   if (toolbar_view_) {

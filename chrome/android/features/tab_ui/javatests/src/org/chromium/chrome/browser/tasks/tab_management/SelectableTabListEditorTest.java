@@ -29,8 +29,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
-import static org.chromium.base.test.util.Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE;
-
 import android.content.Intent;
 import android.graphics.Rect;
 import android.os.Build;
@@ -311,13 +309,12 @@ public class SelectableTabListEditorTest {
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
                     ArrayList<Tab> tabs = new ArrayList<>();
-                    TabModel model = mTabModelSelector.getCurrentModel();
-                    TabGroupModelFilter filter = mTabModelSelector.getCurrentTabGroupModelFilter();
-                    for (int i = model.getCount() - urls.size(); i < model.getCount(); i++) {
-                        tabs.add(model.getTabAt(i));
+                    TabModel tabModel = mTabModelSelector.getCurrentModel();
+                    for (int i = tabModel.getCount() - urls.size(); i < tabModel.getCount(); i++) {
+                        tabs.add(tabModel.getTabAt(i));
                     }
                     // Don't notify to avoid snackbar appearing.
-                    filter.mergeListOfTabsToGroup(
+                    tabModel.mergeListOfTabsToGroup(
                             tabs.subList(1, tabs.size()),
                             tabs.get(0),
                             /* notify= */ TabGroupModelFilter.MergeNotificationType.DONT_NOTIFY);
@@ -1080,7 +1077,7 @@ public class SelectableTabListEditorTest {
     @Test
     @MediumTest
     @Feature({"RenderTest"})
-    @Restriction({DeviceFormFactor.PHONE, RESTRICTION_TYPE_NON_LOW_END_DEVICE})
+    @Restriction(DeviceFormFactor.PHONE)
     public void testGridViewAppearance() throws IOException {
         prepareBlankTabWithThumbnail(3, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
@@ -1118,7 +1115,7 @@ public class SelectableTabListEditorTest {
     @Test
     @MediumTest
     @Feature({"RenderTest"})
-    @Restriction({DeviceFormFactor.PHONE, RESTRICTION_TYPE_NON_LOW_END_DEVICE})
+    @Restriction(DeviceFormFactor.PHONE)
     public void testGridViewAppearance_oneSelectedTab() throws IOException {
         prepareBlankTabWithThumbnail(3, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
@@ -1158,7 +1155,7 @@ public class SelectableTabListEditorTest {
     @Test
     @MediumTest
     @Feature({"RenderTest"})
-    @Restriction({DeviceFormFactor.PHONE, RESTRICTION_TYPE_NON_LOW_END_DEVICE})
+    @Restriction(DeviceFormFactor.PHONE)
     public void testSelectionAction_Toggle() throws IOException {
         prepareBlankTabWithThumbnail(3, false);
         List<Tab> tabs = getTabsInCurrentTabModel();
@@ -1715,9 +1712,9 @@ public class SelectableTabListEditorTest {
                 () -> {
                     List<Tab> tabs = new ArrayList<>();
 
-                    TabGroupModelFilter filter = mTabModelSelector.getCurrentTabGroupModelFilter();
-                    for (int i = 0; i < filter.getIndividualTabAndGroupCount(); i++) {
-                        tabs.add(filter.getRepresentativeTabAt(i));
+                    TabModel tabModel = mTabModelSelector.getCurrentModel();
+                    for (int i = 0; i < tabModel.getIndividualTabAndGroupCount(); i++) {
+                        tabs.add(tabModel.getRepresentativeTabAt(i));
                     }
 
                     return tabs;

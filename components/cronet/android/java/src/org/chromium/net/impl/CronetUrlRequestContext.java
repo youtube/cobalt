@@ -38,6 +38,7 @@ import org.chromium.net.impl.proto.RequestContextConfigOptions;
 import org.chromium.net.urlconnection.CronetHttpURLConnection;
 import org.chromium.net.urlconnection.CronetURLStreamHandlerFactory;
 
+import java.net.URI;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLStreamHandlerFactory;
@@ -358,7 +359,7 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                 cronetInitializedInfoLogger.onUserThreadDone();
             }
         }
-        mAdaptiveRequestContext = new CronetAdaptiveRequestContext(builder.getContext());
+        mAdaptiveRequestContext = new CronetAdaptiveRequestContext(builder.getContext(), mLogger);
     }
 
     @VisibleForTesting
@@ -536,17 +537,23 @@ public class CronetUrlRequestContext extends CronetEngineBase {
         }
         synchronized (mLock) {
             checkHaveAdapter();
-            CronetAdaptiveRequestContext.AdaptiveStreamNetworkHandles adaptiveHandles =
-                    mAdaptiveRequestContext.computeStreamNetworkHandles(url, networkHandle);
 
-            // Only use adaptive stream if we got AdaptiveStreamNetworkHandles
+            final URI adaptiveUri = mAdaptiveRequestContext.getUriIfAdaptive(url);
+            CronetAdaptiveRequestContext.AdaptiveStreamNetworkHandles adaptiveHandles =
+                    adaptiveUri != null
+                            ? mAdaptiveRequestContext.computeStreamNetworkHandles(
+                                    adaptiveUri, networkHandle)
+                            : null;
             CronetAdaptiveNetworkBidirectionalStream adaptiveStream =
                     adaptiveHandles != null
                             ? new CronetAdaptiveNetworkBidirectionalStream(
                                     callback,
                                     mAdaptiveRequestContext.getOrCreateScheduledExecutor(),
                                     mAdaptiveRequestContext,
-                                    url)
+                                    url,
+                                    mLogger,
+                                    // TODO(b/474048542): Add support for fast idempotent requests.
+                                    /* isFastIdempotentRequest= */ false)
                             : null;
 
             CronetBidirectionalStream stream =
@@ -566,7 +573,8 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                             trafficStatsUid,
                             adaptiveHandles != null
                                     ? adaptiveHandles.mPrimaryNetworkHandle
-                                    : networkHandle);
+                                    : networkHandle,
+                            adaptiveUri != null);
             // Just return the single stream.
             if (adaptiveStream == null) {
                 return stream;
@@ -587,7 +595,8 @@ public class CronetUrlRequestContext extends CronetEngineBase {
                             trafficStatsTag,
                             trafficStatsUidSet,
                             trafficStatsUid,
-                            adaptiveHandles.mFallbackNetworkHandle);
+                            adaptiveHandles.mFallbackNetworkHandle,
+                            adaptiveUri != null);
             adaptiveStream.setFallbackStream(fallbackStream);
             adaptiveStream.setPrimaryStream(stream);
             return adaptiveStream;

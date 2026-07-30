@@ -2,6 +2,7 @@
 # Use of this source code is governed by a BSD - style license that can be
 # found in the LICENSE file.
 
+import("//extensions/buildflags/buildflags.gni")
 import("//ui/webui/resources/tools/build_webui.gni")
 import("//ui/webui/resources/tools/optimize_webui.gni")
 
@@ -9,6 +10,7 @@ build_webui("build") {
   grd_prefix = "glic"
 
   static_files = [
+    "fre/fre.css",
     "glic.css",
     "glic.html",
     "internals/glic_internals.html",
@@ -21,6 +23,7 @@ build_webui("build") {
     "browser_proxy.ts",
     "fre/fre_app_controller.ts",
     "fre/metrics_enums.ts",
+    "glic.ts",
     "glic_api/glic_api.ts",
     "glic_api_impl/client/glic_api_client.ts",
     "glic_api_impl/client/image_utils.ts",
@@ -38,6 +41,7 @@ build_webui("build") {
     "glic_api_impl/request_types.ts",
     "glic_app_controller.ts",
     "icons.html.ts",
+    "internals.ts",
     "internals/glic_internals_app.html.ts",
     "internals/glic_internals_app.ts",
     "main.ts",
@@ -50,10 +54,6 @@ build_webui("build") {
 
   webui_context_type = "trusted"
   ts_deps = [
-    # Include the guest_view_shared target in all cases, because the SlimWebView
-    # type definition is needed at compile time even when it's not loaded at
-    # runtime.
-    "//chrome/browser/resources/guest_view_shared:build_ts",
     "//third_party/lit/v3_0:build_ts",
     "//ui/webui/resources/cr_elements:build_ts",
     "//ui/webui/resources/js:build_ts",
@@ -89,10 +89,28 @@ build_webui("build") {
     "//tools/typescript/definitions/webview_tag.d.ts",
   ]
 
-  ts_path_mappings =
-      [ "/shared/guest_view/*|" + rebase_path(
-            "$root_gen_dir/chrome/browser/resources/guest_view_shared/tsc/*",
-            target_gen_dir) ]
+  if (!enable_extensions_core) {
+    ts_deps += [ "//chrome/browser/resources/guest_view_shared:build_ts" ]
+    ts_path_mappings =
+        [ "/shared/guest_view/*|" + rebase_path(
+              "$root_gen_dir/chrome/browser/resources/guest_view_shared/tsc/*",
+              target_gen_dir) ]
+  }
+
+  if (optimize_webui) {
+    optimize_webui_host = "glic"
+    optimize_webui_in_files = [
+      "glic.js",
+      "internals.js",
+    ]
+
+    if (!enable_extensions_core) {
+      optimize_webui_external_paths =
+          [ "/shared/guest_view|" + rebase_path(
+                "$root_gen_dir/chrome/browser/resources/guest_view_shared/tsc",
+                root_build_dir) ]
+    }
+  }
 
   ts_composite = true
 }

@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/tabs/features.h"
 
 #include "base/feature_list.h"
+#include "base/time/time.h"
 #include "chrome/browser/ui/ui_features.h"
 
 namespace tabs {
@@ -28,26 +29,47 @@ BASE_FEATURE(kVerticalTabsPreviewBadge, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kVerticalTabsNewBadge, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kVerticalTabsExpandOnHover, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE_PARAM(bool,
+                   kVerticalTabsExpandOnHoverDefaultEnabled,
+                   &kVerticalTabsExpandOnHover,
+                   "expand_on_hover_default_enabled",
+                   false);
+
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kVerticalTabsExpandOnHoverDelay,
                    &kVerticalTabsExpandOnHover,
                    "expand_on_hover_delay",
-                   base::Milliseconds(500));
-
+                   base::Milliseconds(350));
 BASE_FEATURE_PARAM(base::TimeDelta,
                    kVerticalTabsExpandOnHoverClickDelay,
                    &kVerticalTabsExpandOnHover,
                    "expand_on_hover_click_delay",
-                   base::Milliseconds(500));
+                   base::Milliseconds(0));
 
 BASE_FEATURE_PARAM(bool,
-                   kVerticalTabsExpandOnHoverDefaultEnabled,
+                   kVerticalTabsExpandOnHoverUseVelocityHeuristic,
                    &kVerticalTabsExpandOnHover,
+                   "expand_on_hover_use_velocity_heuristic",
                    false);
+BASE_FEATURE_PARAM(int,
+                   kVerticalTabsExpandOnHoverVelocityHeuristicMinSamples,
+                   &kVerticalTabsExpandOnHover,
+                   "expand_on_hover_velocity_heuristic_min_samples",
+                   2);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kVerticalTabsExpandOnHoverVelocityHeuristicInterval,
+                   &kVerticalTabsExpandOnHover,
+                   "expand_on_hover_velocity_heuristic_interval",
+                   base::Milliseconds(10));
+BASE_FEATURE_PARAM(double,
+                   kVerticalTabsExpandOnHoverVelocityHeuristicThreshold,
+                   &kVerticalTabsExpandOnHover,
+                   "expand_on_hover_velocity_heuristic_threshold",
+                   0.1);
 
 BASE_FEATURE(kTabSelectionByPointer, base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kHorizontalTabStripComboButton, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kHorizontalTabStripComboButton, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(bool,
                    kHorizontalTabStripComboButtonShowStartOnly,
                    &kHorizontalTabStripComboButton,

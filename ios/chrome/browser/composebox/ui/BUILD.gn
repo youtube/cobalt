@@ -25,10 +25,12 @@ source_set("ui") {
     "composebox_navigation_consumer.h",
     "composebox_present_animator.h",
     "composebox_present_animator.mm",
-    "composebox_server_strings.h",
-    "composebox_server_strings.mm",
     "composebox_snackbar_presenter.h",
     "composebox_snackbar_presenter.mm",
+    "composebox_strings.h",
+    "composebox_strings.mm",
+    "composebox_ui_input_state.h",
+    "composebox_ui_input_state.mm",
     "composebox_view_controller.h",
     "composebox_view_controller.mm",
   ]
@@ -40,12 +42,12 @@ source_set("ui") {
     "//ios/chrome/app/strings",
     "//ios/chrome/browser/composebox/coordinator:constants",
     "//ios/chrome/browser/composebox/public:animation",
+    "//ios/chrome/browser/composebox/public:attachment_options",
     "//ios/chrome/browser/composebox/public:constants",
     "//ios/chrome/browser/composebox/public:features",
     "//ios/chrome/browser/composebox/public:input_plate_controls",
     "//ios/chrome/browser/composebox/public:model_options",
     "//ios/chrome/browser/composebox/public:theme",
-    "//ios/chrome/browser/composebox/ui/resources",
     "//ios/chrome/browser/drag_and_drop/model",
     "//ios/chrome/browser/keyboard/ui_bundled",
     "//ios/chrome/browser/ntp/ui_bundled/incognito",
@@ -60,6 +62,7 @@ source_set("ui") {
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/shared/ui/util",
     "//ios/chrome/browser/shared/ui/util:util_swift",
+    "//ios/chrome/browser/tab_picker/coordinator",
     "//ios/chrome/common/ui/colors",
     "//ios/chrome/common/ui/util",
     "//ios/public/provider/chrome/browser/glow_effect:glow_effect_api",
@@ -78,10 +81,15 @@ source_set("ui_constants") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "composebox_metrics_recorder_unittest.mm" ]
+  sources = [
+    "composebox_metrics_recorder_unittest.mm",
+    "composebox_strings_unittest.mm",
+  ]
   deps = [
     ":ui",
     "//base/test:test_support",
+    "//ios/chrome/app/strings",
     "//testing/gtest",
+    "//ui/base",
   ]
 }

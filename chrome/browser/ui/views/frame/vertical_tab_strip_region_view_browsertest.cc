@@ -9,8 +9,10 @@
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/animation/browser_animation_controller.h"
 #include "chrome/browser/ui/browser.h"
+#include "chrome/browser/ui/browser_actions.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/split_tab_metrics.h"
@@ -28,12 +30,14 @@
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_unpinned_tab_container_view.h"
 #include "chrome/browser/ui/views/test/vertical_tabs_browser_test_mixin.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/tabs/public/tab_group.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/display/screen.h"
 #include "ui/views/controls/button/button_controller.h"
@@ -486,6 +490,33 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, LogsResizeMetrics) {
         "Tabs.VerticalTabs.TabStripSize",
         VerticalTabStripRegionView::kCollapsedWidth, 1);
   }
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
+                       CancelCollapseAnimationUpdatesCollapseButton) {
+  actions::ActionItem* collapse_action =
+      actions::ActionManager::Get().FindAction(kActionToggleCollapseVertical);
+
+  // Request that the tabstrip collapses. The state controller collapse state
+  // should not be updated immediately.
+  state_controller()->RequestCollapse(true);
+  ASSERT_FALSE(state_controller()->IsCollapsed());
+
+  // The collapse button should be updated immediately to use the expand icon
+  // and text.
+  EXPECT_EQ(BrowserActions::GetCleanTitleAndTooltipText(
+                l10n_util::GetStringUTF16(IDS_EXPAND_VERTICAL_TABS)),
+            collapse_action->GetText());
+
+  // Cancel the collapse request with an expand request.
+  state_controller()->RequestCollapse(false);
+  EXPECT_FALSE(state_controller()->IsCollapsed());
+
+  // The collapse button should be updated immediately to use the collapse icon
+  // and text.
+  EXPECT_EQ(BrowserActions::GetCleanTitleAndTooltipText(
+                l10n_util::GetStringUTF16(IDS_COLLAPSE_VERTICAL_TABS)),
+            collapse_action->GetText());
 }
 
 // Verify that the pinned tabs container will never be larger than the unpinned
@@ -1018,7 +1049,8 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
   EXPECT_EQ(bounds.x(), region_view()->GetBoundsInScreen().x());
 }
 
-IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, LockPrecedence) {
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
+                       ExpandOnHoverLockBehavior) {
   // Set up collapsed vertical tab strip with expand on hover enabled.
   VerticalTabStripRegionView* view = region_view();
   state_controller()->SetExpandOnHoverEnabled(true);
@@ -1045,16 +1077,29 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest, LockPrecedence) {
   EXPECT_FALSE(view->is_expanded_on_hover());
 }
 
-class VerticalTabStripRegionViewExpandOnHoverTest
-    : public VerticalTabStripRegionViewTest {
- public:
-  const std::vector<base::test::FeatureRefAndParams> GetEnabledFeatures()
-      override {
-    return {{tabs::kVerticalTabs, {}}, {tabs::kVerticalTabsExpandOnHover, {}}};
-  }
-};
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
+                       KeepExpandedLockPreventsExpandOnHover) {
+  // Set up collapsed vertical tab strip with expand on hover enabled.
+  VerticalTabStripRegionView* view = region_view();
+  state_controller()->SetExpandOnHoverEnabled(true);
+  state_controller()->RequestCollapse(true);
 
-IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewExpandOnHoverTest,
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return state_controller()->IsCollapsed(); }));
+
+  // Acquire a `kKeepExpanded` lock while the strip is collapsed.
+  auto keep_expanded_lock =
+      view->GetExpandOnHoverLock(ExpandOnHoverLockType::kKeepExpanded);
+
+  // Request focus so that the tab strip would normally initiate expand on
+  // hover.
+  view->RequestFocus();
+
+  // Verify that the tab strip does not enter the expand on hover state.
+  EXPECT_FALSE(view->is_expanded_on_hover());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
                        ExpandOnHoverEnabledChanged) {
   // Fully collapse the tabstrip.
   state_controller()->RequestCollapse(true);
@@ -1078,7 +1123,7 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewExpandOnHoverTest,
   EXPECT_FALSE(region_view()->is_expanded_on_hover());
 }
 
-IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewExpandOnHoverTest,
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
                        ResizeAreaNotVisibleInExpandOnHoverState) {
   // Fully collapse the tabstrip.
   state_controller()->RequestCollapse(true);
@@ -1091,4 +1136,26 @@ IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewExpandOnHoverTest,
   ASSERT_TRUE(base::test::RunUntil(
       [&]() { return region_view()->is_expanded_on_hover(); }));
   ASSERT_FALSE(region_view()->resize_area_for_testing()->GetVisible());
+}
+
+IN_PROC_BROWSER_TEST_F(VerticalTabStripRegionViewTest,
+                       ExpandOnHoverDisabledWhenWindowInactive) {
+  VerticalTabStripRegionView* view = region_view();
+  state_controller()->SetExpandOnHoverEnabled(true);
+  state_controller()->RequestCollapse(true);
+
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return state_controller()->IsCollapsed(); }));
+
+  view->RequestFocus();
+
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return view->is_expanded_on_hover(); }));
+
+  // Create a second window to make the first inactive.
+  Browser* second_browser = CreateBrowser(browser()->profile());
+  ASSERT_TRUE(second_browser);
+
+  ASSERT_TRUE(
+      base::test::RunUntil([&]() { return !view->is_expanded_on_hover(); }));
 }

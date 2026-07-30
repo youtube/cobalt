@@ -29,6 +29,14 @@ class IOSWebViewOAuthConsumerRegistry : public signin::OAuthConsumerRegistry {
   signin::OAuthConsumer GetOAuthConsumerForGlicUserStatus() const override {
     NOTREACHED();
   }
+
+  signin::OAuthConsumer GetOAuthConsumerForGlicInvokeApi() const override {
+    NOTREACHED();
+  }
+
+  signin::OAuthConsumer GetOAuthConsumerForIndigo() const override {
+    NOTREACHED();
+  }
 };
 
 }  // namespace

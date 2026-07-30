@@ -52,7 +52,6 @@
 #include "chrome/browser/sync/local_or_syncable_bookmark_sync_service_factory.h"
 #include "chrome/browser/sync/sync_service_factory.h"
 #include "chrome/browser/sync/sync_ui_util.h"
-#include "chrome/browser/sync/test/integration/secondary_account_helper.h"
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
@@ -61,9 +60,8 @@
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser_commands.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/hats/hats_service_factory.h"
 #include "chrome/browser/ui/hats/mock_hats_service.h"
 #include "chrome/browser/ui/hats/survey_config.h"
@@ -74,7 +72,9 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_coordinator.h"
 #include "chrome/browser/ui/views/profiles/profile_menu_view_base.h"
+#include "chrome/browser/ui/views/toolbar/avatar_toolbar_button_interface.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+#include "chrome/browser/ui/views/toolbar/webui_test_utils.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_test_helper.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
 #include "chrome/browser/ui/web_applications/web_app_browsertest_base.h"
@@ -280,18 +280,15 @@ class ProfileMenuViewTestBase {
                     &ProfileMenuViewTestBase::SetTestingFactories,
                     base::Unretained(this)))) {}
 
-  void OpenProfileMenu() {
-    BrowserView* browser_view =
-        BrowserView::GetBrowserViewForBrowser(target_browser_);
-    OpenProfileMenuFromToolbar(browser_view->toolbar_button_provider());
-  }
-
-  void OpenProfileMenuFromToolbar(ToolbarButtonProvider* toolbar) {
+  void OpenProfileMenu(Browser* target_browser = nullptr) {
+    if (target_browser == nullptr) {
+      target_browser = target_browser_;
+    }
     // Click the avatar button to open the menu.
-    views::View* avatar_button = toolbar->GetAvatarToolbarButton();
-    views::test::WidgetVisibleWaiter(avatar_button->GetWidget()).Wait();
-    ASSERT_TRUE(avatar_button);
-    Click(avatar_button);
+    AvatarToolbarButtonTestAccessor avatar_accessor(target_browser);
+    views::test::WidgetVisibleWaiter(avatar_accessor.GetWidget()).Wait();
+    ASSERT_TRUE(avatar_accessor.GetEnabled());
+    avatar_accessor.Click();
     ASSERT_NO_FATAL_FAILURE(WaitForMenuToBeActive(profile_menu_view()));
 
     // A HoverButton may have focused itself if the mouse happened to be over it
@@ -837,6 +834,58 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewSyncErrorButtonTest, OpenReauthTab) {
       testing::StartsWith(GaiaUrls::GetInstance()->add_account_url().spec()));
 }
 
+// Test suite that makes the sync service unavailable.
+class ProfileMenuViewSyncServiceUnavailableTest
+    : public ProfileMenuViewBrowserTest {
+ public:
+  ProfileMenuViewSyncServiceUnavailableTest() {
+    // Register a callback to set the SyncService to null for this test.
+    dependency_manager_subscription_ =
+        BrowserContextDependencyManager::GetInstance()
+            ->RegisterCreateServicesCallbackForTesting(base::BindRepeating(
+                &ProfileMenuViewSyncServiceUnavailableTest::SetTestingFactories,
+                base::Unretained(this)));
+  }
+
+ private:
+  void SetTestingFactories(content::BrowserContext* context) {
+    // Make SyncService return nullptr for this profile.
+    SyncServiceFactory::GetInstance()->SetTestingFactory(
+        context,
+        base::BindRepeating(
+            [](content::BrowserContext*) -> std::unique_ptr<KeyedService> {
+              return nullptr;
+            }));
+  }
+
+  base::CallbackListSubscription dependency_manager_subscription_;
+};
+
+// Checks that the profile menu does not crash and handles kSyncPaused
+// gracefully when the sync service is not available. Regression test for
+// crbug.com/436603637.
+IN_PROC_BROWSER_TEST_F(ProfileMenuViewSyncServiceUnavailableTest,
+                       DoesNotCrashWhenSyncPaused) {
+  // Add an account with sync consent.
+  signin::IdentityManager* identity_manager =
+      IdentityManagerFactory::GetForProfile(browser()->profile());
+  CoreAccountInfo account_info = signin::MakePrimaryAccountAvailable(
+      identity_manager, kTestEmail, signin::ConsentLevel::kSync);
+
+  // Set an invalid refresh token to trigger the kSyncPaused state.
+  signin::SetInvalidRefreshTokenForPrimaryAccount(identity_manager);
+
+  ASSERT_TRUE(
+      identity_manager->HasAccountWithRefreshTokenInPersistentErrorState(
+          account_info.account_id));
+
+  ASSERT_NO_FATAL_FAILURE(OpenProfileMenu());
+
+  // Verify that the menu is showing successfully.
+  auto* coordinator = browser()->GetFeatures().profile_menu_coordinator();
+  EXPECT_TRUE(coordinator->IsShowing());
+}
+
 #if !BUILDFLAG(IS_CHROMEOS)
 
 class ProfileMenuViewWebOnlyTest : public ProfileMenuViewTestBase,
@@ -1090,12 +1139,6 @@ class ProfileMenuClickTest : public SyncTest,
 
   ~ProfileMenuClickTest() override = default;
 
-  void SetUpInProcessBrowserTestFixture() override {
-    SyncTest::SetUpInProcessBrowserTestFixture();
-    test_signin_client_subscription_ =
-        secondary_account_helper::SetUpSigninClient(&test_url_loader_factory_);
-  }
-
   // SyncTest:
   void SetUpOnMainThread() override {
     SyncTest::SetUpOnMainThread();
@@ -1177,7 +1220,6 @@ class ProfileMenuClickTest : public SyncTest,
     }
   }
 
-  base::CallbackListSubscription test_signin_client_subscription_;
   base::HistogramTester histogram_tester_;
   std::unique_ptr<SyncServiceImplHarness> sync_harness_;
 };
@@ -1947,14 +1989,15 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     ProfileMenuClickTest_SignedIn_ReplaceSyncPromosEnabled,
     /*enabled_features=*/{syncer::kReplaceSyncPromosWithSignInPromos},
     /*disabled_features=*/{}) {
-  secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(), &test_url_loader_factory_, "user@example.com");
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   PrimaryAccountChecker(identity_manager()).Wait();
   // Check that the setup was successful.
   ASSERT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
-  ASSERT_TRUE(
-      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
 
   RunTest();
 }
@@ -1984,14 +2027,15 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     (std::vector<base::test::FeatureRef>{
         syncer::kReplaceSyncPromosWithSignInPromos,
         syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
-  secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(), &test_url_loader_factory_, "user@example.com");
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   PrimaryAccountChecker(identity_manager()).Wait();
   // Check that the setup was successful.
   ASSERT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
-  ASSERT_TRUE(
-      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
 
   RunTest();
 }
@@ -2021,14 +2065,15 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
         {syncer::kReplaceSyncPromosWithSignInPromos,
          switches::kSigninWindows10DepreciationStateBypassForTesting}),
     /*disabled_features=*/{}) {
-  secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(), &test_url_loader_factory_, "user@example.com");
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   PrimaryAccountChecker(identity_manager()).Wait();
   // Check that the setup was successful.
   ASSERT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
-  ASSERT_TRUE(
-      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
 
   // Regular local data type.
   batch_upload_test_helper().SetReturnDescriptions(syncer::PASSWORDS,
@@ -2062,14 +2107,15 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
         {syncer::kReplaceSyncPromosWithSignInPromos,
          switches::kSigninWindows10DepreciationStateBypassForTesting}),
     /*disabled_features=*/{}) {
-  secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(), &test_url_loader_factory_, "user@example.com");
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   PrimaryAccountChecker(identity_manager()).Wait();
   // Check that the setup was successful.
   ASSERT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
-  ASSERT_TRUE(
-      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
 
   signin_util::EnableHistorySync(sync_service());
   batch_upload_test_helper().SetReturnDescriptions(syncer::PASSWORDS,
@@ -2106,14 +2152,15 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
         {syncer::kReplaceSyncPromosWithSignInPromos,
          switches::kSigninWindows10DepreciationStateForTesting}),
     /*disabled_features=*/{}) {
-  secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(), &test_url_loader_factory_, "user@example.com");
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   PrimaryAccountChecker(identity_manager()).Wait();
   // Check that the setup was successful.
   ASSERT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
-  ASSERT_TRUE(
-      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
 
   // Any (local/account storage) valid data type.
   batch_upload_test_helper().SetReturnDescriptions(syncer::PASSWORDS,
@@ -2150,20 +2197,23 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
         {syncer::kReplaceSyncPromosWithSignInPromos,
          switches::kSigninWindows10DepreciationStateBypassForTesting}),
     /*disabled_features=*/{}) {
-  AccountInfo primary_account =
-      secondary_account_helper::SignInUnconsentedAccount(
-          GetProfile(), &test_url_loader_factory_, "user@example.com");
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   PrimaryAccountChecker(identity_manager()).Wait();
   // Check that the setup was successful.
   ASSERT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
-  ASSERT_TRUE(
-      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
 
   // Bookmarks with previously syncing account creates a different type of promo
   // to be shown.
   browser()->profile()->GetPrefs()->SetString(
-      prefs::kGoogleServicesLastSyncingGaiaId, primary_account.gaia.ToString());
+      prefs::kGoogleServicesLastSyncingGaiaId,
+      sync_harness()
+          ->GetGaiaIdForAccount(SyncTestAccount::kDefaultAccount)
+          .ToString());
   batch_upload_test_helper().SetReturnDescriptions(syncer::BOOKMARKS,
                                                    /*item_count=*/5);
 
@@ -2192,10 +2242,11 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     ProfileMenuClickTest_WithPendingAccount_ReplaceSyncPromosEnabled,
     {syncer::kReplaceSyncPromosWithSignInPromos},
     {}) {
-  AccountInfo account_info = signin::MakePrimaryAccountAvailable(
-      identity_manager(), "user@example.com", signin::ConsentLevel::kSignin);
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
-      identity_manager(), account_info.account_id,
+      identity_manager(), account_id,
       GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
           GoogleServiceAuthError::InvalidGaiaCredentialsReason::
               CREDENTIALS_REJECTED_BY_SERVER));
@@ -2207,7 +2258,7 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
   ASSERT_TRUE(
       identity_manager()->HasAccountWithRefreshTokenInPersistentErrorState(
-          account_info.account_id));
+          account_id));
 
   RunTest();
 }
@@ -2233,21 +2284,22 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     (std::vector<base::test::FeatureRef>{
         syncer::kReplaceSyncPromosWithSignInPromos,
         syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
-  AccountInfo account_info = signin::MakePrimaryAccountAvailable(
-      identity_manager(), "user@example.com", signin::ConsentLevel::kSignin);
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   signin::UpdatePersistentErrorOfRefreshTokenForAccount(
-      identity_manager(), account_info.account_id,
+      identity_manager(), account_id,
       GoogleServiceAuthError::FromInvalidGaiaCredentialsReason(
           GoogleServiceAuthError::InvalidGaiaCredentialsReason::
               CREDENTIALS_REJECTED_BY_SERVER));
   PrimaryAccountChecker(identity_manager()).Wait();
   ASSERT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
-  ASSERT_TRUE(
-      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
   ASSERT_TRUE(
       identity_manager()->HasAccountWithRefreshTokenInPersistentErrorState(
-          account_info.account_id));
+          account_id));
 
   RunTest();
 }
@@ -2278,16 +2330,19 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
         {features::kEnterpriseProfileBadgingForMenu,
          syncer::kReplaceSyncPromosWithSignInPromos}),
     /*disabled_features=*/{}) {
-  AccountInfo account_info = signin::MakePrimaryAccountAvailable(
-      identity_manager(), "child@gmail.com", signin::ConsentLevel::kSignin);
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
+  AccountInfo account_info =
+      identity_manager()->FindExtendedAccountInfoByAccountId(account_id);
   supervised_user::UpdateSupervisionStatusForAccount(
       account_info, identity_manager(),
       /*is_subject_to_parental_controls=*/true);
   PrimaryAccountChecker(identity_manager()).Wait();
 
   // Check setup.
-  ASSERT_EQ(account_info.account_id, identity_manager()->GetPrimaryAccountId(
-                                         signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
   ASSERT_FALSE(profiles::IsGuestModeEnabled(*GetProfile()));
 
   RunTest();
@@ -2321,16 +2376,19 @@ PROFILE_MENU_CLICK_WITH_FEATURE_TEST(
     (std::vector<base::test::FeatureRef>{
         syncer::kReplaceSyncPromosWithSignInPromos,
         syncer::kReplaceSyncPromosWithSigninPromosNewSignin})) {
-  AccountInfo account_info = signin::MakePrimaryAccountAvailable(
-      identity_manager(), "child@gmail.com", signin::ConsentLevel::kSignin);
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
+  AccountInfo account_info =
+      identity_manager()->FindExtendedAccountInfoByAccountId(account_id);
   supervised_user::UpdateSupervisionStatusForAccount(
       account_info, identity_manager(),
       /*is_subject_to_parental_controls=*/true);
   PrimaryAccountChecker(identity_manager()).Wait();
 
   // Check setup.
-  ASSERT_EQ(account_info.account_id, identity_manager()->GetPrimaryAccountId(
-                                         signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
   ASSERT_FALSE(profiles::IsGuestModeEnabled(*GetProfile()));
 
   RunTest();
@@ -2436,8 +2494,7 @@ PROFILE_MENU_CLICK_TEST_WITH_FEATURE_STATES_F(
   // For ensuring that the Passkey unlock card will be displayed we need to
   // ensure that we are in signed-in state, and that the sync history is
   // enabled.
-  signin::MakePrimaryAccountAvailable(identity_manager(), "user@example.com",
-                                      signin::ConsentLevel::kSignin);
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
   signin_util::EnableHistorySync(sync_service());
   RunTest();
 }
@@ -2475,14 +2532,15 @@ PROFILE_MENU_CLICK_TEST_WITH_FEATURE_STATES_F(
   // Ensuring that we are in the state when sync-the-transport is enabled but
   // sync-the-feature is not enabled. In this case we can already display a
   // passkey promo.
-  secondary_account_helper::SignInUnconsentedAccount(
-      GetProfile(), &test_url_loader_factory_, "user@example.com");
+  ASSERT_TRUE(sync_harness()->SignInPrimaryAccount());
+  CoreAccountId account_id =
+      identity_manager()->GetPrimaryAccountId(signin::ConsentLevel::kSignin);
   PrimaryAccountChecker(identity_manager()).Wait();
   // Check that the setup was successful.
   ASSERT_FALSE(
       identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSync));
-  ASSERT_TRUE(
-      identity_manager()->HasPrimaryAccount(signin::ConsentLevel::kSignin));
+  ASSERT_EQ(account_id, identity_manager()->GetPrimaryAccountId(
+                            signin::ConsentLevel::kSignin));
 
   RunTest();
 }
@@ -2809,7 +2867,8 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewWebAppTest,
   Profile* second_profile = CreateAdditionalProfile();
   web_app::test::WaitUntilWebAppProviderAndSubsystemsReady(
       web_app::WebAppProvider::GetForTest(second_profile));
-  ASSERT_FALSE(chrome::FindBrowserWithProfile(second_profile));
+  ASSERT_FALSE(ProfileBrowserCollection::GetForProfile(second_profile)
+                   ->GetLastActiveBrowser());
 
   // Install and launch an application for the first profile.
   webapps::AppId app_id = toolbar_helper().InstallAndLaunchCustomWebApp(
@@ -2818,10 +2877,7 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewWebAppTest,
   SetTargetBrowser(toolbar_helper().app_browser());
 
   // Open profile menu.
-  auto* toolbar =
-      toolbar_helper().browser_view()->web_app_frame_toolbar_for_testing();
-  ASSERT_TRUE(toolbar);
-  OpenProfileMenuFromToolbar(toolbar);
+  OpenProfileMenu(toolbar_helper().browser_view()->browser());
 
   // Select other profile by advancing the focus one step forward
   profile_menu_view()->GetFocusManager()->AdvanceFocus(/*reverse=*/false);
@@ -2834,7 +2890,8 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewWebAppTest,
   content::WebContents* new_web_contents = waiter.Wait();
   ASSERT_TRUE(new_web_contents);
   BrowserWindowInterface* new_browser =
-      chrome::FindBrowserWithProfile(second_profile);
+      ProfileBrowserCollection::GetForProfile(second_profile)
+          ->GetLastActiveBrowser();
   ASSERT_TRUE(new_browser);
   EXPECT_TRUE(new_browser->GetType() == BrowserWindowInterface::TYPE_APP);
   EXPECT_EQ(new_browser->GetTabStripModel()->GetActiveWebContents(),
@@ -2857,13 +2914,11 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewWebAppTest, SelectingOtherProfile) {
   EXPECT_EQ(app_id,
             toolbar_helper().InstallWebApp(profile3, GURL("https://test.org")));
   SetTargetBrowser(toolbar_helper().app_browser());
-  EXPECT_FALSE(chrome::FindBrowserWithProfile(profile3));
+  EXPECT_FALSE(ProfileBrowserCollection::GetForProfile(profile3)
+                   ->GetLastActiveBrowser());
 
   // Open profile menu in first profile.
-  auto* toolbar =
-      toolbar_helper().browser_view()->web_app_frame_toolbar_for_testing();
-  ASSERT_TRUE(toolbar);
-  OpenProfileMenuFromToolbar(toolbar);
+  OpenProfileMenu(toolbar_helper().browser_view()->browser());
 
   // Select third profile by advancing the focus one step forward.
   profile_menu_view()->GetFocusManager()->AdvanceFocus(/*reverse=*/false);
@@ -2875,9 +2930,10 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewWebAppTest, SelectingOtherProfile) {
   Click(focused_item);
   content::WebContents* new_web_contents = waiter.Wait();
   ASSERT_TRUE(new_web_contents);
-  EXPECT_FALSE(chrome::FindBrowserWithProfile(profile2));
+  EXPECT_FALSE(ProfileBrowserCollection::GetForProfile(profile2)
+                   ->GetLastActiveBrowser());
   BrowserWindowInterface* new_browser =
-      chrome::FindBrowserWithProfile(profile3);
+      ProfileBrowserCollection::GetForProfile(profile3)->GetLastActiveBrowser();
   ASSERT_TRUE(new_browser);
   EXPECT_TRUE(new_browser->GetType() == BrowserWindowInterface::TYPE_APP);
   EXPECT_EQ(new_browser->GetTabStripModel()->GetActiveWebContents(),
@@ -2895,23 +2951,21 @@ IN_PROC_BROWSER_TEST_F(ProfileMenuViewWebAppTest, ProfileMenuVisibility) {
       profile1, GURL("https://test.org"));
 
   // Verify that avatar button is not visible.
-  auto* toolbar_profile1 =
-      toolbar_helper().browser_view()->web_app_frame_toolbar_for_testing();
-  ASSERT_TRUE(toolbar_profile1);
-  ASSERT_TRUE(toolbar_profile1->GetAvatarToolbarButton());
-  EXPECT_FALSE(toolbar_profile1->GetAvatarToolbarButton()->GetVisible());
+  AvatarToolbarButtonTestAccessor avatar_accessor1(
+      toolbar_helper().browser_view()->browser());
+  ASSERT_TRUE(avatar_accessor1.GetEnabled());
+  EXPECT_FALSE(avatar_accessor1.GetVisible());
 
   // Now install and launch application in second profile.
   EXPECT_EQ(app_id, toolbar_helper().InstallAndLaunchWebApp(
                         profile2, GURL("https://test.org")));
 
   // Avatar button should be visible in both profiles.
-  EXPECT_TRUE(toolbar_profile1->GetAvatarToolbarButton()->GetVisible());
-  auto* toolbar_profile2 =
-      toolbar_helper().browser_view()->web_app_frame_toolbar_for_testing();
-  ASSERT_TRUE(toolbar_profile2);
-  ASSERT_TRUE(toolbar_profile2->GetAvatarToolbarButton());
-  EXPECT_TRUE(toolbar_profile2->GetAvatarToolbarButton()->GetVisible());
+  EXPECT_TRUE(avatar_accessor1.GetVisible());
+  AvatarToolbarButtonTestAccessor avatar_accessor2(
+      toolbar_helper().browser_view()->browser());
+  ASSERT_TRUE(avatar_accessor1.GetEnabled());
+  EXPECT_TRUE(avatar_accessor1.GetVisible());
 }
 #endif  // BUILDFLAG(IS_MAC)
 

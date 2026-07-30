@@ -82,6 +82,7 @@ BASE_DECLARE_FEATURE(kNtpAnimatedDoodles);
 BASE_DECLARE_FEATURE(kNtpDoodleMurals);
 BASE_DECLARE_FEATURE(kLightningTakeoverEdition);
 BASE_DECLARE_FEATURE(kNtpShortcutsRedesign);
+BASE_DECLARE_FEATURE(kNtpSimplificationBookmarkBar);
 
 // Parameter for controlling the luminosity difference for NTP elements on light
 // backgrounds.
@@ -251,6 +252,9 @@ extern const base::FeatureParam<bool> kNtpNextShowDismissalUIParam;
 // Parameter determining if right-clicking an action chip should display the
 // disablement context menu.
 extern const base::FeatureParam<bool> kNtpNextDisablementContextMenuParam;
+
+// Parameter determining if the disablement is enabled for NTP Next.
+extern const base::FeatureParam<bool> kNtpNextDisablementParam;
 
 // Parameter determining if the tab upload should be delayed when tab context is
 // added from an action chip.

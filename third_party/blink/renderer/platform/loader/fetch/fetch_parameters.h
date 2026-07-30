@@ -136,6 +136,11 @@ class PLATFORM_EXPORT FetchParameters {
     options_.initiator_info.is_link_preload = is_link_preload;
   }
 
+  std::optional<CrossOriginAttributeValue> GetCrossOriginAttributeValue()
+      const {
+    return cross_origin_attribute_value_;
+  }
+
   bool IsStaleRevalidation() const { return is_stale_revalidation_; }
   void SetStaleRevalidation(bool is_stale_revalidation) {
     is_stale_revalidation_ = is_stale_revalidation;
@@ -153,7 +158,7 @@ class PLATFORM_EXPORT FetchParameters {
   // credentials mode.
   void SetCrossOriginAccessControl(const SecurityOrigin*,
                                    network::mojom::CredentialsMode);
-  const IntegrityMetadataSet IntegrityMetadata() const {
+  const IntegrityMetadataSet GetIntegrityMetadata() const {
     return options_.integrity_metadata;
   }
   void SetIntegrityMetadata(const IntegrityMetadataSet& metadata) {
@@ -238,6 +243,9 @@ class PLATFORM_EXPORT FetchParameters {
   ImageRequestBehavior image_request_behavior_ = ImageRequestBehavior::kNone;
   mojom::blink::ScriptType script_type_ = mojom::blink::ScriptType::kClassic;
   bool is_stale_revalidation_ = false;
+  // Stored for the SpeculationMeasurement API, which reports the crossorigin
+  // attribute value of <link rel=preload> elements.
+  std::optional<CrossOriginAttributeValue> cross_origin_attribute_value_;
   bool is_from_origin_dirty_style_sheet_ = false;
   RenderBlockingBehavior render_blocking_behavior_ =
       RenderBlockingBehavior::kUnset;

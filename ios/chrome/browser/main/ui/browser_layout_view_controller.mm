@@ -199,12 +199,28 @@
 
 #pragma mark - FullscreenBrowserAgentObserving
 
+- (void)fullscreenWillUpdateState:(FullscreenBrowserAgent*)agent {
+  CHECK(IsFullscreenRefactoringEnabled());
+  if (CanShowTabStrip(self)) {
+    CGFloat progress = agent->top_progress();
+    CGFloat height = TabStripCollectionViewConstants.height * progress;
+    agent->AddObscuredInset(UIRectEdgeTop, height);
+    [self updateForFullscreenProgress:progress];
+  }
+}
+
 - (void)fullscreenWillUpdateObscuredInsetRange:(FullscreenBrowserAgent*)agent {
   CHECK(IsFullscreenRefactoringEnabled());
   if (CanShowTabStrip(self)) {
     agent->AddObscuredInsetRange(UIRectEdgeTop, 0,
                                  TabStripCollectionViewConstants.height);
   }
+}
+
+- (void)fullscreenDidUpdateObscuredInsetRange:(FullscreenBrowserAgent*)agent {
+  CHECK(IsFullscreenRefactoringEnabled());
+  _fullscreenViewportInsetRange =
+      agent->max_insets().top - agent->min_insets().top;
 }
 
 #pragma mark - Private
@@ -221,7 +237,7 @@
 // Ensures the status bar background views are created and installed in the
 // view hierarchy with proper constraints.
 - (void)ensureStatusBarViewsInstalled {
-  DCHECK(self.isViewLoaded);
+  DCHECK(self.viewLoaded);
   if ([self.fadingStatusBarView isDescendantOfView:self.view]) {
     return;
   }
@@ -252,7 +268,7 @@
 
 // Updates the status bar background views properties and visibility.
 - (void)updateStatusBarBackgroundViews {
-  DCHECK(self.isViewLoaded);
+  DCHECK(self.viewLoaded);
 
   bool shouldShow = CanShowTabStrip(self) && _tabStripViewController;
 

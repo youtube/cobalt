@@ -23,7 +23,6 @@
 #include "gpu/command_buffer/common/sync_token.h"
 #include "skia/buildflags.h"
 #include "third_party/blink/public/platform/web_graphics_shared_image_interface_provider.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_wrapper.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
 #include "third_party/blink/renderer/platform/wtf/thread_safe_ref_counted.h"
@@ -45,7 +44,6 @@ class RasterInterface;
 
 namespace blink {
 
-class CanvasResourceProviderSharedImage;
 class StaticBitmapImage;
 
 // Generic resource interface, used for locking (RAII) and recycling pixel
@@ -63,14 +61,13 @@ class PLATFORM_EXPORT CanvasResource : public gpu::ClientImage {
   using LastUnrefCallback = base::OnceCallback<void(
       scoped_refptr<blink::CanvasResource> canvas_resource)>;
 
-  static void OnPlaceholderReleasedResource(
-      scoped_refptr<CanvasResource> resource);
-
   // Returns true if this instance creates TransferableResources for usage with
   // GPU compositing.
   virtual bool CreatesAcceleratedTransferableResources() const = 0;
 
   virtual void OnRefReturned(scoped_refptr<CanvasResource>&& resource) {}
+
+  static void DropRefOnOwningThread(scoped_refptr<CanvasResource> resource);
 
   // Returns true if the resource is still usable. It maybe not be valid in the
   // case of a context loss or if we fail to initialize the memory backing for
@@ -93,7 +90,6 @@ class PLATFORM_EXPORT CanvasResource : public gpu::ClientImage {
   // Provides a TransferableResource representation of this resource to share it
   // with the compositor.
   bool PrepareTransferableResource(viz::TransferableResource*,
-                                   ReleaseCallback*,
                                    bool needs_verified_synctoken);
 
   // Issues a wait for this sync token on the context used by this resource for
@@ -125,6 +121,10 @@ class PLATFORM_EXPORT CanvasResource : public gpu::ClientImage {
  protected:
   explicit CanvasResource(scoped_refptr<gpu::ClientSharedImage> shared_image);
 
+  static void ReleaseFrameResources(scoped_refptr<CanvasResource>&& resource,
+                                    const gpu::SyncToken& sync_token,
+                                    bool lost_resource);
+
   virtual gfx::HDRMetadata GetHDRMetadata() const { return gfx::HDRMetadata(); }
   virtual viz::TransferableResource::ResourceSource
   GetTransferableResourceSource() const {
@@ -144,9 +144,7 @@ class PLATFORM_EXPORT CanvasResource : public gpu::ClientImage {
  private:
   friend class CanvasResourceProviderTest;
   friend class WebGPUMailboxTexture;
-
-  static void OnPlaceholderReleasedResourceOnOwningThread(
-      scoped_refptr<CanvasResource> resource);
+  friend class ExportedCanvasResource;
 
   // Returns true if the resource is rastered via the GPU.
   virtual bool UsesAcceleratedRaster() const = 0;
@@ -163,6 +161,14 @@ class PLATFORM_EXPORT CanvasResource : public gpu::ClientImage {
 // Resource type for SharedImage
 class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
  public:
+  class Client {
+   public:
+    virtual ~Client() = default;
+    virtual void OnResourceRefReturned(
+        scoped_refptr<CanvasResourceSharedImage>&& resource) = 0;
+    virtual void OnDestroyResource() = 0;
+  };
+
   explicit CanvasResourceSharedImage(
       scoped_refptr<gpu::ClientSharedImage> shared_image);
 
@@ -174,15 +180,14 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
       gpu::SharedImageUsageSet shared_image_usage_flags,
       bool is_software,
       bool is_accelerated,
-      base::WeakPtr<CanvasResourceProviderSharedImage>,
+      base::WeakPtr<Client>,
       base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
       base::WeakPtr<WebGraphicsSharedImageInterfaceProvider>);
 
-  void InitializeSoftware(
-      base::WeakPtr<CanvasResourceProviderSharedImage> provider,
-      base::WeakPtr<WebGraphicsSharedImageInterfaceProvider>
-          shared_image_interface_provider);
-  void Initialize(base::WeakPtr<CanvasResourceProviderSharedImage> provider,
+  void InitializeSoftware(base::WeakPtr<Client> client,
+                          base::WeakPtr<WebGraphicsSharedImageInterfaceProvider>
+                              shared_image_interface_provider);
+  void Initialize(base::WeakPtr<Client> client,
                   base::WeakPtr<WebGraphicsContext3DProviderWrapper>
                       context_provider_wrapper,
                   bool is_accelerated);
@@ -256,7 +261,7 @@ class PLATFORM_EXPORT CanvasResourceSharedImage final : public CanvasResource {
   bool is_accelerated_ = false;
   bool is_initialized_ = false;
   const SkAlphaType alpha_type_;
-  base::WeakPtr<CanvasResourceProviderSharedImage> provider_;
+  base::WeakPtr<Client> client_;
 };
 
 // Resource type for a given opaque external resource described on construction

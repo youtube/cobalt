@@ -24,7 +24,6 @@
 #include "chrome/browser/password_manager/passwords_navigation_observer.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/sync/test/integration/passwords_helper.h"
-#include "chrome/browser/sync/test/integration/secondary_account_helper.h"
 #include "chrome/browser/sync/test/integration/single_client_status_change_checker.h"
 #include "chrome/browser/sync/test/integration/status_change_checker.h"
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
@@ -258,10 +257,10 @@ class PasswordManagerSyncTest : public SyncTest {
     ASSERT_TRUE(GetSyncService(0)->GetActiveDataTypes().Has(syncer::PASSWORDS));
   }
 
+#if !BUILDFLAG(IS_CHROMEOS)
   // Should only be called after SetupSyncTransportWithPasswordAccountStorage().
-  void SignOut() {
-    secondary_account_helper::SignOut(GetProfile(0), &test_url_loader_factory_);
-  }
+  void SignOut() { GetClient(0)->SignOutPrimaryAccount(); }
+#endif  // !BUILDFLAG(IS_CHROMEOS)
 
   GURL GetWWWOrigin() {
     return embedded_test_server()->GetURL(kExampleHostname, "/");
@@ -713,7 +712,7 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
 }
 
 // TODO(crbug.com/500570908): Enable the test.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER)
+#if BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER))
 #define MAYBE_OfferToSaveNonPrimaryAccountCredential \
   DISABLED_OfferToSaveNonPrimaryAccountCredential
 #else
@@ -752,7 +751,7 @@ IN_PROC_BROWSER_TEST_F(PasswordManagerSyncTest,
 }
 
 // TODO(crbug.com/500570908): Enable the test.
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER)
+#if BUILDFLAG(IS_MAC) || (BUILDFLAG(IS_LINUX) && defined(ADDRESS_SANITIZER))
 #define MAYBE_OfferToUpdatePrimaryAccountCredential \
   DISABLED_OfferToUpdatePrimaryAccountCredential
 #else

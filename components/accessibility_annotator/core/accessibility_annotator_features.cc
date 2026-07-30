@@ -57,6 +57,11 @@ BASE_FEATURE_PARAM(int,
                    &kContentAnnotator,
                    "content_annotator_max_cache_annotations",
                    10);
+BASE_FEATURE_PARAM(base::TimeDelta,
+                   kContentAnnotatorConfirmedStatusLookbackWindow,
+                   &kContentAnnotator,
+                   "content_annotator_confirmed_status_lookback_window",
+                   base::Minutes(20));
 BASE_FEATURE_PARAM(std::string,
                    kContentAnnotatorClassifierSemanticMatchRules,
                    &kContentAnnotator,
@@ -67,11 +72,6 @@ BASE_FEATURE_PARAM(double,
                    &kContentAnnotator,
                    "content_annotator_semantic_match_threshold",
                    0.8);
-BASE_FEATURE_PARAM(std::string,
-                   kContentAnnotatorExtractedDataValidationSchema,
-                   &kContentAnnotator,
-                   "content_annotator_extracted_data_validation_schema",
-                   "");
 
 BASE_FEATURE(kAccessibilityAnnotator, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(base::TimeDelta,

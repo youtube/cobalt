@@ -46,6 +46,10 @@ BASE_DECLARE_FEATURE(kApiContentSettingsClipboard);
 // Controls the availability of the enterprise.kioskInput API.
 BASE_DECLARE_FEATURE(kApiEnterpriseKioskInput);
 
+// Controls the availability of registering public MIME handlers via
+// the mimeHandler manifest key.
+BASE_DECLARE_FEATURE(kApiMimeHandler);
+
 // Controls the availability of the runtime.actionData API.
 // TODO(crbug.com/376354347): Remove this when the experiment is finished.
 BASE_DECLARE_FEATURE(kApiRuntimeActionData);
@@ -74,6 +78,9 @@ BASE_DECLARE_FEATURE(kApiEnterpriseReportingPrivateOnDataMaskingRulesTriggered);
 
 // Controls the availability of Glic access from Google webpages.
 BASE_DECLARE_FEATURE(kApiGlicAccessFromGoogleWebpage);
+extern const base::FeatureParam<std::string> kProdPromptEndpointUrlParam;
+extern const base::FeatureParam<std::string> kGlicInvokeApiOAuth2ScopeParam;
+extern const base::FeatureParam<bool> kGlicRequireConsentForInvokeParam;
 
 // Controls the availability of the new `proxyOverrideRulesPrivate` API.
 BASE_DECLARE_FEATURE(kApiProxyOverrideRulesPrivate);

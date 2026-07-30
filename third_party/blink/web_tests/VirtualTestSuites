@@ -2903,7 +2903,6 @@
       "external/wpt/css/css-grid/animation",
       "external/wpt/css/css-sizing/responsive-iframe/responsive-iframe.tentative.html",
       "external/wpt/css/css-sizing/responsive-iframe/responsive-iframe-dom-content-loaded.tentative.html",
-      "external/wpt/css/css-sizing/responsive-iframe/responsive-iframe-fallback.tentative.html",
       "external/wpt/css/printing",
       "external/wpt/largest-contentful-paint",
       "fast/forms/file/file-appearance-no-default-width.html",
@@ -4462,7 +4461,7 @@
     ],
     "bases": [
       "external/wpt/websockets/back-forward-cache-with-open-websocket-connection.window.js",
-      "wpt_internal/websockets/back-forward-cache/disconnect-websocket-on-bfcache.window.js"
+      "external/wpt/websockets/back-forward-cache-closes-open-websocket-connection.tentative.window.js"
     ],
     "args": [
       "--disable-blink-features=DisconnectWebSocketOnBFCache"
@@ -4562,26 +4561,6 @@
     "expires": "never"
   },
   {
-    "prefix": "text-autosizing",
-    "owners": [
-      "dgrogan@chromium.org"
-    ],
-    "platforms": [
-      "Linux"
-    ],
-    "bases": [
-      "fast/text-autosizing",
-      "http/tests/devtools/text-autosizing-override.js",
-      "http/tests/text-autosizing/narrow-iframe.html",
-      "http/tests/text-autosizing/wide-iframe.html"
-    ],
-    "args": [
-      "--disable-features=ForceOffTextAutosizing"
-    ],
-    "exclusive_tests": "ALL",
-    "expires": "June 1, 2026"
-  },
-  {
     "prefix": "text-contrast-gamma",
     "owners": [
       "kschmi@microsoft.com"
@@ -4623,27 +4602,7 @@
     "args": [
       "--enable-threaded-compositing",
       "--enable-viewport",
-      "--blink-settings=textAutosizingEnabled=true,textSizeAdjustEnabled=true,viewportMetaEnabled=true"
-    ],
-    "expires": "never"
-  },
-  {
-    "prefix": "text-size-adjust-with-os-font-scale",
-    "owners": [
-      "pdr@chromium.org"
-    ],
-    "platforms": [
-      "Linux",
-      "Mac"
-    ],
-    "bases": [
-      "wpt_internal/css/css-size-adjust",
-      "external/wpt/css/css-size-adjust"
-    ],
-    "args": [
-      "--enable-threaded-compositing",
-      "--enable-viewport",
-      "--blink-settings=textAutosizingEnabled=true,textSizeAdjustEnabled=true,accessibilityFontScaleFactor=2,deviceScaleAdjustment=3,viewportMetaEnabled=true"
+      "--blink-settings=textSizeAdjustEnabled=true"
     ],
     "expires": "never"
   },
@@ -6407,5 +6366,20 @@
       "moonira@google.com"
     ],
     "expires": "Jan 1, 2027"
+  },
+  {
+    "prefix": "popover-hint-new-behavior-disabled",
+    "platforms": ["Linux", "Mac", "Win"],
+    "bases": [
+      "external/wpt/html/semantics/popovers",
+      "inspector-protocol/dom/dom-forceShowPopover.js"
+    ],
+    "args": [
+      "--disable-blink-features=PopoverHintNewBehavior"
+    ],
+    "expires": "Dec 1, 2026",
+    "owners": [
+      "masonf@chromium.org"
+    ]
   }
 ]

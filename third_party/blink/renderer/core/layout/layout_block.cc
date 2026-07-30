@@ -60,7 +60,6 @@
 #include "third_party/blink/renderer/core/layout/mathml/layout_mathml_block.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
 #include "third_party/blink/renderer/core/layout/svg/layout_svg_text.h"
-#include "third_party/blink/renderer/core/layout/text_autosizer.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/page/scrolling/root_scroller_controller.h"
 #include "third_party/blink/renderer/core/paint/block_paint_invalidator.h"
@@ -97,10 +96,6 @@ void LayoutBlock::WillBeDestroyed() {
     frame->Selection().LayoutBlockWillBeDestroyed(*this);
     frame->GetPage()->GetDragCaret().LayoutBlockWillBeDestroyed(*this);
   }
-
-  if (TextAutosizer* text_autosizer = GetDocument().GetTextAutosizer())
-    text_autosizer->Destroy(this);
-
   LayoutBox::WillBeDestroyed();
 }
 
@@ -146,9 +141,6 @@ void LayoutBlock::StyleDidChange(
       }
     }
   }
-
-  if (TextAutosizer* text_autosizer = GetDocument().GetTextAutosizer())
-    text_autosizer->Record(this);
 
   PropagateStyleToAnonymousChildren();
 
@@ -244,25 +236,6 @@ void LayoutBlock::AddChild(LayoutObject* new_child,
   LayoutBox::AddChild(new_child, before_child);
 }
 
-void LayoutBlock::RemoveLeftoverAnonymousBlock(LayoutBlock* child) {
-  NOT_DESTROYED();
-  DCHECK(child->IsAnonymousBlockFlow());
-  DCHECK(!child->ChildrenInline());
-  DCHECK_EQ(child->Parent(), this);
-
-  // Promote all the leftover anonymous block's children (to become children of
-  // this block instead). We still want to keep the leftover block in the tree
-  // for a moment, for notification purposes done further below (grids).
-  child->MoveAllChildrenTo(this, child->NextSibling());
-
-  // Now remove the leftover anonymous block from the tree, and destroy it.
-  // We'll rip it out manually from the tree before destroying it, because we
-  // don't want to trigger any tree adjustments with regards to anonymous blocks
-  // (or any other kind of undesired chain-reaction).
-  Children()->RemoveChildNode(this, child, false);
-  child->Destroy();
-}
-
 void LayoutBlock::Paint(const PaintInfo& paint_info) const {
   NOT_DESTROYED();
 
@@ -279,7 +252,6 @@ void LayoutBlock::Paint(const PaintInfo& paint_info) const {
 
   // Avoid painting dirty objects because descendants maybe already destroyed.
   if (NeedsLayout() && !ChildLayoutBlockedByDisplayLock()) [[unlikely]] {
-    DumpForBug478682594();
     DUMP_WILL_BE_NOTREACHED();
     return;
   }
@@ -483,26 +455,6 @@ bool LayoutBlock::HasLineIfEmpty() const {
       return true;
   }
   return FirstLineStyleRef().HasLineIfEmpty();
-}
-
-// This function should return the distance from the block-start, not from
-// the line-over.
-std::optional<LayoutUnit> LayoutBlock::BaselineForEmptyLine() const {
-  NOT_DESTROYED();
-  const ComputedStyle* style = FirstLineStyle();
-  const SimpleFontData* font_data = style->GetFont()->PrimaryFont();
-  if (!font_data)
-    return std::nullopt;
-  const auto& font_metrics = font_data->GetFontMetrics();
-  const auto baseline_type = style->GetFontBaseline();
-  const LayoutUnit line_height = style->ComputedLineHeightAsFixed();
-  int ascent_or_descent = IsFlippedLinesWritingMode(style->GetWritingMode())
-                              ? font_metrics.Descent(baseline_type)
-                              : font_metrics.Ascent(baseline_type);
-  return LayoutUnit((ascent_or_descent +
-                     (line_height - font_metrics.Height()) / 2 +
-                     BorderAndPaddingBlockStart())
-                        .ToInt());
 }
 
 const LayoutBlock* LayoutBlock::FirstLineStyleParentBlock() const {

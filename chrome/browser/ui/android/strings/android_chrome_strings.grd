@@ -261,8 +261,8 @@ CHAR_LIMIT guidelines:
         Browser
       </message>
       <!-- TODO(crbug.com/489124317): Update translation. -->
-      <message name="IDS_NOTIFICATION_CATEGORY_ACTOR" desc="Label for actor-related notifications, within a list of notification categories. [CHAR_LIMIT=32]" translateable="false">
-        Actor
+      <message name="IDS_NOTIFICATION_CATEGORY_ACTOR" desc="Label for actor-related notifications, within a list of notification categories. [CHAR_LIMIT=32]">
+        Gemini in Chrome
       </message>
       <message name="IDS_NOTIFICATION_CATEGORY_SCREEN_CAPTURE" desc="Label for notifications shown when screen is sharing or recording, within a list of notification categories. [CHAR_LIMIT=32]">
         Screen Capture
@@ -3867,6 +3867,17 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
         Not <ph name="EMAIL">%1$s<ex>john.doe@example.com</ex></ph>?
       </message>
 
+      <!-- Strings for Web Signin Loading Dialog -->
+      <message name="IDS_SIGNIN_WEB_SIGNIN_LOADING_DIALOG_TITLE" desc="Title of the web signin loading dialog. When users need to sign in to access a link the web signin loading dialog is shown while cookies are being minted before being redirected to the link. Pressing cancel stops the redirection.">
+      Signing in
+      </message>
+      <message name="IDS_SIGNIN_WEB_SIGNIN_LOADING_DIALOG_LOADING_TEXT" desc="Text shown next to the progress spinner of the web signin loading dialog. When users need to sign in to access a link the web signin loading dialog is shown while cookies are being minted before being redirected to the link. Pressing cancel stops the redirection.">
+      This may take a few seconds
+      </message>
+      <message name="IDS_SIGNIN_WEB_SIGNIN_LOADING_DIALOG_CANCEL_BUTTON" desc="String for the cancel button of the web signin loading dialog. When users need to sign in to access a link the web signin loading dialog is shown while cookies are being minted before being redirected to the link. Pressing cancel stops the redirection.">
+      Cancel
+      </message>
+
       <!-- Strings for Seamless Sign-in -->
       <message name="IDS_SIGNIN_PROMO_TITLE_NTP_SIGN_IN_AS_BUTTON" desc="This string is the headline of a card that appears when the user visits Chrome's new tab page; the user isn't signed in to Chrome. The line below this string is ether 'To get your passwords and more on all your devices, sign in to Chrome' or 'To get your passwords and more on all your devices, sign in to Chrome as john.doe@example.com'.">
         Your Chrome, everywhere
@@ -4052,36 +4063,6 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_SYNCED_SET_UP_SNACKBAR_REMOVED_CONFIRMATION" desc="The message text for the snackbar shown after preferences have been removed (a redo button is available).">
         Removed your appearance preferences
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_CONTENT_UNAVAILABLE_ERROR_TITLE" desc="Creator page error title when the creator has no content available.">
-        Nothing to show yet
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_CONTENT_UNAVAILABLE_ERROR_DESCRIPTION" desc="Creator page error description when the creator has no content available.">
-        You'll see content when it becomes available
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_GENERAL_ERROR_TITLE" desc="Creator page general error title when something goes wrong.">
-        Something went wrong
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_GENERAL_ERROR_DESCRIPTION" desc="Creator page general error description when something goes wrong.">
-        Try again later
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_FOLLOW_SUCCESS_SNACKBAR" desc="Creator page snackbar messsage after successfully following a particular site.">
-        Following <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph>
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_FOLLOW_FAILURE_SNACKBAR" desc="Creator page snackbar messsage after a failing to follow a particular site but the reason for the failure is unknown.">
-        Can’t follow. Something went wrong.
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_UNFOLLOW_SUCCESS_SNACKBAR" desc="Creator page snackbar messsage after successfully unfollowing a particular site.">
-        Unfollowed <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph>
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_UNFOLLOW_FAILURE_SNACKBAR" desc="Creator page snackbar messsage after a failing to unfollow a particular site but the reason for the failure is unknown.">
-        Can’t unfollow. Something went wrong.
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_OFFLINE_FAILURE_SNACKBAR" desc="Creator page snackbar messsage after a user take a follow/unfollow action while offline.">
-        You’re offline. Check your internet connection and try again.
-      </message>
-      <message name="IDS_CORMORANT_CREATOR_PREVIEW" desc="Accessibility readout for the title of a Creator feed, informing the user that it's the preview of the feed content from a particular website.">
-        <ph name="SITE_NAME">%1$s<ex>Reuters</ex></ph> Preview
       </message>
       <message name="IDS_FEED_MANAGE_ACTIVITY" desc="Menu item to manage my activity from the feed header overflow menu.">
         Activity
@@ -5398,8 +5379,11 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ACCESSIBILITY_OMNIBOX_REMOVE_SUGGESTION" desc="Accessibility announcement when the close button for the suggestion is clicked.">
         Remove suggestion
       </message>
-      <message name="IDS_ACCESSIBILITY_OMNIBOX_OPEN_OR_CLOSE_CONTEXT_POPUP" desc="Accessibility announcement when the 'Add context' button in the omnibox is highlighted.">
-        Open or Close the context popup
+      <message name="IDS_ACCESSIBILITY_OMNIBOX_OPEN_CONTEXT_POPUP" desc="Accessibility announcement when the 'Add context' button in the omnibox is highlighted.">
+        Open the context popup
+      </message>
+      <message name="IDS_ACCESSIBILITY_OMNIBOX_CONTEXT_POPUP_TITLE" desc="Accessibility description for the 'Add context' popup.">
+        Context popup window
       </message>
       <message name="IDS_ACCESSIBILITY_OMNIBOX_ENABLE_AI_MODE" desc="Accessibility announcement when the 'AI Mode' option in the Omnibox 'Add context' popup is highlighted.">
         Enable AI Mode
@@ -5922,6 +5906,12 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_KEYBOARD_SHORTCUT_SEARCH" desc="A text label that appears next to the keyboard that will focusa and clear the address bar on the screen. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
         Start new search
       </message>
+      <message name="IDS_KEYBOARD_SHORTCUT_SCROLL_TO_TOP" desc="A text label that appears next to the keyboard shortcut that will scroll to the top of the page. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
+        Scroll to top of page
+      </message>
+      <message name="IDS_KEYBOARD_SHORTCUT_SCROLL_TO_BOTTOM" desc="A text label that appears next to the keyboard shortcut that will scroll to the bottom of the page. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
+        Scroll to bottom of page
+      </message>
       <message name="IDS_KEYBOARD_SHORTCUT_BOOKMARK_MANAGER" desc="A text label that appears next to the keyboard shortcut that will open the bookmarks manager in Chrome. On a tablet this is a new tab, on the phone this is a new activity. The shortcut description is shown in a system dialog along with all other supported shortcuts. [CHAR_LIMIT=55]">
         Open Bookmarks Manager
       </message>
@@ -6132,10 +6122,10 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
 
       <!-- In-Product Help strings -->
       <message name="IDS_IPH_GLIC_PROMO_TEXT" desc="The in-product-help promotion message to try Glic.">
-        Try Gemini in Chrome to get answers, key takeaways and more.
+        Gemini is now on your toolbar. To change your pinned tool anytime, long-press the icon.
       </message>
       <message name="IDS_IPH_GLIC_PROMO_ACCESSIBILITY_TEXT" desc="The in-product-help accessibility text to try Glic.">
-        Try Gemini in Chrome to get answers, key takeaways and more from the More Options button.
+        Gemini is now on your toolbar. To change your pinned tool anytime, long-press the icon.
       </message>
       <message name="IDS_IPH_DOWNLOAD_PAGE_FOR_OFFLINE_USAGE_TEXT" desc="The in-product-help message after a successful navigation prompting user to download the pages to view offline.">
         Download pages to use them offline

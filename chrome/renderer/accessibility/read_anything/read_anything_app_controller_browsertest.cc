@@ -15,6 +15,7 @@
 #include "base/memory/raw_ptr.h"
 #include "base/path_service.h"
 #include "base/strings/string_number_conversions.h"
+#include "base/test/gtest_util.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/scoped_feature_list.h"
 #include "build/build_config.h"
@@ -29,6 +30,7 @@
 #include "content/public/renderer/render_frame.h"
 #include "services/metrics/public/cpp/ukm_source_id.h"
 #include "services/strings/grit/services_strings.h"
+#include "third_party/blink/public/platform/scheduler/web_agent_group_scheduler.h"
 #include "third_party/blink/public/web/web_local_frame.h"
 #include "ui/accessibility/accessibility_features.h"
 #include "ui/accessibility/ax_enums.mojom-shared.h"
@@ -40,6 +42,7 @@
 #include "ui/accessibility/ax_tree_id.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
+#include "v8/include/v8-context.h"
 
 namespace {
 
@@ -855,6 +858,16 @@ TEST_F(ReadAnythingAppControllerTest, OnSpeechRateChange) {
 
   EXPECT_CALL(page_handler_, OnSpeechRateChange(expected_rate)).Times(1);
   ASSERT_EQ(read_aloud_model().speech_rate(), expected_rate);
+}
+
+TEST_F(ReadAnythingAppControllerTest, IsImprovedReadAloudEnabled) {
+  scoped_feature_list_.Reset();
+  scoped_feature_list_.InitAndEnableFeature(features::kImprovedReadAloud);
+  EXPECT_TRUE(controller().IsImprovedReadAloudEnabled());
+
+  scoped_feature_list_.Reset();
+  scoped_feature_list_.InitAndDisableFeature(features::kImprovedReadAloud);
+  EXPECT_FALSE(controller().IsImprovedReadAloudEnabled());
 }
 
 TEST_F(ReadAnythingAppControllerTest, OnLanguagePrefChange) {
@@ -2432,6 +2445,27 @@ TEST_F(ReadAnythingAppControllerTest, OnLinkClicked) {
   Mock::VerifyAndClearExpectations(distiller_);
 }
 
+TEST_F(ReadAnythingAppControllerTest, GetImageBitmap_ValidNode) {
+  ui::AXNodeData node;
+  node.id = 2;
+  node.role = ax::mojom::Role::kImage;
+  node.relative_bounds.bounds = gfx::RectF(0, 0, 100, 100);
+  SendUpdateWithNodes({std::move(node)});
+
+  SkBitmap bitmap;
+  bitmap.allocN32Pixels(10, 10);
+  controller().OnImageDataDownloaded(tree_id_, 2, bitmap);
+
+  v8::Isolate* isolate = GetMainFrame()->GetAgentGroupScheduler()->Isolate();
+  v8::HandleScope handle_scope(isolate);
+  v8::Local<v8::Context> context = GetMainFrame()->MainWorldScriptContext();
+  v8::Context::Scope context_scope(context);
+
+  v8::Local<v8::Value> result = controller().GetImageBitmap(2);
+  EXPECT_FALSE(result->IsUndefined());
+  EXPECT_TRUE(result->IsObject());
+}
+
 TEST_F(ReadAnythingAppControllerTest, RequestImageData) {
   base::test::ScopedFeatureList scoped_feature_list;
   scoped_feature_list.InitWithFeatures(
@@ -2583,6 +2617,16 @@ TEST_F(ReadAnythingAppControllerTest, OnCollapseSelection) {
   EXPECT_CALL(page_handler_, OnCollapseSelection()).Times(1);
   controller().OnCollapseSelection();
   Mock::VerifyAndClearExpectations(distiller_);
+}
+
+TEST_F(ReadAnythingAppControllerTest,
+       OnCollapseSelection_IncrementsModelCounter) {
+  ASSERT_EQ(model().unprocessed_selections_from_reading_mode(), 0);
+
+  EXPECT_CALL(page_handler_, OnCollapseSelection()).Times(1);
+  controller().OnCollapseSelection();
+
+  EXPECT_EQ(model().unprocessed_selections_from_reading_mode(), 1);
 }
 
 TEST_F(ReadAnythingAppControllerTest,
@@ -3330,6 +3374,14 @@ TEST_F(ReadAnythingAppControllerImmersiveTest,
       .Times(1);
   Distill();
   page_handler_.FlushForTesting();
+}
+
+TEST_F(ReadAnythingAppControllerImmersiveTest,
+       ReadingModeHidden_UpdateProcessingPaused) {
+  // Hide reading mode
+  controller().OnGetPresentationState(
+      read_anything::mojom::ReadAnythingPresentationState::kInactive);
+  EXPECT_TRUE(controller().IsUpdateProcessingPaused());
 }
 
 TEST_F(ReadAnythingAppControllerImmersiveTest,

@@ -7,6 +7,7 @@
 #import <PDFKit/PDFKit.h>
 
 #import <memory>
+#import <optional>
 #import <queue>
 #import <set>
 #import <unordered_map>
@@ -56,6 +57,7 @@
 #import "ios/chrome/browser/composebox/coordinator/composebox_constants.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_url_loader.h"
 #import "ios/chrome/browser/composebox/debugger/composebox_debugger_logger.h"
+#import "ios/chrome/browser/composebox/public/composebox_attachment_option.h"
 #import "ios/chrome/browser/composebox/public/composebox_constants.h"
 #import "ios/chrome/browser/composebox/public/composebox_input_plate_controls.h"
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
@@ -63,7 +65,8 @@
 #import "ios/chrome/browser/composebox/ui/composebox_input_item.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item_collection.h"
 #import "ios/chrome/browser/composebox/ui/composebox_metrics_recorder.h"
-#import "ios/chrome/browser/composebox/ui/composebox_server_strings.h"
+#import "ios/chrome/browser/composebox/ui/composebox_strings.h"
+#import "ios/chrome/browser/composebox/ui/composebox_ui_input_state.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
 #import "ios/chrome/browser/intelligence/persist_tab_context/model/persist_tab_context_browser_agent.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
@@ -79,6 +82,7 @@
 #import "ios/chrome/browser/shared/public/commands/scene_commands.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/public/features/system_flags.h"
+#import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
@@ -128,47 +132,49 @@ ComposeboxModelOption ModelOptionForModelMode(omnibox::ModelMode model_mode) {
 }
 
 // Returns the input plate control for the given tool mode.
-ComposeboxInputPlateControls InputPlateControlForToolMode(
-    omnibox::ToolMode tool_mode) {
+std::optional<ComposeboxMode> ModeForToolMode(omnibox::ToolMode tool_mode) {
   switch (tool_mode) {
     case omnibox::ToolMode::TOOL_MODE_CANVAS:
-      return ComposeboxInputPlateControls::kCanvas;
+      return ComposeboxMode::kCanvas;
     case omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH:
-      return ComposeboxInputPlateControls::kDeepSearch;
+      return ComposeboxMode::kDeepSearch;
     case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN:
     case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD:
-      return ComposeboxInputPlateControls::kCreateImage;
-    case omnibox::ToolMode::TOOL_MODE_UNSPECIFIED:
+    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_SELFIE:
+      return ComposeboxMode::kImageGeneration;
+    case omnibox::ToolMode::TOOL_MODE_AIM:
+      return ComposeboxMode::kAIM;
     default:
-      return ComposeboxInputPlateControls::kNone;
+      return std::nullopt;
   }
 }
 
 // Returns the server strings object from a given input state.
-ComposeboxServerStrings* ServerStringsFromInputState(
+ComposeboxStrings* ServerStringsFromInputState(
     const contextual_search::InputState& input_state) {
-  std::unordered_map<ComposeboxInputPlateControls,
-                     ComposeboxServerStringBundle*>
-      tool_mapping;
+  std::unordered_map<ComposeboxMode, ComposeboxStringBundle*> tool_mapping;
   for (const omnibox::ToolConfig& tool_config : input_state.tool_configs) {
     NSString* menuLabel = base::SysUTF8ToNSString(tool_config.menu_label());
     NSString* chipLabel = base::SysUTF8ToNSString(tool_config.chip_label());
     NSString* hintText = base::SysUTF8ToNSString(tool_config.hint_text());
-    tool_mapping[InputPlateControlForToolMode(tool_config.tool())] =
-        [[ComposeboxServerStringBundle alloc] initWithMenuLabel:menuLabel
-                                                      chipLabel:chipLabel
-                                                       hintText:hintText];
+    std::optional<ComposeboxMode> mode = ModeForToolMode(tool_config.tool());
+    if (mode) {
+      tool_mapping[*mode] =
+          [[ComposeboxStringBundle alloc] initWithMenuLabel:menuLabel
+                                                  chipLabel:chipLabel
+                                                   hintText:hintText];
+    }
   }
 
-  std::unordered_map<ComposeboxModelOption, ComposeboxServerStringBundle*>
+  std::unordered_map<ComposeboxModelOption, ComposeboxStringBundle*>
       model_mapping;
   for (const omnibox::ModelConfig& model_config : input_state.model_configs) {
     NSString* menuLabel = base::SysUTF8ToNSString(model_config.menu_label());
     NSString* hintText = base::SysUTF8ToNSString(model_config.hint_text());
     model_mapping[ModelOptionForModelMode(model_config.model())] =
-        [[ComposeboxServerStringBundle alloc] initWithMenuLabel:menuLabel
-                                                      chipLabel:nil
-                                                       hintText:hintText];
+        [[ComposeboxStringBundle alloc] initWithMenuLabel:menuLabel
+                                                chipLabel:nil
+                                                 hintText:hintText];
   }
 
   NSString* modelSectionHeader = @"";
@@ -184,11 +190,10 @@ ComposeboxServerStrings* ServerStringsFromInputState(
         base::SysUTF8ToNSString(input_state.tools_section_config->header());
   }
 
-  return
-      [[ComposeboxServerStrings alloc] initWithToolMapping:tool_mapping
-                                              modelMapping:model_mapping
-                                        modelSectionHeader:modelSectionHeader
-                                        toolsSectionHeader:toolsSectionHeader];
+  return [[ComposeboxStrings alloc] initWithToolMapping:tool_mapping
+                                           modelMapping:model_mapping
+                                     modelSectionHeader:modelSectionHeader
+                                     toolsSectionHeader:toolsSectionHeader];
 }
 
 // Reads data from a file URL. Runs on a background thread.
@@ -339,6 +344,15 @@ class QueryContextualizerDelegateBridge
     return [mediator_ GetOrCreateSessionHandleForQueryContextualizer];
   }
 
+  void GetRelevantTabsForQuery(
+      const std::string& query_text,
+      const std::vector<GURL>& attached_context_urls,
+      base::OnceCallback<void(
+          std::vector<contextual_tasks::QueryContextualizer::TabId>)> callback)
+      override {
+    std::move(callback).Run({});
+  }
+
  private:
   __weak ComposeboxInputPlateMediator* mediator_;
 };
@@ -374,6 +388,11 @@ class QueryContextualizerDelegateBridge
   raw_ptr<ProfileIOS> _profile;
   // Browser agent to manage the cobrowse context.
   raw_ptr<CobrowseBrowserAgent> _cobrowseBrowserAgent;
+
+  // Cached server strings.
+  ComposeboxStrings* _strings;
+  // Cached current tab favicon.
+  UIImage* _currentTabFavicon;
 
   // Stores the page context wrappers for the duration of the APC retrieval.
   std::unordered_map<web::WebStateID, PageContextWrapper*> _pageContextWrappers;
@@ -455,6 +474,9 @@ class QueryContextualizerDelegateBridge
                          entrypoint:(ComposeboxEntrypoint)entrypoint {
   self = [super init];
   if (self) {
+    // Initialize with local fallback strings. These will be overwritten
+    // when server-side strings become available via the input state model.
+    _strings = [ComposeboxStrings localFallbackStrings];
     _entrypoint = entrypoint;
     _browserCoordinatorHandler = browserCoordinatorHandler;
     _sceneHandler = sceneHandler;
@@ -555,9 +577,7 @@ class QueryContextualizerDelegateBridge
     return;
   }
 
-  BOOL canAttachCurrentTab = [self updateOptionToAttachCurrentTab];
-
-  if (canAttachCurrentTab) {
+  if ([self canAttachActiveTab]) {
     [self extractFaviconForCurrentTab];
   }
 
@@ -703,7 +723,8 @@ class QueryContextualizerDelegateBridge
             [](base::OnceClosure closure,
                base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
                    ignored_handle) { std::move(closure).Run(); },
-            std::move(createSearchUrlCallback)));
+            std::move(createSearchUrlCallback)),
+        /*enable_smart_tab_selection=*/false);
   } else {
     std::move(createSearchUrlCallback).Run();
   }
@@ -858,7 +879,7 @@ class QueryContextualizerDelegateBridge
 
   _modelOption = modelOption;
 
-  [self updateModel];
+  [self commitUIUpdates];
 
   if (_inputStateModel) {
     switch (modelOption) {
@@ -923,8 +944,14 @@ class QueryContextualizerDelegateBridge
 
   contextual_search::ContextualSearchSessionHandle* sessionHandle =
       _contextualSearchSession.get();
+  const signin::IdentityManager* identity_manager =
+      _profile ? IdentityManagerFactory::GetForProfile(_profile) : nullptr;
+  BOOL has_primary_account =
+      identity_manager &&
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
   _inputStateModel = std::make_unique<contextual_search::InputStateModel>(
-      *sessionHandle, *searchboxConfig, GURL(), _isIncognito);
+      *sessionHandle, *searchboxConfig, GURL(), _isIncognito,
+      has_primary_account);
 
   if (needPreselection) {
     // Try maintaining the same options if there was no change in their
@@ -996,8 +1023,6 @@ class QueryContextualizerDelegateBridge
   }
   _previousMode = mode;
 
-  [self updateMode];
-
   [self applyStateForMode:mode];
 
   [self updateModelOnModeChange];
@@ -1005,7 +1030,7 @@ class QueryContextualizerDelegateBridge
   [self reloadSuggestions];
 }
 
-#pragma mark - ComposeboxTabPickerSelectionDelegate
+#pragma mark - TabPickerSelectionDelegate
 
 - (std::set<web::WebStateID>)allAttachedWebStateIDs {
   std::set<web::WebStateID> webStateIDs;
@@ -1253,13 +1278,18 @@ class QueryContextualizerDelegateBridge
 
   auto faviconLoadedBlock = ^(FaviconAttributes* attributes, bool cached) {
     if (attributes.faviconImage) {
-      [weakSelf.consumer setCurrentTabFavicon:attributes.faviconImage];
+      [weakSelf setCachedCurrentTabFavicon:attributes.faviconImage];
     }
   };
 
   _faviconLoader->FaviconForPageUrl(
       webState->GetVisibleURL(), gfx::kFaviconSize, gfx::kFaviconSize,
       /*fallback_to_google_server=*/true, faviconLoadedBlock);
+}
+
+- (void)setCachedCurrentTabFavicon:(UIImage*)image {
+  _currentTabFavicon = image;
+  [self commitUIUpdates];
 }
 
 - (void)attachCurrentTabContent {
@@ -2532,6 +2562,20 @@ class QueryContextualizerDelegateBridge
   [self removeItem:item];
 }
 
+/// Updates the consumer items and maybe trigger AIM.
+- (void)updateConsumerItems {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  [self.consumer setItems:_items.containedItems];
+
+  // AI mode is implicitly enabled by items attachment.
+  BOOL shouldSwitchToAIM = !_items.empty && [_modeHolder isRegularSearch];
+  if (shouldSwitchToAIM) {
+    [self.metricsRecorder
+        recordAiModeActivationSource:AiModeActivationSource::kImplicit];
+    _modeHolder.mode = ComposeboxMode::kAIM;
+  }
+}
+
 - (void)updateButtonsVisibility {
   using enum ComposeboxInputPlateControls;
   BOOL compactMode = [self compactModeRequired];
@@ -2621,95 +2665,6 @@ class QueryContextualizerDelegateBridge
   [self.consumer updateVisibleControls:visibleControls];
 }
 
-- (BOOL)updateOptionToAttachCurrentTab {
-  BOOL canAttachTab = [self canAttachActiveTab];
-
-  [_consumer hideAttachCurrentTabAction:!canAttachTab];
-
-  return canAttachTab;
-}
-
-/// Updates the consumer actions enabled/disable state.
-- (void)updateConsumerActionsState {
-  // AIM action.
-  [self.consumer hideAIMActions:_entrypoint == ComposeboxEntrypoint::kCobrowse];
-
-  // Image generation action.
-  [self.consumer disableCreateImageActions:[self imageToolDisabled]];
-  [self.consumer hideCreateImageActions:![self imageToolAllowed]];
-
-  // Canvas action.
-  [self.consumer disableCanvasActions:[self canvasToolDisabled]];
-  [self.consumer hideCanvasActions:![self canvasToolAllowed]];
-
-  // Deep search action.
-  [self.consumer disableDeepSearchActions:[self deepSearchToolDisabled]];
-  [self.consumer hideDeepSearchActions:![self deepSearchToolAllowed]];
-
-  // Model picker.
-  // TODO(crbug.com/477888273): Handle attachment incompatibility based on
-  // server-side logic.
-  [self.consumer allowModelPicker:ShowComposeboxAdditionalAdvancedTools()];
-  [self.consumer setAllowedModels:[self allowedModels]];
-  [self.consumer setDisabledModels:[self disabledModels]];
-
-  // Add tabs action.
-  [self.consumer disableAttachTabActions:[self tabAttachmentDisabled]];
-  [self.consumer hideAttachTabActions:![self tabAttachmentAllowed]];
-
-  // Add files action.
-  [self.consumer disableAttachFileActions:[self fileAttachmentDisabled]];
-  [self.consumer hideAttachFileActions:![self fileAttachmentAllowed]];
-
-  // Add pictures from user gallery action.
-  [self.consumer disableGalleryActions:[self imageAttachmentDisabled]];
-  [self.consumer hideGalleryActions:![self imageAttachmentAllowed]];
-
-  // Add picture from camera action.
-  [self.consumer disableCameraActions:[self imageAttachmentDisabled]];
-  [self.consumer hideCameraActions:![self imageAttachmentAllowed]];
-
-  // Set the number of attachments that can still be added.
-  [self.consumer
-      setRemainingAttachmentCapacity:[self remainingAttachmentCapacity]];
-}
-
-/// Updates the consumer items and maybe trigger AIM.
-- (void)updateConsumerItems {
-  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-  [self.consumer setItems:_items.containedItems];
-  [self updateOptionToAttachCurrentTab];
-
-  // AI mode is implicitly enabled by items attachment.
-  BOOL shouldSwitchToAIM = !_items.empty && [_modeHolder isRegularSearch];
-  if (shouldSwitchToAIM) {
-    [self.metricsRecorder
-        recordAiModeActivationSource:AiModeActivationSource::kImplicit];
-    _modeHolder.mode = ComposeboxMode::kAIM;
-  }
-}
-
-// Updates the UI for the visible mode.
-- (void)updateMode {
-  auto mode = _modeHolder.mode;
-  [self.consumer setAIModeEnabled:mode == ComposeboxMode::kAIM];
-  [self.consumer
-      setImageGenerationEnabled:mode == ComposeboxMode::kImageGeneration];
-  [self.consumer setCanvasEnabled:mode == ComposeboxMode::kCanvas];
-  [self.consumer setDeepSearchEnabled:mode == ComposeboxMode::kDeepSearch];
-}
-
-// Updates the UI for the current model.
-- (void)updateModel {
-  // In regular
-  if (_modeHolder.isRegularSearch) {
-    [_consumer setModelOption:ComposeboxModelOption::kNone];
-    return;
-  }
-
-  [_consumer setModelOption:_modelOption];
-}
-
 /// Updates the consumer whether to show in compact mode.
 - (void)updateCompactMode {
   BOOL compact = [self compactModeRequired];
@@ -2722,22 +2677,96 @@ class QueryContextualizerDelegateBridge
                                  : composebox_debugger::event::Composebox::
                                        kCompactModeDisabled]];
   }
-
   [self.consumer setCompact:compact];
   _compact = compact;
+}
+
+/// Updates the consumer UI input state.
+- (void)updateUIInputState {
+  ComposeboxUIInputState* state = [[ComposeboxUIInputState alloc] init];
+
+  state.currentTabFavicon = _currentTabFavicon;
+  state.remainingAttachmentCapacity = [self remainingAttachmentCapacity];
+  state.allowModelPicker = ShowComposeboxAdditionalAdvancedTools();
+  state.activeTool = _modeHolder.mode;
+  state.activeModel =
+      _modeHolder.isRegularSearch ? ComposeboxModelOption::kNone : _modelOption;
+
+  state.strings = _strings;
+
+  // Populate allowed/disabled attachments
+  std::unordered_set<ComposeboxAttachmentOption> allowedAttachments;
+  std::unordered_set<ComposeboxAttachmentOption> disabledAttachments;
+
+  if ([self canAttachActiveTab] && [self tabAttachmentAllowed]) {
+    allowedAttachments.insert(ComposeboxAttachmentOption::kCurrentTab);
+  }
+  if ([self tabAttachmentAllowed]) {
+    allowedAttachments.insert(ComposeboxAttachmentOption::kTab);
+  }
+  if ([self tabAttachmentDisabled]) {
+    disabledAttachments.insert(ComposeboxAttachmentOption::kTab);
+  }
+  if ([self fileAttachmentAllowed]) {
+    allowedAttachments.insert(ComposeboxAttachmentOption::kFile);
+  }
+  if ([self fileAttachmentDisabled]) {
+    disabledAttachments.insert(ComposeboxAttachmentOption::kFile);
+  }
+  if ([self imageAttachmentAllowed]) {
+    allowedAttachments.insert(ComposeboxAttachmentOption::kGallery);
+    allowedAttachments.insert(ComposeboxAttachmentOption::kCamera);
+  }
+  if ([self imageAttachmentDisabled]) {
+    disabledAttachments.insert(ComposeboxAttachmentOption::kGallery);
+    disabledAttachments.insert(ComposeboxAttachmentOption::kCamera);
+  }
+
+  state.allowedAttachments = allowedAttachments;
+  state.disabledAttachments = disabledAttachments;
+
+  // Populate allowed/disabled tools
+  std::unordered_set<ComposeboxMode> allowedTools;
+  std::unordered_set<ComposeboxMode> disabledTools;
+
+  if ([self imageToolAllowed]) {
+    allowedTools.insert(ComposeboxMode::kImageGeneration);
+  }
+  if ([self imageToolDisabled]) {
+    disabledTools.insert(ComposeboxMode::kImageGeneration);
+  }
+  if ([self canvasToolAllowed]) {
+    allowedTools.insert(ComposeboxMode::kCanvas);
+  }
+  if ([self canvasToolDisabled]) {
+    disabledTools.insert(ComposeboxMode::kCanvas);
+  }
+  if ([self deepSearchToolAllowed]) {
+    allowedTools.insert(ComposeboxMode::kDeepSearch);
+  }
+  if ([self deepSearchToolDisabled]) {
+    disabledTools.insert(ComposeboxMode::kDeepSearch);
+  }
+  if (_entrypoint != ComposeboxEntrypoint::kCobrowse) {
+    allowedTools.insert(ComposeboxMode::kAIM);
+  }
+
+  state.allowedTools = allowedTools;
+  state.disabledTools = disabledTools;
+
+  state.allowedModels = [self allowedModels];
+  state.disabledModels = [self disabledModels];
+
+  [self.consumer setUIInputState:state];
 }
 
 // Pushes the batched UI updates to the consumer.
 - (void)commitUIUpdates {
   _isUpdatingCompactMode = YES;
 
-  // Update button visibility first, as the compact state change is asynchronous
-  // and could conflict.
   [self updateButtonsVisibility];
-  [self updateConsumerActionsState];
   [self updateCompactMode];
-  [self updateModel];
-  [self updateMode];
+  [self updateUIInputState];
 
   _isUpdatingCompactMode = NO;
 }
@@ -2769,8 +2798,13 @@ class QueryContextualizerDelegateBridge
       _aimEligibilityService->GetSearchboxConfig();
   contextual_search::ContextualSearchSessionHandle* sessionHandle =
       _contextualSearchSession.get();
+  const signin::IdentityManager* identity_manager =
+      _profile ? IdentityManagerFactory::GetForProfile(_profile) : nullptr;
+  BOOL has_primary_account =
+      identity_manager &&
+      identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
   _inputStateModel = std::make_unique<contextual_search::InputStateModel>(
-      *sessionHandle, *config, GURL(), _isIncognito);
+      *sessionHandle, *config, GURL(), _isIncognito, has_primary_account);
 }
 
 - (void)preselectPreferencesIfAvailable:
@@ -2837,9 +2871,7 @@ class QueryContextualizerDelegateBridge
   _inputState = inputState;
 
   if (EnableComposeboxServerSideState()) {
-    ComposeboxServerStrings* serverStrings =
-        ServerStringsFromInputState(inputState);
-    [self.consumer setServerStrings:serverStrings];
+    _strings = ServerStringsFromInputState(inputState);
   }
 
   [self changeModeForInputState:inputState];

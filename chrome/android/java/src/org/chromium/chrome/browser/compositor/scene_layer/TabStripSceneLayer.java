@@ -206,6 +206,7 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                             glicButtonVisible,
                             glicButton.getShouldApplyHoverBackground(),
                             glicButton.getTint(),
+                            layoutHelper.isGlicUIVisible(),
                             glicButton.getBackgroundTint(),
                             glicButton.getOpacity(),
                             glicButton.isKeyboardFocused(),
@@ -239,19 +240,23 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
         }
 
         TabStripSceneLayerJni.get()
-                .updateTabStripLeftFade(
+                .updateTabStripFade(
                         mNativePtr,
-                        layoutHelper.getLeftFadeDrawable(),
-                        layoutHelper.getLeftFadeOpacity(),
+                        /* isLeft= */ true,
                         layoutHelper.getBackgroundColor(),
+                        layoutHelper.getLeftFadeOpacity(),
+                        Math.round(layoutHelper.getLeftFadeGradientWidth() * mDpToPx),
+                        Math.round(layoutHelper.getLeftFadeOpaqueWidth() * mDpToPx),
                         leftPaddingPx);
 
         TabStripSceneLayerJni.get()
-                .updateTabStripRightFade(
+                .updateTabStripFade(
                         mNativePtr,
-                        layoutHelper.getRightFadeDrawable(),
-                        layoutHelper.getRightFadeOpacity(),
+                        /* isLeft= */ false,
                         layoutHelper.getBackgroundColor(),
+                        layoutHelper.getRightFadeOpacity(),
+                        Math.round(layoutHelper.getRightFadeGradientWidth() * mDpToPx),
+                        Math.round(layoutHelper.getRightFadeOpaqueWidth() * mDpToPx),
                         rightPaddingPx);
     }
 
@@ -283,8 +288,6 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
             @ColorInt int closeButtonTint = closeButton.getTint();
 
             boolean shouldShowIndicator = st.shouldShowIndicator();
-            @DrawableRes int indicatorRes = st.getIndicatorRes();
-            @ColorInt int indicatorTint = st.getIndicatorTint();
 
             boolean isPinned = st.getIsPinned();
             float widthToHideTabTitle =
@@ -314,12 +317,15 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                             st.getClosePressed(),
                             st.shouldHideFavicon(shouldShowIndicator),
                             shouldShowIndicator,
-                            indicatorRes,
-                            indicatorTint,
+                            st.getIndicatorRes(),
+                            st.getIndicatorTint(),
                             Math.round(st.getMediaIndicatorWidth() * mDpToPx),
                             Math.round(st.getMediaIndicatorToCloseButtonSpacing() * mDpToPx),
                             Math.round(st.getMediaIndicatorInternalPadding() * mDpToPx),
                             Math.round(st.getTitleToMediaIndicatorSpacing() * mDpToPx),
+                            st.getIndicatorOverlayRes(),
+                            st.getTabIndicatorOverlayRotation(),
+                            Math.round(st.getTabIndicatorOverlayWidth() * mDpToPx),
                             Math.round(layoutHelper.getWidth() * mDpToPx),
                             Math.round(st.getDrawX() * mDpToPx),
                             Math.round(st.getDrawY() * mDpToPx),
@@ -458,6 +464,7 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                 boolean visible,
                 boolean isHovered,
                 @ColorInt int tint,
+                boolean shouldTint,
                 @ColorInt int backgroundTint,
                 float buttonAlpha,
                 boolean isKeyboardFocused,
@@ -483,19 +490,14 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                 @DrawableRes int keyboardFocusRingResourceId,
                 @ColorInt int keyboardFocusRingColor);
 
-        void updateTabStripLeftFade(
+        void updateTabStripFade(
                 long nativeTabStripSceneLayer,
-                @DrawableRes int resourceId,
+                boolean isLeft,
+                @ColorInt int fadeColor,
                 float opacity,
-                @ColorInt int leftFadeColor,
-                float leftPaddingPx);
-
-        void updateTabStripRightFade(
-                long nativeTabStripSceneLayer,
-                @DrawableRes int resourceId,
-                float opacity,
-                @ColorInt int rightFadeColor,
-                float rightPaddingPx);
+                float gradientWidthPx,
+                float opaqueWidthPx,
+                float paddingPx);
 
         void putStripTabLayer(
                 long nativeTabStripSceneLayer,
@@ -523,6 +525,9 @@ public class TabStripSceneLayer extends SceneOverlayLayer {
                 float mediaIndicatorSpacing,
                 float mediaIndicatorInternalPadding,
                 float titleToMediaIndicatorSpacing,
+                @DrawableRes int tabIndicatorOverlayResourceId,
+                float tabIndicatorOverlayRotation,
+                float tabIndicatorOverlayWidth,
                 float toolbarWidth,
                 float x,
                 float y,

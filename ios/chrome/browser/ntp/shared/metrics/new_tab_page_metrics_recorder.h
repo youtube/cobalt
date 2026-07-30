@@ -99,8 +99,11 @@ enum class HomeCustomizationEntrypoint {
 // Logs a metric for the incognito button being tapped in the NTP.
 - (void)recordIncognitoTapped;
 
-// Logs a metric for the MIA entry point being tapped in the NTP.
-- (void)recordMIATapped;
+// Logs a metric for the AIM entry point being tapped in the NTP.
+- (void)recordAIMButtonTapped;
+
+// Logs a metric for the plus button being tapped in the NTP.
+- (void)recordPlusButtonTapped;
 
 // Logs the current customization state of the Magic Stack modules.
 - (void)

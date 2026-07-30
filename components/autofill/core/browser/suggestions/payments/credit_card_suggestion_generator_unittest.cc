@@ -4880,6 +4880,133 @@ TEST_P(SuggestionIphBubbleTest,
 #endif
 }
 
+// Params of DownstreamCardAwarenessIphTest:
+// -- `bool` is_downstream_card_awareness_iph_enabled: Indicates whether the
+// downstream IPH feature is enabled.
+// -- `CreditCard::CardCreationSource` enrollment_source: The source of the
+// card's enrollment.
+// -- `size_t` use_count: The number of times the card has been used.
+class DownstreamCardAwarenessIphTest
+    : public PaymentsSuggestionGeneratorTest,
+      public testing::WithParamInterface<
+          std::tuple<bool, CreditCard::CardCreationSource, size_t>> {
+ public:
+  DownstreamCardAwarenessIphTest() = default;
+
+  void SetUp() override {
+    PaymentsSuggestionGeneratorTest::SetUp();
+    if (is_downstream_card_awareness_iph_enabled()) {
+      scoped_feature_list_.InitAndEnableFeature(
+          features::kAutofillEnableDownstreamCardAwarenessIph);
+    } else {
+      scoped_feature_list_.InitAndDisableFeature(
+          features::kAutofillEnableDownstreamCardAwarenessIph);
+    }
+  }
+
+  bool is_downstream_card_awareness_iph_enabled() const {
+    return std::get<0>(GetParam());
+  }
+  CreditCard::CardCreationSource enrollment_source() const {
+    return std::get<1>(GetParam());
+  }
+  size_t use_count() const { return std::get<2>(GetParam()); }
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    PaymentsSuggestionGeneratorTest,
+    DownstreamCardAwarenessIphTest,
+    testing::Combine(
+        testing::Bool(),
+        testing::Values(
+            CreditCard::CardCreationSource::kCreationSourceUnspecified,
+            CreditCard::CardCreationSource::kCreationSourceChromePayments,
+            CreditCard::CardCreationSource::kCreationSourceNonChromePayments),
+        testing::Values(0, 1, 2)));
+
+// Verify that the downstream card awareness suggestion `feature` is set ONLY
+// when the feature flag is enabled, the card enrollment source is
+// `kCreationSourceNonChromePayments`, and the card has a `use_count` of 1.
+// Since `use_count` is initialized to 1, a value of 1 indicates that the card
+// has not yet been used.
+TEST_P(DownstreamCardAwarenessIphTest,
+       CreateCreditCardSuggestion_DownstreamCardAwarenessIph) {
+  CreditCard server_card = CreateServerCard();
+  server_card.set_card_creation_source(enrollment_source());
+  server_card.usage_history().set_use_count(use_count());
+
+  Suggestion card_number_field_suggestion = CreateCreditCardSuggestionForTest(
+      server_card, autofill_client(), CREDIT_CARD_NUMBER,
+      /*virtual_card_option=*/false,
+      /*card_linked_offer_available=*/false);
+
+  bool should_show_iph =
+      is_downstream_card_awareness_iph_enabled() &&
+      enrollment_source() ==
+          CreditCard::CardCreationSource::kCreationSourceNonChromePayments &&
+      use_count() == 1;
+
+  if (should_show_iph) {
+    EXPECT_EQ(card_number_field_suggestion.iph_metadata.feature,
+              &feature_engagement::kIPHAutofillDownstreamCardAwarenessFeature);
+  } else {
+    EXPECT_NE(card_number_field_suggestion.iph_metadata.feature,
+              &feature_engagement::kIPHAutofillDownstreamCardAwarenessFeature);
+  }
+}
+
+// Verify we correctly identify suggestions for externally-saved cards.
+TEST_P(DownstreamCardAwarenessIphTest, WithExternallySavedCard) {
+  CreditCard server_card = CreateServerCard();
+  server_card.set_card_creation_source(enrollment_source());
+  payments_data().AddServerCreditCard(server_card);
+
+  FormBundle form_bundle =
+      GetFormWithTypes({.fields = {{.role = CREDIT_CARD_NUMBER}}});
+  const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
+      form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
+      *form_bundle.trigger_autofill_field, autofill_client(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
+      AutofillMetrics::PaymentsSigninState::kUnknown,
+      /*exclude_virtual_cards=*/false);
+  const CreditCardSuggestionSummary summary =
+      credit_card_form_event_logger()
+          .GetCreditCardSuggestionSummaryForTesting();
+
+  EXPECT_EQ(
+      summary.with_externally_saved_card,
+      enrollment_source() ==
+          CreditCard::CardCreationSource::kCreationSourceNonChromePayments);
+}
+
+// Verify we correctly identify suggestions for never used cards.
+TEST_P(DownstreamCardAwarenessIphTest, WithNeverUsedCard) {
+  CreditCard server_card = CreateServerCard();
+  server_card.usage_history().set_use_count(use_count());
+  payments_data().AddServerCreditCard(server_card);
+
+  FormBundle form_bundle =
+      GetFormWithTypes({.fields = {{.role = CREDIT_CARD_NUMBER}}});
+  const std::vector<Suggestion> suggestions = GetSuggestionsForCreditCards(
+      form_bundle.form, *form_bundle.form_structure, form_bundle.trigger_field,
+      *form_bundle.trigger_autofill_field, autofill_client(),
+      /*four_digit_combinations_in_dom=*/{},
+      /*amount_extraction_manager=*/nullptr, /*bnpl_manager=*/nullptr,
+      credit_card_form_event_logger(),
+      AutofillMetrics::PaymentsSigninState::kUnknown,
+      /*exclude_virtual_cards=*/false);
+  const CreditCardSuggestionSummary summary =
+      credit_card_form_event_logger()
+          .GetCreditCardSuggestionSummaryForTesting();
+
+  EXPECT_EQ(summary.with_never_used_card, use_count() == 1);
+}
+
 // Params of GetFilteredCardsToSuggestTest:
 // -- FieldType get_trigger_field_type: Indicates triggered field type.
 class GetFilteredCardsToSuggestTest

@@ -53,6 +53,7 @@ import androidx.preference.PreferenceScreen;
 import androidx.test.espresso.intent.Intents;
 import androidx.test.espresso.matcher.ViewMatchers.Visibility;
 import androidx.test.filters.MediumTest;
+import androidx.test.filters.SmallTest;
 
 import org.hamcrest.Matchers;
 import org.junit.After;
@@ -68,6 +69,7 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.Callback;
+import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.CommandLineFlags;
 import org.chromium.base.test.util.Criteria;
@@ -90,6 +92,8 @@ import org.chromium.chrome.browser.autofill.editors.address.AddressEditorMediato
 import org.chromium.chrome.browser.autofill.editors.address.EditorDialogView;
 import org.chromium.chrome.browser.autofill.options.AutofillOptionsFragment;
 import org.chromium.chrome.browser.device_reauth.ReauthenticatorBridge;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncher;
+import org.chromium.chrome.browser.feedback.HelpAndFeedbackLauncherFactory;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.flags.ChromeSwitches;
 import org.chromium.chrome.browser.settings.SettingsActivity;
@@ -118,6 +122,7 @@ import org.chromium.ui.KeyboardVisibilityDelegate;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 import org.chromium.ui.modaldialog.ModalDialogProperties;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.ui.test.util.MockitoHelper;
 
 import java.time.LocalDate;
 import java.util.Arrays;
@@ -214,6 +219,7 @@ public class AutofillProfilesFragmentTest {
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
+    @Mock private HelpAndFeedbackLauncher mHelpAndFeedbackLauncher;
     @Mock private IdentityServicesProvider mIdentityServicesProvider;
     @Mock private IdentityManager mIdentityManagerMock;
     @Mock private SyncService mSyncService;
@@ -283,6 +289,7 @@ public class AutofillProfilesFragmentTest {
                     AutofillClientProviderUtils.setAutofillAvailabilityToUseForTesting(
                             AndroidAutofillAvailabilityStatus.SETTING_TURNED_OFF);
                 });
+        HelpAndFeedbackLauncherFactory.setInstanceForTesting(mHelpAndFeedbackLauncher);
     }
 
     @After
@@ -1647,7 +1654,7 @@ public class AutofillProfilesFragmentTest {
 
         Context context = sSettingsActivityTestRule.getFragment().getContext();
         String expectedNoticeText =
-                context.getString(R.string.autofill_ai_local_entity_editor_source_notice);
+                context.getString(R.string.autofill_ai_save_or_update_local_entity_source_notice);
         onView(withText(expectedNoticeText)).check(matches(isDisplayed()));
     }
 
@@ -1848,9 +1855,7 @@ public class AutofillProfilesFragmentTest {
 
     @Test
     @MediumTest
-    @EnableFeatures({
-        ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID
-    })
+    @EnableFeatures({ChromeFeatureList.YOUR_SAVED_INFO_SETTINGS_PAGE_ANDROID})
     public void testTitle_HoTEnabled_showsContactInfo() throws Exception {
         sSettingsActivityTestRule.startSettingsActivity();
 
@@ -1902,7 +1907,7 @@ public class AutofillProfilesFragmentTest {
 
         // Click entity and capture reauth callback.
         ThreadUtils.runOnUiThreadBlocking(vehicleEntity::performClick);
-        ArgumentCaptor<Callback<Boolean>> callbackCaptor = ArgumentCaptor.forClass(Callback.class);
+        ArgumentCaptor<Callback<Boolean>> callbackCaptor = MockitoHelper.callbackCaptor();
         verify(mMockReauthenticatorBridge).reauthenticate(callbackCaptor.capture());
 
         // Simulate successful reauth.
@@ -1951,7 +1956,7 @@ public class AutofillProfilesFragmentTest {
 
         // Click entity and capture reauth callback.
         ThreadUtils.runOnUiThreadBlocking(vehicleEntity::performClick);
-        ArgumentCaptor<Callback<Boolean>> callbackCaptor = ArgumentCaptor.forClass(Callback.class);
+        ArgumentCaptor<Callback<Boolean>> callbackCaptor = MockitoHelper.callbackCaptor();
         verify(mMockReauthenticatorBridge).reauthenticate(callbackCaptor.capture());
 
         // Simulate failed reauth.
@@ -2236,5 +2241,18 @@ public class AutofillProfilesFragmentTest {
                     Criteria.checkThat(addVehicle, Matchers.notNullValue());
                     Criteria.checkThat(addVehicle.isEnabled(), Matchers.is(false));
                 });
+    }
+
+    @Test
+    @SmallTest
+    public void testHelpMenuTriggersAutofillHelp() {
+        onView(withId(R.id.menu_id_targeted_help)).perform(click());
+
+        verify(mHelpAndFeedbackLauncher)
+                .show(
+                        sSettingsActivityTestRule.getActivity(),
+                        ContextUtils.getApplicationContext()
+                                .getString(org.chromium.chrome.R.string.help_context_autofill),
+                        /* url= */ null);
     }
 }

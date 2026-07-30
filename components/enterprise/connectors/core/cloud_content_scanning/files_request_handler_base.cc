@@ -7,6 +7,7 @@
 #include "base/metrics/histogram_functions.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/deep_scanning_utils.h"
 #include "components/enterprise/connectors/core/common.h"
+#include "components/enterprise/connectors/core/features.h"
 #include "components/enterprise/connectors/core/reporting_event_router.h"
 
 #if !BUILDFLAG(IS_IOS) && !BUILDFLAG(IS_FUCHSIA)
@@ -87,7 +88,31 @@ FilesRequestHandlerBase::FilesRequestHandlerBase(
   }
 }
 
-FilesRequestHandlerBase::~FilesRequestHandlerBase() = default;
+FilesRequestHandlerBase::~FilesRequestHandlerBase() {
+  if (!delegate_) {
+    return;
+  }
+
+  delegate_->MaybeCancelAndReport();
+}
+
+void FilesRequestHandlerBase::ReportCanceledFile(size_t index) {
+  if (!base::FeatureList::IsEnabled(
+          enterprise_connectors::kEnableCancelUploadOnContentAnalysis)) {
+    return;
+  }
+
+  const FileInfo& file_info = delegate_->GetFileInfo(index);
+  MaybeReportDeepScanningVerdict(
+      delegate_->GetReportingEventRouter(), content_analysis_info_.get(),
+      delegate_->GetSource(), delegate_->GetDestination(),
+      delegate_->GetPath(index).AsUTF8Unsafe(), file_info.sha256_or_cb,
+      file_info.mime_type, AccessPointToTriggerString(access_point_),
+      content_transfer_method_,
+      content_analysis_info_->GetContentAreaAccountEmail(), file_info.size,
+      ScanRequestUploadResult::kUserCancelled,
+      enterprise_connectors::ContentAnalysisResponse(), EventResult::CANCELLED);
+}
 
 void FilesRequestHandlerBase::ReportWarningBypass(
     std::optional<std::u16string> user_justification) {
@@ -101,6 +126,11 @@ base::WeakPtr<FilesRequestHandlerBase> FilesRequestHandlerBase::GetWeakPtr() {
 }
 
 bool FilesRequestHandlerBase::UploadDataImpl() {
+  size_t file_count = delegate_->GetFileCount();
+  IncrementCrashKey(ScanningCrashKey::PENDING_FILE_UPLOADS, file_count);
+  if (file_count != 0) {
+    IncrementCrashKey(ScanningCrashKey::TOTAL_FILE_UPLOADS, file_count);
+  }
   return delegate_->UploadDataImpl();
 }
 
@@ -109,6 +139,8 @@ FileAnalysisRequestBase* FilesRequestHandlerBase::PrepareFileRequest(
   auto request = delegate_->CreateFileRequest(
       index, content_analysis_info_->settings(),
       base::BindOnce(&FilesRequestHandlerBase::FileRequestCallback,
+                     GetWeakPtr(), index),
+      base::BindOnce(&FilesRequestHandlerBase::FileRequestStartCallback,
                      GetWeakPtr(), index));
 
   FileAnalysisRequestBase* request_raw = request.get();
@@ -130,7 +162,7 @@ void FilesRequestHandlerBase::OnGotFileInfo(
     size_t index,
     ScanRequestUploadResult result,
     BinaryUploadRequest::Data data) {
-  delegate_->UpdateFileInfo(index, data);
+  delegate_->UpdateFileInfo(index, data, request.get());
 
   const auto& analysis_settings = content_analysis_info_->settings();
   bool is_cloud = analysis_settings.cloud_or_local_settings.is_cloud_analysis();
@@ -219,7 +251,6 @@ void FilesRequestHandlerBase::FileRequestCallback(
     throttled_ = true;
   }
 
-  // TODO(crbug.com/498649243): Add UMA recording once the refactoring is done.
   const auto& analysis_settings = content_analysis_info_->settings();
   RequestHandlerResult request_handler_result =
       CalculateRequestHandlerResult(analysis_settings, upload_result, response);
@@ -230,6 +261,17 @@ void FilesRequestHandlerBase::FileRequestCallback(
   bool result_is_warning = request_handler_result.final_result ==
                            FinalContentAnalysisResult::WARNING;
   const FileInfo& file_info = delegate_->GetFileInfo(index);
+  base::TimeTicks start_timestamp = delegate_->GetFileScanStartTime(index);
+
+  if (start_timestamp == base::TimeTicks::Min()) {
+    start_timestamp = upload_start_time_;
+  }
+
+  RecordDeepScanMetrics(
+      analysis_settings.cloud_or_local_settings.is_cloud_analysis(),
+      access_point_, base::TimeTicks::Now() - start_timestamp, file_info.size,
+      upload_result, response);
+
   MaybeReportDeepScanningVerdict(
       delegate_->GetReportingEventRouter(), content_analysis_info_.get(),
       delegate_->GetSource(), delegate_->GetDestination(),
@@ -240,10 +282,17 @@ void FilesRequestHandlerBase::FileRequestCallback(
       upload_result, response,
       CalculateEventResult(analysis_settings, request_handler_result.complies,
                            result_is_warning));
+  delegate_->MarkFileAsReported(index);
 
-  // TODO(crbug.com/498649243): Decrement the crash key once related free
-  // functions are moved from //chrome to //components.
+  DecrementCrashKey(ScanningCrashKey::PENDING_FILE_UPLOADS);
+
   delegate_->MaybeCompleteScanRequest();
+}
+
+void FilesRequestHandlerBase::FileRequestStartCallback(
+    size_t index,
+    const BinaryUploadRequest& request) {
+  delegate_->SetFileScanStartTime(index);
 }
 
 }  // namespace enterprise_connectors

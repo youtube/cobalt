@@ -34,6 +34,7 @@
 #include "base/task/thread_pool.h"
 #include "base/threading/platform_thread.h"
 #include "base/time/time.h"
+#include "base/win/windows_version.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/glic_metrics_provider.h"
@@ -908,8 +909,12 @@ void ChromeMetricsServiceClient::RegisterMetricsServiceProviders() {
       std::make_unique<TPMMetricsProvider>());
   metrics_service_->RegisterMetricsProvider(
       std::make_unique<SystemMemoryListMetricsProvider>());
-  metrics_service_->RegisterMetricsProvider(
-      std::make_unique<SystemPdhMetricsProvider>());
+  // Process V2 metrics are only guaranteed to be supported on Win11.
+  if (base::win::GetVersion() >= base::win::Version::WIN11 &&
+      base::FeatureList::IsEnabled(features::kSystemPdhMetrics)) {
+    metrics_service_->RegisterMetricsProvider(
+        std::make_unique<SystemPdhMetricsProvider>());
+  }
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_MAC)

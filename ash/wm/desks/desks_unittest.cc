@@ -2861,9 +2861,13 @@ class DesksEditableNamesTest : public DesksTest {
   DesksEditableNamesTest& operator=(const DesksEditableNamesTest&) = delete;
   ~DesksEditableNamesTest() override = default;
 
-  DesksController* controller() { return controller_; }
-  OverviewGrid* overview_grid() { return overview_grid_; }
-  const DeskBarViewBase* desks_bar_view() { return desks_bar_view_; }
+  DesksController* controller() { return DesksController::Get(); }
+  OverviewGrid* overview_grid() {
+    return GetOverviewGridForRoot(Shell::GetPrimaryRootWindow());
+  }
+  const DeskBarViewBase* desks_bar_view() {
+    return overview_grid()->desks_bar_view();
+  }
 
   // DesksTest:
   void SetUp() override {
@@ -2871,29 +2875,22 @@ class DesksEditableNamesTest : public DesksTest {
 
     // Begin all tests with two desks and start overview.
     NewDesk();
-    controller_ = DesksController::Get();
 
     EnterOverview();
-    overview_grid_ = GetOverviewGridForRoot(Shell::GetPrimaryRootWindow());
-    desks_bar_view_ = overview_grid_->desks_bar_view();
-    ASSERT_TRUE(desks_bar_view_);
+    ASSERT_TRUE(GetOverviewGridForRoot(Shell::GetPrimaryRootWindow())
+                    ->desks_bar_view());
   }
 
   void ClickOnDeskNameViewAtIndex(size_t index) {
     ASSERT_TRUE(OverviewController::Get()->InOverviewSession());
-    ASSERT_LT(index, desks_bar_view_->mini_views().size());
+    ASSERT_LT(index, desks_bar_view()->mini_views().size());
 
     auto* desk_name_view =
-        desks_bar_view_->mini_views()[index]->desk_name_view();
+        desks_bar_view()->mini_views()[index]->desk_name_view();
     auto* generator = GetEventGenerator();
     generator->MoveMouseTo(desk_name_view->GetBoundsInScreen().CenterPoint());
     generator->ClickLeftButton();
   }
-
- private:
-  raw_ptr<DesksController, DanglingUntriaged> controller_ = nullptr;
-  raw_ptr<OverviewGrid, DanglingUntriaged> overview_grid_ = nullptr;
-  raw_ptr<const DeskBarViewBase, DanglingUntriaged> desks_bar_view_ = nullptr;
 };
 
 TEST_P(DesksEditableNamesTest, DefaultNameChangeAborted) {
@@ -7586,13 +7583,14 @@ TEST_P(DesksTest, DragMiniViewWhileRemoving) {
 // really fast. Regression test for https://crbug.com/1194757.
 TEST_P(DesksTest, FastDeskSwitches) {
   // Add 3 more desks and add a couple windows on each one.
-  CreateTestWindow();
-  CreateTestWindow();
+  // Released windows are destroyed during shutdown.
+  CreateTestWindow().release();
+  CreateTestWindow().release();
 
   for (int i = 0; i < 3; ++i) {
     NewDesk();
-    CreateTestWindow();
-    CreateTestWindow();
+    CreateTestWindow().release();
+    CreateTestWindow().release();
   }
 
   // Start at the rightmost, 4th desk.

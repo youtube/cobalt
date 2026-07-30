@@ -40,12 +40,18 @@ class AccessibilityAnnotatorBackend : public KeyedService {
   struct ContentAnnotationsData;
 
   class Observer : public base::CheckedObserver {
-    // TODO(crbug.com/501107222): Add observer method for when annotations are
-    // deleted.
    public:
     // Called when content annotations are added.
     virtual void OnContentAnnotationsAdded(
+        history::VisitID visit_id,
         const ContentAnnotationsData& annotation_data) = 0;
+
+    // Called when content annotations are deleted.
+    virtual void OnContentAnnotationsDeleted(
+        base::span<const history::VisitID> visit_ids) = 0;
+
+    // Called when content annotations are cleared.
+    virtual void OnContentAnnotationsCleared() = 0;
   };
 
   // TODO(crbug.com/501429617): Move this struct out of backend class.
@@ -60,14 +66,11 @@ class AccessibilityAnnotatorBackend : public KeyedService {
 
     std::string page_title;
     std::optional<int> tab_id;
-    std::optional<base::DictValue> annotations;
-    std::optional<optimization_guide::proto::ContentAnnotation>
-        content_annotation;
+    optimization_guide::proto::ContentAnnotation content_annotation;
     base::DictValue classifier_results;
     base::Time navigation_timestamp;
     history::VisitID visit_id = history::kInvalidVisitID;
-    // TODO(crbug.com/501092664): Add URL field to prepare for keying cache by
-    // visit_id and pass to observers for data ingestion.
+    GURL url;
   };
 
   ~AccessibilityAnnotatorBackend() override = default;
@@ -88,15 +91,16 @@ class AccessibilityAnnotatorBackend : public KeyedService {
 
   // Reads from Content Annotations cache.
   virtual base::optional_ref<const ContentAnnotationsData>
-  GetContentAnnotationsCacheData(const GURL& url) const = 0;
+  GetContentAnnotationsCacheData(history::VisitID visit_id) const = 0;
 
   // Writes to Content Annotations cache.
-  virtual void SetContentAnnotationsCacheData(const GURL& url,
+  virtual void SetContentAnnotationsCacheData(history::VisitID visit_id,
                                               ContentAnnotationsData data) = 0;
 
-  // Removes the entries with the given URLs from Content Annotations cache.
+  // Removes the entries with the given visit IDs from Content Annotations
+  // cache.
   virtual void RemoveContentAnnotationsCacheData(
-      base::span<const GURL> urls) = 0;
+      base::span<const history::VisitID> visit_ids) = 0;
 
   // Clears the Content Annotations cache.
   virtual void ClearContentAnnotationsCache() = 0;

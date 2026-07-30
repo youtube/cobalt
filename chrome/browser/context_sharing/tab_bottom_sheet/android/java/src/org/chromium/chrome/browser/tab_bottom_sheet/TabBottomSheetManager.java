@@ -29,22 +29,38 @@ public class TabBottomSheetManager implements Destroyable {
 
     // Interface for the native to communicate with the tab bottom sheet manager.
     interface NativeInterfaceDelegate {
-        /** Inner class to hold the singleton instance. */
-        static class LazyHolder {
-            static final NativeInterfaceDelegate INSTANCE =
-                    new NativeInterfaceDelegate() {
-                        @Override
-                        public void onBottomSheetClosed() {}
-                    };
-        }
-
-        static NativeInterfaceDelegate getInstance() {
-            return LazyHolder.INSTANCE;
-        }
-
         // Method called when the bottom sheet is closed.
         void onBottomSheetClosed();
+
+        // Called when the bottom sheet is opened, or when the bottom sheet state changes.
+        void onBottomSheetOpened(boolean isExpanded);
+
+        // Method called when the bottom sheet is suppressed.
+        void onBottomSheetSuppressed();
     }
+
+    private final TabBottomSheetCoordinator.SheetEventsCallback mSheetEventsCallback =
+            new TabBottomSheetCoordinator.SheetEventsCallback() {
+                @Override
+                public void onBottomSheetClosed() {
+                    if (mNativeInterfaceDelegate == null) {
+                        return;
+                    }
+                    if (mIsCloseFromNative) {
+                        notifyOnClose();
+                    } else {
+                        mNativeInterfaceDelegate.onBottomSheetSuppressed();
+                    }
+                }
+
+                @Override
+                public void onBottomSheetOpened(boolean isExpanded) {
+                    if (mNativeInterfaceDelegate == null) {
+                        return;
+                    }
+                    mNativeInterfaceDelegate.onBottomSheetOpened(isExpanded);
+                }
+            };
 
     private final LayoutStateObserver mLayoutStateObserver =
             new LayoutStateObserver() {
@@ -53,6 +69,9 @@ public class TabBottomSheetManager implements Destroyable {
                     if (layoutType == LayoutType.TAB_SWITCHER) {
                         mIsSuppressedOnTabSwitcher = true;
                         maybeCloseBottomSheet();
+                    } else if (layoutType == LayoutType.TOOLBAR_SWIPE) {
+                        mIsSuppressedOnToolbarSwipe = true;
+                        maybeCloseBottomSheet();
                     }
                 }
 
@@ -60,14 +79,19 @@ public class TabBottomSheetManager implements Destroyable {
                 public void onStartedHiding(@LayoutType int layoutType) {
                     if (layoutType == LayoutType.TAB_SWITCHER) {
                         mIsSuppressedOnTabSwitcher = false;
-                        if (mLayoutStateProviderOneShotSupplier.get() != null) {
-                            @LayoutType
-                            int nextLayoutType =
-                                    mLayoutStateProviderOneShotSupplier.get().getNextLayoutType();
-                            if (nextLayoutType == LayoutType.BROWSING) {
-                                maybeShowBottomSheet();
-                            }
-                        }
+                        maybeShowIfNextIsBrowsing();
+                    } else if (layoutType == LayoutType.TOOLBAR_SWIPE) {
+                        mIsSuppressedOnToolbarSwipe = false;
+                        maybeShowIfNextIsBrowsing();
+                    }
+                }
+
+                private void maybeShowIfNextIsBrowsing() {
+                    var layoutStateProvider = mLayoutStateProviderOneShotSupplier.get();
+                    assert layoutStateProvider != null;
+                    @LayoutType int nextLayoutType = layoutStateProvider.getNextLayoutType();
+                    if (nextLayoutType == LayoutType.BROWSING) {
+                        maybeShowBottomSheet();
                     }
                 }
             };
@@ -80,11 +104,20 @@ public class TabBottomSheetManager implements Destroyable {
     private final CallbackController mCallbackController = new CallbackController();
 
     private boolean mIsSuppressedOnTabSwitcher;
+    private boolean mIsSuppressedOnToolbarSwipe;
     private boolean mIsSuppressedByReadAloud;
 
+    private @Nullable View mPeekView;
     private @Nullable NullableObservableSupplier<Tab> mActivePlaybackTabSupplier;
     private final Callback<@Nullable Tab> mActivePlaybackTabObserver =
             this::onActivePlaybackTabChanged;
+
+    // The bottom sheet can only be closed through a native event or when this manager is destroyed.
+    // If the bottom sheet was ever hidden, while this boolean is false, we assume that the bottom
+    // sheet had been suppressed and that it will be shown again once the suppression event passes.
+    // When it is true, the close event originated from native, we close the bottom sheet, send an
+    // onClosed event to native, and reset the boolean to false.
+    private boolean mIsCloseFromNative;
 
     private @Nullable TabBottomSheetCoordinator mTabBottomSheetCoordinator;
     private @Nullable NativeInterfaceDelegate mNativeInterfaceDelegate;
@@ -138,7 +171,7 @@ public class TabBottomSheetManager implements Destroyable {
             boolean animate,
             boolean startsExpanded) {
         // Close any existing bottom sheet before showing a new one.
-        tryToCloseBottomSheet();
+        tryToCloseBottomSheet(/* animate= */ false);
         mTabBottomSheetCoordinator =
                 new TabBottomSheetCoordinator(
                         mContext,
@@ -146,11 +179,13 @@ public class TabBottomSheetManager implements Destroyable {
                         mBottomSheetController,
                         mTouchEventProvider,
                         coBrowseViews,
-                        this::onBottomSheetClosed);
+                        mSheetEventsCallback);
+        if (mPeekView != null) {
+            mTabBottomSheetCoordinator.attachPeekView(mPeekView);
+        }
 
-        if (mIsSuppressedOnTabSwitcher) {
-            // We are currently in the tab switcher, save this sheet to be shown when we return to a
-            // tab.
+        if (mIsSuppressedOnTabSwitcher || mIsSuppressedOnToolbarSwipe || mIsSuppressedByReadAloud) {
+            // We are currently suppressed, save this sheet to be shown when suppression ends.
             mNativeInterfaceDelegate = nativeInterfaceDelegate;
             return true;
         }
@@ -169,34 +204,54 @@ public class TabBottomSheetManager implements Destroyable {
         }
     }
 
-    void tryToCloseBottomSheet() {
+    /** Attempts to close the Tab BottomSheet. */
+    public void tryToCloseBottomSheet(boolean animate) {
         if (mTabBottomSheetCoordinator != null) {
             if (!mTabBottomSheetCoordinator.isSheetShowing()) {
                 // The bottom sheet is already closed. just send a onClose event back to native.
                 notifyOnClose();
             } else {
-                mTabBottomSheetCoordinator.closeBottomSheet();
+                // The bottom sheet is showing. Close it and send a onClose event back to native.
+                mIsCloseFromNative = true;
+                mTabBottomSheetCoordinator.closeBottomSheet(animate);
             }
         }
     }
 
     /**
-     * Attaches the peek view to the bottom sheet.
+     * Sets the peek view to be displayed.
      *
-     * @param peekView The peek view to attach.
+     * @param peekView The peek view to be displayed.
      */
-    public void attachPeekView(View peekView) {
+    public void setPeekView(View peekView) {
+        assert mPeekView == null : "Peek view is already set.";
+        mPeekView = peekView;
+
         if (mTabBottomSheetCoordinator != null) {
-            mTabBottomSheetCoordinator.attachPeekView(peekView);
+            mTabBottomSheetCoordinator.attachPeekView(mPeekView);
         }
     }
 
     /**
-     * Shows the peek view from the bottom sheet.
+     * Removes the peek view if it matches the provided view.
      *
-     * @return Whether the peek view was successfully shown.
+     * @param peekView The peek view to be removed.
      */
-    public boolean showPeekView() {
+    public void removePeekView(View peekView) {
+        if (mPeekView == peekView) {
+            mPeekView = null;
+            if (mTabBottomSheetCoordinator != null) {
+                mTabBottomSheetCoordinator.removePeekView(peekView);
+            }
+        }
+    }
+
+    /**
+     * Shows the peek view from the bottom sheet and hides the expanded content.
+     *
+     * @return Whether the operation was successful.
+     */
+    public boolean showPeekViewAndHideExpandedContent() {
         if (mTabBottomSheetCoordinator != null) {
             return mTabBottomSheetCoordinator.showPeekViewAndHideExpandedContent();
         }
@@ -204,11 +259,11 @@ public class TabBottomSheetManager implements Destroyable {
     }
 
     /**
-     * Hides the peek view from the bottom sheet.
+     * Hides the peek view from the bottom sheet and shows the expanded content.
      *
-     * @return Whether the peek view was successfully hidden.
+     * @return Whether the operation was successful.
      */
-    public boolean hidePeekView() {
+    public boolean hidePeekViewAndShowExpandedContent() {
         if (mTabBottomSheetCoordinator != null) {
             return mTabBottomSheetCoordinator.hidePeekViewAndShowExpandedContent();
         }
@@ -241,11 +296,12 @@ public class TabBottomSheetManager implements Destroyable {
             mActivePlaybackTabSupplier.removeObserver(mActivePlaybackTabObserver);
             mActivePlaybackTabSupplier = null;
         }
+        mIsCloseFromNative = true;
 
         mCallbackController.destroy();
 
-        // Destroy the coorinator in case the manager is abruptly destroyed before hiding the bottom
-        // sheet.
+        // Destroy the coordinator in case the manager is abruptly destroyed before hiding the
+        // bottom sheet.
         if (mTabBottomSheetCoordinator != null) {
             mTabBottomSheetCoordinator.destroy();
             mTabBottomSheetCoordinator = null;
@@ -257,12 +313,6 @@ public class TabBottomSheetManager implements Destroyable {
         }
 
         TabBottomSheetUtils.detachManagerFromWindow(mWindowAndroid);
-    }
-
-    private void onBottomSheetClosed() {
-        if (!mIsSuppressedOnTabSwitcher && !mIsSuppressedByReadAloud) {
-            notifyOnClose();
-        }
     }
 
     private void notifyOnClose() {
@@ -278,6 +328,7 @@ public class TabBottomSheetManager implements Destroyable {
             mTabBottomSheetCoordinator.destroy();
             mTabBottomSheetCoordinator = null;
         }
+        mIsCloseFromNative = false;
     }
 
     private void onActivePlaybackTabChanged(@Nullable Tab tab) {
@@ -292,12 +343,14 @@ public class TabBottomSheetManager implements Destroyable {
 
     private void maybeCloseBottomSheet() {
         if (mTabBottomSheetCoordinator != null && mNativeInterfaceDelegate != null) {
-            mTabBottomSheetCoordinator.closeBottomSheet();
+            mTabBottomSheetCoordinator.closeBottomSheet(/* animate= */ false);
         }
     }
 
     private void maybeShowBottomSheet() {
-        if (!mIsSuppressedOnTabSwitcher && !mIsSuppressedByReadAloud) {
+        if (!mIsSuppressedOnTabSwitcher
+                && !mIsSuppressedOnToolbarSwipe
+                && !mIsSuppressedByReadAloud) {
 
             if (mTabBottomSheetCoordinator != null && mNativeInterfaceDelegate != null) {
                 if (!mTabBottomSheetCoordinator.tryToShowBottomSheet(

@@ -42,6 +42,12 @@ class CORE_EXPORT InspectorWebMCPAgent final
   // Protocol methods.
   protocol::Response enable() override;
   protocol::Response disable() override;
+  protocol::Response invokeTool(
+      const String& frameId,
+      const String& toolName,
+      std::unique_ptr<protocol::DictionaryValue> input,
+      String* invocationId) override;
+  protocol::Response cancelInvocation(const String& invocationId) override;
 
   // Probes
   void WebMCPToolAdded(Document* document, const ToolData& name);
@@ -49,14 +55,14 @@ class CORE_EXPORT InspectorWebMCPAgent final
   void WebMCPToolExecuted(Document* document,
                           const String& name,
                           const String& input_arguments,
-                          const base::UnguessableToken& execution_id);
+                          const base::UnguessableToken& invocation_id);
   void WebMCPToolResponded(Document* document,
                            const String& result,
-                           const base::UnguessableToken& execution_id);
+                           const base::UnguessableToken& invocation_id);
   void WebMCPToolFailed(
       Document* document,
       const ScriptToolError& error,
-      const base::UnguessableToken& execution_id,
+      const base::UnguessableToken& invocation_id,
       std::optional<std::pair<ScriptValue, ScriptState*>> exception);
 
  private:

@@ -30,6 +30,12 @@
 #include "chrome/browser/autocomplete/provider_state_service_factory.h"
 #include "chrome/browser/autocomplete/shortcuts_backend_factory.h"
 #include "chrome/browser/autofill/autocomplete_history_manager_factory.h"
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+#include "chrome/browser/autofill/at_memory_promo_tracker_factory.h"
+#endif
+
 #include "chrome/browser/autofill/autofill_ai_model_cache_factory.h"
 #include "chrome/browser/autofill/autofill_ai_model_executor_factory.h"
 #include "chrome/browser/autofill/autofill_entity_data_manager_factory.h"
@@ -337,7 +343,7 @@
 #else  // !BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/accessibility/ax_main_node_annotator_controller_factory.h"
 #include "chrome/browser/accessibility/live_caption/live_caption_controller_factory.h"
-#include "chrome/browser/accessibility/live_translate_controller_factory.h"
+#include "chrome/browser/accessibility/live_caption/live_translate_controller_factory.h"
 #include "chrome/browser/accessibility/phrase_segmentation/dependency_parser_model_loader_factory.h"
 #include "chrome/browser/accessibility/tree_fixing/ax_tree_fixing_services_router_factory.h"
 #include "chrome/browser/accessibility_annotator/content_annotator/content_annotator_service_factory.h"
@@ -579,7 +585,6 @@
 
 #if BUILDFLAG(FULL_SAFE_BROWSING)
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager_factory.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/cloud_binary_upload_service_factory.h"
 #include "chrome/browser/safe_browsing/extension_telemetry/extension_telemetry_service_factory.h"
 #include "chrome/browser/safe_browsing/hash_realtime_service_factory.h"
 #endif
@@ -590,6 +595,7 @@
 #include "chrome/browser/safe_browsing/chrome_ping_manager_factory.h"
 #include "chrome/browser/safe_browsing/client_side_detection_intelligent_scan_delegate_factory.h"
 #include "chrome/browser/safe_browsing/client_side_detection_service_factory.h"
+#include "chrome/browser/safe_browsing/cloud_content_scanning/cloud_binary_upload_service_factory.h"
 #include "chrome/browser/safe_browsing/gemini_antiscam_protection/gemini_antiscam_protection_service_factory.h"
 #include "chrome/browser/safe_browsing/notification_content_detection/notification_content_detection_service_factory.h"
 #include "chrome/browser/safe_browsing/notification_telemetry/notification_telemetry_service_factory.h"
@@ -1304,18 +1310,20 @@ void ChromeBrowserMainExtraPartsProfiles::
 #endif
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::ChromeEnterpriseRealTimeUrlLookupServiceFactory::GetInstance();
-#endif
-#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::ChromePasswordProtectionServiceFactory::GetInstance();
   safe_browsing::ChromePingManagerFactory::GetInstance();
-  safe_browsing::ClientSideDetectionServiceFactory::GetInstance();
   safe_browsing::ClientSideDetectionIntelligentScanDelegateFactory::
       GetInstance();
+  safe_browsing::ClientSideDetectionServiceFactory::GetInstance();
+  safe_browsing::CloudBinaryUploadServiceFactory::GetInstance();
+#endif
+#if BUILDFLAG(FULL_SAFE_BROWSING)
+  safe_browsing::ExtensionTelemetryServiceFactory::GetInstance();
+#endif
+#if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
   safe_browsing::GeminiAntiscamProtectionServiceFactory::GetInstance();
 #endif
 #if BUILDFLAG(FULL_SAFE_BROWSING)
-  safe_browsing::CloudBinaryUploadServiceFactory::GetInstance();
-  safe_browsing::ExtensionTelemetryServiceFactory::GetInstance();
   safe_browsing::HashRealTimeServiceFactory::GetInstance();
 #endif
 #if BUILDFLAG(SAFE_BROWSING_AVAILABLE)
@@ -1482,6 +1490,12 @@ void ChromeBrowserMainExtraPartsProfiles::
     webapk::WebApkSyncServiceFactory::GetInstance();
   }
 #endif
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
+    BUILDFLAG(IS_CHROMEOS)
+  autofill::AtMemoryPromoTrackerFactory::GetInstance();
+#endif
+
   WebDataServiceFactory::GetInstance();
   webrtc_event_logging::WebRtcEventLogManagerKeyedServiceFactory::GetInstance();
 }

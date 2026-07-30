@@ -333,6 +333,8 @@ std::string CoarseFieldTypeToString(proto::CoarseAutofillFieldType type) {
       return "COARSE_AUTOFILL_FIELD_TYPE_ADDRESS";
     case proto::COARSE_AUTOFILL_FIELD_TYPE_CREDIT_CARD:
       return "COARSE_AUTOFILL_FIELD_TYPE_CREDIT_CARD";
+    case proto::COARSE_AUTOFILL_FIELD_TYPE_OTP:
+      return "COARSE_AUTOFILL_FIELD_TYPE_OTP";
     default:
       // Covers future extensions to the proto - if you see this logged please
       // add a case above!
@@ -388,6 +390,8 @@ AutofillAnnotationsProviderImpl::GetAutofillFieldData(
     } else if (form_types.contains(FormType::kCreditCardForm) ||
                form_types.contains(FormType::kStandaloneCvcForm)) {
       return proto::COARSE_AUTOFILL_FIELD_TYPE_CREDIT_CARD;
+    } else if (form_types.contains(FormType::kOneTimePasswordForm)) {
+      return proto::COARSE_AUTOFILL_FIELD_TYPE_OTP;
     }
     return proto::COARSE_AUTOFILL_FIELD_TYPE_UNSUPPORTED;
   }();

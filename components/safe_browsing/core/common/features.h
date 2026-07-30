@@ -94,6 +94,12 @@ extern const base::FeatureParam<bool> kCsdCreditCardFormEnableHeuristicFilter;
 // Specifies whether to filter credit card CSD pings based on the referring app.
 extern const base::FeatureParam<bool>
     kCsdCreditCardFormEnableReferringAppFilter;
+// Specifies whether to enable triggering on interaction with a credit card
+// form field.
+extern const base::FeatureParam<bool>
+    kCsdCreditCardFormEnableInteractionTrigger;
+// Specifies whether to enable triggering on detection of a credit card form.
+extern const base::FeatureParam<bool> kCsdCreditCardFormEnableDetectionTrigger;
 
 // Deprecate the DOM model and do not onboard to renderer.
 BASE_DECLARE_FEATURE(kClientSideDetectionDeprecateDOMModel);
@@ -323,17 +329,6 @@ BASE_DECLARE_FEATURE(kMigrateEnhancedSbUserToEnhancedBundle);
 // and have the kBlockV8OptimizerOnUnfamiliarSitesSetting feature enabled will
 // be eligible for the migration.
 BASE_DECLARE_FEATURE(kMigrateToBlockV8OptimizerOnUnfamiliarSites);
-
-// TODO(crbug.com/449960661): Remove this flag once the MigrateAccountPrefs
-// feature is launched and the regression of users with ESB enhanced protection
-// is resolved.
-//  When enabled, this feature fixes a flaw in the Tailored Security service's
-//  handling of failed requests for the Enhanced Safe Browsing (ESB) setting.
-//  Previously, a network error would cause the service to incorrectly assume
-//  ESB was disabled. With this fix, the service preserves the last known state
-//  of the ESB bit during a failed request, preventing transient errors from
-//  disabling user protection.
-BASE_DECLARE_FEATURE(kModifiedESBFetchErrorHandling);
 
 // When enabled, the Password Leak detection toggle is moved out from under the
 // 'Standard protection' Safe Browsing option to the top-level 'Privacy and

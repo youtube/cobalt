@@ -461,10 +461,6 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   // Size without borders and scrollbars.
   LayoutUnit ClientWidth() const;
   LayoutUnit ClientHeight() const;
-  // Similar to ClientWidth() and ClientHeight(), but based on the specified
-  // border-box size.
-  LayoutUnit ClientWidthFrom(LayoutUnit width) const;
-  LayoutUnit ClientHeightFrom(LayoutUnit height) const;
   DISABLE_CFI_PERF LayoutUnit ClientLogicalWidth() const {
     NOT_DESTROYED();
     return IsHorizontalWritingMode() ? ClientWidth() : ClientHeight();
@@ -1233,7 +1229,7 @@ class CORE_EXPORT LayoutBox : public LayoutBoxModelObject {
   // https://drafts.csswg.org/css-anchor-position-1/#ref-for-valdef-anchor-implicit
   const LayoutObject* AcceptableImplicitAnchor() const;
 
-  const HeapVector<NonOverflowingScrollRange>* NonOverflowingScrollRanges()
+  const GCedHeapVector<NonOverflowingScrollRange>* NonOverflowingScrollRanges()
       const;
 
   const BoxStrut& OutOfFlowInsetsForGetComputedStyle() const;

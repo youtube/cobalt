@@ -314,7 +314,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.Android.HasEGLDupNativeFenceFunction" enum="Boolean"
-    expires_after="2026-08-09">
+    expires_after="2026-10-11">
   <owner>boliu@chromium.org</owner>
   <owner>vasilyt@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
@@ -392,7 +392,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ANGLE.D3DShaderCompilationTimeUs" units="microseconds"
-    expires_after="2026-08-09">
+    expires_after="2026-10-11">
   <owner>geofflang@chromium.org</owner>
   <owner>angle-team@google.com</owner>
   <summary>
@@ -750,7 +750,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.DCLayer.YUVOverlayCount"
-    units="overlays" expires_after="2026-08-09">
+    units="overlays" expires_after="2026-10-11">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <summary>
@@ -1150,6 +1150,46 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Gpu.GraphiteSharedContext.LockAcquireTimeUs"
+    units="microseconds" expires_after="2026-07-09">
+  <owner>sunnyps@chromium.org</owner>
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the time spent waiting to acquire the lock in GraphiteSharedContext.
+    Recorded when AutoLock is created. This is subsampled at 1%. Only reported
+    for platforms supporting high resolution clocks.
+  </summary>
+</histogram>
+
+<histogram
+    name="Gpu.GraphiteSharedContext.LockAcquireTimeUs.LockedThreadInInsertRecording"
+    units="microseconds" expires_after="2026-07-09">
+  <owner>sunnyps@chromium.org</owner>
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the time spent waiting to acquire the lock in GraphiteSharedContext
+    when the thread holding the lock was in insertRecording. Recorded when
+    AutoLock is created. This is subsampled at 1%. Only reported for platforms
+    supporting high resolution clocks.
+  </summary>
+</histogram>
+
+<histogram
+    name="Gpu.GraphiteSharedContext.LockAcquireTimeUs.LockedThreadInSubmit"
+    units="microseconds" expires_after="2026-07-09">
+  <owner>sunnyps@chromium.org</owner>
+  <owner>magchen@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the time spent waiting to acquire the lock in GraphiteSharedContext
+    when the thread holding the lock was in submit or submitAndFlushBackend.
+    Recorded when AutoLock is created. This is subsampled at 1%. Only reported
+    for platforms supporting high resolution clocks.
+  </summary>
+</histogram>
+
 <histogram name="GPU.GraphValidation.Duration" units="ms"
     expires_after="2025-11-15">
   <owner>vasilyt@chromium.org</owner>
@@ -1219,7 +1259,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.HardwareSupportsVulkan" enum="Boolean"
-    expires_after="2026-08-09">
+    expires_after="2026-10-11">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1601,6 +1641,43 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="GPU.Scheduler.{Stage}{Priority}" units="microseconds"
+    expires_after="2026-10-10">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@google.com</owner>
+  <summary>
+    Records the wall time for GPU Scheduler task at various stages and with
+    various priorities. Only recorded for clients with high resolution clocks.
+    Note that the histograms for GPU.Scheduler.{Stage} was expired on 2022-08-07
+    and was re-enabled on 2023-11-17. It was then expired again on 2024-08-07
+    and was re-enable on 2026-04-15.
+  </summary>
+  <token key="Priority">
+    <variant name=""/>
+    <variant name=".HighPriority"/>
+    <variant name=".LowPriority"/>
+    <variant name=".NormalPriority"/>
+  </token>
+  <token key="Stage">
+    <variant name="TaskDependencyTime"
+        summary="Records the wall time taken spent by each GPU scheduler task
+                 waiting on it's dependencies to resolve. The time delta
+                 starts when the waiting fence is added and finishes when the
+                 last fence is removed"/>
+    <variant name="TaskSchedulingDelayTime"
+        summary="Records the wall time taken spent by each GPU scheduler task
+                 waiting on to be scheduled once all its dependencies have
+                 been resolved. The time delta starts when the last waiting
+                 fence is passed and stops when the tasks starts running. If
+                 the schedulers is working properly, for a high priority
+                 task, this metric should be minimal"/>
+    <variant name="ThreadSuspendedTime"
+        summary="Records the wall time taken between calls to schedule the
+                 task run and the actual run of the task. Ideally this should
+                 always be as close to 0 as possible"/>
+  </token>
+</histogram>
+
 <histogram name="GPU.ShaderLoadPrefixOK" enum="BooleanMatched"
     expires_after="2026-06-28">
   <owner>vikassoni@chromium.org</owner>
@@ -1622,7 +1699,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.SharedImage.SharedImageFormat" enum="SharedImageFormatUMA"
-    expires_after="2026-08-09">
+    expires_after="2026-10-11">
   <owner>hitawala@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1996,7 +2073,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.{GraphiteDawnOrWebGPU}.{ShaderTiming}"
-    units="microseconds" expires_after="2026-08-09">
+    units="microseconds" expires_after="2026-10-11">
   <owner>petermcneeley@google.com</owner>
   <owner>mdb.webgpu-dev-team@google.com</owner>
   <summary>
@@ -2006,40 +2083,6 @@ chromium-metrics-reviews@google.com.
   </summary>
   <token key="GraphiteDawnOrWebGPU" variants="GraphiteDawnOrWebGPU"/>
   <token key="ShaderTiming" variants="WebGPUShaderTiming"/>
-</histogram>
-
-<histogram name="GPU.{SchedulerType}.{Stage}" units="microseconds"
-    expires_after="2024-08-07">
-  <owner>vikassoni@chromium.org</owner>
-  <owner>chrome-gpu-metric-alerts@google.com</owner>
-  <summary>
-    Records the wall time for GPU {SchedulerType} task at various stages.
-    {Stage}. Only recorded for clients with high resolution clocks. Note that
-    the histograms for GPU.Scheduler.* was expired on 2022-08-07 and is
-    re-enabled on 2023-11-17.
-  </summary>
-  <token key="SchedulerType">
-    <variant name="Scheduler"/>
-    <variant name="SchedulerDfs"/>
-  </token>
-  <token key="Stage">
-    <variant name="TaskDependencyTime"
-        summary="Records the wall time taken spent by each GPU scheduler task
-                 waiting on it's dependencies to resolve. The time delta
-                 starts when the waiting fence is added and finishes when the
-                 last fence is removed"/>
-    <variant name="TaskSchedulingDelayTime"
-        summary="Records the wall time taken spent by each GPU scheduler task
-                 waiting on to be scheduled once all its dependencies have
-                 been resolved. The time delta starts when the last waiting
-                 fence is passed and stops when the tasks starts running. If
-                 the schedulers is working properly, for a high priority
-                 task, this metric should be minimal"/>
-    <variant name="ThreadSuspendedTime"
-        summary="Records the wall time taken between calls to schedule the
-                 task run and the actual run of the task. Ideally this should
-                 always be as close to 0 as possible"/>
-  </token>
 </histogram>
 
 <histogram name="Graphics.Exo.Buffer.SharedImageFormat"
@@ -2291,7 +2334,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.DisplayCompositor.RootDamageRect.Overlay"
-    enum="BooleanOverlayDamageRect" expires_after="2026-08-09">
+    enum="BooleanOverlayDamageRect" expires_after="2026-10-11">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <summary>
@@ -2376,7 +2419,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.FileDescriptorTracking.{FdStat}" units="units"
-    expires_after="2026-08-09">
+    expires_after="2026-10-11">
   <owner>petermcneeley@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -2566,17 +2609,6 @@ chromium-metrics-reviews@google.com.
     NV12 frame needs to be produced to the moment when it was ready to deliver
     it. This encompasses the `Viz.FrameSinkVideoCapturer.NV12.CaptureDuration`
     time.
-  </summary>
-</histogram>
-
-<histogram name="Viz.FrameSinkVideoCapturer.ReserveFrameDuration" units="ms"
-    expires_after="2023-07-15">
-  <owner>jophba@chromium.org</owner>
-  <owner>media-capture-dev@chromium.org</owner>
-  <summary>
-    The time it took for a frame pool to reserve a video frame that would then
-    have its contents populated by the capturer. Will be logged only when
-    `Viz.FrameSinkVideoCapturer.FrameResurrected` is false.
   </summary>
 </histogram>
 

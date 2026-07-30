@@ -55,6 +55,14 @@ class MockQueryContextualizerDelegate : public QueryContextualizer::Delegate {
               GetOrCreateSessionHandleForQueryContextualizer,
               (),
               (override));
+
+  MOCK_METHOD(void,
+              GetRelevantTabsForQuery,
+              (const std::string& query_text,
+               const std::vector<GURL>& attached_context_urls,
+               base::OnceCallback<void(std::vector<QueryContextualizer::TabId>)>
+                   callback),
+              (override));
 };
 
 class QueryContextualizerTest : public testing::Test {
@@ -153,6 +161,41 @@ class QueryContextualizerTest : public testing::Test {
       mock_context_controller_weak_factory_;
 };
 
+TEST_F(QueryContextualizerTest, Contextualize_SmartTabSharingEnabled) {
+  std::string query = "query";
+
+  EXPECT_CALL(*delegate_,
+              GetRelevantTabsForQuery(query, testing::_, testing::_))
+      .WillOnce([](const auto& query, const auto& urls, auto callback) {
+        std::move(callback).Run({1, 2});
+      });
+
+  EXPECT_CALL(*delegate_, IsTabValid(1)).WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*delegate_, IsTabValid(2)).WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(*delegate_, GetTabUrl(1))
+      .WillRepeatedly(testing::Return(GURL("http://tab1.com")));
+  EXPECT_CALL(*delegate_, GetTabUrl(2))
+      .WillRepeatedly(testing::Return(GURL("http://tab2.com")));
+
+  EXPECT_CALL(*delegate_, GetPageContext(1, testing::_))
+      .WillOnce([](auto id, auto callback) {
+        std::move(callback).Run(std::make_unique<lens::ContextualInputData>());
+      });
+  EXPECT_CALL(*delegate_, GetPageContext(2, testing::_))
+      .WillOnce([](auto id, auto callback) {
+        std::move(callback).Run(std::make_unique<lens::ContextualInputData>());
+      });
+
+  base::MockCallback<QueryContextualizer::ContextualizedCallback> callback;
+  EXPECT_CALL(callback, Run(testing::_)).Times(1);
+
+  contextualizer_->Contextualize(std::nullopt, query, {}, {}, base::DoNothing(),
+                                 base::DoNothing(), callback.Get(),
+                                 /*enable_smart_tab_selection=*/true);
+
+  CompleteAllUploads();
+}
+
 TEST_F(QueryContextualizerTest, Contextualize_WaitsForUploadsToFinish) {
   base::Uuid task_id = base::Uuid::GenerateRandomV4();
   int32_t tab_id = 100;
@@ -243,7 +286,8 @@ TEST_F(QueryContextualizerTest, Contextualize_WaitsForUploadsToFinish) {
 
   contextualizer_->Contextualize(task_id, "Check out https://example.com",
                                  {tab_id}, {}, ineligible_callback.Get(),
-                                 processed_callback.Get(), done_callback.Get());
+                                 processed_callback.Get(), done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
 
   ASSERT_NE(captured_observer_, nullptr);
   ASSERT_EQ(created_tokens_.size(), 2u);
@@ -336,7 +380,8 @@ TEST_F(QueryContextualizerTest, Contextualize_ExtractsUrls) {
                                  "http://test.org, and www.google.com. "
                                  "Duplicate: https://example.com",
                                  {}, {}, base::DoNothing(), base::DoNothing(),
-                                 done_callback.Get());
+                                 done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -408,7 +453,8 @@ TEST_F(QueryContextualizerTest,
                                  "http://test.org, and www.google.com. "
                                  "Duplicate: https://example.com",
                                  {}, {}, base::DoNothing(), base::DoNothing(),
-                                 done_callback.Get());
+                                 done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -499,7 +545,8 @@ TEST_F(QueryContextualizerTest, Contextualize_RecontextualizeExpiredTab) {
 
   contextualizer_->Contextualize(task_id, "test query", {tab_id}, {},
                                  ineligible_callback.Get(),
-                                 processed_callback.Get(), done_callback.Get());
+                                 processed_callback.Get(), done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -598,7 +645,8 @@ TEST_F(QueryContextualizerTest, Contextualize_RecontextualizeContentChanged) {
 
   contextualizer_->Contextualize(task_id, "test query", {tab_id}, {},
                                  ineligible_callback.Get(),
-                                 processed_callback.Get(), done_callback.Get());
+                                 processed_callback.Get(), done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -701,7 +749,8 @@ TEST_F(QueryContextualizerTest,
 
   contextualizer_->Contextualize(task_id, "test query", {tab_id}, {},
                                  ineligible_callback.Get(),
-                                 processed_callback.Get(), done_callback.Get());
+                                 processed_callback.Get(), done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -747,7 +796,8 @@ TEST_F(QueryContextualizerTest, Contextualize_ActiveTabNotInContext) {
 
   contextualizer_->Contextualize(task_id, "test query", {tab_id}, {},
                                  base::DoNothing(), base::DoNothing(),
-                                 done_callback.Get());
+                                 done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -799,7 +849,8 @@ TEST_F(QueryContextualizerTest, Contextualize_ActiveTabUrlMismatch) {
 
   contextualizer_->Contextualize(task_id, "test query", {tab_id}, {},
                                  base::DoNothing(), base::DoNothing(),
-                                 done_callback.Get());
+                                 done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -903,7 +954,8 @@ TEST_F(QueryContextualizerTest,
 
   contextualizer_->Contextualize(task_id, "test query", {tab_id}, {},
                                  ineligible_callback.Get(),
-                                 processed_callback.Get(), done_callback.Get());
+                                 processed_callback.Get(), done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -1022,7 +1074,8 @@ TEST_F(QueryContextualizerTest,
 
   contextualizer_->Contextualize(task_id, "", {tab_id}, {},
                                  ineligible_callback.Get(),
-                                 processed_callback.Get(), done_callback.Get());
+                                 processed_callback.Get(), done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 
@@ -1142,7 +1195,8 @@ TEST_F(QueryContextualizerTest,
 
   contextualizer_->Contextualize(task_id, "", {tab_id}, {},
                                  ineligible_callback.Get(),
-                                 processed_callback.Get(), done_callback.Get());
+                                 processed_callback.Get(), done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
   CompleteAllUploads();
 }
 TEST_F(QueryContextualizerTest,
@@ -1269,7 +1323,72 @@ TEST_F(QueryContextualizerTest,
 
   contextualizer_->Contextualize(task_id, "test query", {tab_id}, {},
                                  ineligible_callback.Get(),
-                                 processed_callback.Get(), done_callback.Get());
+                                 processed_callback.Get(), done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
+}
+
+TEST_F(QueryContextualizerTest,
+       Contextualize_AutoSuggestedTabIsImplicitUpload) {
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  int32_t tab_id = 100;
+  SessionID session_id = SessionID::FromSerializedValue(1);
+  GURL kUrl("about:blank");
+
+  ContextualTask task(task_id);
+  auto context = std::make_unique<ContextualTaskContext>(task);
+
+  EXPECT_CALL(*service_,
+              GetContextForTask(
+                  task_id,
+                  testing::Contains(
+                      ContextualTaskContextSource::kSubmittedContextDecorator),
+                  testing::NotNull(), testing::_))
+      .WillOnce(
+          [&context](
+              const base::Uuid& task_id,
+              const std::set<ContextualTaskContextSource>& sources,
+              std::unique_ptr<ContextDecorationParams> params,
+              base::OnceCallback<void(std::unique_ptr<ContextualTaskContext>)>
+                  callback) { std::move(callback).Run(std::move(context)); });
+
+  EXPECT_CALL(*delegate_, GetTabUrl(tab_id))
+      .WillRepeatedly(testing::Return(kUrl));
+  EXPECT_CALL(*delegate_, GetTabSessionId(tab_id))
+      .WillRepeatedly(testing::Return(session_id));
+
+  // Expect GetPageContext call.
+  EXPECT_CALL(*delegate_, GetPageContext(tab_id, testing::_))
+      .WillOnce([session_id](
+                    QueryContextualizer::TabId id,
+                    base::OnceCallback<void(
+                        std::unique_ptr<lens::ContextualInputData>)> callback) {
+        auto data = std::make_unique<lens::ContextualInputData>();
+        data->tab_session_id = session_id;
+        data->page_url = GURL("about:blank");
+        data->is_page_context_eligible = true;
+        std::move(callback).Run(std::move(data));
+      });
+
+  EXPECT_CALL(*delegate_, IsTabValid(tab_id)).WillOnce(testing::Return(true));
+
+  // Expect StartTabContextUploadFlow call and check is_implicit_upload.
+  EXPECT_CALL(*session_handle_,
+              StartTabContextUploadFlow(testing::_, testing::_, testing::_))
+      .WillOnce([](const base::UnguessableToken& file_token,
+                   std::unique_ptr<lens::ContextualInputData> data,
+                   std::optional<lens::ImageEncodingOptions> image_options) {
+        EXPECT_TRUE(data->is_implicit_upload);
+      });
+
+  base::MockCallback<QueryContextualizer::ContextualizedCallback> done_callback;
+  EXPECT_CALL(done_callback, Run(testing::_));
+
+  // Pass tab_id in tabs_to_force_contextualize (the 4th parameter).
+  contextualizer_->Contextualize(task_id, "test query", {}, {tab_id},
+                                 base::DoNothing(), base::DoNothing(),
+                                 done_callback.Get(),
+                                 /*enable_smart_tab_selection=*/false);
+  CompleteAllUploads();
 }
 
 }  // namespace contextual_tasks

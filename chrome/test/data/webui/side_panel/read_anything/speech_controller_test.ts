@@ -161,6 +161,21 @@ suite('SpeechController', () => {
     assertFalse(!!speechController.getPreviewVoicePlaying());
   });
 
+  test('previewVoice start sets engine loaded', async () => {
+    const voice = createSpeechSynthesisVoice({lang: 'ko', name: 'December'});
+
+    speechController.previewVoice(voice);
+    const spoken = await speech.whenCalled('speak');
+    assertTrue(onEngineStateChange);
+    assertFalse(speechController.isEngineLoaded());
+
+    onEngineStateChange = false;
+    assertTrue(!!spoken.onstart, 'onstart');
+    spoken.onstart(new SpeechSynthesisEvent('type', {utterance: spoken}));
+    assertTrue(onEngineStateChange);
+    assertTrue(speechController.isEngineLoaded());
+  });
+
   test('onSpeechSettingsChange cancels and resumes speech if playing', () => {
     const text = 'In all the time I\'ve been by your side';
     setContent(text, readAloudModel);
@@ -802,5 +817,31 @@ suite('SpeechController', () => {
     // Same voice should not log
     speechController.onVoiceSelected(voice3);
     assertEquals(0, metrics.getCallCount('recordVoiceLanguageChange'));
+  });
+
+  test('playFromSelection logs metric', async () => {
+    const text = 'This is a selection.';
+    setContent(text, readAloudModel);
+
+    // Set a selection
+    const nodeId = 2;  // setContent uses id 2
+    selectionController.getCurrentSelectionStart = () => {
+      return {nodeId: nodeId, offset: 0};
+    };
+    selectionController.hasSelection = () => true;
+
+    const element = document.createElement('p');
+    element.textContent = text;
+
+    // Trigger play
+    speechController.onPlayPauseToggle(element);
+
+    // We need to wait for the setTimeout in playFromSelection_
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    assertEquals(1, metrics.getCallCount('incrementMetricCount'));
+    assertEquals(
+        'Accessibility.ReadAnything.ReadAloudPlayFromSelectionSessionCount',
+        metrics.getArgs('incrementMetricCount')[0]);
   });
 });

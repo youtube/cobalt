@@ -39,6 +39,7 @@
 #include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/common/glic_navigation.h"
 #include "chrome/browser/glic/fre/fre_util.h"
+#include "chrome/browser/glic/glic_enums.h"
 #include "chrome/browser/glic/glic_metrics.h"
 #include "chrome/browser/glic/glic_pref_names.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
@@ -76,12 +77,12 @@
 #include "chrome/browser/skills/skills_glic_mojom_util.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_collection_observer.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/common/actor/journal_details_builder.h"
@@ -223,6 +224,17 @@ GlicUnpinTrigger FromMojomUnpinTrigger(mojom::UnpinTrigger trigger) {
       return GlicUnpinTrigger::kChip;
     case mojom::UnpinTrigger::kActuation:
       return GlicUnpinTrigger::kActuation;
+  }
+}
+
+GlicZoomAction ToGlicZoomAction(mojom::ZoomAction action) {
+  switch (action) {
+    case mojom::ZoomAction::kZoomIn:
+      return GlicZoomAction::kZoomIn;
+    case mojom::ZoomAction::kZoomOut:
+      return GlicZoomAction::kZoomOut;
+    case mojom::ZoomAction::kReset:
+      return GlicZoomAction::kReset;
   }
 }
 
@@ -644,9 +656,6 @@ class JournalHandler {
 // events through GlicKeyedService to other components, relies on the assumption
 // that there is exactly 1 WebUI instance. If this assumption is ever violated
 // then many classes will break.
-//
-// TODO(crbug.com/458761731): Once `loadAndExtractContent` is defined in the
-// handler mojom interface, override and implement its mojom declaration.
 class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                              public GlicInstanceCoordinator::StateObserver,
                              public GlicWebClientAccess,
@@ -735,7 +744,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         &GlicWebClientHandler::WebClientDisconnected, base::Unretained(this)));
 
     page_metadata_manager_ =
-        std::make_unique<PageMetadataManager>(web_client_.get());
+        std::make_unique<PageMetadataManager>(profile_, web_client_.get());
 
     // Listen for changes to prefs.
     pref_change_registrar_.Init(pref_service_);
@@ -1409,6 +1418,9 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (!tab) {
       return;
     }
+    if (tab->GetBrowserWindowInterface()->GetProfile() != profile_) {
+      return;
+    }
     glic_service_->DeleteCapturedRegion(tab, id);
 #else
     NOTIMPLEMENTED();
@@ -1704,10 +1716,6 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                                                                       duration);
   }
 
-  void OnRecordUseCounter(uint16_t counter) override {
-    glic_service_->metrics()->OnRecordUseCounter(counter);
-  }
-
   void OnResponseRated(bool positive) override {
     glic_service_->metrics()->OnResponseRated(positive);
   }
@@ -1784,7 +1792,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     GlicLauncherConfiguration::CheckDefaultBrowserToEnableLauncher();
 
     BrowserWindowInterface* browser =
-        chrome::FindTabbedBrowser(profile_, false);
+        ProfileBrowserCollection::GetForProfile(profile_)->FindTabbedBrowser();
     if (auto* interface = BrowserUserEducationInterface::From(browser)) {
       interface->NotifyAdditionalConditionEvent(
           feature_engagement::events::kGlicOnboardingCompleted);
@@ -2458,7 +2466,8 @@ GlicPageHandler::GlicPageHandler(
       receiver_(this, std::move(receiver)),
       page_(std::move(page)) {
   VLOG(1) << "Glic [PageHandler] Constructor";
-  GetGlicService()->host_manager().WebUIPageHandlerAdded(this, host_.get());
+  CHECK(host_);
+  host_->WebUIPageHandlerAdded(this);
   host_->AddPanelStateObserver(this);
   UpdatePageState(host_->GetPanelState(web_client_handler_.get()).kind);
   subscriptions_.push_back(
@@ -2476,8 +2485,9 @@ GlicPageHandler::~GlicPageHandler() {
   web_client_handler_.reset();
   // Clear `host_` before unregistering so the Host can be deleted
   // synchronously without leaving a dangling raw_ptr during teardown.
+  Host* host = host_;
   host_ = nullptr;
-  GetGlicService()->host_manager().WebUIPageHandlerRemoved(this);
+  host->WebUIPageHandlerRemoved(this);
 }
 
 GlicKeyedService* GlicPageHandler::GetGlicService() {
@@ -2528,6 +2538,8 @@ void GlicPageHandler::NotifyWindowIntentToShow() {
 }
 
 void GlicPageHandler::Zoom(mojom::ZoomAction zoom_action) {
+  base::UmaHistogramEnumeration("Glic.ZoomAction",
+                                ToGlicZoomAction(zoom_action));
   page_->Zoom(zoom_action);
 }
 

@@ -21,10 +21,6 @@ found in the LICENSE file.
     <!-- Shared group avatar padding for tablet tab strip -->
     <dimen name="tablet_shared_group_avatar_padding">4dp</dimen>
 
-    <!-- Infobar dimensions -->
-    <!-- Text size of descriptive controls on an infobar. -->
-    <dimen name="infobar_descriptive_text_size">14sp</dimen>
-
     <!-- Overlay Panel dimensions -->
     <dimen name="overlay_panel_end_buttons_width">94dp</dimen>
     <dimen name="overlay_panel_padded_button_width">41dp</dimen>
@@ -493,7 +489,7 @@ found in the LICENSE file.
     <dimen name="document_picture_in_picture_header_min_unoccluded_width">156dp</dimen>
 
     <!-- Chrome Finds dimensions -->
-    <dimen name="chrome_finds_opt_in_bottom_sheet_horizontal_margin">24dp</dimen>
+    <dimen name="finds_opt_in_bottom_sheet_horizontal_margin">24dp</dimen>
 
     <!-- Gesture User Education Iph-->
     <dimen name="gesture_user_education_arrow_margin_bottom">36dp</dimen>

@@ -210,8 +210,6 @@
     ComposeboxiPadAnimator* animator = [[ComposeboxiPadAnimator alloc] init];
     animator.layoutGuideCenter = LayoutGuideCenterForBrowser(self.browser);
     animator.presenting = YES;
-    animator.shouldUseLargeLayout =
-        IsRegularXRegularSizeClass(self.baseViewController.traitCollection);
     animator.showAIMode = _entrypoint == ComposeboxEntrypoint::kNTPAIMButton;
     animator.delegate = self;
     return animator;
@@ -229,8 +227,6 @@
     ComposeboxiPadAnimator* animator = [[ComposeboxiPadAnimator alloc] init];
     animator.layoutGuideCenter = LayoutGuideCenterForBrowser(self.browser);
     animator.presenting = NO;
-    animator.shouldUseLargeLayout =
-        IsRegularXRegularSizeClass(self.baseViewController.traitCollection);
     return animator;
   }
   return [[ComposeboxDismissAnimator alloc]
@@ -347,8 +343,7 @@
 - (BOOL)shouldUseIpadPresentationController {
   return IsComposeboxIpadEnabled() &&
          UIDevice.currentDevice.userInterfaceIdiom == UIUserInterfaceIdiomPad &&
-         (base::ios::IsRunningOnIOS26OrLater() ||
-          IsRegularXRegularSizeClass(self.baseViewController.traitCollection));
+         IsRegularXRegularSizeClass(self.baseViewController.traitCollection);
 }
 
 // Represents the coordinator's view controller with no animation.

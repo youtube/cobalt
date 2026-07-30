@@ -11,6 +11,7 @@
 
 #include <wrl.h>
 
+#include <atomic>
 #include <vector>
 
 #include "base/containers/circular_deque.h"
@@ -90,10 +91,12 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
 
   struct GetCommandBufferHelperResult {
     GetCommandBufferHelperResult();
-    GetCommandBufferHelperResult(const GetCommandBufferHelperResult& other);
+    GetCommandBufferHelperResult(GetCommandBufferHelperResult&& other);
+    GetCommandBufferHelperResult& operator=(
+        GetCommandBufferHelperResult&& other);
     ~GetCommandBufferHelperResult();
     scoped_refptr<CommandBufferHelper> command_buffer_helper;
-    Microsoft::WRL::ComPtr<ID3D11Device> shared_d3d_device;
+    std::unique_ptr<D3D11To12Fence> source_texture_fence;
   };
 
   base::SingleThreadTaskRunner* GetEncoderTaskRunnerForTesting() const;
@@ -122,7 +125,8 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
   void EncodeTask(scoped_refptr<VideoFrame> frame,
                   const VideoEncoder::EncodeOptions& options);
 
-  void DoEncodeTask(const InputFrameRef& input_frame,
+  // Returns false if an error was encountered.
+  bool DoEncodeTask(const InputFrameRef& input_frame,
                     const BitstreamBuffer& bitstream_buffer);
 
   void TryEncodeFrames();
@@ -137,9 +141,10 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
 
   void NotifyError(EncoderStatus status);
 
+  void NotifyErrorOnChildSequence(EncoderStatus status);
+
   // Invoked when the CommandBufferHelper is available.
-  void OnCommandBufferHelperAvailable(
-      const GetCommandBufferHelperResult& result);
+  void OnCommandBufferHelperAvailable(GetCommandBufferHelperResult result);
 
   // Invoked when a shared image backed VideoFrame is resolved.
   void OnSharedImageResolved(scoped_refptr<VideoFrame> frame,
@@ -164,7 +169,8 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
   scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner_;
 
   // Helper for accessing shared textures.
-  scoped_refptr<CommandBufferHelper> command_buffer_helper_;
+  scoped_refptr<CommandBufferHelper> command_buffer_helper_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   VideoEncoderInfo encoder_info_;
 
@@ -181,7 +187,8 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
   base::WeakPtr<Client> client_;
   std::unique_ptr<MediaLog> media_log_;
 
-  bool error_occurred_ = false;
+  // Whether an encoding error has occurred.
+  std::atomic<bool> error_occurred_ = false;
 
   // True if Destroy() has been called.
   bool destroy_requested_ GUARDED_BY_CONTEXT(child_sequence_checker_) = false;
@@ -191,7 +198,8 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
 
   // The accelerator has acquired the command buffer helper that
   // would be used for accessing incoming shared images.
-  bool acquired_command_buffer_ = false;
+  bool acquired_command_buffer_ GUARDED_BY_CONTEXT(encoder_sequence_checker_) =
+      false;
 
   std::unique_ptr<D3D12CopyCommandQueueWrapper> copy_command_queue_
       GUARDED_BY_CONTEXT(encoder_sequence_checker_);
@@ -207,7 +215,8 @@ class MEDIA_GPU_EXPORT D3D12VideoEncodeAccelerator
 
   // Helper that holds a shared D3D11/D3D12 fence used for D3D11 -> D3D12
   // interop synchronization.
-  std::unique_ptr<D3D11To12Fence> source_texture_fence_;
+  std::unique_ptr<D3D11To12Fence> source_texture_fence_
+      GUARDED_BY_CONTEXT(encoder_sequence_checker_);
 
   // Invoked once flush is completed.
   FlushCallback flush_callback_;

@@ -298,9 +298,13 @@ void BrowserAccessibilityManagerWin::FireSourceEvent(
       FireUiaPropertyChangedEvent(UIA_ControllerForPropertyId, node);
       break;
     case ax::mojom::Event::kEndOfTest:
-      // Event tests use kEndOfTest as a sentinel to mark the end of the test.
-      FireUiaAccessibilityEvent(
-          UiaRegistrarWin::GetInstance().GetTestCompleteEventId(), node);
+      // Defer the TestComplete UIA event to FinalizeAccessibilityEvents so it
+      // fires after all other finalized UIA events (e.g. Text_TextChanged).
+      // Source events fire before FinalizeAccessibilityEvents, so firing
+      // TestComplete here would cause the UIA event recorder to shut down
+      // before receiving events that are enqueued during generated-event
+      // processing and only raised during finalization.
+      end_of_test_node_ = node;
       break;
     case ax::mojom::Event::kLoadComplete:
       FireWinAccessibilityEvent(IA2_EVENT_DOCUMENT_LOAD_COMPLETE, node);
@@ -641,6 +645,8 @@ void BrowserAccessibilityManagerWin::FireGeneratedEvent(
       FireUiaChangesEvent(wrapper, AnnotationType_Highlighted);
       break;
     case AXEventGenerator::Event::VALUE_IN_TEXT_FIELD_CHANGED:
+    case AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_DECREMENTED:
+    case AXEventGenerator::Event::VALUE_IN_SPIN_BUTTON_INCREMENTED:
       DCHECK(wrapper->IsTextField());
       FireWinAccessibilityEvent(EVENT_OBJECT_VALUECHANGE, wrapper);
       FireUiaPropertyChangedEvent(UIA_ValueValuePropertyId, wrapper);
@@ -1269,6 +1275,16 @@ void BrowserAccessibilityManagerWin::FinalizeAccessibilityEvents() {
           base::Unretained(this)));
 
   ignored_changed_nodes_.clear();
+
+  // Fire the TestComplete sentinel last, after all other finalized events.
+  // This ensures the UIA event recorder receives every platform event before
+  // shutting down.
+  if (end_of_test_node_) {
+    FireUiaAccessibilityEvent(
+        UiaRegistrarWin::GetInstance().GetTestCompleteEventId(),
+        end_of_test_node_);
+    end_of_test_node_ = nullptr;
+  }
 }
 
 BrowserAccessibilityManagerWin::SelectionEvents::SelectionEvents() = default;

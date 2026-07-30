@@ -435,10 +435,7 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
   _backgroundCustomizationService = nullptr;
   _imageFetcherService = nullptr;
   _backgroundImageCacheService = nullptr;
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate) ||
-      base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-    self.placeholderService = nullptr;
-  }
+  self.placeholderService = nullptr;
   base::UmaHistogramBoolean("IOS.NTP.LandscapeMode", _wasNTPInLandscape);
 }
 
@@ -454,9 +451,6 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 }
 
 - (void)setPlaceholderService:(PlaceholderService*)placeholderService {
-  CHECK(base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate) ||
-        base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2));
-
   _placeholderService = placeholderService;
 
   if (!placeholderService) {
@@ -526,10 +520,6 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 #pragma mark - PlaceholderServiceObserving
 
 - (void)placeholderImageUpdated {
-  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-    return;
-  }
-
   // Show Default Search Engine favicon.
   // Remember what is the Default Search Engine provider that the icon is
   // for, in case the user changes Default Search Engine while this is being
@@ -591,12 +581,24 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 - (void)setCustomBackground:(HomeCustomBackground)customBackground
                       image:(UIImage*)image
                       cache:(BOOL)cache {
+  [self setCustomBackground:customBackground
+                      image:image
+          originalImageSize:CGSizeZero
+                      cache:cache];
+}
+
+- (void)setCustomBackground:(HomeCustomBackground)customBackground
+                      image:(UIImage*)image
+          originalImageSize:(CGSize)originalImageSize
+                      cache:(BOOL)cache {
   if (cache && _backgroundImageCacheService &&
       IsNTPBackgroundImageCacheEnabled()) {
-    _backgroundImageCacheService->SetCachedBackgroundImage(image);
+    _backgroundImageCacheService->SetCachedBackgroundImage(image,
+                                                           originalImageSize);
   }
   HomeCustomizationFramingCoordinates* coordinates =
       [self framingCoordinatesForCustomBackground:customBackground];
+  coordinates.originalImageSize = originalImageSize;
   [self.consumer setBackgroundImage:image framingCoordinates:coordinates];
 
   CustomUITraitAccessor* traitAccessor = [[CustomUITraitAccessor alloc]
@@ -617,7 +619,12 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     return NO;
   }
 
-  [self setCustomBackground:customBackground image:cachedImage cache:NO];
+  CGSize originalImageSize =
+      _backgroundImageCacheService->GetCachedOriginalImageSize();
+  [self setCustomBackground:customBackground
+                      image:cachedImage
+          originalImageSize:originalImageSize
+                      cache:NO];
   return YES;
 }
 
@@ -635,15 +642,18 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 
 - (void)updateAIMAvailability {
   BOOL aimAllowed = NO;
+  BOOL fuseboxEligible = NO;
   if (_aimEligibilityService) {
     const BOOL allowedOnDevice =
         ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_PHONE ||
         IsAIMNTPEntrypointTabletEnabled();
     aimAllowed = _aimEligibilityService->IsAimEligible() && allowedOnDevice;
+    fuseboxEligible = _aimEligibilityService->IsFuseboxEligible();
   }
 
   [self.consumer setAIMAllowed:aimAllowed];
   [self.headerConsumer setAIMAllowed:aimAllowed];
+  [self.headerConsumer setFuseboxEligible:fuseboxEligible];
 
   if (aimAllowed == _isAIMAllowed) {
     return;
@@ -760,9 +770,13 @@ const net::NetworkTrafficAnnotationTag kTrafficAnnotation =
 
       __weak __typeof(self) weakSelf = self;
       _userUploadedImageManager->LoadUserUploadedImage(
-          base::FilePath(userBackground.image_path),
-          base::BindOnce(^(UIImage* image, UserUploadedImageError error) {
-            [weakSelf setCustomBackground:userBackground image:image cache:YES];
+          base::FilePath(userBackground.image_path), self.screenSize,
+          base::BindOnce(^(UIImage* image, CGSize originalSize,
+                           UserUploadedImageError error) {
+            [weakSelf setCustomBackground:userBackground
+                                    image:image
+                        originalImageSize:originalSize
+                                    cache:YES];
             if (!image) {
               base::UmaHistogramEnumeration("IOS.HomeCustomization.Background."
                                             "Ntp.ImageUserUploadedFetchError",

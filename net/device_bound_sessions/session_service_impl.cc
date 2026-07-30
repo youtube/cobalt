@@ -83,6 +83,7 @@ class DebugHeaderBuilder {
     switch (result) {
       case RefreshResult::kRefreshed:
       case RefreshResult::kFatalError:
+      case RefreshResult::kRefreshedAsWaiter:
         return;
       case RefreshResult::kInitializedService:
         NOTREACHED();
@@ -500,7 +501,8 @@ std::optional<SessionService::DeferralParams> SessionServiceImpl::ShouldDefer(
         request, first_party_set_metadata, session_key);
     if (minimum_lifetime.is_zero()) {
       auto previous_deferrals_it = previous_deferrals.find(session_key);
-      if (previous_deferrals_it != previous_deferrals.end()) {
+      if (previous_deferrals_it != previous_deferrals.end() &&
+          previous_deferrals_it->second != RefreshResult::kRefreshedAsWaiter) {
         debug_header_builder.AddSkippedSession(previous_deferrals_it->first,
                                                previous_deferrals_it->second);
         continue;
@@ -582,6 +584,7 @@ void SessionServiceImpl::DeferRequestForRefresh(
   const Session::KeyIdOrError& key_id = session->unexportable_key_id();
   if (!key_id.has_value()) {
     if (key_id.error() == unexportable_keys::ServiceError::kKeyNotReady) {
+      it->second.back().triggered_refresh = true;
       RestoreSessionKey(
           session_key, request.device_bound_session_access_callback(),
           base::BindOnce(&SessionServiceImpl::RefreshSessionInternal,
@@ -597,6 +600,7 @@ void SessionServiceImpl::DeferRequestForRefresh(
     return;
   }
 
+  it->second.back().triggered_refresh = true;
   RefreshSessionInternal(RefreshTrigger::kMissingCookie, request.GetWeakPtr(),
                          session_key, *key_id);
 }
@@ -741,7 +745,11 @@ void SessionServiceImpl::UnblockDeferredRequests(
       base::UmaHistogramEnumeration(
           "Net.DeviceBoundSessions.DeferralResult.Slow", result);
     }
-    std::move(request.callback).Run(result);
+    RefreshResult final_result = result;
+    if (result == RefreshResult::kRefreshed && !request.triggered_refresh) {
+      final_result = RefreshResult::kRefreshedAsWaiter;
+    }
+    std::move(request.callback).Run(final_result);
   }
 }
 
@@ -884,8 +892,8 @@ void SessionServiceImpl::SetLatestSignedRefreshChallenge(
 base::expected<std::unique_ptr<Session>, SessionError::ErrorType>
 SessionServiceImpl::CreateSessionFromUnexportableKey(
     SessionParams params,
-    unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
-        key_or_error) {
+    unexportable_keys::ServiceErrorOr<
+        unexportable_keys::UnexportableSigningKeyId> key_or_error) {
   if (!key_or_error.has_value()) {
     return base::unexpected(SessionError::kFailedToUnwrapKey);
   }
@@ -904,8 +912,8 @@ void SessionServiceImpl::OnAddSessionKeyRestored(
     const SchemefulSite& site,
     SessionParams params,
     base::OnceCallback<void(SessionError::ErrorType)> callback,
-    unexportable_keys::ServiceErrorOr<unexportable_keys::UnexportableKeyId>
-        key_or_error) {
+    unexportable_keys::ServiceErrorOr<
+        unexportable_keys::UnexportableSigningKeyId> key_or_error) {
   base::expected<std::unique_ptr<Session>, SessionError::ErrorType>
       session_or_error = CreateSessionFromUnexportableKey(
           std::move(params), std::move(key_or_error));

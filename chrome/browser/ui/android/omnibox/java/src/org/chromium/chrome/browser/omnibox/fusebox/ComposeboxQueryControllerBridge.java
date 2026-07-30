@@ -53,12 +53,20 @@ public class ComposeboxQueryControllerBridge {
 
     private ComposeboxQueryControllerBridge() {}
 
-    /** Create a new ComposeboxQueryControllerBridge using the given profile. */
-    public static @Nullable ComposeboxQueryControllerBridge createForProfile(Profile profile) {
+    /**
+     * Create a new ComposeboxQueryControllerBridge using the given profile and WebUI WebContents.
+     *
+     * @param contextualTasksWebContents The WebContents hosting the WebUI that needs to be
+     *     communicated with.
+     */
+    public static @Nullable ComposeboxQueryControllerBridge create(
+            Profile profile, @Nullable WebContents contextualTasksWebContents) {
         if (sInstanceForTesting != null) return sInstanceForTesting.orElse(null);
 
         ComposeboxQueryControllerBridge javaInstance = new ComposeboxQueryControllerBridge();
-        long nativeInstance = ComposeboxQueryControllerBridgeJni.get().init(profile, javaInstance);
+        long nativeInstance =
+                ComposeboxQueryControllerBridgeJni.get()
+                        .init(javaInstance, profile, contextualTasksWebContents);
         if (nativeInstance == 0L) return null;
         javaInstance.mNativeInstance = nativeInstance;
         return javaInstance;
@@ -211,7 +219,9 @@ public class ComposeboxQueryControllerBridge {
     @NativeMethods
     public interface Natives {
         long init(
-                @JniType("Profile*") Profile profile, ComposeboxQueryControllerBridge javaInstance);
+                ComposeboxQueryControllerBridge javaInstance,
+                @JniType("Profile*") Profile profile,
+                @JniType("content::WebContents*") @Nullable WebContents contextualTasksWebContents);
 
         void destroy(long nativeComposeboxQueryControllerBridge);
 
@@ -235,17 +245,17 @@ public class ComposeboxQueryControllerBridge {
         void getAimUrl(
                 long nativeComposeboxQueryControllerBridge,
                 @JniType("GURL") GURL url,
-                Callback<@JniType("GURL") GURL> callback);
+                Callback<GURL> callback);
 
         void getImageGenerationUrl(
                 long nativeComposeboxQueryControllerBridge,
                 @JniType("GURL") GURL url,
-                Callback<@JniType("GURL") GURL> callback);
+                Callback<GURL> callback);
 
         void getAimUrlFromInputState(
                 long nativeComposeboxQueryControllerBridge,
                 @JniType("GURL") GURL url,
-                Callback<@JniType("GURL") GURL> callback);
+                Callback<GURL> callback);
 
         void removeAttachment(
                 long nativeComposeboxQueryControllerBridge, @JniType("std::string") String token);

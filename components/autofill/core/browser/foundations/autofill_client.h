@@ -93,6 +93,10 @@ namespace accessibility_annotator {
 class AccessibilityQueryService;
 }
 
+namespace metrics {
+class ProfileMetricsService;
+}
+
 namespace autofill {
 
 class ActorKeyMetricsRecorder;
@@ -225,7 +229,8 @@ class AutofillClient {
                   AutofillSuggestionTriggerSource trigger_source,
                   int32_t form_control_ax_id,
                   PopupAnchorType anchor_type,
-                  bool show_tabbed_popup = false);
+                  bool show_tabbed_popup = false,
+                  bool prefer_prev_arrow_side_on_suggestions_update = false);
     PopupOpenArgs(const PopupOpenArgs&);
     PopupOpenArgs(PopupOpenArgs&&);
     PopupOpenArgs& operator=(const PopupOpenArgs&);
@@ -243,15 +248,20 @@ class AutofillClient {
     int32_t form_control_ax_id = 0;
     PopupAnchorType anchor_type = PopupAnchorType::kField;
     bool show_tabbed_popup = false;
+    // True if the popup should prefer the previous arrow side when suggestions
+    // are updated. This avoids unnecessary jumping when the popup is updated,
+    // unless the popup would otherwise go out of bounds.
+    bool prefer_prev_arrow_side_on_suggestions_update = false;
   };
 
   // Details about the UI that was shown to the user in an entity import bubble.
   struct EntityImportUIContext {
     // String ID of the consent displayed in the import bubble, if any.
-    std::optional<int> consent_string_id;
+    // Populated only when the user accepts the prompt.
+    std::optional<int> accepted_consent_string_id;
     // The string ID of the button that the user clicked, in case the user
-    // accepted or declined the bubble.
-    std::optional<int> clicked_button_string_id;
+    // accepted the bubble.
+    std::optional<int> accept_button_string_id;
   };
   using EntityImportPromptResultCallback =
       base::OnceCallback<void(AutofillAiBubbleResult result,
@@ -442,6 +452,9 @@ class AutofillClient {
   // Gets the IdentityManager associated with the client.
   virtual signin::IdentityManager* GetIdentityManager() = 0;
   virtual const signin::IdentityManager* GetIdentityManager() const = 0;
+
+  // Gets the ProfileMetricsService associated with the client.
+  virtual metrics::ProfileMetricsService* GetProfileMetricsService() = 0;
 
   // Gets the `GoogleGroupsManager` associated with the client.
   virtual const GoogleGroupsManager* GetGoogleGroupsManager() const;

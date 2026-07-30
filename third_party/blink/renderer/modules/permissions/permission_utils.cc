@@ -251,6 +251,17 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
     case V8PermissionName::Enum::kGeolocation:
       return CreatePermissionDescriptor(PermissionName::GEOLOCATION);
 
+    case V8PermissionName::Enum::kGeolocationApproximate:
+      if (!RuntimeEnabledFeatures::ApproximateGeolocationPermissionAPIEnabled(
+              ExecutionContext::From(script_state))) {
+        exception_state.ThrowTypeError(
+            "Permission API support for approximate geolocation is not "
+            "enabled.");
+        return nullptr;
+      }
+      return CreatePermissionDescriptor(
+          PermissionName::GEOLOCATION_APPROXIMATE);
+
     case V8PermissionName::Enum::kNotifications:
       return CreatePermissionDescriptor(PermissionName::NOTIFICATIONS);
 
@@ -435,23 +446,23 @@ PermissionDescriptorPtr ParsePermissionDescriptor(
     }
 
     case V8PermissionName::Enum::kKeyboardLock: {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
       return CreatePermissionDescriptor(PermissionName::KEYBOARD_LOCK);
 #else
       exception_state.ThrowTypeError(
-          "The Keyboard Lock permission isn't available on Android.");
+          "The Keyboard Lock permission isn't available on this platform.");
       return nullptr;
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     }
 
     case V8PermissionName::Enum::kPointerLock: {
-#if !BUILDFLAG(IS_ANDROID)
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
       return CreatePermissionDescriptor(PermissionName::POINTER_LOCK);
 #else
       exception_state.ThrowTypeError(
-          "The Pointer Lock permission isn't available on Android.");
+          "The Pointer Lock permission isn't available on this platform.");
       return nullptr;
-#endif
+#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
     }
 
     case V8PermissionName::Enum::kFullscreen: {

@@ -5,8 +5,6 @@
 #ifndef THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_RESOURCE_DISPATCHER_H_
 #define THIRD_PARTY_BLINK_RENDERER_PLATFORM_GRAPHICS_CANVAS_RESOURCE_DISPATCHER_H_
 
-#include <memory>
-
 #include "base/memory/raw_ptr.h"
 #include "base/memory/read_only_shared_memory_region.h"
 #include "base/task/single_thread_task_runner.h"
@@ -21,11 +19,13 @@
 #include "third_party/blink/renderer/platform/graphics/resource_id_traits.h"
 #include "third_party/blink/renderer/platform/platform_export.h"
 #include "third_party/blink/renderer/platform/timer.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace blink {
 
 class CanvasResource;
+class ExportedCanvasResource;
 
 class CanvasResourceDispatcherClient {
  public:
@@ -87,7 +87,7 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
     return animation_state_ == AnimationState::kSuspended;
   }
   void DispatchFrame(scoped_refptr<CanvasResource>&&,
-                     const SkIRect& damage_rect,
+                     const gfx::Rect& damage_rect,
                      bool is_opaque);
   // virtual for mocking
   virtual void OnMainThreadReceivedImage();
@@ -116,13 +116,12 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
  private:
   friend class OffscreenCanvasPlaceholderTest;
   friend class CanvasResourceDispatcherTest;
-  struct ExportedResource;
 
   using ExportedResourceMap =
-      HashMap<viz::ResourceId, std::unique_ptr<ExportedResource>>;
+      HashMap<viz::ResourceId, scoped_refptr<ExportedCanvasResource>>;
 
   bool PrepareFrame(scoped_refptr<CanvasResource>&&,
-                    const SkIRect& damage_rect,
+                    const gfx::Rect& damage_rect,
                     bool is_opaque,
                     viz::CompositorFrame* frame);
 
@@ -145,11 +144,10 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
   // state has actually changed or not.
   void UpdateBeginFrameSource();
 
-  void PostImageToPlaceholderIfNotBlocked(scoped_refptr<CanvasResource>&&,
-                                          viz::ResourceId resource_id);
+  void PostImageToPlaceholderIfNotBlocked(
+      scoped_refptr<ExportedCanvasResource>);
   // virtual for testing
-  virtual void PostImageToPlaceholder(scoped_refptr<CanvasResource>&&,
-                                      viz::ResourceId resource_id);
+  virtual void PostImageToPlaceholder(scoped_refptr<ExportedCanvasResource>&&);
 
   mojo::Remote<viz::mojom::blink::CompositorFrameSink> sink_;
   mojo::Remote<mojom::blink::SurfaceEmbedder> surface_embedder_;
@@ -166,10 +164,9 @@ class PLATFORM_EXPORT CanvasResourceDispatcher
 
   viz::FrameTokenGenerator next_frame_token_;
 
-  // The latest_unposted_resource_id_ always refers to the Id of the frame
+  // The latest_unposted_resource_ always refers to the frame
   // resource used by the latest_unposted_resource_.
-  scoped_refptr<CanvasResource> latest_unposted_resource_;
-  viz::ResourceId latest_unposted_resource_id_;
+  scoped_refptr<ExportedCanvasResource> latest_unposted_resource_;
   unsigned num_pending_placeholder_resources_;
 
   viz::BeginFrameAck current_begin_frame_ack_;

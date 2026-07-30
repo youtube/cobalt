@@ -7,28 +7,9 @@
 #include <algorithm>
 
 #include "base/check.h"
-#include "base/metrics/histogram_functions.h"
-#include "base/metrics/user_metrics.h"
-#include "base/observer_list.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/buildflags.h"
-#include "chrome/browser/lifetime/application_lifetime_desktop.h"
-#include "chrome/browser/lifetime/browser_shutdown.h"
-#include "chrome/browser/lifetime/termination_notification.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
-#include "chrome/browser/ui/browser_list_observer.h"
-#include "chrome/browser/ui/browser_window.h"
-#include "components/keep_alive_registry/keep_alive_registry.h"
-#include "components/keep_alive_registry/keep_alive_types.h"
-
-using base::UserMetricsAction;
-
-// static
-base::LazyInstance<base::ObserverList<BrowserListObserver>,
-                   BrowserList::ObserverListTraits>
-    BrowserList::observers_ = LAZY_INSTANCE_INITIALIZER;
 
 // static
 BrowserList* BrowserList::instance_ = nullptr;
@@ -52,22 +33,7 @@ void BrowserList::AddBrowser(Browser* browser) {
                                "until it is fully constructed.";
   GetInstance()->browsers_.push_back(browser);
 
-  browser->RegisterKeepAlive();
-
   AddBrowserToActiveList(browser);
-
-  for (BrowserListObserver& observer : observers_.Get()) {
-    observer.OnBrowserAdded(browser);
-  }
-
-  if (browser->profile()->IsGuestSession()) {
-    base::UmaHistogramCounts100("Browser.WindowCount.Guest",
-                                chrome::GetGuestBrowserCount());
-  } else if (browser->profile()->IsIncognitoProfile()) {
-    base::UmaHistogramCounts100(
-        "Browser.WindowCount.Incognito",
-        chrome::GetOffTheRecordBrowsersActiveForProfile(browser->profile()));
-  }
 }
 
 // static
@@ -77,27 +43,6 @@ void BrowserList::RemoveBrowser(Browser* browser) {
   RemoveBrowserFrom(browser, &browser_list->browsers_ordered_by_activation_);
 
   RemoveBrowserFrom(browser, &browser_list->browsers_);
-
-  for (BrowserListObserver& observer : observers_.Get()) {
-    observer.OnBrowserRemoved(browser);
-  }
-
-  browser->UnregisterKeepAlive();
-
-  // If we're exiting, send out the APP_TERMINATING notification to allow other
-  // modules to shut themselves down.
-  if (!KeepAliveRegistry::GetInstance()->IsOriginRegistered(
-          KeepAliveOrigin::BROWSER) &&
-      (browser_shutdown::IsTryingToQuit() ||
-       g_browser_process->IsShuttingDown())) {
-    // Last browser has just closed, and this is a user-initiated quit or there
-    // is no module keeping the app alive, so send out our notification. No need
-    // to call ProfileManager::ShutdownSessionServices() as part of the
-    // shutdown, because Browser::WindowClosing() already makes sure that the
-    // SessionService is created and notified.
-    browser_shutdown::NotifyAppTerminating();
-    chrome::OnAppExiting();
-  }
 }
 
 // static
@@ -116,16 +61,6 @@ void BrowserList::AddBrowserToActiveList(Browser* browser) {
 }
 
 // static
-void BrowserList::AddObserver(BrowserListObserver* observer) {
-  observers_.Get().AddObserver(observer);
-}
-
-// static
-void BrowserList::RemoveObserver(BrowserListObserver* observer) {
-  observers_.Get().RemoveObserver(observer);
-}
-
-// static
 void BrowserList::SetLastActive(Browser* browser) {
   BrowserList* instance = GetInstance();
   DCHECK(std::ranges::contains(instance->browsers_, browser))
@@ -134,28 +69,8 @@ void BrowserList::SetLastActive(Browser* browser) {
   DCHECK(browser->window())
       << "SetLastActive called for a browser with no window set.";
 
-  base::RecordAction(UserMetricsAction("ActiveBrowserChanged"));
-
   RemoveBrowserFrom(browser, &instance->browsers_ordered_by_activation_);
   instance->browsers_ordered_by_activation_.push_back(browser);
-
-  for (BrowserListObserver& observer : observers_.Get()) {
-    observer.OnBrowserSetLastActive(browser);
-  }
-}
-
-// static
-void BrowserList::NotifyBrowserNoLongerActive(Browser* browser) {
-  BrowserList* instance = GetInstance();
-  DCHECK(std::ranges::contains(instance->browsers_, browser))
-      << "NotifyBrowserNoLongerActive called for a browser before the browser "
-         "was added to the BrowserList.";
-  DCHECK(browser->window())
-      << "NotifyBrowserNoLongerActive called for a browser with no window set.";
-
-  for (BrowserListObserver& observer : observers_.Get()) {
-    observer.OnBrowserNoLongerActive(browser);
-  }
 }
 
 ////////////////////////////////////////////////////////////////////////////////

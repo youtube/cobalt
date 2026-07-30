@@ -8,6 +8,7 @@ import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
 
 import {getCss} from './accessibility_annotator_info.css.js';
 import {getHtml} from './accessibility_annotator_info.html.js';
+import {AccessibilityAnnotatorInfoBrowserProxy} from './browser_proxy.js';
 
 export class AccessibilityAnnotatorInfoElement extends CrLitElement {
   static get is() {
@@ -22,14 +23,36 @@ export class AccessibilityAnnotatorInfoElement extends CrLitElement {
     return getHtml.bind(this)();
   }
 
+  static override get properties() {
+    return {
+      email_: {type: String},
+      avatarUrl_: {type: String},
+    };
+  }
+
+  protected accessor email_: string = '';
+  protected accessor avatarUrl_: string = '';
+
+  override connectedCallback() {
+    super.connectedCallback();
+    AccessibilityAnnotatorInfoBrowserProxy.getInstance()
+        .handler.getAccountInfo()
+        .then(response => {
+          if (response.info) {
+            this.email_ = response.info.email;
+            this.avatarUrl_ = response.info.avatarUrl;
+          }
+        });
+  }
+
   protected onManageSettingsClick_() {
-    // Handle the manage settings click event here.
-    // TODO(crbug.com/488321731): Connect this with handler via proxy.
+    AccessibilityAnnotatorInfoBrowserProxy.getInstance()
+        .handler.onManageSettingsClicked();
   }
 
   protected onGotItClick_() {
-    // Handle the got it click event here.
-    // TODO(crbug.com/488321731): Connect this with handler via proxy.
+    AccessibilityAnnotatorInfoBrowserProxy.getInstance()
+        .handler.onInfoAcknowledged();
   }
 }
 

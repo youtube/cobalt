@@ -102,7 +102,6 @@ import org.chromium.chrome.browser.ui.extensions.ExtensionUiBackend;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.chrome.browser.util.ChromeAccessibilityUtil;
 import org.chromium.chrome.test.util.browser.signin.AccountManagerTestRule;
-import org.chromium.components.browser_ui.accessibility.AccessibilityFeatureMap;
 import org.chromium.components.browser_ui.accessibility.PageZoomIndicatorCoordinator;
 import org.chromium.components.browser_ui.styles.ChromeColors;
 import org.chromium.components.embedder_support.util.UrlConstants;
@@ -137,10 +136,7 @@ import java.util.Map;
 /** Unit tests for LocationBarMediator. */
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(shadows = {LocationBarMediatorTest.ObjectAnimatorShadow.class})
-@DisableFeatures({
-    ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2,
-    AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR,
-})
+@DisableFeatures({ChromeFeatureList.ADAPTIVE_BUTTON_IN_TOP_TOOLBAR_CUSTOMIZATION_V2})
 @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
 public class LocationBarMediatorTest {
 
@@ -229,6 +225,7 @@ public class LocationBarMediatorTest {
     private final SettableNonNullObservableSupplier<@FuseboxState Integer> mFuseboxStateSupplier =
             ObservableSuppliers.createNonNull(FuseboxState.EXPANDED);
     private final UserDataHost mTabUserDataHost = new UserDataHost();
+    private final FuseboxSessionState mSessionState = new FuseboxSessionState();
 
     // Members capturing final state of the LocationBarLayout elements.
     private boolean mNavigateButtonIsVisible;
@@ -261,10 +258,7 @@ public class LocationBarMediatorTest {
                 .when(mLocationBarDataProvider)
                 .getPrimaryColor();
         lenient().doReturn(mTab).when(mLocationBarDataProvider).getTab();
-        lenient()
-                .doAnswer(i -> mLocationBarDataProvider.getTab().getUserDataHost())
-                .when(mLocationBarDataProvider)
-                .getUserDataHost();
+        lenient().doReturn(mSessionState).when(mLocationBarDataProvider).getFuseboxSessionState();
         lenient()
                 .doReturn(mNewTabPageDelegate)
                 .when(mLocationBarDataProvider)
@@ -1819,9 +1813,9 @@ public class LocationBarMediatorTest {
         mMediator.beginInput(new AutocompleteInput().setUserText(newText));
         ShadowLooper.runUiThreadTasks();
 
-        // Set up and switch to a different tab (we technically only need user data host).
-        UserDataHost previousTabUserDataHost = new UserDataHost();
-        doReturn(previousTabUserDataHost).when(mLocationBarDataProvider).getUserDataHost();
+        // Set up and switch to a different tab (we technically only need fusebox session state).
+        FuseboxSessionState previousTabSessionState = new FuseboxSessionState();
+        doReturn(previousTabSessionState).when(mLocationBarDataProvider).getFuseboxSessionState();
         mTabletMediator.onTabChanged(null);
 
         // Simulate typing in the other tab.
@@ -1829,8 +1823,8 @@ public class LocationBarMediatorTest {
         mMediator.beginInput(new AutocompleteInput().setUserText(previousText));
         ShadowLooper.runUiThreadTasks();
 
-        // Emulate a tab switch back to original tab (again, user data host suffices).
-        doReturn(mTabUserDataHost).when(mLocationBarDataProvider).getUserDataHost();
+        // Emulate a tab switch back to original tab (again, fusebox session state suffices).
+        doReturn(mSessionState).when(mLocationBarDataProvider).getFuseboxSessionState();
         mTabletMediator.onTabChanged(null);
         ShadowLooper.runUiThreadTasks();
 
@@ -1856,7 +1850,7 @@ public class LocationBarMediatorTest {
         doReturn(newTabPageDelegate).when(mLocationBarDataProvider).getNewTabPageDelegate();
         doReturn(JUnitTestGURLs.NTP_URL).when(mLocationBarDataProvider).getCurrentGurl();
 
-        // Prepare a state to be restored for mTab.
+        // Prepare a session state to be restored.
         String newText = "new text";
         final int newSelectionStart = 2;
         final int newSelectionEnd = 6;
@@ -1865,26 +1859,23 @@ public class LocationBarMediatorTest {
         newState.getAutocompleteInput().setSelection(newSelectionStart, newSelectionEnd);
         newState.activate(mProfileSupplier, null);
 
-        Tab previousTab = Mockito.mock(Tab.class);
-        UserDataHost previousTabUserDataHost = new UserDataHost();
-        doReturn(previousTabUserDataHost).when(previousTab).getUserDataHost();
+        FuseboxSessionState previousState = new FuseboxSessionState();
+        doReturn(previousState).when(mLocationBarDataProvider).getFuseboxSessionState();
 
         // Emulate a state where the omnibox is focused and user has typed a text.
-        doReturn(previousTab).when(mLocationBarDataProvider).getTab();
         mTabletMediator.onUrlFocusChange(true);
         String previousText = "previous text";
         final int previousSelectionStart = 1;
         final int previousSelectionEnd = 5;
 
         // Note: input state is tracked by autocomplete.
-        var previousState = getSession();
         previousState.getAutocompleteInput().setUserText(previousText);
         doReturn(previousSelectionStart).when(mUrlCoordinator).getSelectionStart();
         doReturn(previousSelectionEnd).when(mUrlCoordinator).getSelectionEnd();
 
-        // Emulate a tab switch from previousTab to mTab.
-        doReturn(mTab).when(mLocationBarDataProvider).getTab();
-        mTabletMediator.onTabChanged(previousTab);
+        // Restore the original session state.
+        doReturn(newState).when(mLocationBarDataProvider).getFuseboxSessionState();
+        mTabletMediator.onTabChanged(null);
         mTabletMediator.onUrlChanged(true);
 
         ArgumentCaptor<FuseboxSessionState> captor =
@@ -2003,7 +1994,6 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testZoomButtonClicked() {
         mMediator.onFinishNativeInitialization();
         doReturn(mWebContents).when(mTab).getWebContents();
@@ -2012,35 +2002,24 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testShouldShowZoomButton_featureEnabledAndNotDefaultZoom() {
         mMediator.onFinishNativeInitialization();
         verify(mLocationBarLayout, never()).setZoomButtonVisibility(true);
     }
 
     @Test
-    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testShouldShowZoomButton_featureEnabledAndDefaultZoom() {
         mMediator.onFinishNativeInitialization();
         verify(mLocationBarLayout, never()).setZoomButtonVisibility(false);
     }
 
     @Test
-    @DisableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
-    public void testShouldShowZoomButton_featureDisabled() {
-        mMediator.onFinishNativeInitialization();
-        verify(mLocationBarLayout, never()).setZoomButtonVisibility(false);
-    }
-
-    @Test
-    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     public void testShouldShowZoomButton_nullWebContents() {
         mMediator.onFinishNativeInitialization();
         verify(mLocationBarLayout, never()).setZoomButtonVisibility(false);
     }
 
     @Test
-    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     @DisableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
     public void testUpdateZoomButtonVisibility_popupShowing() {
         mTabletMediator.onFinishNativeInitialization();
@@ -2053,7 +2032,6 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures(AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR)
     @DisableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
     public void testUpdateZoomButtonVisibility_hideButton() {
         mMediator.onFinishNativeInitialization();
@@ -2172,10 +2150,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR,
-        AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR
-    })
+    @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
     public void testZoomButtonToolbarWidthConsumer_notVisible() {
         int buttonWidth =
                 mContext.getResources()
@@ -2198,10 +2173,7 @@ public class LocationBarMediatorTest {
     }
 
     @Test
-    @EnableFeatures({
-        ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR,
-        AccessibilityFeatureMap.ANDROID_ZOOM_INDICATOR
-    })
+    @EnableFeatures(ChromeFeatureList.TOOLBAR_TABLET_RESIZE_REFACTOR)
     public void testZoomButtonToolbarWidthConsumer() {
         int buttonWidth =
                 mContext.getResources()
@@ -2259,6 +2231,33 @@ public class LocationBarMediatorTest {
     }
 
     @Test
+    public void testEndInputResetsHint() {
+        mProfileSupplier.set(mProfile);
+        mMediator.onFinishNativeInitialization();
+        RobolectricUtil.runAllBackgroundAndUi();
+
+        String searchHint = "search or something";
+        doReturn(searchHint)
+                .when(mSearchEngineUtils)
+                .getOmniboxHintText(eq(AutocompleteRequestType.SEARCH), any());
+        String aiHint = "ai or something";
+        doReturn(aiHint)
+                .when(mSearchEngineUtils)
+                .getOmniboxHintText(eq(AutocompleteRequestType.AI_MODE), any());
+
+        mMediator.onUrlFocusChange(/* hasFocus= */ true);
+        FuseboxSessionState state = getSession();
+        clearInvocations(mUrlCoordinator);
+
+        state.getAutocompleteInput().setRequestType(AutocompleteRequestType.AI_MODE);
+        verify(mUrlCoordinator).setUrlBarHintText(eq(aiHint));
+
+        clearInvocations(mUrlCoordinator);
+        mMediator.onUrlFocusChange(/* hasFocus= */ false);
+        verify(mUrlCoordinator).setUrlBarHintText(eq(searchHint));
+    }
+
+    @Test
     public void testLoadUrl_chromeExtensionScheme() {
         mMediator.onFinishNativeInitialization();
         mProfileSupplier.set(mProfile);
@@ -2284,7 +2283,55 @@ public class LocationBarMediatorTest {
         ExtensionUi.setBackendForTesting(null);
     }
 
+    @Test
+    public void testOnBackButtonClicked() {
+        doReturn(true).when(mTab).canGoBack();
+        mMediator.onBackButtonClicked();
+        verify(mTab).goBack();
+    }
+
+    @Test
+    public void testBackButtonClicked_cannotGoBack() {
+        doReturn(false).when(mTab).canGoBack();
+        mMediator.onBackButtonClicked();
+        verify(mTab, never()).goBack();
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testUpdateBackButtonVisibility_visible() {
+        org.mockito.Mockito.clearInvocations(mLocationBarLayout);
+        mMediator.updateBackButtonVisibility();
+        verify(mLocationBarLayout).setBackButtonVisibility(true);
+    }
+
+    @Test
+    @DisableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testUpdateBackButtonVisibility_hidden() {
+        org.mockito.Mockito.clearInvocations(mLocationBarLayout);
+        mMediator.updateBackButtonVisibility();
+        verify(mLocationBarLayout).setBackButtonVisibility(false);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testUpdateBackButtonVisibility_hiddenWhenFocused() {
+        mMediator.onUrlFocusChange(true);
+        org.mockito.Mockito.clearInvocations(mLocationBarLayout);
+        mMediator.updateBackButtonVisibility();
+        verify(mLocationBarLayout).setBackButtonVisibility(false);
+    }
+
+    @Test
+    @EnableFeatures(ChromeFeatureList.ANDROID_BOTTOM_BAR)
+    public void testUpdateBackButtonVisibility_hiddenOnNtp() {
+        doReturn(new GURL("chrome://newtab/")).when(mTab).getUrl();
+        org.mockito.Mockito.clearInvocations(mLocationBarLayout);
+        mMediator.updateBackButtonVisibility();
+        verify(mLocationBarLayout).setBackButtonVisibility(false);
+    }
+
     private FuseboxSessionState getSession() {
-        return FuseboxSessionState.from(mLocationBarDataProvider);
+        return mSessionState;
     }
 }

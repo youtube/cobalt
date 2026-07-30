@@ -64,7 +64,6 @@
 #include "third_party/blink/renderer/core/layout/layout_text_combine.h"
 #include "third_party/blink/renderer/core/layout/layout_theme.h"
 #include "third_party/blink/renderer/core/layout/map_coordinates_flags.h"
-#include "third_party/blink/renderer/core/layout/text_autosizer.h"
 #include "third_party/blink/renderer/core/paint/compositing/compositing_reason_finder.h"
 #include "third_party/blink/renderer/core/style/applied_text_decoration.h"
 #include "third_party/blink/renderer/core/style/basic_shapes.h"
@@ -2439,21 +2438,6 @@ StyleScrollbarColor* ComputedStyle::UsedScrollbarColor() const {
   return ScrollbarColor();
 }
 
-Length ComputedStyle::LineHeight() const {
-  const Length& lh = LineHeightInternal();
-  // Unlike getFontDescription().computedSize() and hence fontSize(), this is
-  // recalculated on demand as we only store the specified line height.
-  // FIXME: Should consider scaling the fixed part of any calc expressions
-  // too, though this involves messily poking into CalcExpressionLength.
-  if (lh.IsFixed()) {
-    float multiplier = TextAutosizingMultiplier();
-    return Length::Fixed(TextAutosizer::ComputeAutosizedFontSize(
-        lh.Pixels(), multiplier, EffectiveZoom()));
-  }
-
-  return lh;
-}
-
 float ComputedStyle::ComputedLineHeight(const Length& lh, const Font& font) {
   // For "normal" line-height use the font's built-in spacing if available.
   if (lh.IsAuto()) {
@@ -3157,34 +3141,6 @@ void ComputedStyleBuilder::UpdateFontOrientation() {
   FontDescription font_description = GetFontDescription();
   font_description.SetOrientation(orientation);
   SetFontDescription(font_description);
-}
-
-void ComputedStyleBuilder::SetTextAutosizingMultiplier(float multiplier) {
-  if (TextAutosizingMultiplier() == multiplier) {
-    return;
-  }
-
-  SetTextAutosizingMultiplierInternal(multiplier);
-
-  float size = GetFontDescription().SpecifiedSize();
-
-  DCHECK(std::isfinite(size));
-  if (!std::isfinite(size) || size < 0) {
-    size = 0;
-  } else {
-    size = std::min(kMaximumAllowedFontSize, size);
-  }
-
-  FontDescription desc(GetFontDescription());
-  desc.SetSpecifiedSize(size);
-
-  float computed_size = size * EffectiveZoom();
-
-  float autosized_font_size = TextAutosizer::ComputeAutosizedFontSize(
-      computed_size, multiplier, EffectiveZoom());
-  desc.SetComputedSize(std::min(kMaximumAllowedFontSize, autosized_font_size));
-
-  SetFontDescription(desc);
 }
 
 void ComputedStyleBuilder::SetUsedColorScheme(

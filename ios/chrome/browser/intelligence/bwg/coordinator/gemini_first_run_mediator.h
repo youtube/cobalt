@@ -12,10 +12,14 @@
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 
 @protocol SceneCommands;
-class BwgService;
+class GeminiService;
 class GeminiBrowserAgent;
 class PrefService;
 class WebStateList;
+
+namespace signin {
+class IdentityManager;
+}  // namespace signin
 
 @protocol GeminiFirstRunMediatorDelegate;
 
@@ -25,8 +29,9 @@ class WebStateList;
 - (instancetype)initWithPrefService:(PrefService*)prefService
                        webStateList:(WebStateList*)webStateList
                  baseViewController:(UIViewController*)baseViewController
-                         BWGService:(BwgService*)geminiService
+                      geminiService:(GeminiService*)geminiService
                  geminiBrowserAgent:(GeminiBrowserAgent*)geminiBrowserAgent
+                    identityManager:(signin::IdentityManager*)identityManager
                             tracker:(feature_engagement::Tracker*)tracker
                          entryPoint:(gemini::EntryPoint)entryPoint
                   completionHandler:(void (^)(BOOL success))completion;
@@ -37,11 +42,14 @@ class WebStateList;
 // The handler for sending scene commands.
 @property(nonatomic, weak) id<SceneCommands> sceneHandler;
 
-// Returns YES if the BWG promo should be shown.
+// Returns YES if the Gemini promo should be shown.
 @property(nonatomic, readonly) BOOL shouldShowPromo;
 
 // Returns YES if the AI Hub IPH should be shown.
 @property(nonatomic, readonly) BOOL shouldShowAIHubIPH;
+
+// Aborts the flow due to mic permission denial without resetting consent.
+- (void)didRefuseLiveMicPermission;
 
 @end
 

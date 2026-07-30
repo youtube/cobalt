@@ -71,6 +71,10 @@ BASE_FEATURE(kAndroidPkAutocorrectUnderline, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kAndroidBlockMisspellingSuggestionSpanInCompositionMode,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Blocks the grammar suggestion span in composition mode.
+BASE_FEATURE(kAndroidBlockGrammarSuggestionSpanInCompositionMode,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Warm up a spare renderer after each navigation on Android.
 BASE_FEATURE(kAndroidWarmUpSpareRendererWithTimeout,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -403,7 +407,7 @@ BASE_FEATURE(kEmailVerificationProtocol, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enforce same-origin check for dedicated worker script URLs.
 // See https://crbug.com/496253755.
 BASE_FEATURE(kEnforceDedicatedWorkerSameOriginCheck,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables the spec-compliant 'error' attribute in IdentityCredentialError while
 // deprecating the legacy 'code' attribute.
@@ -447,7 +451,7 @@ BASE_FEATURE(kFencedFramesEnforceFocus, base::FEATURE_DISABLED_BY_DEFAULT);
 // details.
 #if BUILDFLAG(IS_ANDROID)
 // Enable AL device fluid resize.
-BASE_FEATURE(kFluidResize, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFluidResize, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kFocusRenderWidgetHostViewAndroidOnActionDown,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif

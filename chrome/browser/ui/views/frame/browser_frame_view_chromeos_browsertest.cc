@@ -34,6 +34,7 @@
 #include "chrome/browser/ash/login/test/login_manager_mixin.h"
 #include "chrome/browser/ash/system_web_apps/system_web_app_manager.h"
 #include "chrome/browser/ash/system_web_apps/test_support/test_system_web_app_installation.h"
+#include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/prefs/session_startup_pref.h"
 #include "chrome/browser/profiles/profile_avatar_icon_util.h"
 #include "chrome/browser/sessions/session_restore_test_helper.h"
@@ -43,6 +44,8 @@
 #include "chrome/browser/ui/ash/session/session_controller_client_impl.h"
 #include "chrome/browser/ui/ash/system_web_apps/system_web_app_ui_utils.h"
 #include "chrome/browser/ui/ash/test_util.h"
+#include "chrome/browser/ui/bookmarks/bookmark_bar.h"
+#include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_finder.h"
@@ -52,6 +55,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/passwords/passwords_client_ui_delegate.h"
 #include "chrome/browser/ui/settings_window_manager_chromeos.h"
@@ -64,7 +68,6 @@
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller_chromeos.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_tester.h"
-#include "chrome/browser/ui/views/frame/webui_tab_strip_container_view.h"
 #include "chrome/browser/ui/views/location_bar/content_setting_image_view.h"
 #include "chrome/browser/ui/views/location_bar/custom_tab_bar_view.h"
 #include "chrome/browser/ui/views/location_bar/icon_label_bubble_view.h"
@@ -77,6 +80,7 @@
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/toolbar/app_menu.h"
+#include "chrome/browser/ui/views/toolbar/app_menu_control.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_frame_toolbar_view.h"
 #include "chrome/browser/ui/views/web_apps/frame_toolbar/web_app_menu_button.h"
@@ -98,9 +102,11 @@
 #include "chromeos/ui/frame/caption_buttons/frame_size_button.h"
 #include "chromeos/ui/frame/default_frame_header.h"
 #include "chromeos/ui/frame/frame_header.h"
+#include "chromeos/ui/frame/immersive/immersive_fullscreen_controller_test_api.h"
 #include "chromeos/ui/frame/multitask_menu/float_controller_base.h"
 #include "components/account_id/account_id.h"
 #include "components/account_id/account_id_literal.h"
+#include "components/bookmarks/browser/bookmark_model.h"
 #include "components/keep_alive_registry/keep_alive_types.h"
 #include "components/keep_alive_registry/scoped_keep_alive.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -117,6 +123,7 @@
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/test/background_color_change_waiter.h"
 #include "content/public/test/browser_test.h"
+#include "content/public/test/browser_test_utils.h"
 #include "content/public/test/content_mock_cert_verifier.h"
 #include "content/public/test/test_navigation_observer.h"
 #include "net/dns/mock_host_resolver.h"
@@ -140,6 +147,7 @@
 #include "ui/native_theme/native_theme.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/focus/focus_manager.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/test/views_test_utils.h"
 #include "ui/views/test/widget_test.h"
 #include "ui/views/widget/widget.h"
@@ -166,10 +174,6 @@ bool WaitForPaintAsActive(bool expected, views::FrameCaptionButton* button) {
 using BrowserFrameViewChromeOSTest =
     TopChromeMdParamTest<ChromeOSBrowserUITest>;
 
-using BrowserFrameViewChromeOSTestNoWebUiTabStrip =
-    WebUiTabStripOverrideTest<false, BrowserFrameViewChromeOSTest>;
-using BrowserFrameViewChromeOSTestWithWebUiTabStrip =
-    WebUiTabStripOverrideTest<true, BrowserFrameViewChromeOSTest>;
 
 class BrowserFrameViewChromeOSTestApi {
  public:
@@ -195,10 +199,7 @@ class BrowserFrameViewChromeOSTestApi {
   const raw_ptr<BrowserFrameViewChromeOS> frame_view_;
 };
 
-// This test does not make sense for the webUI tabstrip, since the window layout
-// is different in that case.
-IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestNoWebUiTabStrip,
-                       NonClientHitTest) {
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest, NonClientHitTest) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   views::Widget* widget = browser_view->GetWidget();
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
@@ -235,7 +236,7 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestNoWebUiTabStrip,
 // Regression test for crbug.com/40945061. Asserts that the content window
 // accepts input from the edge of the browser frame when the browser is
 // maximized.
-IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestNoWebUiTabStrip,
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
                        ContentWindowAcceptsEdgeInputsWhenMaximized) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   content::WebContents* web_contents = browser_view->GetActiveWebContents();
@@ -270,61 +271,10 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestNoWebUiTabStrip,
 using BrowserFrameViewChromeOSTouchTest =
     TopChromeTouchTest<ChromeOSBrowserUITest>;
 
-using BrowserFrameViewChromeOSTouchTestWithWebUiTabStrip =
-    WebUiTabStripOverrideTest<true, BrowserFrameViewChromeOSTouchTest>;
-
-IN_PROC_BROWSER_TEST_F(BrowserFrameViewChromeOSTouchTestWithWebUiTabStrip,
-                       TabletSplitViewNonClientHitTest) {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
-  views::Widget* widget = browser_view->GetWidget();
-  aura::Window* window = widget->GetNativeWindow();
-
-  const int expect_y =
-      frame_view->GetBorder() ? frame_view->GetBorder()->GetInsets().top() : 0;
-  EXPECT_EQ(expect_y, frame_view->GetBoundsForClientView().y());
-
-  EnterTabletMode();
-  SnapWindow(window, ash::SnapPosition::kPrimary);
-
-  // Touch on the top of the window is interpreted as client hit.
-  gfx::Point top_point(widget->GetWindowBoundsInScreen().width() / 2, 0);
-  EXPECT_EQ(HTCLIENT, frame_view->NonClientHitTest(top_point));
-}
-
-IN_PROC_BROWSER_TEST_F(BrowserFrameViewChromeOSTouchTestWithWebUiTabStrip,
-                       TabletSplitViewSwipeDownFromEdgeOpensWebUiTabStrip) {
-  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
-  const int expect_y =
-      frame_view->GetBorder() ? frame_view->GetBorder()->GetInsets().top() : 0;
-  EXPECT_EQ(expect_y, frame_view->GetBoundsForClientView().y());
-  views::Widget* widget = browser_view->GetWidget();
-
-  EnterTabletMode();
-  SnapWindow(widget->GetNativeWindow(), ash::SnapPosition::kPrimary);
-
-  // A point at the top of the window, but not in the center horizontally, as a
-  // swipe down from the top center will show the chromeos tablet mode multitask
-  // menu.
-  gfx::Point edge_point(100, 0);
-
-  ASSERT_FALSE(browser_view->webui_tab_strip()->GetVisible());
-  aura::Window* window = widget->GetNativeWindow();
-  ui::test::EventGenerator event_generator(window->GetRootWindow());
-  event_generator.SetTouchRadius(10, 5);
-  event_generator.PressTouch(edge_point);
-  event_generator.MoveTouchBy(0, 100);
-  event_generator.ReleaseTouch();
-  ASSERT_TRUE(WaitForVisible(true, browser_view->webui_tab_strip()));
-}
 
 // Test that the frame view does not do any painting in non-immersive
 // fullscreen.
-// This test does not make sense for the webUI tabstrip, since the frame is not
-// painted in that case.
-IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestNoWebUiTabStrip,
-                       NonImmersiveFullscreen) {
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest, NonImmersiveFullscreen) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   content::WebContents* web_contents = browser_view->GetActiveWebContents();
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
@@ -352,7 +302,7 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestNoWebUiTabStrip,
 }
 
 // Tests that caption buttons are hidden when entering tab fullscreen.
-IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestNoWebUiTabStrip,
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
                        CaptionButtonsHiddenNonImmersiveFullscreen) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   content::WebContents* web_contents = browser_view->GetActiveWebContents();
@@ -373,42 +323,6 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestNoWebUiTabStrip,
   EXPECT_FALSE(browser_view->IsFullscreen());
   // Caption button container visible again.
   EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
-}
-
-// There should be no top inset when using the WebUI tab strip since the frame
-// is invisible. Regression test for crbug.com/1076675
-IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestWithWebUiTabStrip,
-                       TopInset) {
-  // This test doesn't make sense in non-touch mode since it expects the WebUI
-  // tab strip to be active. This test is instantiated with and without touch
-  // mode.
-  if (!ui::TouchUiController::Get()->touch_ui()) {
-    return;
-  }
-
-  BrowserView* const browser_view =
-      BrowserView::GetBrowserViewForBrowser(browser());
-
-  EXPECT_EQ(0, GetFrameViewChromeOS(browser_view)->GetTopInset(false));
-  EnterOverviewMode();
-  EXPECT_EQ(0, GetFrameViewChromeOS(browser_view)->GetTopInset(false));
-  ExitOverviewMode();
-  EXPECT_EQ(0, GetFrameViewChromeOS(browser_view)->GetTopInset(false));
-}
-
-// Tests to ensure caption buttons are not painted when the WebUI tab strip is
-// present for the browser window (crbug.com/1362731).
-IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTestWithWebUiTabStrip,
-                       CaptionButtonsHiddenWhenUsingWebUITabStrip) {
-  auto* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
-  auto* frame_view = GetFrameViewChromeOS(browser_view);
-  if (ui::TouchUiController::Get()->touch_ui()) {
-    EXPECT_TRUE(browser_view->webui_tab_strip());
-    EXPECT_FALSE(frame_view->caption_button_container()->GetVisible());
-  } else {
-    EXPECT_FALSE(browser_view->webui_tab_strip());
-    EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
-  }
 }
 
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
@@ -564,7 +478,10 @@ class WebAppFrameViewChromeOSTest
 
     content_setting_views_ =
         &web_app_frame_toolbar_->GetContentSettingViewsForTesting();
-    web_app_menu_button_ = web_app_frame_toolbar_->GetAppMenuButton();
+    web_app_menu_button_ = views::AsViewClass<AppMenuButton>(
+        views::ElementTrackerViews::GetInstance()->GetFirstMatchingView(
+            kToolbarAppMenuButtonElementId,
+            views::ElementTrackerViews::GetContextForView(browser_view_)));
   }
 
   AppMenu* GetAppMenu() { return web_app_menu_button_->app_menu(); }
@@ -933,32 +850,74 @@ IN_PROC_BROWSER_TEST_P(WebAppFrameViewChromeOSTest, PopupHasNoToolbar) {
 
 IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
                        ShortcutRevealTopChromeExceptForZoom) {
+  // Make sure bookmark bar is visible.
+  chrome::ToggleBookmarkBar(browser());
+
+  // Create a bookmark that will be focused.
+  bookmarks::BookmarkModel* bookmark_model =
+      BookmarkModelFactory::GetForBrowserContext(browser()->profile());
+  const bookmarks::BookmarkNode* bookmark_bar_node =
+      bookmark_model->bookmark_bar_node();
+  bookmark_model->AddURL(bookmark_bar_node, 0, u"Test Bookmark",
+                         GURL("https://www.example.com"));
+
+  // Key events are sent to web contents first then processed as accelerator
+  // when they're not handled by them.  Make sure that web contents is ready to
+  // make sure that test covers production scenario.
+  ASSERT_TRUE(ui_test_utils::NavigateToURL(browser(), GURL("about:blank")));
+  ASSERT_TRUE(content::WaitForLoadStop(
+      browser()->tab_strip_model()->GetActiveWebContents()));
+
   EnterImmersiveFullscreenMode(browser());
 
-  enum Shortcut { kToolbar, kOmnibox, kBookmark, kMultitaskMenu };
-  for (auto shortcut : {kToolbar, kOmnibox, kMultitaskMenu}) {
-    auto* const immersive_mode_controller =
-        ImmersiveModeController::From(browser());
-    EXPECT_TRUE(immersive_mode_controller->IsEnabled());
-    // TODO(crbug.com/463559714): Replace the loop with EXPECT_TRUE, when the
-    // mechanism to disable gfx::Animation is added.
-    ASSERT_TRUE(base::test::RunUntil(
-        [&]() -> bool { return !immersive_mode_controller->IsRevealed(); }));
+  auto* const immersive_mode_controller =
+      ImmersiveModeController::From(browser());
 
+  // Top chrome is initially revealed when entiring fullscreen. Mak sure
+  // the top chrome is hidden after timeout.
+  // TODO(crbug.com/463559714): Replace the loop with EXPECT_TRUE, when the
+  // mechanism to disable gfx::Animation is added.
+  EXPECT_TRUE(immersive_mode_controller->IsRevealed());
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return !immersive_mode_controller->IsRevealed(); }));
+
+  chromeos::ImmersiveFullscreenControllerTestApi test_api(
+      static_cast<ImmersiveModeControllerChromeos*>(
+          ImmersiveModeController::From(browser()))
+          ->controller());
+  EXPECT_FALSE(test_api.IsRevealLocked());
+
+  enum ShortcutType {
+    kFocusToolbar,
+    kFocusOmnibox,
+    kFocusBookmarkBar,
+    kCreateBookmark,
+    kFocusMultitaskMenu
+  };
+
+  for (auto shortcut : {
+           kFocusToolbar,
+           kFocusOmnibox,
+           kFocusBookmarkBar,
+           kCreateBookmark,
+           kFocusMultitaskMenu,
+       }) {
+    EXPECT_TRUE(immersive_mode_controller->IsEnabled());
     ui::test::EventGenerator generator(
         browser()->window()->GetNativeWindow()->GetRootWindow());
 
+    std::string trace_name;
     switch (shortcut) {
-      case kOmnibox: {
-        SCOPED_TRACE("Omnibox");
+      case kFocusOmnibox: {
+        trace_name = "FocusOmnibox";
         // Ctrl-L focuses the omnibox.
         generator.PressKey(ui::KeyboardCode::VKEY_CONTROL, 0);
         generator.PressKey(ui::KeyboardCode::VKEY_L, ui::EF_CONTROL_DOWN);
         generator.ReleaseKey(ui::KeyboardCode::VKEY_L, ui::EF_CONTROL_DOWN);
         generator.ReleaseKey(ui::KeyboardCode::VKEY_CONTROL, 0);
       } break;
-      case kToolbar: {
-        SCOPED_TRACE("Toolbar");
+      case kFocusToolbar: {
+        trace_name = "FocusToolbar";
         // Shift-Alt-T focuses the first item on toolbar.
         generator.PressKey(ui::KeyboardCode::VKEY_SHIFT, 0);
         generator.PressKey(ui::KeyboardCode::VKEY_MENU, ui::EF_SHIFT_DOWN);
@@ -969,29 +928,51 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
         generator.ReleaseKey(ui::KeyboardCode::VKEY_MENU, ui::EF_SHIFT_DOWN);
         generator.ReleaseKey(ui::KeyboardCode::VKEY_SHIFT, 0);
       } break;
-      case kBookmark: {
-        SCOPED_TRACE("Bookmark");
+      case kFocusBookmarkBar: {
+        trace_name = "FocusBookmarkBar";
+        // Shift-Alt-B focues bookmark bar.
+
+        // Ensure bookmark bar is enabled and visible.
+        ASSERT_EQ(BookmarkBarController::From(browser())->bookmark_bar_state(),
+                  BookmarkBar::SHOW);
+        EXPECT_EQ(bookmark_bar_node->children().size(), 1u);
+
+        generator.PressKey(ui::KeyboardCode::VKEY_SHIFT, 0);
+        generator.PressKey(ui::KeyboardCode::VKEY_MENU, ui::EF_SHIFT_DOWN);
+        generator.PressKey(ui::KeyboardCode::VKEY_B,
+                           ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN);
+        generator.ReleaseKey(ui::KeyboardCode::VKEY_B,
+                             ui::EF_SHIFT_DOWN | ui::EF_ALT_DOWN);
+        generator.ReleaseKey(ui::KeyboardCode::VKEY_MENU, ui::EF_SHIFT_DOWN);
+        generator.ReleaseKey(ui::KeyboardCode::VKEY_SHIFT, 0);
+      } break;
+      case kCreateBookmark: {
+        // Alt-D trigger "create bookmark" flow which focues omnibox.
+        trace_name = "CreateBookmark";
         generator.PressKey(ui::KeyboardCode::VKEY_MENU, 0);
         generator.PressKey(ui::KeyboardCode::VKEY_D, ui::EF_ALT_DOWN);
         generator.ReleaseKey(ui::KeyboardCode::VKEY_D, ui::EF_ALT_DOWN);
         generator.ReleaseKey(ui::KeyboardCode::VKEY_MENU, 0);
       } break;
-      case kMultitaskMenu: {
+      case kFocusMultitaskMenu: {
         // The multask menu is not accessible via shortcut in in Tablet mode.
         if (GetParam()) {
           continue;
         }
-        SCOPED_TRACE("MultitaskMenu");
+        trace_name = "FocusMultitaskMenu";
         generator.PressKey(ui::KeyboardCode::VKEY_COMMAND, 0);
         generator.PressKey(ui::KeyboardCode::VKEY_Z, ui::EF_COMMAND_DOWN);
         generator.ReleaseKey(ui::KeyboardCode::VKEY_Z, ui::EF_COMMAND_DOWN);
         generator.ReleaseKey(ui::KeyboardCode::VKEY_COMMAND, 0);
       } break;
     }
-    // We need to wait here because the keysequence maybe be handled on
-    // unhandled case.
+    SCOPED_TRACE(trace_name);
+
+    // We need to wait here because the keysequence will be handled upon
+    // unhandled event from renderer.
     ASSERT_TRUE(base::test::RunUntil(
         [&]() { return immersive_mode_controller->IsRevealed(); }));
+    EXPECT_TRUE(test_api.IsRevealLocked());
 
     generator.MoveMouseToCenterOf(browser()->window()->GetNativeWindow());
     generator.ClickLeftButton();
@@ -1000,6 +981,7 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
     // mechanism to disable gfx::Animation is added.
     ASSERT_TRUE(base::test::RunUntil(
         [&]() { return !immersive_mode_controller->IsRevealed(); }));
+    EXPECT_TRUE(!test_api.IsRevealLocked());
   }
 }
 
@@ -1068,12 +1050,7 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
       aura::client::kResizeBehaviorCanMaximize |
           aura::client::kResizeBehaviorCanResize);
 
-  // Caption buttons are not supported when using the WebUI tab strip.
-  if (browser_view->webui_tab_strip()) {
-    EXPECT_FALSE(frame_view->caption_button_container()->GetVisible());
-  } else {
-    EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
-  }
+  EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
 
   // Ensure the current layout is finished before entering overview mode.
   views::test::RunScheduledLayout(browser_view);
@@ -1091,12 +1068,7 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
 
   ExitOverviewMode();
 
-  // Caption buttons are not supported when using the WebUI tab strip.
-  if (browser_view->webui_tab_strip()) {
-    EXPECT_FALSE(frame_view->caption_button_container()->GetVisible());
-  } else {
-    EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
-  }
+  EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
 
   EnterTabletMode();
   EXPECT_FALSE(frame_view->caption_button_container()->GetVisible());
@@ -1339,8 +1311,6 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewChromeOSTest,
   EnterImmersiveFullscreenMode(browser());
 }
 
-// TODO(b/270175923): Consider using WebUiTabStripOverrideTest, since it
-// makes sense for it to always be enabled.
 using FloatBrowserFrameViewChromeOSTest =
     TopChromeMdParamTest<ChromeOSBrowserUITest>;
 
@@ -1375,11 +1345,6 @@ IN_PROC_BROWSER_TEST_P(FloatBrowserFrameViewChromeOSTest,
           .tablet_mode_window_manager()
           ->tablet_mode_multitask_menu_controller();
   EXPECT_TRUE(multitask_menu_event_handler->multitask_menu());
-
-  if (browser_view->webui_tab_strip()) {
-    // The tab strip doesn't get shown if the menu is.
-    ASSERT_FALSE(browser_view->webui_tab_strip()->GetVisible());
-  }
 
   // Tap on the omnibox outside the menu takes focus and closes the menu.
   ASSERT_NO_FATAL_FAILURE(
@@ -1524,12 +1489,7 @@ IN_PROC_BROWSER_TEST_P(HomeLauncherBrowserFrameViewChromeOSTest,
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
 
-  // Caption buttons are not supported when using the WebUI tab strip.
-  if (browser_view->webui_tab_strip()) {
-    EXPECT_FALSE(frame_view->caption_button_container()->GetVisible());
-  } else {
-    EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
-  }
+  EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
 
   EnterTabletMode();
   EXPECT_FALSE(frame_view->caption_button_container()->GetVisible());
@@ -1541,12 +1501,7 @@ IN_PROC_BROWSER_TEST_P(HomeLauncherBrowserFrameViewChromeOSTest,
 
   ExitTabletMode();
 
-  // Caption buttons are not supported when using the WebUI tab strip.
-  if (browser_view->webui_tab_strip()) {
-    EXPECT_FALSE(frame_view->caption_button_container()->GetVisible());
-  } else {
-    EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
-  }
+  EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
 }
 
 // TODO(crbug.com/40640473): When the test flake has been addressed, improve
@@ -1682,8 +1637,7 @@ IN_PROC_BROWSER_TEST_P(LockedFullscreenBrowserFrameViewChromeOSTest,
   EXPECT_TRUE(frame_view->caption_button_container()->GetVisible());
 }
 
-class BrowserFrameViewAshTestNoWebUiTabStrip
-    : public BrowserFrameViewChromeOSTestNoWebUiTabStrip {
+class BrowserFrameViewAshAvatarTest : public BrowserFrameViewChromeOSTest {
  public:
   static constexpr inline auto kPrimaryAccountId =
       AccountId::Literal::FromUserEmailGaiaId("primary@test",
@@ -1697,11 +1651,11 @@ class BrowserFrameViewAshTestNoWebUiTabStrip
     set_exit_when_last_browser_closes(false);
     signin::AccountManagedStatusFinder::SetNonEnterpriseDomainForTesting(
         "test");
-    BrowserFrameViewChromeOSTestNoWebUiTabStrip::SetUp();
+    BrowserFrameViewChromeOSTest::SetUp();
   }
 
   void TearDown() override {
-    BrowserFrameViewChromeOSTestNoWebUiTabStrip::TearDown();
+    BrowserFrameViewChromeOSTest::TearDown();
     signin::AccountManagedStatusFinder::SetNonEnterpriseDomainForTesting(
         nullptr);
   }
@@ -1736,9 +1690,7 @@ class BrowserFrameViewAshTestNoWebUiTabStrip
 
 // Tests that Avatar icon should show on the top left corner of the teleported
 // browser window on ChromeOS.
-// TODO(http://crbug.com/1059514): This test should be made to work with the
-// webUI tabstrip.
-IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshTestNoWebUiTabStrip,
+IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshAvatarTest,
                        AvatarDisplayOnTeleportedWindow) {
   LogIn(kPrimaryAccountId);
   Profile* primary_user_profile = Profile::FromBrowserContext(
@@ -1748,7 +1700,8 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshTestNoWebUiTabStrip,
   ash::NewWindowDelegate::GetInstance()->NewWindow(
       /*incognito=*/false, /*should_trigger_session_restore=*/false);
   BrowserWindowInterface* browser =
-      chrome::FindBrowserWithProfile(primary_user_profile);
+      ProfileBrowserCollection::GetForProfile(primary_user_profile)
+          ->GetLastActiveBrowser();
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser);
   BrowserFrameViewChromeOS* frame_view = GetFrameViewChromeOS(browser_view);
   BrowserFrameViewChromeOSTestApi test_api(frame_view);
@@ -2026,11 +1979,9 @@ IN_PROC_BROWSER_TEST_P(BrowserFrameViewAshThemeChangeTest, ThemeChange) {
   INSTANTIATE_TEST_SUITE_P(All, name, ::testing::Values(false, true))
 
 INSTANTIATE_TEST_SUITE(BrowserFrameViewChromeOSTest);
-INSTANTIATE_TEST_SUITE(BrowserFrameViewChromeOSTestNoWebUiTabStrip);
-INSTANTIATE_TEST_SUITE(BrowserFrameViewChromeOSTestWithWebUiTabStrip);
 INSTANTIATE_TEST_SUITE(FloatBrowserFrameViewChromeOSTest);
 INSTANTIATE_TEST_SUITE(HomeLauncherBrowserFrameViewChromeOSTest);
 INSTANTIATE_TEST_SUITE(LockedFullscreenBrowserFrameViewChromeOSTest);
 INSTANTIATE_TEST_SUITE(WebAppFrameViewChromeOSTest);
-INSTANTIATE_TEST_SUITE(BrowserFrameViewAshTestNoWebUiTabStrip);
 INSTANTIATE_TEST_SUITE(BrowserFrameViewAshTest);
+INSTANTIATE_TEST_SUITE(BrowserFrameViewAshAvatarTest);

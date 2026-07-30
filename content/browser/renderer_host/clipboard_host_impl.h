@@ -181,18 +181,6 @@ class CONTENT_EXPORT ClipboardHostImpl
       const ClipboardPasteData& data,
       std::optional<std::u16string> replacement_data);
 
-  // Does the same thing as the previous functions but for custom formats.
-  // The raw binary `data` is written to the clipboard using the specified
-  // `format`.
-  //
-  // This method can be called asynchronously.
-  virtual void OnCopyCustomFormatAllowedResult(
-      const std::u16string& format,
-      mojo_base::BigBuffer data,
-      const ui::ClipboardFormatType& data_type,
-      const ClipboardPasteData& paste_data,
-      std::optional<std::u16string> replacement_data);
-
   using CopyAllowedCallback = base::OnceCallback<void()>;
 
   void OnReadAvailableTypes(ui::ClipboardBuffer clipboard_buffer,
@@ -270,12 +258,6 @@ class CONTENT_EXPORT ClipboardHostImpl
   // Resets `clipboard_writer_` to write its data to the clipboard, and
   // reinitialize it in preparation for the next write.
   void ResetClipboardWriter();
-
-  // Creates a `ui::DataTransferEndpoint` representing the last committed URL.
-  std::optional<ui::DataTransferEndpoint> CreateDataEndpoint();
-
-  // Creates a `content::ClipboardEndpoint` representing the last committed URL.
-  ClipboardEndpoint CreateClipboardEndpoint();
 
   // Stops observing clipboard changes and resets the listener.
   void StopObservingClipboard();

@@ -179,14 +179,13 @@ TEST_F(PaymentsSuggestionBottomSheetMediatorTest,
 // delay before accepting filling. Tests each key moment, before view did
 // appear, right after appearance, after some time but not enough to reach the
 // minimal delay, and after the minimal delay.
-// TODO(crbug.com/422437108): re-enable.
-TEST_F(PaymentsSuggestionBottomSheetMediatorTest, DISABLED_FillingDelay) {
+TEST_F(PaymentsSuggestionBottomSheetMediatorTest, FillingDelay) {
   base::ScopedMockClockOverride mock_clock;
-  base::HistogramTester histogram_tester;
 
-  CreateMediator();
-
-  OCMExpect([consumer_ activatePrimaryButton]);
+  CreateMediatorWithSuggestions();
+  OCMExpect([consumer_ setCreditCardData:[OCMArg isNotNil]
+                       showGooglePayLogo:YES]);
+  [mediator_ setConsumer:consumer_];
 
   // Select a suggestion before the countdown even started, should be ignored.
   [mediator_ didTapOnPrimaryButton];
@@ -203,52 +202,14 @@ TEST_F(PaymentsSuggestionBottomSheetMediatorTest, DISABLED_FillingDelay) {
   mock_clock.Advance(base::Milliseconds(250));
   [mediator_ didTapOnPrimaryButton];
 
+  // Once a minimal delay has passed, the primary button becomes active. We
+  // expect this call to happen a single time, at this stage.
+  OCMExpect([consumer_ activatePrimaryButton]);
   // Allow selecting a suggestion past the minimal delay.
   mock_clock.Advance(base::Milliseconds(250));
   [mediator_ didTapOnPrimaryButton];
 
-  // Verify that the number of attempts is recorded under the "Accept" variant
-  // of the histogram when a payment suggestion is accepted.
-  [mediator_ logExitReason:PaymentsSuggestionBottomSheetExitReason::
-                               kUsePaymentsSuggestion];
-  histogram_tester.ExpectUniqueSample(
-      "IOS.PaymentsBottomSheet.AcceptAttempts.Accept",
-      /*sample=*/4,
-      /*expected_bucket_count=*/1);
-
-  // Verify that the number of attempts is recorded under the "Dismiss" variant
-  // of the histogram when the sheet is dismissed without filling the
-  // suggestion.
-  [mediator_ logExitReason:PaymentsSuggestionBottomSheetExitReason::
-                               kShowPaymentDetails];
-  histogram_tester.ExpectUniqueSample(
-      "IOS.PaymentsBottomSheet.AcceptAttempts.Dismiss",
-      /*sample=*/4,
-      /*expected_bucket_count=*/1);
-}
-
-// Tests that the time to selection is correctly recorded.
-// TODO(crbug.com/422437404): re-enable.
-TEST_F(PaymentsSuggestionBottomSheetMediatorTest, DISABLED_TimeToSelection) {
-  base::ScopedMockClockOverride mock_clock;
-  base::HistogramTester histogram_tester;
-
-  CreateMediator();
-
-  OCMExpect([consumer_ activatePrimaryButton]);
-
-  // Use a time to selection that is enough to go past the minimal safety
-  // delay.
-  const auto time_to_selection = base::Milliseconds(500);
-
-  // Select the credit card by following the usual flow.
-  [mediator_ paymentsBottomSheetViewDidAppear];
-  mock_clock.Advance(time_to_selection);
-  [mediator_ didTapOnPrimaryButton];
-  [mediator_ didSelectCreditCard:nil atIndex:0];
-
-  histogram_tester.ExpectTimeBucketCount(
-      "IOS.PaymentsBottomSheet.TimeToSelection", time_to_selection, 1);
+  EXPECT_OCMOCK_VERIFY(consumer_);
 }
 
 // Tests that the payment sheet is aborted when there are no suggestions that

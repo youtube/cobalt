@@ -37,6 +37,10 @@ static_assert(std::is_same<jlong, int64_t>::value);
 static_assert(std::is_same<jfloat, float>::value);
 static_assert(std::is_same<jdouble, double>::value);
 
+// Make sure our array type aliasing works.
+static_assert(std::is_same<JArray<jobject>, jobjectArray>::value);
+static_assert(std::is_same<JArray<bool>, jbooleanArray>::value);
+
 namespace jni_zero {
 namespace {
 
@@ -54,8 +58,7 @@ void (*g_exception_handler_callback)(JNIEnv*) = nullptr;
 
 jclass DefaultClassResolver(JNIEnv* env, const char* class_name) {
   JNI_ZERO_DCHECK(g_class_loader);
-  auto j_class_name =
-      ScopedJavaLocalRef<jstring>::Adopt(env, env->NewStringUTF(class_name));
+  auto j_class_name = jni_zero::AdoptRef(env, env->NewStringUTF(class_name));
   return g_class_loader->loadClass(env, j_class_name).Release();
 }
 
@@ -167,16 +170,15 @@ void InitVM(JavaVM* vm) {
   // Mark as used when multiplexing not enabled.
   (void)&Java_JniZero_crashIfMultiplexingMisaligned;
 #endif
-  ScopedJavaLocalRef<jobjectArray> globals = JniZeroJni::init(env);
+  ScopedJavaLocalRef<JArray<jobject>> globals = JniZeroJni::init(env);
   jobject empty_list = env->GetObjectArrayElement(globals.obj(), 0);
   jobject empty_map = env->GetObjectArrayElement(globals.obj(), 1);
   jobject jni_class_loader = env->GetObjectArrayElement(globals.obj(), 2);
 
   // Leak a few local refs since JNI will clean them up for us anyways.
-  g_empty_list.Reset(env, JavaRef<>::CreateLeaky(env, empty_list));
-  g_empty_map.Reset(env, JavaRef<>::CreateLeaky(env, empty_map));
-  g_empty_string.Reset(env,
-                       JavaRef<>::CreateLeaky(env, env->NewString(nullptr, 0)));
+  g_empty_list.Reset(env, CreateLeaky(env, empty_list));
+  g_empty_map.Reset(env, CreateLeaky(env, empty_map));
+  g_empty_string.Reset(env, CreateLeaky(env, env->NewString(nullptr, 0)));
 
   g_string_class = GetClassGlobalRef(env, g_empty_string.obj());
   g_class_loader_class = GetClassGlobalRef(env, jni_class_loader);
@@ -188,7 +190,7 @@ void InitVM(JavaVM* vm) {
     // env->FindClass() uses the bootstrap classloader for threads created by
     // native code (which leads to classes not being able to be found).
     if (!g_class_loader) {
-      g_class_loader.Reset(env, JavaRef<>::CreateLeaky(env, jni_class_loader));
+      g_class_loader.Reset(env, CreateLeaky(env, jni_class_loader));
     }
     g_class_resolver = &DefaultClassResolver;
   }
@@ -245,8 +247,7 @@ void SetClassLoader(JNIEnv* env, const JavaRef<jobject>& class_loader) {
 }
 
 ScopedJavaLocalRef<jclass> GetClass(JNIEnv* env, const char* class_name) {
-  return ScopedJavaLocalRef<jclass>::Adopt(env,
-                                           GetClassInternal(env, class_name));
+  return jni_zero::AdoptRef(env, GetClassInternal(env, class_name));
 }
 
 template <MethodID::Type type>
@@ -373,8 +374,7 @@ jclass LazyGetClass(JNIEnv* env,
                     std::atomic<jclass>* atomic_class_id) {
   jclass ret = atomic_class_id->load(std::memory_order_acquire);
   if (ret == nullptr) {
-    auto local_ref = ScopedJavaLocalRef<jclass>::Adopt(
-        env, GetClassInternal(env, class_name));
+    auto local_ref = jni_zero::AdoptRef(env, GetClassInternal(env, class_name));
     jclass global_ref = static_cast<jclass>(env->NewGlobalRef(local_ref.obj()));
     if (atomic_class_id->compare_exchange_strong(ret, global_ref,
                                                  std::memory_order_acq_rel)) {

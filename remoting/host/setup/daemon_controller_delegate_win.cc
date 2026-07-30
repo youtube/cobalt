@@ -16,11 +16,13 @@
 #include "base/json/json_writer.h"
 #include "base/logging.h"
 #include "base/memory/ptr_util.h"
+#include "base/process/process_info.h"
 #include "base/values.h"
 #include "base/win/scoped_bstr.h"
 #include "remoting/base/branding.h"
 #include "remoting/base/is_google_email.h"
 #include "remoting/base/scoped_sc_handle_win.h"
+#include "remoting/host/config_file_watcher.h"
 #include "remoting/host/host_config.h"
 #include "remoting/host/usage_stats_consent.h"
 #include "remoting/host/win/security_descriptor.h"
@@ -35,14 +37,6 @@ namespace {
 // we will crash if it occurs.
 const size_t kMaxConfigFileSize = 1024 * 1024;
 
-// The host configuration file name.
-const base::FilePath::CharType kConfigFileName[] =
-    FILE_PATH_LITERAL("host.json");
-
-// The unprivileged configuration file name.
-const base::FilePath::CharType kUnprivilegedConfigFileName[] =
-    FILE_PATH_LITERAL("host_unprivileged.json");
-
 // The extension for the temporary file.
 const base::FilePath::CharType kTempFileExtension[] =
     FILE_PATH_LITERAL("json~");
@@ -56,16 +50,6 @@ const char kUnprivilegedConfigFileSecurityDescriptor[] =
     "O:BAG:BAD:(A;;GA;;;SY)(A;;GA;;;BA)(A;;GR;;;AU)";
 
 // Configuration keys.
-
-// The configuration keys that cannot be specified in UpdateConfig().
-const char* const kReadonlyKeys[] = {
-    kHostIdConfigPath, kHostOwnerConfigPath, kServiceAccountConfigPath,
-    kDeprecatedXmppLoginConfigPath, kDeprecatedHostOwnerEmailConfigPath};
-
-// The configuration keys whose values may be read by GetConfig().
-const char* const kUnprivilegedConfigKeys[] = {kHostIdConfigPath,
-                                               kServiceAccountConfigPath,
-                                               kDeprecatedXmppLoginConfigPath};
 
 // Reads and parses the configuration file up to |kMaxConfigFileSize| in size.
 bool ReadConfig(const base::FilePath& filename, base::DictValue& config_out) {
@@ -185,7 +169,7 @@ bool WriteConfig(const base::DictValue& config) {
 
   // Write the full configuration file to a temporary location.
   base::FilePath full_config_file_path =
-      remoting::GetConfigDir().Append(kConfigFileName);
+      remoting::GetConfigDir().Append(kDefaultHostConfigFile);
   if (!WriteConfigFileToTemp(full_config_file_path,
                              kConfigFileSecurityDescriptor, config_json)) {
     return false;
@@ -193,15 +177,15 @@ bool WriteConfig(const base::DictValue& config) {
 
   // Extract the unprivileged fields from the configuration.
   base::DictValue unprivileged_config;
-  for (const char* key : kUnprivilegedConfigKeys) {
-    if (const std::string* value = config.FindString(key)) {
-      unprivileged_config.Set(key, *value);
+  for (const auto& key : DaemonController::GetUnprivilegedConfigKeys()) {
+    if (const base::Value* value = config.Find(key)) {
+      unprivileged_config.Set(key, value->Clone());
     }
   }
 
   // Write the unprivileged configuration file to a temporary location.
   base::FilePath unprivileged_config_file_path =
-      remoting::GetConfigDir().Append(kUnprivilegedConfigFileName);
+      remoting::GetConfigDir().Append(kDefaultUnprivilegedConfigFileName);
   if (!WriteConfigFileToTemp(unprivileged_config_file_path,
                              kUnprivilegedConfigFileSecurityDescriptor,
                              HostConfigToJson(unprivileged_config))) {
@@ -356,7 +340,8 @@ std::optional<base::DictValue> DaemonControllerDelegateWin::GetConfig() {
 
   // Read the unprivileged part of host configuration.
   base::DictValue config;
-  if (!ReadConfig(config_dir.Append(kUnprivilegedConfigFileName), config)) {
+  if (!ReadConfig(config_dir.Append(kDefaultUnprivilegedConfigFileName),
+                  config)) {
     return std::nullopt;
   }
 
@@ -366,18 +351,10 @@ std::optional<base::DictValue> DaemonControllerDelegateWin::GetConfig() {
 void DaemonControllerDelegateWin::UpdateConfig(
     base::DictValue updated_config,
     DaemonController::CompletionCallback done) {
-  // Check for bad keys.
-  for (const char* key : kReadonlyKeys) {
-    if (updated_config.Find(key)) {
-      LOG(ERROR) << "Cannot update config: '" << key << "' is read only.";
-      InvokeCompletionCallback(std::move(done), false);
-      return;
-    }
-  }
   // Get the old config.
   base::FilePath config_dir = remoting::GetConfigDir();
   base::DictValue config;
-  if (!ReadConfig(config_dir.Append(kConfigFileName), config)) {
+  if (!ReadConfig(config_dir.Append(kDefaultHostConfigFile), config)) {
     InvokeCompletionCallback(std::move(done), false);
     return;
   }
@@ -416,6 +393,10 @@ DaemonControllerDelegateWin::GetUsageStatsConsent() {
   }
 
   return consent;
+}
+
+bool DaemonControllerDelegateWin::is_privileged() const {
+  return base::IsCurrentProcessElevated();
 }
 
 void DaemonControllerDelegateWin::CheckPermission(

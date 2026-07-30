@@ -7,6 +7,7 @@
 // and failures are detected.
 
 const AttributeTypeDataType = chrome.autofillPrivate.AttributeTypeDataType;
+const EntityPassType = chrome.autofillPrivate.EntityPassType;
 
 // Constants for the tests.
 var FIRST_NAME = 'Firstname';
@@ -43,6 +44,7 @@ var ENTITY_INSTANCE = {
     editEntityTypeString: 'Edit driver\'s license',
     deleteEntityTypeString: 'Delete driver\'s license',
     supportsWalletStorage: false,
+    passType: EntityPassType.PRIVATE_PASS,
   },
   attributeInstances: [
     {
@@ -70,6 +72,7 @@ var ENTITY_INSTANCE = {
   nickname: 'Personal car',
   shouldAuthenticateToView: false,
   storedInWallet: false,
+  isReadOnly: false,
 };
 
 var UPDATED_ENTITY_INSTANCE = structuredClone(ENTITY_INSTANCE);
@@ -219,6 +222,7 @@ function entityInstaceToEntityInstanceWithLabels(entityInstance, sublabel) {
     entityInstanceLabel: entityInstance.type.typeNameAsString,
     entityInstanceSubLabel: sublabel,
     storedInWallet: false,
+    isReadOnly: entityInstance.isReadOnly,
   });
 };
 
@@ -950,6 +954,7 @@ var availableTests = [
             editEntityTypeString: 'Edit driver\'s license',
             deleteEntityTypeString: 'Delete driver\'s license',
             supportsWalletStorage: false,
+            passType: EntityPassType.PRIVATE_PASS,
           },
           attributeInstances: [
             {
@@ -974,7 +979,8 @@ var availableTests = [
             },
           ],
           guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc181',
-          nickname: 'Personal car'
+          nickname: 'Personal car',
+          isReadOnly: false,
         },
         expectedLabel: 'John Dolan'
       },
@@ -1000,6 +1006,7 @@ var availableTests = [
             editEntityTypeString: 'Edit passport',
             deleteEntityTypeString: 'Delete passport',
             supportsWalletStorage: false,
+            passType: EntityPassType.PRIVATE_PASS,
           },
           attributeInstances: [
             {
@@ -1029,6 +1036,7 @@ var availableTests = [
           ],
           guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc182',
           nickname: 'Personal passport 1',
+          isReadOnly: false,
         },
         expectedLabel: 'John Dolan · Germany'
       },
@@ -1041,6 +1049,7 @@ var availableTests = [
             editEntityTypeString: 'Edit passport',
             deleteEntityTypeString: 'Delete passport',
             supportsWalletStorage: false,
+            passType: EntityPassType.PRIVATE_PASS,
           },
           attributeInstances: [
             {
@@ -1070,6 +1079,7 @@ var availableTests = [
           ],
           guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc183',
           nickname: 'Personal passport 1',
+          isReadOnly: false,
         },
         expectedLabel: 'Sansa · Italy'
       },
@@ -1082,6 +1092,7 @@ var availableTests = [
             editEntityTypeString: 'Edit passport',
             deleteEntityTypeString: 'Delete passport',
             supportsWalletStorage: false,
+            passType: EntityPassType.PRIVATE_PASS,
           },
           attributeInstances: [
             {
@@ -1111,6 +1122,7 @@ var availableTests = [
           ],
           guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc185',
           nickname: 'Personal passport 1',
+          isReadOnly: false,
         },
         expectedLabel: 'John Dolan · Brazil'
       },
@@ -1133,6 +1145,7 @@ var availableTests = [
             editEntityTypeString: 'Edit vehicle',
             deleteEntityTypeString: 'Delete vehicle',
             supportsWalletStorage: false,
+            passType: EntityPassType.PUBLIC_PASS,
           },
           attributeInstances: [
             {
@@ -1154,6 +1167,7 @@ var availableTests = [
           ],
           guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc187',
           nickname: 'Vehicle 1',
+          isReadOnly: false,
         },
         expectedLabel: 'Uno'
       },
@@ -1166,6 +1180,7 @@ var availableTests = [
             editEntityTypeString: 'Edit vehicle',
             deleteEntityTypeString: 'Delete vehicle',
             supportsWalletStorage: false,
+            passType: EntityPassType.PUBLIC_PASS,
           },
           attributeInstances: [
             {
@@ -1187,6 +1202,7 @@ var availableTests = [
           ],
           guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc186',
           nickname: 'Vehicle 2',
+          isReadOnly: false,
         },
         expectedLabel: 'Linea'
       },
@@ -1231,6 +1247,7 @@ var availableTests = [
             editEntityTypeString: 'Edit passport',
             deleteEntityTypeString: 'Delete passport',
             supportsWalletStorage: false,
+            passType: EntityPassType.PRIVATE_PASS,
           },
           attributeInstances: [
             {
@@ -1244,6 +1261,7 @@ var availableTests = [
           ],
           guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc192',
           nickname: 'Passport 1',
+          isReadOnly: false,
         },
         // Obfuscated Number
         // "...1234"
@@ -1259,6 +1277,7 @@ var availableTests = [
             editEntityTypeString: 'Edit passport',
             deleteEntityTypeString: 'Delete passport',
             supportsWalletStorage: false,
+            passType: EntityPassType.PRIVATE_PASS,
           },
           attributeInstances: [
             {
@@ -1272,6 +1291,7 @@ var availableTests = [
           ],
           guid: 'e4bbe384-ee63-45a4-8df3-713a58fdc193',
           nickname: 'Passport 2',
+          isReadOnly: false,
         },
         // "...5678"
         expectedLabel: OBFUSCATION_DOT + OBFUSCATION_DOT + OBFUSCATION_DOT +
@@ -1383,6 +1403,7 @@ var availableTests = [
         editEntityTypeString: 'Edit passport',
         deleteEntityTypeString: 'Delete passport',
         supportsWalletStorage: false,
+        passType: EntityPassType.PRIVATE_PASS,
       },
       {
         typeName: 1,
@@ -1391,6 +1412,7 @@ var availableTests = [
         editEntityTypeString: 'Edit driver\'s license',
         deleteEntityTypeString: 'Delete driver\'s license',
         supportsWalletStorage: false,
+        passType: EntityPassType.PRIVATE_PASS,
       },
       {
         typeName: 2,
@@ -1399,6 +1421,7 @@ var availableTests = [
         editEntityTypeString: 'Edit vehicle',
         deleteEntityTypeString: 'Delete vehicle',
         supportsWalletStorage: false,
+        passType: EntityPassType.PUBLIC_PASS,
       },
     ];
     for (const index in expectedEntityTypesList) {
@@ -1555,6 +1578,33 @@ var availableTests = [
     chrome.test.succeed();
   },
 
+  async function verifyIsReadOnlyTrueRetained() {
+    const readOnlyGuid = 'e4bbe384-ee63-45a4-8df3-713a58fdc199';
+    const readOnlyEntity = structuredClone(ENTITY_INSTANCE);
+    readOnlyEntity.guid = readOnlyGuid;
+    readOnlyEntity.isReadOnly = true;
+
+    await new Promise(resolve => {
+      chrome.test.listenOnce(
+          chrome.autofillPrivate.onEntityInstancesChanged, resolve);
+      chrome.autofillPrivate.addOrUpdateEntityInstance(readOnlyEntity);
+    });
+
+    const loadedReadOnly =
+        await chrome.autofillPrivate.getEntityInstanceByGuid(readOnlyGuid);
+    chrome.test.assertTrue(!!loadedReadOnly);
+    chrome.test.assertTrue(loadedReadOnly.isReadOnly);
+
+    const entityInstancesWithLabelsList =
+        await chrome.autofillPrivate.loadEntityInstances();
+    const loadedReadOnlyWithLabels =
+        entityInstancesWithLabelsList.find(e => e.guid === readOnlyGuid);
+    chrome.test.assertTrue(!!loadedReadOnlyWithLabels);
+    chrome.test.assertTrue(loadedReadOnlyWithLabels.isReadOnly);
+
+    chrome.test.succeed();
+  },
+
   async function shouldAuthenticateToView() {
     const obfuscatedEntityGuid = 'e4bbe384-ee63-45a4-8df3-713a58fdc188';
     const nonObfuscatedEntityGuid = 'e4bbe384-ee63-45a4-8df3-713a58fdc189';
@@ -1568,6 +1618,7 @@ var availableTests = [
         editEntityTypeString: 'Edit passport',
         deleteEntityTypeString: 'Delete passport',
         supportsWalletStorage: false,
+        passType: EntityPassType.PRIVATE_PASS,
       },
       attributeInstances: [{
         type: {
@@ -1579,6 +1630,7 @@ var availableTests = [
       }],
       guid: obfuscatedEntityGuid,
       nickname: 'Obfuscated Passport',
+      isReadOnly: false,
     };
 
     // Entity without obfuscated field
@@ -1590,6 +1642,7 @@ var availableTests = [
         editEntityTypeString: 'Edit passport',
         deleteEntityTypeString: 'Delete passport',
         supportsWalletStorage: false,
+        passType: EntityPassType.PRIVATE_PASS,
       },
       attributeInstances: [{
         type: {
@@ -1601,6 +1654,7 @@ var availableTests = [
       }],
       guid: nonObfuscatedEntityGuid,
       nickname: 'Clear Passport',
+      isReadOnly: false,
     };
 
     const addEntity = async (entity) => {
@@ -1680,6 +1734,7 @@ var TESTS_FOR_CONFIG = {
   'loadUpdatedEntityInstance': ['loadUpdatedEntityInstance'],
   'getEntityInstanceByGuid': ['getEntityInstanceByGuid'],
   'shouldAuthenticateToView': ['shouldAuthenticateToView'],
+  'verifyIsReadOnlyTrueRetained': ['verifyIsReadOnlyTrueRetained'],
   'getWritableEntityTypes': ['getWritableEntityTypes'],
   'verifyWritableEntityTypesDoesNotIncludeReadOnlyTypes':
       ['verifyWritableEntityTypesDoesNotIncludeReadOnlyTypes'],

@@ -5782,12 +5782,18 @@ HRESULT AXPlatformNodeWin::GetPropertyValueImpl(PROPERTYID property_id,
       break;
     }
 
+    case UIA_HeadingLevelPropertyId:
+      result->vt = VT_I4;
+      result->intVal = AXHierarchicalLevelToUIAHeadingLevel(
+          GetRole(),
+          GetIntAttribute(ax::mojom::IntAttribute::kHierarchicalLevel));
+      break;
+
     // Not currently implemented.
     case UIA_AnnotationTypesPropertyId:
     case UIA_CenterPointPropertyId:
     case UIA_FillColorPropertyId:
     case UIA_FillTypePropertyId:
-    case UIA_HeadingLevelPropertyId:
     case UIA_ItemTypePropertyId:
     case UIA_OutlineColorPropertyId:
     case UIA_OutlineThicknessPropertyId:
@@ -6336,6 +6342,38 @@ AXPlatformNodeWin::AXTextAlignToUIAHorizontalTextAlignment(
     case ax::mojom::TextAlign::kJustify:
       return HorizontalTextAlignment_Justified;
   }
+}
+
+// static
+LONG AXPlatformNodeWin::AXHierarchicalLevelToUIAHeadingLevel(
+    ax::mojom::Role role,
+    int32_t hierarchical_level) {
+  // UI Automation defines heading levels from Level1 to Level9. Screen readers
+  // such as Narrator expose these levels when navigating headings. See the
+  // AutomationHeadingLevel enum documentation:
+  // https://learn.microsoft.com/en-us/uwp/api/windows.ui.xaml.automation.peers.automationheadinglevel
+  static constexpr auto kUIAHeadingLevels = std::to_array<LONG>({
+      HeadingLevel1,
+      HeadingLevel2,
+      HeadingLevel3,
+      HeadingLevel4,
+      HeadingLevel5,
+      HeadingLevel6,
+      HeadingLevel7,
+      HeadingLevel8,
+      HeadingLevel9,
+  });
+
+  // UIA only defines HeadingLevel1 through HeadingLevel9; there is no
+  // representation for levels beyond 9. While aria-level allows values greater
+  // than 9, UIA has no corresponding enum value, so we fall back to
+  // HeadingLevel_None (the documented default) for out-of-range levels.
+  if (!IsHeading(role) || hierarchical_level < 1 ||
+      static_cast<size_t>(hierarchical_level) > kUIAHeadingLevels.size()) {
+    return HeadingLevel_None;
+  }
+
+  return kUIAHeadingLevels[hierarchical_level - 1];
 }
 
 // static
@@ -8097,6 +8135,7 @@ std::optional<DWORD> AXPlatformNodeWin::MojoEventToMSAAEvent(
     case ax::mojom::Event::kActiveDescendantChanged:
       return IA2_EVENT_ACTIVE_DESCENDANT_CHANGED;
     case ax::mojom::Event::kCheckedStateChanged:
+    case ax::mojom::Event::kEnabledChanged:
     case ax::mojom::Event::kExpandedChanged:
     case ax::mojom::Event::kStateChanged:
       return EVENT_OBJECT_STATECHANGE;
@@ -8188,6 +8227,8 @@ std::optional<PROPERTYID> AXPlatformNodeWin::MojoEventToUIAProperty(
       return UIA_ControllerForPropertyId;
     case ax::mojom::Event::kCheckedStateChanged:
       return UIA_ToggleToggleStatePropertyId;
+    case ax::mojom::Event::kEnabledChanged:
+      return UIA_IsEnabledPropertyId;
     case ax::mojom::Event::kExpandedChanged:
       return UIA_ExpandCollapseExpandCollapseStatePropertyId;
     case ax::mojom::Event::kSelection:
@@ -8277,7 +8318,21 @@ HRESULT AXPlatformNodeWin::ComputeListItemNameAsBstr(BSTR* value_bstr) const {
 }
 
 void AXPlatformNodeWin::AddAlertTarget() {
+  // Firing an alert event can reentrantly destroy this node via the STA
+  // message pump; don't insert a dangling pointer. crbug.com/503419515.
+  if (IsDestroyed()) {
+    return;
+  }
   GetAlertTargets().insert(this);
+}
+
+// static
+size_t AXPlatformNodeWin::GetAlertTargetCountForTesting() {
+  return GetAlertTargets().size();
+}
+
+void AXPlatformNodeWin::AddAlertTargetForTesting() {
+  AddAlertTarget();
 }
 
 void AXPlatformNodeWin::RemoveAlertTarget() {

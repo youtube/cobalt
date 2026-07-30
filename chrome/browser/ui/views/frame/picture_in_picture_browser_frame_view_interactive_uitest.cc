@@ -141,7 +141,7 @@ class ModalWidgetDelegate : public views::WidgetDelegate {
   ui::mojom::ModalType modal_type_;
 };
 
-class ChipAnimationObserver : PermissionChipView::Observer {
+class ChipAnimationObserver : PermissionChipInterface::Observer {
  public:
   enum class QuitOnEvent {
     kExpand,
@@ -150,7 +150,7 @@ class ChipAnimationObserver : PermissionChipView::Observer {
     kVisibilityFalse,
   };
 
-  explicit ChipAnimationObserver(PermissionChipView* chip) {
+  explicit ChipAnimationObserver(PermissionChipInterface* chip) {
     observation_.Observe(chip);
   }
 
@@ -180,7 +180,8 @@ class ChipAnimationObserver : PermissionChipView::Observer {
     }
   }
 
-  base::ScopedObservation<PermissionChipView, PermissionChipView::Observer>
+  base::ScopedObservation<PermissionChipInterface,
+                          PermissionChipInterface::Observer>
       observation_{this};
   base::RunLoop loop_;
   QuitOnEvent quit_on_event = QuitOnEvent::kExpand;
@@ -1187,7 +1188,8 @@ class FakeLinuxUiGetter : public ui::LinuxUiGetter {
       return ui::NativeTheme::GetInstanceForNativeUi();
     }
 
-    ui::WindowFrameProvider* GetWindowFrameProvider(bool solid_frame,
+    ui::WindowFrameProvider* GetWindowFrameProvider(ui::FrameType type,
+                                                    bool solid_frame,
                                                     bool tiled,
                                                     bool maximized) override {
       // The test relies on this returning null.
@@ -1613,6 +1615,19 @@ INSTANTIATE_TEST_SUITE_P(
     [](const testing::TestParamInfo<AnimationTimingTest::ParamType>& info) {
       return info.param.test_name;
     });
+
+IN_PROC_BROWSER_TEST_F(PictureInPictureBrowserFrameViewTest,
+                       GetNonDecoratedClientAreaBoundsInScreen) {
+  ASSERT_NO_FATAL_FAILURE(SetUpDocumentPIP());
+  auto* pip_widget = pip_frame_view()->GetWidget();
+
+  gfx::Rect bounds =
+      pip_frame_view()->GetNonDecoratedClientAreaBoundsInScreen();
+  EXPECT_FALSE(bounds.IsEmpty());
+
+  // The bounds should be contained within the widget bounds in screen.
+  EXPECT_TRUE(pip_widget->GetWindowBoundsInScreen().Contains(bounds));
+}
 
 class PiPIndicatorsBrowsertest : public PictureInPictureBrowserFrameViewTest {
  public:

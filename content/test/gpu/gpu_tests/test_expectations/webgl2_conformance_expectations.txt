@@ -839,6 +839,7 @@ crbug.com/488451405 [ linux nvidia angle-opengl passthrough ] conformance/textur
 ## Linux AMD RX 5500 XT ##
 
 crbug.com/1152588 [ linux amd-0x7340 angle-opengl passthrough ] conformance2/rendering/multisampling-fragment-evaluation.html [ Failure ]
+crbug.com/445727124 [ linux amd-0x7340 ] deqp/functional/gles3/shaderoperator/unary_operator_00.html [ Failure ]
 
 ## Linux AMD RX 7600 ##
 
@@ -881,8 +882,6 @@ crbug.com/40167875 [ android android-pixel-4 angle-opengles passthrough ] confor
 crbug.com/angleproject/3684 [ android angle-opengles graphite-disabled qualcomm target-cpu-32 ] conformance2/renderbuffers/multisample-with-full-sample-counts.html [ Failure ]
 
 ## DrDc being re-enabled ##
-crbug.com/380250262 [ android android-pixel-2 angle-opengles passthrough ] conformance/canvas/render-after-resize-test.html [ Failure ]
-crbug.com/380250262 [ android android-pixel-4 angle-opengles passthrough ] conformance/canvas/render-after-resize-test.html [ Failure ]
 
 # On Adreno GPUs, flushes (which may happen inadvertently when the command
 # buffer is full) between draw calls would cause MaskConstancy test failures.

@@ -37,14 +37,33 @@
     function test_attr(property, attrString, attrValue, expectedValue) {
         var elem = document.getElementById("attr");
         elem.setAttribute("data-foo", attrValue);
-        elem.style.setProperty(property, attrString);
+
+        elem.style.setProperty("--unregistered", attrString);
+        let value = window.getComputedStyle(elem).getPropertyValue("--unregistered");
 
         test(() => {
+          // Skip tests that include unsupported functions, since they are not violation of attr() security.
+          if (value == "" || CSS.supports(`${property} : ${value}`)) {
+            elem.style.setProperty(property, attrString);
             assert_equals(window.getComputedStyle(elem).getPropertyValue(property),
                           expectedValue);
+          }
         }, `'${property}: ${attrString}' with data-foo="${attrValue}"`);
 
         elem.style.setProperty(property, null);
+    }
+
+    function test_attr_shorthand(shorthand, longhand, attrString, attrValue, expectedValue) {
+        var elem = document.getElementById("attr");
+        elem.setAttribute("data-foo", attrValue);
+        elem.style.setProperty(shorthand, attrString);
+
+        test(() => {
+            assert_equals(window.getComputedStyle(elem).getPropertyValue(longhand),
+                          expectedValue);
+        }, `'${shorthand}: ${attrString}' with data-foo="${attrValue}"`);
+
+        elem.style.setProperty(shorthand, null);
     }
 
     function test_registered_custom_property(customPropertyName, customPropertySyntax, customPropertyInitialValue,
@@ -78,6 +97,11 @@
               `image-set(attr(data-foo))`,
               url,
               'none');
+    test_attr_shorthand('background',
+                        'background-image',
+                        `image-set(attr(data-foo))`,
+                        url,
+                        'none');
     test_attr('background-image',
               `image-set("${url}")`,
               url,

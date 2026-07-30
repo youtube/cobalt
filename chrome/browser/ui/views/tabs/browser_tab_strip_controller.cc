@@ -54,11 +54,11 @@
 #include "chrome/browser/ui/views/frame/browser_widget.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/groups/tab_group_accessibility.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
-#include "chrome/browser/ui/views/tabs/tab_strip_types.h"
 #include "chrome/browser/ui/web_applications/app_browser_controller.h"
 #include "chrome/browser/ui/web_applications/web_app_tabbed_utils.h"
 #include "chrome/common/chrome_switches.h"
@@ -556,20 +556,6 @@ void BrowserTabStripController::OnDropIndexUpdate(
 
 void BrowserTabStripController::CreateNewTab(NewTabTypes context) {
   chrome::NewTab(browser_view_->browser(), context);
-}
-
-void BrowserTabStripController::CreateNewTabWithLocation(
-    const std::u16string& location) {
-  // Use autocomplete to clean up the text, going so far as to turn it into
-  // a search query if necessary.
-  AutocompleteMatch match;
-  AutocompleteClassifierFactory::GetForProfile(
-      GetBrowserWindowInterface()->GetProfile())
-      ->Classify(location, false, false, metrics::OmniboxEventProto::BLANK,
-                 &match, nullptr);
-  if (match.destination_url.is_valid()) {
-    model_->delegate()->AddTabAt(match.destination_url, -1, true);
-  }
 }
 
 void BrowserTabStripController::OnStartedDragging() {

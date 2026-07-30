@@ -88,8 +88,7 @@ using autofill::autofill_metrics::MandatoryReauthOptInOrOutSource;
     AutofillAddCreditCardCoordinatorDelegate,
     AutofillCvcStorageViewCoordinatorDelegate,
     PersonalDataManagerObserver,
-    PopoverLabelViewControllerDelegate,
-    SuccessfulReauthTimeAccessor> {
+    PopoverLabelViewControllerDelegate> {
   raw_ptr<autofill::PersonalDataManager> _personalDataManager;
 
   raw_ptr<Browser> _browser;
@@ -97,9 +96,6 @@ using autofill::autofill_metrics::MandatoryReauthOptInOrOutSource;
 
   // Whether Settings have been dismissed.
   BOOL _settingsAreDismissed;
-
-  // Timestamp for last successful reauth attempt by the ReauthenticationModule.
-  NSDate* _lastSuccessfulReauthTime;
 
   // Coordinator to add new credit card.
   AutofillAddCreditCardCoordinator* _addCreditCardCoordinator;
@@ -135,7 +131,9 @@ using autofill::autofill_metrics::MandatoryReauthOptInOrOutSource;
 
   self = [super initWithStyle:ChromeTableViewStyle()];
   if (self) {
-    self.title = l10n_util::GetNSString(IDS_AUTOFILL_PAYMENT_METHODS);
+    self.title = l10n_util::GetNSString(IsYourSavedInfoSettingsPageIosEnabled()
+                                            ? IDS_AUTOFILL_PAYMENTS_TITLE
+                                            : IDS_AUTOFILL_PAYMENT_METHODS);
     self.shouldDisableDoneButtonOnEdit = YES;
     _browser = browser;
     _personalDataManager = autofill::PersonalDataManagerFactory::GetForProfile(
@@ -835,16 +833,6 @@ using autofill::autofill_metrics::MandatoryReauthOptInOrOutSource;
 
   [self updateUIForEditState];
   [self reloadData];
-}
-
-#pragma mark - SuccessfulReauthTimeAccessor
-
-- (void)updateSuccessfulReauthTime {
-  _lastSuccessfulReauthTime = [[NSDate alloc] init];
-}
-
-- (NSDate*)lastSuccessfulReauthTime {
-  return _lastSuccessfulReauthTime;
 }
 
 #pragma mark - Getters and Setter

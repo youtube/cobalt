@@ -12,6 +12,7 @@
 #include "chrome/browser/optimization_guide/optimization_guide_internals_ui.h"
 #include "chrome/browser/ui/webui/about/about_ui.h"
 #include "chrome/browser/ui/webui/accessibility/accessibility_ui.h"
+#include "chrome/browser/ui/webui/accessibility_annotator_internals/accessibility_annotator_internals_ui.h"
 #include "chrome/browser/ui/webui/actor_internals/actor_internals_ui.h"
 #include "chrome/browser/ui/webui/autofill_and_password_manager_internals/autofill_internals_ui.h"
 #include "chrome/browser/ui/webui/autofill_and_password_manager_internals/password_manager_internals_ui.h"
@@ -51,6 +52,7 @@
 #include "chrome/browser/ui/webui/saved_tab_groups_unsupported/saved_tab_groups_unsupported_ui.h"
 #include "chrome/browser/ui/webui/segmentation_internals/segmentation_internals_ui.h"
 #include "chrome/browser/ui/webui/signin_internals_ui.h"
+#include "chrome/browser/ui/webui/subresource_filter/subresource_filter_internals_ui.h"
 #include "chrome/browser/ui/webui/sync_internals/sync_internals_ui.h"
 #include "chrome/browser/ui/webui/translate_internals/translate_internals_ui.h"
 #include "chrome/browser/ui/webui/usb_internals/usb_internals_ui.h"
@@ -100,6 +102,7 @@
 #include "chrome/browser/ui/webui/internals/internals_ui.h"
 #include "chrome/browser/ui/webui/tab_strip_internals/tab_strip_internals_ui.h"
 #endif  // BUILDFLAG(ENABLE_SESSION_SERVICE)
+#include "chrome/browser/ui/webui/indigo_internals/indigo_internals_ui.h"
 #include "chrome/browser/ui/webui/media_router/media_router_internals_ui.h"
 #include "chrome/browser/ui/webui/new_tab_footer/new_tab_footer_ui.h"
 #include "chrome/browser/ui/webui/new_tab_page/new_tab_page_ui.h"
@@ -237,6 +240,8 @@ void RegisterChromeWebUIConfigs() {
 
   auto& map = content::WebUIConfigMap::GetInstance();
   map.AddWebUIConfig(std::make_unique<AccessibilityUIConfig>());
+  map.AddWebUIConfig(
+      std::make_unique<AccessibilityAnnotatorInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<AutofillInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<BluetoothInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<BrowsingTopicsInternalsUIConfig>());
@@ -285,6 +290,8 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<SavedTabGroupsUnsupportedUIConfig>());
   map.AddWebUIConfig(std::make_unique<SegmentationInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<SignInInternalsUIConfig>());
+  map.AddWebUIConfig(std::make_unique<
+                     subresource_filter::SubresourceFilterInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<SiteEngagementUIConfig>());
   map.AddWebUIConfig(std::make_unique<SyncInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<TranslateInternalsUIConfig>());
@@ -370,6 +377,7 @@ void RegisterChromeWebUIConfigs() {
   map.AddWebUIConfig(std::make_unique<UserEducationInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<WebAppInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<WebNNInternalsUIConfig>());
+  map.AddWebUIConfig(std::make_unique<IndigoInternalsUIConfig>());
   map.AddWebUIConfig(std::make_unique<WebUIBrowserUIConfig>());
   map.AddWebUIConfig(std::make_unique<WebuiGalleryUIConfig>());
   map.AddWebUIConfig(std::make_unique<WebUIJsErrorUIConfig>());

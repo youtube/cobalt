@@ -4,7 +4,6 @@
 
 package org.chromium.chrome.browser;
 
-import static org.chromium.base.test.util.Restriction.RESTRICTION_TYPE_NON_LOW_END_DEVICE;
 import static org.chromium.ui.test.util.ViewUtils.createMotionEvent;
 
 import android.content.pm.ActivityInfo;
@@ -48,8 +47,6 @@ import org.chromium.ui.base.DeviceFormFactor;
 @RunWith(ChromeJUnit4ClassRunner.class)
 @CommandLineFlags.Add({ChromeSwitches.DISABLE_FIRST_RUN_EXPERIENCE})
 @Batch(Batch.PER_CLASS)
-// TODO(crbug.com/493270994): Run on more platforms after all swipes are properly handled.
-@Restriction(DeviceFormFactor.PHONE)
 public class ToolbarSwipeTest {
     @Rule
     public AutoResetCtaTransitTestRule mActivityTestRule =
@@ -81,7 +78,6 @@ public class ToolbarSwipeTest {
     @Test
     @MediumTest
     @Feature({"Android-TabSwitcher"})
-    @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE)
     public void testToolbarSwipeOnlyTab() {
         WebPageStation pageStation =
                 initToolbarSwipeTest(
@@ -105,7 +101,6 @@ public class ToolbarSwipeTest {
     @Test
     @MediumTest
     @Feature({"Android-TabSwitcher"})
-    @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE)
     public void testToolbarSwipePrevTab() {
         WebPageStation pageStation =
                 initToolbarSwipeTest(
@@ -119,7 +114,6 @@ public class ToolbarSwipeTest {
     @Test
     @MediumTest
     @Feature({"Android-TabSwitcher"})
-    @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE)
     public void testToolbarSwipeNextTab() {
         WebPageStation pageStation =
                 initToolbarSwipeTest(
@@ -131,7 +125,6 @@ public class ToolbarSwipeTest {
     @Test
     @MediumTest
     @Feature({"Android-TabSwitcher"})
-    @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE)
     public void testToolbarSwipePrevTabNone() {
         WebPageStation pageStation =
                 initToolbarSwipeTest(
@@ -143,7 +136,6 @@ public class ToolbarSwipeTest {
     @Test
     @MediumTest
     @Feature({"Android-TabSwitcher"})
-    @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE)
     public void testToolbarSwipeNextTabNone() {
         WebPageStation pageStation =
                 initToolbarSwipeTest(
@@ -157,7 +149,6 @@ public class ToolbarSwipeTest {
     @Test
     @MediumTest
     @Feature({"Android-TabSwitcher"})
-    @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE)
     public void testToolbarSwipeNextThenPrevTab() {
         WebPageStation pageStation =
                 initToolbarSwipeTest(
@@ -171,7 +162,6 @@ public class ToolbarSwipeTest {
     @Test
     @MediumTest
     @Feature({"Android-TabSwitcher"})
-    @Restriction(RESTRICTION_TYPE_NON_LOW_END_DEVICE)
     public void testToolbarSwipeNextThenPrevTabIncognito() {
         WebPageStation pageStation =
                 initToolbarSwipeTest(
@@ -218,7 +208,7 @@ public class ToolbarSwipeTest {
     /** Test that swipes and tab transitions are not causing URL bar to be focused. */
     @Test
     @MediumTest
-    @Restriction({DeviceFormFactor.PHONE, RESTRICTION_TYPE_NON_LOW_END_DEVICE})
+    @Restriction(DeviceFormFactor.PHONE)
     @Feature({"Android-TabSwitcher"})
     public void testOSKIsNotShownDuringSwipe() throws InterruptedException {
         final View urlBar = mActivityTestRule.getActivity().findViewById(R.id.url_bar);

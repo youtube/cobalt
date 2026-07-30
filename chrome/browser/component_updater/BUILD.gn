@@ -137,8 +137,12 @@ source_set("impl") {
   deps = [
     "//chrome/browser:browser_features",
     "//chrome/browser:browser_process",
+    "//chrome/browser/accessibility",
     "//chrome/browser/actor:impl",
     "//chrome/browser/history_embeddings",
+    "//chrome/browser/media",
+    "//chrome/browser/net",
+    "//chrome/browser/page_load_metrics",
     "//chrome/browser/permissions",
     "//chrome/browser/update_client",
     "//chrome/common",

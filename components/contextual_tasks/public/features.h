@@ -71,6 +71,10 @@ BASE_DECLARE_FEATURE(kContextualTasksHideMenuOnAiPage);
 // Enables updating the model from URL parameters on every inner navigation.
 BASE_DECLARE_FEATURE(kContextualTasksUpdateModelOnNavigation);
 
+// Enables intercepting YouTube links with timestamps to seek video instead of
+// navigating.
+BASE_DECLARE_FEATURE(kContextualTasksVideoCitations);
+
 bool GetIsContextualTasksUpdateModeOnNavigationEnabled();
 
 // Enum denoting which entry point can show when enabled.
@@ -94,6 +98,9 @@ extern const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity;
 extern const base::FeatureParam<double> kTabSelectionScoreThreshold;
 // Minimum score required for a tab to be considered visible.
 extern const base::FeatureParam<double> kContentVisibilityThreshold;
+
+// Task string to use for formatting the query embedding.
+extern const base::FeatureParam<std::string> kQueryEmbeddingTask;
 
 // The sample rate for logging contextual tasks context quality.
 extern const base::FeatureParam<double>
@@ -200,6 +207,9 @@ extern bool GetIsSmartTabSharingEnabled();
 
 // Returns the timeout for smart tab sharing tab selection.
 extern base::TimeDelta GetSmartTabSharingTabSelectionTimeout();
+
+// Returns the score threshold required to display the smart tab sharing promo.
+extern double GetSmartTabSharingPromoScoreThreshold();
 
 // Enables tab auto-chip for contextual tasks. When disabled, no suggested
 // chips will be shown in the composebox automatically.

@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.app.tabmodel;
 
 import static org.chromium.build.NullUtil.assumeNonNull;
-import static org.chromium.chrome.browser.app.tabmodel.PersistentStoreCleaner.cleanWindowForUnavailableStores;
 import static org.chromium.chrome.browser.app.tabmodel.ShadowTabStoreValidator.TABBED_TAG;
 import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildAuthoritativeStore;
 import static org.chromium.chrome.browser.app.tabmodel.TabPersistentStoreFactory.buildShadowStore;
@@ -62,6 +61,7 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
     private static final String TAG = "TMTMOrchestrator";
 
     private final boolean mTabMergingEnabled;
+    private final Supplier<Boolean> mIsRecreatingSupplier;
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     private final CipherFactory mCipherFactory;
     // Effectively final after createTabModels().
@@ -86,14 +86,17 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
      * @param activityLifecycleDispatcher Used to determine if the current activity context is still
      *     valid when running deferred tasks.
      * @param cipherFactory The {@link CipherFactory} used for encrypting and decrypting files.
+     * @param isRecreatingSupplier A supplier of whether the current activity is recreating.
      */
     public TabbedModeTabModelOrchestrator(
             boolean tabMergingEnabled,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
-            CipherFactory cipherFactory) {
+            CipherFactory cipherFactory,
+            Supplier<Boolean> isRecreatingSupplier) {
         mTabMergingEnabled = tabMergingEnabled;
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mCipherFactory = cipherFactory;
+        mIsRecreatingSupplier = isRecreatingSupplier;
     }
 
     @Override
@@ -189,7 +192,10 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
         // Instantiate TabPersistentStore
         mTabPersistencePolicy =
                 new TabbedModeTabPersistencePolicy(
-                        assignedIndex, mergeTabsOnStartup, mTabMergingEnabled);
+                        assignedIndex,
+                        mergeTabsOnStartup,
+                        mTabMergingEnabled,
+                        mIsRecreatingSupplier);
         mTabPersistentStore =
                 buildAuthoritativeStore(
                         TabPersistentStoreImpl.CLIENT_TAG_REGULAR,
@@ -244,11 +250,18 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
     @Override
     public void cleanupInstance(int instanceId) {
         assertCreated();
+        new PersistentStoreMigrationManagerImpl(String.valueOf(instanceId)).onWindowCleared();
+
         mTabPersistentStore.cleanupStateFile(instanceId);
         if (mShadowTabPersistentStore != null) {
             mShadowTabPersistentStore.cleanupStateFile(instanceId);
         }
-        cleanWindowForUnavailableStores(instanceId, this);
+        Profile profile = getOriginalProfile();
+        // Can be null if we call this before native is initialized.
+        if (profile != null) {
+            PersistentStoreCleanerFactory.getForProfile(profile)
+                    .cleanWindowForUnavailableStores(instanceId, this);
+        }
     }
 
     @Override
@@ -277,6 +290,12 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
             markStoresInitialized();
         }
 
+        Profile profile = getOriginalProfile();
+        assert profile != null;
+
+        PersistentStoreCleanerFactory.getForProfile(profile)
+                .scheduleCleanUnusedData(tabContentManager);
+
         TabModelUtils.runOnTabStateInitialized(
                 mTabModelSelector,
                 (selector) -> createArchivedTabModelInDeferredTask(tabContentManager));
@@ -302,11 +321,11 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
         if (mActivityLifecycleDispatcher.isActivityFinishingOrDestroyed()) return;
         ThreadUtils.assertOnUiThread();
         assertCreated();
-        // The profile will be available because native is initialized.
-        assert mProfileProviderSupplier.get() != null;
+
         assert tabContentManager != null;
 
-        Profile profile = mProfileProviderSupplier.get().getOriginalProfile();
+        // The profile will be available because native is initialized.
+        Profile profile = getOriginalProfile();
         assert profile != null;
 
         mArchivedTabModelOrchestrator = ArchivedTabModelOrchestrator.getForProfile(profile);
@@ -324,5 +343,17 @@ public class TabbedModeTabModelOrchestrator extends TabModelOrchestrator {
     public TabPersistentStoreImpl getTabPersistentStoreForTesting() {
         assertCreated();
         return (TabPersistentStoreImpl) mTabPersistentStore;
+    }
+
+    /* Should only be called after native is initialized. */
+    private @Nullable Profile getOriginalProfile() {
+        if (mProfileProviderSupplier == null) return null;
+
+        ProfileProvider profileProvider = mProfileProviderSupplier.get();
+        if (profileProvider == null) return null;
+
+        Profile profile = profileProvider.getOriginalProfile();
+        assert profile != null;
+        return profile;
     }
 }

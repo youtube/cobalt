@@ -18,6 +18,7 @@
 #include "components/password_manager/core/browser/sharing/incoming_password_sharing_invitation_sync_bridge.h"
 #include "components/sync/model/data_type_controller_delegate.h"
 #include "components/sync/service/sync_service.h"
+#include "url/origin.h"
 
 namespace password_manager {
 
@@ -39,6 +40,13 @@ bool IsValidString(const std::string& str) {
 bool IsValidSharedPasswordForm(const PasswordForm& form) {
   if (!form.url.is_valid() || form.url.is_empty()) {
     return false;
+  }
+  if (form.scheme == PasswordForm::Scheme::kHtml &&
+      form.url.SchemeIsHTTPOrHTTPS()) {
+    if (url::Origin::Create(form.url) !=
+        url::Origin::Create(GURL(form.signon_realm))) {
+      return false;
+    }
   }
   if (!IsValidString16(form.username_element) ||
       !IsValidString16(form.username_value) ||
@@ -132,6 +140,7 @@ std::vector<PasswordForm> IncomingSharingInvitationToPasswordForms(
     form.icon_url = GURL(password_group_element_data.avatar_url());
     form.date_created = base::Time::Now();
     form.type = PasswordForm::Type::kReceivedViaSharing;
+    form.skip_zero_click = true;
 
     // Invitation metadata.
     const sync_pb::UserDisplayInfo& sender_info =

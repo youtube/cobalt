@@ -20,8 +20,9 @@
 
 #if BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_CHROMEOS) || BUILDFLAG(IS_WIN) || \
     BUILDFLAG(IS_MAC)
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/toasts/api/toast_id.h"
 #include "chrome/browser/ui/toasts/toast_controller.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -113,7 +114,10 @@ void SafeBrowsingPrefChangeHandler::
   if (safe_browsing::IsSafeBrowsingPolicyManaged(*profile_->GetPrefs())) {
     return;
   }
-  Browser* const browser = chrome::FindBrowserWithProfile(profile_);
+  ProfileBrowserCollection* const collection =
+      ProfileBrowserCollection::GetForProfile(profile_);
+  BrowserWindowInterface* const browser =
+      collection ? collection->GetLastActiveBrowser() : nullptr;
   if (!browser) {
     return;
   }
@@ -124,7 +128,7 @@ void SafeBrowsingPrefChangeHandler::
   ToastController* const controller =
       toast_controller_for_testing_
           ? static_cast<ToastController*>(toast_controller_for_testing_)
-          : browser->browser_window_features()->toast_controller();
+          : browser->GetFeatures().toast_controller();
   if (!controller) {
     return;
   }
@@ -144,23 +148,25 @@ void SafeBrowsingPrefChangeHandler::
   // Extract the enhanced protection pref value.
   bool is_enhanced_enabled = IsEnhancedProtectionEnabled(*profile_->GetPrefs());
 
-  // The enhanced protection setting has been updated. To reflect this
-  // change, we will show toasts to the user, taking into account both the
-  // new setting value and whether they are currently on the settings page.
-  if (is_enhanced_enabled) {
-    // When the user is currently on the security settings page, show a
-    // toast without the action button to go to the settings page.
-    // Otherwise, we should a button that takes user to the settings page to
-    // change the enhanced protection settings.
-    controller->MaybeShowToast(
-        ToastParams(is_security_page ? ToastId::kSyncEsbOnWithoutActionButton
-                                     : ToastId::kSyncEsbOn));
-  } else if (!is_security_page) {
-    // Toast messages are not displayed on the security page when a user
-    // disables a security setting. This applies whether the user disables
-    // the setting on the current device or the change is synced from
-    // another device.
-    controller->MaybeShowToast(ToastParams(ToastId::kSyncEsbOff));
+  if (!base::FeatureList::IsEnabled(safe_browsing::kBundledSecuritySettings)) {
+    // The enhanced protection setting has been updated. To reflect this
+    // change, we will show toasts to the user, taking into account both the
+    // new setting value and whether they are currently on the settings page.
+    if (is_enhanced_enabled) {
+      // When the user is currently on the security settings page, show a
+      // toast without the action button to go to the settings page.
+      // Otherwise, we should a button that takes user to the settings page to
+      // change the enhanced protection settings.
+      controller->MaybeShowToast(
+          ToastParams(is_security_page ? ToastId::kSyncEsbOnWithoutActionButton
+                                       : ToastId::kSyncEsbOn));
+    } else if (!is_security_page) {
+      // Toast messages are not displayed on the security page when a user
+      // disables a security setting. This applies whether the user disables
+      // the setting on the current device or the change is synced from
+      // another device.
+      controller->MaybeShowToast(ToastParams(ToastId::kSyncEsbOff));
+    }
   }
 #endif
 

@@ -28,6 +28,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
+import static org.chromium.chrome.browser.app.tab_activity_glue.PopupCreatorImpl.EXTRA_REQUESTED_WINDOW_FEATURES;
 import static org.chromium.chrome.browser.customtabs.CustomTabIntentDataProvider.ACTIVITY_SIDE_SHEET_SLIDE_IN_FROM_SIDE;
 
 import android.app.Activity;
@@ -75,7 +76,6 @@ import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.chrome.R;
 import org.chromium.chrome.browser.IntentHandler;
-import org.chromium.chrome.browser.app.tab_activity_glue.PopupCreator;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider;
 import org.chromium.chrome.browser.browserservices.intents.BrowserServicesIntentDataProvider.CustomTabsUiType;
 import org.chromium.chrome.browser.browserservices.intents.ColorProvider;
@@ -1807,19 +1807,7 @@ public class CustomTabIntentDataProviderTest {
 
     @Test
     @Config(sdk = {BaseRobolectricTestRunner.MAX_SDK})
-    @DisableFeatures({ChromeFeatureList.ANDROID_WINDOW_CONTROLS_OVERLAY})
-    public void testTwaBrowserModeWithDisabledWindowControlsOverlay_ResolveToStandalone() {
-        checkResolvedDisplayMode(
-                null,
-                Collections.singletonList(
-                        new TrustedWebActivityDisplayMode.WindowControlsOverlayMode()),
-                DisplayMode.STANDALONE);
-    }
-
-    @Test
-    @Config(sdk = {BaseRobolectricTestRunner.MAX_SDK})
-    @EnableFeatures({ChromeFeatureList.ANDROID_WINDOW_CONTROLS_OVERLAY})
-    public void testTwaBrowserModeWithEnableWindowControlsOverlay_ResolveToWindowControlsOverlay() {
+    public void testTwaBrowserMode_ResolveToWindowControlsOverlay() {
         checkResolvedDisplayMode(
                 null,
                 Collections.singletonList(
@@ -1829,9 +1817,7 @@ public class CustomTabIntentDataProviderTest {
 
     @Test
     @Config(sdk = {BaseRobolectricTestRunner.MAX_SDK})
-    @EnableFeatures({ChromeFeatureList.ANDROID_WINDOW_CONTROLS_OVERLAY})
-    public void
-            testTwaBrowserModeWithEnableWindowControlsOverlay_IgnoreWindowControlsOverlayNotInDisplayOverride() {
+    public void testTwaBrowserMode_IgnoreWindowControlsOverlayNotInDisplayOverride() {
         checkResolvedDisplayMode(
                 new TrustedWebActivityDisplayMode.WindowControlsOverlayMode(),
                 null,
@@ -2398,9 +2384,7 @@ public class CustomTabIntentDataProviderTest {
         final WindowFeatures windowFeatures = new WindowFeatures(12, 34, 56, null);
         Intent intent =
                 new Intent()
-                        .putExtra(
-                                PopupCreator.EXTRA_REQUESTED_WINDOW_FEATURES,
-                                windowFeatures.toBundle())
+                        .putExtra(EXTRA_REQUESTED_WINDOW_FEATURES, windowFeatures.toBundle())
                         .putExtra(
                                 CustomTabIntentDataProvider.EXTRA_UI_TYPE, CustomTabsUiType.POPUP);
         IntentUtils.setForceIsTrustedIntentForTesting(true);
@@ -2421,9 +2405,7 @@ public class CustomTabIntentDataProviderTest {
         final WindowFeatures windowFeatures = new WindowFeatures(12, 34, 56, null);
         final Intent intent =
                 new Intent()
-                        .putExtra(
-                                PopupCreator.EXTRA_REQUESTED_WINDOW_FEATURES,
-                                windowFeatures.toBundle())
+                        .putExtra(EXTRA_REQUESTED_WINDOW_FEATURES, windowFeatures.toBundle())
                         .putExtra(
                                 CustomTabIntentDataProvider.EXTRA_UI_TYPE, CustomTabsUiType.POPUP);
         IntentUtils.setForceIsTrustedIntentForTesting(true);
@@ -2482,9 +2464,7 @@ public class CustomTabIntentDataProviderTest {
         final WindowFeatures windowFeatures = new WindowFeatures(12, 34, 56, null);
         Intent intent =
                 new Intent()
-                        .putExtra(
-                                PopupCreator.EXTRA_REQUESTED_WINDOW_FEATURES,
-                                windowFeatures.toBundle())
+                        .putExtra(EXTRA_REQUESTED_WINDOW_FEATURES, windowFeatures.toBundle())
                         .putExtra(
                                 CustomTabIntentDataProvider.EXTRA_UI_TYPE,
                                 CustomTabsUiType.DEFAULT);
@@ -2506,9 +2486,7 @@ public class CustomTabIntentDataProviderTest {
         final WindowFeatures windowFeatures = new WindowFeatures(12, 34, 56, null);
         final Intent intent =
                 new Intent()
-                        .putExtra(
-                                PopupCreator.EXTRA_REQUESTED_WINDOW_FEATURES,
-                                windowFeatures.toBundle())
+                        .putExtra(EXTRA_REQUESTED_WINDOW_FEATURES, windowFeatures.toBundle())
                         .putExtra(
                                 CustomTabIntentDataProvider.EXTRA_UI_TYPE,
                                 CustomTabsUiType.DEFAULT);

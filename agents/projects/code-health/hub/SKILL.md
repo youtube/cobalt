@@ -1,5 +1,5 @@
 ---
-name: code-health-hub
+name: hub
 description: Orchestrator for the "Code Health Hub" framework. Trigger only when the user refers to the Hub or asks to see "available cleanup tasks" within the Chromium technical debt reduction system.
 ---
 
@@ -64,7 +64,6 @@ specific Code Health task:
 2. **Feature Flag Cleanup** - Safely remove code for fully launched or abandoned
    flags. *(Coming soon)*
 3. **Lint Sync Guards** - Add IfChange/ThenChange guards to keep enums in sync.
-   *(Coming soon)*
 
 #### Handoff for Category A:
 
@@ -76,7 +75,9 @@ Seamlessly transition into the selected skill's workflow by retrieving its
 instructions and immediately executing its initial steps:
 
 - For **Histogram Cleanup**: Execute the `activate_skill` tool with
-  `name="code-health-histogram-cleanup"`.
+  `name="histogram-cleanup"`.
+- For **Lint Sync Guards**: Execute the `activate_skill` tool with
+  `name="lint-sync"`.
 
 Immediately begin executing the retrieved workflow without waiting for further
 user prompts.

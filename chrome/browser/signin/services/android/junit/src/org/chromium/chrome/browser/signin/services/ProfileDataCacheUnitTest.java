@@ -315,9 +315,9 @@ public class ProfileDataCacheUnitTest {
         Assert.assertEquals(
                 TestAccounts.ACCOUNT2.getEmail(),
                 mProfileDataCache.getAccounts().getResult().get(0).getAccountEmail());
+        CoreAccountId accountId = TestAccounts.ACCOUNT1.getId();
         Assert.assertThrows(
-                IllegalArgumentException.class,
-                () -> mProfileDataCache.getById(TestAccounts.ACCOUNT1.getId()));
+                IllegalArgumentException.class, () -> mProfileDataCache.getById(accountId));
         Assert.assertEquals(
                 TestAccounts.ACCOUNT2.getEmail(),
                 mProfileDataCache.getById(TestAccounts.ACCOUNT2.getId()).getAccountEmail());
@@ -420,6 +420,31 @@ public class ProfileDataCacheUnitTest {
         Assert.assertEquals(1, accounts.size());
         Assert.assertEquals(
                 TestAccounts.TEST_ACCOUNT_NO_NAME.getEmail(), profileData.getAccountEmail());
+    }
+
+    @Test
+    public void testUpdateShouldPutInCacheBothPrimaryAndCoreAccounts() {
+        var updateBlocker = mAccountManagerTestRule.blockGetAccountsUpdate();
+        mAccountManagerTestRule.blockExtendedAccountInfoUpdate();
+        // Create a new ProfileDataCache to ensure that the accounts are not ready.
+        mProfileDataCache =
+                ProfileDataCache.createWithDefaultImageSizeAndNoBadge(
+                        RuntimeEnvironment.application.getApplicationContext(),
+                        mAccountManagerTestRule.getIdentityManager());
+
+        updateBlocker.close();
+        mAccountManagerTestRule.addAccount(TestAccounts.ACCOUNT1);
+        mAccountManagerTestRule.getIdentityManager().setPrimaryAccount(TestAccounts.ACCOUNT2);
+        Assert.assertFalse(mProfileDataCache.getAccounts().isFulfilled());
+
+        // getById should trigger the cache population
+        Assert.assertEquals(
+                TestAccounts.ACCOUNT1.getEmail(),
+                mProfileDataCache.getById(TestAccounts.ACCOUNT1.getId()).getAccountEmail());
+        Assert.assertEquals(
+                TestAccounts.ACCOUNT2.getEmail(),
+                mProfileDataCache.getById(TestAccounts.ACCOUNT2.getId()).getAccountEmail());
+        Assert.assertEquals(2, mProfileDataCache.getAccounts().getResult().size());
     }
 
     // TODO(crbug.com/494569985): Remove after MakeIdentityManagerSourceOfAccounts flag cleanup

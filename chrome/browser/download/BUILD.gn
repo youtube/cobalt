@@ -165,6 +165,7 @@ source_set("impl") {
     "//chrome/browser/devtools",
     "//chrome/browser/enterprise",
     "//chrome/browser/history",
+    "//chrome/browser/net",
     "//chrome/browser/notifications",
     "//chrome/browser/offline_items_collection",
     "//chrome/browser/optimization_guide",
@@ -197,6 +198,7 @@ source_set("impl") {
     "//components/security_state/content",
     "//components/services/quarantine",
     "//components/strings",
+    "//ui/base/unowned_user_data",
     "//url",
   ]
 

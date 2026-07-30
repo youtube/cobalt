@@ -3401,6 +3401,10 @@ inline constexpr char kHoverCardImagesEnabled[] =
 inline constexpr char kHoverCardMemoryUsageEnabled[] =
     "browser.hovercard.memory_usage_enabled";
 
+// Whether hovercard memory usage has been migrated to default-off
+inline constexpr char kHoverCardMemoryUsageDisableMigrationComplete[] =
+    "browser.hovercard.memory_usage_disable_migration_complete";
+
 // Boolean that specifies whether Compression Dictionary Transport is enabled.
 inline constexpr char kCompressionDictionaryTransportEnabled[] =
     "net.compression_dictionary_transport_enabled";
@@ -3448,6 +3452,12 @@ inline constexpr char kListenToThisPageEnabled[] =
 inline constexpr char kReadAloudSyntheticTrials[] =
     "readaloud.synthetic_trials";
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// A boolean pref indicating whether elements detected as ads should be visually
+// highlighted across all web pages. This is a global diagnostic setting managed
+// via chrome://subresource-filter-internals.
+inline constexpr char kSubresourceFilterHighlightAds[] =
+    "subresource_filter.highlight_ads";
 
 // A list of base64 encoded certificates that are to be trusted as root certs.
 // Only specifiable as an enterprise policy.
@@ -3556,6 +3566,10 @@ inline constexpr char kServiceWorkerToControlSrcdocIframeEnabled[] =
 // is set as a SharedWorker script URL.
 inline constexpr char kSharedWorkerBlobURLFixEnabled[] =
     "worker.shared_worker_blob_url_fix_enabled";
+
+// Boolean that specifies whether data: URL web workers have opaque origins.
+inline constexpr char kDataUrlInWebWorkerOpaqueOriginEnabled[] =
+    "worker.data_url_in_web_worker_opaque_origin_enabled";
 
 // Boolean that specifies whether the shared worker has extended lifetime.
 inline constexpr char kSharedWorkerExtendedLifetimeEnabled[] =

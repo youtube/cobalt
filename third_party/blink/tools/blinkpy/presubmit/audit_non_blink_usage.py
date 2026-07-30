@@ -114,12 +114,15 @@ _CONFIG = [
             'base::KiB',
             'base::KiBS',
             'base::KiBU',
+            'base::kCriticalMemoryPressureThreshold',
             'base::kInvalidThreadId',
+            'base::kStatefulMemoryPressure',
             'base::Location',
             'base::MakeRefCounted',
             'base::MatcherStringPattern',
             'base::MatchPattern',
             'base::MaxThreadType',
+            'base::MemoryConsumer',
             'base::MemoryPressureListener',
             'base::MemoryPressureListenerTag',
             'base::MessagePump',
@@ -377,6 +380,13 @@ _CONFIG = [
             'base::UnsafeSharedMemoryRegion',
             'base::WritableSharedMemoryMapping',
             'base::subtle::SharedAtomic',
+
+            # Helpers for response headers and associated support code that
+            # are OK to use anywhere; raw headers contain internal NUL
+            # delimiters, so it's easier/safer to work with a helper built for
+            # that convention.
+            'net::HttpVersion',
+            'net::HttpResponseHeaders',
 
             # tracing
             'perfetto::.+',
@@ -810,6 +820,7 @@ _CONFIG = [
             'event_util::.+',
             'file_error::.+',
             'file_system_access_error::.+',
+            'focusgroup::.+',
             'geometry_util::.+',
             'inspector_\\w+_event::.+',
             'inspector_async_task::.+',
@@ -2309,6 +2320,7 @@ _CONFIG = [
             'base::ListValue',
             'base::MakeFixedFlatSet',
             'base::Value',
+            'on_device_model::features::.+',
         ],
     },
     {
@@ -2697,7 +2709,6 @@ _CONFIG = [
         ],
         'allowed': [
             'net::ERR_.+',
-            'net::HttpResponseHeaders',
             'net::OK',
             'net::RedirectInfo',
         ],

@@ -16,6 +16,19 @@ export function getHtml(this: ContextualActionMenuElement) {
        asynchronously from the browser process. -->
   <cr-action-menu id="menu" role-description="${this.i18n('menu')}"
       @close="${this.onMenuClose_}" auto-reposition>
+    ${this.smartTabSharingVisible_ ? html`
+      <button class="dropdown-item toggle-item"
+          id="smartTabSharingItem"
+          role="menuitem"
+          @click="${this.onSmartTabSharingItemClick_}">
+        <span>${this.i18n('stsMegaplusShareRelevantOpenTabs')}</span>
+        <cr-toggle id="smartTabSharingToggle"
+            ?checked="${this.smartTabSharingActive}"
+            @change="${this.onSmartTabSharingToggleChange_}">
+        </cr-toggle>
+      </button>
+      <hr/>
+    ` : ''}
     ${this.tabSuggestions?.length > 0 && this.isBrowserTabAllowed_() ? html`
       ${this.showContextMenuHeaders_ ? html`<h4 id="tabHeader">${
           this.getInputTypeLabel_(InputType.kBrowserTab)}</h4>` : ''}
@@ -25,7 +38,7 @@ export function getHtml(this: ContextualActionMenuElement) {
               role="${this.enableMultiTabSelection_ ? 'menuitemcheckbox' : 'menuitem'}"
               aria-checked="${this.enableMultiTabSelection_ && this.disabledTabIds.has(tab.tabId)}"
               title="${tab.title}" data-index="${index}"
-              aria-label="${this.getInputTypeLabel_(InputType.kBrowserTab)}, ${
+              aria-label="${this.getInputTypeLabel_(InputType.kBrowserTab)}: ${
                   tab.title}"
               ?disabled="${this.isTabDisabled_(tab)}"
               @pointerenter="${this.onTabPointerenter_}"
@@ -64,10 +77,18 @@ export function getHtml(this: ContextualActionMenuElement) {
       <cr-icon icon="composebox:fileUpload"></cr-icon>
       ${this.getInputTypeLabel_(InputType.kLensFile)}
     </button>`: ''}
+    ${this.isDriveUploadAllowed_() ? html`
+      <button id="driveUpload" class="dropdown-item" role="menuitem"
+          @click="${this.onDriveUploadClick_}"
+          ?disabled="${this.isDriveUploadDisabled_()}">
+        <cr-icon icon="composebox:driveUpload"></cr-icon>
+        ${this.getInputTypeLabel_(InputType.kDrive)}
+      </button>` : ''}
 
     <!-- Show a separator if there are tools AND (something above is visible) -->
     ${(this.inputState?.allowedTools.length ?? 0) > 0 &&
-        (this.isImageUploadAllowed_() || this.isFileUploadAllowed_()) ?
+        (this.isImageUploadAllowed_() || this.isFileUploadAllowed_() ||
+         this.isDriveUploadAllowed_()) ?
         html`<hr/>` : ''}
 
     ${(this.inputState?.allowedTools.length ?? 0) > 0 ? html`
@@ -78,6 +99,8 @@ export function getHtml(this: ContextualActionMenuElement) {
       return html`
       <button class="dropdown-item" data-mode="${mode}"
           role="menuitem"
+          aria-label="${this.showContextMenuHeaders_ && this.getToolHeader_() ?
+              `${this.getToolHeader_()}: ` : ''}${this.getToolLabel_(mode)}"
           @click="${this.onToolClick_}"
           ?disabled="${this.isToolDisabled_(mode)}">
         ${this.getIconForToolMode_(mode) ? html`
@@ -90,7 +113,8 @@ export function getHtml(this: ContextualActionMenuElement) {
     <!-- Show a separator if there are models AND (something above is visible) -->
     ${(this.inputState?.allowedModels.length ?? 0) > 0 &&
       ((this.inputState?.allowedTools.length ?? 0) > 0 ||
-       this.isImageUploadAllowed_() || this.isFileUploadAllowed_()) ? html`<hr/>` : ''}
+       this.isImageUploadAllowed_() || this.isFileUploadAllowed_() ||
+       this.isDriveUploadAllowed_()) ? html`<hr/>` : ''}
 
     ${(this.inputState?.allowedModels.length ?? 0) > 0 ? html`
         ${this.showContextMenuHeaders_ && this.getModelHeader_() ? html`
@@ -101,6 +125,8 @@ export function getHtml(this: ContextualActionMenuElement) {
       <button class="dropdown-item"
           role="menuitemradio"
           aria-checked="${this.isModelActive_(mode)}"
+          aria-label="${this.showContextMenuHeaders_ && this.getModelHeader_() ?
+              `${this.getModelHeader_()}: ` : ''}${this.getModelLabel_(mode)}"
           data-model="${mode}"
           @click="${this.onModelClick_}"
           ?disabled="${this.isModelDisabled_(mode)}">
@@ -113,6 +139,7 @@ export function getHtml(this: ContextualActionMenuElement) {
               icon="cr:check" id="model-check"></cr-icon>` : ''}
       </button>`;
     })}
+
   </cr-action-menu>
 <!--_html_template_end_-->`;
   // clang-format on

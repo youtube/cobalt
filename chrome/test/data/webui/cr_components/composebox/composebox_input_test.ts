@@ -126,13 +126,14 @@ suite('ComposeboxScrollCaret', () => {
     assertEquals('none', maxHeight);
   });
 
-  test('CaretTransformStableDuringScroll', async () => {
+  test('CaretAnchorStableDuringScroll', async () => {
     const input = inputElement.$.input as HTMLTextAreaElement;
-    const caret = inputElement.shadowRoot.querySelector<HTMLElement>('#caret');
+    const mirror =
+        inputElement.shadowRoot.querySelector<HTMLElement>('#mirror');
     const inputWrapper =
         inputElement.shadowRoot.querySelector<HTMLElement>('#inputWrapper');
     assertTrue(!!input);
-    assertTrue(!!caret);
+    assertTrue(!!mirror);
     assertTrue(!!inputWrapper);
 
     // Type enough texts to cause scrolling.
@@ -149,16 +150,17 @@ suite('ComposeboxScrollCaret', () => {
     // Verify that the wrapper has scrollable content.
     assertTrue(inputWrapper.scrollHeight > inputWrapper.clientHeight);
 
-    // Record the caret transform before scrolling.
-    const caretTransformBeforeScroll = caret.style.transform;
-    assertTrue(caretTransformBeforeScroll.length > 0);
+    // The last mirror span should be the anchor.
+    const lastSpan = mirror.childNodes[longText.length - 1] as HTMLElement;
+    assertTrue(!!lastSpan);
+    assertEquals('--cursor-char', lastSpan.style.anchorName);
 
     // Scroll the wrapper to the top.
     inputWrapper.scrollTop = 0;
     await microtasksFinished();
 
-    // Verify that the caret transform is the same before and after scrolling.
-    assertEquals(caretTransformBeforeScroll, caret.style.transform);
+    // The anchor span should remain the same after scrolling.
+    assertEquals('--cursor-char', lastSpan.style.anchorName);
   });
 
   test('MaskImageOnWrapper', () => {
@@ -184,13 +186,14 @@ suite('ComposeboxScrollCaret', () => {
   // The caret resize observer should only react to width changes on
   // #inputWrapper, not height-only changes that can feed back into a layout loop
   // e.g. Windows non-overlay scrollbar toggling.
-  test('CaretUpdatesOnInputWrapperWidthChange', async () => {
+  test('CaretAnchorUpdatesOnInputWrapperWidthChange', async () => {
     const input = inputElement.$.input as HTMLTextAreaElement;
-    const caret = inputElement.shadowRoot.querySelector<HTMLElement>('#caret');
+    const mirror =
+        inputElement.shadowRoot.querySelector<HTMLElement>('#mirror');
     const inputWrapper =
         inputElement.shadowRoot.querySelector<HTMLElement>('#inputWrapper');
     assertTrue(!!input);
-    assertTrue(!!caret);
+    assertTrue(!!mirror);
     assertTrue(!!inputWrapper);
 
     input.value = 'Hello world';
@@ -199,8 +202,10 @@ suite('ComposeboxScrollCaret', () => {
     input.dispatchEvent(new Event('keyup', {bubbles: true}));
     await inputElement.updateComplete;
 
-    const caretTransformBefore = caret.style.transform;
-    assertTrue(caretTransformBefore.length > 0);
+    // The anchor should be on the last span (char before cursor).
+    const anchoredSpan = mirror.childNodes[10] as HTMLElement;
+    assertTrue(!!anchoredSpan);
+    assertEquals('--cursor-char', anchoredSpan.style.anchorName);
 
     inputWrapper.style.width = '20px';
 
@@ -208,25 +213,34 @@ suite('ComposeboxScrollCaret', () => {
     await new Promise(resolve => requestAnimationFrame(resolve));
     await microtasksFinished();
 
-    assertTrue(caretTransformBefore !== caret.style.transform);
+    // After width change triggers re-layout, the anchor should still be set on
+    // a mirror span (the updateCaret_ re-runs via ResizeObserver).
+    const spans = mirror.querySelectorAll('span');
+    const anchoredSpans =
+        Array.from(spans).filter(s => s.style.anchorName === '--cursor-char');
+    assertEquals(1, anchoredSpans.length);
   });
 
-  test('CaretDoesNotUpdateOnHeightOnlyChange', async () => {
+  test('CaretAnchorDoesNotUpdateOnHeightOnlyChange', async () => {
     const input = inputElement.$.input as HTMLTextAreaElement;
-    const caret = inputElement.shadowRoot.querySelector<HTMLElement>('#caret');
+    const mirror =
+        inputElement.shadowRoot.querySelector<HTMLElement>('#mirror');
     const inputWrapper =
         inputElement.shadowRoot.querySelector<HTMLElement>('#inputWrapper');
     assertTrue(!!input);
-    assertTrue(!!caret);
+    assertTrue(!!mirror);
     assertTrue(!!inputWrapper);
 
     input.value = 'Hey world';
     input.dispatchEvent(new Event('input', {bubbles: true}));
-    input.setSelectionRange(10, 10);
+    input.setSelectionRange(9, 9);
     input.dispatchEvent(new Event('keyup', {bubbles: true}));
     await inputElement.updateComplete;
 
-    const caretTransformBefore = caret.style.transform;
+    // The anchor should be on the span before the cursor (index 8).
+    const anchoredSpan = mirror.childNodes[8] as HTMLElement;
+    assertTrue(!!anchoredSpan);
+    assertEquals('--cursor-char', anchoredSpan.style.anchorName);
     const widthBefore = inputWrapper.clientWidth;
 
     inputWrapper.style.paddingBottom = '10px';
@@ -237,6 +251,150 @@ suite('ComposeboxScrollCaret', () => {
 
     assertEquals(widthBefore, inputWrapper.clientWidth);
 
-    assertEquals(caretTransformBefore, caret.style.transform);
+    // The same span should still be the anchor (no spurious update).
+    assertEquals('--cursor-char', anchoredSpan.style.anchorName);
+  });
+});
+
+suite('ComposeboxCaretGeometry', () => {
+  let inputElement: ComposeboxInputElement;
+  let originalDir: string;
+
+  setup(async () => {
+    originalDir = document.documentElement.dir;
+    document.body.innerHTML = window.trustedTypes!.emptyHTML;
+    inputElement = document.createElement('cr-composebox-input');
+    document.body.appendChild(inputElement);
+    await inputElement.updateComplete;
+  });
+
+  teardown(() => {
+    document.documentElement.dir = originalDir;
+  });
+
+  // Verify the caret's rendered position aligns with its anchor span.
+  test('CaretRenderedPositionMatchesAnchorSpanLtr', async () => {
+    document.documentElement.dir = 'ltr';
+    const input = inputElement.$.input as HTMLTextAreaElement;
+    const caret = inputElement.shadowRoot.querySelector<HTMLElement>('#caret');
+    const mirror =
+        inputElement.shadowRoot.querySelector<HTMLElement>('#mirror');
+    assertTrue(!!caret);
+    assertTrue(!!mirror);
+
+    input.value = 'Hello';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.setSelectionRange(5, 5);
+    input.dispatchEvent(new Event('keyup', {bubbles: true}));
+    await inputElement.updateComplete;
+
+    // Force focus to make the caret visible (display: block)
+    input.focus();
+    await inputElement.updateComplete;
+
+    const anchoredSpan = mirror.childNodes[4] as HTMLElement;
+    assertTrue(!!anchoredSpan);
+
+    const caretRect = caret.getBoundingClientRect();
+    const spanRect = anchoredSpan.getBoundingClientRect();
+
+    // In LTR, the caret's left edge should be at the span's right edge.
+    assertTrue(Math.abs(caretRect.left - spanRect.right) < 2);
+
+    // The caret's top should be near the span's top (within the 2px offset)
+    assertTrue(Math.abs(caretRect.top - (spanRect.top - 2)) < 2);
+  });
+
+  test('CaretRenderedPositionMatchesAnchorSpanRtl', async () => {
+    document.documentElement.dir = 'rtl';
+    const input = inputElement.$.input as HTMLTextAreaElement;
+    const caret = inputElement.shadowRoot.querySelector<HTMLElement>('#caret');
+    const mirror =
+        inputElement.shadowRoot.querySelector<HTMLElement>('#mirror');
+    assertTrue(!!caret);
+    assertTrue(!!mirror);
+
+    input.value = 'Hello';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.setSelectionRange(5, 5);
+    input.dispatchEvent(new Event('keyup', {bubbles: true}));
+    await inputElement.updateComplete;
+
+    input.focus();
+    await inputElement.updateComplete;
+
+    const anchoredSpan = mirror.childNodes[4] as HTMLElement;
+    assertTrue(!!anchoredSpan);
+
+    const caretRect = caret.getBoundingClientRect();
+    const spanRect = anchoredSpan.getBoundingClientRect();
+
+    // In RTL, `left: anchor(end)` resolves to the span's left (start) edge.
+    assertTrue(Math.abs(caretRect.left - spanRect.left) < 2);
+
+    // The caret's top should be near the span's top (within the 2px offset)
+    assertTrue(Math.abs(caretRect.top - (spanRect.top - 2)) < 2);
+  });
+
+  test('CaretAtStartPositionedAtFirstSpanStart', async () => {
+    const input = inputElement.$.input as HTMLTextAreaElement;
+    const caret = inputElement.shadowRoot.querySelector<HTMLElement>('#caret');
+    const mirror =
+        inputElement.shadowRoot.querySelector<HTMLElement>('#mirror');
+    assertTrue(!!caret);
+    assertTrue(!!mirror);
+
+    input.value = 'AB';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.setSelectionRange(0, 0);
+    input.dispatchEvent(new Event('keyup', {bubbles: true}));
+    await inputElement.updateComplete;
+
+    input.focus();
+    await inputElement.updateComplete;
+
+    const firstSpan = mirror.firstChild as HTMLElement;
+    assertTrue(!!firstSpan);
+    assertEquals('--cursor-char', firstSpan.style.anchorName);
+    assertTrue(caret.classList.contains('at-start'));
+
+    const spanRect = firstSpan.getBoundingClientRect();
+    const caretRect = caret.getBoundingClientRect();
+
+    // At position 0 with `at-start`, caret's left should be at span's left
+    // (start), not span's right (end).
+    assertTrue(Math.abs(caretRect.left - spanRect.left) < 2);
+  });
+
+  test('ResetCaretAnchorsToFirstSpan', async () => {
+    const input = inputElement.$.input as HTMLTextAreaElement;
+    const caret = inputElement.shadowRoot.querySelector<HTMLElement>('#caret');
+    const mirror =
+        inputElement.shadowRoot.querySelector<HTMLElement>('#mirror');
+    assertTrue(!!caret);
+    assertTrue(!!mirror);
+
+    // Type text and move cursor to the middle.
+    input.value = 'Hello world';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+    input.setSelectionRange(5, 5);
+    input.dispatchEvent(new Event('keyup', {bubbles: true}));
+    await inputElement.updateComplete;
+
+    // Cursor should be anchored at index 4 (char before cursor).
+    const midSpan = mirror.childNodes[4] as HTMLElement;
+    assertTrue(!!midSpan);
+    assertEquals('--cursor-char', midSpan.style.anchorName);
+
+    // Call resetCaret_ should anchor to first span, not current selection.
+    inputElement.resetCaret();
+
+    const firstSpan = mirror.firstChild as HTMLElement;
+    assertTrue(!!firstSpan);
+    assertEquals('--cursor-char', firstSpan.style.anchorName);
+    assertTrue(caret.classList.contains('at-start'));
+
+    // The mid span should no longer be the anchor.
+    assertEquals('', midSpan.style.anchorName);
   });
 });

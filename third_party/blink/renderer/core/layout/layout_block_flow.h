@@ -80,7 +80,6 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
 
   bool CanMergeWith(const LayoutBoxModelObject&) const override;
 
-  void ChildBecameFloatingOrOutOfFlow(LayoutBox* child);
   void CollapseAnonymousBlockChild(LayoutBlockFlow* child);
 
   // Return true if this block establishes a fragmentation context root (e.g. a
@@ -159,22 +158,9 @@ class CORE_EXPORT LayoutBlockFlow : public LayoutBlock {
   void AddChildBeforeDescendant(LayoutObject* new_child,
                                 LayoutObject* before_descendant);
 
-  // Merge children of |sibling_that_may_be_deleted| into this object if
-  // possible, and delete |sibling_that_may_be_deleted|. Returns true if we
-  // were able to merge. In that case, |sibling_that_may_be_deleted| will be
-  // dead. We'll only be able to merge if both blocks are anonymous.
-  bool MergeSiblingContiguousAnonymousBlock(
-      LayoutBlockFlow* sibling_that_may_be_deleted);
-
-  // Reparent subsequent or preceding adjacent floating or out-of-flow siblings
-  // into this object.
-  void ReparentSubsequentFloatingOrOutOfFlowSiblings();
-  void ReparentPrecedingFloatingOrOutOfFlowSiblings();
-
   void MakeChildrenInlineIfPossible();
 
   void MakeChildrenNonInline(LayoutObject* insertion_point = nullptr);
-  void ChildBecameNonInline(LayoutObject* child) final;
 
  public:
   bool ShouldTruncateOverflowingText() const;

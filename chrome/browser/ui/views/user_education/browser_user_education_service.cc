@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator.h"
@@ -48,6 +49,7 @@
 #include "chrome/browser/ui/toolbar/reading_list_sub_menu_model.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/user_education/show_promo_in_page.h"
+#include "chrome/browser/ui/views/autofill/at_memory_promo_bubble_view.h"
 #include "chrome/browser/ui/views/autofill/popup/popup_view_views.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
@@ -518,6 +520,19 @@ void MaybeRegisterChromeFeaturePromos(
                        "Triggered after autofill popup appears for disabled "
                        "virtual card.")));
 
+  // kIPHAutofillDownstreamCardAwarenessFeature:
+  registry.RegisterFeature(std::move(
+      FeaturePromoSpecification::CreateForToastPromo(
+          feature_engagement::kIPHAutofillDownstreamCardAwarenessFeature,
+          autofill::PopupViewViews::kAutofillCreditCardSuggestionEntryElementId,
+          IDS_AUTOFILL_DOWNSTREAM_CARD_AWARENESS_IPH_BUBBLE_LABEL,
+          IDS_AUTOFILL_DOWNSTREAM_CARD_AWARENESS_IPH_BUBBLE_LABEL_SCREENREADER,
+          FeaturePromoSpecification::AcceleratorInfo())
+          .SetBubbleArrow(HelpBubbleArrow::kLeftCenter)
+          .SetMetadata(149, "ferny@google.com",
+                       "Triggered after autofill popup appears featuring an "
+                       "externally-saved card.")));
+
   // kIPHCreatePlusAddressSuggestionFeature:
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForToastPromo(
@@ -567,6 +582,18 @@ void MaybeRegisterChromeFeaturePromos(
           .SetMetadata(
               137, "vizcay@google.com",
               "Triggered after loyalty card autofill suggestions are shown.")));
+
+  // At-Memory Autofill Promo.
+  registry.RegisterFeature(std::move(
+      user_education::FeaturePromoSpecification::CreateForCustomUi(
+          feature_engagement::kIPHAutofillAtMemoryFeature, kOmniboxElementId,
+          user_education::CreateCustomHelpBubbleViewFactoryCallback(
+              base::BindRepeating(&autofill::AtMemoryPromoBubbleView::Create)))
+          .SetBubbleArrow(HelpBubbleArrow::kNone)
+          .SetMetadata(
+              149, "mmaryia@google.com",
+              "Triggered when the user copy-pasted info from another tab "
+              "within a specific time window.")));
 
   // kIPHDesktopPwaInstallFeature:
   registry.RegisterFeature(
@@ -1172,31 +1199,15 @@ void MaybeRegisterChromeFeaturePromos(
   registry.RegisterFeature(std::move(
       FeaturePromoSpecification::CreateForToastPromo(
           feature_engagement::kIPHSidePanelLensOverlayPinnableFollowupFeature,
-          kPinnedActionToolbarButtonElementId,
+          kPinnedToolbarActionShowSidePanelLensOverlayResultsElementId,
           IDS_SIDE_PANEL_LENS_OVERLAY_PINNABLE_FOLLOWUP_IPH,
           IDS_SIDE_PANEL_LENS_OVERLAY_PINNABLE_FOLLOWUP_IPH_SCREENREADER,
           FeaturePromoSpecification::AcceleratorInfo())
           .SetBubbleArrow(HelpBubbleArrow::kTopRight)
           .SetBubbleIcon(&vector_icons::kCelebrationIcon)
-          .SetMetadata(126, "dfried@chromium.org, jdonnelly@google.com",
-                       "Triggered when the lens overlay side panel is pinned.")
-          .SetAnchorElementFilter(base::BindRepeating(
-              [](const ui::ElementTracker::ElementList& elements)
-                  -> ui::TrackedElement* {
-                // Locate the action button associated with the Lens Overlay
-                // feature. The button must be present in the Actions
-                // container in the toolbar.
-                for (auto* element : elements) {
-                  auto* const button =
-                      views::AsViewClass<PinnedActionToolbarButton>(
-                          element->AsA<views::TrackedElementViews>()->view());
-                  if (button && button->GetActionId() ==
-                                    kActionSidePanelShowLensOverlayResults) {
-                    return element;
-                  }
-                }
-                return nullptr;
-              }))));
+          .SetMetadata(
+              126, "dfried@chromium.org, jdonnelly@google.com",
+              "Triggered when the lens overlay side panel is pinned.")));
 
   if (features::IsReadAnythingOmniboxChipEnabled()) {
     // kIPHReadingModePageActionLabelFeature:

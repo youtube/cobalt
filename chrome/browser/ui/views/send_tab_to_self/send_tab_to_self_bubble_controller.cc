@@ -195,9 +195,11 @@ void SendTabToSelfBubbleController::HandleSendTabToDeviceResult(
     SendTabToSelfResult result) {
   switch (result) {
     case SendTabToSelfResult::kSuccess:
-      SetShowConfirmationMessage(true);
+    case SendTabToSelfResult::kSuccessThrottled:
       break;
-    case SendTabToSelfResult::kFailure:
+    case SendTabToSelfResult::kFailureInvalidUrl:
+    case SendTabToSelfResult::kFailureNotTrackingMetadata:
+    case SendTabToSelfResult::kFailureModelNotReady:
       OnSendFailed(url);
       break;
   }
@@ -230,26 +232,6 @@ bool SendTabToSelfBubbleController::InitialSendAnimationShown() {
 void SendTabToSelfBubbleController::SetInitialSendAnimationShown(bool shown) {
   GetProfile()->GetPrefs()->SetBoolean(prefs::kInitialSendAnimationShown,
                                        shown);
-}
-
-void SendTabToSelfBubbleController::SetShowConfirmationMessage(
-    bool show_confirmation_message) {
-  if (show_confirmation_message_ == show_confirmation_message) {
-    return;
-  }
-  show_confirmation_message_ = show_confirmation_message;
-
-  if (show_confirmation_message_) {
-    // Because the actual entry creation may occur asynchronously (e.g. after
-    // scroll position capture), we need to ensure the page action icon is
-    // updated when the confirmation state is finalized.
-    BrowserWindowInterface* browser =
-        chrome::FindBrowserWithTab(&GetWebContents());
-    if (browser && browser->GetWindow()) {
-      browser->GetBrowserForMigrationOnly()->window()->UpdatePageActionIcon(
-          PageActionIconType::kSharingHub);
-    }
-  }
 }
 
 void SendTabToSelfBubbleController::SetSelectorGenerationTimeoutForTesting(

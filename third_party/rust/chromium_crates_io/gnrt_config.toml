@@ -207,6 +207,10 @@ allow_unsafe = false
 [crate.cfg-if.extra_kv]
 allow_unsafe = false
 
+[crate.cfg_aliases]
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = false }
+
 [crate.chrono]
 extra_kv = { allow_unsafe = true }
 
@@ -292,6 +296,11 @@ allow_unsafe = true
 [crate.equivalent.extra_kv]
 allow_unsafe = false
 
+[crate.erased-serde]
+group = 'test'
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = true }
+
 [crate.fdeflate.extra_kv]
 allow_unsafe = false
 # Web tests (aka WPT tests, also formerly known as Layout Tests) require fast
@@ -327,9 +336,21 @@ allow_unsafe = true
 [crate.font-types.extra_kv]
 allow_unsafe = true
 
-[crate.getrandom]
+[crate.fs2]
+group = 'test'
 allow_first_party_usage = false
+remove_deps = ['winapi']
 extra_kv = { allow_unsafe = true }
+
+[crate.getrandom]
+group = 'test'
+allow_first_party_usage = false
+
+# TODO: Remove multiple versions of the `getrandom` crate:
+# getrandom@0.3.4, getrandom@0.4.1
+[crate.getrandom.extra_kv]
+allow_unsafe = true
+multiversion_cleanup_bug = "https://crbug.com/493648964"
 
 [crate.gimli]
 allow_first_party_usage = false
@@ -362,6 +383,11 @@ visibility = [
   # `//third_party/boringssl` for its SHA-256 imlementation).
   '//build/rust/chromium_prelude:*',
 ]
+
+[crate.hostname]
+group = 'test'
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = true }
 
 [crate.iana-time-zone]
 extra_kv = { allow_unsafe = true }
@@ -511,8 +537,9 @@ extra_kv = { allow_unsafe = true }
 [crate.litemap.extra_kv]
 allow_unsafe = false
 
-[crate.llguidance.extra_kv]
-allow_unsafe = true
+[crate.llguidance]
+extra_kv = { allow_unsafe = true }
+remove_build_rs = true  # See https://crbug.com/502997368
 
 [crate.lock_api]
 extra_kv = { allow_unsafe = true }
@@ -542,6 +569,11 @@ extra_kv = { allow_unsafe = true }
 
 [crate.murmur3]
 extra_kv = { allow_unsafe = false }
+
+[crate.nix]
+group = 'test'
+allow_first_party_usage = false
+extra_kv = { allow_unsafe = true }
 
 [crate.num-bigint.extra_kv]
 allow_unsafe = true
@@ -772,6 +804,10 @@ extra_kv = { allow_unsafe = true }
 
 [crate.typed-path]
 extra_input_roots = ['../README.md']
+extra_kv = { allow_unsafe = true }
+
+[crate.typeid]
+allow_first_party_usage = false
 extra_kv = { allow_unsafe = true }
 
 [crate.typewit]

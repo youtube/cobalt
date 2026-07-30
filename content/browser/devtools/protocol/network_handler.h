@@ -165,6 +165,8 @@ class NetworkHandler : public DevToolsDomainHandler,
 #endif  // BUILDFLAG(ENABLE_DEVICE_BOUND_SESSIONS)
 
   Response EnableDeviceBoundSessions(bool enable) override;
+  Response DeleteDeviceBoundSession(
+      std::unique_ptr<protocol::Network::DeviceBoundSessionKey> key) override;
 
   Response FetchSchemefulSite(const std::string& origin,
                               std::string* schemeful_site) override;
@@ -479,6 +481,7 @@ class NetworkHandler : public DevToolsDomainHandler,
   bool did_modifications_ = false;
   base::OnceClosure cleanup_after_modifications_callback_;
   const raw_ref<DevToolsSession> root_session_;
+  const base::UnguessableToken throttling_client_id_;
   base::WeakPtrFactory<NetworkHandler> weak_factory_{this};
 };
 

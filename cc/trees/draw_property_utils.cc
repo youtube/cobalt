@@ -89,7 +89,7 @@ bool ConvertRectBetweenSurfaceSpaces(const PropertyTrees* property_trees,
   if (source_transform_id > dest_transform_id) {
     if (property_trees->GetToTarget(source_transform_id, dest_effect_id,
                                     &source_to_dest)) {
-      ConcatInverseSurfaceContentsScale(source_effect_node, &source_to_dest);
+      ConcatInverseSurfaceContentsScale(*source_effect_node, &source_to_dest);
       *clip_in_dest_space =
           MathUtil::MapClippedRect(source_to_dest, clip_in_source_space);
     } else {
@@ -150,55 +150,58 @@ ConditionalClip ComputeLocalRectInTargetSpace(
                          MathUtil::ProjectClippedRect(current_to_target, rect)};
 }
 
-ConditionalClip ComputeCurrentClip(const ClipNode* clip_node,
+ConditionalClip ComputeCurrentClip(const ClipNode& clip_node,
                                    const PropertyTrees* property_trees,
                                    int target_transform_id,
                                    int target_effect_id) {
-  if (clip_node->transform_id != target_transform_id) {
-    return ComputeLocalRectInTargetSpace(clip_node->clip, property_trees,
-                                         clip_node->transform_id,
+  if (clip_node.transform_id != target_transform_id) {
+    return ComputeLocalRectInTargetSpace(clip_node.clip, property_trees,
+                                         clip_node.transform_id,
                                          target_transform_id, target_effect_id);
   }
 
   const EffectTree& effect_tree = property_trees->effect_tree();
-  gfx::RectF current_clip = clip_node->clip;
+  gfx::RectF current_clip = clip_node.clip;
   gfx::Vector2dF surface_contents_scale =
       effect_tree.Node(target_effect_id)->surface_contents_scale;
   // The viewport clip should not be scaled.
   if (surface_contents_scale.x() > 0 && surface_contents_scale.y() > 0 &&
-      clip_node->transform_id != kRootPropertyNodeId)
+      clip_node.transform_id != kRootPropertyNodeId) {
     current_clip.Scale(surface_contents_scale.x(), surface_contents_scale.y());
+  }
   return ConditionalClip{true /* is_clipped */, current_clip};
 }
 
 bool ExpandClipForPixelMovingFilter(const PropertyTrees* property_trees,
                                     int target_id,
-                                    const EffectNode* filter_node,
+                                    const EffectNode& filter_node,
                                     gfx::RectF* clip_rect) {
   // Bring the accumulated clip to the space of the pixel-moving filter.
   gfx::RectF clip_rect_in_mapping_space;
-  bool success = ConvertRectBetweenSurfaceSpaces(property_trees, target_id,
-                                                 filter_node->id, *clip_rect,
-                                                 &clip_rect_in_mapping_space);
+  bool success =
+      ConvertRectBetweenSurfaceSpaces(property_trees, target_id, filter_node.id,
+                                      *clip_rect, &clip_rect_in_mapping_space);
   // If transform is not invertible, no clip will be applied.
-  if (!success)
+  if (!success) {
     return false;
+  }
 
   // Do the expansion.
   SkMatrix filter_draw_matrix =
-      SkMatrix::Scale(filter_node->surface_contents_scale.x(),
-                      filter_node->surface_contents_scale.y());
-  gfx::RectF mapped_clip_in_mapping_space(filter_node->filters.ExpandRect(
+      SkMatrix::Scale(filter_node.surface_contents_scale.x(),
+                      filter_node.surface_contents_scale.y());
+  gfx::RectF mapped_clip_in_mapping_space(filter_node.filters.ExpandRect(
       ToEnclosingClipRect(clip_rect_in_mapping_space), filter_draw_matrix));
 
   // Put the expanded clip back into the original target space.
   gfx::RectF original_clip_rect = *clip_rect;
-  success = ConvertRectBetweenSurfaceSpaces(
-      property_trees, filter_node->id, target_id, mapped_clip_in_mapping_space,
-      clip_rect);
+  success =
+      ConvertRectBetweenSurfaceSpaces(property_trees, filter_node.id, target_id,
+                                      mapped_clip_in_mapping_space, clip_rect);
   // If transform is not invertible, no clip will be applied.
-  if (!success)
+  if (!success) {
     return false;
+  }
 
   // Ensure the clip is expanded in the target space, in case that the
   // mapped accumulated_clip doesn't contain the original.
@@ -219,11 +222,11 @@ bool ApplyClipNodeToAccumulatedClip(const PropertyTrees* property_trees,
         property_trees->effect_tree().Node(clip_node->pixel_moving_filter_id);
     DCHECK(filter_node);
     return ExpandClipForPixelMovingFilter(property_trees, target_id,
-                                          filter_node, accumulated_clip);
+                                          *filter_node, accumulated_clip);
   }
 
   ConditionalClip current_clip = ComputeCurrentClip(
-      clip_node, property_trees, target_transform_id, target_id);
+      *clip_node, property_trees, target_transform_id, target_id);
 
   // If transform is not invertible, no clip will be applied.
   if (!current_clip.is_clipped)
@@ -321,7 +324,7 @@ ConditionalClip ComputeAccumulatedClip(PropertyTrees* property_trees,
       return unclipped;
     }
     ConditionalClip current_clip = ComputeCurrentClip(
-        clip_node, property_trees, target_transform_id, target_id);
+        *clip_node, property_trees, target_transform_id, target_id);
     if (!current_clip.is_clipped) {
       // Singular transform
       cached_data->clip = unclipped;
@@ -587,10 +590,10 @@ void SetSurfaceDrawOpacity(const EffectTree& tree,
   // Draw opacity of a surface is the product of opacities between the surface
   // (included) and its target surface (excluded).
   const EffectNode* node = tree.Node(render_surface->EffectTreeIndex());
-  float draw_opacity = tree.EffectiveOpacity(node);
+  float draw_opacity = tree.EffectiveOpacity(*node);
   for (node = tree.parent(node); node && !node->HasRenderSurface();
        node = tree.parent(node)) {
-    draw_opacity *= tree.EffectiveOpacity(node);
+    draw_opacity *= tree.EffectiveOpacity(*node);
   }
   render_surface->SetDrawOpacity(draw_opacity);
 }
@@ -607,7 +610,7 @@ float LayerDrawOpacity(const LayerImpl* layer, const EffectTree& tree) {
 
   float draw_opacity = 1.f;
   while (node != target_node) {
-    draw_opacity *= tree.EffectiveOpacity(node);
+    draw_opacity *= tree.EffectiveOpacity(*node);
     node = tree.parent(node);
   }
   return draw_opacity;
@@ -671,7 +674,7 @@ void SetSurfaceDrawTransform(const PropertyTrees* property_trees,
   property_trees->GetToTarget(transform_node->id, target_effect_node->id,
                               &render_surface_transform);
 
-  ConcatInverseSurfaceContentsScale(effect_node, &render_surface_transform);
+  ConcatInverseSurfaceContentsScale(*effect_node, &render_surface_transform);
 
   gfx::Vector2dF pixel_alignment_offset;
   // Adjust render_surface_transform by applying the render target's pixel
@@ -680,9 +683,7 @@ void SetSurfaceDrawTransform(const PropertyTrees* property_trees,
   render_surface_transform.PostTranslate(
       render_surface->render_target()->pixel_alignment_offset());
   if (effect_node->render_surface_reason !=
-          RenderSurfaceReason::k2DScaleTransformWithCompositedDescendants &&
-      (base::FeatureList::IsEnabled(features::kViewTransitionFloorTransform) ||
-       !effect_node->view_transition_element_resource_id.IsValid())) {
+      RenderSurfaceReason::k2DScaleTransformWithCompositedDescendants) {
     if (auto offset = draw_property_utils::PixelAlignmentOffset(
             render_surface->screen_space_transform(),
             render_surface_transform)) {
@@ -1139,6 +1140,22 @@ void AdjustLayerDrawPropertiesForPixelAlignmentOffset(
     return;
   }
 
+  if (layer->GetLayerType() == mojom::LayerType::kViewTransitionContent &&
+      !layer->draw_properties().target_space_transform.HasPerspective()) {
+    // The view transition content layers get replaced in viz by either RPDQ or
+    // TextureDQ. Both RPDQ and TextureDQs would already account for the
+    // subpixel accumulation in their respective renderings. This means that for
+    // this content layer, we want to align it to the pixel boundary (similar to
+    // how we would align a render surface). Note that the math to round to a
+    // nearest 64th of a pixel is here to compensate for the fact that we lose
+    // transform precision in Blink (ViewTransitionStyleTracker) due to the fact
+    // that we have to round-trip our transform to a CSS transform, which is
+    // recorded at a different scale. Aligning to a 64th of a pixel is what the
+    // resolution of a Blink LayoutUnit is by default.
+    offset.set_x(std::floor(std::round(offset.x() * 64.f) / 64.f));
+    offset.set_y(std::floor(std::round(offset.y() * 64.f) / 64.f));
+  }
+
   // Apply the pixel alignment offset to all draw properties that are relative
   // to the render target's space.
   layer->draw_properties().target_space_transform.PostTranslate(offset);
@@ -1548,13 +1565,14 @@ bool IsLayerBackFaceVisibleForTesting(const LayerImpl* layer,  // IN-TEST
   return IsLayerBackFaceVisible(layer, property_trees);
 }
 
-void ConcatInverseSurfaceContentsScale(const EffectNode* effect_node,
+void ConcatInverseSurfaceContentsScale(const EffectNode& effect_node,
                                        gfx::Transform* transform) {
-  DCHECK(effect_node->HasRenderSurface());
-  if (effect_node->surface_contents_scale.x() != 0.0 &&
-      effect_node->surface_contents_scale.y() != 0.0)
-    transform->Scale(1.0 / effect_node->surface_contents_scale.x(),
-                     1.0 / effect_node->surface_contents_scale.y());
+  DCHECK(effect_node.HasRenderSurface());
+  if (effect_node.surface_contents_scale.x() != 0.0 &&
+      effect_node.surface_contents_scale.y() != 0.0) {
+    transform->Scale(1.0 / effect_node.surface_contents_scale.x(),
+                     1.0 / effect_node.surface_contents_scale.y());
+  }
 }
 
 void FindLayersThatNeedUpdates(LayerTreeHost* layer_tree_host,

@@ -13,7 +13,9 @@
 #include "base/run_loop.h"
 #include "base/test/scoped_feature_list.h"
 #include "net/base/features.h"
+#include "net/base/isolation_info.h"
 #include "net/base/network_anonymization_key.h"
+#include "net/base/network_isolation_partition.h"
 #include "net/base/schemeful_site.h"
 #include "net/cookies/cookie_access_result.h"
 #include "net/cookies/cookie_store.h"
@@ -92,6 +94,17 @@ std::unique_ptr<test_server::HttpResponse> ReturnInvalidResponse(
     const test_server::HttpRequest& request) {
   return std::make_unique<test_server::RawHttpResponse>(
       "", "Not a valid HTTP response.");
+}
+
+void PrepareUploadRequest(int* count, URLRequest* request) {
+  ++(*count);
+  request->SetExtraRequestHeaderByName("Foo", "Bar", true);
+}
+
+void CheckExtraHeader(const test_server::HttpRequest& request) {
+  auto it = request.headers.find("Foo");
+  EXPECT_TRUE(it != request.headers.end());
+  EXPECT_EQ("Bar", it->second);
 }
 
 class TestUploadCallback {
@@ -533,7 +546,8 @@ TEST_F(ReportingUploaderTest, DontSendCookies) {
   ResultSavingCookieCallback<CookieAccessResult> cookie_callback;
   GURL url = server_.GetURL("/");
   auto cookie = CanonicalCookie::CreateForTesting(
-      url, "foo=bar", base::Time::Now(), CookieSourceType::kOther);
+      url, "foo=bar; SameSite=None; Secure;", base::Time::Now(),
+      CookieSourceType::kOther);
   context_->cookie_store()->SetCanonicalCookieAsync(
       std::move(cookie), url, CookieOptions::MakeAllInclusive(),
       cookie_callback.MakeCallback(), /*cookie_access_result=*/std::nullopt);
@@ -545,13 +559,46 @@ TEST_F(ReportingUploaderTest, DontSendCookies) {
                          IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
                          kUploadBody, 0, false, upload_callback.callback());
   upload_callback.WaitForCall();
+
+  EXPECT_EQ(ReportingUploader::Outcome::SUCCESS, upload_callback.outcome());
 }
 
-std::unique_ptr<test_server::HttpResponse> SendCookie(
+TEST_F(ReportingUploaderTest, NonGeneralPartitionDontSendCookies) {
+  server_.RegisterRequestMonitor(base::BindRepeating(&CheckNoCookie));
+  server_.RegisterRequestHandler(base::BindRepeating(&ReturnResponse, HTTP_OK));
+  ASSERT_TRUE(server_.Start());
+
+  ResultSavingCookieCallback<CookieAccessResult> cookie_callback;
+  GURL url = server_.GetURL("/");
+  auto cookie = CanonicalCookie::CreateForTesting(
+      url, "foo=bar; SameSite=None; Secure;", base::Time::Now(),
+      CookieSourceType::kOther);
+  context_->cookie_store()->SetCanonicalCookieAsync(
+      std::move(cookie), url, CookieOptions::MakeAllInclusive(),
+      cookie_callback.MakeCallback(), /*cookie_access_result=*/std::nullopt);
+  cookie_callback.WaitUntilDone();
+  ASSERT_TRUE(cookie_callback.result().status.IsInclude());
+
+  TestUploadCallback upload_callback;
+  url::Origin server_origin = url::Origin::Create(url);
+  uploader_->StartUpload(
+      server_origin, url,
+      IsolationInfo::Create(
+          IsolationInfo::RequestType::kOther, server_origin, server_origin,
+          SiteForCookies(), /*nonce=*/std::nullopt,
+          NetworkIsolationPartition::kFedCmUncredentialedRequests),
+      kUploadBody, 0, /*eligible_for_credentials=*/true,
+      upload_callback.callback());
+  upload_callback.WaitForCall();
+
+  EXPECT_EQ(ReportingUploader::Outcome::SUCCESS, upload_callback.outcome());
+}
+
+std::unique_ptr<test_server::HttpResponse> SendSameSiteNoneCookie(
     const test_server::HttpRequest& request) {
   auto response = std::make_unique<test_server::BasicHttpResponse>();
   response->set_code(HTTP_OK);
-  response->AddCustomHeader("Set-Cookie", "foo=bar");
+  response->AddCustomHeader("Set-Cookie", "foo=bar; SameSite=None; Secure;");
   response->set_content("");
   response->set_content_type("text/plain");
   return std::move(response);
@@ -559,7 +606,7 @@ std::unique_ptr<test_server::HttpResponse> SendCookie(
 
 TEST_F(ReportingUploaderTest, DontSaveCookies) {
   server_.RegisterRequestHandler(base::BindRepeating(&AllowPreflight));
-  server_.RegisterRequestHandler(base::BindRepeating(&SendCookie));
+  server_.RegisterRequestHandler(base::BindRepeating(&SendSameSiteNoneCookie));
   ASSERT_TRUE(server_.Start());
 
   TestUploadCallback upload_callback;
@@ -568,10 +615,42 @@ TEST_F(ReportingUploaderTest, DontSaveCookies) {
                          kUploadBody, 0, false, upload_callback.callback());
   upload_callback.WaitForCall();
 
+  EXPECT_EQ(ReportingUploader::Outcome::SUCCESS, upload_callback.outcome());
+
   GetCookieListCallback cookie_callback;
   context_->cookie_store()->GetCookieListWithOptionsAsync(
       server_.GetURL("/"), CookieOptions::MakeAllInclusive(),
       CookiePartitionKeyCollection(),
+      base::BindOnce(&GetCookieListCallback::Run,
+                     base::Unretained(&cookie_callback)));
+  cookie_callback.WaitUntilDone();
+
+  EXPECT_TRUE(cookie_callback.cookies().empty());
+}
+
+TEST_F(ReportingUploaderTest, NonGeneralPartitionDontSaveCookies) {
+  server_.RegisterRequestHandler(base::BindRepeating(&SendSameSiteNoneCookie));
+  ASSERT_TRUE(server_.Start());
+
+  TestUploadCallback upload_callback;
+  GURL url = server_.GetURL("/");
+  url::Origin server_origin = url::Origin::Create(url);
+  uploader_->StartUpload(
+      server_origin, url,
+      IsolationInfo::Create(
+          IsolationInfo::RequestType::kOther, server_origin, server_origin,
+          SiteForCookies(),
+          /*nonce=*/std::nullopt,
+          NetworkIsolationPartition::kFedCmUncredentialedRequests),
+      kUploadBody, 0, /*eligible_for_credentials=*/true,
+      upload_callback.callback());
+  upload_callback.WaitForCall();
+
+  EXPECT_EQ(ReportingUploader::Outcome::SUCCESS, upload_callback.outcome());
+
+  GetCookieListCallback cookie_callback;
+  context_->cookie_store()->GetCookieListWithOptionsAsync(
+      url, CookieOptions::MakeAllInclusive(), CookiePartitionKeyCollection(),
       base::BindOnce(&GetCookieListCallback::Run,
                      base::Unretained(&cookie_callback)));
   cookie_callback.WaitUntilDone();
@@ -747,6 +826,29 @@ TEST_F(ReportingUploaderTest, RespectsNetworkAnonymizationKey) {
 
   callback3.WaitForCall();
   EXPECT_EQ(ReportingUploader::Outcome::SUCCESS, callback3.outcome());
+}
+
+TEST_F(ReportingUploaderTest, PrepareUploadRequestCallback) {
+  server_.RegisterRequestMonitor(base::BindRepeating(&CheckExtraHeader));
+  server_.RegisterRequestHandler(base::BindRepeating(&AllowPreflight));
+  server_.RegisterRequestHandler(base::BindRepeating(&ReturnResponse, HTTP_OK));
+  ASSERT_TRUE(server_.Start());
+
+  int prepare_count = 0;
+  auto uploader = ReportingUploader::Create(
+      context_.get(),
+      base::BindRepeating(&PrepareUploadRequest, &prepare_count));
+
+  TestUploadCallback callback;
+  uploader->StartUpload(kOrigin, server_.GetURL("/"),
+                        IsolationInfo::CreateTransient(/*nonce=*/std::nullopt),
+                        kUploadBody, 0, false, callback.callback());
+  callback.WaitForCall();
+
+  // The callback should be invoked for both the preflight and the payload
+  // request.
+  EXPECT_EQ(2, prepare_count);
+  EXPECT_EQ(ReportingUploader::Outcome::SUCCESS, callback.outcome());
 }
 
 }  // namespace

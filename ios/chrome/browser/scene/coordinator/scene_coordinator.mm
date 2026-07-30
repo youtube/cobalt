@@ -988,6 +988,12 @@ void OnListFamilyMembersResponse(
 }
 
 - (void)showManagedProfileCreation {
+  if (_managedConfirmationScreenCoordinator) {
+    // According to crbug.com/502634641 this function can be called twice.
+    // There is no reason to show this view twice, so let’s ignore the second
+    // call.
+    return;
+  }
   SystemIdentityManager* systemIdentityManager =
       GetApplicationContext()->GetSystemIdentityManager();
   AuthenticationService* authenticationService =
@@ -1292,6 +1298,20 @@ void OnListFamilyMembersResponse(
   [baseViewController presentViewController:_settingsNavigationController
                                    animated:YES
                                  completion:nil];
+}
+
+- (void)showDefaultSearchEngineSettings {
+  if (_settingsNavigationController) {
+    [_settingsNavigationController showDefaultSearchEngineSettings];
+    return;
+  }
+
+  _settingsNavigationController = [SettingsNavigationController
+      defaultSearchEngineControllerForBrowser:_regularBrowser.get()
+                                     delegate:self];
+  [self.activeViewController presentViewController:_settingsNavigationController
+                                          animated:YES
+                                        completion:nil];
 }
 
 - (void)showAndStartSafetyCheckForReferrer:

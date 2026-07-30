@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 #include "third_party/blink/renderer/core/inspector/inspector_web_mcp_agent.h"
 
+#include "base/functional/callback_helpers.h"
 #include "base/unguessable_token.h"
 #include "third_party/blink/renderer/core/frame/local_dom_window.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
@@ -130,6 +131,78 @@ protocol::Response InspectorWebMCPAgent::disable() {
   return protocol::Response::Success();
 }
 
+protocol::Response InspectorWebMCPAgent::invokeTool(
+    const String& frameId,
+    const String& toolName,
+    std::unique_ptr<protocol::DictionaryValue> input,
+    String* invocationId) {
+  LocalFrame* frame = IdentifiersFactory::FrameById(inspected_frames_, frameId);
+  if (!frame) {
+    return protocol::Response::InvalidParams("No frame for given id found");
+  }
+
+  auto* model_context = GetModelContext(frame);
+  if (!model_context) {
+    return protocol::Response::InvalidParams(
+        "No ModelContext for given frame found");
+  }
+
+  if (!model_context->GetScriptToolDeclaration(toolName)) {
+    return protocol::Response::InvalidParams("Tool not found");
+  }
+
+  String input_arguments = "{}";
+  if (input) {
+    std::vector<uint8_t> cbor;
+    input->AppendSerialized(&cbor);
+    std::string json;
+    crdtp::json::ConvertCBORToJSON(
+        crdtp::span<uint8_t>(cbor.data(), cbor.size()), &json);
+    input_arguments = String::FromUtf8(json);
+  }
+
+  base::UnguessableToken invocation_id = base::UnguessableToken::Create();
+
+  *invocationId = String(invocation_id.ToString());
+
+  frame->GetTaskRunner(TaskType::kInternalInspector)
+      ->PostTask(FROM_HERE,
+                 blink::BindOnce(base::IgnoreResult(&ModelContext::ExecuteTool),
+                                 WrapPersistent(model_context), invocation_id,
+                                 toolName, input_arguments,
+                                 /*signal=*/nullptr, base::DoNothing()));
+
+  return protocol::Response::Success();
+}
+
+protocol::Response InspectorWebMCPAgent::cancelInvocation(
+    const String& invocationId) {
+  auto invocation_token =
+      base::UnguessableToken::DeserializeFromString(invocationId.Ascii());
+  if (!invocation_token) {
+    return protocol::Response::InvalidParams("Invalid invocation id");
+  }
+
+  // Find the model context. Since we don't have the frame ID, we have to
+  // iterate over all frames.
+  bool cancelled = false;
+  for (LocalFrame* frame : *inspected_frames_) {
+    if (auto* model_context = GetModelContext(frame)) {
+      if (model_context->CancelTool(*invocation_token)) {
+        cancelled = true;
+        break;
+      }
+    }
+  }
+
+  if (!cancelled) {
+    return protocol::Response::InvalidParams(
+        "No pending execution for invocation id");
+  }
+
+  return protocol::Response::Success();
+}
+
 void InspectorWebMCPAgent::WebMCPToolAdded(Document* document,
                                            const ToolData& tool) {
   LocalFrame* frame = document->GetFrame();
@@ -156,10 +229,10 @@ void InspectorWebMCPAgent::WebMCPToolExecuted(
     Document* document,
     const String& name,
     const String& input_arguments,
-    const base::UnguessableToken& execution_id) {
+    const base::UnguessableToken& invocation_id) {
   if (LocalFrame* frame = document->GetFrame()) {
     GetFrontend()->toolInvoked(name, IdentifiersFactory::FrameId(frame),
-                               String(execution_id.ToString()),
+                               String(invocation_id.ToString()),
                                input_arguments);
   }
 }
@@ -167,16 +240,16 @@ void InspectorWebMCPAgent::WebMCPToolExecuted(
 void InspectorWebMCPAgent::WebMCPToolResponded(
     Document* document,
     const String& result,
-    const base::UnguessableToken& execution_id) {
-  GetFrontend()->toolResponded(String(execution_id.ToString()),
-                               protocol::WebMCP::InvocationStatusEnum::Success,
-                               ParseJSON(result));
+    const base::UnguessableToken& invocation_id) {
+  GetFrontend()->toolResponded(
+      String(invocation_id.ToString()),
+      protocol::WebMCP::InvocationStatusEnum::Completed, ParseJSON(result));
 }
 
 void InspectorWebMCPAgent::WebMCPToolFailed(
     Document* document,
     const ScriptToolError& error,
-    const base::UnguessableToken& execution_id,
+    const base::UnguessableToken& invocation_id,
     std::optional<std::pair<ScriptValue, ScriptState*>> exception) {
   const char* status = error.code == ScriptToolErrorCode::kToolCancelled
                            ? protocol::WebMCP::InvocationStatusEnum::Canceled
@@ -191,7 +264,8 @@ void InspectorWebMCPAgent::WebMCPToolFailed(
                                             v8_inspector::StringView(), false);
   }
 
-  GetFrontend()->toolResponded(String(execution_id.ToString()), status, nullptr,
-                               error.message, std::move(remote_object));
+  GetFrontend()->toolResponded(String(invocation_id.ToString()), status,
+                               nullptr, error.message,
+                               std::move(remote_object));
 }
 }  // namespace blink

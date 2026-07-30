@@ -4,9 +4,9 @@
 
 chrome.runtime.onConnect.addListener((p) => {
   p.onMessage.addListener((m) => {
-    if (m == 'pagehide') {
+    if (m === 'pagehide') {
       // Posting a message to cause the BFCache eviction.
       p.postMessage('evict');
     }
-  })
+  });
 });

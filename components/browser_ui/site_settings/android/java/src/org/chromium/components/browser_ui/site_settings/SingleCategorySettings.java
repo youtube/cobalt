@@ -391,7 +391,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
         if (allowedGroup == null) return;
 
         if (numAllowed == 0) {
-            if (allowedGroup != null) getPreferenceScreen().removePreference(allowedGroup);
+            getPreferenceScreen().removePreference(allowedGroup);
             return;
         }
 
@@ -780,6 +780,7 @@ public class SingleCategorySettings extends BaseSiteSettingsFragment
 
         // Display the Privacy Sandbox snackbar whenever third-party cookies are blocked.
         if (mode == CookieControlsMode.BLOCK_THIRD_PARTY) {
+            RecordUserAction.record("Settings.PrivacySandbox.Block3PCookies");
             getSiteSettingsDelegate().maybeDisplayPrivacySandboxSnackbar();
         }
         PrefService prefService = UserPrefs.get(getBrowserContextHandle());

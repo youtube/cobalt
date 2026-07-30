@@ -11,6 +11,7 @@ import android.view.View;
 
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.settings.SettingsCustomTabLauncherImpl;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController.StateChangeReason;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -76,21 +77,29 @@ public class AccessibilityAnnotatorBottomSheetCoordinator {
 
         mMediator =
                 new AccessibilityAnnotatorBottomSheetMediator(
+                        context,
                         bottomSheetController,
                         new AccessibilityAnnotatorBottomSheetContent(
                                 mView.mContentView, mView.mScrollView),
-                        delegate);
+                        delegate,
+                        new SettingsCustomTabLauncherImpl());
 
         mView.mPrimaryButton.setOnClickListener(v -> mMediator.onAcknowledgeClicked());
         mView.mSecondaryButton.setOnClickListener(v -> mMediator.onManageSettingsClicked());
 
-        mView.setAnimation(R.raw.chrome_finds_opt_in_animation);
+        mView.setAnimation(R.raw.finds_opt_in_animation);
     }
 
-    /** Requests to show the bottom sheet. */
-    public void requestShowContent() {
+    /**
+     * Requests to show the bottom sheet.
+     *
+     * @param manageSettingsUrl The URL for the manage settings page.
+     * @param learnMoreUrl The URL for the learn more page.
+     * @return True if the content was shown, false if it was suppressed.
+     */
+    public boolean requestShowContent(String manageSettingsUrl, String learnMoreUrl) {
         mView.playAnimation();
-        mMediator.requestShowContent();
+        return mMediator.requestShowContent(manageSettingsUrl, learnMoreUrl);
     }
 
     /** Hides the bottom sheet. */

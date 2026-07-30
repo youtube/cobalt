@@ -4,7 +4,12 @@
 
 #include "chrome/browser/glic/host/glic_internals_page_handler.h"
 
+#include <cstdio>
+
 #include "base/command_line.h"
+#include "base/strings/string_number_conversions.h"
+#include "base/strings/stringprintf.h"
+#include "base/strings/utf_string_conversions.h"
 #include "base/values.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
@@ -20,6 +25,9 @@
 #include "chrome/browser/glic/public/glic_passkeys.h"
 #include "chrome/browser/glic/service/glic_instance_coordinator_impl.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "components/prefs/pref_service.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/web_contents.h"
@@ -133,6 +141,10 @@ void GlicInternalsPageHandler::GetInternalsDataPayload(
       GURL(g_browser_process->local_state()->GetString(
           prefs::kGlicWebContinuityOriginatingHostUrlPreset));
 
+  payload->show_error_allowed = Profile::FromBrowserContext(browser_context_)
+                                    ->GetPrefs()
+                                    ->GetBoolean(prefs::kGlicShowErrorAllowed);
+
   payload->config = std::move(config);
 
   std::move(callback).Run(std::move(payload));
@@ -176,12 +188,12 @@ void GlicInternalsPageHandler::TriggerInvokeFromInternalsAction(
   }
 
   if (mojo_options->conversation->is_new_conversation()) {
-    options.conversation = NewConversation();
+    options.target.conversation = NewConversation();
   } else if (mojo_options->conversation->is_conversation_id()) {
-    options.conversation = ConversationId{
+    options.target.conversation = ConversationId{
         mojo_options->conversation->get_conversation_id(), std::nullopt};
   } else {
-    options.conversation = DefaultConversation();
+    options.target.conversation = DefaultConversation();
   }
 
   options.feature_mode = mojo_options->feature_mode;
@@ -244,13 +256,19 @@ void GlicInternalsPageHandler::TriggerInvokeFromInternalsAction(
       },
       std::move(split_callback.second));
 
+  BrowserWindowInterface* current_browser = tab->GetBrowserWindowInterface();
+  if (mojo_options->surface->is_default_surface()) {
+    options.target.surface = DefaultSurface{current_browser};
+  } else if (mojo_options->surface->is_new_tab()) {
+    options.target.surface = NewTab{current_browser};
+  }
+
   if (mojo_options->auto_submit) {
     service->InvokeWithAutoSubmit(
-        InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), tab,
-        std::move(options));
+        InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), std::move(options));
   } else {
     static_cast<GlicInstanceCoordinatorImpl&>(service->instance_coordinator())
-        .Invoke(tab, std::move(options));
+        .Invoke(std::move(options));
   }
 }
 
@@ -259,6 +277,12 @@ void GlicInternalsPageHandler::SetWebContinuityOriginatingHostUrlPreset(
   g_browser_process->local_state()->SetString(
       prefs::kGlicWebContinuityOriginatingHostUrlPreset,
       web_continuity_originating_host_url.spec());
+}
+
+void GlicInternalsPageHandler::SetShowErrorAllowed(bool allowed) {
+  Profile::FromBrowserContext(browser_context_)
+      ->GetPrefs()
+      ->SetBoolean(prefs::kGlicShowErrorAllowed, allowed);
 }
 
 }  // namespace glic

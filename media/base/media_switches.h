@@ -228,6 +228,9 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kFileDialogsTuckPictureInPicture);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kForceSoftwareForRtcLowResolutions);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kGetDisplayMediaConfersActivation);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kGlobalMediaControlsAutoDismiss);
+#if BUILDFLAG(IS_ANDROID)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaCodecColorSpaceCleanup);
+#endif  // BUILDFLAG(IS_ANDROID)
 #if !BUILDFLAG(IS_ANDROID)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaRemotingWithoutFullscreen);
 #endif
@@ -251,6 +254,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kHardwareSecureDecryptionVp9);
 #if BUILDFLAG(IS_WIN)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kProtectedMediaIdentifierIndicator);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kHardwareSecureDecryptionRequireServerCert);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kMediaFoundationMultiGpuAdapterSelection);
 #endif
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kInternalMediaSession);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kOnDeviceWebSpeech);
@@ -475,6 +479,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kUseTaskRunnerForMojoAudioDecoderService);
 
 #if BUILDFLAG(IS_FUCHSIA)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kFuchsiaMediacodecVideoEncoder);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kFuchsiaCdmStoragePathMigration);
 #endif  // BUILDFLAG(IS_FUCHSIA)
 
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kVideoDecodeBatching);

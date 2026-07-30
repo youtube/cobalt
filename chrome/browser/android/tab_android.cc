@@ -28,6 +28,7 @@
 #include "chrome/browser/android/selection/chrome_selection_dropdown_menu_delegate.h"
 #include "chrome/browser/android/tab_features.h"
 #include "chrome/browser/android/tab_web_contents_delegate_android.h"
+#include "chrome/browser/android/web_contents_theme_client.h"
 #include "chrome/browser/browser_about_handler.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/flags/android/chrome_feature_list.h"
@@ -69,6 +70,7 @@
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_view_host.h"
+#include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_contents_user_data.h"
 #include "third_party/blink/public/common/associated_interfaces/associated_interface_provider.h"
@@ -184,6 +186,7 @@ std::unique_ptr<TabAndroid> TabAndroid::CreateForTesting(
     Profile* profile,
     int tab_id,
     std::unique_ptr<content::WebContents> web_contents) {
+  night_mode::WebContentsThemeClient::CreateForWebContents(web_contents.get());
   std::unique_ptr<TabAndroid> tab(new TabAndroid(profile, tab_id));
   tab->web_contents_ = std::move(web_contents);
   return tab;
@@ -362,6 +365,8 @@ void TabAndroid::InitWebContents(
   web_contents_.reset(content::WebContents::FromJavaWebContents(jweb_contents));
   DCHECK(web_contents_.get());
 
+  night_mode::WebContentsThemeClient::CreateForWebContents(web_contents_.get());
+
   renderer_preferences_util::UpdateFromSystemSettings(
       web_contents_->GetMutableRendererPrefs(),
       Profile::FromBrowserContext(web_contents_->GetBrowserContext()));
@@ -387,7 +392,8 @@ void TabAndroid::InitWebContents(
   web_contents_->SetTabSwitchStartTime(
       base::TimeTicks::Now(),
       resource_coordinator::ResourceCoordinatorTabHelper::IsLoaded(
-          web_contents_.get()));
+          web_contents_.get()),
+      /*had_saved_frame_at_start=*/false);
 
   const SessionID session_id =
       sessions::SessionTabHelper::IdForTab(web_contents_.get());
@@ -604,7 +610,10 @@ void TabAndroid::OnShow() {
       resource_coordinator::TabLoadTracker::Get()->GetLoadingState(
           web_contents_.get()) != mojom::LifecycleUnitLoadingState::UNLOADED &&
       !web_contents_->IsLoading();
-  web_contents_->SetTabSwitchStartTime(base::TimeTicks::Now(), loaded);
+  const content::RenderWidgetHostView* view =
+      web_contents_->GetRenderWidgetHostView();
+  web_contents_->SetTabSwitchStartTime(base::TimeTicks::Now(), loaded,
+                                       view && view->HasSavedCompositorFrame());
 }
 
 void TabAndroid::NotifyPinnedStateChanged(bool is_pinned) {

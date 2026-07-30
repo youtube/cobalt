@@ -204,6 +204,11 @@ class MockLensSearchController : public LensSearchController {
               CloseLensAsync,
               (lens::LensOverlayDismissalSource dismissal_source),
               (override));
+  MOCK_METHOD(void,
+              CloseLensAsync,
+              (lens::LensOverlayDismissalSource dismissal_source,
+               bool side_panel_already_closing),
+              (override));
 
   lens::LensQueryFlowRouter* query_router() override {
     return mock_router_.get();
@@ -251,7 +256,8 @@ class ContextualTasksComposeboxHandlerTest
   CreateMockInputStateModel() {
     omnibox::SearchboxConfig config;
     auto model = std::make_unique<contextual_search::InputStateModel>(
-        *session_handle_, config, GURL(), false);
+        *session_handle_, config, GURL(), /*is_off_the_record=*/false,
+        /*is_signed_in=*/false);
     model->setActiveModel(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
     return model;
   }
@@ -954,7 +960,8 @@ TEST_F(ContextualTasksComposeboxHandlerTest, AegcParameterDisablesTools) {
   auto session_handle =
       std::make_unique<contextual_search::MockContextualSearchSessionHandle>();
   auto input_state_model = std::make_unique<contextual_search::InputStateModel>(
-      *session_handle, config, GURL(), /*is_off_the_record=*/false);
+      *session_handle, config, GURL(), /*is_off_the_record=*/false,
+      /*is_signed_in=*/false);
 
   EXPECT_CALL(*mock_ui_, TakeInputStateModel())
       .WillOnce(testing::Return(testing::ByMove(std::move(input_state_model))));
@@ -1362,8 +1369,9 @@ TEST_F(ContextualTasksComposeboxHandlerTest, AddTabContext_Delayed) {
           [this](const base::UnguessableToken& file_token,
                  std::unique_ptr<lens::ContextualInputData> data,
                  std::optional<lens::ImageEncodingOptions> image_options) {
-            // The delay-upload tab is not an implicit upload.
-            EXPECT_FALSE(data->is_implicit_upload);
+            // The delay-upload tab is an implicit upload because it was
+            // auto-suggested.
+            EXPECT_TRUE(data->is_implicit_upload);
             PostUploadStatusChanged(
                 file_token, lens::MimeType::kUnknown,
                 contextual_search::ContextUploadStatus::kUploadSuccessful);

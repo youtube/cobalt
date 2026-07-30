@@ -42,7 +42,6 @@
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/outline_utils.h"
 #include "third_party/blink/renderer/core/layout/physical_box_fragment.h"
-#include "third_party/blink/renderer/core/layout/text_autosizer.h"
 #include "third_party/blink/renderer/core/page/page.h"
 #include "third_party/blink/renderer/core/paint/box_fragment_painter.h"
 #include "third_party/blink/renderer/core/paint/box_painter.h"
@@ -113,10 +112,6 @@ LayoutInline* LayoutInline::CreateAnonymous(Document* document) {
 
 void LayoutInline::WillBeDestroyed() {
   NOT_DESTROYED();
-
-  if (TextAutosizer* text_autosizer = GetDocument().GetTextAutosizer())
-    text_autosizer->Destroy(this);
-
   if (FirstInlineFragmentItemIndex()) {
     FragmentItems::LayoutObjectWillBeDestroyed(*this);
     ClearFirstInlineFragmentItemIndex();
@@ -325,23 +320,6 @@ void LayoutInline::AddChild(LayoutObject* new_child,
 
   new_child->SetNeedsLayoutAndIntrinsicWidthsRecalcAndFullPaintInvalidation(
       layout_invalidation_reason::kChildChanged);
-}
-
-void LayoutInline::BlockInInlineBecameFloatingOrOutOfFlow(
-    LayoutBlockFlow* anonymous_block_child) {
-  NOT_DESTROYED();
-  // Look for in-flow children. Any in-flow child will prevent the wrapper from
-  // being deleted.
-  for (const LayoutObject* grandchild = anonymous_block_child->FirstChild();
-       grandchild; grandchild = grandchild->NextSibling()) {
-    if (!grandchild->IsFloating() && !grandchild->IsOutOfFlowPositioned()) {
-      return;
-    }
-  }
-  // There are no longer any in-flow children inside the anonymous block wrapper
-  // child. Get rid of it.
-  anonymous_block_child->MoveAllChildrenTo(this, anonymous_block_child);
-  anonymous_block_child->Destroy();
 }
 
 void LayoutInline::AddChildAsBlockInInline(LayoutObject* new_child,
@@ -804,20 +782,6 @@ PaintLayerType LayoutInline::LayerTypeRequired() const {
                  ShouldApplyPaintContainment()
              ? kNormalPaintLayer
              : kNoPaintLayer;
-}
-
-void LayoutInline::ChildBecameNonInline(LayoutObject* child) {
-  NOT_DESTROYED();
-  DCHECK(!RuntimeEnabledFeatures::LayoutReinsertOnInFlowStateChangeEnabled());
-  DCHECK(!child->IsInline());
-  // Following tests reach here.
-  //  * external/wpt/css/CSS2/positioning/toogle-abspos-on-relpos-inline-child.html
-  //  * fast/block/float/float-originating-line-deleted-crash.html
-  //  * paint/stacking/layer-stacking-change-under-inline.html
-  auto* const anonymous_box = CreateAnonymousContainerForBlockChildren();
-  LayoutBoxModelObject::AddChild(anonymous_box, child);
-  Children()->RemoveChildNode(this, child);
-  anonymous_box->AddChild(child);
 }
 
 void LayoutInline::UpdateHitTestResult(HitTestResult& result,

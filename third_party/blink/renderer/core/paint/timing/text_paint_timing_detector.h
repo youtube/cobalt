@@ -11,8 +11,8 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/dom/node.h"
 #include "third_party/blink/renderer/core/layout/layout_object.h"
+#include "third_party/blink/renderer/core/paint/timing/paint_timing_callbacks.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_record.h"
-#include "third_party/blink/renderer/core/paint/timing/text_element_timing.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_deque.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
@@ -23,7 +23,6 @@ namespace blink {
 class LayoutBoxModelObject;
 class LocalFrameView;
 class PropertyTreeStateOrAlias;
-class TextElementTiming;
 struct DOMPaintTimingInfo;
 class SoftNavigationContext;
 
@@ -88,9 +87,7 @@ class CORE_EXPORT TextPaintTimingDetector final
   void RecordAggregatedText(const LayoutBoxModelObject& aggregator,
                             const gfx::Rect& aggregated_visual_rect,
                             const PropertyTreeStateOrAlias&);
-  std::optional<base::OnceCallback<void(const base::TimeTicks&,
-                                        const DOMPaintTimingInfo&)>>
-  TakePaintTimingCallback();
+  OptionalPaintTimingDetectorCallback<TextRecord> TakePaintTimingCallback();
   void LayoutObjectWillBeDestroyed(const LayoutObject&);
   void StopRecordingLargestTextPaint();
 
@@ -114,9 +111,12 @@ class CORE_EXPORT TextPaintTimingDetector final
   // The state of `LayoutObject`s being tracked in the `recorded_set_`.
   enum class TextPaintStatus { kPainted, kAllowRepaint };
 
-  void AssignPaintTimeToQueuedRecords(uint32_t frame_index,
-                                      const base::TimeTicks&,
-                                      const DOMPaintTimingInfo&);
+  void AssignPaintTimeToQueuedRecords(
+      uint32_t frame_index,
+      const base::TimeTicks&,
+      const DOMPaintTimingInfo&,
+      HeapVector<Member<TextRecord>>& settled_records);
+
   TextRecord* MaybeRecordTextRecord(
       const LayoutObject& object,
       const uint64_t& visual_size,
@@ -141,9 +141,6 @@ class CORE_EXPORT TextPaintTimingDetector final
 
   Member<LocalFrameView> frame_view_;
   Member<PaintTimingDetector> paint_timing_detector_;
-  // Set lazily because we may not have the correct Window when first
-  // initializing this class.
-  Member<TextElementTiming> text_element_timing_;
 
   LargestTextPaintManager ltp_manager_;
   bool recording_largest_text_paint_ = true;

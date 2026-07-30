@@ -59,7 +59,7 @@
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller_interactive_test_mixin.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
-#include "chrome/browser/ui/views/tabs/window_finder.h"
+#include "chrome/browser/ui/views/tabs/dragging/window_finder.h"
 #include "chrome/browser/ui/web_applications/test/web_app_browsertest_util.h"
 #include "chrome/browser/web_applications/model/display_override.h"
 #include "chrome/browser/web_applications/test/os_integration_test_override_impl.h"
@@ -1982,6 +1982,11 @@ void DragToSeparateWindowStep2(DetachToBrowserTabDragControllerTest* test,
 // Creates two browsers, drags from first into second.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        MAYBE_DragToSeparateWindow) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
 
   AddTabsAndResetBrowser(browser(), 1);
@@ -2053,6 +2058,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // from source to target before the target browser finishes ending drags.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        MAYBE_DragToSeparateWindowDuringDragEnd) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
 
   AddTabsAndResetBrowser(browser(), 1);
@@ -2069,9 +2079,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
   ASSERT_TRUE(ReleaseInput());
 
   // We should be doing the post-drag animation.
-  ASSERT_TRUE(tab_strip2->GetDragContext()
-                  ->GetPositioningDelegate()
-                  ->IsAnimatingDragEnd());
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    return tab_strip2->GetDragContext()
+        ->GetPositioningDelegate()
+        ->IsAnimatingDragEnd();
+  }));
   // The tab should still be considered as dragging.
   ASSERT_TRUE(tab_strip2->tab_at(1)->dragging());
 
@@ -2109,6 +2121,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // not cause dangling ptr. (crbug.com/459242414)
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DetachAndAttachThenCancel) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
 
   AddTabsAndResetBrowser(browser(), 1);
@@ -2158,6 +2175,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // browser, because it's occluded.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DragToOccludedWindow) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
 
   AddTabsAndResetBrowser(browser(), 1);
@@ -2255,6 +2277,13 @@ bool HasUserChangedWindowPositionOrSize(gfx::NativeWindow window) {
 // Drags from browser to separate window and releases mouse.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DetachToOwnWindow) {
+#if BUILDFLAG(IS_LINUX)
+  if (ui::OzonePlatform::RunningOnWaylandForTest() &&
+      base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Test crashes on Wayland with InitialWebUI enabled. "
+                    "See b/471235790.";
+  }
+#endif
   const gfx::Rect initial_bounds(browser()->window()->GetBounds());
   AddTabsAndResetBrowser(browser(), 1);
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -2478,6 +2507,13 @@ IN_PROC_BROWSER_TEST_P(TabDragTargetTest, DelegateDeniesDrop) {
 // Validates behavior when the drag delegate moves the dragged tab back to the
 // source tab strip.
 IN_PROC_BROWSER_TEST_P(TabDragTargetTest, DelegateMovesTabToSourceTabStrip) {
+#if BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails on Mac with InitialWebUI "
+                    "enabled. See b/464087732.";
+  }
+#endif
+
   AddTabsAndResetBrowser(browser(), 2);
   ASSERT_EQ("0 1 2", IDString(browser()->tab_strip_model()));
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -2542,6 +2578,13 @@ IN_PROC_BROWSER_TEST_P(TabDragTargetTest,
 // tabs back to the source tab strip.
 IN_PROC_BROWSER_TEST_P(TabDragTargetTest,
                        DelegateMovesSubsetOfTabsToSourceTabStrip) {
+#if BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails on Mac with InitialWebUI "
+                    "enabled. See b/464087732.";
+  }
+#endif
+
   AddTabsAndResetBrowser(browser(), 4);
   ASSERT_EQ("0 1 2 3 4", IDString(browser()->tab_strip_model()));
 
@@ -2583,6 +2626,13 @@ IN_PROC_BROWSER_TEST_P(TabDragTargetTest,
 
 // Validates behavior when the drag delegate rearranges multiple dragged tabs.
 IN_PROC_BROWSER_TEST_P(TabDragTargetTest, DelegateRearrangesDraggedTabs) {
+#if BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails on Mac with InitialWebUI "
+                    "enabled. See b/464087732.";
+  }
+#endif
+
   AddTabsAndResetBrowser(browser(), 4);
   ASSERT_EQ("0 1 2 3 4", IDString(browser()->tab_strip_model()));
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -2620,6 +2670,13 @@ IN_PROC_BROWSER_TEST_P(TabDragTargetTest, DelegateRearrangesDraggedTabs) {
 // Validates behavior when the drag delegate moves a dragged tab that belongs
 // to a group.
 IN_PROC_BROWSER_TEST_P(TabDragTargetTest, DelegateRemovesDraggedTabFromGroup) {
+#if BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails on Mac with InitialWebUI "
+                    "enabled. See b/464087732.";
+  }
+#endif
+
   AddTabsAndResetBrowser(browser(), 3);
   ASSERT_EQ("0 1 2 3", IDString(browser()->tab_strip_model()));
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -2704,6 +2761,13 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // screen.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DetachFromFullsizeWindow) {
+#if BUILDFLAG(IS_LINUX)
+  if (ui::OzonePlatform::RunningOnWaylandForTest() &&
+      base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Test crashes on Wayland with InitialWebUI enabled. "
+                    "See b/471235790.";
+  }
+#endif
   // Resize the browser window so that it is as big as the work area.
   gfx::Rect work_area =
       display::Screen::Get()
@@ -2757,6 +2821,13 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // Drags from browser to a separate window and releases mouse.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DetachToOwnWindowFromMaximizedWindow) {
+#if BUILDFLAG(IS_LINUX)
+  if (ui::OzonePlatform::RunningOnWaylandForTest() &&
+      base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Test crashes on Wayland with InitialWebUI enabled. "
+                    "See b/471235790.";
+  }
+#endif
   // InitialWebUI defers window visibility. If we Maximize() before the window
   // is visible, the OS may silently cache or drop the request, causing tests to
   // hang on Wayland. Wait for visibility.
@@ -2996,6 +3067,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // dragging.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        DeleteTabsWhileDetached) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   AddTabsAndResetBrowser(browser(), 3);
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
   EXPECT_EQ("0 1 2 3", IDString(browser()->tab_strip_model()));
@@ -3034,6 +3110,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // Detaches a tab and while detached presses escape to revert the drag.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        RevertDragWhileDetached) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   AddTabsAndResetBrowser(browser(), 1);
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
   tabs::TabHandle dragged_tab =
@@ -3515,6 +3596,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // drags out again and drops the new browser.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        MAYBE_DragAllToSeparateWindowThenDrop) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
 
   AddTabsAndResetBrowser(browser(), 1);
@@ -3921,6 +4007,13 @@ void PressEscapeWhileDetachedHeaderStep2(
 // the drag.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        RevertHeaderDragWhileDetached) {
+#if BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails on Mac with InitialWebUI "
+                    "enabled. See b/464087732.";
+  }
+#endif
+
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
 
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -4033,6 +4126,13 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // the drag.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        RevertCollapsedHeaderDragWhileDetached) {
+#if BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails on Mac with InitialWebUI "
+                    "enabled. See b/464087732.";
+  }
+#endif
+
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
 
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -4113,6 +4213,11 @@ IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
 // Creates two browsers, then drags a collapsed group from one to the other.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        MAYBE_DragCollapsedGroupHeaderToSeparateWindow) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   ASSERT_TRUE(browser()->tab_strip_model()->SupportsTabGroups());
 
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
@@ -4160,6 +4265,13 @@ using DetachTabWithUrlControlledByWebApp = DetachToBrowserTabDragControllerTest;
 // The kTearOffWebAppTabOpensWebAppWindow experiment determines whether the new
 // browser window will be a normal browser window or an app window.
 IN_PROC_BROWSER_TEST_P(DetachTabWithUrlControlledByWebApp, TearOffWebApp) {
+#if BUILDFLAG(IS_LINUX)
+  if (ui::OzonePlatform::RunningOnWaylandForTest() &&
+      base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Test crashes on Wayland with InitialWebUI enabled. "
+                    "See b/471235790.";
+  }
+#endif
   // OS integration is needed to be able to launch web applications. This
   // override ensures OS integration doesn't leave any traces.
   std::unique_ptr<web_app::OsIntegrationTestOverrideImpl::BlockingRegistration>
@@ -4670,6 +4782,11 @@ void CancelOnNewTabWhenDraggingStep2(DetachToBrowserTabDragControllerTest* test,
 // verifies the run loop ends.
 IN_PROC_BROWSER_TEST_P(DetachToBrowserTabDragControllerTest,
                        CancelOnNewTabWhenDragging) {
+  if (base::FeatureList::IsEnabled(features::kInitialWebUI)) {
+    GTEST_SKIP() << "Skipping test because it fails with InitialWebUI enabled. "
+                    "See b/464087732.";
+  }
+
   TabStrip* tab_strip = GetTabStripForBrowser(browser());
 
   // Skip this test for fallback tab dragging, see the note in

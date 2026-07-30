@@ -48,6 +48,8 @@ class QueryContextualizer {
   struct TabUpdate {
     TabId id = 0;
     bool is_recontextualization = false;
+    bool is_smart_selection = false;
+    bool is_auto_suggested = false;
   };
 
   // Delegate interface that allows clients to provide platform-specific
@@ -81,10 +83,16 @@ class QueryContextualizer {
     // If it cannot create one, returning nullptr is fine.
     virtual contextual_search::ContextualSearchSessionHandle*
     GetOrCreateSessionHandleForQueryContextualizer() = 0;
+
+    // Fetches relevant tabs for the given query.
+    virtual void GetRelevantTabsForQuery(
+        const std::string& query_text,
+        const std::vector<GURL>& attached_context_urls,
+        base::OnceCallback<void(std::vector<TabId>)> callback) = 0;
   };
 
   QueryContextualizer(ContextualTasksService* service, Delegate* delegate);
-  ~QueryContextualizer();
+  virtual ~QueryContextualizer();
 
   QueryContextualizer(const QueryContextualizer&) = delete;
   QueryContextualizer& operator=(const QueryContextualizer&) = delete;
@@ -107,20 +115,35 @@ class QueryContextualizer {
   // checks before re-uploading if they are already present (e.g.,
   // auto-suggested chips). `callback` is invoked when processing for all tabs
   // is complete and yields the session handle.
-  void Contextualize(const std::optional<base::Uuid>& task_id,
-                     const std::string& query_text,
-                     const std::vector<TabId>& tabs_to_recontextualize,
-                     const std::vector<TabId>& tabs_to_force_contextualize,
-                     PageContextIneligibleCallback on_ineligible_callback,
-                     TabProcessedCallback on_processed_callback,
-                     ContextualizedCallback callback);
+  virtual void Contextualize(
+      const std::optional<base::Uuid>& task_id,
+      const std::string& query_text,
+      const std::vector<TabId>& tabs_to_recontextualize,
+      const std::vector<TabId>& tabs_to_force_contextualize,
+      PageContextIneligibleCallback on_ineligible_callback,
+      TabProcessedCallback on_processed_callback,
+      ContextualizedCallback callback,
+      bool enable_smart_tab_selection);
 
  private:
+  void OnRelevantTabsFetched(
+      const std::optional<base::Uuid>& task_id,
+      const std::string& query_text,
+      const std::vector<TabId>& tabs_to_recontextualize,
+      const std::vector<TabId>& tabs_to_force_contextualize,
+      base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
+          session_handle,
+      PageContextIneligibleCallback on_ineligible_callback,
+      TabProcessedCallback on_processed_callback,
+      ContextualizedCallback callback,
+      std::vector<TabId> smart_tabs);
+
   void OnContextRetrieved(
       const std::optional<base::Uuid>& task_id,
       const std::string& query_text,
       const std::vector<TabId>& tabs_to_recontextualize,
       const std::vector<TabId>& tabs_to_force_contextualize,
+      const std::vector<TabId>& smart_tabs_to_contextualize,
       base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
           session_handle,
       PageContextIneligibleCallback on_ineligible_callback,
@@ -134,6 +157,8 @@ class QueryContextualizer {
       base::RepeatingClosure barrier_closure,
       TabId tab_id,
       bool is_recontextualization,
+      bool is_smart_selection,
+      bool is_auto_suggested,
       base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
           session_handle,
       scoped_refptr<UploadTracker> upload_tracker,
@@ -144,7 +169,8 @@ class QueryContextualizer {
   std::vector<TabUpdate> GetTabsToUpdate(
       const ContextualTaskContext* context,
       const std::vector<TabId>& tabs_to_recontextualize,
-      const std::vector<TabId>& tabs_to_force_contextualize);
+      const std::vector<TabId>& tabs_to_force_contextualize,
+      const std::vector<TabId>& smart_tabs_to_contextualize);
 
   std::optional<int64_t> GetContextIdForTab(
       const ContextualTaskContext& context,

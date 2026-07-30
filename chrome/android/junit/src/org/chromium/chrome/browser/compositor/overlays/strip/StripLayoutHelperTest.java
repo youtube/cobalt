@@ -350,6 +350,158 @@ public class StripLayoutHelperTest {
         assertTabStripAndOrder(getExpectedAccessibilityDescriptions(0));
     }
 
+    @Test
+    public void testFadeWidths_Ltr() {
+        // Setup
+        initializeTest(/* rtl= */ false, /* incognito= */ false, /* tabIndex= */ 0);
+
+        // Verify start fade.
+        float expectedStartGradient = StripLayoutHelper.NO_BUTTON_FADE_GRADIENT_WIDTH_DP;
+        float expectedStartOpaque = StripLayoutHelper.NO_BUTTON_FADE_OPAQUE_WIDTH_DP;
+        float expectedStartWidth = expectedStartGradient + expectedStartOpaque;
+        assertEquals(
+                "Left fade gradient width is incorrect.",
+                expectedStartGradient,
+                mStripLayoutHelper.getLeftFadeGradientWidth(),
+                EPSILON);
+        assertEquals(
+                "Left fade opaque width is incorrect.",
+                expectedStartOpaque,
+                mStripLayoutHelper.getLeftFadeOpaqueWidth(),
+                EPSILON);
+        assertEquals(
+                "Left fade width is incorrect.",
+                expectedStartWidth,
+                mStripLayoutHelper.getLeftFadeWidthForTesting(),
+                EPSILON);
+
+        // Verify end fade.
+        float expectedEndGradient = StripLayoutHelper.BUTTON_FADE_GRADIENT_SHORT_WIDTH_DP;
+        // End fade: 32 (NTB) + 2*8 (padding) + 24 (short gradient) = 72
+        float expectedEndWidth = 48 + expectedEndGradient;
+        float expectedEndOpaque = expectedEndWidth - expectedEndGradient;
+        assertEquals(
+                "Right fade gradient width is incorrect.",
+                expectedEndGradient,
+                mStripLayoutHelper.getRightFadeGradientWidth(),
+                EPSILON);
+        assertEquals(
+                "Right fade width is incorrect.",
+                expectedEndWidth,
+                mStripLayoutHelper.getRightFadeWidthForTesting(),
+                EPSILON);
+        assertEquals(
+                "Right fade opaque width is incorrect.",
+                expectedEndOpaque,
+                mStripLayoutHelper.getRightFadeOpaqueWidth(),
+                EPSILON);
+    }
+
+    @Test
+    public void testFadeWidths_Rtl() {
+        // Setup
+        initializeTest(/* rtl= */ true, /* incognito= */ false, /* tabIndex= */ 0);
+
+        // Verify start fade.
+        float expectedStartGradient = StripLayoutHelper.NO_BUTTON_FADE_GRADIENT_WIDTH_DP;
+        float expectedStartOpaque = StripLayoutHelper.NO_BUTTON_FADE_OPAQUE_WIDTH_DP;
+        float expectedStartWidth = expectedStartGradient + expectedStartOpaque;
+        assertEquals(
+                "Right fade gradient width is incorrect.",
+                expectedStartGradient,
+                mStripLayoutHelper.getRightFadeGradientWidth(),
+                EPSILON);
+        assertEquals(
+                "Right fade opaque width is incorrect.",
+                expectedStartOpaque,
+                mStripLayoutHelper.getRightFadeOpaqueWidth(),
+                EPSILON);
+        assertEquals(
+                "Right fade width is incorrect.",
+                expectedStartWidth,
+                mStripLayoutHelper.getRightFadeWidthForTesting(),
+                EPSILON);
+
+        // Verify end fade.
+        float expectedEndGradient = StripLayoutHelper.BUTTON_FADE_GRADIENT_SHORT_WIDTH_DP;
+        // End fade: 32 (NTB) + 2*8 (padding) + 24 (short gradient) = 72
+        float expectedEndWidth = 48 + expectedEndGradient;
+        float expectedEndOpaque = expectedEndWidth - expectedEndGradient;
+        assertEquals(
+                "Left fade gradient width is incorrect.",
+                expectedEndGradient,
+                mStripLayoutHelper.getLeftFadeGradientWidth(),
+                EPSILON);
+        assertEquals(
+                "Left fade width is incorrect.",
+                expectedEndWidth,
+                mStripLayoutHelper.getLeftFadeWidthForTesting(),
+                EPSILON);
+        assertEquals(
+                "Left fade opaque width is incorrect.",
+                expectedEndOpaque,
+                mStripLayoutHelper.getLeftFadeOpaqueWidth(),
+                EPSILON);
+    }
+
+    @Test
+    public void testFadeWidths_Ltr_WithButtons() {
+        // Setup
+        initializeTest(/* rtl= */ false, /* incognito= */ false, /* tabIndex= */ 0);
+        mStripLayoutHelper.updateEndMarginForStripButtons(
+                /* glicTouchTargetSize= */ 16f, /* msbTouchTargetSize= */ 32f);
+
+        // Verify end fade.
+        float expectedEndGradient = StripLayoutHelper.BUTTON_FADE_GRADIENT_LONG_WIDTH_DP;
+        // End fade: 32 (NTB) + 16 (glic) + 32 (MSB) + 2*8 (padding) + 32 (long gradient) = 128
+        float expectedEndWidth = 96 + expectedEndGradient;
+        float expectedEndOpaque = expectedEndWidth - expectedEndGradient;
+        assertEquals(
+                "Right fade gradient width is incorrect.",
+                expectedEndGradient,
+                mStripLayoutHelper.getRightFadeGradientWidth(),
+                EPSILON);
+        assertEquals(
+                "Right fade width is incorrect.",
+                expectedEndWidth,
+                mStripLayoutHelper.getRightFadeWidthForTesting(),
+                EPSILON);
+        assertEquals(
+                "Right fade opaque width is incorrect.",
+                expectedEndOpaque,
+                mStripLayoutHelper.getRightFadeOpaqueWidth(),
+                EPSILON);
+    }
+
+    @Test
+    public void testFadeWidths_Rtl_WithButtons() {
+        // Setup
+        initializeTest(/* rtl= */ true, /* incognito= */ false, /* tabIndex= */ 0);
+        mStripLayoutHelper.updateEndMarginForStripButtons(
+                /* glicTouchTargetSize= */ 10f, /* msbTouchTargetSize= */ 20f);
+
+        // Verify end fade.
+        float expectedEndGradient = StripLayoutHelper.BUTTON_FADE_GRADIENT_LONG_WIDTH_DP;
+        // End fade: 32 (NTB) + 10 (glic) + 20 (MSB) + 2*8 (padding) + 32 (long gradient) = 110
+        float expectedEndWidth = 78 + expectedEndGradient;
+        float expectedEndOpaque = expectedEndWidth - expectedEndGradient;
+        assertEquals(
+                "Left fade gradient width is incorrect.",
+                expectedEndGradient,
+                mStripLayoutHelper.getLeftFadeGradientWidth(),
+                EPSILON);
+        assertEquals(
+                "Left fade width is incorrect.",
+                expectedEndWidth,
+                mStripLayoutHelper.getLeftFadeWidthForTesting(),
+                EPSILON);
+        assertEquals(
+                "Left fade opaque width is incorrect.",
+                expectedEndOpaque,
+                mStripLayoutHelper.getLeftFadeOpaqueWidth(),
+                EPSILON);
+    }
+
     /**
      * Test method for {@link StripLayoutHelper#getVirtualViews(List<VirtualView>)}.
      *
@@ -619,8 +771,6 @@ public class StripLayoutHelperTest {
         // Trigger a size change so the strip layout tab heights and widths get set.
         mStripLayoutHelper.onSizeChanged(
                 STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
-        // Simplify the visible bounds by removing the right fade.
-        mStripLayoutHelper.setRightFadeWidth(0);
         // Set the initial scroll offset to trigger an update to draw X positions.
         mStripLayoutHelper.setScrollOffsetForTesting(0);
 
@@ -655,8 +805,6 @@ public class StripLayoutHelperTest {
         // Trigger a size change so the strip layout tab heights and widths get set.
         mStripLayoutHelper.onSizeChanged(
                 STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
-        // Simplify the visible bounds by removing the left fade.
-        mStripLayoutHelper.setLeftFadeWidth(0);
         // Set the initial scroll offset to trigger an update to draw X positions.
         mStripLayoutHelper.setScrollOffsetForTesting(-1000);
 
@@ -695,8 +843,6 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.setScrollOffsetForTesting(0);
 
         final StripLayoutTab[] tabs = mStripLayoutHelper.getStripLayoutTabsForTesting();
-        // Simplify the visible bounds by removing the right fade.
-        mStripLayoutHelper.setRightFadeWidth(0);
 
         final int firstNotVisibleIndex =
                 IntStream.range(0, tabs.length)
@@ -1467,13 +1613,10 @@ public class StripLayoutHelperTest {
                 "Unexpected incognito button color.",
                 AppCompatResources.getColorStateList(mContext, R.color.default_icon_color_tint_list)
                         .getDefaultColor(),
-                ((org.chromium.chrome.browser.compositor.layouts.components.TintedCompositorButton)
-                                mStripLayoutHelper.getNewTabButton())
-                        .getTint());
+                ((TintedCompositorButton) mStripLayoutHelper.getNewTabButton()).getTint());
     }
 
     @Test
-    @Feature("Advanced Peripherals Support")
     public void testNewTabButtonHoverHighlightProperties() {
         // Setup
         initializeTest(false, false, 0, 1);
@@ -1481,16 +1624,10 @@ public class StripLayoutHelperTest {
                 STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
         mStripLayoutHelper.updateLayout(TIMESTAMP);
 
-        // Verify new tab button hover highlight resource id.
-        assertEquals(
-                "New tab button hover highlight is not as expected",
-                R.drawable.bg_circle_tab_strip_button,
-                mStripLayoutHelper.getNewTabButton().getBackgroundResourceId());
-
         // Verify new tab button hover highlight default tint.
-        TintedCompositorButton ntb = spy(mStripLayoutHelper.getNewTabButton());
-        when(ntb.isHovered()).thenReturn(true);
+        TintedCompositorButton ntb = mStripLayoutHelper.getNewTabButton();
 
+        ntb.setHovered(true);
         int defaultNtbHoverBackgroundTint =
                 ColorUtils.setAlphaComponent(
                         SemanticColorUtils.getDefaultTextColor(mContext), (int) (0.08 * 255));
@@ -1500,9 +1637,8 @@ public class StripLayoutHelperTest {
                 ntb.getBackgroundTint());
 
         // Verify new tab button hover highlight pressed tint.
-        when(ntb.isHovered()).thenReturn(false);
-        when(ntb.isPressed()).thenReturn(true);
-        when(ntb.isPressedFromMouse()).thenReturn(true);
+        ntb.setHovered(false);
+        ntb.setPressed(true, true);
         int pressedNtbHoverBackgroundTint =
                 ColorUtils.setAlphaComponent(
                         SemanticColorUtils.getDefaultTextColor(mContext), (int) (0.12 * 255));
@@ -1510,11 +1646,21 @@ public class StripLayoutHelperTest {
                 "New tab button hover highlight pressed tint is not as expected",
                 pressedNtbHoverBackgroundTint,
                 ntb.getBackgroundTint());
-        when(ntb.isPressedFromMouse()).thenReturn(false);
+    }
+
+    @Test
+    public void testNewTabButtonHoverHighlightProperties_Incognito() {
+        // Setup
+        initializeTest(false, /* incognito= */ true, 0, 1);
+        mStripLayoutHelper.onSizeChanged(
+                STRIP_WIDTH, STRIP_HEIGHT, false, TIMESTAMP, PADDING_LEFT, PADDING_RIGHT, 0f);
+        mStripLayoutHelper.updateLayout(TIMESTAMP);
+
+        // Verify new tab button hover highlight default tint.
+        TintedCompositorButton ntb = mStripLayoutHelper.getNewTabButton();
 
         // Verify new tab button incognito hover highlight default tint.
-        when(ntb.isHovered()).thenReturn(true);
-        when(ntb.isIncognito()).thenReturn(true);
+        ntb.setHovered(true);
         int defaultNtbHoverBackgroundIncognitoTint =
                 ColorUtils.setAlphaComponent(
                         mContext.getColor(R.color.tab_strip_button_hover_bg_color),
@@ -1525,9 +1671,8 @@ public class StripLayoutHelperTest {
                 ntb.getBackgroundTint());
 
         // Verify new tab button incognito hover highlight pressed tint.
-        when(ntb.isHovered()).thenReturn(false);
-        when(ntb.isPressed()).thenReturn(true);
-        when(ntb.isPressedFromMouse()).thenReturn(true);
+        ntb.setHovered(false);
+        ntb.setPressed(true, true);
         int hoverBackgroundPressedIncognitoColor =
                 ColorUtils.setAlphaComponent(
                         mContext.getColor(R.color.tab_strip_button_hover_bg_color),
@@ -1539,7 +1684,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @Feature("Advanced Peripherals Support")
     public void testNewTabButtonHoverEnter() {
         // Setup
         initializeTest(false, false, 0, 1);
@@ -1564,7 +1708,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @Feature("Advanced Peripherals Support")
     public void testNewTabButtonHoverOnDown() {
         // Setup
         initializeTest(false, false, 0, 1);
@@ -1580,12 +1723,11 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @Feature("Advanced Peripherals Support")
     public void testCloseButtonHoverHighlightProperties() {
         // Setup
         initializeTest(false, false, 2);
         StripLayoutTab[] tabs = mStripLayoutHelper.getStripLayoutTabsForTesting();
-        TintedCompositorButton closeButton = spy(tabs[0].getCloseButton());
+        TintedCompositorButton closeButton = tabs[0].getCloseButton();
 
         // Verify close button hover highlight resource id.
         assertEquals(
@@ -1601,7 +1743,7 @@ public class StripLayoutHelperTest {
                 closeButton.getBackgroundTint());
 
         // Verify close button hover highlight default tint.
-        when(closeButton.isHovered()).thenReturn(true);
+        closeButton.setHovered(true);
 
         int defaultCloseButtonHoverBackgroundTint =
                 ColorUtils.setAlphaComponent(
@@ -1612,9 +1754,8 @@ public class StripLayoutHelperTest {
                 closeButton.getBackgroundTint());
 
         // Verify close button hover highlight pressed tint.
-        when(closeButton.isHovered()).thenReturn(false);
-        when(closeButton.isPressed()).thenReturn(true);
-        when(closeButton.isPressedFromMouse()).thenReturn(true);
+        closeButton.setHovered(false);
+        closeButton.setPressed(true, true);
         int pressedCloseButtonHoverBackgroundTint =
                 ColorUtils.setAlphaComponent(
                         SemanticColorUtils.getDefaultTextColor(mContext), (int) (0.12 * 255));
@@ -1622,13 +1763,17 @@ public class StripLayoutHelperTest {
                 "Close button hover highlight pressed tint is not as expected",
                 pressedCloseButtonHoverBackgroundTint,
                 closeButton.getBackgroundTint());
+    }
 
-        when(closeButton.isPressed()).thenReturn(false);
-        when(closeButton.isPressedFromMouse()).thenReturn(false);
+    @Test
+    public void testCloseButtonHoverHighlightProperties_Incognito() {
+        // Setup
+        initializeTest(false, /* incognito= */ true, 2);
+        StripLayoutTab[] tabs = mStripLayoutHelper.getStripLayoutTabsForTesting();
+        TintedCompositorButton closeButton = tabs[0].getCloseButton();
 
         // Verify close button incognito hover highlight default tint.
-        when(closeButton.isIncognito()).thenReturn(true);
-        when(closeButton.isHovered()).thenReturn(true);
+        closeButton.setHovered(true);
         int defaultNtbHoverBackgroundIncognitoTint =
                 ColorUtils.setAlphaComponent(
                         mContext.getColor(R.color.tab_strip_button_hover_bg_color),
@@ -1639,9 +1784,8 @@ public class StripLayoutHelperTest {
                 closeButton.getBackgroundTint());
 
         // Verify close button incognito hover highlight pressed tint.
-        when(closeButton.isHovered()).thenReturn(false);
-        when(closeButton.isPressed()).thenReturn(true);
-        when(closeButton.isPressedFromMouse()).thenReturn(true);
+        closeButton.setHovered(false);
+        closeButton.setPressed(true, true);
         int hoverBackgroundPressedIncognitoColor =
                 ColorUtils.setAlphaComponent(
                         mContext.getColor(R.color.tab_strip_button_hover_bg_color),
@@ -1653,7 +1797,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @Feature("Advanced Peripherals Support")
     public void testCloseButtonHoverEnter() {
         // Setup
         initializeTest(false, false, 2);
@@ -1662,6 +1805,7 @@ public class StripLayoutHelperTest {
         TintedCompositorButton closeButton =
                 new TintedCompositorButton(
                         mContext,
+                        false,
                         ButtonType.TAB_CLOSE,
                         tab,
                         24.f,
@@ -1670,6 +1814,7 @@ public class StripLayoutHelperTest {
                         mClickHandler,
                         mKeyboardFocusHandler,
                         R.drawable.btn_tab_close_normal,
+                        R.drawable.tab_close_button_bg,
                         0f);
         closeButton.setOpacity(1.f);
         int x = (int) closeButton.getDrawX();
@@ -1692,7 +1837,6 @@ public class StripLayoutHelperTest {
     }
 
     @Test
-    @Feature("Advanced Peripherals Support")
     public void testCloseButtonHoverOnDown() {
         // Setup
         initializeTest(false, false, 2);
@@ -1700,6 +1844,7 @@ public class StripLayoutHelperTest {
         TintedCompositorButton closeButton =
                 new TintedCompositorButton(
                         mContext,
+                        false,
                         ButtonType.TAB_CLOSE,
                         tabs[0],
                         24.f,
@@ -1708,6 +1853,7 @@ public class StripLayoutHelperTest {
                         mClickHandler,
                         mKeyboardFocusHandler,
                         R.drawable.btn_tab_close_normal,
+                        R.drawable.tab_close_button_bg,
                         0f);
         closeButton.setOpacity(1.f);
         int x = (int) closeButton.getDrawX();
@@ -1750,7 +1896,7 @@ public class StripLayoutHelperTest {
                 scrollOffsetBefore
                         + STRIP_WIDTH
                         - 60
-                        - StripLayoutHelperManager.FADE_LONG_WIDTH_DP
+                        - mStripLayoutHelper.getRightFadeWidthForTesting()
                         - selectedTab.getIdealX()
                         - 108;
         assertEquals(expectedOffset, mStripLayoutHelper.getScrollOffset(), EPSILON);
@@ -1780,7 +1926,7 @@ public class StripLayoutHelperTest {
                 scrollOffsetBefore
                         + STRIP_WIDTH
                         - 60
-                        - StripLayoutHelperManager.FADE_MEDIUM_WIDTH_DP
+                        - mStripLayoutHelper.getRightFadeWidthForTesting()
                         - selectedTab.getIdealX()
                         - 108;
         assertEquals(expectedOffset, mStripLayoutHelper.getScrollOffset(), EPSILON);
@@ -1837,7 +1983,7 @@ public class StripLayoutHelperTest {
         float expectedFinalX =
                 STRIP_WIDTH
                         - 60
-                        - StripLayoutHelperManager.FADE_MEDIUM_WIDTH_DP
+                        - mStripLayoutHelper.getRightFadeWidthForTesting()
                         - selectedTab.getIdealX()
                         - 108;
         assertEquals(
@@ -2040,7 +2186,8 @@ public class StripLayoutHelperTest {
         float expectedScrollOffset;
         if (isRtl) {
             // Width reserved on the right side of the window.
-            float reservedWidthRight = PADDING_RIGHT + StripLayoutHelperManager.FADE_SHORT_WIDTH_DP;
+            float reservedWidthRight =
+                    PADDING_RIGHT + mStripLayoutHelper.getRightFadeWidthForTesting();
 
             // The setup moved the selected tab beyond the window's right edge. To make the tab
             // visible, we should scroll the tab strip to the left, i.e., "scrollDelta" below should
@@ -2051,7 +2198,8 @@ public class StripLayoutHelperTest {
         } else {
             // Width reserved on the left side of the window.
             // This is also the expected X position for the tab to be visible.
-            float reservedWidthLeft = PADDING_LEFT + StripLayoutHelperManager.FADE_SHORT_WIDTH_DP;
+            float reservedWidthLeft =
+                    PADDING_LEFT + mStripLayoutHelper.getLeftFadeWidthForTesting();
 
             // The setup moved the selected tab beyond the window's left edge. To make the tab
             // visible, we should scroll the tab to the right, i.e., "scrollDelta" below should be
@@ -4615,20 +4763,6 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper = createStripLayoutHelper(rtl, incognito);
         mIncognito = incognito;
 
-        if (rtl) {
-            mStripLayoutHelper.setLeftFadeWidth(
-                    incognito
-                            ? StripLayoutHelperManager.FADE_LONG_WIDTH_DP
-                            : StripLayoutHelperManager.FADE_MEDIUM_WIDTH_DP);
-            mStripLayoutHelper.setRightFadeWidth(StripLayoutHelperManager.FADE_SHORT_WIDTH_DP);
-        } else {
-            mStripLayoutHelper.setLeftFadeWidth(StripLayoutHelperManager.FADE_SHORT_WIDTH_DP);
-            mStripLayoutHelper.setRightFadeWidth(
-                    incognito
-                            ? StripLayoutHelperManager.FADE_LONG_WIDTH_DP
-                            : StripLayoutHelperManager.FADE_MEDIUM_WIDTH_DP);
-        }
-
         if (numTabs <= 5) {
             for (int i = 0; i < numTabs; i++) {
                 mModel.addTab(TEST_TAB_TITLES[i]);
@@ -5891,13 +6025,13 @@ public class StripLayoutHelperTest {
         // fade.
         hoveredTab.setDrawX(-50.0f);
         hoveredTab.setWidth(
-                StripLayoutHelperManager.FADE_SHORT_WIDTH_DP - 1 - hoveredTab.getDrawX());
+                mStripLayoutHelper.getLeftFadeWidthForTesting() - 1 - hoveredTab.getDrawX());
         assertTrue(
                 "Tab should be considered hidden for hover state.",
                 mStripLayoutHelper.isViewCompletelyHidden(hoveredTab));
 
         // Set simulated hovered StripLayoutTab drawX to assume a position beyond the right fade.
-        hoveredTab.setDrawX(STRIP_WIDTH - StripLayoutHelperManager.FADE_MEDIUM_WIDTH_DP + 1);
+        hoveredTab.setDrawX(STRIP_WIDTH - mStripLayoutHelper.getRightFadeWidthForTesting() + 1);
         assertTrue(
                 "Tab should be considered hidden for hover state.",
                 mStripLayoutHelper.isViewCompletelyHidden(hoveredTab));

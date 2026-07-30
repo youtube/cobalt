@@ -17,6 +17,7 @@
 #include "chrome/browser/ui/views/chrome_typography.h"
 #include "chrome/common/webui_url_constants.h"
 #include "ui/base/pointer/touch_ui_controller.h"
+#include "ui/gfx/animation/animation.h"
 #include "ui/views/style/typography_provider.h"
 
 namespace {
@@ -47,6 +48,8 @@ std::string_view LayoutConstantToCssVarName(LayoutConstant layout_constant) {
       return "--location-bar-bubble-anchor-vertical-inset";
     case kLocationBarChildInteriorPadding:
       return "--location-bar-child-interior-padding";
+    case kLocationBarChildInternalSpacing:
+      return "--location-bar-child-internal-spacing";
     case kLocationBarChildCornerRadius:
       return "--location-bar-child-corner-radius";
     case kLocationBarChipIconSize:
@@ -59,6 +62,12 @@ std::string_view LayoutConstantToCssVarName(LayoutConstant layout_constant) {
       return "--location-bar-height";
     case kLocationBarPageInfoIconVerticalPadding:
       return "--location-bar-page-info-icon-vertical-padding";
+    case kLocationBarPageInfoIconLabelExtraTrailingPadding:
+      return "--location-bar-page-info-icon-label-extra-trailing-padding";
+    case kLocationBarPageInfoIconDangerousLeadingPadding:
+      return "--location-bar-page-info-icon-dangerous-leading-padding";
+    case kLocationBarPageInfoIconDangerousTrailingPadding:
+      return "--location-bar-page-info-icon-dangerous-trailing-padding";
     case kLocationBarTrailingDecorationEdgePadding:
       return "--location-bar-trailing-decoration-edge-padding";
     case kLocationBarTrailingDecorationInnerPadding:
@@ -131,14 +140,14 @@ std::string_view LayoutConstantToCssVarName(LayoutConstant layout_constant) {
       return "--vertical-tab-min-width";
     case kVerticalTabPinnedBorderThickness:
       return "--vertical-tab-pinned-border-thickness";
-    case kVerticalTabStripUncollapsedPadding:
-      return "--vertical-tab-strip-uncollapsed-padding";
-    case kVerticalTabStripCollapsedHorizontalPadding:
-      return "--vertical-tab-strip-collapsed-horizontal-padding";
+    case kVerticalTabStripHorizontalPadding:
+      return "--vertical-tab-strip-horizontal-padding";
+    case kVerticalTabStripUncollapsedVerticalPadding:
+      return "--vertical-tab-strip-uncollapsed-vertical-padding";
     case kVerticalTabStripCollapsedVerticalPadding:
       return "--vertical-tab-strip-collapsed-vertical-padding";
-    case kVerticalTabStripCollapsedSeparatorPadding:
-      return "--vertical-tab-strip-collapsed-separator-padding";
+    case kVerticalTabStripComboButtonIconSize:
+      return "--vertical-tab-strip-combo-button-icon-size";
     case kVerticalTabStripButtonIconSize:
       return "--vertical-tab-strip-button-icon-size";
     case kVerticalTabStripTopButtonPadding:
@@ -166,8 +175,8 @@ std::string_view LayoutConstantToCssVarName(LayoutConstant layout_constant) {
 // static
 std::string WebUIToolbarLayoutCssHelper::GenerateLayoutConstantsCss() {
   std::string css_string;
-  // At time this was implemented, actual usage was about 2.5K
-  css_string.reserve(3 * 1024);
+  // At the time of this update, actual usage was about 3.2K.
+  css_string.reserve(4 * 1024);
 
   css_string.append(
       "@property --touch-mode {\n"
@@ -184,6 +193,12 @@ std::string WebUIToolbarLayoutCssHelper::GenerateLayoutConstantsCss() {
     css_string.append("--touch-mode: 0;");
   }
 
+  if (gfx::Animation::ShouldRenderRichAnimation()) {
+    css_string.append("--animations-enabled: 1;");
+  } else {
+    css_string.append("--animations-enabled: 0;");
+  }
+
   for (int layout_constant_num = 0;
        layout_constant_num <= static_cast<int>(LayoutConstant::kLast);
        ++layout_constant_num) {
@@ -195,11 +210,38 @@ std::string WebUIToolbarLayoutCssHelper::GenerateLayoutConstantsCss() {
          base::NumberToString(GetLayoutConstant(layout_constant)), "px;"});
   }
 
+  gfx::Insets location_bar_page_info_icon_padding =
+      GetLayoutInsets(LOCATION_BAR_PAGE_INFO_ICON_PADDING);
+  base::StrAppend(
+      &css_string,
+      {"--location-bar-page-info-icon-padding-top:",
+       base::NumberToString(location_bar_page_info_icon_padding.top()), "px;"});
+  base::StrAppend(
+      &css_string,
+      {"--location-bar-page-info-icon-padding-bottom:",
+       base::NumberToString(location_bar_page_info_icon_padding.bottom()),
+       "px;"});
+  base::StrAppend(
+      &css_string,
+      {"--location-bar-page-info-icon-padding-left:",
+       base::NumberToString(location_bar_page_info_icon_padding.left()),
+       "px;"});
+  base::StrAppend(
+      &css_string,
+      {"--location-bar-page-info-icon-padding-right:",
+       base::NumberToString(location_bar_page_info_icon_padding.right()),
+       "px;"});
+
   const auto& typography_provider = views::TypographyProvider::Get();
   AddFontVariables("--omnibox-primary",
                    typography_provider.GetFont(CONTEXT_OMNIBOX_PRIMARY,
                                                views::style::STYLE_PRIMARY),
                    css_string);
+  AddFontVariables(
+      "--omnibox-chip",
+      typography_provider.GetFont(CONTEXT_OMNIBOX_PRIMARY,
+                                  views::style::STYLE_BODY_4_EMPHASIS),
+      css_string);
 
   css_string.push_back('}');
   return css_string;

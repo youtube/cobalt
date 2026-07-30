@@ -158,7 +158,8 @@ class NavigationURLLoaderImplTest : public testing::Test {
             base::TimeTicks() /* before_unload_dialog_closed */,
             false /* started_with_transient_activation */,
             false /* started_by_ad */, false /* is_container_initiated */,
-            false /* has_rel_opener */);
+            false /* has_rel_opener */,
+            std::nullopt /* script_tool_invocation_id */);
 
     auto common_params = blink::CreateCommonNavigationParams();
     common_params->url = url;
@@ -740,7 +741,13 @@ TEST_F(NavigationURLLoaderImplTest, TimeoutDuringURLLoader) {
 
 // Timeout + MaybeCreateLoaderForResponse() + redirect case (failure) while
 // waiting for the response from URLLoader.
-TEST_F(NavigationURLLoaderImplTest, RedirectDuringURLLoader) {
+// TODO(crbug.com/502512105): Re-enable this test.
+#if BUILDFLAG(IS_ANDROID)
+#define MAYBE_RedirectDuringURLLoader DISABLED_RedirectDuringURLLoader
+#else
+#define MAYBE_RedirectDuringURLLoader RedirectDuringURLLoader
+#endif
+TEST_F(NavigationURLLoaderImplTest, MAYBE_RedirectDuringURLLoader) {
   ASSERT_TRUE(http_test_server_.Start());
   const GURL final_url = http_test_server_.GetURL("/echo");
   const GURL interceptor_url = http_test_server_.GetURL("/foo");

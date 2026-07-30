@@ -175,12 +175,14 @@ class FirstPartySchemeContentBrowserClient
 
   ~FirstPartySchemeContentBrowserClient() override = default;
 
-  bool ShouldTreatURLSchemeAsFirstPartyWhenTopLevel(
-      std::string_view scheme,
+  bool ShouldTreatAsFirstPartyWhenTopLevel(
+      const url::Origin& top_frame_origin,
       bool is_embedded_origin_secure) override {
-    if (is_embedded_origin_secure && scheme == "trustmeifembeddingsecure")
+    if (is_embedded_origin_secure &&
+        top_frame_origin.scheme() == "trustmeifembeddingsecure") {
       return true;
-    return scheme == "trustme";
+    }
+    return top_frame_origin.scheme() == "trustme";
   }
 
   mojo::PendingRemote<network::mojom::URLLoaderFactory>
@@ -10218,9 +10220,9 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
   EXPECT_TRUE(iframe->IsRenderFrameLive());
   std::optional<base::UnguessableToken> iframe_network_restrictions_id =
       iframe->GetNetworkRestrictionsID();
-  // We never navigated this frame, so it does not have a network restrictions
-  // ID set.
-  EXPECT_FALSE(iframe_network_restrictions_id.has_value());
+  // We never navigated this frame, so it inherits the network restrictions
+  // ID from its creator.
+  EXPECT_TRUE(iframe_network_restrictions_id.has_value());
 
   // Inject JavaScript into the iframe to fetch a cross-origin resource.
   GURL d_url = https_server()->GetURL("d.com", "/cors-ok.txt");
@@ -10680,6 +10682,35 @@ IN_PROC_BROWSER_TEST_F(RenderFrameHostImplBrowserTest,
   // should not happen, and we should still be on popup_url (or about:blank if
   // blocked early).
   EXPECT_EQ(popup_url, new_contents->GetLastCommittedURL());
+}
+
+// Verify that window.open() to a non-allowlisted origin is blocked by
+// Connection-Allowlist. The opened window should not successfully navigate
+// to the non-allowlisted origin.
+// Bug: crbug.com/496096540, crbug.com/496907108
+IN_PROC_BROWSER_TEST_F(RenderFrameHostImplConnectionAllowlistBrowserTest,
+                       ConnectionAllowlistWindowOpenBlocked) {
+  GURL url(https_server()->GetURL("a.com", "/connection_allowlist.html"));
+  EXPECT_TRUE(NavigateToURL(shell(), url));
+
+  GURL blocked_url(https_server()->GetURL("b.com", "/title2.html"));
+
+  WebContentsAddedObserver new_tab_observer;
+  TestNavigationObserver nav_observer(blocked_url);
+  nav_observer.StartWatchingNewWebContents();
+
+  EXPECT_TRUE(ExecJs(web_contents()->GetPrimaryMainFrame(),
+                     JsReplace("window.open($1);", blocked_url)));
+
+  WebContents* new_contents = new_tab_observer.GetWebContents();
+  ASSERT_TRUE(new_contents);
+  nav_observer.Wait();
+
+  EXPECT_FALSE(nav_observer.last_navigation_succeeded());
+  EXPECT_EQ(net::ERR_NETWORK_ACCESS_REVOKED,
+            nav_observer.last_net_error_code());
+  EXPECT_TRUE(
+      new_contents->GetPrimaryMainFrame()->GetLastCommittedOrigin().opaque());
 }
 
 }  // namespace content

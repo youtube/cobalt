@@ -16,9 +16,11 @@
 #include "base/scoped_observation.h"
 #include "base/time/time.h"
 #include "components/sharing_message/proto/sharing_message.pb.h"
+#include "components/sharing_message/sharing_constants.h"
 #include "components/sharing_message/sharing_message_sender.h"
 #include "components/sharing_message/sharing_send_message_result.h"
 #include "components/sync/model/syncable_service.h"
+#include "components/sync/protocol/sharing_message_specifics.pb.h"
 #include "components/sync/protocol/unencrypted_sharing_message.pb.h"
 #include "components/sync/service/sync_service_observer.h"
 #include "components/sync_device_info/device_info.h"
@@ -106,6 +108,11 @@ class SharingFCMSender : public SharingMessageSender::SendMessageDelegate,
       const SharingTargetDeviceInfo& device,
       sync_pb::UnencryptedSharingMessage message,
       SendMessageCallback callback) override;
+  void DoSendMessageToServerTarget(
+      const components_sharing_message::ServerChannelConfiguration&
+          server_channel_config,
+      SharingMessage message,
+      SendMessageCallback callback) override;
 
  private:
   using MessageSender = base::OnceCallback<void(std::string message,
@@ -125,16 +132,12 @@ class SharingFCMSender : public SharingMessageSender::SendMessageDelegate,
                           gcm::GCMEncryptionResult result,
                           std::string message);
 
-  void DoSendMessageToSenderIdTarget(const std::string& fcm_token,
-                                     base::TimeDelta time_to_live,
-                                     const std::string& message_id,
-                                     std::string message,
-                                     SendMessageCallback callback);
-
-  void DoSendMessageToServerTarget(const std::string& server_channel,
-                                   const std::string& message_id,
-                                   std::string message,
-                                   SendMessageCallback callback);
+  void SendMessageViaSync(sync_pb::SharingMessageSpecifics::ChannelConfiguration
+                              channel_configuration,
+                          SharingChannelType channel_type,
+                          std::string message_id,
+                          std::string payload,
+                          SendMessageCallback callback);
 
   void OnMessageSentViaSync(SendMessageCallback callback,
                             const std::string& message_id,
@@ -156,20 +159,23 @@ class SharingFCMSender : public SharingMessageSender::SendMessageDelegate,
 
   // Pending messages that are waiting for the sync service to initialize.
   struct PendingMessage {
-    PendingMessage(
-        components_sharing_message::FCMChannelConfiguration fcm_configuration,
-        base::TimeDelta time_to_live,
-        SharingMessage message,
-        SendMessageCallback callback);
+    PendingMessage(sync_pb::SharingMessageSpecifics::ChannelConfiguration
+                       channel_configuration,
+                   SharingChannelType channel_type,
+                   std::string message_id,
+                   std::string payload,
+                   SendMessageCallback callback);
     PendingMessage(const PendingMessage& other) = delete;
     PendingMessage& operator=(const PendingMessage& other) = delete;
     PendingMessage(PendingMessage&& other);
     PendingMessage& operator=(PendingMessage&& other);
     ~PendingMessage();
 
-    components_sharing_message::FCMChannelConfiguration fcm_configuration;
-    base::TimeDelta time_to_live;
-    SharingMessage message;
+    sync_pb::SharingMessageSpecifics::ChannelConfiguration
+        channel_configuration;
+    SharingChannelType channel_type;
+    std::string message_id;
+    std::string payload;
     SendMessageCallback callback;
   };
   std::vector<PendingMessage> pending_messages_;

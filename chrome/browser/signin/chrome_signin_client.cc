@@ -15,6 +15,7 @@
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/strings/strcat.h"
+#include "base/strings/string_split.h"
 #include "base/strings/utf_string_conversions.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
@@ -94,6 +95,10 @@
 #include "chrome/browser/signin/bound_session_credentials/bound_session_request_throttled_handler_browser_impl.h"
 #include "chrome/browser/signin/bound_session_credentials/throttled_gaia_auth_fetcher.h"
 #endif  // BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
+
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+#include "extensions/common/extension_features.h"
+#endif
 
 namespace {
 
@@ -177,6 +182,26 @@ class ChromeOAuthConsumerRegistry : public signin::OAuthConsumerRegistry {
     return signin::OAuthConsumer(
         signin::oauth_consumer_name::kGlicUserStatusName,
         {features::kGeminiOAuth2Scope.Get()});
+  }
+
+  signin::OAuthConsumer GetOAuthConsumerForGlicInvokeApi() const override {
+#if BUILDFLAG(ENABLE_EXTENSIONS)
+    return signin::OAuthConsumer(
+        signin::oauth_consumer_name::kGlicInvokeApiName,
+        {extensions_features::kGlicInvokeApiOAuth2ScopeParam.Get()});
+#else
+    NOTREACHED();
+#endif
+  }
+
+  signin::OAuthConsumer GetOAuthConsumerForIndigo() const override {
+    CHECK(base::FeatureList::IsEnabled(features::kIndigo));
+    std::string scopes_str = features::kIndigoScopes.Get();
+    std::vector<std::string> scopes_vec = base::SplitString(
+        scopes_str, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    signin::ScopeSet scopes(scopes_vec.begin(), scopes_vec.end());
+    return signin::OAuthConsumer(signin::oauth_consumer_name::kIndigoName,
+                                 std::move(scopes));
   }
 };
 

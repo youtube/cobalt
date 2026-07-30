@@ -15,33 +15,37 @@ import org.chromium.chrome.browser.tab_group_suggestion.R;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.toolbar.adaptive.AdaptiveToolbarButtonVariant;
 import org.chromium.chrome.browser.toolbar.optional_button.BaseButtonDataProvider;
+import org.chromium.chrome.browser.toolbar.optional_button.ButtonData.ButtonSpec;
 
 import java.util.function.Supplier;
 
 /** Defines the UI details and click handler for the tab grouping toolbar button. */
 @NullMarked
 public class GroupSuggestionsButtonDataProvider extends BaseButtonDataProvider {
+    public static final int ACTION_CHIP_COLLAPSE_DELAY_MS = 6000;
+
     private final Supplier<GroupSuggestionsButtonController>
             mGroupSuggestionsButtonControllerSupplier;
-    private final Supplier<TabModelSelector> mTabModelSelectorSupplier;
+    private final Supplier<@Nullable TabModelSelector> mTabModelSelectorSupplier;
 
     public GroupSuggestionsButtonDataProvider(
             Supplier<@Nullable Tab> activeTabSupplier,
             Context context,
             Drawable buttonDrawable,
             Supplier<GroupSuggestionsButtonController> groupSuggestionsButtonControllerSupplier,
-            Supplier<TabModelSelector> tabModelSelectorSupplier) {
+            Supplier<@Nullable TabModelSelector> tabModelSelectorSupplier) {
         super(
                 activeTabSupplier,
                 /* modalDialogManager= */ null,
-                buttonDrawable,
-                /* contentDescription= */ context.getString(
-                        R.string.tab_group_suggestion_action_chip_label),
-                /* actionChipLabelResId= */ R.string.tab_group_suggestion_action_chip_label,
-                /* supportsTinting= */ true,
-                /* iphCommandBuilder= */ null,
-                AdaptiveToolbarButtonVariant.TAB_GROUPING,
-                /* tooltipTextResId= */ R.string.tab_group_suggestion_action_chip_label);
+                new ButtonSpec.Builder(
+                                buttonDrawable,
+                                context.getString(R.string.tab_group_suggestion_action_chip_label),
+                                /* supportsTinting= */ true)
+                        .setActionChipLabelResId(R.string.tab_group_suggestion_action_chip_label)
+                        .setActionChipCollapseDelayMs(ACTION_CHIP_COLLAPSE_DELAY_MS)
+                        .setButtonVariant(AdaptiveToolbarButtonVariant.TAB_GROUPING)
+                        .setHoverTooltipTextId(R.string.tab_group_suggestion_action_chip_label)
+                        .build());
         mGroupSuggestionsButtonControllerSupplier = groupSuggestionsButtonControllerSupplier;
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
     }

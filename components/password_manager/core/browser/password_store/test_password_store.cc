@@ -7,6 +7,7 @@
 #include <stddef.h>
 
 #include "base/memory/ptr_util.h"
+#include "components/password_manager/core/browser/password_store/password_store_results_observer.h"
 
 namespace password_manager {
 
@@ -14,30 +15,6 @@ TestPasswordStore::TestPasswordStore(
     password_manager::IsAccountStore is_account_store)
     : PasswordStore(
           std::make_unique<FakePasswordStoreBackend>(is_account_store)) {}
-
-void TestPasswordStore::Clear() {
-  DCHECK(fake_backend()) << "Store has already been shut down!";
-  fake_backend()->Clear();
-}
-
-bool TestPasswordStore::IsEmpty() const {
-  DCHECK(fake_backend()) << "Store has already been shut down!";
-  // The store is empty, if the sum of all stored passwords across all entries
-  // in |stored_passwords_| is 0.
-  size_t number_of_passwords = 0u;
-  for (auto it = fake_backend()->stored_passwords().begin();
-       !number_of_passwords && it != fake_backend()->stored_passwords().end();
-       ++it) {
-    number_of_passwords += it->second.size();
-  }
-  return number_of_passwords == 0u;
-}
-
-const TestPasswordStore::PasswordMap& TestPasswordStore::stored_passwords()
-    const {
-  DCHECK(fake_backend()) << "Store has already been shut down!";
-  return fake_backend()->stored_passwords();
-}
 
 IsAccountStore TestPasswordStore::IsAccountStore() const {
   DCHECK(fake_backend()) << "Store has already been shut down!";
@@ -81,6 +58,18 @@ FakePasswordStoreBackend* TestPasswordStore::fake_backend() {
 
 const FakePasswordStoreBackend* TestPasswordStore::fake_backend() const {
   return const_cast<TestPasswordStore*>(this)->fake_backend();
+}
+
+TestPasswordStore::PasswordMap GetAllLoginsSync(PasswordStoreInterface* store) {
+  PasswordStoreResultsObserver observer;
+  store->GetAllLogins(observer.GetWeakPtr());
+  std::vector<std::unique_ptr<PasswordForm>> results =
+      observer.WaitForResults();
+  PasswordMap map;
+  for (auto& result : results) {
+    map[result->signon_realm].push_back(std::move(*result));
+  }
+  return map;
 }
 
 }  // namespace password_manager

@@ -462,17 +462,30 @@ def _speedometer3_crossbench(estimated_runtime: int = 60,
 def _browser_startup_crossbench(estimated_runtime: int = 60,
                                 flags: tuple[str, ...] = ()):
   """Browser startup benchmark for InitialWebUI vs Baseline."""
+  # We cannot use --browser-config here because it conflicts with the
+  # --browser flag automatically added by the Chromium test runner.
+
+  # NOTE: Keep this list in sync with:
+  # third_party/crossbench/config/benchmark/browser_startup/browser.config.hjson
+  INITIAL_WEBUI_FEATURES = (
+      "InitialWebUI:high_stream_priority/true,"
+      "WebUIReloadButton:WebUIReloadButtonDeferBrowserViewShow/true/"
+      "WebUIReloadButtonKeepVisibleUntilPaint/true/"
+      "WebUIReloadButtonPrewarmWebUI/true,"
+      "SkipIPCChannelPausingForNonGuests,WebUIInProcessResourceLoadingV2,"
+      "InitialWebUISyncNavStartToCommit,InitialWebUIWithoutExtensions,"
+      "WebUIBundledCodeCache,SendGPUChannelEarly"
+  )
   return CrossbenchConfig(
       'browser_startup.crossbench',
       'loading',
       estimated_runtime=estimated_runtime,
       flags=
-      ('--browser-config',
-       '../../third_party/crossbench/config/benchmark/browser_startup/browser.config.hjson',
-       '--probe-config',
+      ('--probe-config',
        '../../third_party/crossbench/config/benchmark/browser_startup/probe.hjson',
        '--page-config',
        '../../third_party/crossbench/config/benchmark/browser_startup/story.hjson',
+       f'--extra-browser-args=--enable-features={INITIAL_WEBUI_FEATURES}',
        *flags))
 
 
@@ -756,6 +769,12 @@ PLATFORM_INFO = {
     'mac-m4-mini-perf': {
         'description': 'Mac M4 mini ARM',
         'num_shards': 25,
+        'platform_os': 'mac',
+        'is_fyi': False
+    },
+    'mac-m5-pro-perf': {
+        'description': 'Mac M5 PRO ARM',
+        'num_shards': 1,
         'platform_os': 'mac',
         'is_fyi': False
     },

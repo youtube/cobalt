@@ -66,6 +66,8 @@
 #import "ios/chrome/browser/shared/ui/util/util_swift.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/tab_picker/coordinator/tab_picker_coordinator.h"
+#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_logger.h"
+#import "ios/chrome/browser/tab_picker/coordinator/tab_picker_snackbar_presenter.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_utils.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_browser_agent.h"
 #import "ios/chrome/browser/url_loading/model/url_loading_params.h"
@@ -89,6 +91,7 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
     ComposeboxEntrypoint entrypoint) {
   switch (entrypoint) {
     case ComposeboxEntrypoint::kNTPAIMButton:
+    case ComposeboxEntrypoint::kNTPPlusButton:
       return contextual_search::ContextualSearchSource::kNewTabPage;
     case ComposeboxEntrypoint::kNTPFakebox:
     case ComposeboxEntrypoint::kOther:
@@ -133,7 +136,7 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
   std::unique_ptr<LocationBarModelDelegateIOS> _locationBarModelDelegate;
   std::unique_ptr<LocationBarModel> _locationBarModel;
   raw_ptr<contextual_search::ContextualSearchService> _contextualService;
-  ComposeboxTabPickerCoordinator* _tabPickerCoordinator;
+  TabPickerCoordinator* _tabPickerCoordinator;
   ComposeboxTheme* _theme;
   ComposeboxMetricsRecorder* _metricsRecorder;
   ComposeboxModeHolder* _modeHolder;
@@ -278,7 +281,9 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
       didMoveToParentViewController:_viewController];
 
   [_omniboxCoordinator updateOmniboxState];
-  [_omniboxCoordinator focusOmnibox];
+  if (_entrypoint != ComposeboxEntrypoint::kCobrowse) {
+    [_omniboxCoordinator focusOmnibox];
+  }
 }
 
 - (void)stop {
@@ -382,6 +387,13 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
                                               }];
 }
 
+- (void)composeboxViewControllerDidCompleteInitialPresentation:
+    (ComposeboxInputPlateViewController*)composeboxViewController {
+  if (_entrypoint == ComposeboxEntrypoint::kNTPPlusButton) {
+    [composeboxViewController showMultimodalMenu];
+  }
+}
+
 - (void)composeboxViewControllerDidTapGalleryButton:
     (ComposeboxInputPlateViewController*)composeboxViewController {
   [_metricsRecorder
@@ -461,7 +473,7 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
     [self showMaxAttachmentSnackbarError];
     return;
   }
-  [self showComposeboxTabPicker];
+  [self showTabPicker];
 }
 
 - (void)composeboxViewController:
@@ -735,22 +747,23 @@ contextual_search::ContextualSearchSource ContextualSearchSourceFromEntrypoint(
   return _locationBarModel.get();
 }
 
-#pragma mark - ComposeboxTabPickerCommands
+#pragma mark - TabPickerCommands
 
-- (void)showComposeboxTabPicker {
+- (void)showTabPicker {
   [_metricsRecorder
       recordAttachmentButtonUsed:FuseboxAttachmentButtonType::kTabPicker];
-  _tabPickerCoordinator = [[ComposeboxTabPickerCoordinator alloc]
-      initWithBaseViewController:_viewController
-                         browser:self.browser
-                           theme:_theme];
-  _tabPickerCoordinator.debugLogger = self.debugLogger;
+  [self createSnackbarPresenterIfNeeded];
+  _tabPickerCoordinator =
+      [[TabPickerCoordinator alloc] initWithBaseViewController:_viewController
+                                                       browser:self.browser];
+  _tabPickerCoordinator.logger = self.debugLogger;
+  _tabPickerCoordinator.snackbarPresenter = _snackbarPresenter;
   _tabPickerCoordinator.delegate = _mediator;
-  _tabPickerCoordinator.composeboxTabPickerHandler = self;
+  _tabPickerCoordinator.tabPickerHandler = self;
   [_tabPickerCoordinator start];
 }
 
-- (void)hideComposeboxTabPicker {
+- (void)hideTabPicker {
   [_tabPickerCoordinator stop];
   _tabPickerCoordinator = nil;
 }

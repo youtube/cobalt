@@ -110,6 +110,7 @@ import java.util.function.Supplier;
 @RunWith(BaseRobolectricTestRunner.class)
 @Batch(Batch.UNIT_TESTS)
 @Config(manifest = Config.NONE)
+@EnableFeatures(ChromeFeatureList.CROSS_DEVICE_TASK_HANDOFF)
 public final class BaseCustomTabRootUiCoordinatorUnitTest {
 
     @Rule public final MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -130,7 +131,8 @@ public final class BaseCustomTabRootUiCoordinatorUnitTest {
     @Mock private Supplier<Integer> mActivityThemeColorSupplier;
     @Mock private AppMenuBlocker mAppMenuBlocker;
     @Mock private BooleanSupplier mSupportsAppMenuSupplier;
-    @Mock private Supplier<TabCreatorManager> mTabCreatorManagerSupplier;
+    private final MonotonicObservableSupplier<TabCreatorManager> mTabCreatorManagerSupplier =
+            ObservableSuppliers.alwaysNull();
     @Mock private FullscreenManager mFullscreenManager;
     @Mock private Supplier<TabContentManager> mTabContentManagerSupplier;
     private final MonotonicObservableSupplier<SnackbarManager> mSnackbarManagerSupplier =

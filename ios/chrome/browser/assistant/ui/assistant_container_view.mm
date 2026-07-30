@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/assistant/ui/assistant_container_view.h"
 
+#import "ios/chrome/browser/assistant/ui/assistant_container_layout_utils.h"
 #import "ios/chrome/browser/shared/ui/elements/extended_touch_target_button.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -11,15 +12,15 @@
 
 namespace {
 
-// Shadow styling.
-constexpr float kShadowOpacity = 0.29f;
-constexpr CGFloat kShadowRadius = 21.0;
-constexpr CGSize kShadowOffset = {0, 11};
-
 // Grabber styling.
 constexpr CGFloat kGrabberWidth = 32.0;
 constexpr CGFloat kGrabberHeight = 4.0;
 constexpr CGFloat kGrabberTopMargin = 8.0;
+
+// Shadow styling.
+const float kAssistantShadowOpacity = 0.29f;
+const CGFloat kAssistantShadowRadius = 21.0;
+const CGSize kAssistantShadowOffset = {0, 11};
 
 }  // namespace
 
@@ -89,7 +90,8 @@ constexpr CGFloat kGrabberTopMargin = 8.0;
 
 // Updates the shadow opacity based on the currently masked corners.
 - (void)updateShadowOpacity {
-  self.layer.shadowOpacity = (_bottomCornerRadius > 0.0) ? kShadowOpacity : 0.0;
+  self.layer.shadowOpacity =
+      (_bottomCornerRadius > 0.0) ? kAssistantShadowOpacity : 0.0;
 }
 
 // Configures the visual styling of the container.
@@ -98,8 +100,8 @@ constexpr CGFloat kGrabberTopMargin = 8.0;
   self.clipsToBounds = NO;
 
   self.layer.shadowColor = [UIColor blackColor].CGColor;
-  self.layer.shadowOffset = kShadowOffset;
-  self.layer.shadowRadius = kShadowRadius;
+  self.layer.shadowOffset = kAssistantShadowOffset;
+  self.layer.shadowRadius = kAssistantShadowRadius;
   [self updateShadowOpacity];
 }
 

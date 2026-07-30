@@ -89,6 +89,7 @@ import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteMatchBuilder;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.AutocompleteResult;
+import org.chromium.components.omnibox.OmniboxFeatureList;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.OmniboxSuggestionType;
 import org.chromium.components.omnibox.action.OmniboxActionFactoryJni;
@@ -726,8 +727,10 @@ public class AutocompleteMediatorUnitTest {
     @Test
     @SmallTest
     @SuppressWarnings("DirectInvocationOnMock")
+    @EnableFeatures(OmniboxFeatureList.AIM_SUPPRESS_VERBATIM_MATCH)
     public void onSuggestionsReceived_sendsOnSuggestionsChanged() {
-        mMediator.beginInput(createEmptySession());
+        FuseboxSessionState session = createEmptySession();
+        mMediator.beginInput(session);
         mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
         verify(mAutocompleteDelegate).onSuggestionsChanged(any(), anyBoolean());
 
@@ -743,6 +746,19 @@ public class AutocompleteMediatorUnitTest {
         mSuggestionsList.add(0, defaultMatch);
         mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
         verify(mAutocompleteDelegate).onSuggestionsChanged(defaultMatch, true);
+
+        defaultMatch =
+                AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_WHAT_YOU_TYPED)
+                        .setDisplayText("Suggestion1")
+                        .setInlineAutocompletion("inline_autocomplete2")
+                        .setAllowedToBeDefaultMatch(true)
+                        .build();
+        mSuggestionsList.clear();
+        mSuggestionsList.add(0, defaultMatch);
+        var autocompleteInput = session.getAutocompleteInput();
+        autocompleteInput.setRequestType(AutocompleteRequestType.AI_MODE);
+        mMediator.onSuggestionsReceived(AutocompleteResult.fromCache(mSuggestionsList, null), true);
+        verify(mAutocompleteDelegate).onSuggestionsChanged(defaultMatch, false);
     }
 
     @Test
@@ -789,6 +805,25 @@ public class AutocompleteMediatorUnitTest {
                         null,
                         new LoadUrlResult(Tab.TabLoadStatus.DEFAULT_PAGE_LOAD, mNavigationHandle));
         verify(mAutocompleteController).createNavigationObserver(mNavigationHandle, match);
+    }
+
+    @Test
+    @SmallTest
+    public void onSuggestionClicked_suggestionBypassesAimUrlQuery() {
+        OmniboxFeatures.sShowModelPicker.setForTesting(true);
+        FuseboxSessionState session =
+                createSession(PAGE_URL, PAGE_TITLE, PageClassification.OTHER_VALUE);
+        mMediator.beginInput(session);
+        session.getAutocompleteInput().setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
+
+        AutocompleteMatch match =
+                AutocompleteMatchBuilder.searchWithType(OmniboxSuggestionType.SEARCH_SUGGEST)
+                        .build();
+        mMediator.onSuggestionClicked(match, 0, PAGE_URL);
+
+        verify(mAutocompleteDelegate).loadUrl(mOmniboxLoadUrlParamsCaptor.capture());
+        assertEquals(PAGE_URL.getSpec(), mOmniboxLoadUrlParamsCaptor.getValue().url);
+        verify(mComposeboxQueryControllerBridge, never()).getAimUrlFromInputState(any(), any());
     }
 
     @Test

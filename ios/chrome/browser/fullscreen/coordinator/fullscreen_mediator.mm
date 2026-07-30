@@ -72,6 +72,7 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
   CGFloat _lastContentOffset;
   BOOL _isBottomOmnibox;
   BOOL _updatingInsets;
+  BOOL _handlingScroll;
   // Indicates whether the inset ranges have been initialized on startup.
   BOOL _hasInitializedInsets;
   // Scroll distance since the start of the drag, or since the scroll direction
@@ -157,6 +158,9 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
         WebViewProxyTabHelper::FromWebState(_webState);
     tabHelper->AddObserver(_webViewProxyObserver.get());
     self.scrollViewProxy = tabHelper->GetWebViewProxy().scrollViewProxy;
+    _browserAgent->ExitFullscreen(
+        PassKey(), FullscreenModeTransitionTrigger::kForcedByCode,
+        /*animated=*/false);
   } else {
     self.scrollViewProxy = nil;
   }
@@ -195,6 +199,13 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
 #pragma mark - CRWWebStateObserver
 
 - (void)webStateWasShown:(web::WebState*)webState {
+  id<CRWWebViewProxy> webView =
+      WebViewProxyTabHelper::FromWebState(webState)->GetWebViewProxy();
+  if (@available(iOS 26, *)) {
+    webView.shouldUseViewContentInset = YES;
+  } else {
+    webView.shouldUseViewContentInset = NO;
+  }
   // TODO(crbug.com/496229929): Call InvalidateInsetRange() from the correct
   // event(s).
   if (!_hasInitializedInsets) {
@@ -243,10 +254,6 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
   CGFloat delta = contentOffset - _lastContentOffset;
   _lastContentOffset = contentOffset;
 
-  if (_updatingInsets) {
-    return;
-  }
-
   // Check if content is scrolled past the top.
   CGFloat topInsetRemaining =
       _browserAgent->max_insets().top - _browserAgent->insets().top;
@@ -260,6 +267,11 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
     return;
   }
 
+  if (_handlingScroll || _updatingInsets) {
+    return;
+  }
+  _handlingScroll = YES;
+
   if (delta != 0) {
     // If the direction changed, reset the _scrollTotal.
     if ((delta > 0 && _scrollTotal < 0) || (delta < 0 && _scrollTotal > 0)) {
@@ -271,6 +283,8 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
 
   _browserAgent->IncrementalScroll(
       delta, FullscreenMediatorPassKeyProvider::passkey());
+
+  _handlingScroll = NO;
 }
 
 - (void)webViewScrollViewWillBeginDragging:
@@ -383,10 +397,17 @@ const CGFloat kFullscreenSnapThreshold = 10.0;
   }
 
   _updatingInsets = YES;
-  scrollView.contentInsetAdjustmentBehavior =
-      UIScrollViewContentInsetAdjustmentNever;
-  scrollView.contentInset = insets;
-  webView.obscuredInsets = insets;
+  if (_browserAgent->invalidating_inset_range()) {
+    // Do not allow the perceived scroll position to change when the obscured
+    // inset is updated due to a device rotation or omnibox position change.
+    CGPoint offset = _scrollViewProxy.contentOffset;
+    offset.y += _scrollViewProxy.contentInset.top;
+    webView.obscuredInsets = insets;
+    offset.y -= _scrollViewProxy.contentInset.top;
+    _scrollViewProxy.contentOffset = offset;
+  } else {
+    webView.obscuredInsets = insets;
+  }
   _updatingInsets = NO;
 }
 

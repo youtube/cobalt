@@ -26,6 +26,27 @@ chromium-metrics-reviews@google.com.
 
 <enums>
 
+<enum name="AndroidEntraSsoFailureReason">
+  <int value="0" label="Unexpected error"/>
+  <int value="1" label="Signature verification failed"/>
+  <int value="2" label="Invalid bundle format"/>
+  <int value="3" label="No bundle result"/>
+  <int value="4" label="Bundle result contains entra-specific error"/>
+  <int value="5" label="Bundle result contains os-specific error"/>
+  <int value="6" label="Unexpected package provider"/>
+  <int value="7" label="Debug package provider without commandline flag"/>
+  <int value="8" label="Timeout when requesting bundle"/>
+  <int value="9" label="JSON parsing failed"/>
+  <int value="10" label="All headers were skipped"/>
+</enum>
+
+<enum name="AndroidEntraSsoResult">
+  <int value="0" label="Success with auth headers attached"/>
+  <int value="1" label="Success without auth headers"/>
+  <int value="2" label="No auth broker found"/>
+  <int value="3" label="Failure"/>
+</enum>
+
 <enum name="BooleanWarned">
   <int value="0" label="Not Warned"/>
   <int value="1" label="Warned"/>
@@ -2393,6 +2414,8 @@ chromium-metrics-reviews@google.com.
   <int value="1440" label="MetricsReportingLevel"/>
   <int value="1441" label="DeviceMetricsReportingLevel"/>
   <int value="1442" label="CpuPerformanceTierOverride"/>
+  <int value="1443" label="ForceForegroundPriorityForOrigins"/>
+  <int value="1444" label="DataUrlInWebWorkerOpaqueOriginEnabled"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">
@@ -2658,6 +2681,8 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="User has clicked OK on the notification bubble."/>
 </enum>
 
+<!-- LINT.IfChange(OidcInterceptionFunnelStep) -->
+
 <enum name="OidcInterceptionFunnelStep">
   <int value="0" label="Created throttle for valid redirection"/>
   <int value="1" label="Successfuly parsed out required info for registration"/>
@@ -2665,6 +2690,10 @@ chromium-metrics-reviews@google.com.
   <int value="3" label="Showed unified consent dialog"/>
   <int value="4" label="Started OIDC profile registration"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/enterprise/signin/oidc_metrics_utils.h:OidcInterceptionFunnelStep) -->
+
+<!-- LINT.IfChange(OidcInterceptionResult) -->
 
 <enum name="OidcInterceptionResult">
   <int value="0" label="Other interception in progress"/>
@@ -2677,11 +2706,19 @@ chromium-metrics-reviews@google.com.
   <int value="7" label="No enrollment due to browser sign in being disabled"/>
 </enum>
 
+<!-- LINT.ThenChange(//chrome/browser/enterprise/signin/oidc_metrics_utils.h:OidcInterceptionResult) -->
+
+<!-- LINT.IfChange(OidcProfileCreationFunnelStep) -->
+
 <enum name="OidcProfileCreationFunnelStep">
   <int value="0" label="OIDC-managed profile created"/>
   <int value="1" label="Started policy fetch"/>
   <int value="2" label="Adding GAIA user as primary account"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/enterprise/signin/oidc_metrics_utils.h:OidcProfileCreationFunnelStep) -->
+
+<!-- LINT.IfChange(OidcProfileCreationResult) -->
 
 <enum name="OidcProfileCreationResult">
   <int value="0" label="OIDC profile flow succeeds"/>
@@ -2692,6 +2729,8 @@ chromium-metrics-reviews@google.com.
       label="Dasher-based OIDC profile can't add/set primary account"/>
   <int value="5" label="Profile ID mismatch with registration request"/>
 </enum>
+
+<!-- LINT.ThenChange(//chrome/browser/enterprise/signin/oidc_metrics_utils.h:OidcProfileCreationResult) -->
 
 <enum name="OktaSSOFailureReason">
   <int value="0" label="An unexpected error has occurred."/>

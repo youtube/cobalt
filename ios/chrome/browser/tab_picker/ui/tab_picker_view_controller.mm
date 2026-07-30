@@ -4,17 +4,17 @@
 
 #import "ios/chrome/browser/tab_picker/ui/tab_picker_view_controller.h"
 
-#import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/shared/public/commands/tab_picker_commands.h"
 #import "ios/chrome/browser/tab_picker/ui/tab_picker_empty_state_view.h"
 #import "ios/chrome/browser/tab_picker/ui/tab_picker_mutator.h"
+#import "ios/chrome/browser/tab_picker/ui/tab_picker_ui_constants.h"
 #import "ios/chrome/browser/tab_switcher/tab_grid/base_grid/ui/base_grid_view_controller.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ui/base/l10n/l10n_util.h"
 
-@implementation ComposeboxTabPickerViewController {
+@implementation TabPickerViewController {
   /// The done button that confirm user's tabs selection.
   UIBarButtonItem* _doneButton;
   /// Current selected tabs count.
@@ -37,15 +37,14 @@
   [super viewDidLoad];
   self.view.backgroundColor = [UIColor colorNamed:kSecondaryBackgroundColor];
 
-  _gridViewController.emptyStateView =
-      [[ComposeboxTabPickerEmptyStateView alloc] init];
+  _gridViewController.emptyStateView = [[TabPickerEmptyStateView alloc] init];
   UIView* gridView = _gridViewController.view;
   gridView.translatesAutoresizingMaskIntoConstraints = NO;
   [self addChildViewController:_gridViewController];
   [self.view addSubview:gridView];
   [_gridViewController didMoveToParentViewController:self];
   _gridViewController.view.accessibilityIdentifier =
-      kComposeboxTabPickerCollectionViewAccessibilityIdentifier;
+      kTabPickerCollectionViewAccessibilityIdentifier;
 
   [self configureNavigationBarIfNeeded];
 
@@ -57,7 +56,7 @@
   _gridViewController.contentInsets = self.view.safeAreaInsets;
 }
 
-#pragma mark - ComposeboxTabPickerConsumer
+#pragma mark - TabPickerConsumer
 
 - (void)setSelectedTabsCount:(NSUInteger)tabsCount {
   _tabsCount = tabsCount;
@@ -80,12 +79,12 @@
 /// Performs action when the button to add the selected tabs has been pressed.
 - (void)attachSelectedTabsButtonTapped {
   [self.mutator attachSelectedTabs];
-  [self.composeboxTabPickerHandler hideComposeboxTabPicker];
+  [self.tabPickerHandler hideTabPicker];
 }
 
 /// Dismisses the view.
 - (void)cancelButtonTapped {
-  [self.composeboxTabPickerHandler hideComposeboxTabPicker];
+  [self.tabPickerHandler hideTabPicker];
 }
 
 /// Creates the navigation bar.

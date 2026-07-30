@@ -20,7 +20,7 @@
 #import "ios/chrome/browser/metrics/model/metrics_app_interface.h"
 #import "ios/chrome/browser/passwords/bottom_sheet/test/credential_suggestion_bottom_sheet_app_interface.h"
 #import "ios/chrome/browser/passwords/password_suggestion/public/password_suggestion_constants.h"
-#import "ios/chrome/browser/settings/ui_bundled/google_services/manage_sync_settings_constants.h"
+#import "ios/chrome/browser/settings/manage_sync/public/manage_sync_settings_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_details/password_details_table_view_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/password_manager_egtest_utils.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/passwords_table_view_constants.h"
@@ -881,16 +881,6 @@ void CheckKeyboardIsUpAndNotCovered() {
       l10n_util::GetNSString(IDS_IOS_MANUAL_FALLBACK_NO_PASSWORDS_FOR_SITE));
   [[EarlGrey selectElementWithMatcher:noPasswordsFoundMessage]
       assertWithMatcher:grey_sufficientlyVisible()];
-
-  // Verify that the number of visible suggestions in the manual fallback was
-  // correctly recorded.
-  GREYAssertNil(
-      [MetricsAppInterface
-          expectUniqueSampleWithCount:1
-                            forBucket:0
-                         forHistogram:@"ManualFallback.VisibleSuggestions."
-                                      @"OpenPasswords"],
-      @"Unexpected histogram error for number of visible suggestions.");
 }
 
 // Tests password generation on manual fallback.

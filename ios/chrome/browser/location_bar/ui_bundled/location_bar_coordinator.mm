@@ -41,8 +41,6 @@
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_controller.h"
 #import "ios/chrome/browser/fullscreen/ui_bundled/fullscreen_ui_updater.h"
 #import "ios/chrome/browser/infobars/model/infobar_metrics_recorder.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
-#import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/lens/ui_bundled/lens_entrypoint.h"
 #import "ios/chrome/browser/lens_overlay/coordinator/lens_overlay_availability.h"
@@ -416,12 +414,9 @@ struct AIHubBadgeActiveWindowsData : public base::SupportsUserData::Data {
       ios::TemplateURLServiceFactory::GetForProfile(self.profile);
   self.mediator.consumer = self.viewController;
   self.mediator.webStateList = self.webStateList;
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate) ||
-      base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-    PlaceholderService* placeholderService =
-        ios::PlaceholderServiceFactory::GetForProfile(self.profile);
-    self.mediator.placeholderService = placeholderService;
-  }
+  PlaceholderService* placeholderService =
+      ios::PlaceholderServiceFactory::GetForProfile(self.profile);
+  self.mediator.placeholderService = placeholderService;
 
   self.viewController.mutator = self.mediator;
 

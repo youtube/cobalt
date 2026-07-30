@@ -15,6 +15,7 @@ import android.widget.FrameLayout;
 import androidx.annotation.Px;
 import androidx.annotation.VisibleForTesting;
 
+import org.chromium.base.Callback;
 import org.chromium.base.ThreadUtils;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -71,7 +72,8 @@ final class SidePanelContainerCoordinatorImpl
     }
 
     @Override
-    public void populateContent(SidePanelContent content) {
+    public void populateContent(
+            SidePanelContent content, Callback<@Nullable Void> onAnimationFinishedCallback) {
         log(TAG, "populateContent", content);
         ThreadUtils.assertOnUiThread();
         mCurrentContent = content;
@@ -86,14 +88,15 @@ final class SidePanelContainerCoordinatorImpl
     }
 
     @Override
-    public void removeContent() {
-        log(TAG, "removeContent");
+    public void removeContentAndClose(
+            Callback<@Nullable Void> onAnimationFinishedCallback, boolean suppressAnimations) {
+        log(TAG, "removeContentAndClose", mPanelType, suppressAnimations);
         ThreadUtils.assertOnUiThread();
-        mContainerView.removeAllViews();
         mSideUiCoordinator.requestUpdateContainer(
                 new SideUiContainerProperties(SIDE_PANEL_DEFAULT_ANCHOR_SIDE, /* width= */ 0));
-
-        mCurrentContent = null;
+        // TODO(crbug.com/496407828): Move this around so it actually runs after the animation is
+        //  finished.
+        onAnimationFinishedCallback.onResult(null);
     }
 
     @Override
@@ -155,6 +158,12 @@ final class SidePanelContainerCoordinatorImpl
         if (layoutParams.width != width) {
             layoutParams.width = width;
             mContainerView.setLayoutParams(layoutParams);
+        }
+
+        // Remove the content if setting the width the 0 (i.e. hiding the panel).
+        if (width == 0) {
+            mContainerView.removeAllViews();
+            mCurrentContent = null;
         }
 
         // TODO(http://crbug.com/488047364): Notify the SidePanelContent View of the width change.

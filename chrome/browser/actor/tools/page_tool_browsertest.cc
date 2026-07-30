@@ -17,14 +17,17 @@
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_render_frame.mojom.h"
+#include "components/enterprise/connectors/core/features.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -220,6 +223,10 @@ IN_PROC_BROWSER_TEST_P(ActorPageToolLongClickDelayBrowserTest, CancelClick) {
       window.mousedownPromise = new Promise(resolve => {
         document.getElementById('clickable').addEventListener('mousedown',
                                                               resolve);
+      });
+      window.clickPromise = new Promise(resolve => {
+        document.getElementById('clickable').addEventListener('click',
+                                                              resolve);
       });)",
                                 content::EXECUTE_SCRIPT_NO_RESOLVE_PROMISES));
     ActResultFuture result_for_cancel;
@@ -236,6 +243,10 @@ IN_PROC_BROWSER_TEST_P(ActorPageToolLongClickDelayBrowserTest, CancelClick) {
 
     ExpectErrorResult(result_for_cancel, mojom::ActionResultCode::kTaskPaused);
     FlushChromeRenderFrameForTesting(*main_frame());
+
+    // Wait for the simulated mouseup and click events to be dispatched to and
+    // processed by the renderer before checking the event log.
+    EXPECT_TRUE(content::ExecJs(main_frame(), "window.clickPromise"));
 
     const content::EvalJsResult eval_result =
         content::EvalJs(main_frame(), "event_log.join(',')");
@@ -410,6 +421,87 @@ IN_PROC_BROWSER_TEST_F(ActorPageToolMagicCursorRendererResolvedTest,
       "Actor.PageTool.SplitModeTimeOfUseFrameStatus",
       SplitModeTimeOfUseFrameStatus::kMatch, 1);
 }
+
+class ActorPageToolContentScanningTest
+    : public ActorPageToolBrowserTest,
+      public testing::WithParamInterface<bool> {
+ public:
+  ActorPageToolContentScanningTest() {
+    std::vector<base::test::FeatureRef> enabled = {
+        enterprise_connectors::kGlicBulkDataEntrySupport};
+    std::vector<base::test::FeatureRef> disabled;
+    if (GetParam()) {
+      enabled.push_back(features::kGlicActorSplitValidateAndExecute);
+      enabled.push_back(features::kGlicActorUiMagicCursor);
+    } else {
+      disabled.push_back(features::kGlicActorSplitValidateAndExecute);
+      disabled.push_back(features::kGlicActorUiMagicCursor);
+    }
+    feature_list_.InitWithFeatures(enabled, disabled);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_P(ActorPageToolContentScanningTest,
+                       ContentScanningBlocked) {
+  const GURL url = embedded_test_server()->GetURL("/actor/cancel_typing.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+
+  MockPolicyChecker blocked_checker(
+      EnterprisePolicyChecker::UrlBlockReason::kNotBlocked,
+      EnterprisePolicyChecker::ContentValidationReason::kBlocked);
+
+  TaskId task_id = ActorKeyedService::Get(GetProfile())
+                       ->CreateTask(TestTaskSourceInfo(), &blocked_checker);
+
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), "sensitive data",
+                      /*follow_by_enter=*/false);
+
+  ActResultFuture result;
+  ActorKeyedService::Get(GetProfile())
+      ->GetTask(task_id)
+      ->Act(ToRequestList(action), result.GetCallback());
+
+  ExpectErrorResult(
+      result, mojom::ActionResultCode::kActionBlockedByEnterpriseContentScan);
+}
+
+IN_PROC_BROWSER_TEST_P(ActorPageToolContentScanningTest,
+                       ContentScanningAllowed) {
+  const GURL url = embedded_test_server()->GetURL("/actor/cancel_typing.html");
+  ASSERT_TRUE(content::NavigateToURL(web_contents(), url));
+
+  std::optional<int> input_id = GetDOMNodeId(*main_frame(), "#input");
+  ASSERT_TRUE(input_id);
+
+  MockPolicyChecker allowed_checker(
+      EnterprisePolicyChecker::UrlBlockReason::kNotBlocked,
+      EnterprisePolicyChecker::ContentValidationReason::kAllowed);
+
+  TaskId task_id = ActorKeyedService::Get(GetProfile())
+                       ->CreateTask(TestTaskSourceInfo(), &allowed_checker);
+
+  std::unique_ptr<ToolRequest> action =
+      MakeTypeRequest(*main_frame(), input_id.value(), "safe data",
+                      /*follow_by_enter=*/false);
+
+  ActResultFuture result;
+  ActorKeyedService::Get(GetProfile())
+      ->GetTask(task_id)
+      ->Act(ToRequestList(action), result.GetCallback());
+
+  ExpectOkResult(result);
+}
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         ActorPageToolContentScanningTest,
+                         testing::Bool());
 
 }  // namespace
 

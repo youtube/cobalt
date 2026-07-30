@@ -72,6 +72,8 @@ import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcherProvider;
 import org.chromium.chrome.browser.lifecycle.ConfigurationChangedObserver;
 import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedWithNativeObserver;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestrator;
+import org.chromium.chrome.browser.multiwindow.MultiInstanceOrchestratorFactory;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.profiles.ProfileManager;
 import org.chromium.chrome.browser.tabmodel.IncognitoTabModel;
@@ -226,6 +228,8 @@ public class ChromeAndroidTaskImplUnitTest {
                 RoleManager.ROLE_BROWSER,
                 ContextUtils.getApplicationContext().getPackageName(),
                 Process.myUserHandle());
+        var multiInstanceOrchestrator = mock(MultiInstanceOrchestrator.class);
+        MultiInstanceOrchestratorFactory.setInstanceForTesting(multiInstanceOrchestrator);
     }
 
     @Test
@@ -970,13 +974,11 @@ public class ChromeAndroidTaskImplUnitTest {
 
         // Act & Assert.
         var testFeature = new TestChromeAndroidTaskFeature(chromeAndroidTask);
+        ChromeAndroidTaskFeatureKey featureKey =
+                new ChromeAndroidTaskFeatureKey(TestChromeAndroidTaskFeature.class, profile);
         assertThrows(
                 AssertionError.class,
-                () ->
-                        chromeAndroidTask.addFeature(
-                                new ChromeAndroidTaskFeatureKey(
-                                        TestChromeAndroidTaskFeature.class, profile),
-                                () -> testFeature));
+                () -> chromeAndroidTask.addFeature(featureKey, () -> testFeature));
     }
 
     @Test

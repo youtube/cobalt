@@ -15,6 +15,7 @@
 #include "chrome/browser/ui/views/toolbar/toolbar_chip_button.h"
 #include "extensions/common/extension_id.h"
 #include "ui/base/metadata/metadata_header_macros.h"
+#include "ui/views/input_event_activation_protector.h"
 #include "url/origin.h"
 
 namespace content {
@@ -32,7 +33,7 @@ class ExtensionsRequestAccessButton : public ToolbarChipButton {
  public:
   explicit ExtensionsRequestAccessButton(
       BrowserWindowInterface* browser,
-      ExtensionsContainer* extensions_container,
+      ExtensionsToolbarViewModel* extensions_toolbar_view_model,
       ExtensionsContainerViews* extensions_container_views);
   ExtensionsRequestAccessButton(const ExtensionsRequestAccessButton&) = delete;
   const ExtensionsRequestAccessButton& operator=(
@@ -73,16 +74,24 @@ class ExtensionsRequestAccessButton : public ToolbarChipButton {
   void remove_confirmation_for_testing(bool remove_confirmation) {
     remove_confirmation_for_testing_ = remove_confirmation;
   }
+  void disable_input_protection_for_testing() {
+    disable_input_protection_for_testing_ = true;
+  }
 
  private:
   // Grants one-time site access to `extension_ids` and shows a confirmation
   // message on the button.
-  void OnButtonPressed();
+  void OnButtonPressed(const ui::Event& event);
+
+  // Overridden to prevent the button from being activated when it is invisible.
+  // Certain tests simulate interactions that can trigger NotifyClick() even if
+  // the button is not drawn, causing ElementTrackerViews to log a warning.
+  void NotifyClick(const ui::Event& event) override;
 
   content::WebContents* GetActiveWebContents() const;
 
   raw_ptr<BrowserWindowInterface> browser_;
-  raw_ptr<ExtensionsContainer> extensions_container_;
+  raw_ptr<ExtensionsToolbarViewModel> extensions_toolbar_view_model_;
   raw_ptr<ExtensionsContainerViews> extensions_container_views_;
 
   std::unique_ptr<ExtensionsRequestAccessHoverCardCoordinator>
@@ -100,6 +109,13 @@ class ExtensionsRequestAccessButton : public ToolbarChipButton {
 
   // Flag to not show confirmation message in tests.
   bool remove_confirmation_for_testing_{false};
+
+  // Used to prevent clickjacking by ignoring accidental clicks immediately
+  // after the button becomes visible.
+  views::InputEventActivationProtector input_event_activation_protector_;
+
+  // Flag to not check input event activation protector in tests.
+  bool disable_input_protection_for_testing_{false};
 };
 
 #endif  // CHROME_BROWSER_UI_VIEWS_EXTENSIONS_EXTENSIONS_REQUEST_ACCESS_BUTTON_H_

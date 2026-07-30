@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.actor.ui;
 
-import android.content.Context;
-
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.ui.modelutil.PropertyKey;
 import org.chromium.ui.modelutil.PropertyModel;
@@ -26,13 +24,16 @@ public class ActorControlViewBinder {
             view.setTitle(model.get(ActorControlProperties.TASK_TITLE));
         } else if (ActorControlProperties.PEEK_VIEW_UI_STATE == propertyKey) {
             PeekViewUiState state = model.get(ActorControlProperties.PEEK_VIEW_UI_STATE);
-            Context context = view.getContext();
-            view.setStepDescription(state.getDescription(context));
-            view.setStatusIconResource(state.iconResId);
-        } else if (ActorControlProperties.ON_PLAY_PAUSE_CLICKED == propertyKey) {
-            view.setPlayPauseListener(model.get(ActorControlProperties.ON_PLAY_PAUSE_CLICKED));
+            view.configurePeekViewForState(state);
+        } else if (ActorControlProperties.ON_ACTOR_CONTROL_CLICKED == propertyKey) {
+            view.setActorControlClickListener(
+                    v -> model.get(ActorControlProperties.ON_ACTOR_CONTROL_CLICKED).run());
         } else if (ActorControlProperties.ON_CLOSE_CLICKED == propertyKey) {
-            view.setCloseClickListener(model.get(ActorControlProperties.ON_CLOSE_CLICKED));
+            view.setCloseClickListener(
+                    v -> model.get(ActorControlProperties.ON_CLOSE_CLICKED).run());
+        } else if (ActorControlProperties.ON_PEEK_VIEW_CLICKED == propertyKey) {
+            view.setPeekViewClickListener(
+                    v -> model.get(ActorControlProperties.ON_PEEK_VIEW_CLICKED).run());
         }
     }
 }

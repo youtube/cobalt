@@ -383,6 +383,7 @@ void AddAdditionalRequestHeaders(
     return;
 
   bool is_reload = NavigationTypeUtils::IsReload(navigation_type);
+  bool is_history = NavigationTypeUtils::IsHistory(navigation_type);
   RenderViewHostImpl* render_view_host =
       frame_tree_node->current_frame_host()->render_view_host();
   const blink::RendererPreferences& render_prefs =
@@ -417,7 +418,7 @@ void AddAdditionalRequestHeaders(
         url, origin_header_value, referrer->policy);
     std::string serialized_origin = origin_header_value.Serialize();
     if (existing_origin && existing_origin != serialized_origin &&
-        !is_browser_initiated &&
+        !is_browser_initiated && !is_history &&
         base::FeatureList::IsEnabled(features::kDumpOnOriginHeaderMismatch)) {
       // TODO(https://crbug.com/487795397): this should
       // be a `bad_message::ReceivedBadMessage` and return `false` once
@@ -432,7 +433,7 @@ void AddAdditionalRequestHeaders(
       base::debug::DumpWithoutCrashing();
     }
     headers->SetHeader(net::HttpRequestHeaders::kOrigin, serialized_origin);
-  } else if (existing_origin && !is_browser_initiated &&
+  } else if (existing_origin && !is_browser_initiated && !is_history &&
              base::FeatureList::IsEnabled(
                  features::kDumpOnUnexpectedOriginHeader)) {
     // TODO(https://crbug.com/40093290): this should
@@ -1318,7 +1319,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::Create(
       base::TimeTicks() /* before_unload_dialog_opened */,
       base::TimeTicks() /* before_unload_dialog_closed */,
       started_with_transient_activation, started_by_ad, is_container_initiated,
-      has_rel_opener);
+      has_rel_opener, std::nullopt /* script_tool_invocation_id */);
 
   // Shift-Reload forces bypassing caches and service workers.
   if (common_params->navigation_type ==
@@ -9382,7 +9383,9 @@ NavigationRequest::GetOriginForURLLoaderFactoryAfterResponse() {
       !IsForMhtmlSubframe()) {
     int process_id = GetRenderFrameHost()->GetProcess()->GetDeprecatedID();
     auto* policy = ChildProcessSecurityPolicyImpl::GetInstance();
-    CHECK(policy->CanAccessOrigin(
+    // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
+    // we are sure this isn't hit.
+    DCHECK(policy->CanAccessOrigin(
         process_id, origin,
         ChildProcessSecurityPolicyImpl::AccessType::kCanCommitNewOrigin));
   }
@@ -9600,7 +9603,9 @@ NavigationRequest::MakeDidCommitProvisionalLoadParamsForActivation() {
   // we are sure this isn't hit.
   DCHECK_EQ(params->url, common_params().url);
   params->should_update_history = true;
-  CHECK_EQ(params->method, common_params().method);
+  // TODO(https://crbug.com/497761255): CHECK-exclusion: Convert to CHECK once
+  // we are sure this isn't hit.
+  DCHECK_EQ(params->method, common_params().method);
   params->item_sequence_number = frame_entry_item_sequence_number_;
   params->document_sequence_number = frame_entry_document_sequence_number_;
   params->transition = ui::PageTransitionFromInt(common_params().transition);
@@ -9712,6 +9717,17 @@ RenderFrameHostImpl* NavigationRequest::GetParentFrameOrOuterDocument() {
 
 bool NavigationRequest::IsInPrimaryMainFrame() const {
   return GetNavigatingFrameType() == FrameType::kPrimaryMainFrame;
+}
+
+const std::optional<base::UnguessableToken>&
+NavigationRequest::GetScriptToolInvocationId() const {
+  static const std::optional<base::UnguessableToken> empty_id = std::nullopt;
+  if (!begin_params_) {
+    return empty_id;
+  }
+  CHECK(!begin_params_->script_tool_invocation_id ||
+        !commit_params_->is_browser_initiated);
+  return begin_params_->script_tool_invocation_id;
 }
 
 bool NavigationRequest::IsInOutermostMainFrame() const {

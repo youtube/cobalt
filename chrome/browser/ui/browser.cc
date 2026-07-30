@@ -20,8 +20,10 @@
 #include "base/functional/callback_helpers.h"
 #include "base/location.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/metrics/histogram_macros.h"
 #include "base/metrics/user_metrics.h"
+#include "base/metrics/user_metrics_action.h"
 #include "base/notimplemented.h"
 #include "base/process/process_info.h"
 #include "base/strings/string_number_conversions.h"
@@ -35,6 +37,7 @@
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
+#include "chrome/browser/actor/actor_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/ai/ai_data_keyed_service.h"          // nogncheck
 #include "chrome/browser/ai/ai_data_keyed_service_factory.h"  // nogncheck
@@ -315,6 +318,11 @@ namespace {
 
 // How long we wait before updating the browser chrome while loading a page.
 constexpr base::TimeDelta kUIUpdateCoalescingTime = base::Milliseconds(200);
+
+// Kill switch for merge safety for a fix for https://crbug.com/489205993
+// TODO(crbug.com/489205993): Remove in M150 or later.
+BASE_FEATURE(kBackgroundActorTaskPopupsOpenInBackground,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 const extensions::Extension* GetExtensionForOrigin(
     Profile* profile,
@@ -603,7 +611,10 @@ Browser::Browser(const CreateParams& params)
       initial_vertical_tab_strip_collapsed_(
           params.vertical_tab_strip_collapsed),
       initial_vertical_tab_strip_uncollapsed_width_(
-          params.vertical_tab_strip_uncollapsed_width) {
+          params.vertical_tab_strip_uncollapsed_width),
+      keep_alive_(
+          std::make_unique<ScopedKeepAlive>(KeepAliveOrigin::BROWSER,
+                                            KeepAliveRestartOption::DISABLED)) {
   if (!profile_->IsOffTheRecord()) {
     profile_keep_alive_ = std::make_unique<ScopedProfileKeepAlive>(
         params.profile->GetOriginalProfile(),
@@ -670,7 +681,14 @@ Browser::Browser(const CreateParams& params)
   // the browser list until it is marked for destruction.
   is_initialized_ = true;
 
-  BrowserList::AddBrowser(this);
+  if (profile_->IsGuestSession()) {
+    base::UmaHistogramCounts100("Browser.WindowCount.Guest",
+                                chrome::GetGuestBrowserCount());
+  } else if (profile_->IsIncognitoProfile()) {
+    base::UmaHistogramCounts100(
+        "Browser.WindowCount.Incognito",
+        chrome::GetOffTheRecordBrowsersActiveForProfile(profile_));
+  }
 }
 
 Browser::~Browser() {
@@ -687,7 +705,6 @@ Browser::~Browser() {
   // with destruction. Profile destruction will unload extensions and reentrant
   // calls to Browser:: should be avoided while it is being torn down.
 
-  BrowserList::RemoveBrowser(this);
   window_.reset();
 
   // Tear down `BrowserWindowFeatures` to avoid exposing it to Browser in a
@@ -1242,15 +1259,14 @@ const DesktopBrowserWindowCapabilities* Browser::capabilities() const {
 void Browser::DidBecomeActive() {
   if (!is_active_) {
     is_active_ = true;
-    BrowserList::SetLastActive(this);
     did_become_active_callback_list_.Notify(this);
+    base::RecordAction(base::UserMetricsAction("ActiveBrowserChanged"));
   }
 }
 
 void Browser::DidBecomeInactive() {
   if (is_active_) {
     is_active_ = false;
-    BrowserList::NotifyBrowserNoLongerActive(this);
     did_become_inactive_callback_list_.Notify(this);
   }
 }
@@ -1478,14 +1494,6 @@ void Browser::UpdateUIForNavigationInTab(WebContents* contents,
        action == NavigateParams::WindowAction::kShowWindow)) {
     contents->SetInitialFocus();
   }
-}
-
-void Browser::RegisterKeepAlive() {
-  keep_alive_ = std::make_unique<ScopedKeepAlive>(
-      KeepAliveOrigin::BROWSER, KeepAliveRestartOption::DISABLED);
-}
-void Browser::UnregisterKeepAlive() {
-  keep_alive_.reset();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -2116,6 +2124,18 @@ content::WebContents* Browser::AddNewContents(
     fullscreen_controller->RunOrDeferUntilTransitionIsComplete(base::BindOnce(
         base::IgnoreResult(std::move(web_contents_creation_callback))));
     return nullptr;
+  }
+
+  // If a backgrounded actor task triggered a new tab/popup, don't interrupt the
+  // user.
+  if (base::FeatureList::IsEnabled(
+          kBackgroundActorTaskPopupsOpenInBackground) &&
+      source && actor::IsRunningBackgroundActorTask(*source)) {
+    if (disposition == WindowOpenDisposition::NEW_POPUP) {
+      window_action = NavigateParams::WindowAction::kShowWindowInactive;
+    } else if (disposition == WindowOpenDisposition::NEW_FOREGROUND_TAB) {
+      disposition = WindowOpenDisposition::NEW_BACKGROUND_TAB;
+    }
   }
 
   return chrome::AddWebContents(this, source, std::move(new_contents),

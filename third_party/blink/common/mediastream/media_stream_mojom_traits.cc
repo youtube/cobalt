@@ -8,6 +8,7 @@
 #include "media/base/ipc/media_param_traits.h"
 #include "media/capture/mojom/video_capture_types.mojom.h"
 #include "media/capture/mojom/video_capture_types_mojom_traits.h"
+#include "media/mojo/mojom/audio_parameters_mojom_traits.h"
 #include "media/mojo/mojom/display_media_information.mojom.h"
 #include "mojo/public/cpp/base/unguessable_token_mojom_traits.h"
 #include "third_party/blink/public/common/mediastream/media_device_id.h"
@@ -98,10 +99,8 @@ bool StructTraits<blink::mojom::StreamControlsDataView, blink::StreamControls>::
   if (!input.ReadVideo(&out->video)) {
     return false;
   }
-  DCHECK(out->audio.requested() ||
-         (!input.hotword_enabled() && !input.disable_local_echo() &&
-          !input.suppress_local_audio_playback()));
-  out->hotword_enabled = input.hotword_enabled();
+  DCHECK(out->audio.requested() || (!input.disable_local_echo() &&
+                                    !input.suppress_local_audio_playback()));
   out->disable_local_echo = input.disable_local_echo();
   out->suppress_local_audio_playback = input.suppress_local_audio_playback();
   out->restrict_own_audio = input.restrict_own_audio();

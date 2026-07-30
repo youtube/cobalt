@@ -25,6 +25,7 @@ source_set("actor") {
     "actor_tab_data.h",
     "actor_task.h",
     "actor_task_metadata.h",
+    "actor_util.h",
     "aggregated_journal.h",
     "aggregated_journal_file_serializer.h",
     "aggregated_journal_in_memory_serializer.h",
@@ -34,6 +35,7 @@ source_set("actor") {
     "site_policy.h",
     "tools/attempt_form_filling_tool_request.h",
     "tools/attempt_login_tool_request.h",
+    "tools/attempt_otp_filling_tool_request.h",
     "tools/click_tool_request.h",
     "tools/drag_and_release_tool_request.h",
     "tools/history_tool_request.h",
@@ -108,6 +110,7 @@ source_set("impl") {
     "actor_tab_data.cc",
     "actor_task.cc",
     "actor_task_metadata.cc",
+    "actor_util.cc",
     "aggregated_journal.cc",
     "aggregated_journal_file_serializer.cc",
     "aggregated_journal_in_memory_serializer.cc",
@@ -122,6 +125,9 @@ source_set("impl") {
     "tools/attempt_login_tool.cc",
     "tools/attempt_login_tool.h",
     "tools/attempt_login_tool_request.cc",
+    "tools/attempt_otp_filling_tool.cc",
+    "tools/attempt_otp_filling_tool.h",
+    "tools/attempt_otp_filling_tool_request.cc",
     "tools/click_tool_request.cc",
     "tools/drag_and_release_tool_request.cc",
     "tools/history_tool.cc",
@@ -419,6 +425,10 @@ source_set("browser_tests") {
     deps += [ "//chrome/test:test_support_ui" ]
   }
 
+  if (is_linux) {
+    deps += [ "//ui/ozone" ]
+  }
+
   # TODO(crbug.com/482145079): Migrate over history_tool, media_control_tool, and
   # attempt_form_filling_tool tests once flakiness is resolved.
   if (!skip_android_unmigrated_actor_files) {
@@ -429,6 +439,7 @@ source_set("browser_tests") {
       "tools/action_tracker_for_metrics_browsertest.cc",
       "tools/attempt_form_filling_tool_browsertest.cc",
       "tools/attempt_login_tool_browsertest.cc",
+      "tools/attempt_otp_filling_tool_browsertest.cc",
       "tools/click_tool_browsertest.cc",
       "tools/drag_and_release_tool_browsertest.cc",
       "tools/history_tool_browsertest.cc",

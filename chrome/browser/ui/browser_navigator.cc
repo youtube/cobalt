@@ -28,11 +28,11 @@
 #include "chrome/browser/renderer_host/chrome_navigation_ui_data.h"
 #include "chrome/browser/tab_contents/tab_util.h"
 #include "chrome/browser/ui/browser.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_navigator_params_utils.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/incognito_allowed_url.h"
 #include "chrome/browser/ui/location_bar/location_bar.h"
 #include "chrome/browser/ui/singleton_tabs.h"
@@ -129,7 +129,8 @@ bool WindowCanOpenTabs(const NavigateParams& params) {
 // Finds an existing Browser compatible with |profile|, making a new one if no
 // such Browser is located.
 Browser* GetOrCreateBrowser(Profile* profile, bool user_gesture) {
-  BrowserWindowInterface* browser = chrome::FindTabbedBrowser(profile, false);
+  BrowserWindowInterface* browser =
+      ProfileBrowserCollection::GetForProfile(profile)->FindTabbedBrowser();
 
   if (!browser && Browser::GetCreationStatusForProfile(profile) ==
                       Browser::CreationStatus::kOk) {
@@ -205,7 +206,7 @@ std::tuple<BrowserWindowInterface*, int> GetBrowserAndTabForDisposition(
   switch (params.disposition) {
     case WindowOpenDisposition::SWITCH_TO_TAB: {
       std::pair<BrowserWindowInterface*, int> browser_and_index =
-          GetIndexAndBrowserOfExistingTab(profile, params);
+          GetIndexAndBrowserOfMatchingTab(profile, params);
       if (browser_and_index.first) {
         return browser_and_index;
       }
@@ -221,7 +222,7 @@ std::tuple<BrowserWindowInterface*, int> GetBrowserAndTabForDisposition(
     case WindowOpenDisposition::SINGLETON_TAB: {
       // If we have a browser window, check it first.
       if (params.browser) {
-        int index = GetIndexOfExistingTab(params.browser, params);
+        int index = GetIndexOfExistingTabMatchingURL(params.browser, params);
         if (index >= 0) {
           return {params.browser, index};
         }
@@ -231,7 +232,7 @@ std::tuple<BrowserWindowInterface*, int> GetBrowserAndTabForDisposition(
       // Instead, make an extra effort to see if there's an already open copy.
       if (!WindowCanOpenTabs(params)) {
         std::pair<BrowserWindowInterface*, int> browser_and_index =
-            GetIndexAndBrowserOfExistingTab(profile, params);
+            GetIndexAndBrowserOfMatchingTab(profile, params);
         if (browser_and_index.first) {
           return browser_and_index;
         }

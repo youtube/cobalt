@@ -716,6 +716,7 @@ static_library("browser") {
     "strike_databases/autofill_ai/autofill_ai_save_strike_database_by_host.cc",
     "strike_databases/autofill_ai/autofill_ai_save_strike_database_by_host.h",
     "strike_databases/autofill_ai/autofill_ai_update_strike_database.h",
+    "strike_databases/payments/credit_card_save_strike_database.cc",
     "strike_databases/payments/credit_card_save_strike_database.h",
     "strike_databases/payments/cvc_storage_strike_database.cc",
     "strike_databases/payments/cvc_storage_strike_database.h",
@@ -756,10 +757,6 @@ static_library("browser") {
     "suggestions/payments/payments_suggestion_generator_util.h",
     "suggestions/payments/save_and_fill_suggestion.h",
     "suggestions/payments/virtual_card_suggestion_data.h",
-    "suggestions/plus_addresses/plus_address.h",
-    "suggestions/plus_addresses/plus_address_for_address_suggestion.h",
-    "suggestions/plus_addresses/plus_address_suggestion_generator.cc",
-    "suggestions/plus_addresses/plus_address_suggestion_generator.h",
     "suggestions/suggestion.cc",
     "suggestions/suggestion.h",
     "suggestions/suggestion_generator.h",
@@ -954,7 +951,6 @@ static_library("browser") {
       "payments/autofill_save_card_delegate.h",
       "payments/autofill_save_card_infobar_delegate_mobile.cc",
       "payments/autofill_save_card_infobar_delegate_mobile.h",
-      "payments/autofill_save_card_infobar_mobile.h",
       "payments/autofill_save_card_ui_info.cc",
       "payments/autofill_save_card_ui_info.h",
       "payments/autofill_virtual_card_enrollment_bottom_sheet_delegate_mobile.cc",
@@ -1049,6 +1045,7 @@ static_library("browser") {
     "//components/keyed_service/core",
     "//components/language/core/browser",
     "//components/language_detection/core",
+    "//components/metrics",
     "//components/one_time_tokens/core/browser",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
@@ -1061,6 +1058,7 @@ static_library("browser") {
     "//components/prefs",
     "//components/profile_metrics",
     "//components/security_interstitials/core:insecure_form_util",
+    "//components/sessions:session_id",
     "//components/signin/public/base",
     "//components/signin/public/identity_manager",
     "//components/strings",
@@ -1125,6 +1123,13 @@ static_library("browser") {
 
   if (is_ios) {
     deps += [ "//components/autofill/ios/common" ]
+  }
+
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    sources += [
+      "at_memory_promo_tracker.cc",
+      "at_memory_promo_tracker.h",
+    ]
   }
 }
 
@@ -1417,6 +1422,7 @@ static_library("test_support") {
     "//components/device_reauth:test_support",
     "//components/feature_engagement",
     "//components/leveldb_proto",
+    "//components/metrics",
     "//components/optimization_guide/proto:optimization_guide_proto",
     "//components/os_crypt/async/browser:test_support",
     "//components/pref_registry",
@@ -1740,7 +1746,6 @@ source_set("unit_tests") {
     "suggestions/payments/credit_card_suggestion_generator_unittest.cc",
     "suggestions/payments/iban_suggestion_generator_unittest.cc",
     "suggestions/payments/merchant_promo_code_suggestion_generator_unittest.cc",
-    "suggestions/plus_addresses/plus_address_suggestion_generator_unittest.cc",
     "suggestions/valuables/valuable_suggestion_generator_unittest.cc",
     "ui/addresses/autofill_address_util_unittest.cc",
     "ui/autofill_external_delegate_unittest.cc",
@@ -1866,6 +1871,7 @@ source_set("unit_tests") {
     "//base/test:test_support",
     "//base/version_info",
     "//components/accessibility_annotator/core",
+    "//components/accessibility_annotator/core:test_support",
     "//components/accessibility_annotator/core/annotation_reducer",
     "//components/autofill/core/common:autofill_regex",
     "//components/autofill/core/common:credit_card_number_validation",
@@ -1950,6 +1956,10 @@ source_set("unit_tests") {
 
   if (is_ios) {
     deps += [ "//components/autofill/ios/common" ]
+  }
+
+  if (is_win || is_mac || is_linux || is_chromeos) {
+    sources += [ "at_memory_promo_tracker_unittest.cc" ]
   }
 
   # TODO(crbug.com/40031409): Fix code that adds exit-time destructors and

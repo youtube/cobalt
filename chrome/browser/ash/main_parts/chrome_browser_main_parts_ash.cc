@@ -115,6 +115,7 @@
 #include "chrome/browser/ash/login/login_screen_extensions_storage_cleaner.h"
 #include "chrome/browser/ash/login/login_wizard.h"
 #include "chrome/browser/ash/login/osauth/chrome_auth_parts.h"
+#include "chrome/browser/ash/login/quick_unlock/pin_backend.h"
 #include "chrome/browser/ash/login/session/chrome_session_manager.h"
 #include "chrome/browser/ash/login/session/user_session_manager.h"
 #include "chrome/browser/ash/login/signin/token_handle_store_factory.h"
@@ -944,7 +945,10 @@ void ChromeBrowserMainPartsAsh::PreProfileInit() {
 
   g_browser_process->platform_part()->InitializeUserManager();
 
-  user_session_manager_ = std::make_unique<UserSessionManager>();
+  user_session_manager_ = std::make_unique<UserSessionManager>(
+      g_browser_process->local_state(),
+      g_browser_process->GetFeatures()->application_locale_storage(),
+      g_browser_process->shared_url_loader_factory());
 
   bluetooth_log_controller_ = std::make_unique<ash::BluetoothLogController>(
       user_manager::UserManager::Get());
@@ -1890,6 +1894,10 @@ void ChromeBrowserMainPartsAsh::PostDestroyThreads() {
   // Destroy the SystemTokenCertDbStorage global instance which should outlive
   // NetworkCertLoader and |system_token_certdb_initializer_|.
   SystemTokenCertDbStorage::Shutdown();
+
+  // TODO(crbug.com/498416395): Refactor PinBackend, destroy the singleton
+  // object, and remove the Shutdown() method.
+  quick_unlock::PinBackend::Shutdown();
 
   ChromeBrowserMainPartsLinux::PostDestroyThreads();
 

@@ -256,9 +256,6 @@ public class StatusProperties {
     /** Whether animations are turned on. */
     static final WritableBooleanPropertyKey ANIMATIONS_ENABLED = new WritableBooleanPropertyKey();
 
-    /** Whether the view should be visible for a11y purposes. */
-    static final WritableBooleanPropertyKey IMPORTANT_FOR_A11Y = new WritableBooleanPropertyKey();
-
     /** Whether the incognito badge is visible. */
     static final WritableBooleanPropertyKey INCOGNITO_BADGE_VISIBLE =
             new WritableBooleanPropertyKey();
@@ -268,6 +265,9 @@ public class StatusProperties {
 
     /** Whether the icon is shown. */
     static final WritableBooleanPropertyKey SHOW_STATUS_ICON = new WritableBooleanPropertyKey();
+
+    /** Whether the status view should be wide. */
+    static final WritableBooleanPropertyKey USE_WIDE_STATUS_ICON = new WritableBooleanPropertyKey();
 
     /** The handler of status click events. */
     static final WritableObjectPropertyKey<View.OnClickListener> STATUS_CLICK_LISTENER =
@@ -329,11 +329,11 @@ public class StatusProperties {
             new PropertyKey[] {
                 ALPHA,
                 ANIMATIONS_ENABLED,
-                IMPORTANT_FOR_A11Y,
                 INCOGNITO_BADGE_VISIBLE,
                 SEPARATOR_COLOR,
                 SHOW_STATUS_ICON,
                 SHOW_STATUS_VIEW,
+                USE_WIDE_STATUS_ICON,
                 STATUS_CLICK_LISTENER,
                 STATUS_ACCESSIBILITY_TOAST_RES,
                 STATUS_ACCESSIBILITY_DOUBLE_TAP_DESCRIPTION_RES,

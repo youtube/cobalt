@@ -37,17 +37,19 @@
 #include "chrome/browser/glic/public/glic_keyed_service.h"
 #include "chrome/browser/glic/public/glic_keyed_service_factory.h"
 #include "chrome/browser/glic/public/glic_side_panel_coordinator.h"
+#include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/glic/service/glic_ui_embedder.h"
 #include "chrome/browser/glic/service/glic_ui_types.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_features.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_service.h"
 #include "chrome/browser/glic/suggestions/contextual_cueing_service_factory.h"
+#include "chrome/browser/metrics/profile_metrics_service_factory.h"
 #include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
-#include "chrome/browser/ui/browser_finder.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/browser_window/public/profile_browser_collection.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/common/actor_webui.mojom.h"
@@ -200,10 +202,15 @@ void GlicInstanceImpl::MaybeDaisyChainToTab(tabs::TabInterface* source_tab,
   auto* glic_embedder = GetEmbedderForTab(source_tab);
 
   if (base::FeatureList::IsEnabled(kGlicRemoveDaisyChainingWhenFreShowing)) {
-    if (service()->IsFreShowing() ||
-        (IsTrustFirstOnboardingPending(profile()) &&
-         features::kGlicTrustFirstOnboardingArmParam.Get() != 1)) {
-      return;
+    if (base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding)) {
+      if (IsTrustFirstOnboardingPending(profile()) &&
+          features::kGlicTrustFirstOnboardingArmParam.Get() != 1) {
+        return;
+      }
+    } else {
+      if (!GlicEnabling::HasConsentedForProfile(profile())) {
+        return;
+      }
     }
   }
 
@@ -213,13 +220,13 @@ void GlicInstanceImpl::MaybeDaisyChainToTab(tabs::TabInterface* source_tab,
     side_panel_options.suppress_opening_animation = true;
     side_panel_options.pin_trigger = GlicPinTrigger::kDaisyChain;
     auto show_options = ShowOptions{side_panel_options};
-    metrics()->OnDaisyChain(DaisyChainSource::kTabContents,
-                            /*success=*/true, target_tab, source_tab);
+    instance_metrics()->OnDaisyChain(DaisyChainSource::kTabContents,
+                                     /*success=*/true, target_tab, source_tab);
     Show(show_options);
   } else {
     // Record the failure.
-    metrics()->OnDaisyChain(DaisyChainSource::kTabContents,
-                            /*success=*/false, target_tab, source_tab);
+    instance_metrics()->OnDaisyChain(DaisyChainSource::kTabContents,
+                                     /*success=*/false, target_tab, source_tab);
   }
 }
 
@@ -250,6 +257,7 @@ GlicInstanceImpl::GlicInstanceImpl(
       host_(profile_, this, this, this),
       sharing_manager_coordinator_(profile, this, metrics),
       instance_metrics_(
+          ProfileMetricsServiceFactory::GetForProfile(profile),
           &sharing_manager_coordinator_.GetActiveSharingManager()),
       zero_state_suggestions_manager_(
           std::make_unique<GlicZeroStateSuggestionsManager>(
@@ -361,7 +369,7 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
 
   // Look up the current embedder for that tab/key.
   EmbedderEntry* entry = GetEmbedderEntry(new_key);
-  bool should_log_open =
+  const bool new_embedder_will_show =
       !entry || !entry->embedder || !entry->embedder->IsShowing();
 
   GlicUiEmbedder* embedder_to_show = nullptr;
@@ -388,8 +396,10 @@ void GlicInstanceImpl::Show(const ShowOptions& options) {
   MaybeShowHostUi(embedder_to_show, options.invocation_source,
                   options.prompt_suggestion, options.auto_send,
                   options.fre_override);
-  if (should_log_open) {
+  if (new_embedder_will_show) {
     instance_metrics()->OnOpen(options.invocation_source, options);
+    service_->metrics()->OnGlicWindowStartedOpening(/*attached=*/false,
+                                                    options.invocation_source);
   }
   embedder_to_show->Show(options);
   if (options.focus_on_show) {
@@ -510,8 +520,6 @@ bool GlicInstanceImpl::Toggle(ShowOptions&& options,
     return false;
   }
 
-  service_->metrics()->OnGlicWindowStartedOpening(/*attached=*/false, source);
-
   // We assume that a toggle is user initiated so focus on show.
   options.focus_on_show = true;
   options.prompt_suggestion = prompt_suggestion;
@@ -603,7 +611,9 @@ tabs::TabInterface* GlicInstanceImpl::CreateTab(
     return nullptr;
   }
 
-  if (!created_tab) {
+  // TODO(b/501276046): Figure out how to ensure that instance helper is
+  // initialized when we get to this point.
+  if (!created_tab || !GlicInstanceHelper::From(created_tab)) {
     instance_metrics_.OnDaisyChain(DaisyChainSource::kGlicContents,
                                    /*success=*/false, nullptr, source_tab);
     return nullptr;
@@ -1035,7 +1045,8 @@ void GlicInstanceImpl::MaybeShowShortcutToastPromo() {
   }
 // TODO(b/483455896): implement hotkey promo for android
 #if !BUILDFLAG(IS_ANDROID)
-  BrowserWindowInterface* browser = chrome::FindTabbedBrowser(profile_, false);
+  BrowserWindowInterface* browser =
+      ProfileBrowserCollection::GetForProfile(profile_)->FindTabbedBrowser();
   if (!browser) {
     // If there is no browser window open for the profile, skip the promo.
     return;
@@ -1062,7 +1073,8 @@ void GlicInstanceImpl::MaybeShowShortcutSnoozePromo() {
 
   // TODO(b/483455896): implement hotkey promo for android.
 #if !BUILDFLAG(IS_ANDROID)
-  BrowserWindowInterface* browser = chrome::FindTabbedBrowser(profile_, false);
+  BrowserWindowInterface* browser =
+      ProfileBrowserCollection::GetForProfile(profile_)->FindTabbedBrowser();
   if (!browser) {
     // If there is no browser window open for the profile, skip the promo.
     return;

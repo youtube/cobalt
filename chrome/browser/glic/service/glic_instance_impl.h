@@ -259,8 +259,6 @@ class GlicInstanceImpl : public GlicInstance,
   void WebUiStateChanged(mojom::WebUiState state) override;
   void ContextAccessIndicatorChanged(bool enabled) override;
 
-  glic::GlicInstanceMetrics* metrics() { return &instance_metrics_; }
-
   // Test support.
 #if !BUILDFLAG(IS_ANDROID)
   views::View* GetActiveEmbedderGlicViewForTesting();
@@ -268,6 +266,9 @@ class GlicInstanceImpl : public GlicInstance,
 #endif
   tabs::TabInterface* GetActiveEmbedderTabForTesting();
   std::string DescribeForTesting();
+  GlicActorTaskManager* GetActorTaskManagerForTesting() {
+    return actor_task_manager_.get();
+  }
 
   // ActorTaskDelegate:
   void OnTabAddedToTask(actor::TaskId task_id,

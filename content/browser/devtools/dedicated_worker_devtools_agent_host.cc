@@ -33,6 +33,7 @@ DedicatedWorkerDevToolsAgentHost::DedicatedWorkerDevToolsAgentHost(
     const std::string& name,
     const base::UnguessableToken& devtools_worker_token,
     const std::string& parent_id,
+    const std::string& parent_frame_id,
     base::OnceCallback<void(DevToolsAgentHostImpl*)> destroyed_callback)
     : WorkerOrWorkletDevToolsAgentHost(process_id,
                                        url,
@@ -41,7 +42,8 @@ DedicatedWorkerDevToolsAgentHost::DedicatedWorkerDevToolsAgentHost(
                                        parent_id,
                                        std::move(destroyed_callback)),
       auto_attacher_(std::make_unique<protocol::RendererAutoAttacherBase>(
-          GetRendererChannel())) {
+          GetRendererChannel())),
+      parent_frame_id_(parent_frame_id) {
   NotifyCreated();
 }
 
@@ -55,6 +57,10 @@ DedicatedWorkerDevToolsAgentHost::GetStorageKey() {
 
 std::string DedicatedWorkerDevToolsAgentHost::GetType() {
   return kTypeDedicatedWorker;
+}
+
+std::string DedicatedWorkerDevToolsAgentHost::GetParentFrameId() {
+  return parent_frame_id_;
 }
 
 DedicatedWorkerHost*

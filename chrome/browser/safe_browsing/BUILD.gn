@@ -38,7 +38,9 @@ static_library("safe_browsing") {
     "//chrome/browser/enterprise/connectors/reporting",
     "//chrome/browser/google",
     "//chrome/browser/history",
+    "//chrome/browser/net",
     "//chrome/browser/optimization_guide",
+    "//chrome/browser/password_manager",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/preloading/prefetch/no_state_prefetch",
     "//chrome/browser/profiles",
@@ -232,6 +234,8 @@ static_library("safe_browsing") {
       "safe_browsing_pref_change_handler.h",
       "safe_browsing_service.cc",
       "safe_browsing_service.h",
+      "security_settings_bundle_pref_change_handler.cc",
+      "security_settings_bundle_pref_change_handler.h",
       "services_delegate.cc",
       "services_delegate.h",
       "tailored_security/chrome_tailored_security_service.cc",
@@ -709,6 +713,7 @@ source_set("unit_tests") {
   if (is_win || is_mac || is_linux || is_chromeos) {
     sources += [
       "safe_browsing_pref_change_handler_unittest.cc",
+      "security_settings_bundle_pref_change_handler_unittest.cc",
       "security_settings_bundle_toast_helper_unittest.cc",
     ]
 

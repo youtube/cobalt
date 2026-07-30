@@ -114,6 +114,7 @@ void CloseWindow(BrowserWindowInterface* browser);
 content::WebContents& NewTab(BrowserWindowInterface* browser,
                              NewTabTypes context = NewTabTypes::kNewTabCommand);
 void NewTabToRight(BrowserWindowInterface* browser);
+void NewTabFromClipboardURL(BrowserWindowInterface* browser);
 void CloseTab(BrowserWindowInterface* browser);
 bool CanZoomIn(content::WebContents* contents);
 bool CanZoomOut(content::WebContents* contents);
@@ -268,6 +269,7 @@ void FindPrevious(BrowserWindowInterface* browser);
 void FindInPage(BrowserWindowInterface* browser, bool find_next, bool forward_direction);
 void ShowTabSearch(BrowserWindowInterface* browser);
 void CloseTabSearch(BrowserWindowInterface* browser);
+void ToggleTabSearchPin(BrowserWindowInterface* browser);
 void ToggleContextualTasksSidePanel(BrowserWindowInterface* browser);
 void ToggleVerticalTabs(BrowserWindowInterface* browser);
 void ToggleVerticalTabsExpandOnHover(BrowserWindowInterface* browser);

@@ -51,7 +51,7 @@ class PLATFORM_EXPORT MultiBufferDataSource
    public:
     using UrlDataCb = base::RepeatingCallback<void(
         const GURL& url,
-        bool ignore_cache,
+        DataSource::CacheMode cache_mode,
         base::OnceCallback<void(scoped_refptr<UrlData>)>)>;
 
     ~Factory() override;
@@ -63,7 +63,9 @@ class PLATFORM_EXPORT MultiBufferDataSource
             const base::TickClock* tick_clock,
             scoped_refptr<base::SingleThreadTaskRunner> main_task_runner);
 
-    void Create(const GURL& uri, bool ignore_cache, DataSourceCb cb) override;
+    void Create(const GURL& uri,
+                DataSource::CacheMode cache_mode,
+                DataSourceCb cb) override;
 
    private:
     void OnUrlData(DataSourceCb cb,
@@ -134,6 +136,8 @@ class PLATFORM_EXPORT MultiBufferDataSource
   void StopPreloading() override;
 
   int64_t GetMemoryUsage() override;
+
+  bool DidRedirect() const override { return did_redirect_; }
 
   GURL GetUrlAfterRedirects() const override;
 
@@ -240,6 +244,11 @@ class PLATFORM_EXPORT MultiBufferDataSource
 
   // True if a failure has occured.
   bool failed_ = false;
+
+  // Records whether this DataSource had a redirect, minimizing the need to
+  // call `GetUrlAfterRedirects` in some cases. It must never be set to false
+  // once true.
+  bool did_redirect_ = false;
 
   // The task runner of the render thread.
   const scoped_refptr<base::SingleThreadTaskRunner> render_task_runner_;

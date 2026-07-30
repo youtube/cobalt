@@ -37,39 +37,6 @@
 
 namespace blink {
 
-String StripLeadingAndTrailingHTMLSpaces(const String& string) {
-  unsigned length = string.length();
-
-  if (!length)
-    return string.IsNull() ? string : g_empty_atom.GetString();
-
-  return VisitCharacters(string, [&](auto chars) {
-    unsigned num_leading_spaces = 0;
-    unsigned num_trailing_spaces = 0;
-
-    for (; num_leading_spaces < length; ++num_leading_spaces) {
-      if (IsNotHTMLSpace(chars[num_leading_spaces]))
-        break;
-    }
-
-    if (num_leading_spaces == length)
-      return string.IsNull() ? string : g_empty_atom.GetString();
-
-    for (; num_trailing_spaces < length; ++num_trailing_spaces) {
-      if (IsNotHTMLSpace(chars[length - num_trailing_spaces - 1]))
-        break;
-    }
-
-    DCHECK_LT(num_leading_spaces + num_trailing_spaces, length);
-
-    if (!(num_leading_spaces | num_trailing_spaces))
-      return string;
-
-    return string.substr(num_leading_spaces,
-                         length - (num_leading_spaces + num_trailing_spaces));
-  });
-}
-
 StringView StripLeadingAndTrailingHtmlSpaces(const StringView& string) {
   if (string.empty()) {
     return string.IsNull() ? string : g_empty_atom;
@@ -77,27 +44,16 @@ StringView StripLeadingAndTrailingHtmlSpaces(const StringView& string) {
   return string.StripWhiteSpace(IsHTMLSpace);
 }
 
-// TODO(iclelland): Consider refactoring this into a general
-// String::Split(predicate) method
 Vector<String> SplitOnASCIIWhitespace(const String& input) {
-  Vector<String> output;
-  unsigned length = input.length();
-  if (!length) {
-    return output;
-  }
-  VisitCharacters(input, [&](auto chars) {
-    size_t cursor = 0;
-    using CharacterType = std::decay_t<decltype(*chars.data())>;
-    cursor = SkipWhile<CharacterType, IsHTMLSpace>(chars, cursor);
-    while (cursor < chars.size()) {
-      const wtf_size_t token_start = static_cast<wtf_size_t>(cursor);
-      cursor = SkipUntil<CharacterType, IsHTMLSpace>(chars, cursor);
-      output.push_back(input.substr(
-          token_start, static_cast<wtf_size_t>(cursor - token_start)));
-      cursor = SkipWhile<CharacterType, IsHTMLSpace>(chars, cursor);
-    }
-  });
-  return output;
+  return input.SplitSkippingEmpty(
+      [](const StringView& input,
+         string_size_t pos) -> std::optional<string_size_t> {
+        // SAFETY: SplitSkippingEmpty() guarantees that pos is always in bounds.
+        if (IsHTMLSpace(UNSAFE_BUFFERS(input[pos]))) {
+          return 1u;
+        }
+        return std::nullopt;
+      });
 }
 
 String SerializeForNumberType(const Decimal& number) {

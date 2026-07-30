@@ -32,6 +32,7 @@ import static org.chromium.chrome.browser.autofill.editors.common.EditorComponen
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.IMPORTANT_FOR_ACCESSIBILITY;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_ALL_KEYS;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_TEXT;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_VISIBLE;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.SHOW_BACKGROUND;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.validateForm;
 import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsUtil.scrollToFieldWithErrorMessage;
@@ -55,7 +56,6 @@ import android.view.View;
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
-import org.chromium.base.Callback;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
@@ -175,6 +175,18 @@ public class AddressEditorMediator {
                                 VALUE,
                                 AutofillAddress.getCountryCode(
                                         mProfileToEdit, mPersonalDataManager))
+                        .with(
+                                DROPDOWN_CALLBACK,
+                                (countryCode) -> {
+                                    assumeNonNull(mEditorModel)
+                                            .set(
+                                                    EDITOR_FIELDS,
+                                                    buildEditorFieldList(
+                                                            countryCode,
+                                                            Locale.getDefault().getLanguage()));
+
+                                    mPhoneFormatter.setCountryCode(countryCode);
+                                })
                         .build();
 
         // Phone number is present for all countries.
@@ -252,22 +264,6 @@ public class AddressEditorMediator {
                                         != SaveUpdateAddressProfilePromptMode.CREATE_NEW_PROFILE)
                         .with(SHOW_BUTTONS, !isNonEditableProfile())
                         .build();
-
-        mCountryField.set(
-                DROPDOWN_CALLBACK,
-                new Callback<>() {
-                    /** Update the list of fields according to the selected country. */
-                    @Override
-                    public void onResult(String countryCode) {
-                        assumeNonNull(mEditorModel)
-                                .set(
-                                        EDITOR_FIELDS,
-                                        buildEditorFieldList(
-                                                countryCode, Locale.getDefault().getLanguage()));
-
-                        mPhoneFormatter.setCountryCode(countryCode);
-                    }
-                });
 
         return mEditorModel;
     }
@@ -372,6 +368,7 @@ public class AddressEditorMediator {
                                         // announced separately by screen readers. Don't announce
                                         // the message itself.
                                         .with(IMPORTANT_FOR_ACCESSIBILITY, false)
+                                        .with(NOTICE_VISIBLE, true)
                                         .build(),
                                 /* isFullLine= */ true));
                 break;
@@ -440,6 +437,7 @@ public class AddressEditorMediator {
                                     .with(NOTICE_TEXT, recordTypeNoticeText)
                                     .with(SHOW_BACKGROUND, false)
                                     .with(IMPORTANT_FOR_ACCESSIBILITY, true)
+                                    .with(NOTICE_VISIBLE, true)
                                     .build(),
                             /* isFullLine= */ true));
         }

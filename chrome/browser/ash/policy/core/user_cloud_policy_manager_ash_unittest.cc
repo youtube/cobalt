@@ -27,6 +27,7 @@
 #include "chrome/browser/ash/login/users/fake_chrome_user_manager.h"
 #include "chrome/browser/ash/policy/core/user_cloud_policy_token_forwarder.h"
 #include "chrome/browser/ash/profiles/profile_helper.h"
+#include "chrome/browser/global_features.h"
 #include "chrome/browser/policy/cloud/cloud_policy_test_utils.h"
 #include "chrome/browser/prefs/browser_prefs.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -56,6 +57,7 @@
 #include "components/prefs/testing_pref_service.h"
 #include "components/session_manager/core/fake_session_manager_delegate.h"
 #include "components/session_manager/core/session_manager.h"
+#include "components/signin/public/base/oauth_consumer_id.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/sync_preferences/pref_service_syncable.h"
 #include "components/user_manager/scoped_user_manager.h"
@@ -153,8 +155,16 @@ class UserCloudPolicyManagerAshTest : public testing::Test {
   void SetUp() override {
     ash::ConciergeClient::InitializeFake(/*fake_cicerone_client=*/nullptr);
 
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(
+        test_url_loader_factory_.GetSafeWeakWrapper());
+
     user_manager_.Reset(std::make_unique<ash::FakeChromeUserManager>());
-    user_session_manager_ = std::make_unique<ash::UserSessionManager>();
+    user_session_manager_ = std::make_unique<ash::UserSessionManager>(
+        TestingBrowserProcess::GetGlobal()->local_state(),
+        TestingBrowserProcess::GetGlobal()
+            ->GetFeatures()
+            ->application_locale_storage(),
+        TestingBrowserProcess::GetGlobal()->shared_url_loader_factory());
 
     // The initialization path that blocks on the initial policy fetch requires
     // a signin Profile to use its URLRequestContext.
@@ -240,6 +250,8 @@ class UserCloudPolicyManagerAshTest : public testing::Test {
     user_session_manager_.reset();
     user_manager_.Reset();
 
+    TestingBrowserProcess::GetGlobal()->SetSharedURLLoaderFactory(nullptr);
+
     ash::ConciergeClient::Shutdown();
   }
 
@@ -294,15 +306,11 @@ class UserCloudPolicyManagerAshTest : public testing::Test {
       // Since the refresh token is available, IdentityManager was used
       // to request the access token and not UserCloudPolicyTokenForwarder.
       // Issue the access token with the former.
-      signin::ScopeSet scopes;
-      scopes.insert(GaiaConstants::kDeviceManagementServiceOAuth);
-      scopes.insert(GaiaConstants::kGoogleUserInfoEmail);
-
       identity_test_env()
-          ->WaitForAccessTokenRequestIfNecessaryAndRespondWithTokenForScopes(
+          ->WaitForAccessTokenRequestIfNecessaryAndRespondWithTokenForConsumerId(
               kOAuthToken,
               base::Time::Now() + base::Seconds(3600) /*expiration*/,
-              std::string() /*id_token*/, scopes);
+              signin::OAuthConsumerId::kCloudPolicyClientRegistration);
     }
 
     EXPECT_TRUE(job.IsActive());
@@ -359,6 +367,7 @@ class UserCloudPolicyManagerAshTest : public testing::Test {
   // Required by the refresh scheduler that's created by the manager and
   // for the cleanup of URLRequestContextGetter in the |signin_profile_|.
   content::BrowserTaskEnvironment task_environment_;
+  network::TestURLLoaderFactory test_url_loader_factory_;
 
   // Convenience policy objects.
   em::PolicyData policy_data_;
@@ -1146,13 +1155,10 @@ class UserCloudPolicyManagerAshChildTest
 
   // Issues OAuthToken for device management scopes.
   void IssueOAuth2AccessToken(base::TimeDelta token_lifetime) {
-    signin::ScopeSet scopes;
-    scopes.insert(GaiaConstants::kDeviceManagementServiceOAuth);
-    scopes.insert(GaiaConstants::kGoogleUserInfoEmail);
     identity_test_env()
-        ->WaitForAccessTokenRequestIfNecessaryAndRespondWithTokenForScopes(
+        ->WaitForAccessTokenRequestIfNecessaryAndRespondWithTokenForConsumerId(
             kOAuthToken, task_runner_->Now() + token_lifetime,
-            std::string() /*id_token*/, scopes);
+            signin::OAuthConsumerId::kCloudPolicyClientRegistration);
   }
 
  protected:

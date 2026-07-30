@@ -183,7 +183,6 @@ void TerminateProcessWithHistograms(const base::Process& process,
   DCHECK(process.IsValid());
   base::TimeTicks start_time = base::TimeTicks::Now();
   bool result = (::TerminateProcess(process.Handle(), exit_code) != FALSE);
-  DWORD terminate_error = 0;
   if (result) {
     DWORD wait_error = 0;
     // The process may not end immediately due to pending I/O
@@ -210,14 +209,10 @@ void TerminateProcessWithHistograms(const base::Process& process,
     base::UmaHistogramSparse(
         "Chrome.ProcessSingleton.TerminationWaitErrorCode.Windows", wait_error);
   } else {
-    terminate_error = ::GetLastError();
     internal::SendRemoteProcessInteractionResultHistogram(
         ProcessSingleton::TERMINATE_FAILED);
     DPLOG(ERROR) << "Unable to terminate process";
   }
-  base::UmaHistogramSparse(
-      "Chrome.ProcessSingleton.TerminateProcessErrorCode.Windows",
-      terminate_error);
 }
 
 }  // namespace
@@ -355,10 +350,6 @@ ProcessSingleton::NotifyOtherProcessOrCreate() {
         DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES(
             "Chrome.ProcessSingleton.TimeToNotify",
             base::TimeTicks::Now() - begin_ticks);
-      } else {
-        DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES(
-            "Chrome.ProcessSingleton.TimeToFailure",
-            base::TimeTicks::Now() - begin_ticks);
       }
       // The single browser process was notified, the user chose not to
       // terminate a hung browser, or the lock file could not be created.
@@ -370,8 +361,6 @@ ProcessSingleton::NotifyOtherProcessOrCreate() {
     // terminated. Retry once if this is the first time; otherwise, fall through
     // to report that the process must exit because the profile is in use.
   }
-  DEPRECATED_UMA_HISTOGRAM_MEDIUM_TIMES("Chrome.ProcessSingleton.TimeToFailure",
-                                        base::TimeTicks::Now() - begin_ticks);
   return PROFILE_IN_USE;
 }
 

@@ -19,6 +19,7 @@
 #include "chrome/browser/android/tab_state_storage_service_factory.h"
 #include "chrome/browser/tab/collection_save_forwarder.h"
 #include "chrome/browser/tab/storage_loaded_data.h"
+#include "chrome/browser/tab/storage_loading_context.h"
 #include "chrome/browser/tab/tab_group_collection_data.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tabs/public/android/jni_conversion.h"
@@ -37,11 +38,10 @@ base::android::ScopedJavaLocalRef<jobject> CreateLoadedTabState(
   if (tab_state.has_web_contents_state_bytes()) {
     std::string* web_contents_state_bytes_ptr =
         tab_state.release_web_contents_state_bytes();
-    j_web_contents_state_buffer =
-        base::android::ScopedJavaLocalRef<jobject>::Adopt(
-            env, env->NewDirectByteBuffer(
-                     static_cast<void*>(web_contents_state_bytes_ptr->data()),
-                     web_contents_state_bytes_ptr->size()));
+    j_web_contents_state_buffer = jni_zero::AdoptRef(
+        env, env->NewDirectByteBuffer(
+                 static_cast<void*>(web_contents_state_bytes_ptr->data()),
+                 web_contents_state_bytes_ptr->size()));
     j_web_contents_state_string_pointer =
         reinterpret_cast<long>(web_contents_state_bytes_ptr);
   }
@@ -69,6 +69,13 @@ base::android::ScopedJavaLocalRef<jobject> CreateLoadedTabState(
                                                      j_tab_state);
 }
 
+base::android::ScopedJavaLocalRef<jobject> CreateStorageLoadWarning(
+    JNIEnv* env,
+    const StorageLoadingContext::Warning& warning) {
+  return Java_StorageLoadedData_createStorageLoadWarning(
+      env, static_cast<int>(warning.status), warning.message);
+}
+
 StorageLoadedDataAndroid::StorageLoadedDataAndroid(
     JNIEnv* env,
     std::unique_ptr<StorageLoadedData> data)
@@ -79,13 +86,12 @@ StorageLoadedDataAndroid::StorageLoadedDataAndroid(
         new TabGroupCollectionDataAndroid(std::move(loaded_group));
     tab_group_collection_data_android.push_back(android_group);
   }
-  const StorageLoadedData::StorageLoadingContext& context =
-      data_->GetLoadingContext();
+  const StorageLoadingContext& context = data_->GetLoadingContext();
+
   j_object_ = Java_StorageLoadedData_createData(
       env, reinterpret_cast<intptr_t>(this), data_->GetLoadedTabs(),
       tab_group_collection_data_android,
-      data_->GetActiveTabIndex().value_or(-1),
-      static_cast<int>(context.status()), context.error_message());
+      data_->GetActiveTabIndex().value_or(-1), context.warnings());
 }
 
 StorageLoadedDataAndroid::~StorageLoadedDataAndroid() = default;

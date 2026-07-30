@@ -123,6 +123,10 @@ class Extension final : public base::RefCountedThreadSafe<Extension> {
     // for permissions to be withheld from the extension by default.
     WITHHOLD_PERMISSIONS = 1 << 14,
 
+    // `INSTALLED_VIA_CDP` indicates that this extension was installed via
+    // Chrome DevTools Protocol.
+    INSTALLED_VIA_CDP = 1 << 15,
+
     // When adding new flags, make sure to update kInitFromValueFlagBits.
   };
 
@@ -258,7 +262,7 @@ class Extension final : public base::RefCountedThreadSafe<Extension> {
   const HashedExtensionId& hashed_id() const;
   const ExtensionGuid& guid() const;
   const base::Version& version() const { return version_; }
-  const std::string& version_name() const { return version_name_; }
+  const std::string& version_name() const;
   std::string VersionString() const;
   std::string DifferentialFingerprint() const;
   std::string GetVersionForDisplay() const;
@@ -362,13 +366,6 @@ class Extension final : public base::RefCountedThreadSafe<Extension> {
   bool LoadVersion(std::vector<InstallWarning>* install_warnings,
                    std::u16string* error);
 
-  bool LoadAppFeatures(std::u16string* error);
-  bool LoadExtent(const char* key,
-                  URLPatternSet* extent,
-                  const char* list_error,
-                  const char* value_error,
-                  std::u16string* error);
-
   bool LoadSharedFeatures(std::u16string* error);
   bool LoadManifestVersion(std::u16string* error);
   bool LoadShortName(std::u16string* error);
@@ -423,9 +420,6 @@ class Extension final : public base::RefCountedThreadSafe<Extension> {
 
   // The extension's version.
   base::Version version_;
-
-  // The extension's user visible version name.
-  std::string version_name_;
 
   // True if the extension was generated from a user script. (We show slightly
   // different UI if so).

@@ -26,6 +26,8 @@ source_set("password_change") {
     "login_state_checker.h",
     "model_quality_logs_uploader.cc",
     "model_quality_logs_uploader.h",
+    "password_change_logging_util.cc",
+    "password_change_logging_util.h",
     "password_change_page_stability_waiter.cc",
     "password_change_page_stability_waiter.h",
     "password_change_submission_verifier.cc",
@@ -40,6 +42,9 @@ source_set("password_change") {
     "//chrome/browser/page_content_annotations:extraction_service",
     "//chrome/browser/profiles",
     "//chrome/browser/translate",
+    "//chrome/common",
+    "//chrome/common:mojo_bindings",
+    "//components/autofill/content/browser",
     "//components/optimization_guide/content/browser",
     "//components/optimization_guide/core",
     "//components/optimization_guide/proto:optimization_guide_proto",
@@ -55,6 +60,8 @@ source_set("password_change") {
     "//content/public/browser",
     "//services/metrics/public/cpp:metrics_cpp",
     "//ui/accessibility:ax_base",
+    "//ui/views",
+    "//ui/views/controls/webview",
   ]
 }
 
@@ -77,6 +84,7 @@ source_set("unit_tests") {
   deps = [
     ":password_change",
     "//chrome/browser/optimization_guide:test_support",
+    "//chrome/browser/password_manager",
     "//chrome/browser/password_manager/factories",
     "//chrome/browser/sync",
     "//chrome/browser/ui/autofill",
@@ -85,7 +93,6 @@ source_set("unit_tests") {
     "//components/autofill/content/browser:test_support",
     "//components/optimization_guide/core",
     "//components/optimization_guide/core:test_support",
-    "//components/os_crypt/sync:test_support",
     "//components/password_manager/content/browser",
     "//components/password_manager/core/browser",
     "//components/password_manager/core/browser:test_support",

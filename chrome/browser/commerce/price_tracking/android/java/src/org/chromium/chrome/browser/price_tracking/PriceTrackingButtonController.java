@@ -8,7 +8,6 @@ import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.content.Context;
-import android.content.res.Resources;
 import android.view.View;
 
 import androidx.appcompat.content.res.AppCompatResources;
@@ -46,6 +45,7 @@ import java.util.function.Supplier;
  */
 @NullMarked
 public class PriceTrackingButtonController extends BaseButtonDataProvider {
+    public static final int ACTION_CHIP_COLLAPSE_DELAY_MS = 6000;
 
     private final SnackbarManager mSnackbarManager;
     private final Supplier<TabBookmarker> mTabBookmarkerSupplier;
@@ -73,13 +73,15 @@ public class PriceTrackingButtonController extends BaseButtonDataProvider {
         super(
                 tabSupplier,
                 modalDialogManager,
-                AppCompatResources.getDrawable(context, R.drawable.price_tracking_disabled),
-                context.getString(R.string.enable_price_tracking_menu_item),
-                /* actionChipLabelResId= */ R.string.enable_price_tracking_menu_item,
-                /* supportsTinting= */ true,
-                /* iphCommandBuilder= */ null,
-                AdaptiveToolbarButtonVariant.PRICE_TRACKING,
-                /* tooltipTextResId= */ Resources.ID_NULL);
+                new ButtonSpec.Builder(
+                                AppCompatResources.getDrawable(
+                                        context, R.drawable.price_tracking_disabled),
+                                context.getString(R.string.enable_price_tracking_menu_item),
+                                /* supportsTinting= */ true)
+                        .setActionChipLabelResId(R.string.enable_price_tracking_menu_item)
+                        .setActionChipCollapseDelayMs(ACTION_CHIP_COLLAPSE_DELAY_MS)
+                        .setButtonVariant(AdaptiveToolbarButtonVariant.PRICE_TRACKING)
+                        .build());
         mSnackbarManager = snackbarManager;
         mTabBookmarkerSupplier = tabBookmarkerSupplier;
         mBottomSheetController = bottomSheetController;

@@ -69,19 +69,22 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.BrowsingDataLifetime.Duration.BrowserShutdownDeletion"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2027-04-16">
   <owner>ydago@chromium.org</owner>
   <owner>dullweber@chromium.org</owner>
   <component>1456716</component>
   <summary>
     The time that passed while performing a browsing data deletion using the
     ClearBrowsingDataOnExitList policy. The deletion will be for all time.
+
+    Warning: this histogram was expired from 2025-07-01 to 2026-04-15; data may
+    be missing.
   </summary>
 </histogram>
 
 <histogram
     name="History.BrowsingDataLifetime.Duration.Scheduled{DeletionType}Deletion"
-    units="ms" expires_after="2025-07-01">
+    units="ms" expires_after="2027-04-16">
   <owner>ydago@chromium.org</owner>
   <owner>dullweber@chromium.org</owner>
   <component>1456716</component>
@@ -89,6 +92,9 @@ chromium-metrics-reviews@google.com.
     The time that passed while performing a scheduled data deletion using the
     BrowsingDataSettings policy. The deletion will be for a specific hourly time
     range, the data types being deleted are {DeletionType}.
+
+    Warning: this histogram was expired from 2025-07-01 to 2026-04-15; data may
+    be missing.
   </summary>
   <token key="DeletionType">
     <variant name="Filterable" summary="filterable"/>
@@ -1793,20 +1799,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="History.Embeddings.DatabaseIterationSkippedMissizedEmbeddings"
-    units="rows" expires_after="2026-02-28">
-  <owner>orinj@chromium.org</owner>
-  <owner>manukh@chromium.org</owner>
-  <summary>
-    Number of database statement iteration rows skipped due to embeddings having
-    unexpected dimensions. If a row is skipped, only one counter is incremented
-    to reflect the reason; the check order is: passages, embeddings, mismatches.
-    Logged once for each full iteration, which happens when the database is
-    queried; this may include a time range or not, and may exhaust all rows or
-    stop early if a new query is initiated.
-  </summary>
-</histogram>
-
 <histogram name="History.Embeddings.DatabaseIterationSkippedPassages"
     units="rows" expires_after="2026-02-28">
   <owner>orinj@chromium.org</owner>
@@ -1939,7 +1931,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.Embeddings.Embedder.EmbeddingsGenerationSucceeded"
-    enum="Boolean" expires_after="2026-08-09">
+    enum="Boolean" expires_after="2026-10-11">
   <owner>sophiechang@chromium.org</owner>
   <owner>zekunjiang@google.com</owner>
   <summary>
@@ -2106,17 +2098,6 @@ chromium-metrics-reviews@google.com.
     total score including the word match boost, so it signals how helpful the
     boost from text search is in yielding results that would not have been
     included otherwise.
-  </summary>
-</histogram>
-
-<histogram name="History.Embeddings.LoadedMissizedEmbedding" enum="Boolean"
-    expires_after="2026-02-28">
-  <owner>orinj@chromium.org</owner>
-  <owner>sophiechang@chromium.org</owner>
-  <summary>
-    Whether any embeddings loaded from the SQL database are of the wrong size
-    (number of dimensions expected to be consistent). Logged each time
-    history_embeddings::SqlDatabase::GetUrlData completes.
   </summary>
 </histogram>
 
@@ -2689,7 +2670,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.MostVisitedTilesVisualDeduplication" units="tiles"
-    expires_after="2026-08-09">
+    expires_after="2026-10-11">
   <owner>hitarthkothari@google.com</owner>
   <owner>ckitagawa@chromium.org</owner>
   <summary>
@@ -3062,7 +3043,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="History.WeeklyURLCount" units="URLs"
-    expires_after="2026-08-09">
+    expires_after="2026-10-11">
   <owner>mpearson@chromium.org</owner>
   <owner>sky@chromium.org</owner>
   <component>1456716</component>

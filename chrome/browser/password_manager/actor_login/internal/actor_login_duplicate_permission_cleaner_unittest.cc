@@ -10,6 +10,7 @@
 #include "base/functional/callback_helpers.h"
 #include "base/run_loop.h"
 #include "base/test/gmock_callback_support.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
@@ -105,6 +106,7 @@ class ActorLoginDuplicatePermissionCleanerTest : public testing::Test {
 // the one corresponding to the matching federated credentials are preserved.
 TEST_F(ActorLoginDuplicatePermissionCleanerTest,
        KeepsExcludedPasswordPermissionAndItsFederatedMatchIfPasswordSaved) {
+  base::HistogramTester histogram_tester;
   const GURL kUrl("https://example.com/login");
   const url::Origin kOrigin = url::Origin::Create(kUrl);
   const std::u16string kExcludeUser = u"user1@gmail.com";
@@ -130,8 +132,8 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
 
   // Wait for store to add logins.
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return store()->stored_passwords().count(kSignonRealm) > 0 &&
-           store()->stored_passwords().at(kSignonRealm).size() == 2;
+    return GetAllLoginsSync(store()).count(kSignonRealm) > 0 &&
+           GetAllLoginsSync(store()).at(kSignonRealm).size() == 2;
   }));
 
   EXPECT_CALL(*permission_service(), ListPermissions(kOrigin, _))
@@ -173,7 +175,7 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
 
   // All updates are guaranteed to be finished here.
   EXPECT_THAT(
-      store()->stored_passwords().at(kSignonRealm),
+      GetAllLoginsSync(store()).at(kSignonRealm),
       UnorderedElementsAre(
           AllOf(Field(&password_manager::PasswordForm::username_value,
                       kExcludeUser),
@@ -183,6 +185,16 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
                       Not(kExcludeUser)),
                 Field(&password_manager::PasswordForm::actor_login_approved,
                       false))));
+
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.ActorLogin.DuplicatePermissionCleaner.Invocations", true,
+      1);
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.ActorLogin.DuplicatePermissionCleaner.PasswordsDeleted",
+      1, 1);
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.ActorLogin.DuplicatePermissionCleaner.FederatedDeleted",
+      1, 1);
 }
 
 // Tests that when a new permission is saved for a federated credential
@@ -218,8 +230,8 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
 
   // Wait for store to add login.
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return store()->stored_passwords().count(kSignonRealm) > 0 &&
-           store()->stored_passwords().count(kAffiliatedRealm) > 0;
+    return GetAllLoginsSync(store()).count(kSignonRealm) > 0 &&
+           GetAllLoginsSync(store()).count(kAffiliatedRealm) > 0;
   }));
 
   EXPECT_CALL(mock_affiliation_service(), GetAffiliationsAndBranding)
@@ -271,9 +283,9 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
 
   // All updates are guaranteed to be finished here.
   EXPECT_TRUE(
-      store()->stored_passwords().at(kSignonRealm)[0].actor_login_approved);
+      GetAllLoginsSync(store()).at(kSignonRealm)[0].actor_login_approved);
   EXPECT_FALSE(
-      store()->stored_passwords().at(kAffiliatedRealm)[0].actor_login_approved);
+      GetAllLoginsSync(store()).at(kAffiliatedRealm)[0].actor_login_approved);
 }
 
 // Tests that when a new permission is saved for a federated credential
@@ -298,9 +310,8 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
   store()->AddLogin(form1);
 
   // Wait for store to add login.
-  ASSERT_TRUE(base::test::RunUntil([&]() {
-    return store()->stored_passwords().count(kAffiliatedRealm) > 0;
-  }));
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return GetAllLoginsSync(store()).count(kAffiliatedRealm) > 0; }));
   EXPECT_CALL(mock_affiliation_service(), GetAffiliationsAndBranding)
       .WillOnce(base::test::RunOnceCallback<1>(
           affiliations::AffiliatedFacets{affiliations::Facet(
@@ -349,7 +360,7 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
 
   // All updates are guaranteed to be finished here.
   EXPECT_THAT(
-      store()->stored_passwords().at(kAffiliatedRealm),
+      GetAllLoginsSync(store()).at(kAffiliatedRealm),
       UnorderedElementsAre(AllOf(
           Field(&password_manager::PasswordForm::username_value, kExcludedUser),
           Field(&password_manager::PasswordForm::actor_login_approved, true))));
@@ -380,8 +391,8 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
   store()->AddLogin(form2);
 
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return store()->stored_passwords().count(kExcludedSignonRealm) > 0 &&
-           store()->stored_passwords().count(kOtherSignonRealm) > 0;
+    return GetAllLoginsSync(store()).count(kExcludedSignonRealm) > 0 &&
+           GetAllLoginsSync(store()).count(kOtherSignonRealm) > 0;
   }));
 
   EXPECT_CALL(mock_affiliation_service(), GetAffiliationsAndBranding)
@@ -406,14 +417,11 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
       credential, kExcludedSignonRealm, future.GetCallback());
   EXPECT_TRUE(future.Wait());
 
-  EXPECT_TRUE(store()
-                  ->stored_passwords()
+  EXPECT_TRUE(GetAllLoginsSync(store())
                   .at(kExcludedSignonRealm)[0]
                   .actor_login_approved);
-  EXPECT_FALSE(store()
-                   ->stored_passwords()
-                   .at(kOtherSignonRealm)[0]
-                   .actor_login_approved);
+  EXPECT_FALSE(
+      GetAllLoginsSync(store()).at(kOtherSignonRealm)[0].actor_login_approved);
 }
 
 TEST_F(ActorLoginDuplicatePermissionCleanerTest,
@@ -440,8 +448,8 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
 
   // Wait for store to add logins.
   ASSERT_TRUE(base::test::RunUntil([&]() {
-    return store()->stored_passwords().count("https://psl.example.com/") > 0 &&
-           store()->stored_passwords().count("https://grouped.com/") > 0;
+    return GetAllLoginsSync(store()).count("https://psl.example.com/") > 0 &&
+           GetAllLoginsSync(store()).count("https://grouped.com/") > 0;
   }));
 
   EXPECT_CALL(mock_affiliation_service(), GetGroupingInfo)
@@ -469,12 +477,10 @@ TEST_F(ActorLoginDuplicatePermissionCleanerTest,
   EXPECT_TRUE(future.Wait());
 
   // PSL and grouped matches should NOT be touched.
-  EXPECT_TRUE(store()
-                  ->stored_passwords()
+  EXPECT_TRUE(GetAllLoginsSync(store())
                   .at("https://psl.example.com/")[0]
                   .actor_login_approved);
-  EXPECT_TRUE(store()
-                  ->stored_passwords()
+  EXPECT_TRUE(GetAllLoginsSync(store())
                   .at("https://grouped.com/")[0]
                   .actor_login_approved);
 }

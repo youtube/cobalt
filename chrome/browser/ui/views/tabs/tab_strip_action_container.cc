@@ -14,6 +14,7 @@
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/actor/ui/actor_ui_metrics.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
+#include "chrome/browser/glic/browser_ui/glic_button_controller.h"
 #include "chrome/browser/glic/glic_profile_manager.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/host.h"
@@ -403,12 +404,13 @@ void TabStripActionContainer::OnTriggerAnchoredMessage(
                 glic::GlicKeyedService::Get(bwi->GetProfile())) {
           if (tabs::TabInterface* tab = bwi->GetActiveTabInterface()) {
             glic::GlicInvokeOptions options(
+                glic::Target(tab),
                 glic::mojom::InvocationSource::kAnchoredContextualCue);
             if (prompt.has_value()) {
               options.prompts.push_back(prompt.value());
             }
             glic_service->InvokeWithAutoSubmit(
-                glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(), tab,
+                glic::InvokeWithAutoSubmitPasskeyProvider::GetPassKey(),
                 std::move(options));
           }
         }
@@ -446,7 +448,13 @@ void TabStripActionContainer::OnHideGlicNudgeUI() {
 }
 
 bool TabStripActionContainer::GetIsShowingGlicNudge() {
-  return glic_button_ && glic_button_->GetIsShowingNudge();
+  return (glic_button_ && glic_button_->GetIsShowingNudge()) ||
+         !!anchored_message_subscription_;
+}
+
+void TabStripActionContainer::SetButtonController(
+    glic::GlicButtonController* controller) {
+  button_controller_ = controller;
 }
 
 void TabStripActionContainer::SetGlicShowState(bool show) {
@@ -637,10 +645,6 @@ TabStripActionContainer::CreateGlicButton() {
   std::unique_ptr<glic::TabStripGlicButton> glic_button =
       std::make_unique<glic::TabStripGlicButton>(
           browser_window_interface_,
-          base::BindRepeating(&TabStripActionContainer::OnGlicButtonClicked,
-                              base::Unretained(this)),
-          base::BindRepeating(&TabStripActionContainer::OnGlicButtonDismissed,
-                              base::Unretained(this)),
           base::BindRepeating(&TabStripActionContainer::OnGlicButtonHovered,
                               base::Unretained(this)),
           base::BindRepeating(&TabStripActionContainer::OnGlicButtonMouseDown,
@@ -648,7 +652,11 @@ TabStripActionContainer::CreateGlicButton() {
           base::BindRepeating(
               &TabStripActionContainer::OnGlicButtonAnimationEnded,
               base::Unretained(this)),
-          tooltip_text);
+          tooltip_text,
+          base::BindRepeating(&TabStripActionContainer::OnGlicButtonClicked,
+                              base::Unretained(this)),
+          base::BindRepeating(&TabStripActionContainer::OnGlicButtonDismissed,
+                              base::Unretained(this)));
 
   glic_button->SetProperty(views::kCrossAxisAlignmentKey,
                            views::LayoutAlignment::kCenter);
@@ -670,14 +678,21 @@ void TabStripActionContainer::OnGlicButtonClicked() {
     prompt_suggestion = glic_nudge_controller_->GetPromptSuggestion();
     glic_nudge_controller_->ClearPromptSuggestion();
   }
+
+  glic::mojom::InvocationSource source;
+  if (button_controller_) {
+    source = button_controller_->GetInvocationSource(
+        glic_button_->GetIsShowingNudge());
+  } else {
+    source = glic_button_->GetIsShowingNudge()
+                 ? glic::mojom::InvocationSource::kNudge
+                 : glic::mojom::InvocationSource::kTopChromeButton;
+  }
+
   glic::GlicKeyedServiceFactory::GetGlicKeyedService(
       browser_window_interface_->GetProfile())
       ->ToggleUI(browser_window_interface_,
-                 /*prevent_close=*/false,
-                 glic_button_->GetIsShowingNudge()
-                     ? glic::mojom::InvocationSource::kNudge
-                     : glic::mojom::InvocationSource::kTopChromeButton,
-                 prompt_suggestion);
+                 /*prevent_close=*/false, source, prompt_suggestion);
 
   if (glic_button_->GetIsShowingNudge()) {
     glic_nudge_controller_->OnNudgeActivity(

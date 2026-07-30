@@ -2,14 +2,6 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
-import("//build/buildflag_header.gni")
-import("//components/sharing_message/buildflags.gni")
-
-buildflag_header("buildflags") {
-  header = "buildflags.h"
-  flags = [ "ENABLE_DISCOVERY=$enable_discovery" ]
-}
-
 source_set("sharing") {
   sources = [
     "sharing_device_registration_impl.h",
@@ -48,6 +40,7 @@ source_set("impl") {
     ":sharing",
     "//chrome/browser/autofill",
     "//chrome/browser/gcm",
+    "//chrome/browser/glic",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/sharing/click_to_call",
     "//chrome/browser/sharing/one_time_tokens",
@@ -58,7 +51,6 @@ source_set("impl") {
     "//components/gcm_driver/crypto",
     "//components/optimization_guide/core:features",
     "//components/send_tab_to_self",
-    "//components/sharing_message:buildflags",
     "//components/sharing_message/ios_push",
     "//components/sync/base",
     "//components/sync/model",
@@ -71,6 +63,7 @@ source_set("impl") {
       "sharing_ui_controller.cc",
     ]
     deps += [
+      "//chrome/browser/sharing/glic_experimental_triggering",
       "//chrome/browser/sync:factories",
       "//chrome/browser/ui",
       "//components/send_tab_to_self:features",

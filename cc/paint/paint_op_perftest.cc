@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "base/compiler_specific.h"
+#include "base/containers/span.h"
 #include "base/test/launcher/unit_test_launcher.h"
 #include "base/test/test_suite.h"
 #include "base/timer/lap_timer.h"
@@ -48,7 +49,7 @@ class PaintOpPerfTest : public testing::Test {
     timer_.Reset();
     do {
       SimpleBufferSerializer serializer(
-          serialized_data_.get(), kMaxSerializedBufferBytes,
+          serialized_data_.data(), kMaxSerializedBufferBytes,
           test_options_provider.serialize_options());
       serializer.Serialize(buffer, nullptr, preamble);
       bytes_written = serializer.written();
@@ -68,23 +69,22 @@ class PaintOpPerfTest : public testing::Test {
     test_options_provider.PushFonts();
 
     do {
-      size_t remaining_read_bytes = bytes_written;
-      char* to_read = serialized_data_.get();
+      base::span<const uint8_t> remaining =
+          serialized_data_.as_span().first(bytes_written);
 
       while (true) {
         PaintOp* deserialized_op = PaintOp::Deserialize(
-            to_read, remaining_read_bytes, deserialized_data_,
-            kLargestPaintOpAlignedSize, &bytes_read,
-            test_options_provider.deserialize_options());
+            remaining, deserialized_data_, kLargestPaintOpAlignedSize,
+            &bytes_read, test_options_provider.deserialize_options());
         CHECK(deserialized_op);
         deserialized_op->DestroyThis();
 
-        DCHECK_GE(remaining_read_bytes, bytes_read);
-        if (remaining_read_bytes == bytes_read)
+        DCHECK_GE(remaining.size(), bytes_read);
+        if (remaining.size() == bytes_read) {
           break;
+        }
 
-        remaining_read_bytes -= bytes_read;
-        UNSAFE_TODO(to_read += bytes_read);
+        remaining = remaining.subspan(bytes_read);
       }
 
       timer_.NextLap();
@@ -97,9 +97,9 @@ class PaintOpPerfTest : public testing::Test {
 
  protected:
   base::LapTimer timer_;
-  std::unique_ptr<char, base::AlignedFreeDeleter> serialized_data_;
-  alignas(PaintOpBuffer::kPaintOpAlign) char deserialized_data_
-      [kLargestPaintOpAlignedSize];
+  base::AlignedHeapArray<uint8_t> serialized_data_;
+  alignas(PaintOpBuffer::kPaintOpAlign) uint8_t
+      deserialized_data_[kLargestPaintOpAlignedSize];
 };
 
 // Ops that can be memcopied both when serializing and deserializing.

@@ -4,6 +4,7 @@
 
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_page_handler.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -17,10 +18,11 @@
 #include "chrome/browser/sync/send_tab_to_self_sync_service_factory.h"
 #include "chrome/test/base/chrome_render_view_host_test_harness.h"
 #include "chrome/test/base/testing_profile.h"
+#include "components/keyed_service/core/keyed_service.h"
+#include "components/send_tab_to_self/fake_send_tab_to_self_model.h"
 #include "components/send_tab_to_self/features.h"
 #include "components/send_tab_to_self/send_tab_to_self_model.h"
 #include "components/send_tab_to_self/send_tab_to_self_sync_service.h"
-#include "components/send_tab_to_self/test_send_tab_to_self_model.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/web_contents.h"
@@ -49,8 +51,7 @@ using testing::Return;
 MATCHER(IsValidNavigationHistory, "") {
   return !arg.navigations.empty() && arg.current_navigation_index.has_value() &&
          *arg.current_navigation_index >= 0 &&
-         *arg.current_navigation_index <
-             static_cast<int>(arg.navigations.size());
+         *arg.current_navigation_index < std::ssize(arg.navigations);
 }
 
 class MockTextFragmentReceiver : public blink::mojom::TextFragmentReceiver {
@@ -121,36 +122,17 @@ class MockTextFragmentReceiver : public blink::mojom::TextFragmentReceiver {
   base::OnceClosure on_request_selector_called_;
 };
 
-class MockSendTabToSelfModel : public TestSendTabToSelfModel {
+class StubSendTabToSelfSyncService : public SendTabToSelfSyncService {
  public:
-  MockSendTabToSelfModel() = default;
-  ~MockSendTabToSelfModel() override = default;
-
-  MOCK_METHOD(const SendTabToSelfEntry*,
-              AddEntry,
-              (const GURL&,
-               const std::string&,
-               const std::string&,
-               const PageContext&,
-               NavigationHistory),
-              (override));
-  bool IsReady() override { return is_ready_; }
-  void set_is_ready(bool is_ready) { is_ready_ = is_ready; }
-
- private:
-  bool is_ready_ = true;
-};
-
-class TestSendTabToSelfSyncService : public SendTabToSelfSyncService {
- public:
-  explicit TestSendTabToSelfSyncService(SendTabToSelfModel* model)
+  explicit StubSendTabToSelfSyncService(FakeSendTabToSelfModel* model)
       : model_(model) {}
-  ~TestSendTabToSelfSyncService() override = default;
+  ~StubSendTabToSelfSyncService() override = default;
 
   SendTabToSelfModel* GetSendTabToSelfModel() override { return model_; }
+  FakeSendTabToSelfModel* GetModelFake() { return model_; }
 
  private:
-  raw_ptr<SendTabToSelfModel> model_;
+  raw_ptr<FakeSendTabToSelfModel> model_;
 };
 
 class SendTabToSelfPageHandlerTest : public ChromeRenderViewHostTestHarness {
@@ -174,7 +156,7 @@ class SendTabToSelfPageHandlerTest : public ChromeRenderViewHostTestHarness {
         profile(),
         base::BindLambdaForTesting([this](content::BrowserContext* context) {
           return std::unique_ptr<KeyedService>(
-              std::make_unique<TestSendTabToSelfSyncService>(&model_));
+              std::make_unique<StubSendTabToSelfSyncService>(&model_));
         }));
 
     NavigateAndCommit(GURL(kExampleUrl));
@@ -202,10 +184,12 @@ class SendTabToSelfPageHandlerTest : public ChromeRenderViewHostTestHarness {
     ChromeRenderViewHostTestHarness::TearDown();
   }
 
+  FakeSendTabToSelfModel* model() { return &model_; }
+
  protected:
   ScopedFeatureList scoped_feature_list_;
-  MockSendTabToSelfModel model_;
   MockTextFragmentReceiver mock_receiver_;
+  FakeSendTabToSelfModel model_;
 
  private:
   base::WeakPtrFactory<SendTabToSelfPageHandlerTest> weak_ptr_factory_{this};
@@ -223,14 +207,8 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Prepare the model to capture the finalized entry once the generation
   // process completes.
-  TestFuture<PageContext> future;
-  EXPECT_CALL(model_, AddEntry(Eq(url), Eq(title), Eq(device_id), _, _))
-      .WillOnce([&future](const GURL&, const std::string&, const std::string&,
-                          const PageContext& context,
-                          NavigationHistory navigation_history) {
-        future.SetValue(context);
-        return nullptr;
-      });
+  TestFuture<const SendTabToSelfEntry*> future;
+  model()->SetAddEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action. This will trigger an asynchronous
   // Mojo call to the renderer to generate the scroll position context.
@@ -243,7 +221,9 @@ TEST_F(SendTabToSelfPageHandlerTest,
   mock_receiver_.RespondToSelectorRequest("text");
 
   // Verify the model received the entry with the generated text fragment.
-  EXPECT_EQ("text", future.Get().scroll_position.text_fragment.text_start);
+  EXPECT_EQ(
+      "text",
+      future.Get()->GetPageContext().scroll_position.text_fragment.text_start);
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
@@ -257,14 +237,8 @@ TEST_F(SendTabToSelfPageHandlerTest,
   handler->SetSelectorGenerationTimeoutForTesting(base::Milliseconds(200));
 
   // Prepare the model to capture the entry when the handler falls back.
-  TestFuture<PageContext> future;
-  EXPECT_CALL(model_, AddEntry(Eq(url), Eq(title), Eq(device_id), _, _))
-      .WillOnce([&future](const GURL&, const std::string&, const std::string&,
-                          const PageContext& context,
-                          NavigationHistory navigation_history) {
-        future.SetValue(context);
-        return nullptr;
-      });
+  TestFuture<const SendTabToSelfEntry*> future;
+  model()->SetAddEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
   handler->SendTabToDevice(device_id, url, title);
@@ -278,10 +252,9 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Verify the handler didn't wait indefinitely and proceeded to send the
   // tab without the scroll position context.
-  EXPECT_TRUE(future.Get().scroll_position.text_fragment.text_start.empty());
-
-  // Clean up the pending callback to avoid DCHECKs on destruction.
-  mock_receiver_.RespondToSelectorRequest("");
+  EXPECT_TRUE(future.Get()
+                  ->GetPageContext()
+                  .scroll_position.text_fragment.text_start.empty());
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
@@ -295,14 +268,8 @@ TEST_F(SendTabToSelfPageHandlerTest,
   handler->SetSelectorGenerationTimeoutForTesting(base::Milliseconds(200));
 
   // Prepare the model to capture the finalized entry.
-  TestFuture<PageContext> future;
-  EXPECT_CALL(model_, AddEntry(Eq(url), Eq(title), Eq(device_id), _, _))
-      .WillOnce([&future](const GURL&, const std::string&, const std::string&,
-                          const PageContext& context,
-                          NavigationHistory navigation_history) {
-        future.SetValue(context);
-        return nullptr;
-      });
+  TestFuture<const SendTabToSelfEntry*> future;
+  model()->SetAddEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
   handler->SendTabToDevice(device_id, url, title);
@@ -316,7 +283,9 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Verify the model received the entry but without the scroll position
   // context since generation failed.
-  EXPECT_TRUE(future.Get().scroll_position.text_fragment.text_start.empty());
+  EXPECT_TRUE(future.Get()
+                  ->GetPageContext()
+                  .scroll_position.text_fragment.text_start.empty());
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
@@ -330,14 +299,8 @@ TEST_F(SendTabToSelfPageHandlerTest,
   handler->SetSelectorGenerationTimeoutForTesting(base::Milliseconds(200));
 
   // Prepare the model to capture the entry when the fallback is triggered.
-  TestFuture<PageContext> future;
-  EXPECT_CALL(model_, AddEntry(Eq(url), Eq(title), Eq(device_id), _, _))
-      .WillOnce([&future](const GURL&, const std::string&, const std::string&,
-                          const PageContext& context,
-                          NavigationHistory navigation_history) {
-        future.SetValue(context);
-        return nullptr;
-      });
+  TestFuture<const SendTabToSelfEntry*> future;
+  model()->SetAddEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
   handler->SendTabToDevice(device_id, url, title);
@@ -351,7 +314,9 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Verify the model received the entry but without the scroll position
   // context since generation was safely aborted by the navigation.
-  EXPECT_TRUE(future.Get().scroll_position.text_fragment.text_start.empty());
+  EXPECT_TRUE(future.Get()
+                  ->GetPageContext()
+                  .scroll_position.text_fragment.text_start.empty());
 
   // Clean up the captured callback.
   mock_receiver_.RespondToSelectorRequest("");
@@ -369,14 +334,8 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Prepare the model to capture the entry when the fallback is triggered by
   // the tab closure.
-  TestFuture<PageContext> future;
-  EXPECT_CALL(model_, AddEntry(Eq(url), Eq(title), Eq(device_id), _, _))
-      .WillOnce([&future](const GURL&, const std::string&, const std::string&,
-                          const PageContext& context,
-                          NavigationHistory navigation_history) {
-        future.SetValue(context);
-        return nullptr;
-      });
+  TestFuture<const SendTabToSelfEntry*> future;
+  model()->SetAddEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action.
   handler->SendTabToDevice(device_id, url, title);
@@ -389,7 +348,9 @@ TEST_F(SendTabToSelfPageHandlerTest,
 
   // Verify the model received the entry but without the scroll position
   // context since generation was safely aborted by the tab closure.
-  EXPECT_TRUE(future.Get().scroll_position.text_fragment.text_start.empty());
+  EXPECT_TRUE(future.Get()
+                  ->GetPageContext()
+                  .scroll_position.text_fragment.text_start.empty());
 
   // Clean up the captured callback.
   mock_receiver_.RespondToSelectorRequest("");
@@ -413,11 +374,12 @@ TEST_F(SendTabToSelfPageHandlerWithNavigationHistoryTest,
   const std::string device_id = "device_id";
 
   // Navigation history should have at least the current page.
-  EXPECT_CALL(model_, AddEntry(Eq(url), Eq(title), Eq(device_id), _,
-                               IsValidNavigationHistory()))
-      .WillOnce(testing::Return(nullptr));
+  TestFuture<const SendTabToSelfEntry*> future;
+  model()->SetAddEntryCallback(future.GetRepeatingCallback());
 
   handler->SendTabToDevice(device_id, url, title);
+
+  EXPECT_THAT(future.Get()->GetNavigationHistory(), IsValidNavigationHistory());
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
@@ -431,15 +393,15 @@ TEST_F(SendTabToSelfPageHandlerTest,
   handler->SetSelectorGenerationTimeoutForTesting(base::Milliseconds(200));
 
   // Simulate the model not being ready (e.g. Sync paused or disabled).
-  model_.set_is_ready(false);
+  model()->SetIsReady(false);
 
   // Initiate the send to device action, providing a result callback.
-  TestFuture<SendTabToSelfResult> future;
-  handler->SendTabToDevice(device_id, url, title, future.GetCallback());
+  TestFuture<SendTabToSelfResult> result_future;
+  handler->SendTabToDevice(device_id, url, title, result_future.GetCallback());
 
-  // Verify the callback is invoked immediately with kFailure, bypassing the
-  // entire generation flow.
-  EXPECT_EQ(SendTabToSelfResult::kFailure, future.Get());
+  // Verify the callback is invoked immediately with kFailureModelNotReady,
+  // bypassing the entire generation flow.
+  EXPECT_EQ(SendTabToSelfResult::kFailureModelNotReady, result_future.Get());
 }
 
 TEST_F(SendTabToSelfPageHandlerTest, ShouldInvokeCallbackOnSuccess) {
@@ -451,11 +413,12 @@ TEST_F(SendTabToSelfPageHandlerTest, ShouldInvokeCallbackOnSuccess) {
       SendTabToSelfPageHandler::GetOrCreateForWebContents(web_contents());
 
   // Prepare the model to accept the entry.
-  EXPECT_CALL(model_, AddEntry(Eq(url), Eq(title), Eq(device_id), _, _));
+  TestFuture<const SendTabToSelfEntry*> future;
+  model()->SetAddEntryCallback(future.GetRepeatingCallback());
 
   // Initiate the send to device action, providing a result callback.
-  TestFuture<SendTabToSelfResult> future;
-  handler->SendTabToDevice(device_id, url, title, future.GetCallback());
+  TestFuture<SendTabToSelfResult> result_future;
+  handler->SendTabToDevice(device_id, url, title, result_future.GetCallback());
 
   // Fast-forward to skip selector generation (since it's not the focus of
   // this test).
@@ -463,7 +426,7 @@ TEST_F(SendTabToSelfPageHandlerTest, ShouldInvokeCallbackOnSuccess) {
   mock_receiver_.RespondToSelectorRequest("");
 
   // Verify the callback is invoked with kSuccess.
-  EXPECT_EQ(SendTabToSelfResult::kSuccess, future.Get());
+  EXPECT_EQ(SendTabToSelfResult::kSuccess, result_future.Get());
 }
 
 TEST_F(SendTabToSelfPageHandlerTest,
@@ -477,14 +440,8 @@ TEST_F(SendTabToSelfPageHandlerTest,
       SendTabToSelfPageHandler::GetOrCreateForWebContents(web_contents());
 
   // Prepare the model to capture the entry.
-  TestFuture<PageContext> future;
-  EXPECT_CALL(model_, AddEntry(Eq(link_url), Eq(title), Eq(device_id), _, _))
-      .WillOnce([&future](const GURL&, const std::string&, const std::string&,
-                          const PageContext& context,
-                          NavigationHistory navigation_history) {
-        future.SetValue(context);
-        return nullptr;
-      });
+  TestFuture<const SendTabToSelfEntry*> future;
+  model()->SetAddEntryCallback(future.GetRepeatingCallback());
 
   // We don't expect any Mojo calls to the renderer since this is link sharing.
   EXPECT_CALL(mock_receiver_, RequestSelector(_)).Times(0);
@@ -494,8 +451,10 @@ TEST_F(SendTabToSelfPageHandlerTest,
   handler->SendTabToDevice(device_id, link_url, title);
 
   // Verify the model received the entry but without any context.
-  EXPECT_TRUE(future.Get().scroll_position.text_fragment.text_start.empty());
-  EXPECT_TRUE(future.Get().form_field_info.fields.empty());
+  EXPECT_TRUE(future.Get()
+                  ->GetPageContext()
+                  .scroll_position.text_fragment.text_start.empty());
+  EXPECT_TRUE(future.Get()->GetPageContext().form_field_info.fields.empty());
 }
 
 }  // namespace

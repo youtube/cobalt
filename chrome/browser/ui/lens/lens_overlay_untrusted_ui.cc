@@ -310,8 +310,8 @@ LensOverlayUntrustedUI::LensOverlayUntrustedUI(content::WebUI* web_ui)
   html_source->AddResourcePaths(kLensSharedResources);
 
   // Add required resources for the searchbox.
-  html_source->AddLocalizedStrings(
-      SearchboxHandler::GetWebUIDataSourceDict(Profile::FromWebUI(web_ui)));
+  html_source->AddLocalizedStrings(SearchboxHandler::GetWebUIDataSourceDict(
+      Profile::FromWebUI(web_ui), {.is_lens = true}));
   html_source->AddString(
       "searchboxDefaultIcon",
       lens::features::GetVisualSelectionUpdatesEnableGradientSuperG()

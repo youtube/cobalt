@@ -80,6 +80,7 @@
 #include "ui/base/ozone_buildflags.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/geometry/point.h"
+#include "ui/views/test/views_test_utils.h"
 #include "url/url_constants.h"
 
 #if defined(USE_AURA)
@@ -162,8 +163,6 @@ class BrowserViewTest : public InProcessBrowserTest {
 
 #if BUILDFLAG(IS_CHROMEOS)
 using BrowserViewChromeOSTest = ChromeOSBrowserUITest;
-using BrowserViewChromeOSTestNoWebUiTabStrip =
-    WebUiTabStripOverrideTest<false, BrowserViewChromeOSTest>;
 #endif
 
 namespace {
@@ -307,31 +306,37 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsDockedUpdatesBrowserWindow) {
   gfx::Rect small_bounds(10, 20, 30, 40);
 
   browser_view()->UpdateDevTools(active_web_contents());
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 
   // Docked.
   OpenDevToolsWindow(true);
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
 
   SetDevToolsBounds(small_bounds);
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
   browser_view()->UpdateDevTools(active_web_contents());
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
   CloseDevToolsWindow();
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 
   browser_view()->UpdateDevTools(active_web_contents());
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(full_bounds, contents_web_view()->bounds());
@@ -351,25 +356,30 @@ IN_PROC_BROWSER_TEST_F(BrowserViewTest, DevToolsUndockedUpdatesBrowserWindow) {
   gfx::Rect small_bounds(10, 20, 30, 40);
 
   OpenDevToolsWindow(false);
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
 
   SetDevToolsBounds(small_bounds);
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
   browser_view()->UpdateDevTools(active_web_contents());
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_TRUE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(small_bounds, contents_web_view()->bounds());
 
   CloseDevToolsWindow();
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(full_bounds, contents_web_view()->bounds());
 
   browser_view()->UpdateDevTools(active_web_contents());
+  views::test::RunScheduledLayout(browser_view());
   EXPECT_FALSE(devtools_web_view()->web_contents());
   EXPECT_EQ(full_bounds, devtools_web_view()->bounds());
   EXPECT_EQ(full_bounds, contents_web_view()->bounds());
@@ -1138,8 +1148,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewDataProtectionTest, DC_Screenshot) {
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_CHROMEOS)
-IN_PROC_BROWSER_TEST_F(BrowserViewChromeOSTestNoWebUiTabStrip,
-                       EnsureViewTreeOrder) {
+IN_PROC_BROWSER_TEST_F(BrowserViewChromeOSTest, EnsureViewTreeOrder) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   auto* const immersive_mode_controller =
       ImmersiveModeController::From(browser());
@@ -1184,7 +1193,7 @@ IN_PROC_BROWSER_TEST_F(BrowserViewChromeOSTestNoWebUiTabStrip,
   EXPECT_EQ(children_before, children_after);
 }
 
-IN_PROC_BROWSER_TEST_F(BrowserViewChromeOSTestNoWebUiTabStrip,
+IN_PROC_BROWSER_TEST_F(BrowserViewChromeOSTest,
                        TabStripParentedToTopContainer) {
   BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser());
   EXPECT_EQ(browser_view->tab_strip_view()->parent(), browser_view);

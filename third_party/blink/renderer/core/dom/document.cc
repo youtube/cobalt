@@ -290,7 +290,6 @@
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_view.h"
 #include "third_party/blink/renderer/core/layout/pagination_utils.h"
-#include "third_party/blink/renderer/core/layout/text_autosizer.h"
 #include "third_party/blink/renderer/core/lcp_critical_path_predictor/lcp_critical_path_predictor.h"
 #include "third_party/blink/renderer/core/loader/anchor_element_interaction_tracker.h"
 #include "third_party/blink/renderer/core/loader/cookie_jar.h"
@@ -3239,11 +3238,6 @@ void Document::Initialize() {
   AttachContext context;
   AttachLayoutTree(context);
 
-  // The TextAutosizer can't update layout view info while the Document is
-  // detached, so update now in case anything changed.
-  if (TextAutosizer* autosizer = GetTextAutosizer())
-    autosizer->UpdatePageInfo();
-
   GetFrame()->DidAttachDocument();
   lifecycle_.AdvanceTo(DocumentLifecycle::kStyleClean);
 
@@ -4094,6 +4088,13 @@ void Document::setBody(HTMLElement* prp_new_body,
 }
 
 void Document::WillInsertBody() {
+  if (RuntimeEnabledFeatures::ResponsiveIframesEnabled() && GetFrame() &&
+      GetFrame()->Tree().Parent() && !responsive_embedded_sizing_) {
+    if (FrameOwner* owner = GetFrame()->Owner()) {
+      owner->ClearLastNaturalSizingInfo();
+    }
+  }
+
   if (Loader())
     fetcher_->LoosenLoadThrottlingPolicy();
 
@@ -8290,8 +8291,7 @@ void Document::SetTextScaleMetaTagPresent(bool present) {
       // No matter if the page just added or just removed meta,
       // SetTextZoomFactor will do the right thing if we give it the original
       // font scale factor here.
-      if (settings->GetScaleAllFontsIfNoMetaTextScaleTag() &&
-          !settings->GetTextAutosizingEnabled()) {
+      if (settings->GetScaleAllFontsIfNoMetaTextScaleTag()) {
         frame->SetTextZoomFactor(settings->GetAccessibilityFontScaleFactor());
       }
     }
@@ -9067,12 +9067,6 @@ float Document::DevicePixelRatio() const {
   return GetFrame() ? GetFrame()->DevicePixelRatio() : 1.0;
 }
 
-TextAutosizer* Document::GetTextAutosizer() {
-  if (!text_autosizer_)
-    text_autosizer_ = MakeGarbageCollected<TextAutosizer>(this);
-  return text_autosizer_.Get();
-}
-
 bool Document::SetPseudoStateForTesting(Element& element,
                                         const String& pseudo,
                                         bool matches) {
@@ -9461,6 +9455,7 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(top_layer_elements_pending_removal_);
   visitor->Trace(popover_auto_stack_);
   visitor->Trace(popover_hint_stack_);
+  visitor->Trace(popover_hint_stack_parent_);
   visitor->Trace(popover_pointerdown_target_);
   visitor->Trace(dialog_pointerdown_target_);
   visitor->Trace(popover_picker_pointerdown_info_);
@@ -9487,7 +9482,6 @@ void Document::Trace(Visitor* visitor) const {
   visitor->Trace(document_timing_);
   visitor->Trace(media_query_matcher_);
   visitor->Trace(scripted_animation_controller_);
-  visitor->Trace(text_autosizer_);
   visitor->Trace(element_data_cache_clear_timer_);
   visitor->Trace(element_data_cache_);
   visitor->Trace(use_elements_needing_update_);
@@ -9551,7 +9545,8 @@ bool Document::IsSlotAssignmentDirty() const {
          slot_assignment_engine_->HasPendingSlotAssignmentRecalc();
 }
 
-bool Document::IsFocusAllowed(FocusTrigger trigger) const {
+bool Document::IsFocusAllowed(FocusTrigger trigger,
+                              const LocalFrame& initiator_frame) const {
   LocalFrame* frame = GetFrame();
   if (!frame || frame->IsMainFrame() ||
       LocalFrame::HasTransientUserActivation(frame)) {
@@ -9578,12 +9573,49 @@ bool Document::IsFocusAllowed(FocusTrigger trigger) const {
            : WebFeature::kFocusWithoutUserActivationNotSandboxedNotAdFrame;
   }
   CountUse(uma_type);
-  if (!RuntimeEnabledFeatures::BlockingFocusWithoutUserActivationEnabled())
+
+  // All logic below is part of the BlockingFocusWithoutUserActivation feature.
+  if (!RuntimeEnabledFeatures::BlockingFocusWithoutUserActivationEnabled(
+          GetExecutionContext())) {
     return true;
-  return trigger == FocusTrigger::kUserGesture ||
-         GetExecutionContext()->IsFeatureEnabled(
-             network::mojom::PermissionsPolicyFeature::
-                 kFocusWithoutUserActivation);
+  }
+
+  if (trigger == FocusTrigger::kUserGesture) {
+    return true;
+  }
+
+  // Check the focus setter's permissions policy to see if it allows focus
+  // without user activation.
+  const ExecutionContext* initiator_context = initiator_frame.DomWindow();
+  if (initiator_context && initiator_context->IsFeatureEnabled(
+                               network::mojom::PermissionsPolicyFeature::
+                                   kFocusWithoutUserActivation)) {
+    CountUse(WebFeature::kFocusWithoutUserActivationAllowedByPolicy);
+    return true;
+  }
+
+  // Allow focus if the currently focused frame is an inclusive descendant of
+  // the focus setter's frame. This means the setter (or one of its children)
+  // already has focus, so moving focus within is not stealing it from a parent.
+  // `initiator_frame` is the frame whose script (or internal API) initiated the
+  // focus call. See Element::Focus() and DOMWindow::focus().
+  // See https://github.com/whatwg/html/issues/11839
+  if (Page* page = frame->GetPage()) {
+    Frame* focused_frame =
+        page->GetFocusController().FocusedFrameIncludingRemote();
+    if (focused_frame && focused_frame->IsDescendantOf(&initiator_frame)) {
+      CountUse(WebFeature::kFocusWithoutUserActivationAllowedByDescendant);
+      return true;
+    }
+  }
+
+  AddConsoleMessage(MakeGarbageCollected<ConsoleMessage>(
+      ConsoleMessage::Source::kOther, ConsoleMessage::Level::kWarning,
+      "Blocked focus call from a frame because its "
+      "'focus-without-user-activation' permissions policy is denied."));
+
+  CountUse(WebFeature::kFocusWithoutUserActivationBlocked);
+  return false;
 }
 
 LazyLoadMediaObserver& Document::EnsureLazyLoadMediaObserver() {

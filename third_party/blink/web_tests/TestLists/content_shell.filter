@@ -20,7 +20,6 @@ virtual/task-tracking/wpt_internal/*
 virtual/fenced-frame-mparch-internal/wpt_internal/*
 virtual/js-shared-memory/wpt_internal/*
 virtual/text-size-adjust/wpt_internal/*
-virtual/text-size-adjust-with-os-font-scale/wpt_internal/*
 virtual/generic-sensor-extra-classes/wpt_internal/*
 virtual/unload-allowed/wpt_internal/*
 virtual/indexeddb_sqlite/wpt_internal/*
@@ -37,7 +36,6 @@ external/wpt/background-fetch/fetch-uploads.https.window.html
 external/wpt/background-fetch/match.https.window.html
 external/wpt/background-fetch/update-ui.https.window.html
 external/wpt/client-hints/viewport-size/viewport-size-window-different-dimensions.https.html
-external/wpt/clipboard-apis/async-navigator-clipboard-write-multiple.tentative.https.sub.html
 external/wpt/compat/webkit-box-clamp-bottom-border.html
 external/wpt/compat/webkit-box-horizontal-rtl-variants.html
 external/wpt/compat/webkit-box-rtl-flex.html
@@ -83,7 +81,6 @@ external/wpt/css/CSS2/borders/border-color-applies-to-012.xht
 external/wpt/css/CSS2/borders/border-width-applies-to-012.xht
 external/wpt/css/CSS2/floats-clear/floats-142.xht
 external/wpt/css/CSS2/floats-clear/floats-143.xht
-external/wpt/css/CSS2/floats/float-nowrap-*
 external/wpt/css/CSS2/linebox/empty-inline-003.xht
 external/wpt/css/CSS2/linebox/inline-formatting-context-003.xht
 external/wpt/css/CSS2/linebox/inline-formatting-context-004.xht

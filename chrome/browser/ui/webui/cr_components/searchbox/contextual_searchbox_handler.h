@@ -281,6 +281,8 @@ class ContextualSearchboxHandler
 
   virtual void InitializeInputStateModel();
 
+  void UpdateTabListObservation(TabListInterface* tab_list);
+
   std::unique_ptr<contextual_search::InputStateModel> input_state_model_;
 
   void OnInputStateChanged(const contextual_search::InputState& state);
@@ -311,6 +313,11 @@ class ContextualSearchboxHandler
       WindowOpenDisposition disposition,
       omnibox::ChromeAimEntryPoint aim_entry_point,
       std::map<std::string, std::string> additional_params,
+      std::vector<base::WeakPtr<content::WebContents>> relevant_tabs);
+
+  // Callback invoked when relevant tabs are determined for the query to inform
+  // if the smart tab sharing promo should be shown to the user.
+  void OnRelevantTabsReceivedToMaybeShowPromo(
       std::vector<base::WeakPtr<content::WebContents>> relevant_tabs);
 
   std::optional<base::Uuid> GetTaskId();

@@ -1160,18 +1160,7 @@ suite('NewTabPageAppTest', () => {
                     true));
           });
 
-      test('compose entrypoint navigates with correct parameters', async () => {
-        // Arrange.
-        loadTimeData.overrideValues({
-          googleBaseUrl: 'https://www.google.com',
-        });
-        const openResolver = new PromiseResolver<string>();
-        const originalOpen = window.open;
-        window.open = (url) => {
-          openResolver.resolve(url as string);
-          return null;
-        };
-
+      test('compose entrypoint calls submitQuery', () => {
         const searchboxContainer =
             app.shadowRoot.querySelector('ntp-searchbox');
         const composeButton = getComposeButton();
@@ -1185,15 +1174,10 @@ suite('NewTabPageAppTest', () => {
             'compose-click', DEFAULT_COMPOSE_CLICK_EVENT_OPTIONS));
 
         // Assert.
-        const url = new URL(await openResolver.promise);
-        assertEquals('chrome', url.searchParams.get('sourceid'));
-        assertEquals('50', url.searchParams.get('udm'));
-        assertEquals('42', url.searchParams.get('aep'));
-        assertEquals('chrome.crn.rb', url.searchParams.get('source'));
-        assertEquals('hello', url.searchParams.get('q'));
-
-        // Cleanup.
-        window.open = originalOpen;
+        assertEquals(1, searchboxHandler.getCallCount('notifySessionStarted'));
+        assertEquals(1, searchboxHandler.getCallCount('submitQuery'));
+        const args = searchboxHandler.getArgs('submitQuery')[0];
+        assertEquals('hello', args[0]);  // query
       });
     });
 
@@ -2211,6 +2195,7 @@ suite('NewTabPageAppTest', () => {
         ntpRealboxNextEnabled: true,
         actionChipsEnabled: true,
         addTabUploadDelayOnActionChipClick: true,
+        ntpNextDisablementEnabled: true,
       });
       const actionChipsCallbackRouter = new ActionChipsPageCallbackRouter();
       const actionChipshandler = installMock(
@@ -2265,28 +2250,31 @@ suite('NewTabPageAppTest', () => {
 
     // Testing Action Chips visibility on initial flag load values.
     [true, false].forEach(
-        (actionChipsEnabled) => [true, false].forEach(
-            (ntpNextFeaturesEnabled) => suite(
-                'Action Chips settings rendered with actionChipsEnabled: ' +
-                    actionChipsEnabled +
-                    ' and ntpNextFeaturesEnabled: ' + ntpNextFeaturesEnabled,
-                () => {
-                  // Arrange.
-                  const expectedVisibility =
-                      ntpNextFeaturesEnabled && actionChipsEnabled;
-                  suiteSetup(() => {
-                    loadTimeData.overrideValues({
-                      ntpNextFeaturesEnabled,
-                      actionChipsEnabled,
-                    });
-                  });
+        (ntpNextDisablementEnabled) => [true, false].forEach(
+            (actionChipsEnabled) => [true, false].forEach(
+                (ntpNextFeaturesEnabled) => suite(
+                    'Action Chips settings rendered with actionChipsEnabled: ' +
+                        actionChipsEnabled + ' and ntpNextFeaturesEnabled: ' +
+                        ntpNextFeaturesEnabled +
+                        ' and ntpNextDisablementEnabled: ' +
+                        ntpNextDisablementEnabled,
+                    () => {
+                      suiteSetup(() => {
+                        loadTimeData.overrideValues({
+                          ntpNextFeaturesEnabled,
+                          actionChipsEnabled,
+                          ntpNextDisablementEnabled,
+                        });
+                      });
 
-                  // Assert.
-                  test('Show iframe when appropriate', () => {
-                    const chips = $$<HTMLElement>(app, 'ntp-action-chips');
-                    assertEquals(!!chips, expectedVisibility);
-                  });
-                })));
+                      // Assert.
+                      test('Show action chips when appropriate', () => {
+                        const expectedVisibility = ntpNextFeaturesEnabled &&
+                            (!ntpNextDisablementEnabled || actionChipsEnabled);
+                        const chips = $$<HTMLElement>(app, 'ntp-action-chips');
+                        assertEquals(!!chips, expectedVisibility);
+                      });
+                    }))));
 
     // Testing Action Chips visibility on changing visibility prefs.
     [true, false].forEach(
@@ -2301,7 +2289,7 @@ suite('NewTabPageAppTest', () => {
               await microtasksFinished();
 
               // Assert.
-              const chips = $$(app, 'ntp-action-chips')!;
+              const chips = $$(app, 'ntp-action-chips');
               assertEquals(!!chips, isActionChipsVisible);
             }));
 

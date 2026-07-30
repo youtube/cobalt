@@ -5,8 +5,8 @@
 #import "ios/chrome/browser/settings/autofill/autofill_and_passwords/utils/autofill_and_passwords_item_utils.h"
 
 #import "components/strings/grit/components_strings.h"
-#import "ios/chrome/browser/settings/ui_bundled/settings_root_table_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_table_view_controller_constants.h"
+#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/table_view/cells/table_view_detail_icon_item.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
@@ -27,7 +27,6 @@ TableViewDetailIconItem* DetailItemWithType(
     NSString* text,
     NSString* detail_text,
     UIImage* symbol,
-    UIColor* background_color,
     NSString* accessibility_identifier) {
   TableViewDetailIconItem* detail_item =
       [[TableViewDetailIconItem alloc] initWithType:type];
@@ -37,8 +36,10 @@ TableViewDetailIconItem* DetailItemWithType(
   detail_item.accessibilityTraits |= UIAccessibilityTraitButton;
   detail_item.accessibilityIdentifier = accessibility_identifier;
   detail_item.iconImage = symbol;
-  if (background_color) {
-    detail_item.iconBackgroundColor = background_color;
+  if (IsYourSavedInfoSettingsPageIosEnabled()) {
+    detail_item.iconTintColor = [UIColor colorNamed:kTextPrimaryColor];
+  } else {
+    detail_item.iconBackgroundColor = [UIColor colorNamed:kYellow500Color];
     detail_item.iconTintColor = UIColor.whiteColor;
   }
   return detail_item;
@@ -65,24 +66,29 @@ TableViewDetailIconItem* PasswordsItem(BOOL enabled) {
   return DetailItemWithType(SettingsItemTypePasswords, passwordsSectionTitle,
                             PasswordsItemDetailText(enabled),
                             CustomSettingsRootSymbol(kPasswordSymbol),
-                            [UIColor colorNamed:kYellow500Color],
                             kSettingsPasswordsCellId);
 }
 
 TableViewDetailIconItem* AutofillCreditCardItem(BOOL enabled) {
-  return DetailItemWithType(
-      SettingsItemTypeAutofillCreditCard,
-      l10n_util::GetNSString(IDS_AUTOFILL_PAYMENT_METHODS),
-      AutofillCreditCardItemDetailText(enabled),
-      DefaultSettingsRootSymbol(kCreditCardSymbol),
-      [UIColor colorNamed:kYellow500Color], kSettingsPaymentMethodsCellId);
+  NSString* title = l10n_util::GetNSString(
+      IsYourSavedInfoSettingsPageIosEnabled() ? IDS_AUTOFILL_PAYMENTS_TITLE
+                                              : IDS_AUTOFILL_PAYMENT_METHODS);
+
+  return DetailItemWithType(SettingsItemTypeAutofillCreditCard, title,
+                            AutofillCreditCardItemDetailText(enabled),
+                            DefaultSettingsRootSymbol(kCreditCardSymbol),
+                            kSettingsPaymentMethodsCellId);
 }
 
 TableViewDetailIconItem* AutofillProfileItem(BOOL enabled) {
+  NSString* title = l10n_util::GetNSString(
+      IsYourSavedInfoSettingsPageIosEnabled()
+          ? IDS_AUTOFILL_CONTACT_INFO_TITLE
+          : IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE);
+
   return DetailItemWithType(
-      SettingsItemTypeAutofillProfile,
-      l10n_util::GetNSString(IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE),
+      SettingsItemTypeAutofillProfile, title,
       AutofillProfileItemDetailText(enabled),
       CustomSettingsRootSymbol(kLocationSymbol),
-      [UIColor colorNamed:kYellow500Color], kSettingsAddressesAndMoreCellId);
+      kSettingsAddressesAndMoreCellId);
 }

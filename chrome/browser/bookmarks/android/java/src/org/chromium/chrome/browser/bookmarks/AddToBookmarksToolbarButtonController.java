@@ -6,7 +6,6 @@ package org.chromium.chrome.browser.bookmarks;
 
 import android.content.Context;
 import android.content.res.Configuration;
-import android.content.res.Resources;
 import android.view.View;
 
 import androidx.appcompat.content.res.AppCompatResources;
@@ -38,7 +37,7 @@ import java.util.function.Supplier;
 public class AddToBookmarksToolbarButtonController extends BaseButtonDataProvider
         implements ConfigurationChangedObserver {
     private final ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
-    private final Supplier<TabBookmarker> mTabBookmarkerSupplier;
+    private final Supplier<@Nullable TabBookmarker> mTabBookmarkerSupplier;
     private final Supplier<@Nullable Tracker> mTrackerSupplier;
     private final NullableObservableSupplier<BookmarkModel> mBookmarkModelSupplier;
     private final ButtonSpec mFilledButtonSpec;
@@ -85,20 +84,19 @@ public class AddToBookmarksToolbarButtonController extends BaseButtonDataProvide
             NullableObservableSupplier<Tab> activeTabSupplier,
             Context context,
             ActivityLifecycleDispatcher activityLifecycleDispatcher,
-            Supplier<TabBookmarker> tabBookmarkerSupplier,
+            Supplier<@Nullable TabBookmarker> tabBookmarkerSupplier,
             Supplier<@Nullable Tracker> trackerSupplier,
             NullableObservableSupplier<BookmarkModel> bookmarkModelSupplier) {
         // By default use the empty star drawable with an "Add to bookmarks" description.
         super(
                 activeTabSupplier,
                 /* modalDialogManager= */ null,
-                AppCompatResources.getDrawable(context, R.drawable.ic_star_24dp),
-                context.getString(R.string.accessibility_menu_bookmark),
-                /* actionChipLabelResId= */ Resources.ID_NULL,
-                /* supportsTinting= */ true,
-                /* iphCommandBuilder= */ null,
-                AdaptiveToolbarButtonVariant.ADD_TO_BOOKMARKS,
-                /* tooltipTextResId= */ Resources.ID_NULL);
+                new ButtonSpec.Builder(
+                                AppCompatResources.getDrawable(context, R.drawable.ic_star_24dp),
+                                context.getString(R.string.accessibility_menu_bookmark),
+                                /* supportsTinting= */ true)
+                        .setButtonVariant(AdaptiveToolbarButtonVariant.ADD_TO_BOOKMARKS)
+                        .build());
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
         mTabBookmarkerSupplier = tabBookmarkerSupplier;
         mTrackerSupplier = trackerSupplier;
@@ -192,7 +190,7 @@ public class AddToBookmarksToolbarButtonController extends BaseButtonDataProvide
 
         RecordUserAction.record("MobileTopToolbarAddToBookmarksButton");
         // mActiveTabSupplier.hasValue() is true, so .get() should be non-null
-        mTabBookmarkerSupplier.get().addOrEditBookmark(activeTab);
+        tabBookmarker.addOrEditBookmark(activeTab);
     }
 
     @Override

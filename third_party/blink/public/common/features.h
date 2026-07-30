@@ -287,6 +287,19 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDeclarativeCSSModulesUseDataURI);
 // See https://crbug.com/40051700.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDataUrlWorkerOpaqueOrigin);
 
+// When enabled, HTMLTreeBuilder::Flush() will be throttled in kTextMode
+// to reduce O(n^2) string copies.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDeferTreeBuilderFlush);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    base::TimeDelta,
+    kDeferTreeBuilderFlushInitialInterval);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    base::TimeDelta,
+    kDeferTreeBuilderFlushMaxInterval);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    double,
+    kDeferTreeBuilderFlushMultiplier);
+
 // If enabled, some task queues are disabled between a discrete input event and
 // the subsequent frame. Which task types are deferrable depends on the
 // `TaskDeferralPolicy`.
@@ -676,8 +689,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // Forces the attribute powerPreference to be set to "high-performance" for
 // WebGL contexts.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceHighPerformanceGPUForWebGL);
-
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kForceOffTextAutosizing);
 
 // When enabled, forces ICC profile parsing to use skcms instead of the Rust
 // moxcms parser. Acts as a kill-switch for the Rust ICC parser.
@@ -1374,6 +1385,14 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
 // `kMemoryPurgeOnFreezeLimit` to do this only once per backgrounded session.
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kMemoryPurgeOnFreeze);
 
+// Keep strong references for data URI resources in the blink memory cache so
+// they survive garbage collection across navigations. This avoids redundant
+// reparsing of data URIs (especially SVG) that appear on multiple pages.
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kDataURIMemoryCache);
+BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE_PARAM(
+    int,
+    kDataURIMemoryCacheTotalSizeThresholdParam);
+
 // Limits the number of memory purges on page freezing to 1 per background
 // session. Without this, memory purge is performed every time a page becomes
 // frozen, which can be too much with periodic freezing/unfreezing.
@@ -1889,10 +1908,6 @@ BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUrgentMainFrameForInput);
 // If enabled, URLPattern will use standard defined dummy URL canonicalization
 // to canonicalize URL properties. See https://crbug.com/409350827
 BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kURLPatternDummyURLCanonicalization);
-
-// Uses page viewport instead of frame viewport in the Largest Contentful Paint
-// heuristic where images occupying the full viewport are ignored.
-BLINK_COMMON_EXPORT BASE_DECLARE_FEATURE(kUsePageViewportInLCP);
 
 // Always use IsPersistentCacheForCodeCacheEnabled() rather than checking this
 // feature directly.

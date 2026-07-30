@@ -13,6 +13,7 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/actions/chrome_action_id.h"
 #include "chrome/browser/ui/browser_actions.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/layout_constants.h"
@@ -32,6 +33,7 @@
 #include "components/feature_engagement/public/feature_constants.h"
 #include "components/prefs/pref_service.h"
 #include "components/saved_tab_groups/public/features.h"
+#include "components/vector_icons/vector_icons.h"
 #include "ui/base/metadata/metadata_impl_macros.h"
 #include "ui/views/actions/action_view_controller.h"
 #include "ui/views/controls/button/menu_button_controller.h"
@@ -341,21 +343,31 @@ void TabStripComboButton::ShowContextMenuForViewImpl(
   menu_runner_ = std::make_unique<views::MenuRunner>(
       std::move(root),
       views::MenuRunner::HAS_MNEMONICS | views::MenuRunner::CONTEXT_MENU);
+
+  BrowserView* browser_view = BrowserView::GetBrowserViewForBrowser(browser_);
+  CHECK(browser_view);
+  CHECK(browser_view->tab_strip_view());
+  expand_on_hover_lock_ = browser_view->tab_strip_view()->GetExpandOnHoverLock(
+      ExpandOnHoverLockType::kKeepExpanded);
+
   menu_runner_->RunMenuAt(GetWidget(), nullptr,
                           source->GetAnchorBoundsInScreen(),
                           views::MenuAnchorPosition::kTopLeft, source_type);
 }
 
 void TabStripComboButton::ExecuteCommand(int command_id, int event_flags) {
-  PrefService* prefs = browser_->GetProfile()->GetPrefs();
-  std::string_view pref_name;
   if (command_id == IDC_TAB_SEARCH_TOGGLE_PIN) {
-    pref_name = prefs::kTabSearchPinnedToTabstrip;
     if (!tabs::kHorizontalTabStripComboButtonShowStartOnly.Get()) {
       show_tab_search_ephemerally_ = false;
       hide_tab_search_timer_.Stop();
     }
-  } else if (command_id == IDC_PROJECTS_PANEL_TOGGLE_PIN) {
+    chrome::ExecuteCommand(browser_, command_id);
+    return;
+  }
+
+  PrefService* prefs = browser_->GetProfile()->GetPrefs();
+  std::string_view pref_name;
+  if (command_id == IDC_PROJECTS_PANEL_TOGGLE_PIN) {
     pref_name = prefs::kProjectsPanelPinnedToTabstrip;
   } else if (command_id == IDC_EVERYTHING_MENU_TOGGLE_PIN) {
     pref_name = prefs::kEverythingMenuPinnedToTabstrip;
@@ -364,11 +376,7 @@ void TabStripComboButton::ExecuteCommand(int command_id, int event_flags) {
   }
 
   const bool is_pinned = prefs->GetBoolean(pref_name);
-  if (command_id == IDC_TAB_SEARCH_TOGGLE_PIN) {
-    base::RecordAction(base::UserMetricsAction(
-        is_pinned ? "TabStripComboButton.TabSearch.Unpinned"
-                  : "TabStripComboButton.TabSearch.Pinned"));
-  } else if (command_id == IDC_PROJECTS_PANEL_TOGGLE_PIN) {
+  if (command_id == IDC_PROJECTS_PANEL_TOGGLE_PIN) {
     base::RecordAction(base::UserMetricsAction(
         is_pinned ? "TabStripComboButton.ProjectsPanel.Unpinned"
                   : "TabStripComboButton.ProjectsPanel.Pinned"));
@@ -420,6 +428,10 @@ void TabStripComboButton::SetTabSearchBubbleHost(TabSearchBubbleHost* host) {
   tab_search_bubble_host_observation_.Reset();
   if (host) {
     tab_search_bubble_host_observation_.Observe(host);
+    GetEndButtonActionItem()->SetImage(
+        ui::ImageModel::FromVectorIcon(context_ == Context::kVerticalTabStrip
+                                           ? kTabSearchTabStripIcon
+                                           : vector_icons::kExpandMoreIcon));
   }
 }
 
@@ -548,6 +560,7 @@ gfx::Size TabStripComboButton::GetPreferredSizeForOrientation(
 }
 
 void TabStripComboButton::OnMenuClosed() {
+  expand_on_hover_lock_.reset();
   menu_runner_.reset();
   if (show_tab_search_ephemerally_) {
     hide_tab_search_timer_.Start(

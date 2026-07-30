@@ -273,13 +273,12 @@ export class ComposeAppElement extends ComposeAppElementBase {
     if (this.enableUpfrontInputModes) {
       this.selectedInputMode_ = InputMode.kPolish;
     }
-    this.router_.responseReceived.addListener((response: ComposeResponse) => {
+    this.router_.responseReceived.addListener(response => {
       this.composeResponseReceived_(response);
     });
-    this.router_.partialResponseReceived.addListener(
-        (partialResponse: PartialComposeResponse) => {
-          this.partialComposeResponseReceived_(partialResponse);
-        });
+    this.router_.partialResponseReceived.addListener(partialResponse => {
+      this.partialComposeResponseReceived_(partialResponse);
+    });
   }
 
   override connectedCallback() {
@@ -300,7 +299,8 @@ export class ComposeAppElement extends ComposeAppElementBase {
   override willUpdate(changedProperties: PropertyValues<this>) {
     super.willUpdate(changedProperties);
 
-    const changedPrivateProperties = changedProperties as Map<PropertyKey, any>;
+    const changedPrivateProperties =
+        changedProperties as Map<PropertyKey, unknown>;
 
     if (changedPrivateProperties.has('editedInput_') &&
         (this.editedInput_ !== '' ||
@@ -339,7 +339,8 @@ export class ComposeAppElement extends ComposeAppElementBase {
   override updated(changedProperties: PropertyValues<this>) {
     super.updated(changedProperties);
 
-    const changedPrivateProperties = changedProperties as Map<PropertyKey, any>;
+    const changedPrivateProperties =
+        changedProperties as Map<PropertyKey, unknown>;
 
     if (changedPrivateProperties.has('editedInput_')) {
       this.onEditedInputChanged_();

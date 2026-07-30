@@ -6,6 +6,7 @@ import 'chrome://new-tab-page/strings.m.js';
 import 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
 
 import type {ContextualActionMenuElement} from 'chrome://resources/cr_components/composebox/contextual_action_menu.js';
+import type {CrToggleElement} from 'chrome://resources/cr_elements/cr_toggle/cr_toggle.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {InputType, ModelMode, ToolMode} from 'chrome://resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -24,6 +25,7 @@ suite('ContextualActionMenu', () => {
       composeboxShowContextMenuTabPreviews: true,
       composeboxShowPdfUpload: true,
       ShowContextMenuHeaders: true,
+      composeboxSmartTabSharingVisible: false,
     });
 
     actionMenu = document.createElement('cr-composebox-contextual-action-menu');
@@ -281,6 +283,20 @@ suite('ContextualActionMenu', () => {
         'menuitem', $$(actionMenu, '#fileUpload')!.getAttribute('role'));
   });
 
+  test('Shows drive when allowed', async () => {
+    actionMenu.inputState = new MockInputState({
+      allowedInputTypes: [InputType.kDrive],
+      toolsSectionConfig: {header: ''},
+      modelSectionConfig: {header: ''},
+    });
+    actionMenu.showAt(actionMenu);
+    await microtasksFinished();
+
+    assertTrue(!!$$(actionMenu, '#driveUpload'));
+    assertEquals(
+        'menuitem', $$(actionMenu, '#driveUpload')!.getAttribute('role'));
+  });
+
   test('Hides image and file upload when not allowed', async () => {
     actionMenu.inputState = new MockInputState({
       allowedInputTypes: [],
@@ -292,6 +308,7 @@ suite('ContextualActionMenu', () => {
 
     assertFalse(!!$$(actionMenu, '#imageUpload'));
     assertFalse(!!$$(actionMenu, '#fileUpload'));
+    assertFalse(!!$$(actionMenu, '#driveUpload'));
   });
 
   test('Disables image and file upload when disabled', async () => {
@@ -494,6 +511,7 @@ suite('ContextualActionMenu', () => {
   });
 
   test('Uses configured menu labels', async () => {
+    const toolsHeader = 'Tools Header';
     const deepSearchLabel = 'Custom Deep Search Label';
     const geminiLabel = 'Custom Gemini Label';
     const imageUploadLabel = 'Custom Image Upload Label';
@@ -508,7 +526,7 @@ suite('ContextualActionMenu', () => {
         hintText: '',
         aimUrlParams: [],
       }],
-      toolsSectionConfig: {header: ''},
+      toolsSectionConfig: {header: toolsHeader},
       allowedModels: [ModelMode.kGeminiRegular],
       modelConfigs: [{
         model: ModelMode.kGeminiRegular,
@@ -532,7 +550,64 @@ suite('ContextualActionMenu', () => {
     const imageUpload = $$(actionMenu, '#imageUpload');
 
     assertTrue(deepSearch!.textContent.includes(deepSearchLabel));
+    assertEquals(
+        `${toolsHeader}: ${deepSearchLabel}`,
+        deepSearch!.getAttribute('aria-label'));
     assertTrue(geminiRegular!.textContent.includes(geminiLabel));
+    assertEquals(
+        `${geminiLabel}`,
+        geminiRegular!.getAttribute('aria-label'));
     assertTrue(imageUpload!.textContent.includes(imageUploadLabel));
+  });
+
+  test('Toggling smart tab sharing fires event', async () => {
+    loadTimeData.overrideValues({composeboxSmartTabSharingVisible: true});
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    document.body.appendChild(actionMenu);
+
+    actionMenu.smartTabSharingActive = false;
+    actionMenu.showAt(actionMenu);
+    await actionMenu.updateComplete;
+
+    const toggle = $$(actionMenu, '#smartTabSharingToggle') as CrToggleElement;
+    assertTrue(!!toggle);
+
+    let eventDetail: {active: boolean}|null = null;
+    actionMenu.addEventListener(
+        'smart-tab-sharing-active-changed', (e: Event) => {
+          eventDetail = (e as CustomEvent).detail;
+        }, {once: true});
+
+    toggle.checked = true;
+    toggle.dispatchEvent(new CustomEvent('change'));
+
+    assertTrue(!!eventDetail);
+    assertTrue((eventDetail as {active: boolean}).active);
+  });
+
+  test('Clicking smart tab sharing row toggles state', async () => {
+    loadTimeData.overrideValues({composeboxSmartTabSharingVisible: true});
+    actionMenu.remove();
+    actionMenu = document.createElement('cr-composebox-contextual-action-menu');
+    document.body.appendChild(actionMenu);
+
+    actionMenu.smartTabSharingActive = false;
+    actionMenu.showAt(actionMenu);
+    await actionMenu.updateComplete;
+
+    const item = $$(actionMenu, '#smartTabSharingItem') as HTMLElement;
+    assertTrue(!!item);
+    const toggle = $$(actionMenu, '#smartTabSharingToggle') as CrToggleElement;
+
+    let eventFired = false;
+    actionMenu.addEventListener('smart-tab-sharing-active-changed', () => {
+      eventFired = true;
+    }, {once: true});
+
+    item.click();
+
+    assertTrue(eventFired);
+    assertTrue(toggle.checked);
   });
 });

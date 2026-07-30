@@ -6,85 +6,30 @@
 
 #include <memory>
 
-#include "chrome/browser/ui/views/web_apps/web_app_icon_name_and_origin_view.h"
+#include "base/functional/callback.h"
+#include "chrome/browser/ui/views/web_apps/web_app_install_intro_view.h"
 #include "ui/views/controls/label.h"
 #include "ui/views/layout/box_layout.h"
 
 namespace web_app {
 
 // A generic view that represents the installation flow.
-WebAppInstallFlowView::WebAppInstallFlowView(const gfx::ImageSkia& icon_image,
-                                             const std::u16string& app_name,
-                                             const GURL& start_url,
-                                             bool is_maskable,
-                                             InstallOsType os_type) {
-  os_type_ = os_type;
+WebAppInstallFlowView::WebAppInstallFlowView(
+    absl::flat_hash_map<InstallDialogStep, std::unique_ptr<views::View>>
+        install_step_to_view) {
   SetLayoutManager(std::make_unique<views::BoxLayout>(
       views::BoxLayout::Orientation::kVertical));
 
-  // kInstallDialog
-  auto* install_dialog_view = AddChildView(WebAppIconNameAndOriginView::Create(
-      icon_image, app_name, start_url, is_maskable));
-  install_step_to_view_[InstallDialogStep::kInstallDialog] =
-      install_dialog_view;
-
-  // kInstallerOptions
-  auto* options = CreateInstallOptionsView();
-
-  options->SetVisible(false);
-  install_step_to_view_[InstallDialogStep::kInstallerOptions] = options;
-
-  // kProgress
-  auto* progress = AddChildView(
-      views::Builder<views::Label>().SetText(u"Progress View").Build());
-  progress->SetVisible(false);
-  install_step_to_view_[InstallDialogStep::kProgress] = progress;
-
-  // kSuccessful launch app button
-  auto* successful = AddChildView(
-      views::Builder<views::Label>().SetText(u"Successful View").Build());
-  successful->SetVisible(false);
-  install_step_to_view_[InstallDialogStep::kSuccessful] = successful;
+  for (auto& [step, view] : install_step_to_view) {
+    auto* raw_view = AddChildView(std::move(view));
+    install_step_to_view_[step] = raw_view;
+    // Set all to invisible except kInstallDialog
+    raw_view->SetVisible(step == InstallDialogStep::kInstallDialog);
+  }
 }
 
 WebAppInstallFlowView::~WebAppInstallFlowView() = default;
 
-// Creates the installer options view based on the os_type_.
-views::View* WebAppInstallFlowView::CreateInstallOptionsView() {
-  std::u16string label;
-  switch (os_type_) {
-    case InstallOsType::kMac:
-      label = u"Installer options Mac view";
-      break;
-    case InstallOsType::kWin:
-      label = u"Installer options Windows view";
-      break;
-    case InstallOsType::kCros:
-      label = u"Installer options ChromeOS view";
-      break;
-    default:
-      label = u"Installer options Other view";
-  }
-  return AddChildView(views::Builder<views::Label>().SetText(label).Build());
-}
-
-// Assigns a view to the provided InstallDialogStep in the
-// WebAppInstallFlowView.
-void WebAppInstallFlowView::SetStepView(InstallDialogStep step,
-                                        std::unique_ptr<views::View> view) {
-  auto pair = install_step_to_view_.find(step);
-  bool was_visible = true;
-  if (pair != install_step_to_view_.end()) {
-    views::View* old_view = pair->second;
-    was_visible = old_view->GetVisible();
-    pair->second = nullptr;
-    RemoveChildViewT(old_view);
-  }
-  view->SetVisible(was_visible);
-  install_step_to_view_[step] = AddChildView(std::move(view));
-}
-
-// Ensures visibility is appropriately updated for each views.
 void WebAppInstallFlowView::UpdateStepVisibility(
     InstallDialogStep current_step) {
   for (auto const& [step, view] : install_step_to_view_) {
@@ -93,6 +38,11 @@ void WebAppInstallFlowView::UpdateStepVisibility(
     }
   }
   PreferredSizeChanged();
+}
+
+views::View* WebAppInstallFlowView::GetViewForStep(InstallDialogStep step) {
+  auto it = install_step_to_view_.find(step);
+  return it != install_step_to_view_.end() ? it->second.get() : nullptr;
 }
 
 base::WeakPtr<WebAppInstallFlowView> WebAppInstallFlowView::GetWeakPtr() {

@@ -22,9 +22,11 @@ import android.widget.FrameLayout;
 
 import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import org.chromium.base.Callback;
 import org.chromium.base.TimeUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.TimingMetric;
@@ -98,6 +100,7 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
         private boolean mCurrentGestureAffectedKeyboardState;
         private @Nullable Runnable mSuggestionDropdownScrollListener;
         private @Nullable Runnable mSuggestionDropdownOverscrolledToTopListener;
+        private @Nullable Callback<Integer> mScrollOffsetListener;
         private boolean mToolbarOnTop = true;
 
         public SuggestionLayoutScrollListener(Context context) {
@@ -109,6 +112,20 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
             mToolbarOnTop = isToolbarOnTop;
             setStackFromEnd(!isToolbarOnTop);
             setReverseLayout(!isToolbarOnTop);
+        }
+
+        @Override
+        public void onInitializeAccessibilityNodeInfoForItem(
+                RecyclerView.Recycler recycler,
+                RecyclerView.State state,
+                View host,
+                AccessibilityNodeInfoCompat info) {
+            super.onInitializeAccessibilityNodeInfoForItem(recycler, state, host, info);
+            // Suppress the default "X of Y" announcement for the entire list for TalkBack to
+            // avoid verbosity. Announcement of position within its group is already provided.
+            if (OmniboxFeatures.sOmniboxItemDecoration.isEnabled()) {
+                info.setCollectionItemInfo(null);
+            }
         }
 
         @Override
@@ -124,6 +141,9 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
         public int scrollVerticallyBy(
                 int requestedDeltaY, RecyclerView.Recycler recycler, RecyclerView.State state) {
             int resultingDeltaY = super.scrollVerticallyBy(requestedDeltaY, recycler, state);
+            if (mScrollOffsetListener != null) {
+                mScrollOffsetListener.onResult(computeVerticalScrollOffset(state));
+            }
             return updateKeyboardVisibilityAndScroll(resultingDeltaY, requestedDeltaY);
         }
 
@@ -256,6 +276,10 @@ public class OmniboxSuggestionsDropdown extends RecyclerView {
          */
         public void setSuggestionDropdownOverscrolledToTopListener(Runnable listener) {
             mSuggestionDropdownOverscrolledToTopListener = listener;
+        }
+
+        public void setScrollOffsetListener(Callback<Integer> listener) {
+            mScrollOffsetListener = listener;
         }
     }
 

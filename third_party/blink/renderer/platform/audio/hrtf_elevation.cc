@@ -145,9 +145,12 @@ scoped_refptr<AudioBus> GetConcatenatedImpulseResponsesForSubject(
   return bus;
 }
 
-}  // namespace
-
-bool HRTFElevation::CalculateKernelsForAzimuthElevation(
+// Given a specific azimuth and elevation angle, returns the left and right
+// HRTFKernel.
+// Valid values for azimuth are 0 -> 345 in 15 degree increments.
+// Valid values for elevation are -45 -> +90 in 15 degree increments.
+// Returns true on success.
+bool CalculateKernelsForAzimuthElevation(
     int azimuth,
     int elevation,
     float sample_rate,
@@ -203,8 +206,14 @@ bool HRTFElevation::CalculateKernelsForAzimuthElevation(
   unsigned stop_frame = start_frame + kResponseFrameSize;
   scoped_refptr<AudioBus> pre_sample_rate_converted_response(
       AudioBus::CreateBufferFromRange(bus.get(), start_frame, stop_frame));
-  scoped_refptr<AudioBus> response(AudioBus::CreateBySampleRateConverting(
+  if (!pre_sample_rate_converted_response) {
+    return false;
+  }
+  scoped_refptr<AudioBus> response(AudioBus::TryCreateBySampleRateConverting(
       pre_sample_rate_converted_response.get(), false, sample_rate));
+  if (!response) {
+    return false;
+  }
 
   // Note that depending on the fftSize returned by the panner, we may be
   // truncating the impulse response we just loaded in, or we might zero-pad it.
@@ -215,7 +224,10 @@ bool HRTFElevation::CalculateKernelsForAzimuthElevation(
     // Create a new response of the right length and copy over the current
     // response.
     scoped_refptr<AudioBus> padded_response(
-        AudioBus::Create(response->NumberOfChannels(), fft_size / 2));
+        AudioBus::TryCreate(response->NumberOfChannels(), fft_size / 2));
+    if (!padded_response) {
+      return false;
+    }
     for (unsigned channel = 0; channel < response->NumberOfChannels();
          ++channel) {
       padded_response->Channel(channel)
@@ -239,6 +251,8 @@ bool HRTFElevation::CalculateKernelsForAzimuthElevation(
 
   return true;
 }
+
+}  // namespace
 
 std::unique_ptr<HRTFElevation> HRTFElevation::CreateForSubject(
     int subject_resource_id,

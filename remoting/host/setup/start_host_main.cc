@@ -43,7 +43,7 @@
 
 #if BUILDFLAG(IS_LINUX)
 #include "remoting/base/crash/crash_reporting_crashpad.h"
-#include "remoting/host/setup/daemon_controller_delegate_linux.h"
+#include "remoting/host/setup/daemon_controller_delegate_linux_single_process.h"
 #include "remoting/host/setup/start_host_as_root.h"
 #endif  // BUILDFLAG(IS_LINUX)
 
@@ -86,6 +86,14 @@ constexpr char kDisableCrashReportingSwitchName[] = "disable-crash-reporting";
 
 constexpr char kInvalidPinErrorMessage[] =
     "Please provide a numeric PIN consisting of at least six digits.\n";
+
+#if BUILDFLAG(IS_LINUX)
+// For now, the multi-process host only supports GDM-managed mode, but we may
+// add more modes in the future.
+
+// Use multi-process GDM-managed host.
+constexpr char kGdmManagedSwitchName[] = "gdm-managed";
+#endif
 
 // True if the host was started successfully.
 bool g_started = false;
@@ -373,16 +381,39 @@ bool InitializeCloudMachineParams(HostStarter::Params& params,
 }  // namespace
 
 int StartHostMain(int argc, char** argv) {
-#if BUILDFLAG(IS_LINUX)
-  // Minimize the amount of code that runs as root on Posix systems.
-  if (getuid() == 0) {
-    return remoting::StartHostAsRoot(argc, argv);
-  }
-#endif  // BUILDFLAG(IS_LINUX)
-
   // google_apis::GetOAuth2ClientID/Secret need a static CommandLine.
   base::CommandLine::Init(argc, argv);
   base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+
+#if BUILDFLAG(IS_LINUX)
+  // If the user is trying to set up a multi-process host unelevated, we just
+  // replace the current process with a sudo command to elevate.
+  if (command_line->HasSwitch(kGdmManagedSwitchName) && getuid() != 0) {
+    std::vector<const char*> sudo_argv;
+    sudo_argv.push_back("sudo");
+    // Use '-k' to prevent silently piggybacking off a recent sudo session.
+    sudo_argv.push_back("-k");
+    // Use '--' to prevent any subsequent arguments from being interpreted as
+    // sudo options.
+    sudo_argv.push_back("--");
+    for (const auto& arg : command_line->argv()) {
+      sudo_argv.push_back(arg.c_str());
+    }
+    sudo_argv.push_back(nullptr);  // NULL-terminated
+    execvp(sudo_argv[0], const_cast<char**>(sudo_argv.data()));
+    // If execvp returns, it failed.
+    PLOG(ERROR) << "Failed to re-run with sudo";
+    return 1;
+  }
+
+  // Minimize the amount of code that runs as root on Posix systems.
+  // Note that StartHostAsRoot() is only for the single-process host. For the
+  // multi-process host, we just set up everything as root using the common
+  // code path.
+  if (getuid() == 0 && !command_line->HasSwitch(kGdmManagedSwitchName)) {
+    return remoting::StartHostAsRoot();
+  }
+#endif  // BUILDFLAG(IS_LINUX)
 
   // This object instance is required by Chrome code (for example,
   // FilePath, LazyInstance, MessageLoop).
@@ -399,6 +430,11 @@ int StartHostMain(int argc, char** argv) {
   mojo::core::Init();
 
 #if BUILDFLAG(IS_LINUX)
+  if (command_line->HasSwitch(kGdmManagedSwitchName)) {
+    DaemonController::SetDelegateType(
+        DaemonController::DelegateType::kMultiProcess);
+  }
+
   if (command_line->HasSwitch("no-start")) {
     // On Linux, registering the host with systemd and starting it is the only
     // reason start_host requires root. The --no-start options skips that final
@@ -406,7 +442,8 @@ int StartHostMain(int argc, char** argv) {
     // root and can do complete the setup itself. Since this functionality is
     // Linux-specific, it isn't plumbed through the platform-independent daemon
     // controller code, and must be configured on the Linux delegate explicitly.
-    DaemonControllerDelegateLinux::set_start_host_after_setup(false);
+    DaemonControllerDelegateLinuxSingleProcess::set_start_host_after_setup(
+        false);
     // Remove the switch from the command line to simplify arg count checks.
     command_line->RemoveSwitch("no-start");
   }

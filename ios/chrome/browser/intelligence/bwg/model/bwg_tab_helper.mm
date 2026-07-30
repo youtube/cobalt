@@ -28,11 +28,12 @@
 #import "components/search_engines/util.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/gemini_feature_availability.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_prefs.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_utils.h"
@@ -73,18 +74,8 @@ NSMutableArray<NSString*>* ZeroStateSuggestionsAsNSArray(
 
 }  // namespace
 
-struct BwgTabHelper::ZeroStateSuggestions {
-  ZeroStateSuggestions() = default;
-  ~ZeroStateSuggestions() = default;
-
-  // The zero-state suggestions service.
-  mojo::Remote<ai::mojom::ZeroStateSuggestionsService> service;
-  std::unique_ptr<ai::ZeroStateSuggestionsServiceImpl> service_impl;
-
-  // The zero-state suggestions data for the current page.
-  std::optional<std::vector<std::string>> suggestions;
-  bool can_apply = false;
-};
+BwgTabHelper::ZeroStateSuggestions::ZeroStateSuggestions() = default;
+BwgTabHelper::ZeroStateSuggestions::~ZeroStateSuggestions() = default;
 
 BwgTabHelper::BwgTabHelper(web::WebState* web_state) : web_state_(web_state) {
   ProfileIOS* profile =
@@ -408,7 +399,7 @@ void BwgTabHelper::DidStartNavigation(
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
-  BwgService* gemini_service = GeminiServiceFactory::GetForProfile(profile);
+  GeminiService* gemini_service = GeminiServiceFactory::GetForProfile(profile);
   const bool gemini_available = IsGeminiAvailableForWebState() &&
                                 gemini_service &&
                                 gemini_service->IsProfileEligibleForGemini();
@@ -480,10 +471,13 @@ void BwgTabHelper::DidFinishNavigation(
       return;
     }
 
-    optimization_guide_decider_->CanApplyOptimization(
-        current_url, optimization_guide::proto::GLIC_CONTEXTUAL_CUEING,
-        base::BindOnce(&BwgTabHelper::OnCanApplyContextualCueingDecision,
-                       weak_ptr_factory_.GetWeakPtr(), current_url));
+    // Don't re-trigger Gemini contextual cues for same-document navigations.
+    if (!navigation_context->IsSameDocument()) {
+      optimization_guide_decider_->CanApplyOptimization(
+          current_url, optimization_guide::proto::GLIC_CONTEXTUAL_CUEING,
+          base::BindOnce(&BwgTabHelper::OnCanApplyContextualCueingDecision,
+                         weak_ptr_factory_.GetWeakPtr(), current_url));
+    }
   }
 }
 
@@ -706,7 +700,9 @@ void BwgTabHelper::OnGeminiEligibilityDecision(
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
-  if (eligible && IsGeminiImageRemixToolEnabled() &&
+
+  if (eligible &&
+      gemini::IsFeatureAvailable(gemini::Feature::kImageRemix, profile) &&
       user_enabled_request_metadata &&
       feature_engagement::TrackerFactory::GetForProfile(profile)
           ->WouldTriggerHelpUI(

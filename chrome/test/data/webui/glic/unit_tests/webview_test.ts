@@ -2,8 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import {ZoomAction} from 'chrome://glic/glic.mojom-webui.js';
-import {matcherForOrigin, urlMatchesAllowedOrigin, WebviewController, WebviewPersistentState} from 'chrome://glic/webview.js';
+import {matcherForOrigin, urlMatchesAllowedOrigin, WebviewController, WebviewPersistentState, ZoomAction} from 'chrome://glic/glic.js';
 import type {CrA11yAnnouncerMessagesSentEvent} from 'chrome://resources/cr_elements/cr_a11y_announcer/cr_a11y_announcer.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
@@ -122,7 +121,7 @@ suite('WebviewZoomTest', () => {
 
   test('ZoomInReturnsNextZoomFactor', () => {
     let lastSetZoom = 1.0;
-    const webview = controller.webview as chrome.webviewTag.WebView;
+    const webview = controller.webview;
     webview.getZoom = (cb: (z: number) => void) => cb(lastSetZoom);
     webview.setZoom = (z: number) => {
       lastSetZoom = z;
@@ -137,7 +136,7 @@ suite('WebviewZoomTest', () => {
 
   test('ZoomOutReturnsPreviousZoomFactor', () => {
     let lastSetZoom = 1.25;
-    const webview = controller.webview as chrome.webviewTag.WebView;
+    const webview = controller.webview;
     webview.getZoom = (cb: (z: number) => void) => cb(lastSetZoom);
     webview.setZoom = (currentZoom: number) => {
       lastSetZoom = currentZoom;
@@ -152,7 +151,7 @@ suite('WebviewZoomTest', () => {
 
   test('ZoomResetReturnsOne', () => {
     let lastSetZoom = 1.5;
-    const webview = controller.webview as chrome.webviewTag.WebView;
+    const webview = controller.webview;
     webview.setZoom = (currentZoom: number) => {
       lastSetZoom = currentZoom;
     };
@@ -164,7 +163,7 @@ suite('WebviewZoomTest', () => {
   test('ZoomBoundaryConditions', () => {
     let lastSetZoom = 2.0;
     let setZoomCalled = false;
-    const webview = controller.webview as chrome.webviewTag.WebView;
+    const webview = controller.webview;
     webview.getZoom = (cb: (z: number) => void) => cb(lastSetZoom);
     webview.setZoom = (currentZoom: number) => {
       lastSetZoom = currentZoom;

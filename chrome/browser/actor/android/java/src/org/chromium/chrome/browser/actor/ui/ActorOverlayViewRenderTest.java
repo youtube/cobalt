@@ -39,6 +39,7 @@ import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.ChromeJUnit4ClassRunner;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
+import org.chromium.components.browser_ui.widget.gesture.BackPressHandlerRegistry;
 import org.chromium.ui.test.util.BlankUiTestActivity;
 
 /** Render tests for {@link ActorOverlayView}. */
@@ -55,11 +56,12 @@ public class ActorOverlayViewRenderTest {
     public ChromeRenderTestRule mRenderTestRule =
             ChromeRenderTestRule.Builder.withPublicCorpus()
                     .setBugComponent(ChromeRenderTestRule.Component.UI_BROWSER_GLIC)
-                    .setRevision(2)
+                    .setRevision(3)
                     .build();
 
     @Mock private TabModelSelector mTabModelSelector;
     @Mock private SnackbarManager mSnackbarManager;
+    @Mock private BackPressHandlerRegistry mBackPressHandlerRegistry;
     @Mock private LayoutManager mLayoutManager;
     private TestBrowserControlsVisibilityManager mBrowserControlsVisibilityManager;
 
@@ -103,6 +105,7 @@ public class ActorOverlayViewRenderTest {
                                     mBrowserControlsVisibilityManager,
                                     mTabObscuringHandler,
                                     mSnackbarManager,
+                                    mBackPressHandlerRegistry,
                                     mLayoutManagerSupplier);
                 });
     }

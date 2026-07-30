@@ -2422,6 +2422,63 @@ TEST_F(ClientControlledShellSurfaceScaleTest,
 }
 
 TEST_F(ClientControlledShellSurfaceScaleTest,
+       OnBoundsChangeEventSizeRemainsStableDuringDrag) {
+  auto shell_surface = exo::test::ShellSurfaceBuilder({20, 20})
+                           .SetGeometry(gfx::Rect(20, 20))
+                           .SetNoCommit()
+                           .BuildClientControlledShellSurface();
+  auto* surface = shell_surface->root_surface();
+
+  auto* delegate =
+      TestClientControlledShellSurfaceDelegate::SetUp(shell_surface.get());
+  surface->Commit();
+
+  EXPECT_EQ(0, delegate->bounds_change_count());
+
+  int64_t display_id = display::Screen::Get()->GetPrimaryDisplay().id();
+
+  int bounds_change_count = 0;
+  for (const auto& bucket : display::kZoomListBucketsForDsf) {
+    float dsf = bucket.first;
+    UpdateDisplay(base::StringPrintf("1200x800*%f", dsf));
+
+    for (int width : {11, 23, 31, 47, 51}) {
+      SCOPED_TRACE(
+          base::StringPrintf("Testing dsf: %f, width: %d", dsf, width));
+
+      const gfx::Rect requested_bounds(10, 10, width, width);
+      shell_surface->OnBoundsChangeEvent(chromeos::WindowStateType::kNormal,
+                                         chromeos::WindowStateType::kNormal,
+                                         display_id, requested_bounds, 0,
+                                         /*is_adjusted_bounds=*/false);
+
+      bounds_change_count++;
+      ASSERT_EQ(bounds_change_count, delegate->bounds_change_count());
+
+      gfx::Rect bounds = delegate->requested_bounds().back();
+
+      gfx::Size expected_size =
+          gfx::ScaleToRoundedSize(requested_bounds.size(), dsf);
+
+      EXPECT_EQ(expected_size, bounds.size());
+
+      // Move the shell surface.
+      const gfx::Rect moved_bounds(12, 12, width, width);
+      shell_surface->OnBoundsChangeEvent(chromeos::WindowStateType::kNormal,
+                                         chromeos::WindowStateType::kNormal,
+                                         display_id, moved_bounds, 0,
+                                         /*is_adjusted_bounds=*/false);
+
+      bounds_change_count++;
+      ASSERT_EQ(bounds_change_count, delegate->bounds_change_count());
+
+      gfx::Rect bounds_after_move = delegate->requested_bounds().back();
+      EXPECT_EQ(expected_size, bounds_after_move.size());
+    }
+  }
+}
+
+TEST_F(ClientControlledShellSurfaceScaleTest,
        UpdateFrameWidthStableDuringDrag) {
   auto shell_surface = exo::test::ShellSurfaceBuilder({20, 20})
                            .SetNoCommit()
@@ -2456,16 +2513,13 @@ TEST_F(ClientControlledShellSurfaceScaleTest,
       int expected_width_in_pixels =
           std::round(std::round(width * 1.f / dsf) * dsf);
 
-      ASSERT_TRUE(frame_header->width_in_pixels().has_value());
-      EXPECT_EQ(expected_width_in_pixels,
-                frame_header->width_in_pixels().value());
+      EXPECT_EQ(expected_width_in_pixels, frame_header->width_in_pixels());
 
       // Move the shell surface.
       shell_surface->SetShadowBounds(gfx::Rect(12, 12, width, 11));
       surface->Commit();
 
-      EXPECT_EQ(expected_width_in_pixels,
-                frame_header->width_in_pixels().value());
+      EXPECT_EQ(expected_width_in_pixels, frame_header->width_in_pixels());
     }
   }
 }

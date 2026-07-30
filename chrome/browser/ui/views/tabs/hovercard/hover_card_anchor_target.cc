@@ -18,6 +18,7 @@
 #include "components/strings/grit/components_strings.h"
 #include "components/tabs/public/tab_group.h"
 #include "components/url_formatter/url_formatter.h"
+#include "ui/base/interaction/element_tracker.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/views/view.h"
 
@@ -72,9 +73,8 @@ TabCardData::~TabCardData() = default;
 GroupCardData::GroupCardData() = default;
 GroupCardData::~GroupCardData() = default;
 
-HoverCardAnchorTarget::HoverCardAnchorTarget(views::View* anchor_view)
-    : anchor_view_(anchor_view) {
-  CHECK(anchor_view_);
+HoverCardAnchorTarget::HoverCardAnchorTarget(views::View* view) : view_(view) {
+  CHECK(view);
 }
 
 HoverCardAnchorTarget::~HoverCardAnchorTarget() = default;
@@ -96,6 +96,7 @@ void HoverCardAnchorTarget::SetHoverCardDataFrom(
   }
 
   std::u16string domain;
+  bool is_domain_url = false;
   if (domain_url.SchemeIsFile()) {
     domain = l10n_util::GetStringUTF16(IDS_HOVER_CARD_FILE_URL_SOURCE);
   } else if (domain_url.SchemeIsBlob()) {
@@ -104,6 +105,7 @@ void HoverCardAnchorTarget::SetHoverCardDataFrom(
     domain = l10n_util::GetStringUTF16(IDS_HOVER_CARD_VIEW_SOURCE_URL_SOURCE);
   } else {
     if (tab_data.should_display_url) {
+      is_domain_url = true;
       // Hide the domain when necessary. This leaves an empty space in the
       // card, but this scenario is very rare. Also, shrinking the card to
       // remove the space would result in visual noise, so we keep it simple.
@@ -121,7 +123,7 @@ void HoverCardAnchorTarget::SetHoverCardDataFrom(
 
   card_data.thumbnail = tab_data.thumbnail;
   card_data.title_data = GetTabTitleLabel(tab_data);
-  card_data.domain_data = {domain, false, gfx::ELIDE_HEAD};
+  card_data.domain_data = {domain, false, gfx::ELIDE_HEAD, is_domain_url};
 
   // Now set the collaboration data.
   using collaboration::messaging::CollaborationEvent;
@@ -161,6 +163,14 @@ void HoverCardAnchorTarget::SetHoverCardDataFrom(
   card_data.show_discard_status = tab_data.should_show_discard_status;
   card_data.is_tab_discarded = tab_data.is_tab_discarded;
   card_data.is_crashed = tab_data.is_crashed;
+}
+
+views::View* HoverCardAnchorTarget::GetView() {
+  return view_;
+}
+
+const views::View* HoverCardAnchorTarget::GetView() const {
+  return view_;
 }
 
 void HoverCardAnchorTarget::SetHoverCardDataFrom(
@@ -207,13 +217,4 @@ void HoverCardAnchorTarget::SetHoverCardDataFrom(
   } else {
     card_data.excess_tab_data = {u""};
   }
-}
-
-views::View* HoverCardAnchorTarget::GetAnchorView() {
-  return const_cast<views::View*>(
-      static_cast<const HoverCardAnchorTarget*>(this)->GetAnchorView());
-}
-
-const views::View* HoverCardAnchorTarget::GetAnchorView() const {
-  return anchor_view_;
 }

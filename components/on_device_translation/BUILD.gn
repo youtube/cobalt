@@ -31,14 +31,19 @@ source_set("metrics") {
   ]
 }
 
+source_set("translation_installer") {
+  sources = [
+    "installer.cc",
+    "installer.h",
+  ]
+  public_deps = [ ":public" ]
+  deps = [ "//base" ]
+}
+
 source_set("on_device_translation") {
   sources = [
     "component_manager.cc",
     "component_manager.h",
-    "file_operation_proxy_impl.cc",
-    "file_operation_proxy_impl.h",
-    "installer.cc",
-    "installer.h",
     "service_controller.cc",
     "service_controller.h",
     "service_controller_manager.cc",
@@ -52,6 +57,8 @@ source_set("on_device_translation") {
     ":features",
     ":metrics",
     ":public",
+    ":translation_installer",
+    "//components/on_device_translation/service:launcher_interface",
     "//components/prefs",
     "//content/public/browser",
   ]
@@ -86,7 +93,6 @@ source_set("unit_tests") {
   sources = [
     "component_manager_unittest.cc",
     "features_unittest.cc",
-    "file_operation_proxy_impl_unittest.cc",
     "metrics_unittest.cc",
     "public/language_pack_unittest.cc",
     "translation_manager_util_unittest.cc",

@@ -250,6 +250,9 @@ AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForEspeakNGTts();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityManifestV3GoogleTts);
 AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForGoogleTts();
 
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityChromeVoxJapaneseBraille);
+AX_BASE_EXPORT bool IsAccessibilityChromeVoxJapaneseBrailleEnabled();
+
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -295,6 +298,10 @@ AX_BASE_EXPORT bool IsImmersiveReadAnythingEnabled();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kMainNodeAnnotations);
 AX_BASE_EXPORT bool IsMainNodeAnnotationsEnabled();
 
+// Enable Improved Read Aloud.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kImprovedReadAloud);
+AX_BASE_EXPORT bool IsImprovedReadAloudEnabled();
+
 enum class ReadAnythingMenuShuffleExperimentGroup {
   kDefault,              // Leaves in default position
   kPlaceWithSeparation,  // Adds a UI separator from previous element.
@@ -315,6 +322,10 @@ GetReadAnythingMenuShuffleExperimentGroup();
 
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingMenuShuffleExperiment);
 AX_BASE_EXPORT bool IsReadAnythingMenuShuffleExperimentEnabled();
+
+// Enable the select text feature for Read Anything Readability.
+AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingReadabilitySelectText);
+AX_BASE_EXPORT bool IsReadaAnythingReadabilitySelectTextEnabled();
 
 // Enable phrase highlighting in Read Anything Read Aloud.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingReadAloudPhraseHighlighting);

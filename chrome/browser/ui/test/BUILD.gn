@@ -21,6 +21,7 @@ if (!is_android) {
     deps = [
       "//base",
       "//base/test:test_support",
+      "//chrome/test:in_process_browser_test_mixin",
       "//content/public/common",
       "//testing/gtest",
       "//ui/base",
@@ -58,20 +59,6 @@ if (!is_android) {
         "//ui/events:test_support",
       ]
     }
-  }
-
-  source_set("closed_waiter") {
-    testonly = true
-
-    sources = [
-      "test_browser_closed_waiter.cc",
-      "test_browser_closed_waiter.h",
-    ]
-
-    deps = [
-      "//chrome/browser/ui",
-      "//testing/gtest",
-    ]
   }
 
   source_set("test_support") {

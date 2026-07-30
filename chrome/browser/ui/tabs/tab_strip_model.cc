@@ -129,12 +129,16 @@ TabGroupModelFactory* factory_instance = nullptr;
 class ReentrancyCheck {
  public:
   explicit ReentrancyCheck(bool* guard_flag) : guard_flag_(guard_flag) {
-    CHECK_CURRENTLY_ON(content::BrowserThread::UI);
-    CHECK(!*guard_flag_);
+    ValidateNotReentrant(guard_flag_);
     *guard_flag_ = true;
   }
 
   ~ReentrancyCheck() { *guard_flag_ = false; }
+
+  static void ValidateNotReentrant(bool* guard_flag) {
+    CHECK_CURRENTLY_ON(content::BrowserThread::UI);
+    CHECK(!*guard_flag);
+  }
 
  private:
   const raw_ptr<bool> guard_flag_;
@@ -1315,6 +1319,8 @@ void TabStripModel::CloseAllTabsInGroupImpl(
 }
 
 void TabStripModel::CloseWebContentsAt(int index, uint32_t close_types) {
+  ReentrancyCheck::ValidateNotReentrant(&reentrancy_guard_);
+
   CHECK(ContainsIndex(index));
   CloseTabs({GetWebContentsAt(index)}, close_types);
 }
@@ -3884,10 +3890,13 @@ TabStripSelectionChange TabStripModel::SetSelection(
         const auto old_split_id =
             selection.old_tab ? selection.old_tab->GetSplit() : std::nullopt;
         if (!new_split_id || !old_split_id || new_split_id != old_split_id) {
+          const content::RenderWidgetHostView* view =
+              selection.new_contents->GetRenderWidgetHostView();
           selection.new_contents->SetTabSwitchStartTime(
               base::TimeTicks::Now(),
               resource_coordinator::ResourceCoordinatorTabHelper::IsLoaded(
-                  selection.new_contents));
+                  selection.new_contents),
+              view && view->HasSavedCompositorFrame());
         }
       }
 
@@ -4250,8 +4259,7 @@ void TabStripModel::UpdateTabInSplitImpl(tabs::TabInterface* split_tab,
     const int split_index = GetIndexOfTab(split_tab);
     MoveTabToIndexImpl(update_index, split_index, split_tab->GetGroup(),
                        split_tab->IsPinned(), initial_split_active);
-    CloseWebContentsAt(GetIndexOfTab(split_tab),
-                       TabCloseTypes::CLOSE_USER_GESTURE);
+    CloseTabs({split_tab->GetContents()}, TabCloseTypes::CLOSE_USER_GESTURE);
   } else {
     tabs::TabInterface* update_tab = GetTabAtIndex(update_index);
     std::optional<tab_groups::TabGroupId> initial_split_group =

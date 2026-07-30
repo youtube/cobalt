@@ -51,6 +51,8 @@ class WebUIHomeControl {
                            RightClickHomeButton);
   FRIEND_TEST_ALL_PREFIXES(WebUIToolbarWebViewHomeButtonBrowserTest,
                            LongPressHomeButton);
+  FRIEND_TEST_ALL_PREFIXES(WebUIToolbarButtonPressAndDragTest,
+                           PressAndDragDown);
   void UpdateVisibility(const toolbar_ui_api::mojom::HomeControlState* state);
   void UpdateState();
 
@@ -60,6 +62,7 @@ class WebUIHomeControl {
   raw_ptr<WebUIToolbarWebView> webui_toolbar_web_view_;
   BooleanPrefMember pin_state_;
   bool is_visible_ = false;
+  bool is_context_menu_visible_ = false;
 
   ui::mojom::MenuSourceType last_source_type_for_testing_ =
       ui::mojom::MenuSourceType::kNone;

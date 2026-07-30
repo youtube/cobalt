@@ -11,8 +11,8 @@
 
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_types.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_types.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_controller.h"
-#include "chrome/browser/ui/views/tabs/tab_strip_types.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
 #include "ui/base/models/list_selection_model.h"
@@ -69,7 +69,6 @@ class FakeBaseTabStripController : public TabStripController {
   int HasAvailableDragActions() const override;
   void OnDropIndexUpdate(std::optional<int> index, bool drop_before) override;
   void CreateNewTab(NewTabTypes context) override;
-  void CreateNewTabWithLocation(const std::u16string& loc) override;
   void OnStartedDragging() override;
   void OnStoppedDragging() override;
   void TabKeyboardFocusChangedTo(const tabs::TabInterface* tab) override;

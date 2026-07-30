@@ -49,15 +49,13 @@ TEST(CanvasResourceTest, PrepareTransferableResource_Software) {
       /*context_provider_wrapper=*/nullptr, shared_image_interface_provider);
   EXPECT_TRUE(!!canvas_resource);
   viz::TransferableResource resource;
-  CanvasResource::ReleaseCallback release_callback;
   bool success = canvas_resource->PrepareTransferableResource(
-      &resource, &release_callback, /*needs_verified_synctoken=*/false);
+      &resource, /*needs_verified_synctoken=*/false);
 
   EXPECT_TRUE(success);
   EXPECT_TRUE(resource.GetIsSoftware());
 
-  std::move(release_callback)
-      .Run(std::move(canvas_resource), gpu::SyncToken(), false);
+  CanvasResource::DropRefOnOwningThread(std::move(canvas_resource));
 }
 
 TEST(CanvasResourceTest, PrepareTransferableResource_PreservesAlphaType) {
@@ -68,7 +66,6 @@ TEST(CanvasResourceTest, PrepareTransferableResource_PreservesAlphaType) {
   InitializeSharedGpuContext(test_context_provider.get());
 
   viz::TransferableResource resource;
-  CanvasResource::ReleaseCallback release_callback;
 
   gpu::ImageInfo image_info(
       gfx::Size(10, 10), viz::SinglePlaneFormat::kRGBA_8888,
@@ -86,7 +83,7 @@ TEST(CanvasResourceTest, PrepareTransferableResource_PreservesAlphaType) {
       /*is_accelerated=*/false);
 
   ASSERT_TRUE(premul_canvas_resource->PrepareTransferableResource(
-      &resource, &release_callback, /*needs_verified_synctoken=*/false));
+      &resource, /*needs_verified_synctoken=*/false));
   EXPECT_EQ(resource.GetAlphaType(), kPremul_SkAlphaType);
 
   image_info.alpha_type = kUnpremul_SkAlphaType;
@@ -100,7 +97,7 @@ TEST(CanvasResourceTest, PrepareTransferableResource_PreservesAlphaType) {
       /*is_accelerated=*/false);
 
   ASSERT_TRUE(unpremul_canvas_resource->PrepareTransferableResource(
-      &resource, &release_callback, /*needs_verified_synctoken=*/false));
+      &resource, /*needs_verified_synctoken=*/false));
   EXPECT_EQ(resource.GetAlphaType(), kUnpremul_SkAlphaType);
 
   // InitializeSharedGpuContext() requires SharedGpuContext::Reset()

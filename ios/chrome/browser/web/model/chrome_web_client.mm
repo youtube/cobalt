@@ -49,6 +49,7 @@
 #import "ios/chrome/browser/intelligence/actor/tools/model/action_target_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/click_tool_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/scroll_tool_java_script_feature.h"
+#import "ios/chrome/browser/intelligence/actor/tools/model/select_tool_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/actor/tools/model/type_tool_java_script_feature.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
 #import "ios/chrome/browser/intelligence/proto_wrappers/page_context_extractor_java_script_feature.h"
@@ -439,6 +440,7 @@ std::vector<web::JavaScriptFeature*> ChromeWebClient::GetJavaScriptFeatures(
     features.push_back(actor::ActionTargetJavaScriptFeature::GetInstance());
     features.push_back(actor::ClickToolJavaScriptFeature::GetInstance());
     features.push_back(actor::ScrollToolJavaScriptFeature::GetInstance());
+    features.push_back(actor::SelectToolJavaScriptFeature::GetInstance());
     features.push_back(actor::TypeToolJavaScriptFeature::GetInstance());
   }
 
@@ -681,6 +683,15 @@ web::JSErrorReportLoggingLevel ChromeWebClient::GetJSErrorReportLoggingLevel(
   return web::JSErrorReportLoggingLevel::REPORT_WITHOUT_URL;
 }
 
+web::CobaltController* ChromeWebClient::GetCobaltController(
+    web::BrowserState* browser_state) const {
+  ProfileIOS* profile = ProfileIOS::FromBrowserState(browser_state);
+  return ios::provider::GetCobaltController(profile);
+}
+
 bool ChromeWebClient::IsSmoothScrollingSupported() const {
-  return ios::provider::IsFullscreenSmoothScrollingSupported();
+  // For the purpose of ChromeWebClient, FullscreenRefactoring can be
+  // considered the same as FullscreenSmoothScrolling.
+  return IsFullscreenRefactoringEnabled() ||
+         ios::provider::IsFullscreenSmoothScrollingSupported();
 }

@@ -1975,12 +1975,6 @@ std::unique_ptr<protocol::Array<protocol::String>> BuildWarningReasons(
         protocol::Audits::CookieWarningReasonEnum::WarnThirdPartyPhaseout);
   }
 
-  if (status.exemption_reason() ==
-      net::CookieInclusionStatus::ExemptionReason::k3PCDMetadata) {
-    warning_reasons->push_back(protocol::Audits::CookieWarningReasonEnum::
-                                   WarnDeprecationTrialMetadata);
-  }
-
   // This warning only affects cookies when the corresponding feature is
   // enabled, therefore we should only create an issue for it then.
   if (base::FeatureList::IsEnabled(
@@ -2577,6 +2571,21 @@ protocol::Audits::GenericIssueErrorType GenericIssueErrorTypeToProtocol(
         kFormModelContextParameterMissingTitleAndDescription:
       return protocol::Audits::GenericIssueErrorTypeEnum::
           FormModelContextParameterMissingTitleAndDescription;
+    case blink::mojom::GenericIssueErrorType::kFormModelContextMissingToolName:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          FormModelContextMissingToolName;
+    case blink::mojom::GenericIssueErrorType::
+        kFormModelContextMissingToolDescription:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          FormModelContextMissingToolDescription;
+    case blink::mojom::GenericIssueErrorType::
+        kFormModelContextRequiredParameterMissingName:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          FormModelContextRequiredParameterMissingName;
+    case blink::mojom::GenericIssueErrorType::
+        kFormModelContextParameterMissingName:
+      return protocol::Audits::GenericIssueErrorTypeEnum::
+          FormModelContextParameterMissingName;
   }
 }
 

@@ -56,7 +56,7 @@ class StyleImageSet final : public StyleImage {
   bool IsLoading() const override;
   bool IsLoaded() const override;
   bool ErrorOccurred() const override;
-  bool IsAccessAllowed(String& failing_url) const override;
+  bool IsCorsSameOrigin(String& failing_url) const override;
 
   NaturalSizingInfo GetNaturalSizingInfo(
       float multiplier,
@@ -79,9 +79,6 @@ class StyleImageSet final : public StyleImage {
   bool KnownToBeOpaque(const Document&, const ComputedStyle&) const override;
 
   ImageResourceContent* CachedImage() const override;
-
-  RespectImageOrientationEnum ForceOrientationIfNecessary(
-      RespectImageOrientationEnum default_orientation) const override;
 
   void Trace(Visitor*) const override;
 

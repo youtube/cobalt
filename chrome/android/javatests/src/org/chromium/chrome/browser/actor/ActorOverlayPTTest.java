@@ -43,7 +43,7 @@ public class ActorOverlayPTTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.GLIC)
+    @EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.TAB_BOTTOM_SHEET})
     public void testActorOverlayIsInflated() {
         mActivityTestRule.startOnBlankPage();
         onView(withId(R.id.actor_overlay)).check(matches(not(isDisplayed())));
@@ -51,7 +51,7 @@ public class ActorOverlayPTTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.GLIC)
+    @EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.TAB_BOTTOM_SHEET})
     public void testOverlayVisibility() {
         mActivityTestRule.startOnBlankPage();
         showOverlay(true);
@@ -63,7 +63,7 @@ public class ActorOverlayPTTest {
 
     @Test
     @MediumTest
-    @EnableFeatures(ChromeFeatureList.GLIC)
+    @EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.TAB_BOTTOM_SHEET})
     public void testOverlayClickShowsSnackbar() {
         WebPageStation page = mActivityTestRule.startOnBlankPage();
         showOverlay(true);
@@ -73,6 +73,17 @@ public class ActorOverlayPTTest {
         // SnackbarFacility will wait for a view with R.id.snackbar_message to appear.
         page.runTo(() -> onView(withId(R.id.actor_overlay)).perform(click()))
                 .enterFacility(new SnackbarFacility<>(null, SnackbarFacility.NO_BUTTON));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures({ChromeFeatureList.GLIC, ChromeFeatureList.TAB_BOTTOM_SHEET})
+    public void testBackPressShowsSnackbar() {
+        WebPageStation page = mActivityTestRule.startOnBlankPage();
+        showOverlay(true);
+
+        // Press back and wait for the snackbar to appear.
+        page.pressBackTo().enterFacility(new SnackbarFacility<>(null, SnackbarFacility.NO_BUTTON));
     }
 
     private void showOverlay(boolean visible) {

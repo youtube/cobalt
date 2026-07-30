@@ -20,6 +20,7 @@
 #include "base/time/time.h"
 #include "base/timer/timer.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/bookmarks/bookmark_bar_controller.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window.h"
 #include "chrome/browser/ui/tabs/projects/projects_panel_state_controller.h"
@@ -142,7 +143,8 @@ class BrowserView : public BrowserWindow,
                     public infobars::InfoBarContainer::Delegate,
                     public ImmersiveModeController::Observer,
                     public webapps::AppBannerManager::Observer,
-                    public views::FocusChangeListener {
+                    public views::FocusChangeListener,
+                    public BookmarkBarController::Delegate {
   METADATA_HEADER(BrowserView, views::ClientView)
 
  public:
@@ -304,7 +306,7 @@ class BrowserView : public BrowserWindow,
   ToolbarView* toolbar() { return toolbar_; }
 
   // Bookmark bar may be null, for example for pop-ups.
-  BookmarkBarView* bookmark_bar() { return bookmark_bar_view_.get(); }
+  BookmarkBarView* bookmark_bar() { return bookmark_bar_view_; }
 
   // Returns the do-nothing view which controls the z-order of the find bar
   // widget relative to views which paint into layers and views which have an
@@ -530,9 +532,6 @@ class BrowserView : public BrowserWindow,
   void SetTopControlsGestureScrollInProgress(bool in_progress) override;
   std::vector<StatusBubble*> GetStatusBubbles() override;
   void UpdateTitleBar() override;
-  void BookmarkBarStateChanged(
-      BookmarkBar::AnimateChangeType change_type) override;
-  void TemporarilyShowBookmarkBar(base::TimeDelta duration) override;
   void UpdateDevTools(content::WebContents* inspected_web_contents) override;
   bool CanDockDevTools() const override;
   void UpdateLoadingAnimations(bool is_visible) override;
@@ -575,12 +574,9 @@ class BrowserView : public BrowserWindow,
   void TabDraggingStatusChanged(bool is_dragging) override;
   void LinkOpeningFromGesture(WindowOpenDisposition disposition) override;
   void FocusAppMenu() override;
-  void FocusBookmarksToolbar() override;
   void FocusInactivePopupForAccessibility() override;
   void RotatePaneFocus(bool forwards) override;
   void FocusWebContentsPane() override;
-  bool IsBookmarkBarVisible() const override;
-  bool IsBookmarkBarAnimating() const override;
   bool IsTabStripEditable() const override;
   void DisableTabStripEditingForTesting() override;
   bool IsToolbarVisible() const override;
@@ -792,6 +788,11 @@ class BrowserView : public BrowserWindow,
   void OnWillChangeFocus(View* focused_before, View* focused_now) override;
   void OnDidChangeFocus(View* focused_before, View* focused_now) override;
 
+  // BookmarkBarController::Delegate:
+  void OnBookmarkBarStateChanged(
+      BookmarkBar::AnimateChangeType change_type) override;
+  void OnFocusBookmarksToolbar() override;
+
   // Testing interface:
   views::View* GetContentsContainerForTest() { return contents_container_; }
   BrowserViewLayout* GetBrowserViewLayoutForTesting() {
@@ -807,6 +808,9 @@ class BrowserView : public BrowserWindow,
 
   void CreateTabSearchBubble() override;
   void CloseTabSearchBubble() override;
+
+  bool IsBookmarkBarVisible() const;
+  bool IsBookmarkBarAnimating() const;
 
 #if !BUILDFLAG(IS_CHROMEOS)
   AccessibilityFocusHighlight* GetAccessibilityFocusHighlightForTesting() {
@@ -1260,7 +1264,8 @@ class BrowserView : public BrowserWindow,
 
   // The Bookmark Bar View for this window. Lazily created. May be null for
   // non-tabbed browsers like popups. May not be visible.
-  std::unique_ptr<BookmarkBarView> bookmark_bar_view_;
+  std::unique_ptr<BookmarkBarView> detached_bookmark_bar_view_;
+  raw_ptr<BookmarkBarView> bookmark_bar_view_ = nullptr;
 
   std::unique_ptr<TabSearchBubbleHost> tab_search_bubble_host_;
 
@@ -1370,8 +1375,6 @@ class BrowserView : public BrowserWindow,
   // starts and used for all consecutive tabs (while any are loading) to keep
   // throbbers in sync.
   base::TimeTicks loading_animation_start_;
-
-  base::OneShotTimer temporary_bookmark_bar_timer_;
 
   views::UnhandledKeyboardEventHandler unhandled_keyboard_event_handler_;
 

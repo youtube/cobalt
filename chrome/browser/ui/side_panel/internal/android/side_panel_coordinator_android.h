@@ -13,10 +13,12 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/side_panel/internal/android/side_panel_tab_list_observer_android.h"
+#include "chrome/browser/ui/side_panel/side_panel_enums.h"
 #include "chrome/browser/ui/side_panel/side_panel_ui_base.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
 
 class BrowserWindowInterface;
+class SidePanelEntryWaiter;
 
 // Android implementation of `SidePanelUIBase`.
 //
@@ -49,6 +51,8 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   // Implements Java `SidePanelCoordinatorAndroid.Natives`. These methods are
   // called from Java via JNI, see `SidePanelCoordinatorAndroidImpl.java`.
   void Destroy(JNIEnv* env);
+  void NotifyCloseAnimationFinished(JNIEnv* env, SidePanelType panel_type);
+  void NotifyOpenAnimationFinished(JNIEnv* env, SidePanelType panel_type);
 
   // Implements `SidePanelUI`:
   void ShowFrom(SidePanelEntryKey entry_key,
@@ -62,6 +66,15 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
   void DisableAnimationsForTesting() override;
   void SetNoDelaysForTesting(bool no_delays_for_testing) override;
 
+  SidePanelEntryWaiter* GetWaiterForTesting(SidePanelType type) {
+    return waiter(type);
+  }
+
+  bool IsClosing() const { return state_ == SidePanelState::kClosing; }
+  bool ShouldClose() const {
+    return state_ == SidePanelState::kShown ||
+           state_ == SidePanelState::kOpening;
+  }
 
  protected:
   // Implements `SidePanelUIBase`:
@@ -79,7 +92,19 @@ class SidePanelCoordinatorAndroid : public SidePanelUIBase {
       SidePanelRegistry* new_contextual_registry) override;
 
  private:
+  // Delegates to `SidePanelRegistry::ClearCachedEntryViews` in all
+  // `SidePanelRegistry` instances accessible from this class, including
+  // the window-scoped registry and all contextual (tab-scoped) registries.
+  void ClearCachedEntryViews(SidePanelType type);
+
   base::android::ScopedJavaLocalRef<jobject> java_coordinator() const;
+
+  // The current state of the Side Panel
+  SidePanelState state_ = SidePanelState::kClosed;
+
+  // Tracks the hide reason for the current close operation.
+  SidePanelEntryHideReason pending_hide_reason_ =
+      SidePanelEntryHideReason::kSidePanelClosed;
 
   // A weak reference to the Java `SidePanelCoordinatorAndroid`, which is
   // the sole owner of the C++ `SidePanelCoordinatorAndroid`.

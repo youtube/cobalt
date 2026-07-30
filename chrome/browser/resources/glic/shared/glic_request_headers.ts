@@ -5,11 +5,10 @@
 // <if expr="not enable_extensions_core">
 import {OnBeforeSendHeadersParams} from '/shared/guest_view/request_throttlers.js';
 // </if>
-import type {Header} from '/shared/guest_view/request_throttlers.js';
 import type {ChromeEvent} from '/tools/typescript/definitions/chrome_event.js';
 
-import {isFullWebView} from './web_view_type.js';
-import type {WebViewType} from './web_view_type.js';
+import {isFullWebView} from '../shared/web_view_type.js';
+import type {WebViewType} from '../shared/web_view_type.js';
 
 // Attaches the X-Glic headers to all main-frame requests.
 // X-Glic: 1
@@ -61,7 +60,7 @@ export class GlicRequestHeaderInjector {
             return {requestHeaders};
           };
 
-  private headers(): Header[] {
+  private headers() {
     return [
       {
         name: 'X-Glic',

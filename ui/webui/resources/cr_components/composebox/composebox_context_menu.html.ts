@@ -29,7 +29,10 @@ export function getHtml(this: ComposeboxElement) {
         @context-menu-opened="${this.onContextMenuOpened_}"
         @open-image-upload="${this.onOpenImageUpload}"
         @open-file-upload="${this.onOpenFileUpload}"
+        @smart-tab-sharing-active-changed="${
+            this.onSmartTabSharingActiveChanged_}"
         .inputState="${this.inputState}"
+        .smartTabSharingActive="${this.smartTabSharingActive_}"
         .searchboxLayoutMode="${this.searchboxLayoutMode}"
         .tabSuggestions="${this.tabSuggestions}"
         .hasImageFiles="${this.hasImageFiles()}"
@@ -49,7 +52,7 @@ export function getHtml(this: ComposeboxElement) {
         ?show-context-menu-description="${this.showContextMenuDescription}">
     </cr-composebox-contextual-entrypoint-button>
   ` : '')}
-  ${this.searchboxLayoutMode === 'Compact' && this.shouldShowVoiceSearch_() ? html`
+  ${this.searchboxLayoutMode === 'Compact' && this.shouldShowVoiceSearch() ? html`
     <cr-icon-button id="voiceSearchButton" class="voice-icon"
         part="voice-icon" iron-icon="cr:mic"
         @click="${this.onVoiceSearchButtonClick_}"

@@ -44,6 +44,7 @@ class MockDataSource : public CrossOriginDataSource {
   MOCK_METHOD(bool, AssumeFullyBuffered, (), (const, override));
   MOCK_METHOD(int64_t, GetMemoryUsage, (), (override));
   MOCK_METHOD(void, SetPreload, (DataSource::Preload preload), (override));
+  MOCK_METHOD(bool, DidRedirect, (), (const, override));
   MOCK_METHOD(GURL, GetUrlAfterRedirects, (), (const, override));
   MOCK_METHOD(void, StopPreloading, (), (override));
   MOCK_METHOD(void,
@@ -214,7 +215,7 @@ class MockDataSourceFactory : public DataSource::Factory {
   ~MockDataSourceFactory() override;
   MockDataSourceFactory();
   void Create(const GURL& uri,
-              bool ignore_cache,
+              DataSource::CacheMode cache_mode,
               DataSource::DataSourceCb cb) override;
   void AddReadExpectation(size_t from, size_t to, int response);
   testing::NiceMock<MockDataSource>* PregenerateNextMock();

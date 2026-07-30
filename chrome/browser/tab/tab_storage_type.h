@@ -21,16 +21,18 @@ enum class TabStorageType {
   kMaxValue = kSplit,
 };
 
-// Various statuses that can occur during storage loading.
+// Various warnings that can occur during storage loading.
 // GENERATED_JAVA_ENUM_PACKAGE: org.chromium.chrome.browser.tab
-enum class StorageLoadingStatus {
-  kSuccess = 0,
-  kParseError,
-  kMultipleUniqueNodesError,
-  kTreeTooDeepError,
-  kMissingTabError,
-  kUnknownCollectionTypeError,
+// LINT.IfChange(StorageLoadWarningCode)
+enum class StorageLoadWarningCode {
+  kUnknown = 0,
+  kParseError = 1,
+  kMultipleUniqueNodesError = 2,
+  kTreeTooDeepError = 3,
+  kUnknownCollectionTypeError = 4,
+  kMaxValue = kUnknownCollectionTypeError
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/tab/enums.xml:StorageLoadWarningCode)
 
 }  // namespace tabs
 

@@ -17,6 +17,7 @@
 #include "components/contextual_search/contextual_search_types.h"
 #include "components/contextual_search/pref_names.h"
 #include "components/lens/contextual_input.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/prefs/pref_service.h"
 #include "net/base/url_util.h"
 #include "third_party/omnibox_proto/input_type.pb.h"
@@ -86,6 +87,64 @@ void MaybePopulateBrowserTabInputTypeRule(omnibox::SearchboxConfig* config) {
   }
 }
 
+// Populates `InputTypeRule` for `omnibox::INPUT_TYPE_DRIVE` if it does
+// not exist.
+void MaybePopulateDriveInputTypeRule(omnibox::SearchboxConfig* config) {
+  if (!config) {
+    return;
+  }
+  omnibox::RuleSet* rule_set = config->mutable_rule_set();
+
+  bool drive_rule_exists =
+      std::ranges::any_of(rule_set->input_type_rules(), [](const auto& rule) {
+        return rule.input_type() == omnibox::INPUT_TYPE_DRIVE;
+      });
+
+  // Populate `InputTypeRule` for `omnibox::INPUT_TYPE_DRIVE`.
+  if (!drive_rule_exists) {
+    omnibox::InputTypeRule* new_rule = rule_set->add_input_type_rules();
+    new_rule->set_input_type(omnibox::INPUT_TYPE_DRIVE);
+    new_rule->add_allowed_input_types(omnibox::INPUT_TYPE_LENS_IMAGE);
+    new_rule->add_allowed_input_types(omnibox::INPUT_TYPE_LENS_FILE);
+    new_rule->add_allowed_input_types(omnibox::INPUT_TYPE_BROWSER_TAB);
+    new_rule->add_allowed_input_types(omnibox::INPUT_TYPE_DRIVE);
+  }
+
+  // Add `omnibox::INPUT_TYPE_DRIVE` to the `allowed_input_types` in
+  // `ToolRule` for all tools if the tool allows both images and files.
+  for (auto& tool_rule : *rule_set->mutable_tool_rules()) {
+    bool has_image = false;
+    bool has_file = false;
+    for (const auto& input_type : tool_rule.allowed_input_types()) {
+      if (input_type == omnibox::INPUT_TYPE_LENS_IMAGE) {
+        has_image = true;
+      } else if (input_type == omnibox::INPUT_TYPE_LENS_FILE) {
+        has_file = true;
+      }
+    }
+    if (has_image && has_file) {
+      tool_rule.add_allowed_input_types(omnibox::INPUT_TYPE_DRIVE);
+    }
+  }
+
+  // Add `omnibox::INPUT_TYPE_DRIVE` to the `allowed_input_types` in
+  // `ModelRule` for all models if the model allows both images and files.
+  for (auto& model_rule : *rule_set->mutable_model_rules()) {
+    bool has_image = false;
+    bool has_file = false;
+    for (const auto& input_type : model_rule.allowed_input_types()) {
+      if (input_type == omnibox::INPUT_TYPE_LENS_IMAGE) {
+        has_image = true;
+      } else if (input_type == omnibox::INPUT_TYPE_LENS_FILE) {
+        has_file = true;
+      }
+    }
+    if (has_image && has_file) {
+      model_rule.add_allowed_input_types(omnibox::INPUT_TYPE_DRIVE);
+    }
+  }
+}
+
 std::optional<omnibox::ModelMode> GetActiveModelFromUrl(
     const GURL& active_url,
     const std::vector<omnibox::ModelConfig>& model_configs,
@@ -143,11 +202,18 @@ InputStateModel::InputStateModel(
     contextual_search::ContextualSearchSessionHandle& session_handle,
     const SearchboxConfig& config,
     const GURL& active_url,
-    bool is_off_the_record)
+    bool is_off_the_record,
+    bool is_signed_in)
     : session_handle_(session_handle.AsWeakPtr()),
-      is_off_the_record_(is_off_the_record) {
+      is_off_the_record_(is_off_the_record),
+      is_signed_in_(is_signed_in) {
   SearchboxConfig mutable_config = config;
   MaybePopulateBrowserTabInputTypeRule(&mutable_config);
+
+  if (is_signed_in_ && base::FeatureList::IsEnabled(
+                           omnibox::kComposeboxDriveContextMenuOption)) {
+    MaybePopulateDriveInputTypeRule(&mutable_config);
+  }
 
   if (mutable_config.has_rule_set()) {
     rule_set_ = mutable_config.rule_set();
@@ -222,6 +288,13 @@ InputStateModel::InputStateModel(
     state_.allowed_input_types.push_back(omnibox::INPUT_TYPE_BROWSER_TAB);
   }
 
+  // Only add drive if it does not already exist and the drive flag is
+  // enabled.
+  if (!contains(omnibox::INPUT_TYPE_DRIVE) && is_signed_in_ &&
+      base::FeatureList::IsEnabled(
+          omnibox::kComposeboxDriveContextMenuOption)) {
+    state_.allowed_input_types.push_back(omnibox::InputType::INPUT_TYPE_DRIVE);
+  }
   state_.active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
   // the initial model should be the first allowed model, but can be
   // overridden by parameters in the active web contents URL.
@@ -242,7 +315,8 @@ InputStateModel::InputStateModel(
     const InputStateModel& new_input_state_model,
     contextual_search::ContextualSearchSessionHandle& new_session_handle)
     : session_handle_(new_session_handle.AsWeakPtr()),
-      is_off_the_record_(new_input_state_model.is_off_the_record_) {
+      is_off_the_record_(new_input_state_model.is_off_the_record_),
+      is_signed_in_(new_input_state_model.is_signed_in_) {
   state_ = new_input_state_model.state_;
   rule_set_ = new_input_state_model.rule_set_;
   pref_service_ = new_input_state_model.pref_service_;
@@ -491,7 +565,8 @@ void InputStateModel::UpdateDisabledInputTypes() {
     std::erase_if(state_.allowed_input_types, [](auto input_type) {
       return input_type == omnibox::InputType::INPUT_TYPE_LENS_IMAGE ||
              input_type == omnibox::InputType::INPUT_TYPE_LENS_FILE ||
-             input_type == omnibox::InputType::INPUT_TYPE_BROWSER_TAB;
+             input_type == omnibox::InputType::INPUT_TYPE_BROWSER_TAB ||
+             input_type == omnibox::InputType::INPUT_TYPE_DRIVE;
     });
   }
 

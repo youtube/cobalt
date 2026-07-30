@@ -501,10 +501,11 @@ MemoryManagedPaintRecorder* CanvasRenderingContext2D::Recorder() {
 }
 
 void CanvasRenderingContext2D::WillDraw(
-    const SkIRect& dirty_rect,
+    const gfx::Rect& dirty_rect,
     CanvasPerformanceMonitor::DrawType draw_type) {
   if (ShouldAntialias()) {
-    SkIRect inflated_dirty_rect = dirty_rect.makeOutset(1, 1);
+    gfx::Rect inflated_dirty_rect = dirty_rect;
+    inflated_dirty_rect.Outset(1);
     CanvasRenderingContext::DidDraw(inflated_dirty_rect, draw_type);
   } else {
     CanvasRenderingContext::DidDraw(dirty_rect, draw_type);
@@ -996,7 +997,8 @@ void CanvasRenderingContext2D::DrawFocusRing(const Path& path,
   if (!ComputeDirtyRect(path.StrokeBoundingRect(stroke_data), &dirty_rect))
     return;
 
-  DidDraw(dirty_rect, CanvasPerformanceMonitor::DrawType::kPath);
+  DidDraw(gfx::SkIRectToRect(dirty_rect),
+          CanvasPerformanceMonitor::DrawType::kPath);
 }
 
 void CanvasRenderingContext2D::UpdateElementAccessibility(const Path& path,
@@ -1090,6 +1092,8 @@ void CanvasRenderingContext2D::Dispose() {
 std::unique_ptr<CanvasResourceProvider>
 CanvasRenderingContext2D::CreateCanvasResourceProvider() {
   CHECK(!GetResourceProvider());
+
+  canvas()->GetOrCreateResourceDispatcher();
 
   std::unique_ptr<CanvasResourceProvider> provider;
   const SkAlphaType alpha_type = GetAlphaType();

@@ -295,7 +295,10 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
 
   self = [super initWithStyle:ChromeTableViewStyle()];
   if (self) {
-    self.title = l10n_util::GetNSString(IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE);
+    self.title =
+        l10n_util::GetNSString(IsYourSavedInfoSettingsPageIosEnabled()
+                                   ? IDS_AUTOFILL_CONTACT_INFO_TITLE
+                                   : IDS_AUTOFILL_ADDRESSES_SETTINGS_TITLE);
     self.shouldDisableDoneButtonOnEdit = YES;
     _browser = browser;
     _personalDataManager = autofill::PersonalDataManagerFactory::GetForProfile(
@@ -497,19 +500,14 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
 
 - (TableViewItem*)enhancedAutofillItem {
   NSString* text = l10n_util::GetNSString(IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE);
-  NSString* detailText =
-      autofill::IsEnhancedAutofillEnabled(_browser->GetProfile())
-          ? l10n_util::GetNSString(IDS_IOS_SETTING_ON)
-          : l10n_util::GetNSString(IDS_IOS_SETTING_OFF);
 
   _enhancedAutofillItem =
       [[TableViewDetailIconItem alloc] initWithType:ItemTypeEnhancedAutofill];
   _enhancedAutofillItem.text = text;
-  _enhancedAutofillItem.detailText = detailText;
-  _enhancedAutofillItem.accessoryType =
-      UITableViewCellAccessoryDisclosureIndicator;
   _enhancedAutofillItem.accessibilityTraits |= UIAccessibilityTraitButton;
   _enhancedAutofillItem.accessibilityIdentifier = kEnhancedAutofillTableViewId;
+
+  [self configureEnhancedAutofillItem];
 
   return _enhancedAutofillItem;
 }
@@ -662,6 +660,38 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   return autofill::CanPerformAutofillAiAction(
       _browser->GetProfile(),
       autofill::AutofillAiAction::kWalletDataSharingPromotion);
+}
+
+// Returns YES if the user can modify the Enhanced Autofill setting.
+- (BOOL)canModifyEnhancedAutofill {
+  return autofill::CanPerformAutofillAiAction(
+      _browser->GetProfile(),
+      base::FeatureList::IsEnabled(
+          autofill::features::kAutofillAiAvailableByDefault)
+          ? autofill::AutofillAiAction::kEnableOrDisable
+          : autofill::AutofillAiAction::kOptIn);
+}
+
+// Configures the enhancedAutofillItem based on capability to modify the
+// setting.
+- (void)configureEnhancedAutofillItem {
+  bool canModify = [self canModifyEnhancedAutofill];
+
+  _enhancedAutofillItem.detailText =
+      canModify && autofill::IsEnhancedAutofillEnabled(_browser->GetProfile())
+          ? l10n_util::GetNSString(IDS_IOS_SETTING_ON)
+          : l10n_util::GetNSString(IDS_IOS_SETTING_OFF);
+
+  if (canModify) {
+    _enhancedAutofillItem.accessoryType =
+        UITableViewCellAccessoryDisclosureIndicator;
+    _enhancedAutofillItem.accessibilityTraits &=
+        ~UIAccessibilityTraitNotEnabled;
+  } else {
+    _enhancedAutofillItem.accessoryType = UITableViewCellAccessoryNone;
+    _enhancedAutofillItem.selectionStyle = UITableViewCellSelectionStyleNone;
+    _enhancedAutofillItem.accessibilityTraits |= UIAccessibilityTraitNotEnabled;
+  }
 }
 
 // Returns the verification (reauthentication) switch item.
@@ -904,6 +934,10 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
       return;
     }
     case ItemTypeEnhancedAutofill: {
+      if (![self canModifyEnhancedAutofill]) {
+        [self.tableView deselectRowAtIndexPath:indexPath animated:YES];
+        return;
+      }
       CHECK(self.navigationController);
       base::RecordAction(base::UserMetricsAction("Settings.EnhancedAutofill"));
       EnhancedAutofillTableViewController* controller =
@@ -1054,12 +1088,7 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   [self setSwitchItemOn:switchOn itemType:ItemTypeAutofillAddressSwitch];
   [self setAutofillProfileEnabled:switchOn];
 
-  if ([self shouldShowAddMenu]) {
-    _addButtonInToolbar.menu =
-        [self buildAddEntitiesMenuWithProfileEnabled:switchOn];
-  } else {
-    _addButtonInToolbar.enabled = switchOn;
-  }
+  [self updateAddButtonInToolbar];
 }
 
 - (void)verificationSwitchChanged:(UISwitch*)switchView {
@@ -1126,6 +1155,7 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
       base::apple::ObjCCastStrict<TableViewSwitchItem>(
           [model itemAtIndexPath:switchPath]);
   switchItem.on = on;
+  [self reconfigureCellsForItems:@[ switchItem ]];
 }
 
 // Sets switchItem's enabled status to `enabled` and reconfigures the
@@ -1209,15 +1239,7 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   if (!_addButtonInToolbar) {
     _addButtonInToolbar =
         [self addButtonWithAction:@selector(handleAddAddress)];
-    bool isAutofillProfileEnabled = [self isAutofillProfileEnabled];
-    if ([self shouldShowAddMenu]) {
-      _addButtonInToolbar.action = nil;
-      _addButtonInToolbar.target = nil;
-      _addButtonInToolbar.menu = [self
-          buildAddEntitiesMenuWithProfileEnabled:isAutofillProfileEnabled];
-    } else {
-      _addButtonInToolbar.enabled = isAutofillProfileEnabled;
-    }
+    [self updateAddButtonInToolbar];
   }
   return _addButtonInToolbar;
 }
@@ -1231,13 +1253,10 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   }
 
   if (preferenceName == autofill::prefs::kAutofillAiOptInStatus) {
-    NSString* detailText =
-        autofill::IsEnhancedAutofillEnabled(_browser->GetProfile())
-            ? l10n_util::GetNSString(IDS_IOS_SETTING_ON)
-            : l10n_util::GetNSString(IDS_IOS_SETTING_OFF);
-    _enhancedAutofillItem.detailText = detailText;
-
+    [self configureEnhancedAutofillItem];
     [self reconfigureCellsForItems:@[ _enhancedAutofillItem ]];
+
+    [self updateAddButtonInToolbar];
   }
 }
 
@@ -1628,6 +1647,20 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
   return _entityDataManager != nullptr;
 }
 
+// Updates the add button in the toolbar based on whether the add menu should be
+// shown and whether autofill profile is enabled.
+- (void)updateAddButtonInToolbar {
+  BOOL profileEnabled = [self isAutofillProfileEnabled];
+  if ([self shouldShowAddMenu]) {
+    _addButtonInToolbar.action = nil;
+    _addButtonInToolbar.target = nil;
+    _addButtonInToolbar.menu =
+        [self buildAddEntitiesMenuWithProfileEnabled:profileEnabled];
+  } else {
+    _addButtonInToolbar.enabled = profileEnabled;
+  }
+}
+
 // Returns whether it is allowed to add entities. When adding entities is not
 // allowed, menu items on the add menu are disabled.
 - (bool)canAddEntities {
@@ -1679,7 +1712,7 @@ ItemType ItemTypeForEntitySectionHeader(SectionIdentifier section_identifier) {
 
   std::vector<autofill::EntityLabel> labels = autofill::GetLabelsForEntities(
       instances, /*attribute_types_to_ignore=*/{},
-      /*only_disambiguating_types=*/true, /*obfuscate_sensitive_types=*/true,
+      /*only_disambiguating_types=*/false, /*obfuscate_sensitive_types=*/true,
       locale);
 
   ItemType itemType = ItemTypeForEntitySection(sectionIdentifier);

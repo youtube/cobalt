@@ -692,6 +692,10 @@ void V4L2VideoEncodeAccelerator::Destroy() {
   // We're destroying; cancel all callbacks.
   client_ptr_factory_.reset();
 
+  // Invalidates |child_weak_this_factory_| so that no callback to |this| is
+  // invoked hereafter.
+  child_weak_this_factory_.InvalidateWeakPtrs();
+
   encoder_task_runner_->PostTask(
       FROM_HERE, base::BindOnce(&V4L2VideoEncodeAccelerator::DestroyTask,
                                 base::Unretained(this)));
@@ -959,6 +963,19 @@ void V4L2VideoEncodeAccelerator::EncodeTask(scoped_refptr<VideoFrame> frame,
                      base::StrCat({"Unexpected storage: ",
                                    VideoFrame::StorageTypeToString(
                                        frame->storage_type())})});
+      return;
+    }
+    constexpr VideoPixelFormat kExpectedFormats[] = {
+        PIXEL_FORMAT_I420,
+        PIXEL_FORMAT_NV12,
+    };
+    const bool is_expected_format =
+        std::ranges::contains(kExpectedFormats, frame->format());
+    if (!is_expected_format) {
+      SetErrorState(
+          {EncoderStatus::Codes::kInvalidInputFrame,
+           base::StrCat({"Unexpected format: ",
+                         VideoPixelFormatToString(frame->format())})});
       return;
     }
 

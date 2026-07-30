@@ -8,6 +8,7 @@
 #include "base/containers/span.h"
 #include "base/logging.h"
 #include "build/build_config.h"
+#include "testing/libfuzzer/libfuzzer_base_wrappers.h"
 #include "ui/accessibility/ax_node.h"
 #include "ui/accessibility/ax_tree.h"
 
@@ -98,24 +99,12 @@ void TestTableAPIs(const ui::AXNode* node) {
     for (int j = 0; j < 3; j++)
       std::ignore = node->GetTableCellFromCoords(i, j);
   // Note: some of the APIs return IDs - we don't care what's
-  // returned, we just want to make sure these APIs don't
-  // crash. Normally |ids| is an out argument only, but
-  // there's no reason we shouldn't be able to pass a vector
-  // that was previously used by another call.
-  std::vector<ui::AXNodeID> ids;
+  // returned, we just want to make sure these APIs don't crash.
   for (int i = 0; i < 3; i++) {
-    std::vector<ui::AXNodeID> col_header_node_ids =
-        node->GetTableColHeaderNodeIds(i);
-    ids.insert(ids.end(), col_header_node_ids.begin(),
-               col_header_node_ids.end());
-
-    std::vector<ui::AXNodeID> row_header_node_ids =
-        node->GetTableRowHeaderNodeIds(i);
-    ids.insert(ids.end(), row_header_node_ids.begin(),
-               row_header_node_ids.end());
+    std::ignore = node->GetTableColHeaderNodeIds(i);
+    std::ignore = node->GetTableRowHeaderNodeIds(i);
   }
-  std::vector<ui::AXNodeID> unique_cell_ids = node->GetTableUniqueCellIds();
-  ids.insert(ids.end(), unique_cell_ids.begin(), unique_cell_ids.end());
+  std::ignore = node->GetTableUniqueCellIds();
 
   std::ignore = node->IsTableRow();
   std::ignore = node->GetTableRowRowIndex();
@@ -131,14 +120,12 @@ void TestTableAPIs(const ui::AXNode* node) {
   std::ignore = node->GetTableCellRowSpan();
   std::ignore = node->GetTableCellAriaColIndex();
   std::ignore = node->GetTableCellAriaRowIndex();
-  std::vector<ui::AXNodeID> cell_col_header_node_ids =
-      node->GetTableCellColHeaderNodeIds();
-  ids.insert(ids.end(), cell_col_header_node_ids.begin(),
-             cell_col_header_node_ids.end());
-  std::vector<ui::AXNodeID> cell_row_header_node_ids =
-      node->GetTableCellRowHeaderNodeIds();
-  ids.insert(ids.end(), cell_row_header_node_ids.begin(),
-             cell_row_header_node_ids.end());
+  std::ignore = node->GetTableCellColHeaderNodeIds();
+  std::ignore = node->GetTableCellRowHeaderNodeIds();
+
+  // Normally |headers| is an out argument only, but there's no reason we
+  // shouldn't be able to pass a vector that was previously used by another
+  // call.
   std::vector<ui::AXNode*> headers;
   node->GetTableCellColHeaders(&headers);
   node->GetTableCellRowHeaders(&headers);
@@ -149,9 +136,7 @@ void TestTableAPIs(const ui::AXNode* node) {
 }
 
 // Entry point for LibFuzzer.
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  // SAFETY: `data` points to a buffer containing at least `size` bytes.
-  auto data_span = UNSAFE_BUFFERS(base::span(data, size));
+DEFINE_LLVM_FUZZER_TEST_ONE_INPUT_SPAN(base::span<const uint8_t> data) {
   ui::AXTreeUpdate initial_state;
   initial_state.root_id = 1;
   size_t i = 0;
@@ -159,8 +144,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // The root of the accessibility tree.
   ui::AXNodeData root;
   root.id = 1;
-  if (i < data_span.size()) {
-    root.role = GetInterestingTableRole(data_span[i++]);
+  if (i < data.size()) {
+    root.role = GetInterestingTableRole(data[i++]);
   }
   root.child_ids.push_back(2);
   initial_state.nodes.push_back(root);
@@ -170,34 +155,33 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   ui::AXNodeData table;
   table.id = 2;
   table.role = ax::mojom::Role::kTable;
-  if (i < data_span.size()) {
-    size_t child_count = data_span[i++] % 8;
-    for (size_t j = 0; j < child_count && i < data_span.size(); j++) {
-      table.child_ids.push_back(3 + data_span[i++] % 32);
+  if (i < data.size()) {
+    size_t child_count = data[i++] % 8;
+    for (size_t j = 0; j < child_count && i < data.size(); j++) {
+      table.child_ids.push_back(3 + data[i++] % 32);
     }
   }
   initial_state.nodes.push_back(table);
 
   // Create more accessibility nodes that might result in a table.
   int next_id = 3;
-  while (i < data_span.size()) {
+  while (i < data.size()) {
     ui::AXNodeData node;
     node.id = next_id++;
-    if (i < data_span.size()) {
-      node.role = GetInterestingTableRole(data_span[i++]);
-    }
-    if (i < data_span.size()) {
-      int attr_count = data_span[i++] % 6;
-      for (int j = 0; j < attr_count && i + 1 < data_span.size(); j++) {
-        unsigned char attr = data_span[i++];
-        int32_t value = static_cast<int32_t>(data_span[i++]) - 2;
+    node.role = GetInterestingTableRole(data[i++]);
+
+    if (i < data.size()) {
+      int attr_count = data[i++] % 6;
+      for (int j = 0; j < attr_count && i + 1 < data.size(); j++) {
+        unsigned char attr = data[i++];
+        int32_t value = static_cast<int32_t>(data[i++]) - 2;
         node.AddIntAttribute(GetInterestingTableAttribute(attr), value);
       }
     }
-    if (i < data_span.size()) {
-      size_t child_count = data_span[i++] % 8;
-      for (size_t j = 0; j < child_count && i < data_span.size(); j++) {
-        node.child_ids.push_back(4 + data_span[i++] % 32);
+    if (i < data.size()) {
+      size_t child_count = data[i++] % 8;
+      for (size_t j = 0; j < child_count && i < data.size(); j++) {
+        node.child_ids.push_back(4 + data[i++] % 32);
       }
     }
     initial_state.nodes.push_back(node);

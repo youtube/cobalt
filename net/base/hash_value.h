@@ -47,9 +47,9 @@ class NET_EXPORT HashValue {
   //   - logging public-key pins
   //   - serializing public-key pins
 
-  // Deserializes a HashValue from a string. Returns false if the input is not
-  // valid.
-  bool FromString(std::string_view input);
+  // Deserializes a HashValue from a string. Returns nullopt if the input is
+  // not valid.
+  static std::optional<HashValue> FromString(std::string_view input);
 
   // Serializes the HashValue to a string.
   std::string ToString() const;

@@ -22,6 +22,7 @@
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
 #include "third_party/blink/renderer/platform/text/layout_locale.h"
+#include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
 
 namespace blink {
@@ -133,7 +134,7 @@ class CORE_EXPORT OffscreenCanvas final
 
   bool PushFrameIfNeeded();
   bool PushFrame(scoped_refptr<CanvasResource>&& frame) override;
-  void DidDraw(const SkIRect&) override;
+  void DidDraw(const gfx::Rect&) override;
   using CanvasRenderingContextHost::DidDraw;
   bool ShouldAccelerate2dContext() const override;
   CanvasResourceDispatcher* GetOrCreateResourceDispatcher() override;
@@ -269,7 +270,7 @@ class CORE_EXPORT OffscreenCanvas final
 
   // Rect is in a canvas's space (i.e Size() is a full rect and not in a
   // CanvasResource space).
-  SkIRect current_frame_damage_rect_;
+  gfx::Rect current_frame_damage_rect_;
 
   bool needs_push_frame_ = false;
   bool inside_worker_raf_ = false;

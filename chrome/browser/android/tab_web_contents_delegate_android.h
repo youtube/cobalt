@@ -51,6 +51,8 @@ class TabWebContentsDelegateAndroid
                       scoped_refptr<content::FileSelectListener> listener,
                       const blink::mojom::FileChooserParams& params) override;
   bool ShouldFocusLocationBarByDefault(content::WebContents* source) override;
+  void NavigationStateChanged(content::WebContents* source,
+                              content::InvalidateTypes changed_flags) override;
   void FindReply(content::WebContents* web_contents,
                  int request_id,
                  int number_of_matches,
@@ -134,8 +136,6 @@ class TabWebContentsDelegateAndroid
 
   bool ShouldEnableEmbeddedMediaExperience() const;
   bool IsPictureInPictureEnabled() const;
-  virtual bool IsNightModeEnabled() const;
-  bool IsForceDarkWebContentEnabled() const;
   bool CanShowAppBanners() const;
 
   // Returns true if this tab is currently presented in the context of custom
@@ -146,7 +146,6 @@ class TabWebContentsDelegateAndroid
   bool IsInstalledWebappDelegateGeolocation() const;
   bool IsModalContextMenu() const;
   bool IsDynamicSafeAreaInsetsEnabled() const;
-  bool OpenInAppOrChromeFromCct(GURL url);
 
   void DraggableRegionsChanged(
       const std::vector<blink::mojom::DraggableRegionPtr>& regions,
@@ -162,6 +161,11 @@ class TabWebContentsDelegateAndroid
 
   // Timestamp when the user last successfully escaped from a lock request.
   base::TimeTicks pointer_lock_last_user_escape_time_;
+
+  void NavigationStateChangedDeferred(content::WebContents* source,
+                                      content::InvalidateTypes changed_flags);
+
+  base::WeakPtrFactory<TabWebContentsDelegateAndroid> weak_ptr_factory_{this};
 };
 
 }  // namespace android

@@ -77,6 +77,9 @@ extern const char kAutofillAiCreateEntityDataManagerDescription[];
 extern const char kAutofillAiDedupeEntitiesName[];
 extern const char kAutofillAiDedupeEntitiesDescription[];
 
+extern const char kAutofillAiNoFillingIconsExperimentName[];
+extern const char kAutofillAiNoFillingIconsExperimentDescription[];
+
 extern const char kAutofillAiReauthRequiredName[];
 extern const char kAutofillAiReauthRequiredDescription[];
 
@@ -164,6 +167,9 @@ extern const char kAutofillThrottleDocumentFormScanDescription[];
 extern const char kAutofillThrottleFilteredDocumentFormScanName[];
 extern const char kAutofillThrottleFilteredDocumentFormScanDescription[];
 
+extern const char kAutofillUpstreamEnforceStrikeDelayName[];
+extern const char kAutofillUpstreamEnforceStrikeDelayDescription[];
+
 extern const char kAutofillUseRendererIDsName[];
 extern const char kAutofillUseRendererIDsDescription[];
 
@@ -196,6 +202,9 @@ extern const char kCacheIdentityListInChromeDescription[];
 
 extern const char kChromeNextIaName[];
 extern const char kChromeNextIaDescription[];
+
+extern const char kCobrowseAimHistoryName[];
+extern const char kCobrowseAimHistoryDescription[];
 
 extern const char kCollaborationMessagingName[];
 extern const char kCollaborationMessagingDescription[];
@@ -453,6 +462,9 @@ extern const char kGeminiLiveDescription[];
 
 extern const char kGeminiMapsRichUIName[];
 extern const char kGeminiMapsRichUIDescription[];
+
+extern const char kGeminiMultiTabContextName[];
+extern const char kGeminiMultiTabContextDescription[];
 
 extern const char kGeminiNavigationPromoName[];
 extern const char kGeminiNavigationPromoDescription[];
@@ -721,6 +733,9 @@ extern const char kNTPBackgroundColorSliderDescription[];
 extern const char kNTPBackgroundCustomizationName[];
 extern const char kNTPBackgroundCustomizationDescription[];
 
+extern const char kNTPBackgroundDownsampleImageName[];
+extern const char kNTPBackgroundDownsampleImageDescription[];
+
 extern const char kNativeFindInPageName[];
 extern const char kNativeFindInPageDescription[];
 
@@ -786,12 +801,6 @@ extern const char kOmniboxMlUrlScoringDescription[];
 
 extern const char kOmniboxMlUrlSearchBlendingName[];
 extern const char kOmniboxMlUrlSearchBlendingDescription[];
-
-extern const char kOmniboxMobileParityUpdateName[];
-extern const char kOmniboxMobileParityUpdateDescription[];
-
-extern const char kOmniboxMobileParityUpdateV2Name[];
-extern const char kOmniboxMobileParityUpdateV2Description[];
 
 extern const char kOmniboxOnClobberFocusTypeOnIOSName[];
 extern const char kOmniboxOnClobberFocusTypeOnIOSDescription[];
@@ -1011,6 +1020,9 @@ extern const char kSyncAutofillValuableMetadataDescription[];
 
 extern const char kSyncAutofillValuableName[];
 extern const char kSyncAutofillValuableDescription[];
+
+extern const char kSyncContextualTaskName[];
+extern const char kSyncContextualTaskDescription[];
 
 extern const char kSyncSandboxName[];
 extern const char kSyncSandboxDescription[];

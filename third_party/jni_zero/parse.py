@@ -134,7 +134,7 @@ def _parse_package(contents, require=True):
 _CLASSES_REGEX = re.compile(
     r'^((?:(?!\b(?:class|interface|enum)\b)'
     r'(?:[^{}"]|"[^"]*"))*?)\b'
-    r'(?:class|interface|enum)\b\s+\b([\w.]+)'
+    r'(?:class|interface|enum)\b\s+\b([\w.$]+)'
     r'(<[\s\S]*?>)?\s*[^{]*?\{', re.MULTILINE)
 _INDENT_REGEX = re.compile(r'\s*')
 _SAME_LINE_CLOSING_BRACE_REGEX = re.compile(r'\s*\}')
@@ -342,6 +342,8 @@ def _parse_type(type_resolver, value):
       generics = tuple(
           _parse_type(type_resolver, g)
           for g in _split_by_delimiter(generics_str, ','))
+      if any(t.converted_type for t in generics):
+        raise ParseError('@JniType not allowed within generics: ' + value)
 
     java_class = type_resolver.resolve(parsed_value)
     primitive_name = None

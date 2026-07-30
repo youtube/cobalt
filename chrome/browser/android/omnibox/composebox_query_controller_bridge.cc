@@ -11,6 +11,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/jni_array.h"
 #include "base/android/jni_bytebuffer.h"
+#include "base/android/jni_string.h"
 #include "base/base64.h"
 #include "base/check.h"
 #include "base/containers/span.h"
@@ -24,6 +25,8 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_search/contextual_search_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_ui_interface.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/page_content_annotations/page_content_extraction_service_factory.h"
 #include "chrome/browser/search_engines/template_url_service_factory.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
@@ -37,6 +40,7 @@
 #include "components/contextual_tasks/public/query_contextualizer.h"
 #include "components/lens/contextual_input.h"
 #include "components/lens/lens_bitmap_processing.h"
+#include "components/lens/lens_features.h"
 #include "components/lens/lens_url_utils.h"
 #include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/omnibox_field_trial.h"
@@ -70,8 +74,9 @@ void RunJavaCallback(
 
 static int64_t JNI_ComposeboxQueryControllerBridge_Init(
     JNIEnv* env,
+    const base::android::JavaRef<jobject>& java_obj,
     Profile* profile,
-    const base::android::JavaRef<jobject>& java_obj) {
+    content::WebContents* contextual_tasks_web_contents) {
   auto* aim_service = AimEligibilityServiceFactory::GetForProfile(profile);
   if (!aim_service || !aim_service->IsAimEligible()) {
     return 0L;
@@ -85,14 +90,22 @@ static int64_t JNI_ComposeboxQueryControllerBridge_Init(
   }
 
   ComposeboxQueryControllerBridge* instance =
-      new ComposeboxQueryControllerBridge(profile, java_obj);
+      new ComposeboxQueryControllerBridge(java_obj, profile,
+                                          contextual_tasks_web_contents);
   return reinterpret_cast<intptr_t>(instance);
 }
 
 ComposeboxQueryControllerBridge::ComposeboxQueryControllerBridge(
+    const base::android::JavaRef<jobject>& java_obj,
     Profile* profile,
-    const base::android::JavaRef<jobject>& java_obj)
+    content::WebContents* contextual_tasks_web_contents)
     : profile_{profile}, java_obj_(java_obj) {
+  if (contextual_tasks_web_contents &&
+      !contextual_tasks_web_contents->IsBeingDestroyed()) {
+    contextual_tasks_web_ui_interface_ =
+        contextual_tasks::GetWebUiInterface(contextual_tasks_web_contents);
+  }
+
   auto query_controller_config_params = std::make_unique<
       contextual_search::ContextualSearchContextController::ConfigParams>();
   query_controller_config_params->send_lns_surface = false;
@@ -194,6 +207,13 @@ ComposeboxQueryControllerBridge::
   return session_handle_.get();
 }
 
+void ComposeboxQueryControllerBridge::GetRelevantTabsForQuery(
+    const std::string& query_text,
+    const std::vector<GURL>& attached_context_urls,
+    base::OnceCallback<void(
+        std::vector<contextual_tasks::QueryContextualizer::TabId>)> callback) {
+  std::move(callback).Run({});
+}
 
 void ComposeboxQueryControllerBridge::NotifySessionStarted(JNIEnv* env) {
   session_handle_->NotifySessionStarted();
@@ -212,18 +232,19 @@ ComposeboxQueryControllerBridge::AddFile(
   base::UnguessableToken file_token = session_handle_->CreateContextToken();
 
   std::optional<lens::ImageEncodingOptions> image_options = std::nullopt;
-  if (file_type.find("pdf") != std::string::npos) {
-    AimEligibilityService* aim_service =
-        AimEligibilityServiceFactory::GetForProfile(profile_);
-    if (!aim_service->IsPdfUploadEligible()) {
-      return {};
-    }
-  } else if (file_type.find("image") != std::string::npos) {
+  if (file_type.find("image") != std::string::npos) {
     image_options = lens::ImageEncodingOptions{.enable_webp_encoding = false,
                                                .max_size = 1500000,
                                                .max_height = 1600,
                                                .max_width = 1600,
                                                .compression_quality = 40};
+  } else if (file_type.find("pdf") != std::string::npos ||
+             lens::features::IsLensSendRawFileMediaTypesEnabled()) {
+    AimEligibilityService* aim_service =
+        AimEligibilityServiceFactory::GetForProfile(profile_);
+    if (!aim_service->IsPdfUploadEligible()) {
+      return {};
+    }
   } else {
     // Unsupported mime type.
     return {};
@@ -331,7 +352,8 @@ void ComposeboxQueryControllerBridge::ContextualizeAndCreateSearchUrl(
             [](base::OnceClosure closure,
                base::WeakPtr<contextual_search::ContextualSearchSessionHandle>
                    ignored_handle) { std::move(closure).Run(); },
-            std::move(callback)));
+            std::move(callback)),
+        /*enable_smart_tab_selection=*/false);
   } else {
     std::move(callback).Run();
   }
@@ -626,11 +648,17 @@ void ComposeboxQueryControllerBridge::InitializeInputStateModel() {
   if (OmniboxFieldTrial::kOmniboxShowModelPicker.Get()) {
     AimEligibilityService* aim_service =
         AimEligibilityServiceFactory::GetForProfile(profile_);
+    const signin::IdentityManager* identity_manager =
+        profile_ ? IdentityManagerFactory::GetForProfile(profile_) : nullptr;
+    bool has_primary_account =
+        identity_manager &&
+        identity_manager->HasPrimaryAccount(signin::ConsentLevel::kSignin);
     const omnibox::SearchboxConfig* config_ptr =
         aim_service->GetSearchboxConfig();
     input_state_model_ = std::make_unique<contextual_search::InputStateModel>(
         *session_handle_, config_ptr ? *config_ptr : omnibox::SearchboxConfig(),
-        GURL(), profile_ ? profile_->IsOffTheRecord() : false);
+        GURL(), profile_ ? profile_->IsOffTheRecord() : false,
+        has_primary_account);
     input_state_subscription_ =
         input_state_model_->subscribe(base::BindRepeating(
             &ComposeboxQueryControllerBridge::OnInputStateChanged,

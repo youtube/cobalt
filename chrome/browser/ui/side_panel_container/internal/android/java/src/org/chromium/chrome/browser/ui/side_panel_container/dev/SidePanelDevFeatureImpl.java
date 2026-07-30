@@ -17,6 +17,7 @@ import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.ui.side_panel_container.SidePanelContainerCoordinator;
 import org.chromium.components.embedder_support.delegate.WebContentsDelegateAndroid;
 import org.chromium.components.embedder_support.view.ContentView;
+import org.chromium.components.thinwebview.ThinWebViewAttachParams;
 import org.chromium.components.thinwebview.ThinWebViewConstraints;
 import org.chromium.components.thinwebview.ThinWebViewFactory;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -67,8 +68,14 @@ public final class SidePanelDevFeatureImpl implements SidePanelDevFeature {
                 ThinWebViewFactory.create(
                         getContext(windowAndroid),
                         new ThinWebViewConstraints(),
-                        intentRequestTracker);
-        thinWebView.attachWebContents(webContents, contentView, new WebContentsDelegateAndroid());
+                        intentRequestTracker,
+                        /* enablePermissionRequests= */ false);
+        thinWebView.attachWebContents(
+                webContents,
+                contentView,
+                new ThinWebViewAttachParams.Builder()
+                        .setWebContentsDelegate(new WebContentsDelegateAndroid())
+                        .build());
 
         return new SidePanelDevFeatureContent(thinWebView, webContents);
     }
@@ -98,9 +105,10 @@ public final class SidePanelDevFeatureImpl implements SidePanelDevFeature {
         assert sidePanelContent != null;
 
         if (!mSidePanelContainerCoordinator.isShowing(sidePanelContent)) {
-            mSidePanelContainerCoordinator.populateContent(sidePanelContent);
+            mSidePanelContainerCoordinator.populateContent(sidePanelContent, result -> {});
         } else {
-            mSidePanelContainerCoordinator.removeContent();
+            mSidePanelContainerCoordinator.removeContentAndClose(
+                    result -> {}, /* suppressAnimations= */ true);
         }
     }
 

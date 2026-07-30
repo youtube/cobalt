@@ -36,24 +36,33 @@ class FilesRequestHandlerIOS : public FilesRequestHandlerBase::Delegate {
       size_t index,
       const AnalysisSettings& settings,
       base::OnceCallback<void(ScanRequestUploadResult, ContentAnalysisResponse)>
-          callback) override;
+          callback,
+      base::OnceCallback<void(const BinaryUploadRequest&)>
+          request_start_callback) override;
   void ReportWarningBypass(std::optional<std::u16string> user_justification,
                            const ContentAnalysisInfoBase& info,
                            const std::string& trigger,
                            const std::string& content_transfer_method) override;
   bool UploadDataImpl() override;
-  void UpdateFileInfo(size_t index, BinaryUploadRequest::Data data) override;
+  void UpdateFileInfo(size_t index,
+                      BinaryUploadRequest::Data data,
+                      BinaryUploadRequest* request) override;
+  void OnGotHash(size_t index, std::string hash) override;
   void UpdateRequestHandlerResult(size_t index,
                                   RequestHandlerResult result,
                                   ContentAnalysisResponse response) override;
   const base::FilePath& GetPath(size_t index) const override;
   const FilesRequestHandlerBase::FileInfo& GetFileInfo(size_t index) override;
   size_t GetFileCount() const override;
+  void SetFileScanStartTime(size_t index) override;
+  const base::TimeTicks GetFileScanStartTime(size_t index) override;
   ReportingEventRouter* GetReportingEventRouter() override;
   void MaybeCompleteScanRequest() override;
   std::string GetSource() override;
   std::string GetDestination() override;
   void SetHandler(FilesRequestHandlerBase* handler) override;
+  void MaybeCancelAndReport() override;
+  void MarkFileAsReported(size_t index) override;
 
  private:
   raw_ptr<FilesRequestHandlerBase> handler_;
@@ -62,8 +71,13 @@ class FilesRequestHandlerIOS : public FilesRequestHandlerBase::Delegate {
   FilesRequestHandlerBase::FileInfo file_info_;
   CompletionCallback callback_;
 
+  base::TimeTicks start_time_ = base::TimeTicks::Min();
+
   RequestHandlerResult result_;
   ContentAnalysisResponse response_;
+  bool was_reported_ = false;
+
+  base::WeakPtrFactory<FilesRequestHandlerIOS> weak_ptr_factory_{this};
 };
 
 }  // namespace enterprise_connectors

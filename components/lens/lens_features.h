@@ -17,6 +17,10 @@ namespace lens::features {
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensStandalone);
 
+// Enables Lens icons in fallback context menu cases.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kShowContextualTasksMenuIcon);
+
 // Enables the Lens overlay.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensOverlay);
@@ -170,6 +174,11 @@ BASE_DECLARE_FEATURE(kLensVideoCitations);
 // entrypoint, but updates the existing one.
 COMPONENT_EXPORT(LENS_FEATURES)
 BASE_DECLARE_FEATURE(kLensUpdatedFeedbackEntrypoint);
+
+// Unifies the Lens and Contextual Tasks side panels into a single cohesive
+// panel and prepares for the removal of the old LensOverlay panel.
+COMPONENT_EXPORT(LENS_FEATURES)
+BASE_DECLARE_FEATURE(kLensSidePanelUnification);
 
 // Enables using the optimization filter for triggering the action chip.
 COMPONENT_EXPORT(LENS_FEATURES)

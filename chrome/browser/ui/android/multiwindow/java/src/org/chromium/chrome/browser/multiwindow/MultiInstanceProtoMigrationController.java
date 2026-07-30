@@ -141,12 +141,26 @@ class MultiInstanceProtoMigrationController {
             }
 
             // 5. Notify MultiInstancePersistentStore
-            MultiInstancePersistentStore.initializeFromMigration(builder.build());
-            prefs.writeBoolean(
-                    MultiInstancePreferenceKeys.MULTI_INSTANCE_PROTO_MIGRATION_COMPLETE, true);
-            cleanupOldKeys(prefs);
-            RecordHistogram.recordExactLinearHistogram(
-                    MIGRATION_ATTEMPTS_HISTOGRAM, attemptCount + 1, MIGRATION_ATTEMPT_LIMIT + 1);
+            MultiInstancePersistentStore.initializeFromMigration(
+                    builder.build(),
+                    (success) -> {
+                        if (success) {
+                            prefs.writeBoolean(
+                                    MultiInstancePreferenceKeys
+                                            .MULTI_INSTANCE_PROTO_MIGRATION_COMPLETE,
+                                    true);
+                            cleanupOldKeys(prefs);
+                            RecordHistogram.recordExactLinearHistogram(
+                                    MIGRATION_ATTEMPTS_HISTOGRAM,
+                                    attemptCount + 1,
+                                    MIGRATION_ATTEMPT_LIMIT + 1);
+                        } else {
+                            prefs.writeInt(
+                                    MultiInstancePreferenceKeys
+                                            .MULTI_INSTANCE_PROTO_MIGRATION_ATTEMPTS,
+                                    attemptCount + 1);
+                        }
+                    });
             return true;
         } catch (Exception e) {
             Log.e(TAG, "Migration failed", e);
@@ -415,6 +429,7 @@ class MultiInstanceProtoMigrationController {
         }
     }
 
+    @SuppressWarnings("unchecked") // Set<String> from SharedPreferences can't verify element type.
     private void populateWindowModeBuilder(
             WindowModeData.Builder windowModeBuilder, String key, Object value, int mode) {
         if (MultiInstancePreferenceKeys.MULTI_WINDOW_MODE_START_TIME.createKey(mode).equals(key)) {

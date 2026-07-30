@@ -608,6 +608,10 @@ BASE_DECLARE_FEATURE(kNTPBackgroundColorSlider);
 // Checks if the custom color slider is enabled on the NTP.
 bool IsNTPBackgroundColorSliderEnabled();
 
+// Feature flag to enable downsampling user-uploaded NTP background images to
+// screen size. When disabled (default), images are loaded at full resolution.
+BASE_DECLARE_FEATURE(kNTPBackgroundDownsampleImage);
+
 // Returns whether `kRunDefaultStatusCheck` is enabled.
 bool IsRunDefaultStatusCheckEnabled();
 
@@ -742,6 +746,10 @@ BASE_DECLARE_FEATURE(kComposeboxIOS);
 // Returns true if the Composebox feature is enabled.
 bool IsComposeboxIOSEnabled();
 
+// Feature flag to enable downsampling images in context menu preview to reduce
+// memory. When disabled, images are decoded at full resolution.
+BASE_DECLARE_FEATURE(kContextMenuPreviewDownsampleImage);
+
 // The feature to enable or disable the group color on the tab group and tab
 // grid surfaces.
 BASE_DECLARE_FEATURE(kTabGroupColorOnSurface);
@@ -807,8 +815,18 @@ bool IsComposeboxIpadEnabled();
 // Enables the ChromeNextIa feature.
 BASE_DECLARE_FEATURE(kChromeNextIa);
 
+// Parameters for kChromeNextIa.
+extern const base::FeatureParam<bool> kChromeNextIaLensIconVisible;
+extern const base::FeatureParam<bool> kChromeNextIaShareIconVisible;
+
 // Returns true if the ChromeNextIa feature is enabled.
 bool IsChromeNextIaEnabled();
+
+// Returns true if Lens icon should be visible in ChromeNextIa.
+bool IsChromeNextIaLensIconVisible();
+
+// Returns true if Share icon should be visible in ChromeNextIa.
+bool IsChromeNextIaShareIconVisible();
 
 // Enables the ComposeboxAIMDisabled feature.
 BASE_DECLARE_FEATURE(kComposeboxAIMDisabled);
@@ -957,5 +975,11 @@ BASE_DECLARE_FEATURE(kPlusButtonInFakebox);
 
 // Returns true if the plus button in NTP fakebox is enabled
 bool IsPlusButtonInFakeboxEnabled();
+
+// Enables the CobrowseAimHistory feature.
+BASE_DECLARE_FEATURE(kCobrowseAimHistory);
+
+// Returns true if the CobrowseAimHistory feature is enabled.
+bool IsCobrowseAimHistoryEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

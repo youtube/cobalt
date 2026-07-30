@@ -85,16 +85,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="SharedHighlights.LinkGenerated.Error.Iterations"
-    units="iterations" expires_after="2024-03-01">
-  <owner>jeffreycohen@chromium.org</owner>
-  <owner>chrome-shared-highlighting@google.com</owner>
-  <summary>
-    Indicates number of iterations it took for the unsuccessful text fragment
-    selector generation run.
-  </summary>
-</histogram>
-
 <histogram name="SharedHighlights.LinkGenerated.Error.Requested"
     enum="LinkGenerationError" expires_after="2026-08-23">
   <owner>jeffreycohen@chromium.org</owner>
@@ -284,15 +274,6 @@ chromium-metrics-reviews@google.com.
   <summary>
     Logged when actions are taken in the sharing screenshot image editing
     feature.
-  </summary>
-</histogram>
-
-<histogram name="Sharing.ScreenshotFallback.Action"
-    enum="SharingScreenshotFallbackAction" expires_after="2022-12-25">
-  <owner>jeffreycohen@chromium.org</owner>
-  <owner>src/chrome/browser/share/OWNERS</owner>
-  <summary>
-    Logged when actions are taken in the sharing screenshot fallback feature.
   </summary>
 </histogram>
 

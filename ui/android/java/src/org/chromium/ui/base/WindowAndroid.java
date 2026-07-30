@@ -14,6 +14,7 @@ import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.PendingIntent;
 import android.app.UiModeManager;
+import android.content.ComponentCallbacks;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ActivityInfo;
@@ -51,6 +52,7 @@ import org.chromium.base.ContextUtils;
 import org.chromium.base.Log;
 import org.chromium.base.ObserverList;
 import org.chromium.base.PackageManagerUtils;
+import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.lifetime.Destroyable;
@@ -81,6 +83,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 
 /** The window base class that has the minimum functionality. */
@@ -99,6 +102,32 @@ public class WindowAndroid
     // exactly match the target rate.
     private static final float MAX_REFRESH_RATE_DELTA = 2.f;
 
+    private static final long PERIODIC_METRIC_DELAY_MS = TimeUnit.MINUTES.toMillis(5);
+
+    private static int sOccludedCount;
+
+    private static final ThreadUtils.ThreadChecker sThreadChecker = new ThreadUtils.ThreadChecker();
+
+    private static final Runnable PERIODIC_METRICS_TASK =
+            new Runnable() {
+                @Override
+                public void run() {
+                    // TODO(crbug.com/488882847): Rename to non-experimental once occlusion
+                    // experiments are
+                    // complete.
+                    RecordHistogram.recordCount100Histogram(
+                            "Android.Window.OcclusionExperimental.OccludedCount", sOccludedCount);
+                    ThreadUtils.postOnUiThreadDelayed(this, PERIODIC_METRIC_DELAY_MS);
+                }
+            };
+
+    private static boolean sPeriodicMetricsRunning;
+
+    @VisibleForTesting
+    static void postPeriodicMetricRunner() {
+        ThreadUtils.postOnUiThreadDelayed(PERIODIC_METRICS_TASK, PERIODIC_METRIC_DELAY_MS);
+    }
+
     // Constants that must be consistent with ui_controls::KeyEventType in C++.
     private static final int KEY_EVENT_TYPE_KEY_PRESS = 1;
     private static final int KEY_EVENT_TYPE_KEY_RELEASE = 2;
@@ -113,7 +142,7 @@ public class WindowAndroid
 
     // Native pointer to the c++ WindowAndroid object.
     private long mNativeWindowAndroid;
-    private final DisplayAndroid mDisplayAndroid;
+    private DisplayAndroid mDisplayAndroid;
 
     // A string used as a key to store intent errors in a bundle
     static final String WINDOW_CALLBACK_ERRORS = "window_callback_errors";
@@ -126,6 +155,8 @@ public class WindowAndroid
 
     // We use a weak reference here to prevent this from leaking in WebView.
     private final ImmutableWeakReference<Context> mContextRef;
+
+    private @Nullable ComponentCallbacks mComponentCallbacks;
 
     // We track all animations over content and provide a drawing placeholder for them.
     private final HashSet<Animator> mAnimationsOverContent = new HashSet<>();
@@ -218,11 +249,17 @@ public class WindowAndroid
 
     private final boolean mOcclusionTrackingAllowed;
 
+    // Whether occlusion is actually tracked for this window.
+    private boolean mIsOcclusionTracked;
+
     /** True when this window is occluded. */
     private final SettableNonNullObservableSupplier<Boolean> mOcclusionSupplier =
             ObservableSuppliers.createNonNull(false);
 
+    private boolean mIsOccluded;
     private long mOcclusionStartTimeMs;
+    private long mTotalOccludedTimeMs;
+    private final long mCreationTimeMs;
 
     private boolean mIsTopResumedActivity;
     private final boolean mActivityTopResumedSupported;
@@ -282,13 +319,40 @@ public class WindowAndroid
             DisplayAndroid display,
             boolean activityTopResumedSupported,
             boolean occlusionTrackingAllowed) {
+
+        // When the first occlusion tracked window is created, start periodic metrics collection.
+        if (occlusionTrackingAllowed
+                && UiAndroidFeatureList.sAndroidWindowOcclusion.isEnabled()
+                && !sPeriodicMetricsRunning) {
+            sPeriodicMetricsRunning = true;
+            postPeriodicMetricRunner();
+        }
+
         mLifetimeAssert = LifetimeAssert.create(this);
+        mCreationTimeMs = SystemClock.uptimeMillis();
         // context does not have the same lifetime guarantees as an application context so we can't
         // hold a strong reference to it.
         assert context != null : "Context when creating WindowAndroid must not be null.";
         mContextRef = new ImmutableWeakReference<>(context);
+
         mDisplayAndroid = display;
+        // Observe current display property changes (for same display ID).
         mDisplayAndroid.addObserver(this);
+
+        if (context != null && UiAndroidFeatureList.sAndroidUpdateDisplayForContext.isEnabled()) {
+            mComponentCallbacks =
+                    new ComponentCallbacks() {
+                        @Override
+                        public void onConfigurationChanged(Configuration newConfig) {
+                            updateDisplayForContext();
+                        }
+
+                        @Override
+                        public void onLowMemory() {}
+                    };
+
+            context.registerComponentCallbacks(mComponentCallbacks);
+        }
 
         // Disable refresh rate change on TV platforms, as it may cause black screen flicker due to
         // display mode changes.
@@ -330,7 +394,11 @@ public class WindowAndroid
         // details.
         return mOcclusionTrackingAllowed
                 && Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM
-                && UiAndroidFeatureList.sAndroidWindowOcclusion.isEnabled();
+                && UiAndroidFeatureList.sAndroidWindowOcclusion.isEnabled()
+                && "trusted_presentation"
+                        .equals(
+                                UiAndroidFeatureList.sAndroidWindowOcclusionTrackingMode
+                                        .getValue());
     }
 
     private void maybeTrackOcclusionWithTrustedPresentationApi() {
@@ -373,6 +441,8 @@ public class WindowAndroid
                     PostTask.postTask(TaskTraits.UI_DEFAULT, r);
                 },
                 mTrustedPresentationOcclusionObserver);
+
+        mIsOcclusionTracked = true;
     }
 
     @SuppressWarnings("NewApi")
@@ -391,12 +461,29 @@ public class WindowAndroid
         return mOcclusionSupplier;
     }
 
+    /** Returns whether occlusion tracking is allowed for this window. */
+    public boolean isOcclusionTrackingAllowed() {
+        return mOcclusionTrackingAllowed;
+    }
+
+    /**
+     * Sets whether occlusion is tracked for this window.
+     *
+     * @param isOcclusionTracked Whether occlusion is tracked for this window.
+     */
+    public void setIsOcclusionTracked(boolean isOcclusionTracked) {
+        sThreadChecker.assertOnValidThread();
+        assert !shouldTrackOcclusionWithTrustedPresentationApi();
+        mIsOcclusionTracked = isOcclusionTracked;
+    }
+
     /**
      * Sets whether the window is occluded.
      *
      * @param isOccluded Whether the window is occluded.
      */
     public void setOccluded(boolean isOccluded) {
+        sThreadChecker.assertOnValidThread();
         // If the Trusted Presentation API is already tracking occlusion, it takes precedence.
         if (!mOcclusionTrackingAllowed || shouldTrackOcclusionWithTrustedPresentationApi()) {
             return;
@@ -404,7 +491,13 @@ public class WindowAndroid
         updateOcclusionState(isOccluded);
     }
 
-    private void recordOcclusionDuration() {
+    private void onOccluded() {
+        mOcclusionStartTimeMs = SystemClock.uptimeMillis();
+        sOccludedCount++;
+    }
+
+    private void onUnoccluded() {
+        // The window wasn't occluded to begin with. Nothing to do.
         if (mOcclusionStartTimeMs == 0) return;
 
         long durationMs = SystemClock.uptimeMillis() - mOcclusionStartTimeMs;
@@ -412,18 +505,25 @@ public class WindowAndroid
         // complete.
         RecordHistogram.recordLongTimesHistogram(
                 "Android.Window.OcclusionExperimental.Duration", durationMs);
+        mTotalOccludedTimeMs += durationMs;
         mOcclusionStartTimeMs = 0;
+        sOccludedCount--;
     }
 
     private void updateOcclusionState(boolean isOccluded) {
-        if (mOcclusionSupplier.get() == isOccluded) return;
+        if (mIsOccluded == isOccluded) return;
+        mIsOccluded = isOccluded;
 
-        mOcclusionSupplier.set(isOccluded);
+        // This feature param allows for collecting occlusion metrics without applying any
+        // optimizations to the window. Only set the supplier if the optimizations are enabled.
+        if (UiAndroidFeatureList.sAndroidWindowOcclusionOptimizations.getValue()) {
+            mOcclusionSupplier.set(isOccluded);
+        }
 
         if (isOccluded) {
-            mOcclusionStartTimeMs = SystemClock.uptimeMillis();
+            onOccluded();
         } else {
-            recordOcclusionDuration();
+            onUnoccluded();
         }
     }
 
@@ -779,6 +879,16 @@ public class WindowAndroid
     }
 
     protected void onActivityResumed() {
+        /**
+         * Update the display for context to make sure the display ID is up to date. Activity could
+         * be stopped and resumed without any configuration change when disconnected/reconnected to
+         * a display. DisplayId may change during reconnect (see crbug.com/444627601). Note: Webview
+         * does not invoke these activity events, so this will not be called for Webview.
+         */
+        if (UiAndroidFeatureList.sAndroidUpdateDisplayForContext.isEnabled()) {
+            updateDisplayForContext();
+        }
+
         for (ActivityStateObserver observer : mActivityStateObservers) {
             observer.onActivityResumed();
         }
@@ -981,13 +1091,30 @@ public class WindowAndroid
     @CalledByNative
     @Override
     public void destroy() {
-        recordOcclusionDuration();
+        // This is safe to call even if the window was not occluded before destruction.
+        onUnoccluded();
+
+        long lifetimeMs = SystemClock.uptimeMillis() - mCreationTimeMs;
+        if (lifetimeMs > 0 && mIsOcclusionTracked) {
+            int percent = Math.round(mTotalOccludedTimeMs * 100f / lifetimeMs);
+            // TODO(crbug.com/488882847): Rename to non-experimental once occlusion experiments are
+            // complete.
+            RecordHistogram.recordPercentageHistogram(
+                    "Android.Window.OcclusionExperimental.OccludedTimePercent", percent);
+        }
 
         LifetimeAssert.destroy(mLifetimeAssert);
         if (mDestroyStack == null) {
             mDestroyStack = new RuntimeException("WindowAndroid.destroy");
         }
         mDisplayAndroid.removeObserver(this);
+
+        Context context = mContextRef.get();
+        if (context != null && mComponentCallbacks != null) {
+            context.unregisterComponentCallbacks(mComponentCallbacks);
+            mComponentCallbacks = null;
+        }
+
         // Destroys the c++ WindowAndroid object if one has been created.
         if (mNativeWindowAndroid != 0) {
             // Native code clears |mNativeWindowAndroid|.
@@ -1212,6 +1339,25 @@ public class WindowAndroid
     @Override
     public void onDisplayModesChanged(@Nullable List<Display.Mode> supportedModes) {
         recomputeSupportedRefreshRates();
+    }
+
+    /** Refreshes the display associated with this window. */
+    private void updateDisplayForContext() {
+        Context context = mContextRef.get();
+        if (context == null) return;
+        DisplayAndroid newDisplay = DisplayAndroid.getNonMultiDisplay(context);
+        if (newDisplay != mDisplayAndroid) {
+            mDisplayAndroid.removeObserver(this);
+            mDisplayAndroid = newDisplay;
+            mDisplayAndroid.addObserver(this);
+            if (mNativeWindowAndroid != 0) {
+                WindowAndroidJni.get()
+                        .onUpdateDisplayId(mNativeWindowAndroid, mDisplayAndroid.getDisplayId());
+                onAdaptiveRefreshRateInfoChanged(mDisplayAndroid.getAdaptiveRefreshRateInfo());
+                onRefreshRateChanged(mDisplayAndroid.getRefreshRate());
+            }
+            recomputeSupportedRefreshRates();
+        }
     }
 
     @Override
@@ -1588,6 +1734,8 @@ public class WindowAndroid
         void onActivityStarted(long nativeWindowAndroid);
 
         void onUpdateRefreshRate(long nativeWindowAndroid, float refreshRate);
+
+        void onUpdateDisplayId(long nativeWindowAndroid, int displayId);
 
         void destroy(long nativeWindowAndroid);
 

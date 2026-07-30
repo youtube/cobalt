@@ -28,13 +28,17 @@ class OnDeviceModelMojomImpl;
 namespace optimization_guide {
 
 namespace features {
+BASE_DECLARE_FEATURE(kAICorePrompt);
+BASE_DECLARE_FEATURE(kAICoreScamDetection);
+BASE_DECLARE_FEATURE(kAICoreTest);
 BASE_DECLARE_FEATURE(kRequirePersistentModeForScamDetection);
 }  // namespace features
 
 class ModelBrokerAndroid;
 
 // A implementation of OnDeviceCapability for Android.
-class ModelBrokerAndroid final : public OnDeviceCapability {
+class ModelBrokerAndroid final : public OnDeviceCapability,
+                                 mojom::ModelBrokerDebug {
  public:
   class SolutionFactory;
 
@@ -45,6 +49,16 @@ class ModelBrokerAndroid final : public OnDeviceCapability {
   // OnDeviceCapability:
   void BindModelBroker(
       mojo::PendingReceiver<mojom::ModelBroker> receiver) override;
+  void BindModelBrokerDebug(
+      base::PassKey<on_device_internals::PageHandler> key,
+      mojo::PendingReceiver<mojom::ModelBrokerDebug> receiver) override;
+
+  // mojom::ModelBrokerDebug
+  void GetStateInfo(
+      mojom::ModelBrokerDebug::GetStateInfoCallback callback) override;
+  void SetUseCaseRequested(const std::string& use_case,
+                           bool requested) override;
+  void UninstallModels() override;
 
   mojo::Remote<on_device_model::mojom::OnDeviceModel>& GetOrCreateModelRemote(
       proto::ModelExecutionFeature feature);
@@ -62,6 +76,9 @@ class ModelBrokerAndroid final : public OnDeviceCapability {
 
   // Initialize SolutionFactory, if not already initialized.
   void EnsureSolutionFactory(ModelBrokerImpl::InitCallback done_callback);
+
+  // Called when CheckModelStatus completes. Fires all pending init callbacks.
+  void OnStatusCheckComplete();
 
   void OnModelDisconnected(
       proto::ModelExecutionFeature feature,
@@ -88,6 +105,14 @@ class ModelBrokerAndroid final : public OnDeviceCapability {
   // The on-device model services, keyed by feature.
   absl::flat_hash_map<proto::ModelExecutionFeature, ModelService>
       model_services_;
+
+  mojo::ReceiverSet<ModelBrokerDebug> receivers_;
+
+  // Callbacks queued while initialization is in flight.
+  std::vector<ModelBrokerImpl::InitCallback> pending_init_callbacks_;
+
+  // Whether the status checks have completed.
+  bool status_check_complete_ = false;
 
   base::WeakPtrFactory<ModelBrokerAndroid> weak_ptr_factory_{this};
 };

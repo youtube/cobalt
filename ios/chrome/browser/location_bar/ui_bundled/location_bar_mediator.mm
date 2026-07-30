@@ -14,8 +14,8 @@
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/fullscreen/model/fullscreen_browser_agent_observer_bridge.h"
 #import "ios/chrome/browser/intelligence/bwg/metrics/gemini_metrics.h"
-#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_tab_helper.h"
+#import "ios/chrome/browser/intelligence/bwg/model/gemini_service.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/utils/gemini_constants.h"
 #import "ios/chrome/browser/intelligence/features/features.h"
@@ -93,10 +93,8 @@ const CGFloat kIconPointSize = 16.0;
   }
   _webStateListObserver = nullptr;
   _searchEngineObserver = nullptr;
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate) ||
-      base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-    self.placeholderService = nullptr;
-  }
+  self.placeholderService = nullptr;
+
   _fullscreenUIElements = nil;
 }
 
@@ -180,8 +178,6 @@ const CGFloat kIconPointSize = 16.0;
 }
 
 - (void)setPlaceholderService:(PlaceholderService*)placeholderService {
-  CHECK((base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdate) ||
-         base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)));
   _placeholderService = placeholderService;
 
   if (!placeholderService) {
@@ -249,10 +245,6 @@ const CGFloat kIconPointSize = 16.0;
 #pragma mark - PlaceholderServiceObserving
 
 - (void)placeholderImageUpdated {
-  if (!base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2)) {
-    return;
-  }
-
   __weak __typeof(self) weakSelf = self;
   if (self.placeholderService) {
     self.placeholderService->FetchDefaultSearchEngineIcon(
@@ -266,6 +258,10 @@ const CGFloat kIconPointSize = 16.0;
 
 /// Returns whether the Lens overlay is currently available for the web state.
 - (BOOL)isLensOverlayAvailable {
+  if (IsChromeNextIaEnabled() && !IsChromeNextIaLensIconVisible()) {
+    return NO;
+  }
+
   if (IsPageActionMenuEnabled() && IsDirectBWGEntryPoint()) {
     return NO;
   }
@@ -306,7 +302,7 @@ const CGFloat kIconPointSize = 16.0;
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(webState->GetBrowserState());
-  BwgService* geminiService = GeminiServiceFactory::GetForProfile(profile);
+  GeminiService* geminiService = GeminiServiceFactory::GetForProfile(profile);
   if (!geminiService) {
     return NO;
   }
@@ -328,7 +324,7 @@ const CGFloat kIconPointSize = 16.0;
   }
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(webState->GetBrowserState());
-  BwgService* geminiService = GeminiServiceFactory::GetForProfile(profile);
+  GeminiService* geminiService = GeminiServiceFactory::GetForProfile(profile);
   if (!geminiService) {
     return NO;
   }
@@ -339,8 +335,7 @@ const CGFloat kIconPointSize = 16.0;
 
 /// Updates the placeholder.
 - (void)updatePlaceholderType {
-  if (base::FeatureList::IsEnabled(omnibox::kOmniboxMobileParityUpdateV2) &&
-      [self isCurrentPageNTP]) {
+  if ([self isCurrentPageNTP]) {
     [self.consumer setPlaceholderType:LocationBarPlaceholderType::
                                           kDefaultSearchEngineIcon];
     return;
@@ -350,7 +345,7 @@ const CGFloat kIconPointSize = 16.0;
     // necessary.
   }
 
-  if ([self isAIHubAvailable]) {
+  if ([self isAIHubAvailable] && !IsChromeNextIaEnabled()) {
     // Gemini-specific metrics should only fire when Gemini is actually
     // eligible, not just when the PAM badge is visible.
     if ([self isGeminiEligibleForActiveWebState]) {
