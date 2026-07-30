@@ -9,6 +9,8 @@
 #include "base/files/file_path.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
+#include "components/feature_engagement/public/feature_constants.h"
+#include "components/feature_engagement/public/tracker.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/common_quality_data.pb.h"
 #include "components/page_content_annotations/content/annotate_page_content_request.h"
@@ -52,21 +54,49 @@ optimization_guide::proto::PageContext ToPageContext(
   return page_context;
 }
 
+// Returns whether the page content cache is enabled.
+bool IsPageContentCacheEnabled(feature_engagement::Tracker* tracker) {
+  bool enabled = base::FeatureList::IsEnabled(features::kPageContentCache);
+
+#if BUILDFLAG(IS_ANDROID)
+  if (enabled && features::kPageContentCacheUseUserEngagement.Get()) {
+    if (!tracker) {
+      return false;
+    }
+    // If user engagement is required, and user has not engaged with the
+    // feature. Turn off the feature. This is currently only used on Android.
+    return tracker->WouldTriggerHelpUI(
+        feature_engagement::kIPHFuseboxAttachmentFeature);
+  }
+#endif  // BUILDFLAG(IS_ANDROID)
+
+  return enabled;
+}
+
+// Creates the PageContentCacheHandler if the cache is enabled.
+std::unique_ptr<PageContentCacheHandler> CreatePageContentCacheHandler(
+    bool is_page_content_cache_enabled,
+    os_crypt_async::OSCryptAsync* os_crypt_async,
+    const base::FilePath& profile_path) {
+  if (!is_page_content_cache_enabled) {
+    return nullptr;
+  }
+  return std::make_unique<PageContentCacheHandler>(
+      os_crypt_async, profile_path,
+      base::Days(features::kPageContentCacheMaxCacheAgeInDays.Get()));
+}
+
 }  // namespace
 
 PageContentExtractionService::PageContentExtractionService(
     os_crypt_async::OSCryptAsync* os_crypt_async,
-    const base::FilePath& profile_path)
-    : is_page_content_cache_enabled_(
-          base::FeatureList::IsEnabled(features::kPageContentCache)),
+    const base::FilePath& profile_path,
+    feature_engagement::Tracker* tracker)
+    : is_page_content_cache_enabled_(IsPageContentCacheEnabled(tracker)),
       page_content_cache_handler_(
-          is_page_content_cache_enabled_
-              ? std::make_unique<PageContentCacheHandler>(
-                    os_crypt_async,
-                    profile_path,
-                    base::Days(
-                        features::kPageContentCacheMaxCacheAgeInDays.Get()))
-              : nullptr) {}
+          CreatePageContentCacheHandler(is_page_content_cache_enabled_,
+                                        os_crypt_async,
+                                        profile_path)) {}
 
 PageContentExtractionService::~PageContentExtractionService() {
   ClearAllUserData();
@@ -117,8 +147,19 @@ void PageContentExtractionService::OnPageContentExtracted(
 std::optional<ExtractedPageContentResult>
 PageContentExtractionService::GetExtractedPageContentAndEligibilityForPage(
     content::Page& page) {
-  return GetCachedContentsFromWebContents(
-      content::WebContents::FromRenderFrameHost(&page.GetMainDocument()));
+  AnnotatedPageContentRequest* request =
+      GetAnnotatedPageContentRequestFromWebContents(
+          content::WebContents::FromRenderFrameHost(&page.GetMainDocument()));
+  return request ? request->GetCachedContentAndEligibility() : std::nullopt;
+}
+
+std::optional<bool>
+PageContentExtractionService::GetServerUploadEligibilityForPage(
+    content::Page& page) {
+  AnnotatedPageContentRequest* request =
+      GetAnnotatedPageContentRequestFromWebContents(
+          content::WebContents::FromRenderFrameHost(&page.GetMainDocument()));
+  return request ? request->GetServerUploadEligibility() : std::nullopt;
 }
 
 void PageContentExtractionService::OnTabClosed(int64_t tab_id) {
@@ -137,16 +178,24 @@ void PageContentExtractionService::OnVisibilityChanged(
     std::optional<int64_t> tab_id,
     content::WebContents* web_contents,
     content::Visibility visibility) {
-  if (is_page_content_cache_enabled_) {
-    std::optional<ExtractedPageContentResult> extracted_result =
-        GetCachedContentsFromWebContents(web_contents);
-    if (extracted_result) {
-      page_content_cache_handler_->OnVisibilityChanged(
-          tab_id, ToWebStateWrapper(web_contents),
-          ToPageContext(std::move(extracted_result->page_content), web_contents,
-                        std::move(extracted_result->screenshot_data)),
-          extracted_result->extraction_timestamp);
-    }
+  if (!is_page_content_cache_enabled_) {
+    return;
+  }
+
+  AnnotatedPageContentRequest* request =
+      GetAnnotatedPageContentRequestFromWebContents(web_contents);
+  if (!request) {
+    return;
+  }
+
+  std::optional<ExtractedPageContentResult> extracted_result =
+      request->GetCachedContentAndEligibility();
+  if (extracted_result) {
+    page_content_cache_handler_->OnVisibilityChanged(
+        tab_id, ToWebStateWrapper(web_contents),
+        ToPageContext(std::move(extracted_result->page_content), web_contents,
+                      std::move(extracted_result->screenshot_data)),
+        extracted_result->extraction_timestamp);
   }
 }
 
@@ -173,22 +222,15 @@ PageContentCache* PageContentExtractionService::GetPageContentCache() {
              : nullptr;
 }
 
-std::optional<ExtractedPageContentResult>
-PageContentExtractionService::GetCachedContentsFromWebContents(
+AnnotatedPageContentRequest*
+PageContentExtractionService::GetAnnotatedPageContentRequestFromWebContents(
     content::WebContents* web_contents) {
   if (!web_contents) {
-    return std::nullopt;
+    return nullptr;
   }
   PageContentAnnotationsWebContentsObserver* observer =
       PageContentAnnotationsWebContentsObserver::FromWebContents(web_contents);
-  if (observer) {
-    AnnotatedPageContentRequest* request =
-        observer->GetAnnotatedPageContentRequest();
-    if (request) {
-      return request->GetCachedContentAndEligibility();
-    }
-  }
-  return std::nullopt;
+  return observer ? observer->GetAnnotatedPageContentRequest() : nullptr;
 }
 
 }  // namespace page_content_annotations

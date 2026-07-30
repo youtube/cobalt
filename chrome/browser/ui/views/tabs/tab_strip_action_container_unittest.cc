@@ -16,10 +16,9 @@
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "chrome/browser/ui/tabs/test_tab_strip_model_delegate.h"
 #include "chrome/browser/ui/ui_features.h"
-#include "chrome/browser/ui/views/commerce/product_specifications_button.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/tabs/fake_base_tab_strip_controller.h"
-#include "chrome/browser/ui/views/tabs/glic/glic_button.h"
+#include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_nudge_button.h"
 #include "chrome/common/chrome_features.h"
@@ -129,7 +128,6 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
   void TearDown() override {
     tab_strip_action_container_.reset();
     glic_nudge_controller_.reset();
-    tab_declutter_controller_.reset();
     browser_window_interface_.reset();
     tab_interface_.reset();
     tab_strip_model_.reset();
@@ -176,15 +174,11 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
           return base::CallbackListSubscription();
         });
 
-    tab_declutter_controller_ = std::make_unique<tabs::TabDeclutterController>(
-        browser_window_interface_.get());
-
     glic_nudge_controller_ = std::make_unique<tabs::GlicNudgeController>(
         browser_window_interface_.get());
 
     tab_strip_action_container_ = std::make_unique<TabStripActionContainer>(
-        tab_strip_->GetBrowserWindowInterface(),
-        tab_declutter_controller_.get(), glic_nudge_controller_.get());
+        tab_strip_->GetBrowserWindowInterface(), glic_nudge_controller_.get());
   }
 
   void SetActiveTabChangedCallback(
@@ -196,7 +190,6 @@ class TabStripActionContainerTest : public ChromeViewsTestBase {
   glic::GlicUnitTestEnvironment glic_test_environment_;
   std::unique_ptr<TabStrip> tab_strip_;
   std::unique_ptr<TabStripModel> tab_strip_model_;
-  std::unique_ptr<tabs::TabDeclutterController> tab_declutter_controller_;
   std::unique_ptr<tabs::GlicNudgeController> glic_nudge_controller_;
   std::unique_ptr<tabs::MockTabInterface> tab_interface_;
   std::unique_ptr<MockBrowserWindowInterface> browser_window_interface_;
@@ -238,19 +231,14 @@ TEST_F(TabStripActionContainerTest, GlicButtonUnsupportedProfile) {
 TEST_F(TabStripActionContainerTest,
        MAYBE(OrdersButtonsCorrectlyAtConstruction)) {
   BuildGlicContainer(/*use_otr_profile=*/false);
-  ASSERT_EQ(tab_strip_action_container_->tab_declutter_button(),
-            tab_strip_action_container_->children()[0]);
-
-  ASSERT_EQ(tab_strip_action_container_->auto_tab_group_button(),
-            tab_strip_action_container_->children()[1]);
 
 // TODO(crbug.com/437141881): Fix flaky tests on Mac.
 // Mac doesn't have a separator, so the children sizes are different.
 #if !BUILDFLAG(IS_MAC)
-  ASSERT_THAT(tab_strip_action_container_->children(), SizeIs(5));
+  ASSERT_THAT(tab_strip_action_container_->children(), SizeIs(3));
 
   ASSERT_EQ(tab_strip_action_container_->glic_actor_button_container(),
-            tab_strip_action_container_->children()[2]);
+            tab_strip_action_container_->children()[0]);
 
   ASSERT_THAT(
       tab_strip_action_container_->glic_actor_button_container()->children(),
@@ -260,7 +248,7 @@ TEST_F(TabStripActionContainerTest,
                 ->children()[1]);
 
   ASSERT_EQ(tab_strip_action_container_->GetGlicButton(),
-            tab_strip_action_container_->children()[3]);
+            tab_strip_action_container_->children()[1]);
 #endif  // !BUILDFLAG(IS_MAC)
 }
 
@@ -277,10 +265,10 @@ TEST_F(TabStripActionContainerTest, MAYBE(OrdersButtonsCorrectlyWhenShown)) {
   // `tab_strip_action_container_` to being a child of
   // `glic_actor_button_container()`.
   tab_strip_action_container_->ShowGlicActorTaskIcon();
-  ASSERT_THAT(tab_strip_action_container_->children(), SizeIs(4));
+  ASSERT_THAT(tab_strip_action_container_->children(), SizeIs(2));
 
   ASSERT_EQ(tab_strip_action_container_->glic_actor_button_container(),
-            tab_strip_action_container_->children()[2]);
+            tab_strip_action_container_->children()[0]);
 
   ASSERT_THAT(
       tab_strip_action_container_->glic_actor_button_container()->children(),
@@ -319,48 +307,4 @@ TEST_F(TabStripActionContainerTest, MAYBE(GlicButtonHideNudgeOnTabChange)) {
   SimulateActiveTabChanged();
   ASSERT_FALSE(tab_strip_action_container_->GetIsShowingGlicNudge());
   ASSERT_EQ(tab_strip_action_container_->GetGlicButton()->GetText(), u"Gemini");
-}
-
-class TabStripActionContainerTestWithProduct
-    : public TabStripActionContainerTest {
- public:
-  TabStripActionContainerTestWithProduct() {
-    scoped_feature_list_.InitAndEnableFeature(commerce::kProductSpecifications);
-  }
-  ~TabStripActionContainerTestWithProduct() override = default;
-
- private:
-  base::test::ScopedFeatureList scoped_feature_list_;
-};
-
-TEST_F(TabStripActionContainerTestWithProduct, MAYBE(OrdersButtonsCorrectly)) {
-  BuildGlicContainer(/*use_otr_profile=*/false);
-
-  ASSERT_EQ(tab_strip_action_container_->tab_declutter_button(),
-            tab_strip_action_container_->children()[0]);
-
-  ASSERT_EQ(tab_strip_action_container_->auto_tab_group_button(),
-            tab_strip_action_container_->children()[1]);
-
-  ASSERT_EQ(tab_strip_action_container_->GetProductSpecificationsButton(),
-            tab_strip_action_container_->children()[2]);
-
-// TODO(crbug.com/437141881): Fix flaky tests on Mac.
-// Mac doesn't have a separator, so the children sizes are different.
-#if !BUILDFLAG(IS_MAC)
-  ASSERT_THAT(tab_strip_action_container_->children(), SizeIs(6));
-
-  ASSERT_EQ(tab_strip_action_container_->glic_actor_button_container(),
-            tab_strip_action_container_->children()[3]);
-
-  ASSERT_THAT(
-      tab_strip_action_container_->glic_actor_button_container()->children(),
-      SizeIs(2));
-  ASSERT_EQ(tab_strip_action_container_->glic_actor_task_icon(),
-            tab_strip_action_container_->glic_actor_button_container()
-                ->children()[1]);
-
-  ASSERT_EQ(tab_strip_action_container_->GetGlicButton(),
-            tab_strip_action_container_->children()[4]);
-#endif  // !BUILDFLAG(IS_MAC)
 }

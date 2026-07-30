@@ -18,30 +18,45 @@ class AutofillValuableSpecifics;
 namespace autofill {
 
 class EntityInstance;
+class EntityType;
+
+// Converts the given `entity` into a `syncer::EntityData`.
+std::unique_ptr<syncer::EntityData> CreateEntityDataFromEntityInstance(
+    const EntityInstance& entity,
+    const sync_pb::AutofillValuableSpecifics& base_specifics);
 
 // For a given `EntityInstance`, returns the corresponding
 // `sync_pb::AutofillValuableSpecifics`. It is assumed that the entity passed to
 // this function is syncable.
 sync_pb::AutofillValuableSpecifics CreateSpecificsFromEntityInstance(
-    const EntityInstance& entity);
+    const EntityInstance& entity,
+    const sync_pb::AutofillValuableSpecifics& base_specifics);
 
 // Converts the given valuable `specifics` into an equivalent EntityInstance.
 std::optional<EntityInstance> CreateEntityInstanceFromSpecifics(
     const sync_pb::AutofillValuableSpecifics& specifics);
 
+// Converts the given `metadata` into a `syncer::EntityData`.
+std::unique_ptr<syncer::EntityData> CreateEntityDataFromEntityMetadata(
+    const EntityInstance::EntityMetadata& metadata,
+    const sync_pb::AutofillValuableMetadataSpecifics::PassType pass_type,
+    const sync_pb::AutofillValuableMetadataSpecifics& base_specifics);
+
 // For a given `EntityMetadata`, returns the corresponding
 // `sync_pb::AutofillValuableMetadataSpecifics`.
 sync_pb::AutofillValuableMetadataSpecifics CreateSpecificsFromEntityMetadata(
-    const EntityInstance::EntityMetadata& metadata);
+    const EntityInstance::EntityMetadata& metadata,
+    const sync_pb::AutofillValuableMetadataSpecifics::PassType pass_type,
+    const sync_pb::AutofillValuableMetadataSpecifics& base_specifics);
 
 // Converts the given valuable metadata `specifics` into an equivalent
 // EntityInstance::EntityMetadata.
-EntityInstance::EntityMetadata CreateValuableMetadataFromSpecifics(
+EntityInstance::EntityMetadata CreateEntityMetadataFromSpecifics(
     const sync_pb::AutofillValuableMetadataSpecifics& specifics);
 
-// Converts the given `metadata` into a `syncer::EntityData`.
-std::unique_ptr<syncer::EntityData> CreateEntityDataFromEntityMetadata(
-    const EntityInstance::EntityMetadata& metadata);
+// Converts the given `entity_type_name` to the corresponding `PassType`.
+std::optional<sync_pb::AutofillValuableMetadataSpecifics::PassType>
+EntityTypeToPassType(EntityType entity_type);
 
 }  // namespace autofill
 

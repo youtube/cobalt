@@ -12,7 +12,6 @@
 #import "ios/chrome/app/profile/profile_state_test_utils.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_utils.h"
 #import "ios/chrome/browser/promos_manager/model/constants.h"
-#import "ios/chrome/browser/promos_manager/model/features.h"
 #import "ios/chrome/browser/promos_manager/model/mock_promos_manager.h"
 #import "ios/chrome/browser/shared/coordinator/scene/scene_state.h"
 #import "ios/chrome/browser/shared/coordinator/scene/test/stub_browser_provider_interface.h"
@@ -127,9 +126,9 @@ TEST_F(FullscreenSigninPromoSceneAgentTest,
   signin::RecordFullscreenSigninPromoStarted(
       identity_manager_, account_manager_service_, version_1_0);
 
-  EXPECT_CALL(*promos_manager_.get(),
-              RegisterPromoForContinuousDisplay(
-                  promos_manager::Promo::FullscreenSignin))
+  EXPECT_CALL(
+      *promos_manager_.get(),
+      RegisterPromoForSingleDisplay(promos_manager::Promo::FullscreenSignin))
       .Times(1);
   scene_state_.activationLevel = SceneActivationLevelForegroundActive;
 }
@@ -138,9 +137,9 @@ TEST_F(FullscreenSigninPromoSceneAgentTest,
 // manager when the eligibility criteria are not met.
 TEST_F(FullscreenSigninPromoSceneAgentTest,
        TestFullscreenSigninPromoNoRegistration) {
-  EXPECT_CALL(*promos_manager_.get(),
-              RegisterPromoForContinuousDisplay(
-                  promos_manager::Promo::FullscreenSignin))
+  EXPECT_CALL(
+      *promos_manager_.get(),
+      RegisterPromoForSingleDisplay(promos_manager::Promo::FullscreenSignin))
       .Times(0);
   scene_state_.activationLevel = SceneActivationLevelForegroundActive;
 }
@@ -157,9 +156,9 @@ TEST_F(FullscreenSigninPromoSceneAgentTest,
       ->AddIdentity(fake_identity1);
   signin::RecordFullscreenSigninPromoStarted(
       identity_manager_, account_manager_service_, version_1_0);
-  EXPECT_CALL(*promos_manager_.get(),
-              RegisterPromoForContinuousDisplay(
-                  promos_manager::Promo::FullscreenSignin))
+  EXPECT_CALL(
+      *promos_manager_.get(),
+      RegisterPromoForSingleDisplay(promos_manager::Promo::FullscreenSignin))
       .Times(1);
   EXPECT_CALL(*promos_manager_.get(),
               DeregisterPromo(promos_manager::Promo::FullscreenSignin))
@@ -167,9 +166,9 @@ TEST_F(FullscreenSigninPromoSceneAgentTest,
   scene_state_.activationLevel = SceneActivationLevelForegroundActive;
 
   // Sign in and enable history sync.
-  EXPECT_CALL(*promos_manager_.get(),
-              RegisterPromoForContinuousDisplay(
-                  promos_manager::Promo::FullscreenSignin))
+  EXPECT_CALL(
+      *promos_manager_.get(),
+      RegisterPromoForSingleDisplay(promos_manager::Promo::FullscreenSignin))
       .Times(0);
   EXPECT_CALL(*promos_manager_.get(),
               DeregisterPromo(promos_manager::Promo::FullscreenSignin))
@@ -179,7 +178,7 @@ TEST_F(FullscreenSigninPromoSceneAgentTest,
   sync_service_.GetUserSettings()->SetSelectedType(
       syncer::UserSelectableType::kTabs, YES);
   authentication_service_->SignIn(fake_identity1,
-                                  signin_metrics::AccessPoint::kUnknown);
+                                  signin_metrics::AccessPoint::kStartPage);
   EXPECT_TRUE(authentication_service_->HasPrimaryIdentity(
       signin::ConsentLevel::kSignin));
 }
@@ -196,9 +195,9 @@ TEST_F(FullscreenSigninPromoSceneAgentTest,
       ->AddIdentity(fake_identity1);
   signin::RecordFullscreenSigninPromoStarted(
       identity_manager_, account_manager_service_, version_1_0);
-  EXPECT_CALL(*promos_manager_.get(),
-              RegisterPromoForContinuousDisplay(
-                  promos_manager::Promo::FullscreenSignin))
+  EXPECT_CALL(
+      *promos_manager_.get(),
+      RegisterPromoForSingleDisplay(promos_manager::Promo::FullscreenSignin))
       .Times(1);
   EXPECT_CALL(*promos_manager_.get(),
               DeregisterPromo(promos_manager::Promo::FullscreenSignin))
@@ -206,15 +205,15 @@ TEST_F(FullscreenSigninPromoSceneAgentTest,
   scene_state_.activationLevel = SceneActivationLevelForegroundActive;
 
   // Sign in without history sync.
-  EXPECT_CALL(*promos_manager_.get(),
-              RegisterPromoForContinuousDisplay(
-                  promos_manager::Promo::FullscreenSignin))
+  EXPECT_CALL(
+      *promos_manager_.get(),
+      RegisterPromoForSingleDisplay(promos_manager::Promo::FullscreenSignin))
       .Times(0);
   EXPECT_CALL(*promos_manager_.get(),
               DeregisterPromo(promos_manager::Promo::FullscreenSignin))
       .Times(1);
   authentication_service_->SignIn(fake_identity1,
-                                  signin_metrics::AccessPoint::kUnknown);
+                                  signin_metrics::AccessPoint::kStartPage);
   EXPECT_TRUE(authentication_service_->HasPrimaryIdentity(
       signin::ConsentLevel::kSignin));
 }

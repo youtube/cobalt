@@ -236,7 +236,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="KeyboardAccessory.DisabledSavingAccessoryImpressions"
-    enum="BooleanShown" expires_after="2026-01-18">
+    enum="BooleanShown" expires_after="2026-07-18">
   <owner>ioanap@chromium.org</owner>
   <owner>friedrichh@chromium.org</owner>
   <summary>
@@ -1199,6 +1199,16 @@ chromium-metrics-reviews@google.com.
     The time in milliseconds passed between starting to open the password change
     tab and detecting the change password form. The metric is only reported on
     successful change password form detection.
+  </summary>
+</histogram>
+
+<histogram name="PasswordManager.ChangePasswordFormFinderError"
+    enum="ChangePasswordFormFinderError" expires_after="2026-12-14">
+  <owner>vsemeniuk@google.com</owner>
+  <owner>vasilii@chromium.org</owner>
+  <summary>
+    Records the error ChangePasswordFormFinder encountered while looking for a
+    change password form.
   </summary>
 </histogram>
 

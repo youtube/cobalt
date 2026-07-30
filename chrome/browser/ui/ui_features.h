@@ -56,6 +56,14 @@ BASE_DECLARE_FEATURE(kPdfInfoBar);
 enum class PdfInfoBarTrigger { kPdfLoad = 0, kStartup = 1 };
 
 BASE_DECLARE_FEATURE_PARAM(PdfInfoBarTrigger, kPdfInfoBarTrigger);
+
+BASE_DECLARE_FEATURE(kSeparateDefaultAndPinPrompt);
+BASE_DECLARE_FEATURE_PARAM(int, kSeparateDefaultAndPinPromptRandSeed);
+BASE_DECLARE_FEATURE_PARAM(int, kSeparateDefaultAndPinPromptPinMaxCount);
+BASE_DECLARE_FEATURE_PARAM(int, kSeparateDefaultAndPinPromptPinCooldownDays);
+BASE_DECLARE_FEATURE_PARAM(int, kSeparateDefaultAndPinPromptDefaultMaxCount);
+BASE_DECLARE_FEATURE_PARAM(int,
+                           kSeparateDefaultAndPinPromptDefaultCooldownDays);
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
 
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_LINUX)
@@ -156,6 +164,7 @@ BASE_DECLARE_FEATURE(kTabGroupHoverCards);
 #if !BUILDFLAG(IS_ANDROID)
 // General improvements to tab group menus
 BASE_DECLARE_FEATURE(kTabGroupMenuImprovements);
+bool IsTabGroupMenuImprovementsEnabled();
 BASE_DECLARE_FEATURE(kTabGroupMenuMoreEntryPoints);
 bool IsTabGroupMenuMoreEntryPointsEnabled();
 

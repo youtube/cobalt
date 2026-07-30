@@ -13,10 +13,10 @@ import {GlowAnimationState} from '//resources/cr_components/search/constants.js'
 import {assert} from '//resources/js/assert.js';
 import {EventTracker} from '//resources/js/event_tracker.js';
 import {loadTimeData} from '//resources/js/load_time_data.js';
-import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter, TabInfo} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
+import type {AutocompleteMatch, AutocompleteResult, PageCallbackRouter as SearchboxPageCallbackRouter} from '//resources/mojo/components/omnibox/browser/searchbox.mojom-webui.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 import type {PropertyValues} from 'chrome://resources/lit/v3_0/lit.rollup.js';
-
+import {ToolMode} from '//resources/mojo/components/omnibox/composebox/composebox_query.mojom-webui.js';
 import {getCss} from './composebox.css.js';
 import {getHtml} from './composebox.html.js';
 import {VoiceSearchState} from './constants.js';
@@ -77,6 +77,10 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     return getCss();
   }
 
+  override render() {
+    return getHtml.bind(this)();
+  }
+
   static override get properties() {
     return {
       isZeroState: {
@@ -97,7 +101,6 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
         type: Boolean,
         value: loadTimeData.getBoolean('composeboxShowContextMenu'),
       },
-      tabSuggestions_: {type: Array},
       showOnboardingTooltip_: {
         type: Boolean,
         value: loadTimeData.getBoolean('showOnboardingTooltip'),
@@ -105,6 +108,10 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
       zeroStateSuggestions_: {type: Object},
       isLoading_: {type: Boolean, reflect: true},
       enableNativeZeroStateSuggestions: {type: Boolean},
+      activeToolMode_: {
+        type: Number,
+        reflect: true,
+      },
     };
   }
 
@@ -130,9 +137,9 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
   protected accessor isComposeboxFocused_: boolean = false;
   protected accessor showContextMenu_: boolean =
       loadTimeData.getBoolean('composeboxShowContextMenu');
-  protected accessor tabSuggestions_: TabInfo[] = [];
   protected accessor showOnboardingTooltip_: boolean =
       loadTimeData.getBoolean('showOnboardingTooltip');
+  protected accessor activeToolMode_: ToolMode = ToolMode.kUnspecified;
   private eventTracker_: EventTracker = new EventTracker();
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private searchboxListenerIds_: number[] = [];
@@ -214,11 +221,17 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
                 VoiceSearchState.VOICE_SEARCH_ERROR_AND_CANCELED);
           });
       this.eventTracker_.add(
+          composebox, 'active-tool-mode-changed',
+          (e: CustomEvent<{value: ToolMode}>) => {
+            this.activeToolMode_ = e.detail.value;
+          });
+      this.eventTracker_.add(
           composebox, 'composebox-voice-search-user-canceled', () => {
             recordVoiceSearchAction(VoiceSearchState.VOICE_SEARCH_CANCELED);
           });
       // Initial check.
       this.updateTooltipVisibility_();
+      this.activeToolMode_ = composebox.activeToolMode;
 
       this.resizeObserver_ = new ResizeObserver(() => {
         this.composeboxHeight_ = composebox.offsetHeight;
@@ -238,6 +251,11 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
         !this.composeboxShowZps) {
       this.$.composebox.queryAutocomplete(/*clearMatches=*/ false);
     }
+  }
+
+  get showLensButton_() {
+    //Lens should be hidden in the side panel if deep search is enabled.
+    return this.isSidePanel && this.activeToolMode_ !== ToolMode.kDeepSearch;
   }
 
   private updateTooltipVisibility_() {
@@ -321,10 +339,6 @@ export class ContextualTasksComposeboxElement extends CrLitElement {
     this.searchboxListenerIds_.forEach(
         id => assert(this.searchboxCallbackRouter_.removeListener(id)));
     this.searchboxListenerIds_ = [];
-  }
-
-  override render() {
-    return getHtml.bind(this)();
   }
 
   clearInputAndFocus(querySubmitted: boolean = false): void {

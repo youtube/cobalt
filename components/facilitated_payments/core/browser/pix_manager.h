@@ -73,6 +73,8 @@ class PixManager {
   friend class PixManagerTestForUiScreens;
   friend class PixManagerPaymentsNetworkInterfaceTest;
   // Keep all entries in alphabetical order!
+  // TODO(crbug.com/479520609): Remove all FRIEND_TEST_ALL_PREFIXES macros from
+  // PixManager by introducing a new PixManagerTestApi.
   FRIEND_TEST_ALL_PREFIXES(PixManagerPaymentsNetworkInterfaceTest,
                            OnInitiatePaymentResponseReceived_FailureResponse);
   FRIEND_TEST_ALL_PREFIXES(PixManagerPaymentsNetworkInterfaceTest,
@@ -98,10 +100,19 @@ class PixManager {
                            CopyTrigger_UrlInAllowlist_PixValidationTriggered);
   FRIEND_TEST_ALL_PREFIXES(
       PixManagerTestWithAccountLinkingEnabled,
+      CopyTrigger_UrlInAllowlist__ControlIdPopulatedInInitiatePaymentRequest);
+  FRIEND_TEST_ALL_PREFIXES(
+      PixManagerTestWithAccountLinkingEnabled,
       CopyTrigger_UrlNotInAllowlist_PixValidationNotTriggered);
   FRIEND_TEST_ALL_PREFIXES(
       PixManagerTestWithAccountLinkingEnabled,
       CopyTrigger_UrlNotInAllowlist_PayflowExitedHistogramLogged);
+  FRIEND_TEST_ALL_PREFIXES(
+      PixManagerTestWithAccountLinkingEnabled,
+      CopyTrigger_InIframe_PspHostnamePopulatedInInitiatePaymentRequest);
+  FRIEND_TEST_ALL_PREFIXES(
+      PixManagerTestWithAccountLinkingEnabled,
+      CopyTrigger_InIframe_ExperimentIdPopulatedInInitiatePaymentRequest);
   FRIEND_TEST_ALL_PREFIXES(PixManagerTestWithAccountLinkingEnabled,
                            DismissPrompt);
   FRIEND_TEST_ALL_PREFIXES(
@@ -222,6 +233,9 @@ class PixManager {
   // 3. Infra for querying is not ready
   // Returns true if the result is [1].
   bool IsMerchantAllowlisted(const GURL& url) const;
+
+  // Returns true if the URL is in the PSP allowlist.
+  bool IsIframeUrlAllowlisted(const GURL& url) const;
 
   // Called by the utility process after validation of the `pix_code`. If the
   // utility processes has disconnected (e.g., due to a crash in the validation
@@ -352,8 +366,9 @@ class PixManager {
   // state via a callback.
   UiState ui_state_ = UiState::kHidden;
 
-  // The origin of the Pix payment page that triggered the payment flow.
-  url::Origin pix_payment_page_origin_;
+  // The origin of the Pix payment page on main frame that triggered the payment
+  // flow.
+  url::Origin pix_payment_page_main_frame_origin_;
 
   base::WeakPtrFactory<PixManager> weak_ptr_factory_{this};
 };

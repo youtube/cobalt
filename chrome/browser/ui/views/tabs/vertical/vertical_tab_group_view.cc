@@ -53,6 +53,7 @@ constexpr int kGroupHeaderVerticalMargin = 4;
 constexpr int kTabLeadingPadding = 10;
 
 const TabGroup* GetTabGroupFromNode(TabCollectionNode* node) {
+  CHECK(node);
   return static_cast<const tabs::TabGroupTabCollection*>(
              std::get<const tabs::TabCollection*>(node->GetNodeData()))
       ->GetTabGroup();
@@ -73,6 +74,7 @@ VerticalTabGroupView::VerticalTabGroupView(TabCollectionNode* collection_node)
           *GetTabGroupFromNode(collection_node_)->visual_data()),
       group_header_(AddChildView(std::make_unique<VerticalTabGroupHeaderView>(
           *this,
+          collection_node_->GetController()->GetStateController(),
           &tab_group_visual_data_))),
       group_line_(AddChildView(std::make_unique<views::View>())),
       layout_manager_(*SetLayoutManager(
@@ -174,7 +176,7 @@ views::ProposedLayout VerticalTabGroupView::CalculateProposedLayout(
     height += bounds.height() + kTabVerticalPadding;
     width = std::max(width, bounds.width());
   }
-  // Remove excess padding if needed.
+  // Remove excess padding.
   height -= kTabVerticalPadding;
 
   if (!children.empty()) {
@@ -183,7 +185,12 @@ views::ProposedLayout VerticalTabGroupView::CalculateProposedLayout(
   layouts.child_layouts.emplace_back(
       group_line_.get(), group_line_->GetVisible(), group_line_bounds);
 
+  // Add extra padding below the group if not collapsed.
   const bool is_collapsed = IsCollapsed();
+  if (!is_collapsed) {
+    height += kTabVerticalPadding;
+  }
+
   layouts.host_size = gfx::Size(
       width, is_collapsed
                  ? header_bounds.height() + (2 * kGroupHeaderVerticalMargin)
@@ -197,12 +204,22 @@ void VerticalTabGroupView::OnAttentionStateChanged() {
 
 void VerticalTabGroupView::ToggleCollapsedState(
     ToggleTabGroupCollapsedStateOrigin origin) {
+  // If the group is in the process of being closed, then ignore updates.
+  if (!collection_node_) {
+    return;
+  }
+
   collection_node_->GetController()->ToggleTabGroupCollapsedState(
       GetTabGroupFromNode(collection_node_), origin);
 }
 
 views::Widget* VerticalTabGroupView::ShowGroupEditorBubble(
     bool stop_context_menu_propagation) {
+  // If the group is in the process of being closed, then ignore updates.
+  if (!collection_node_) {
+    return nullptr;
+  }
+
   bool is_tab_strip_collapsed = IsTabStripCollapsed();
   // When the tab strip is collapsed, anchor to the group header, otherwise
   // anchor to the editor bubble button.
@@ -235,16 +252,27 @@ std::u16string VerticalTabGroupView::GetGroupContentString() const {
     return std::u16string();
   }
 
-  return tab_groups::GetGroupContentString(
-      GetTabGroupFromNode(collection_node_));
+  const TabGroup* group = GetTabGroupFromNode(collection_node_);
+  if (group->tab_count() == 0) {
+    return std::u16string();
+  }
+
+  return tab_groups::GetGroupContentString(group);
 }
 
 void VerticalTabGroupView::ResetCollectionNode() {
   attention_indicator_observation_.Reset();
+  node_destroyed_subscription_ = {};
+  data_changed_subscription_ = {};
   collection_node_ = nullptr;
 }
 
 void VerticalTabGroupView::OnDataChanged() {
+  // If the group is in the process of being closed, then ignore updates.
+  if (!collection_node_) {
+    return;
+  }
+
   const TabGroup* group = GetTabGroupFromNode(collection_node_);
   tab_group_visual_data_ = *group->visual_data();
   const bool has_attention =
@@ -312,9 +340,9 @@ void VerticalTabGroupView::UpdateLayoutForDrag() {
 }
 
 void VerticalTabGroupView::HandleTabDragInContainer(
-    const gfx::Point point_in_container) {
-  views::View* view_at_point =
-      GetViewAtPoint(layout_manager_->target_layout(), point_in_container);
+    const gfx::Rect& dragged_tab_bounds) {
+  views::View* view_at_point = GetViewForDragBounds(
+      layout_manager_->target_layout(), dragged_tab_bounds);
   const TabCollectionNode* node = collection_node_;
   if (auto* tab_view = views::AsViewClass<VerticalTabView>(view_at_point)) {
     node = tab_view->collection_node();
@@ -327,6 +355,7 @@ void VerticalTabGroupView::HandleTabDragInContainer(
 }
 
 bool VerticalTabGroupView::GetIsShared() {
+  CHECK(collection_node_);
   if (!SupportsDataSharing()) {
     return false;
   }
@@ -343,7 +372,21 @@ bool VerticalTabGroupView::GetIsShared() {
   return saved_group && saved_group->is_shared_tab_group();
 }
 
+void VerticalTabGroupView::OnTabDragExited(const gfx::Point& point_in_screen) {
+  auto dragging_tabs_bounds = GetDraggingViewsBoundsAtPoint(
+      views::View::ConvertPointFromScreen(this, point_in_screen));
+  if (dragging_tabs_bounds.y() < 0) {
+    GetDragHandler().HandleDraggedTabsOutOfGroup(*collection_node_,
+                                                 DragPositionHint::kTop);
+  } else if (dragging_tabs_bounds.bottom() > height()) {
+    GetDragHandler().HandleDraggedTabsOutOfGroup(*collection_node_,
+                                                 DragPositionHint::kBottom);
+  }
+  VerticalDraggedTabsContainer::OnTabDragExited(point_in_screen);
+}
+
 void VerticalTabGroupView::InitHeaderDrag(const ui::MouseEvent& event) {
+  CHECK(collection_node_);
   GetDragHandler().InitializeDrag(*collection_node_, event);
 }
 

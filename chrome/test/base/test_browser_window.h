@@ -113,7 +113,6 @@ class TestBrowserWindow : public BrowserWindow, public BrowserListObserver {
   void Maximize() override {}
   void Minimize() override {}
   void Restore() override {}
-  void OnWebApiWindowResizableChanged() override {}
   bool GetCanResize() override;
   ui::mojom::WindowShowState GetWindowShowState() const override;
   bool ShouldHideUIForFullscreen() const override;
@@ -292,7 +291,13 @@ class TestBrowserWindow : public BrowserWindow, public BrowserListObserver {
         override;
     void OnChanged() override {}
     void UpdateWithoutTabRestore() override {}
+    ui::TrackedElement* GetAnchorOrNull() override;
+    Browser* GetBrowser() override;
     bool IsVisible() const override;
+    bool IsDrawn() const override;
+    bool IsTopLevelFullscreen() const override;
+    bool IsEditingOrEmpty() const override;
+    void InvalidateLayout() override {}
     gfx::Rect Bounds() const override;
     gfx::Size MinimumSize() const override;
     gfx::Size PreferredSize() const override;

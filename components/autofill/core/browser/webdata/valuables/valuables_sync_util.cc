@@ -5,7 +5,6 @@
 #include "components/autofill/core/browser/webdata/valuables/valuables_sync_util.h"
 
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_sync_util.h"
-#include "components/sync/protocol/autofill_valuable_specifics.pb.h"
 #include "url/gurl.h"
 
 namespace autofill {
@@ -13,9 +12,24 @@ namespace autofill {
 using sync_pb::AutofillValuableMetadataSpecifics;
 using sync_pb::AutofillValuableSpecifics;
 
+std::unique_ptr<syncer::EntityData> CreateEntityDataFromLoyaltyCard(
+    const LoyaltyCard& loyalty_card,
+    const sync_pb::AutofillValuableSpecifics& base_specifics) {
+  AutofillValuableSpecifics card_specifics =
+      CreateSpecificsFromLoyaltyCard(loyalty_card, base_specifics);
+  std::unique_ptr<syncer::EntityData> entity_data =
+      std::make_unique<syncer::EntityData>();
+  entity_data->name = card_specifics.id();
+  *entity_data->specifics.mutable_autofill_valuable() =
+      std::move(card_specifics);
+
+  return entity_data;
+}
+
 AutofillValuableSpecifics CreateSpecificsFromLoyaltyCard(
-    const LoyaltyCard& card) {
-  AutofillValuableSpecifics specifics = sync_pb::AutofillValuableSpecifics();
+    const LoyaltyCard& card,
+    const sync_pb::AutofillValuableSpecifics& base_specifics) {
+  AutofillValuableSpecifics specifics = base_specifics;
   specifics.set_id(card.id().value());
   sync_pb::LoyaltyCard* loyalty_card = specifics.mutable_loyalty_card();
   loyalty_card->set_merchant_name(card.merchant_name());
@@ -43,52 +57,30 @@ LoyaltyCard CreateAutofillLoyaltyCardFromSpecifics(
       /*use_date=*/{}, /*use_count=*/0);
 }
 
-std::unique_ptr<syncer::EntityData> CreateEntityDataFromLoyaltyCard(
-    const LoyaltyCard& loyalty_card) {
-  AutofillValuableSpecifics card_specifics =
-      CreateSpecificsFromLoyaltyCard(loyalty_card);
-  std::unique_ptr<syncer::EntityData> entity_data =
-      std::make_unique<syncer::EntityData>();
-  entity_data->name = card_specifics.id();
-  AutofillValuableSpecifics* specifics =
-      entity_data->specifics.mutable_autofill_valuable();
-  specifics->CopyFrom(card_specifics);
-
-  return entity_data;
-}
-
-std::unique_ptr<syncer::EntityData> CreateEntityDataFromEntityInstance(
-    EntityInstance entity) {
-  sync_pb::AutofillValuableSpecifics valuable_specifics =
-      CreateSpecificsFromEntityInstance(entity);
-  std::unique_ptr<syncer::EntityData> entity_data =
-      std::make_unique<syncer::EntityData>();
-  entity_data->name = valuable_specifics.id();
-  AutofillValuableSpecifics* specifics =
-      entity_data->specifics.mutable_autofill_valuable();
-  specifics->CopyFrom(valuable_specifics);
-
-  return entity_data;
-}
-
 std::unique_ptr<syncer::EntityData> CreateEntityDataFromValuableMetadata(
-    const ValuableMetadata& metadata) {
+    const ValuableMetadata& metadata,
+    const AutofillValuableMetadataSpecifics::PassType pass_type,
+    const sync_pb::AutofillValuableMetadataSpecifics& base_specifics) {
   sync_pb::AutofillValuableMetadataSpecifics metadata_specifics =
-      CreateSpecificsFromValuableMetadata(metadata);
+      CreateSpecificsFromValuableMetadata(metadata, pass_type, base_specifics);
   std::unique_ptr<syncer::EntityData> entity_data =
       std::make_unique<syncer::EntityData>();
+  entity_data->name = metadata_specifics.valuable_id();
   *entity_data->specifics.mutable_autofill_valuable_metadata() =
       std::move(metadata_specifics);
   return entity_data;
 }
 
 sync_pb::AutofillValuableMetadataSpecifics CreateSpecificsFromValuableMetadata(
-    const ValuableMetadata& metadata) {
-  sync_pb::AutofillValuableMetadataSpecifics specifics;
+    const ValuableMetadata& metadata,
+    const AutofillValuableMetadataSpecifics::PassType pass_type,
+    const sync_pb::AutofillValuableMetadataSpecifics& base_specifics) {
+  sync_pb::AutofillValuableMetadataSpecifics specifics = base_specifics;
   specifics.set_valuable_id(*metadata.valuable_id);
   specifics.set_use_count(metadata.use_count);
   specifics.set_last_used_date_unix_epoch_micros(
       metadata.use_date.ToDeltaSinceWindowsEpoch().InMicroseconds());
+  specifics.set_pass_type(pass_type);
   return specifics;
 }
 
@@ -156,6 +148,13 @@ AutofillValuableSpecifics TrimAutofillValuableSpecificsDataForCaching(
       }
       break;
     }
+    case AutofillValuableSpecifics::kPassport:
+    case AutofillValuableSpecifics::kDriverLicense:
+    case AutofillValuableSpecifics::kNationalIdCard:
+    case AutofillValuableSpecifics::kRedressNumber:
+    case AutofillValuableSpecifics::kKnownTravelerNumber:
+      // TODO(crbug.com/481650251): Implement
+      break;
     case AutofillValuableSpecifics::VALUABLE_DATA_NOT_SET:
       break;
   }
@@ -173,6 +172,7 @@ TrimAutofillValuableMetadataSpecificsDataForCaching(
   trimmed_specifics.clear_use_count();
   trimmed_specifics.clear_last_used_date_unix_epoch_micros();
   trimmed_specifics.clear_last_modified_date_unix_epoch_micros();
+  trimmed_specifics.clear_pass_type();
   // LINT.ThenChange(//components/sync/protocol/autofill_valuable_metadata_specifics.proto:AutofillValuableMetadataSpecifics)
   return trimmed_specifics;
 }

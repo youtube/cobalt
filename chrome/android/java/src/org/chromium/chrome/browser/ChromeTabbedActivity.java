@@ -8,6 +8,7 @@ import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.incognito.reauth.IncognitoReauthControllerImpl.KEY_IS_INCOGNITO_REAUTH_PENDING;
 import static org.chromium.chrome.browser.incognito.reauth.IncognitoReauthControllerImpl.PREVIOUS_VERSION_CODE;
+import static org.chromium.chrome.browser.incognito.reauth.IncognitoReauthControllerImpl.isFromUpdate;
 import static org.chromium.chrome.browser.notifications.tips.TipsPromoCoordinator.INVALID_TIPS_NOTIFICATION_FEATURE_TYPE;
 import static org.chromium.chrome.browser.tabwindow.TabWindowManager.INVALID_WINDOW_ID;
 import static org.chromium.chrome.browser.ui.IncognitoRestoreAppLaunchDrawBlocker.IS_INCOGNITO_SELECTED;
@@ -15,6 +16,7 @@ import static org.chromium.chrome.browser.ui.IncognitoRestoreAppLaunchDrawBlocke
 import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
 import android.app.Activity;
+import android.app.ApplicationStartInfo;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ShortcutManager;
@@ -43,6 +45,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.IntDef;
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.annotation.VisibleForTesting;
 import androidx.lifecycle.Lifecycle;
 import androidx.lifecycle.LifecycleObserver;
@@ -172,6 +175,8 @@ import org.chromium.chrome.browser.magic_stack.ModuleRegistry;
 import org.chromium.chrome.browser.metrics.AndroidSessionDurationsServiceState;
 import org.chromium.chrome.browser.metrics.LaunchMetrics;
 import org.chromium.chrome.browser.metrics.MainIntentBehaviorMetrics;
+import org.chromium.chrome.browser.metrics.StartupMetricsTracker;
+import org.chromium.chrome.browser.metrics.StartupMetricsTracker.AndroidStartupTemperature;
 import org.chromium.chrome.browser.modaldialog.ChromeTabModalPresenter;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.AllocatedIdInfo;
@@ -197,10 +202,11 @@ import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.policy.NtpCustomizationPolicyManager;
 import org.chromium.chrome.browser.ntp_customization.theme.daily_refresh.NtpThemeDailyRefreshManager;
 import org.chromium.chrome.browser.offlinepages.OfflinePageUtils;
-import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.paint_preview.StartupPaintPreviewHelper;
 import org.chromium.chrome.browser.paint_preview.StartupPaintPreviewHelperSupplier;
 import org.chromium.chrome.browser.partnercustomizations.PartnerBrowserCustomizations;
+import org.chromium.chrome.browser.password_manager.PasswordCheckReferrer;
+import org.chromium.chrome.browser.password_manager.PasswordManagerHelper;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
 import org.chromium.chrome.browser.preferences.Pref;
@@ -219,6 +225,7 @@ import org.chromium.chrome.browser.reengagement.ReengagementNotificationControll
 import org.chromium.chrome.browser.safety_hub.SafetyHubMagicStackBuilder;
 import org.chromium.chrome.browser.search_engines.SearchEngineChoiceNotification;
 import org.chromium.chrome.browser.searchwidget.SearchActivityClientImpl;
+import org.chromium.chrome.browser.settings.SettingsCustomTabLauncherImpl;
 import org.chromium.chrome.browser.settings.SettingsNavigationFactory;
 import org.chromium.chrome.browser.share.ShareDelegate;
 import org.chromium.chrome.browser.share.ShareHelper;
@@ -226,6 +233,7 @@ import org.chromium.chrome.browser.share.send_tab_to_self.SendTabToSelfAndroidBr
 import org.chromium.chrome.browser.signin.SigninAndHistorySyncActivityLauncherImpl;
 import org.chromium.chrome.browser.single_tab.SingleTabModuleBuilder;
 import org.chromium.chrome.browser.survey.ChromeSurveyController;
+import org.chromium.chrome.browser.sync.SyncServiceFactory;
 import org.chromium.chrome.browser.sync.ui.SyncErrorMessage;
 import org.chromium.chrome.browser.tab.EmptyTabObserver;
 import org.chromium.chrome.browser.tab.RedirectHandlerTabHelper;
@@ -307,7 +315,7 @@ import org.chromium.chrome.browser.ui.browser_window.BrowserWindowType;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
 import org.chromium.chrome.browser.ui.desktop_windowing.AppHeaderUtils;
 import org.chromium.chrome.browser.ui.edge_to_edge.EdgeToEdgeUtils;
-import org.chromium.chrome.browser.ui.edge_to_edge.TopInsetProvider;
+import org.chromium.chrome.browser.ui.edge_to_edge.TransitiveTopInsetProvider;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityClient;
 import org.chromium.chrome.browser.ui.searchactivityutils.SearchActivityExtras.IntentOrigin;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
@@ -339,9 +347,12 @@ import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.messages.MessageDispatcher;
 import org.chromium.components.messages.MessageDispatcherProvider;
 import org.chromium.components.omnibox.OmniboxFeatures;
+import org.chromium.components.omnibox.OmniboxFocusReason;
 import org.chromium.components.profile_metrics.BrowserProfileType;
+import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.metrics.SigninAccessPoint;
 import org.chromium.components.supervised_user.SupervisedUserConstants;
+import org.chromium.components.sync.SyncService;
 import org.chromium.components.tab_group_sync.SavedTabGroup;
 import org.chromium.components.tab_group_sync.TabGroupSyncService;
 import org.chromium.components.user_prefs.UserPrefs;
@@ -499,8 +510,9 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
     private final OneshotSupplierImpl<HubManager> mHubManagerSupplier = new OneshotSupplierImpl<>();
     private final OneshotSupplierImpl<ModuleRegistry> mModuleRegistrySupplier =
             new OneshotSupplierImpl<>();
-    private final SettableMonotonicObservableSupplier<TopInsetProvider> mTopInsetProviderSupplier =
-            ObservableSuppliers.createMonotonic();
+    private final TransitiveTopInsetProvider mTransitiveTopInsetProvider =
+            new TransitiveTopInsetProvider();
+
     private final IncognitoTabHost mIncognitoTabHost =
             new IncognitoTabHost() {
                 @Override
@@ -1020,7 +1032,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             getContentView().findViewById(R.id.coordinator),
                             getToolbarManager(),
                             mRootUiCoordinator.getScrimManager().getScrimVisibilitySupplier(),
-                            mTopInsetProviderSupplier);
+                            mTransitiveTopInsetProvider);
             mLayoutStateProviderSupplier.set(mLayoutManager);
         }
     }
@@ -1149,7 +1161,8 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                     NonNullObservableSupplier<Integer> hubOverviewColorSupplier =
                             hubManager.getHubOverviewColorSupplier();
                     Callback<Integer> hubOverviewColorObserver = overviewColorSupplier::set;
-                    hubOverviewColorSupplier.addObserver(hubOverviewColorObserver);
+                    hubOverviewColorSupplier.addSyncObserverAndPostIfNonNull(
+                            hubOverviewColorObserver);
 
                     mCleanUpHubOverviewColorObserver =
                             () -> hubOverviewColorSupplier.removeObserver(hubOverviewColorObserver);
@@ -1637,6 +1650,12 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                                 SystemClock.uptimeMillis() - getOnStartTimestampMs();
                     }
                 });
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.VANILLA_ICE_CREAM) {
+            PostTask.postTask(
+                    TaskTraits.BEST_EFFORT_MAY_BLOCK,
+                    ChromeTabbedActivity::recordStartupTemperature);
+        }
 
         // Don't call setInitialOverviewState if 1) we're waiting for the tab's creation or we risk
         // showing a glimpse of the tab selector during start up. 2) on warm startup from an
@@ -2191,10 +2210,6 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             boolean hadCipherData = false;
             PersistableBundle persistentState = getPersistentInstanceState();
             if (shouldPersistAcrossReboots() && persistentState != null) {
-                boolean appWasUpdated =
-                        BuildConfig.VERSION_CODE
-                                != persistentState.getLong(
-                                        PREVIOUS_VERSION_CODE, BuildConfig.VERSION_CODE);
                 // Only restore incognito state if the data was persisted for an app update.
                 // It is possible for an app update to follow a device reboot, before the app is
                 // restored by the OS. In this case, the OS drops and clears the PersistableBundle
@@ -2202,7 +2217,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                 // should not be restored incorrectly if an app update immediately after a reboot
                 // "hides" the occurrence of the reboot, as incognito state should not be restored
                 // after a reboot.
-                if (appWasUpdated) {
+                if (isFromUpdate(persistentState)) {
                     hadCipherData =
                             CipherLazyHolder.sCipherInstance.restoreFromPersistableBundle(
                                     persistentState);
@@ -2441,6 +2456,36 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             long currentTimestamp = System.currentTimeMillis();
             prefs.writeLong(ChromePreferenceKeys.FIRST_CTA_START_TIMESTAMP, currentTimestamp);
         }
+    }
+
+    /**
+     * Uses ApplicationStartInfo to record the temperature (Cold, Warm, Hot, Unset) of the current
+     * start.
+     */
+    @RequiresApi(35)
+    private static void recordStartupTemperature() {
+        ApplicationStartInfo startInfo = StartupMetricsTracker.getCurrentApplicationStartInfo();
+        if (startInfo == null) return;
+
+        int androidStartupTemperature = startInfo.getStartType();
+        @AndroidStartupTemperature int temperature;
+        switch (androidStartupTemperature) {
+            case ApplicationStartInfo.START_TYPE_COLD:
+                temperature = AndroidStartupTemperature.COLD;
+                break;
+            case ApplicationStartInfo.START_TYPE_WARM:
+                temperature = AndroidStartupTemperature.WARM;
+                break;
+            case ApplicationStartInfo.START_TYPE_HOT:
+                temperature = AndroidStartupTemperature.HOT;
+                break;
+            case ApplicationStartInfo.START_TYPE_UNSET:
+            default:
+                temperature = AndroidStartupTemperature.UNSET;
+                break;
+        }
+        RecordHistogram.recordEnumeratedHistogram(
+                "Startup.Android.Temperature", temperature, AndroidStartupTemperature.NUM_ENTRIES);
     }
 
     private boolean hasStartWithNativeBeenCalled() {
@@ -3007,7 +3052,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                 getTabContentManagerSupplier(),
                 this::getSnackbarManager,
                 mEdgeToEdgeControllerSupplier,
-                mTopInsetProviderSupplier,
+                mTransitiveTopInsetProvider,
                 mBottomChinSupplier,
                 getActivityType(),
                 this::isInOverviewMode,
@@ -3309,6 +3354,28 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
             }
 
             @Override
+            public void showPasswordCheckup() {
+                Profile profile = getProfileSupplier().get();
+                if (profile == null) return;
+
+                SyncService syncService = SyncServiceFactory.getForProfile(profile);
+                String accountName = null;
+                if (PasswordManagerHelper.hasChosenToSyncPasswords(syncService)) {
+                    accountName =
+                            CoreAccountInfo.getEmailFrom(
+                                    assumeNonNull(syncService).getAccountInfo());
+                }
+
+                PasswordManagerHelper.getForProfile(profile)
+                        .showPasswordCheckup(
+                                ChromeTabbedActivity.this,
+                                PasswordCheckReferrer.SAFETY_CHECK,
+                                getModalDialogManagerSupplier(),
+                                accountName,
+                                new SettingsCustomTabLauncherImpl());
+            }
+
+            @Override
             public int getTabCountForRelaunchFromPersistentStore() {
                 return MultiWindowUtils.getTabCountForRelaunchFromPersistentStore(mWindowId);
             }
@@ -3507,7 +3574,7 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
                             getToolbarManager().getTabStripHeightSupplier(),
                             mModuleRegistrySupplier,
                             mEdgeToEdgeControllerSupplier,
-                            mTopInsetProviderSupplier,
+                            mTransitiveTopInsetProvider,
                             getStartupMetricsTracker(),
                             mRootUiCoordinator.getExclusiveAccessManager(),
                             mBackPressManager,
@@ -4851,7 +4918,10 @@ public class ChromeTabbedActivity extends ChromeActivity implements PreAttachInt
 
         assert mInactivityTrackerSupplier.get() != null;
         return ReturnToChromeUtil.shouldShowNtpAsHomeSurfaceAtStartup(
-                getIntent(), getSavedInstanceState(), mInactivityTrackerSupplier.get());
+                getIntent(),
+                getSavedInstanceState(),
+                getPersistentInstanceState(),
+                mInactivityTrackerSupplier.get());
     }
 
     /**

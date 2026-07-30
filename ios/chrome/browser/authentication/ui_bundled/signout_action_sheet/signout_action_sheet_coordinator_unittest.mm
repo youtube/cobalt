@@ -11,7 +11,6 @@
 #import "base/strings/sys_string_conversions.h"
 #import "base/test/metrics/histogram_tester.h"
 #import "base/test/mock_callback.h"
-#import "base/test/scoped_feature_list.h"
 #import "components/prefs/pref_service.h"
 #import "components/signin/public/base/signin_metrics.h"
 #import "components/signin/public/base/signin_pref_names.h"
@@ -24,12 +23,10 @@
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/browser/test/test_browser.h"
 #import "ios/chrome/browser/shared/model/prefs/pref_names.h"
-#import "ios/chrome/browser/shared/model/profile/features.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_ios.h"
 #import "ios/chrome/browser/shared/model/profile/test/test_profile_manager_ios.h"
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
-#import "ios/chrome/browser/shared/public/features/features.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
@@ -140,29 +137,26 @@ class SignoutActionSheetCoordinatorTest : public PlatformTest {
   PrefService* GetPrefs() { return profile_->GetPrefs(); }
 
   void SignInManagedIdentity() {
-    if (!AreSeparateProfilesForManagedAccountsEnabled()) {
-      authentication_service()->SignIn(managed_identity_,
-                                       signin_metrics::AccessPoint::kUnknown);
-    } else {
-      // With kSeparateProfilesForManagedAccounts, these tests only apply when a
-      // managed account is signed in to the personal profile (which, in prod,
-      // can only happen if the account was already signed in before
-      // kSeparateProfilesForManagedAccounts was enabled). This situation is
-      // tricky to replicate in a unit test; it's done here by first converting
-      // the (single) test profile to a managed profile, then marking it as the
-      // personal profile again.
-      GetApplicationContext()
-          ->GetAccountProfileMapper()
-          ->MakePersonalProfileManagedWithGaiaID(managed_identity_.gaiaId);
+    // These tests only apply when a managed account is signed in to the
+    // personal profile (which, in prod, can only happen if the account was
+    // already signed in before kSeparateProfilesForManagedAccounts was
+    // enabled). This situation is tricky to replicate in a unit test; it's done
+    // here by first converting the (single) test profile to a managed profile,
+    // then marking it as the personal profile again.
+    // TODO(crbug.com/407498240): Remove the affected tests once all users are
+    // migrated to kSeparateProfilesForManagedAccounts.
+    GetApplicationContext()
+        ->GetAccountProfileMapper()
+        ->MakePersonalProfileManagedWithGaiaID(managed_identity_.gaiaId);
 
-      authentication_service()->SignIn(managed_identity_,
-                                       signin_metrics::AccessPoint::kUnknown);
+    authentication_service()->SignIn(managed_identity_,
+                                     signin_metrics::AccessPoint::kStartPage);
 
-      GetApplicationContext()
-          ->GetProfileManager()
-          ->GetProfileAttributesStorage()
-          ->SetPersonalProfileName(profile_->GetProfileName());
-    }
+    GetApplicationContext()
+        ->GetProfileManager()
+        ->GetProfileAttributesStorage()
+        ->SetPersonalProfileName(profile_->GetProfileName());
+
     ASSERT_TRUE(authentication_service()->HasPrimaryIdentityManaged(
         signin::ConsentLevel::kSignin));
   }
@@ -172,8 +166,6 @@ class SignoutActionSheetCoordinatorTest : public PlatformTest {
   web::WebTaskEnvironment task_environment_;
 
   IOSChromeScopedTestingLocalState scoped_testing_local_state_;
-
-  base::test::ScopedFeatureList scoped_feature_list_;
 
   SignoutActionSheetCoordinator* signout_coordinator_ = nullptr;
   ScopedKeyWindow scoped_key_window_;
@@ -197,7 +189,7 @@ class SignoutActionSheetCoordinatorTest : public PlatformTest {
 TEST_F(SignoutActionSheetCoordinatorTest,
        ShouldNotShowActionSheetIfNoUnsyncedData) {
   authentication_service()->SignIn(identity_,
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
 
   CreateCoordinator();
   // Mock returning no unsynced datatype.
@@ -221,7 +213,7 @@ TEST_F(SignoutActionSheetCoordinatorTest,
 
 TEST_F(SignoutActionSheetCoordinatorTest, ShouldShowActionSheetIfUnsyncedData) {
   authentication_service()->SignIn(identity_,
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
 
   CreateCoordinator();
   // Mock returning unsynced datatypes.
@@ -302,7 +294,7 @@ TEST_F(SignoutActionSheetCoordinatorTest,
 TEST_F(SignoutActionSheetCoordinatorTest,
        ShouldShowActionSheetIfBookmarksLimitExceeded) {
   authentication_service()->SignIn(identity_,
-                                   signin_metrics::AccessPoint::kUnknown);
+                                   signin_metrics::AccessPoint::kStartPage);
 
   CreateCoordinator();
   // Mock returning no unsynced datatype.

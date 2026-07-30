@@ -14,6 +14,7 @@ import './sources_menu.js';
 import {AnchorAlignment} from '//resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrActionMenuElement} from 'chrome://resources/cr_elements/cr_action_menu/cr_action_menu.js';
 import type {CrLazyRenderLitElement} from 'chrome://resources/cr_elements/cr_lazy_render/cr_lazy_render_lit.js';
+import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {CrLitElement} from 'chrome://resources/lit/v3_0/lit.rollup.js';
 
 import type {ContextInfo} from './contextual_tasks.mojom-webui.js';
@@ -25,8 +26,12 @@ import {getHtml} from './top_toolbar.html.js';
 
 export interface TopToolbarElement {
   $: {
+    closeButton: HTMLImageElement,
+    contextButton: HTMLImageElement,
     menu: CrLazyRenderLitElement<CrActionMenuElement>,
+    newThreadButton: HTMLImageElement,
     sourcesMenu: CrLazyRenderLitElement<SourcesMenuElement>,
+    threadHistoryButton: HTMLImageElement,
     topToolbarLogo: HTMLImageElement,
   };
 }
@@ -36,12 +41,12 @@ export class TopToolbarElement extends CrLitElement {
     return 'top-toolbar';
   }
 
-  override render() {
-    return getHtml.bind(this)();
-  }
-
   static override get styles() {
     return getCss();
+  }
+
+  override render() {
+    return getHtml.bind(this)();
   }
 
   static override get properties() {
@@ -68,6 +73,8 @@ export class TopToolbarElement extends CrLitElement {
   accessor isAiPage: boolean = false;
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
   private listenerIds_: number[] = [];
+  protected isExpandButtonEnabled: boolean =
+      loadTimeData.getBoolean('expandButtonEnabled');
 
   override connectedCallback() {
     super.connectedCallback();
@@ -117,6 +124,10 @@ export class TopToolbarElement extends CrLitElement {
   }
 
   protected onSourcesClick_(e: Event) {
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.OpenSourcesMenu');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenSourcesMenu', true);
     this.$.sourcesMenu.get().showAt(e.target as HTMLElement);
   }
 

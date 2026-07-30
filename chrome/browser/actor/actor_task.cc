@@ -20,7 +20,7 @@
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
-#include "chrome/browser/actor/enterprise_policy_checker.h"
+#include "chrome/browser/actor/enterprise_policy_url_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/profiles/profile.h"
@@ -42,6 +42,21 @@
 namespace actor {
 
 namespace {
+
+void MaybeRunLater(base::OnceClosure task) {
+  // TODO(b/461256502): This killswitch-guarded change made it so the doesn't
+  // re-post the reply from Act() but this means (to ensure consistent async
+  // behavior) we need to PostTask the cases where we would otherwise run the
+  // callback synchronously. Once this killswitch is removed this function can
+  // be renamed to RunLater.
+  if (base::FeatureList::IsEnabled(
+          actor::kGlicPerformActionsReturnsBeforeStateChange)) {
+    base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+        FROM_HERE, std::move(task));
+  } else {
+    std::move(task).Run();
+  }
+}
 
 bool IsStateActorControlledAndNotWaiting(ActorTask::State state) {
   return (state == ActorTask::State::kCreated ||
@@ -122,7 +137,7 @@ ActorTask::ActorTask(base::PassKey<ActorKeyedService, ActorTask>,
                      TaskId id,
                      std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
                      webui::mojom::TaskOptionsPtr options,
-                     const EnterprisePolicyChecker* policy_checker,
+                     const EnterprisePolicyUrlChecker* policy_checker,
                      base::WeakPtr<ActorTaskDelegate> delegate)
     : profile_(profile),
       id_(id),
@@ -153,7 +168,7 @@ std::unique_ptr<ActorTask> ActorTask::CreateForTesting(
     TaskId id,
     std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
     webui::mojom::TaskOptionsPtr options,
-    const EnterprisePolicyChecker* policy_checker,
+    const EnterprisePolicyUrlChecker* policy_checker,
     base::WeakPtr<ActorTaskDelegate> delegate) {
   return std::make_unique<ActorTask>(
       base::PassKey<ActorTask>(), profile, id, std::move(ui_event_dispatcher),
@@ -250,29 +265,14 @@ void ActorTask::SetState(State new_state) {
     ++total_number_of_interruptions_;
   }
 
-  // In the new implementation, stopped tasks are tracked separately as they
-  // need to store additional information before they're cleared.
-  bool should_dispatch = !base::FeatureList::IsEnabled(
-                             features::kGlicActorUiGlobalTaskIndicator) ||
-                         !stopped_reason_;
-  if (should_dispatch) {
+  // Stopped tasks are tracked separately as they need to store additional
+  // information before they're cleared.
+  if (!stopped_reason_) {
     ui_event_dispatcher_->OnActorTaskSyncChange(
         ui::UiEventDispatcher::ChangeTaskState{
             .task_id = id_, .old_state = old_state, .new_state = new_state});
   }
-  if (base::FeatureList::IsEnabled(
-          actor::kGlicPerformActionsReturnsBeforeStateChange)) {
-    // The callback_for_act_ is posted before calling SetState. We want that to
-    // invoke before the client sees the state change so post that as well.
-    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
-        FROM_HERE,
-        base::BindOnce(&ActorKeyedService::NotifyTaskStateChanged,
-                       actor::ActorKeyedService::Get(profile_)->GetWeakPtr(),
-                       id_, state_));
-  } else {
-    actor::ActorKeyedService::Get(profile_)->NotifyTaskStateChanged(id_,
-                                                                    state_);
-  }
+  actor::ActorKeyedService::Get(profile_)->NotifyTaskStateChanged(id_, state_);
 
   // If the state is to be finished/cancelled record a histogram.
   if (state_ == kFinished || state_ == kCancelled || state_ == kFailed) {
@@ -291,15 +291,17 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
   if (IsUnderUserControl()) {
     journal_->Log(GURL(), id(), "ActorTask::Act",
                   JournalDetailsBuilder().AddError("Task is paused").Build());
-    std::move(callback).Run(MakeResult(mojom::ActionResultCode::kTaskPaused),
-                            std::nullopt, {});
+    MaybeRunLater(base::BindOnce(
+        std::move(callback), MakeResult(mojom::ActionResultCode::kTaskPaused),
+        std::nullopt, std::vector<ActionResultWithLatencyInfo>()));
     return;
   }
   if (IsCompleted()) {
     journal_->Log(GURL(), id(), "ActorTask::Act",
                   JournalDetailsBuilder().AddError("Task is Stopped").Build());
-    std::move(callback).Run(MakeResult(mojom::ActionResultCode::kTaskWentAway),
-                            std::nullopt, {});
+    MaybeRunLater(base::BindOnce(
+        std::move(callback), MakeResult(mojom::ActionResultCode::kTaskWentAway),
+        std::nullopt, std::vector<ActionResultWithLatencyInfo>()));
     return;
   }
 
@@ -307,9 +309,10 @@ void ActorTask::Act(std::vector<std::unique_ptr<ToolRequest>>&& actions,
     journal_->Log(
         GURL(), id(), "ActorTask::Act",
         JournalDetailsBuilder().AddError("Task is Waiting for User").Build());
-    std::move(callback).Run(
+    MaybeRunLater(base::BindOnce(
+        std::move(callback),
         MakeResult(mojom::ActionResultCode::kInvalidTaskStateForAct),
-        std::nullopt, {});
+        std::nullopt, std::vector<ActionResultWithLatencyInfo>()));
     return;
   }
 
@@ -417,13 +420,11 @@ void ActorTask::Stop(StoppedReason stop_reason) {
 
   SetState(final_state);
 
-  if (base::FeatureList::IsEnabled(features::kGlicActorUiGlobalTaskIndicator)) {
     ui_event_dispatcher_->OnActorTaskSyncChange(ui::UiEventDispatcher::StopTask{
         .task_id = id_,
         .final_state = final_state,
         .title = title_,
         .last_acted_on_tab_handle = last_tab_handle});
-  }
 }
 
 void ActorTask::Pause(bool from_actor) {

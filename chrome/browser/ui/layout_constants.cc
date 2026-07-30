@@ -143,15 +143,21 @@ int GetLayoutConstant(LayoutConstant constant) {
       return 12;
     case LayoutConstant::kVerticalTabStripCollapsedPadding:
       return 8;
+    case LayoutConstant::kVerticalTabStripCollapsedSeparatorWidth:
+      return 24;
     case LayoutConstant::kVerticalTabStripTopButtonIconSize:
       return 20;
     case LayoutConstant::kVerticalTabStripBottomButtonIconSize:
-      return 20;
+      return 18;
     case LayoutConstant::kVerticalTabStripTopButtonPadding:
       return 4;
     case LayoutConstant::kVerticalTabStripFlatEdgeButtonPadding:
       return 2;
     case LayoutConstant::kVerticalTabStripTopButtonContainerHeight:
+      return 28;
+    case LayoutConstant::kVerticalTabStripNewTabButtonSize:
+      return 32;
+    case LayoutConstant::kVerticalTabStripTopContainerButtonSize:
       return 28;
     case LayoutConstant::kVerticalTabPinnedBorderThickness:
       return 1;

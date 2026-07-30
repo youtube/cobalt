@@ -850,6 +850,10 @@ void HTMLElement::AttributeChanged(const AttributeModificationParams& params) {
     return;
   }
 
+  if (params.reason != AttributeModificationReason::kDirectly) {
+    return;
+  }
+
   if (params.name == html_names::kCommandAttr) {
     bool old_is_overscroll = IsOverscrollCommand(
         GetCommandEventType(params.old_value, GetExecutionContext()));
@@ -879,8 +883,6 @@ void HTMLElement::AttributeChanged(const AttributeModificationParams& params) {
     }
   }
 
-  if (params.reason != AttributeModificationReason::kDirectly)
-    return;
   // adjustedFocusedElementInTreeScope() is not trivial. We should check
   // attribute names, then call adjustedFocusedElementInTreeScope().
   if (params.name == html_names::kHiddenAttr && !params.new_value.IsNull()) {
@@ -1666,6 +1668,11 @@ void HTMLElement::ShowPopoverInternal(Element* invoker,
     // :popover-open https://issues.chromium.org/issues/375004874
     OwnerShadowHost()->PseudoStateChanged(CSSSelector::kPseudoOpen);
   }
+  if (IsA<HTMLMenuItemElement>(invoker)) {
+    // There are some edge cases where :open doesn't change here, but in
+    // practice this basically means it's changing.
+    invoker->PseudoStateChanged(CSSSelector::kPseudoOpen);
+  }
 
   CHECK(!original_document.AllOpenPopovers().Contains(this));
   original_document.AllOpenPopovers().insert(this);
@@ -2106,6 +2113,11 @@ PopoverHideResult HTMLElement::HidePopoverInternal(
     // :popover-open https://issues.chromium.org/issues/375004874
     OwnerShadowHost()->PseudoStateChanged(CSSSelector::kPseudoOpen);
   }
+  if (IsA<HTMLMenuItemElement>(invoker)) {
+    // There are some edge cases where :open doesn't change here, but in
+    // practice this basically means it's changing.
+    invoker->PseudoStateChanged(CSSSelector::kPseudoOpen);
+  }
 
   document.AllOpenPopovers().erase(this);
 
@@ -2233,7 +2245,7 @@ const HTMLElement* NearestTargetPopoverForInvoker(
         // This code should return the *target popover* for several kinds of
         // potential invokers:
 
-        // Case 1. A <menuitem> element with the `commandfor` attribute.
+        // A <menuitem> element with the `commandfor` attribute.
         if (auto* menu_item = DynamicTo<HTMLMenuItemElement>(test_node)) {
           if (auto* target =
                   DynamicTo<HTMLElement>(menu_item->commandForElement());
@@ -2242,7 +2254,7 @@ const HTMLElement* NearestTargetPopoverForInvoker(
           }
         }
 
-        // Case 2. A <button> element with the `commandfor` attribute.
+        // A <button> element with the `commandfor` attribute.
         if (auto* button = DynamicTo<HTMLButtonElement>(test_node)) {
           if (auto* target =
                   DynamicTo<HTMLElement>(button->commandForElement());
@@ -2251,7 +2263,7 @@ const HTMLElement* NearestTargetPopoverForInvoker(
           }
         }
 
-        // Case 3. An HTMLFormControlElement with the `popovertarget` attribute.
+        // An HTMLFormControlElement with the `popovertarget` attribute.
         if (auto* form_element = DynamicTo<HTMLFormControlElement>(
                 const_cast<Node*>(test_node))) {
           if (auto* target =
@@ -2260,7 +2272,16 @@ const HTMLElement* NearestTargetPopoverForInvoker(
           }
         }
 
-        // Case 4. A select element whose picker is a popover.
+        // An element with the `interestfor` attribute.
+        if (auto* element = DynamicTo<Element>(const_cast<Node*>(test_node))) {
+          if (auto* target =
+                  DynamicTo<HTMLElement>(element->InterestForElement());
+              target && target->IsPopover()) {
+            return target;
+          }
+        }
+
+        // A select element whose picker is a popover.
         if (auto* select = DynamicTo<HTMLSelectElement>(test_node)) {
           if (auto* popover_picker = select->PopoverPickerElement()) {
             if (RuntimeEnabledFeatures::LightDismissFromClickEnabled()) {
@@ -2269,14 +2290,14 @@ const HTMLElement* NearestTargetPopoverForInvoker(
           }
         }
 
-        // Case 5. A customizable combobox whose picker is a popover.
+        // A customizable combobox whose picker is a popover.
         if (auto* input = DynamicTo<HTMLInputElement>(test_node)) {
           if (input->IsBaseAppearanceCombobox()) {
             return input->DataList();
           }
         }
 
-        // Case 6. A custom element button with `ElementInternals.type=button`
+        // A custom element button with `ElementInternals.type=button`
         // with the `popovertarget` attribute or the `commandfor` attribute.
         if (auto* html_element = DynamicTo<HTMLElement>(test_node);
             html_element &&
@@ -2677,6 +2698,11 @@ bool HTMLElement::HandleCommandForActivation() {
             CommandEventType::kNone);
   const auto command_event_type =
       GetCommandEventType(action, GetExecutionContext());
+  bool is_valid_builtin =
+      command_target->IsValidBuiltinCommand(*this, command_event_type);
+  if (!is_valid_builtin && command_event_type != CommandEventType::kCustom) {
+    return false;
+  }
   Event* command_event =
       CommandEvent::Create(event_type_names::kCommand, action, this);
   command_target->DispatchEvent(*command_event);
@@ -3163,6 +3189,14 @@ Node::InsertionNotificationRequest HTMLElement::InsertedInto(
   if (IsFormAssociatedCustomElement())
     EnsureElementInternals().InsertedInto(insertion_point);
 
+  if (IsOverscrollCommand(GetCommandEventType(
+          FastGetAttribute(html_names::kCommandAttr), GetExecutionContext()))) {
+    const auto& command_for = FastGetAttribute(html_names::kCommandforAttr);
+    if (!command_for.empty()) {
+      GetDocument().AddOverscrollCommandTarget(command_for);
+    }
+  }
+
   return kInsertionDone;
 }
 
@@ -3183,6 +3217,14 @@ void HTMLElement::RemovedFrom(ContainerNode& insertion_point) {
   Element::RemovedFrom(insertion_point);
   if (IsFormAssociatedCustomElement())
     EnsureElementInternals().RemovedFrom(insertion_point);
+
+  if (IsOverscrollCommand(GetCommandEventType(
+          FastGetAttribute(html_names::kCommandAttr), GetExecutionContext()))) {
+    const auto& command_for = FastGetAttribute(html_names::kCommandforAttr);
+    if (!command_for.empty()) {
+      GetDocument().RemoveOverscrollCommandTarget(command_for);
+    }
+  }
 }
 
 void HTMLElement::DidMoveToNewDocument(Document& old_document) {

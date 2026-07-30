@@ -164,10 +164,6 @@ void WebuiOmniboxHandler::OnStart(AutocompleteController* controller,
     return;
   }
 
-  if (metrics_reporter_ && !metrics_reporter_->HasLocalMark("CharTyped")) {
-    metrics_reporter_->Mark("CharTyped");
-  }
-
   const AutocompleteProviderClient* client =
       autocomplete_controller()->autocomplete_provider_client();
   // Check if there are zero suggest (either on NTP or on web) or the
@@ -205,6 +201,12 @@ void WebuiOmniboxHandler::OnKeywordStateChanged(bool is_keyword_selected) {
   }
 
   page_->SetKeywordSelected(is_keyword_selected);
+}
+
+void WebuiOmniboxHandler::OnCharTyped(base::TimeTicks timestamp) {
+  if (metrics_reporter_ && !metrics_reporter_->HasLocalMark("CharTyped")) {
+    metrics_reporter_->Mark("CharTyped", timestamp);
+  }
 }
 
 void WebuiOmniboxHandler::OnSelectionChanged(
@@ -417,15 +419,7 @@ void WebuiOmniboxHandler::OnAimEligibilityChanged() {
   if (!aim_eligibility_service) {
     return;
   }
-
-  // If the user has manually overridden the AIM eligibility response for
-  // debugging purposes (via chrome://omnibox/aim-eligibility), then force a
-  // refresh of the input state model to reflect any overrides specified by the
-  // user.
-  if (aim_eligibility_service->GetMostRecentResponseSource() ==
-      AimEligibilityService::EligibilityResponseSource::kUser) {
-    InitializeInputStateModelForDebugging();
-  }
+  InitializeInputStateModel();
 
   // Ignore the call until the page remote is bound and ready to receive calls.
   if (!IsRemoteBound()) {

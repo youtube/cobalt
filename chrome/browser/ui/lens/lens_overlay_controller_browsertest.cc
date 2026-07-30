@@ -505,18 +505,10 @@ class LensOverlayControllerFake : public lens::TestLensOverlayController {
  public:
   LensOverlayControllerFake(tabs::TabInterface* tab,
                             LensSearchController* lens_search_controller,
-                            variations::VariationsClient* variations_client,
-                            signin::IdentityManager* identity_manager,
-                            PrefService* pref_service,
-                            syncer::SyncService* sync_service,
-                            ThemeService* theme_service)
+                            PrefService* pref_service)
       : lens::TestLensOverlayController(tab,
                                         lens_search_controller,
-                                        variations_client,
-                                        identity_manager,
-                                        pref_service,
-                                        sync_service,
-                                        theme_service) {}
+                                        pref_service) {}
 
   void BindOverlay(mojo::PendingReceiver<lens::mojom::LensPageHandler> receiver,
                    mojo::PendingRemote<lens::mojom::LensPage> page) override {
@@ -570,18 +562,14 @@ class LensSearchControllerFake : public lens::TestLensSearchController {
   std::unique_ptr<LensOverlayController> CreateLensOverlayController(
       tabs::TabInterface* tab,
       LensSearchController* lens_search_controller,
-      variations::VariationsClient* variations_client,
-      signin::IdentityManager* identity_manager,
       PrefService* pref_service,
-      syncer::SyncService* sync_service,
       ThemeService* theme_service) override {
     // Set browser color scheme to light mode for consistency.
     theme_service->SetBrowserColorScheme(
         ThemeService::BrowserColorScheme::kLight);
 
     return std::make_unique<LensOverlayControllerFake>(
-        tab, lens_search_controller, variations_client, identity_manager,
-        pref_service, sync_service, theme_service);
+        tab, lens_search_controller, pref_service);
   }
 
   std::unique_ptr<lens::LensOverlayQueryController> CreateLensQueryController(
@@ -3637,7 +3625,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   // Loading another url in the side panel should update the results page.
   const GURL third_search_url(
       "https://www.google.com/"
-      "search?source=chrome.cr.menu&vsint=CAMiBioEa2l3aSoKCgIIBxICCAMgAg&q="
+      "search?source=chrome.cr.menu&vsint=CAMiBioEa2l3aSoMCgIIBxICCAMYACAC&q="
       "kiwi&lns_fp=1"
       "&lns_mode=text&lns_surface=42&cs=0&gsc=2&hl=en-US");
   content::TestNavigationObserver third_search_observer(
@@ -3787,7 +3775,7 @@ IN_PROC_BROWSER_TEST_F(LensOverlayControllerBrowserTest,
   // Loading a second url in the side panel should show the results page.
   const GURL second_search_url(
       "https://www.google.com/"
-      "search?source=chrome.cr.ctxi&vsint=CAMiBioEa2l3aSoKCgIIBxICCAMgAg&q="
+      "search?source=chrome.cr.ctxi&vsint=CAMiBioEa2l3aSoMCgIIBxICCAMYACAC&q="
       "kiwi&lns_fp="
       "1&lns_mode=text&lns_surface=42&cs=0&gsc=2&hl=en-US");
   content::TestNavigationObserver second_observer(

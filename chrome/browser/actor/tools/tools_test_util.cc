@@ -12,7 +12,6 @@
 #include "base/test/test_timeouts.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/execution_engine.h"
@@ -108,11 +107,7 @@ bool MockActorLoginService::last_permission_was_permanent() const {
 ActorToolsTest::ActorToolsTest() {
   scoped_feature_list_.InitWithFeaturesAndParameters(
       /*enabled_features=*/
-      {
-          {features::kGlic, {}},
-          {features::kGlicActor,
-           {{features::kGlicActorPolicyControlExemption.name, "true"}}},
-      },
+      {{features::kGlic, {}}},
       /*disabled_features=*/{features::kGlicWarming, kGlicActionAllowlist});
 }
 
@@ -122,7 +117,8 @@ void ActorToolsTest::SetUpOnMainThread() {
   PlatformBrowserTest::SetUpOnMainThread();
   host_resolver()->AddRule("*", "127.0.0.1");
 
-  task_id_ = ActorKeyedService::Get(GetProfile())->CreateTask();
+  task_id_ = ActorKeyedService::Get(GetProfile())
+                 ->CreateTask(NoEnterprisePolicyChecker());
 
   // Optimization guide uses this histogram to signal initialization in tests.
   auto* optimization_guide_init_histogram =

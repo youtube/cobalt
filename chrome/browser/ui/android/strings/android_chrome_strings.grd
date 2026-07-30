@@ -2857,6 +2857,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       <message name="IDS_ERROR_PRINTING_FAILED" desc="Generic error message shown when Chrome fails to print the current page for some reason.">
         There was a problem printing the page. Please try again.
       </message>
+      <message name="IDS_TOAST_DISALLOW_PRINT" desc="Toast message shown when a user tries to print a native page that doesn't support printing.">
+        This page can't be printed
+      </message>
       <message name="IDS_ACCESSIBILITY_MENU_BOOKMARK" desc="Content description for the bookmark button when the page is not currently bookmarked.">
         Bookmark this page
       </message>
@@ -4836,6 +4839,9 @@ To change this setting, <ph name="BEGIN_LINK">BEGIN_LINK</ph>delete the Chrome d
       </message>
       <message name="IDS_MENU_OPEN_IN_CHROME" desc="Context sensitive menu item for opening a link in Chrome. [CHAR_LIMIT=30]">
         Open in Chrome browser
+      </message>
+      <message name="IDS_MENU_OPEN_IN_NEW_TAB" desc="Context sensitive menu item for opening a link in a new tab in Chrome. [CHAR_LIMIT=30]">
+        Open in new tab
       </message>
       <message name="IDS_MENU_OPEN_IN_INCOGNITO_CHROME" desc="Context sensitive menu item for opening a link in Chrome in an Incognito tab. [CHAR_LIMIT=30]" translateable="false">
         Open in Incognito Chrome

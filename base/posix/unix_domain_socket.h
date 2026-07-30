@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "base/base_export.h"
+#include "base/containers/span.h"
 #include "base/files/scoped_file.h"
 #include "base/process/process_handle.h"
 #include "build/build_config.h"
@@ -37,38 +38,20 @@ class BASE_EXPORT UnixDomainSocket {
 
   // Use sendmsg to write the given msg and include a vector of file
   // descriptors. Returns true if successful.
-  // TODO(crbug.com/40284755): implement spanified version.
-  // static bool SendMsg(int fd,
-  //                     base::span<const uint8_t> msg,
-  //                     base::span<const int> fds);
   static bool SendMsg(int fd,
-                      const void* msg,
-                      size_t length,
+                      span<const uint8_t> msg,
                       const std::vector<int>& fds);
 
   // Use recvmsg to read a message and an array of file descriptors. Returns
   // -1 on failure. Note: will read, at most, |kMaxFileDescriptors| descriptors.
-  // TODO(crbug.com/40284755): implement spanified version.
-  // static ssize_t RecvMsg(int fd,
-  //                        base::span<uint8_t> msg,
-  //                        std::vector<ScopedFD>* fds);
-  static ssize_t RecvMsg(int fd,
-                         void* msg,
-                         size_t length,
-                         std::vector<ScopedFD>* fds);
+  static ssize_t RecvMsg(int fd, span<uint8_t> msg, std::vector<ScopedFD>* fds);
 
   // Same as RecvMsg above, but also returns the sender's process ID (as seen
   // from the caller's namespace).  However, before using this function to
   // receive process IDs, EnableReceiveProcessId() should be called on the
   // receiving socket.
-  // TODO(crbug.com/40284755): implement spanified version.
-  // static ssize_t RecvMsgWithPid(int fd,
-  //                               base::span<uint8_t> msg,
-  //                               std::vector<ScopedFD>* fds,
-  //                               ProcessId* pid);
   static ssize_t RecvMsgWithPid(int fd,
-                                void* msg,
-                                size_t length,
+                                span<uint8_t> msg,
                                 std::vector<ScopedFD>* fds,
                                 ProcessId* pid);
 
@@ -86,21 +69,18 @@ class BASE_EXPORT UnixDomainSocket {
   //
   //   fd: descriptor to send the request on
   //   reply: buffer for the reply
-  //   reply_len: size of |reply|
   //   result_fd: (may be NULL) the file descriptor returned in the reply
   //              (if any)
   //   request: the bytes to send in the request
   static ssize_t SendRecvMsg(int fd,
-                             uint8_t* reply,
-                             unsigned reply_len,
+                             span<uint8_t> reply,
                              int* result_fd,
                              const Pickle& request);
 
   // Similar to SendRecvMsg(), but |recvmsg_flags| allows to control the flags
   // of the recvmsg(2) call.
   static ssize_t SendRecvMsgWithFlags(int fd,
-                                      uint8_t* reply,
-                                      unsigned reply_len,
+                                      span<uint8_t> reply,
                                       int recvmsg_flags,
                                       int* result_fd,
                                       const Pickle& request);
@@ -108,8 +88,7 @@ class BASE_EXPORT UnixDomainSocket {
  private:
   // Similar to RecvMsg, but allows to specify |flags| for recvmsg(2).
   static ssize_t RecvMsgWithFlags(int fd,
-                                  void* msg,
-                                  size_t length,
+                                  span<uint8_t> msg,
                                   int flags,
                                   std::vector<ScopedFD>* fds,
                                   ProcessId* pid);

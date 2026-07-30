@@ -7,10 +7,11 @@
 #include <stdint.h>
 
 #include <memory>
-#include <set>
 #include <string>
+#include <string_view>
 
 #include "ash/constants/ash_features.h"
+#include "base/containers/fixed_flat_set.h"
 #include "base/i18n/encoding_detection.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/notreached.h"
@@ -33,8 +34,8 @@ std::string ValidateUTF8(const std::string& str) {
   std::string result;
   for (size_t index = 0; index < str.size(); ++index) {
     base_icu::UChar32 code_point_out;
-    bool is_unicode_char = base::ReadUnicodeCharacter(str.c_str(), str.size(),
-                                                      &index, &code_point_out);
+    bool is_unicode_char =
+        base::ReadUnicodeCharacter(str, &index, &code_point_out);
     constexpr base_icu::UChar32 kFirstNonControlChar = 0x20;
     if (is_unicode_char && (code_point_out >= kFirstNonControlChar)) {
       base::WriteUnicodeCharacter(code_point_out, &result);
@@ -379,30 +380,29 @@ bool DoIdentifyingPropertiesMatch(const base::DictValue& new_properties,
   return new_identifying == old_identifying;
 }
 
-bool IsLoggableShillProperty(const std::string& key) {
-  static std::set<std::string>* s_skip_properties = nullptr;
-  if (!s_skip_properties) {
-    s_skip_properties = new std::set<std::string>;
-    s_skip_properties->insert(shill::kApnPasswordProperty);
-    s_skip_properties->insert(shill::kEapCaCertPemProperty);
-    s_skip_properties->insert(shill::kEapCaCertProperty);
-    s_skip_properties->insert(shill::kEapPasswordProperty);
-    s_skip_properties->insert(shill::kEapPinProperty);
-    s_skip_properties->insert(shill::kL2TPIPsecCaCertPemProperty);
-    s_skip_properties->insert(shill::kL2TPIPsecPasswordProperty);
-    s_skip_properties->insert(shill::kL2TPIPsecPinProperty);
-    s_skip_properties->insert(shill::kL2TPIPsecPskProperty);
-    s_skip_properties->insert(shill::kOpenVPNAuthUserPassProperty);
-    s_skip_properties->insert(shill::kOpenVPNCaCertPemProperty);
-    s_skip_properties->insert(shill::kOpenVPNExtraCertPemProperty);
-    s_skip_properties->insert(shill::kOpenVPNOTPProperty);
-    s_skip_properties->insert(shill::kOpenVPNPasswordProperty);
-    s_skip_properties->insert(shill::kOpenVPNPinProperty);
-    s_skip_properties->insert(shill::kOpenVPNTLSAuthContentsProperty);
-    s_skip_properties->insert(shill::kPassphraseProperty);
-    s_skip_properties->insert(shill::kUIDataProperty);
-  }
-  return s_skip_properties->count(key) == 0;
+bool IsLoggableShillProperty(std::string_view key) {
+  static constexpr auto kSSkipProperties =
+      base::MakeFixedFlatSet<std::string_view>({
+          shill::kApnPasswordProperty,
+          shill::kEapCaCertPemProperty,
+          shill::kEapCaCertProperty,
+          shill::kEapPasswordProperty,
+          shill::kEapPinProperty,
+          shill::kL2TPIPsecCaCertPemProperty,
+          shill::kL2TPIPsecPasswordProperty,
+          shill::kL2TPIPsecPinProperty,
+          shill::kL2TPIPsecPskProperty,
+          shill::kOpenVPNAuthUserPassProperty,
+          shill::kOpenVPNCaCertPemProperty,
+          shill::kOpenVPNExtraCertPemProperty,
+          shill::kOpenVPNOTPProperty,
+          shill::kOpenVPNPasswordProperty,
+          shill::kOpenVPNPinProperty,
+          shill::kOpenVPNTLSAuthContentsProperty,
+          shill::kPassphraseProperty,
+          shill::kUIDataProperty,
+      });
+  return !kSSkipProperties.contains(key);
 }
 
 }  // namespace ash::shill_property_util

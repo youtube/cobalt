@@ -50,29 +50,6 @@ struct JabberId {
   std::string resource_part;
 };
 
-// WebRTC ICE candidate details.
-// https://www.w3.org/TR/webrtc/#rtcicecandidate-interface
-struct IceCandidate {
-  IceCandidate();
-  IceCandidate(const IceCandidate&);
-  IceCandidate(IceCandidate&&);
-  IceCandidate& operator=(const IceCandidate&);
-  IceCandidate& operator=(IceCandidate&&);
-  ~IceCandidate();
-
-  // The ICE candidate string, containing foundation, component, priority,
-  // address, port, type, etc.
-  std::string candidate;
-
-  // If present, identifies the media stream ("mid") associated with the
-  // candidate.
-  std::string sdp_mid;
-
-  // If present, indicates the zero-based index of the m-line in the SDP
-  // associated with the candidate.
-  std::optional<int> sdp_m_line_index;
-};
-
 // WebRTC session description (SDP).
 // https://www.w3.org/TR/webrtc/#rtcsessiondescription-class
 struct SessionDescription {
@@ -132,11 +109,18 @@ struct IceTransportInfo {
   ~IceTransportInfo();
   struct NamedCandidate {
     NamedCandidate();
-    NamedCandidate(const std::string& name, const webrtc::Candidate& candidate);
+    NamedCandidate(const std::string& name,
+                   const webrtc::Candidate& candidate,
+                   std::optional<int> sdp_m_line_index = std::nullopt);
+    NamedCandidate(const NamedCandidate&);
+    NamedCandidate(NamedCandidate&&);
+    NamedCandidate& operator=(const NamedCandidate&);
+    NamedCandidate& operator=(NamedCandidate&&);
     ~NamedCandidate();
 
     std::string name;
     webrtc::Candidate candidate;
+    std::optional<int> sdp_m_line_index;
   };
 
   struct IceCredentials {
@@ -169,7 +153,7 @@ struct JingleTransportInfo {
   ~JingleTransportInfo();
 
   std::vector<IceTransportInfo::IceCredentials> ice_credentials;
-  std::vector<IceCandidate> candidates;
+  std::vector<IceTransportInfo::NamedCandidate> candidates;
 };
 
 struct HostAttributesAttachment {
@@ -265,7 +249,8 @@ struct SessionTerminate {
   std::string error_location;
 };
 
-struct JingleMessage {
+class JingleMessage {
+ public:
   enum class ActionType {
     kUnknownAction,
     kSessionInitiate,
@@ -275,9 +260,17 @@ struct JingleMessage {
     kTransportInfo,
   };
 
+  // Structured data replacements for XML payloads.
+  using Payload = std::variant<std::monostate /*unset value*/,
+                               SessionInitiate,
+                               SessionAccept,
+                               SessionInfo,
+                               JingleTransportInfo,
+                               SessionTerminate>;
+
   JingleMessage();
   JingleMessage(const SignalingAddress& to,
-                ActionType action_value,
+                Payload payload_value,
                 const std::string& sid_value);
   ~JingleMessage();
 
@@ -296,24 +289,20 @@ struct JingleMessage {
 
   std::unique_ptr<jingle_xmpp::XmlElement> ToXml() const;
 
+  ActionType action() const { return action_; }
+  const Payload& payload() const { return payload_; }
+
+  void SetPayload(Payload payload);
+
+  static ActionType ActionFromPayload(const Payload& payload);
+
   SignalingAddress from;
   SignalingAddress to;
-  // TODO: joedow - Replace `action` with a helper based on the `payload` type.
-  ActionType action = ActionType::kUnknownAction;
   std::string sid;
 
   std::string initiator;
 
   std::unique_ptr<ContentDescription> description;
-
-  // Structured data replacements for XML payloads.
-  using Payload = std::variant<std::monostate,
-                               SessionInitiate,
-                               SessionAccept,
-                               SessionInfo,
-                               JingleTransportInfo,
-                               SessionTerminate>;
-  Payload payload;
 
   // Legacy XML-based payloads, maintained for backward compatibility.
   std::unique_ptr<jingle_xmpp::XmlElement> transport_info_legacy;
@@ -339,6 +328,14 @@ struct JingleMessage {
   // message. Useful mainly for session-terminate messages. If it's empty, or
   // reason is UNKNOWN_REASON, this field will be ignored in the xml output.
   std::string error_location;
+
+ private:
+  friend bool JingleMessageFromXml(const jingle_xmpp::XmlElement* stanza,
+                                   JingleMessage* message,
+                                   std::string* error);
+
+  ActionType action_ = ActionType::kUnknownAction;
+  Payload payload_;
 };
 
 struct JingleMessageReply {

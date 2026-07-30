@@ -6,8 +6,8 @@
 #include "base/test/metrics/user_action_tester.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_composebox_handler.h"
+#include "chrome/browser/contextual_tasks/contextual_tasks_panel_controller.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_service_factory.h"
-#include "chrome/browser/contextual_tasks/contextual_tasks_side_panel_coordinator.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
@@ -105,8 +105,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
                                      task1.GetTaskId());
   browser()->tab_strip_model()->AddObserver(&observer);
 
-  ContextualTasksSidePanelCoordinator* coordinator =
-      ContextualTasksSidePanelCoordinator::From(browser());
+  ContextualTasksPanelController* coordinator =
+      ContextualTasksPanelController::From(browser());
   RunTestSequence(
       Do([&]() {
         // Open side panel.
@@ -206,9 +206,9 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
   }
 
   // Verify the side panel is open.
-  ContextualTasksSidePanelCoordinator* coordinator =
-      ContextualTasksSidePanelCoordinator::From(browser());
-  EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
+  ContextualTasksPanelController* coordinator =
+      ContextualTasksPanelController::From(browser());
+  EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
 
   // Verify the new tab can navigation back.
   EXPECT_TRUE(browser()
@@ -228,7 +228,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
   }
 
   // Verify the side panel is closed.
-  EXPECT_FALSE(coordinator->IsSidePanelOpenForContextualTask());
+  EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
@@ -263,8 +263,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
       task1.GetTaskId(),
       sessions::SessionTabHelper::IdForTab(tab_list->GetTab(2)->GetContents()));
 
-  ContextualTasksSidePanelCoordinator* coordinator =
-      ContextualTasksSidePanelCoordinator::From(browser());
+  ContextualTasksPanelController* coordinator =
+      ContextualTasksPanelController::From(browser());
   RunTestSequence(
       Do([&]() {
         // Open side panel.
@@ -325,8 +325,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
       task1.GetTaskId(),
       sessions::SessionTabHelper::IdForTab(tab_list->GetTab(2)->GetContents()));
 
-  ContextualTasksSidePanelCoordinator* coordinator =
-      ContextualTasksSidePanelCoordinator::From(browser());
+  ContextualTasksPanelController* coordinator =
+      ContextualTasksPanelController::From(browser());
   RunTestSequence(
       Do([&]() {
         // Open side panel.
@@ -522,16 +522,18 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
             browser(), browser()->GetActiveTabInterface(), search_url, nullptr);
       }),
       WaitForShow(kContextualTasksSidePanelWebViewElementId), Do([&]() {
-        ContextualTasksSidePanelCoordinator* coordinator =
-            ContextualTasksSidePanelCoordinator::From(browser());
-        EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
+        ContextualTasksPanelController* coordinator =
+            ContextualTasksPanelController::From(browser());
+        EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
 
         SessionID tab_id = sessions::SessionTabHelper::IdForTab(
             TabListInterface::From(browser())->GetActiveTab()->GetContents());
         std::optional<ContextualTask> task =
             contextual_tasks_service->GetContextualTaskForTab(tab_id);
         EXPECT_TRUE(task.has_value());
-        EXPECT_EQ(service->GetInitialUrlForTask(task->GetTaskId()), search_url);
+        const GURL expected_url("https://google.com/search?sourceid=chrome");
+        EXPECT_EQ(service->GetInitialUrlForTask(task->GetTaskId()),
+                  expected_url);
       }));
 }
 
@@ -554,9 +556,9 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
             browser(), browser()->GetActiveTabInterface(), search_url, nullptr);
       }),
       WaitForShow(kContextualTasksSidePanelWebViewElementId), Do([&]() {
-        ContextualTasksSidePanelCoordinator* coordinator =
-            ContextualTasksSidePanelCoordinator::From(browser());
-        EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
+        ContextualTasksPanelController* coordinator =
+            ContextualTasksPanelController::From(browser());
+        EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
 
         SessionID tab_id = sessions::SessionTabHelper::IdForTab(
             TabListInterface::From(browser())->GetActiveTab()->GetContents());
@@ -576,37 +578,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
             contextual_tasks_service->GetContextualTaskForTab(tab_id);
         EXPECT_TRUE(task2.has_value());
         EXPECT_EQ(task2->GetTaskId(), initial_task_id);
-        EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
-      }));
-}
-
-IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
-                       DisableTabSuggestionAfterRemoving) {
-  // Add a new tab.
-  chrome::AddTabAt(browser(), GURL(chrome::kChromeUISettingsURL), -1, false);
-
-  ContextualTasksUiService* ui_service =
-      ContextualTasksUiServiceFactory::GetForBrowserContext(
-          browser()->profile());
-  ASSERT_TRUE(ui_service);
-  EXPECT_TRUE(ui_service->auto_tab_context_suggestion_enabled());
-
-  ContextualTasksSidePanelCoordinator* coordinator =
-      ContextualTasksSidePanelCoordinator::From(browser());
-  RunTestSequence(
-      Do([&]() {
-        // Open side panel.
-        coordinator->Show();
-      }),
-      WaitForShow(kContextualTasksSidePanelWebViewElementId), Do([&]() {
-        content::WebContents* web_contents =
-            coordinator->GetActiveWebContents();
-        ContextualTasksUI* ui = static_cast<ContextualTasksUI*>(
-            web_contents->GetWebUI()->GetController());
-
-        ASSERT_TRUE(ui);
-        ui->DisableActiveTabContextSuggestion();
-        EXPECT_FALSE(ui_service->auto_tab_context_suggestion_enabled());
+        EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
       }));
 }
 
@@ -639,20 +611,20 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
   // 3 tabs open.
   EXPECT_EQ(tab_list->GetTabCount(), 3);
 
-  ContextualTasksSidePanelCoordinator* coordinator =
-      ContextualTasksSidePanelCoordinator::From(browser());
+  ContextualTasksPanelController* coordinator =
+      ContextualTasksPanelController::From(browser());
   RunTestSequence(
       Do([&]() {
         // Open side panel.
         coordinator->Show();
       }),
       WaitForShow(kContextualTasksSidePanelWebViewElementId), Do([&]() {
-        EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
+        EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
         tab_list->ActivateTab(tab_list->GetTab(1)->GetHandle());
 
         // The side panel will remain open because the tasks are assocaiated
         // with the same task.
-        EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
+        EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
         EXPECT_EQ(tab_list->GetTabCount(), 3);
         EXPECT_EQ(tab_list->GetActiveIndex(), 1);
 
@@ -664,7 +636,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
       WaitForHide(kContextualTasksSidePanelWebViewElementId), Do([&]() {
         EXPECT_EQ(tab_list->GetTabCount(), 4);
         EXPECT_EQ(tab_list->GetActiveIndex(), 2);
-        EXPECT_FALSE(coordinator->IsSidePanelOpenForContextualTask());
+        EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
 
         // Go back to original tab and open the  side panel
         // again.
@@ -672,14 +644,14 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
         coordinator->Show();
       }),
       WaitForShow(kContextualTasksSidePanelWebViewElementId), Do([&]() {
-        EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
+        EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
 
         tab_list->ActivateTab(tab_list->GetTab(1)->GetHandle());
       }),
       WaitForHide(kContextualTasksSidePanelWebViewElementId), Do([&]() {
         // The side panel will hide because the 2 tabs are no longer associated
         // with the same task.
-        EXPECT_FALSE(coordinator->IsSidePanelOpenForContextualTask());
+        EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
       }));
 }
 
@@ -731,9 +703,9 @@ IN_PROC_BROWSER_TEST_F(
   observer.WaitForNavigationFinished();
 
   // Verify the side panel is not open.
-  ContextualTasksSidePanelCoordinator* coordinator =
-      ContextualTasksSidePanelCoordinator::From(browser());
-  EXPECT_FALSE(coordinator->IsSidePanelOpenForContextualTask());
+  ContextualTasksPanelController* coordinator =
+      ContextualTasksPanelController::From(browser());
+  EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
 }
 
 }  // namespace contextual_tasks

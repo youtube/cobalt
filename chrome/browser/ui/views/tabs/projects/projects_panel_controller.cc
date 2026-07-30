@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_action_context_desktop.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
 
 ProjectsPanelController::ProjectsPanelController(
@@ -19,6 +21,14 @@ ProjectsPanelController::~ProjectsPanelController() = default;
 const std::vector<tab_groups::SavedTabGroup>&
 ProjectsPanelController::GetTabGroups() {
   return tab_groups_;
+}
+
+void ProjectsPanelController::OpenTabGroup(const base::Uuid& group_guid,
+                                           BrowserWindowInterface* browser) {
+  tab_group_sync_service_->OpenTabGroup(
+      group_guid, std::make_unique<tab_groups::TabGroupActionContextDesktop>(
+                      browser->GetBrowserForMigrationOnly(),
+                      tab_groups::OpeningSource::kOpenedFromProjectsPanel));
 }
 
 void ProjectsPanelController::AddObserver(Observer* observer) {
@@ -95,6 +105,24 @@ void ProjectsPanelController::OnTabGroupRemoved(
 
   for (auto& observer : observers_) {
     observer.OnTabGroupRemoved(sync_id, old_index);
+  }
+}
+
+void ProjectsPanelController::OnTabGroupLocalIdChanged(
+    const base::Uuid& sync_id,
+    const std::optional<tab_groups::LocalTabGroupID>& local_id) {
+  auto existing_group = std::ranges::find(
+      tab_groups_, sync_id, &tab_groups::SavedTabGroup::saved_guid);
+  if (existing_group == tab_groups_.end()) {
+    return;
+  }
+
+  int index = std::distance(tab_groups_.begin(), existing_group);
+  existing_group->SetLocalGroupId(local_id);
+
+  for (auto& observer : observers_) {
+    observer.OnTabGroupUpdated(*existing_group, index,
+                               /*new_index=*/std::nullopt);
   }
 }
 

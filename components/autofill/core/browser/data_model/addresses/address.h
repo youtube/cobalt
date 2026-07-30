@@ -37,6 +37,7 @@ class Address : public FormGroup {
       ADDRESS_HOME_ZIP,
       ADDRESS_HOME_ZIP_PREFIX,
       ADDRESS_HOME_ZIP_SUFFIX,
+      ADDRESS_HOME_ZIP_AND_CITY,
       ADDRESS_HOME_SORTING_CODE,
       ADDRESS_HOME_COUNTRY,
       ADDRESS_HOME_APT,
@@ -121,6 +122,8 @@ class Address : public FormGroup {
   bool IsAddressFieldSettingAccessible(FieldType field_type) const;
 
  private:
+  friend class AddressTestApi;
+
   // FormGroup:
   FieldTypeSet GetSupportedTypes() const override;
 

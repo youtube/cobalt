@@ -1293,7 +1293,7 @@ prefs when the profile is loaded.  -->
 </histogram>
 
 <histogram name="Signin.CctAccountMismatch" enum="CctAccountMismatchType"
-    expires_after="2026-03-01">
+    expires_after="2027-02-04">
   <owner>samarchehade@google.com</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1701,6 +1701,17 @@ prefs when the profile is loaded.  -->
     signout confirmation prompt. Records if the user has chosen to either keep
     or uninstall all of their account extensions upon signing out, or if the
     signout was cancelled.
+  </summary>
+</histogram>
+
+<histogram name="Signin.Extensions.ExplicitSigninFromAnyAccessPoint"
+    enum="BooleanIsNewOptIn" expires_after="2026-12-21">
+  <owner>amelies@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records whether the user explicitly signed in for the first time or if they
+    have previously done so before in the same profile. Recorded upon signing in
+    through any access point.
   </summary>
 </histogram>
 
@@ -2936,7 +2947,7 @@ should be kept to monitor/debug signin Multilogin issues-->
 
 <histogram
     name="Signin.Reconciler.RejectedRequestsDueToThrottler.{RequestType}"
-    units="requests" expires_after="2026-01-25">
+    units="requests" expires_after="2026-07-25">
   <owner>droger@chromium.org</owner>
   <owner>msarda@chromium.org</owner>
   <owner>msalama@chromium.org</owner>

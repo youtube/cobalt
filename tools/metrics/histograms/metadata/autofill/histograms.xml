@@ -513,6 +513,7 @@ Called by update_autofill_enums.py. This is a manual comment.-->
   <variant name="ADDRESS_HOME_STREET_NAME"/>
   <variant name="ADDRESS_HOME_SUBPREMISE"/>
   <variant name="ADDRESS_HOME_ZIP"/>
+  <variant name="ADDRESS_HOME_ZIP_AND_CITY"/>
   <variant name="ADDRESS_HOME_ZIP_PREFIX"/>
   <variant name="ADDRESS_HOME_ZIP_SUFFIX"/>
   <variant name="ALTERNATIVE_FAMILY_NAME"/>
@@ -5824,6 +5825,17 @@ Called by update_autofill_enums.py. This is a manual comment.-->
         summary="Any record type, it will contain deletions for all record
                  types."/>
   </token>
+</histogram>
+
+<histogram name="Autofill.ProfileDeletion.Settings.ConfirmationDialogShown"
+    enum="Boolean" expires_after="2026-06-01">
+  <owner>lwojtach@google.com</owner>
+  <owner>chrome-autofill-alerts@google.com</owner>
+  <summary>
+    Records true when the confirmation dialog for profile deletion was shown and
+    false when it failed to show up due to the host activity not being an
+    instance of ModalDialogManagerHolder.
+  </summary>
 </histogram>
 
 <histogram name="Autofill.ProfileImport.HomeAndWorkSupersetAffectedType"

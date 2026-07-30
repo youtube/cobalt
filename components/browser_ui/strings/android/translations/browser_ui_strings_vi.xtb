@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Được nhúng trên <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Nhấn vào Ứng dụng &gt; Ứng dụng mặc định</translation>
 <translation id="1272079795634619415">Dừng</translation>
+<translation id="1275718070701477396">Đã chọn</translation>
 <translation id="1289742167380433257">Google đã tối ưu hóa các hình ảnh trong trang này để tiết kiệm dữ liệu cho bạn.</translation>
 <translation id="129382876167171263">Những tệp mà trang web lưu lại sẽ xuất hiện ở đây</translation>
 <translation id="131112695174432497">Dữ liệu có ảnh hưởng đến hoạt động cá nhân hoá quảng cáo sẽ bị xoá</translation>
@@ -439,7 +440,7 @@ Chương trình Bảo vệ nâng cao kiểm soát các chế độ cài đặt s
 <translation id="560980142378233747">Điều này có nghĩa là các tính năng của trang web sẽ hoạt động như mong đợi, nhưng khả năng bảo vệ khi duyệt web có thể bị giảm. <ph name="BEGIN_LINK" />Gửi phản hồi<ph name="END_LINK" /></translation>
 <translation id="5617702678271228680">Bảng thẻ trên trang Thẻ mới ở dưới cùng</translation>
 <translation id="5621413808884657932">Khi bạn bật lựa chọn này, trang web có thể yêu cầu quyền truy cập vào các ứng dụng và dịch vụ khác trên thiết bị này. Khi bạn tắt lựa chọn này, trang web không thể truy cập vào các ứng dụng và dịch vụ khác trên thiết bị này.</translation>
-<translation id="5632485077360054581">Chỉ cho tôi cách làm</translation>
+<translation id="5632485077360054581">Xem cách làm</translation>
 <translation id="5649053991847567735">Tự động tải xuống</translation>
 <translation id="5668404140385795438">Ghi đè yêu cầu chặn phóng to của trang web</translation>
 <translation id="5668843533782548925">Các trang web tải chậm hơn nhưng an toàn hơn</translation>
@@ -494,6 +495,7 @@ Chương trình Bảo vệ nâng cao kiểm soát các chế độ cài đặt s
 <translation id="6085954183010297841">Xoá quyền chỉnh sửa tệp? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Khi bạn bật lựa chọn này, các trang web có thể tự động chuyển sang chế độ hình trong hình. Khi bạn tắt lựa chọn này, các trang web không thể tự động chuyển sang chế độ hình trong hình.</translation>
 <translation id="6120483543004435978">Khi bạn bật tuỳ chọn này, các trang web có thể yêu cầu được biết khi nào bạn đang sử dụng thiết bị. Khi bạn tắt tuỳ chọn này, các trang web sẽ không được biết khi nào bạn đang sử dụng thiết bị.</translation>
+<translation id="6132075343662013154">Chrome sẽ đề xuất lưu mật khẩu của bạn</translation>
 <translation id="615886654739818377">Không cho phép các trang web quản lý các cửa sổ trên tất cả màn hình của bạn</translation>
 <translation id="6165508094623778733">Tìm hiểu thêm</translation>
 <translation id="6171020522141473435">Khi bạn bật tuỳ chọn này, các trang web có thể yêu cầu sử dụng thiết bị Bluetooth. Khi bạn tắt tuỳ chọn này, các trang web không thể sử dụng thiết bị Bluetooth.</translation>

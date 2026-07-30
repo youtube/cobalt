@@ -2377,12 +2377,18 @@ def InstallOnAndroid(device, apk_path):
   device.Install(apk_path, reinstall=True, allow_downgrade=True)
   print('Installation succeeded.')
 
-  helper = apk_helper.ApkHelper(apk_path)
-  if _IsWebViewProvider(helper):
-    package_name = helper.GetPackageName()
-    print(f'Detected {apk_path} to be a WebView package. Setting your webview '
-          f'implementation to {package_name}...')
-    device.SetWebViewImplementation(package_name)
+  # TODO(crbug.com/479283691): add _GenerateBundleApks() to support the app
+  # bundle case.
+  if apk_path.endswith('.apk'):
+    helper = apk_helper.ApkHelper(apk_path)
+    if _IsWebViewProvider(helper):
+      package_name = helper.GetPackageName()
+      print(f'Detected {apk_path} to be a WebView package. Setting your '
+            f'WebView implementation to {package_name}...')
+      device.SetWebViewImplementation(package_name)
+  else:
+    print('Warn: this is an app bundle. Unable to change WebView provider '
+          'setting.')
 
 def LaunchOnAndroid(device, apk):
   """Launches the chromium build on a given device."""
@@ -2617,6 +2623,8 @@ def _DetectArchive(opts=None):
   """Detect the buildbot archive to use based on local environment."""
   if opts:
     if opts.apk:
+      if opts.build_type == 'official':
+        return 'android-arm64-high'
       return 'android-arm64'
     elif opts.ipa:
       return 'ios-simulator'
@@ -2654,6 +2662,10 @@ def ParseCommandLine(args=None):
       opts.archive = archive
     else:
       parser.error('Error: Missing required parameter: --archive')
+
+  if opts.build_type == 'official' and opts.archive == 'android-arm64':
+    print('WARNING: android-arm64 is not supported for official builds (-o). '
+          'Please use android-arm64-high instead.')
 
   if opts.archive not in PATH_CONTEXT[opts.build_type]:
     supported_build_types = [

@@ -33,6 +33,7 @@ class STGTabsMenuModel : public ui::SimpleMenuModel,
  public:
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kDeleteGroupMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kLeaveGroupMenuItem);
+  DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kConvertToBookmarkMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kMoveGroupToNewWindowMenuItem);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kOpenGroup);
   DECLARE_CLASS_ELEMENT_IDENTIFIER_VALUE(kToggleGroupPinStateMenuItem);
@@ -70,6 +71,7 @@ class STGTabsMenuModel : public ui::SimpleMenuModel,
   raw_ptr<Browser> browser_;
   base::CancelableTaskTracker cancelable_task_tracker_;
   bool should_enable_move_menu_item_;
+  bool should_enable_open_menu_item_;
   std::optional<base::Uuid> sync_id_ = std::nullopt;
   TabGroupMenuContext context_;
 

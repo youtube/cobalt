@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.settings;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 
 import android.annotation.SuppressLint;
@@ -16,6 +17,7 @@ import android.content.res.Configuration;
 import android.graphics.Color;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.SystemClock;
 import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -114,6 +116,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 PreferenceUpdateObserver {
     private static final String TAG = "SettingsActivity";
 
+    // Key used to store activity start time in the Bundle to have it survive activity re-creation.
+    private static final String KEY_START_TIME = "start_time";
+
     @VisibleForTesting(otherwise = VisibleForTesting.PACKAGE_PRIVATE)
     public static final String EXTRA_SHOW_FRAGMENT = "show_fragment";
 
@@ -181,6 +186,15 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     private @Nullable TitleUpdater mTitleUpdater;
     private @Nullable MultiColumnTitleUpdater mMultiColumnTitleUpdater;
 
+    // Used to record the Settings activity usage duration in ms. This is recorded at |onDestroy|
+    // of the activity for the main settings only when user actually quits the Settings, not for
+    // activity destruction & re-creation due to configuration change or OS.
+    private long mStartTime;
+
+    // Whether the start time is saved for the restoration after re-creation. These transient
+    // destroy events won't record the duration if this is true.
+    private boolean mStartTimeSaved;
+
     @SuppressLint("InlinedApi")
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -206,7 +220,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                         mSnackbarManagerSupplier,
                         mBottomSheetControllerSupplier,
                         getModalDialogManagerSupplier(),
-                        () -> mSearchCoordinator),
+                        mSearchCoordinator),
                 /* recursive= */ true);
         fragmentManager.registerFragmentLifecycleCallbacks(
                 new WideDisplayPaddingApplier(), /* recursive= */ true);
@@ -243,10 +257,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                                 @NonNull Fragment fragment,
                                 @NonNull View v,
                                 @Nullable Bundle savedInstanceState) {
-                            if (!(fragment
-                                    instanceof PreferenceFragmentCompat preferenceFragmentCompat))
-                                return;
-                            postUpdateContainmentOnLayout(preferenceFragmentCompat);
+                            if (fragment instanceof PreferenceFragmentCompat preferenceFragment) {
+                                postUpdateContainmentOnLayout(preferenceFragment);
+                            }
                         }
 
                         @Override
@@ -256,11 +269,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                                 mItemDecorations.remove(preferenceFragmentCompat);
                                 ViewTreeObserver.OnGlobalLayoutListener listener =
                                         mGlobalLayoutListeners.remove(preferenceFragmentCompat);
-                                if (listener != null
-                                        && preferenceFragmentCompat.getView() != null) {
-                                    preferenceFragmentCompat
-                                            .getView()
-                                            .getViewTreeObserver()
+                                View view = preferenceFragmentCompat.getView();
+                                if (listener != null && view != null) {
+                                    view.getViewTreeObserver()
                                             .removeOnGlobalLayoutListener(listener);
                                 }
                             }
@@ -325,7 +336,8 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
         setStatusBarColor();
         initBottomSheet();
 
-        mSnackbarManagerSupplier.set(new SnackbarManager(this, getContentView(), null));
+        mSnackbarManagerSupplier.set(
+                new SnackbarManager(this, getContentView(), null, null, getModalDialogManager()));
 
         mIntentRequestTracker = IntentRequestTracker.createFromActivity(this);
         if (isContainmentEnabled()) {
@@ -338,6 +350,19 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             appBarLayout.setElevation(0);
             appBarLayout.setStateListAnimator(null);
         }
+
+        mStartTime = 0;
+        if (savedInstanceState != null) {
+            long startTime = savedInstanceState.getLong(KEY_START_TIME, 0);
+            if (startTime > 0) mStartTime = startTime;
+        } else if (isForMainSettings()) {
+            mStartTime = SystemClock.elapsedRealtime();
+            RecordUserAction.record("Android.Settings.Opened");
+        }
+    }
+
+    private boolean isForMainSettings() {
+        return getIntent().getStringExtra(EXTRA_SHOW_FRAGMENT) == null;
     }
 
     @Override
@@ -527,15 +552,14 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             itemDecoration = new ContainmentItemDecoration(controller);
             mItemDecorations.put(fragment, itemDecoration);
             recyclerView.addItemDecoration(itemDecoration);
+            // Force a re-inflation of all views to ensure they pick up the new theme.
+            // This is only needed the first time the theme is applied to this fragment view.
+            reInflateViews(fragment);
         }
         itemDecoration.updatePreferenceStyles(
                 controller.generatePreferenceStyles(
                         SettingsUtils.getVisiblePreferences(fragment.getPreferenceScreen())));
         recyclerView.invalidateItemDecorations();
-
-        // Force a re-inflation of all views to ensure they pick up the new
-        // theme.
-        reInflateViews(fragment);
     }
 
     private void applyMainSettingsFragmentDecoration(MainSettings mainSettings) {
@@ -729,6 +753,7 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             // cluttered while showing other settings activities on top.
             mSearchCoordinator.updateSingleColumnSearchUiWidth();
         }
+        mStartTimeSaved = false;
     }
 
     private static @SettingsFragment.AnimationType int getAnimationType(Fragment fragment) {
@@ -762,7 +787,9 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
             if (mMissingDeviceLockLauncher == null) {
                 mMissingDeviceLockLauncher =
                         new MissingDeviceLockLauncher(
-                                this, mProfile, getModalDialogManagerSupplier().get());
+                                this,
+                                mProfile,
+                                assertNonNull(getModalDialogManagerSupplier().get()));
             }
             mMissingDeviceLockLauncher.checkPrivateDataIsProtectedByDeviceLock();
         }
@@ -795,6 +822,15 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
                 mMultiColumnSettings.removeObserver(mSearchCoordinator);
             }
             mSearchCoordinator.destroy();
+        }
+
+        if (!mStartTimeSaved && isForMainSettings()) {
+            long timeSpent = SystemClock.elapsedRealtime() - mStartTime;
+            RecordHistogram.recordLongTimesHistogram("Settings.SessionDuration", timeSpent);
+            if (mSearchCoordinator != null && mSearchCoordinator.searchCompleted()) {
+                RecordHistogram.recordLongTimesHistogram(
+                        "Settings.SessionDuration.SearchCompleted", timeSpent);
+            }
         }
         super.onDestroy();
     }
@@ -1069,6 +1105,10 @@ public class SettingsActivity extends ChromeBaseAppCompatActivity
     public void onSaveInstanceState(Bundle outState) {
         super.onSaveInstanceState(outState);
         if (mSearchCoordinator != null) mSearchCoordinator.onSaveInstanceState(outState);
+        if (mStartTime > 0) {
+            outState.putLong(KEY_START_TIME, mStartTime);
+            mStartTimeSaved = true;
+        }
     }
 
     private class TitleUpdater extends FragmentManager.FragmentLifecycleCallbacks {

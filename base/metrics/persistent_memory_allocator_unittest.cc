@@ -322,15 +322,15 @@ class AllocatorThread : public SimpleThread {
 
   void Run() override {
     for (;;) {
-      uint32_t size = RandInt(1, 99);
-      uint32_t type = RandInt(100, 999);
+      uint32_t size = RandIntInclusive(1, 99);
+      uint32_t type = RandIntInclusive(100, 999);
       Reference block = allocator_.Allocate(size, type);
       if (!block) {
         break;
       }
 
       count_++;
-      if (RandInt(0, 1)) {
+      if (RandIntInclusive(0, 1)) {
         allocator_.MakeIterable(block);
         iterable_++;
       }
@@ -484,8 +484,8 @@ TEST_F(PersistentMemoryAllocatorTest, IteratorParallelismTest) {
   // Fill the memory segment with random allocations.
   unsigned iterable_count = 0;
   for (;;) {
-    uint32_t size = RandInt(1, 99);
-    uint32_t type = RandInt(100, 999);
+    uint32_t size = RandIntInclusive(1, 99);
+    uint32_t type = RandIntInclusive(100, 999);
     Reference block = allocator_->Allocate(size, type);
     if (!block) {
       break;
@@ -630,8 +630,8 @@ TEST_F(PersistentMemoryAllocatorTest, MAYBE_CorruptionTest) {
   t5.Start();
 
   do {
-    size_t offset = RandInt(0, TEST_MEMORY_SIZE - 1);
-    char value = RandInt(0, 255);
+    size_t offset = RandIntInclusive(0, TEST_MEMORY_SIZE - 1);
+    char value = RandIntInclusive(0, 255);
     UNSAFE_TODO(memory[offset]) = value;
   } while (!allocator_->IsCorrupt() && !allocator_->IsFull());
 
@@ -815,10 +815,9 @@ TEST(FilePersistentMemoryAllocatorTest, CreationTest) {
     local.GetMemoryInfo(&meminfo1);
     EXPECT_FALSE(local.IsFull());
     EXPECT_FALSE(local.IsCorrupt());
-
     File writer(file_path, File::FLAG_CREATE | File::FLAG_WRITE);
     ASSERT_TRUE(writer.IsValid());
-    UNSAFE_TODO(writer.Write(0, (const char*)local.data(), local.used()));
+    ASSERT_TRUE(writer.Write(0, local.bytes().first(local.used())).has_value());
   }
 
   auto mmfile = std::make_unique<MemoryMappedFile>();
@@ -872,7 +871,7 @@ TEST(FilePersistentMemoryAllocatorTest, ExtendTest) {
 
     File writer(file_path, File::FLAG_CREATE | File::FLAG_WRITE);
     ASSERT_TRUE(writer.IsValid());
-    UNSAFE_TODO(writer.Write(0, (const char*)local.data(), local.used()));
+    ASSERT_TRUE(writer.Write(0, local.bytes().first(local.used())).has_value());
   }
   ASSERT_TRUE(PathExists(file_path));
   std::optional<int64_t> before_size = GetFileSize(file_path);
@@ -932,7 +931,7 @@ TEST(FilePersistentMemoryAllocatorTest, AcceptableTest) {
     {
       File writer(file_path, File::FLAG_CREATE | File::FLAG_WRITE);
       ASSERT_TRUE(writer.IsValid());
-      UNSAFE_TODO(writer.Write(0, (const char*)local.data(), filesize));
+      ASSERT_TRUE(writer.Write(0, local.bytes().first(filesize)).has_value());
     }
     ASSERT_TRUE(PathExists(file_path));
 
@@ -1032,8 +1031,7 @@ TEST_F(PersistentMemoryAllocatorTest, TruncateTest) {
 
     File writer(file_path, File::FLAG_CREATE | File::FLAG_WRITE);
     ASSERT_TRUE(writer.IsValid());
-    UNSAFE_TODO(writer.Write(0, static_cast<const char*>(allocator.data()),
-                             allocator.size()));
+    ASSERT_TRUE(writer.Write(0, allocator.bytes()).has_value());
   }
   ASSERT_TRUE(PathExists(file_path));
   EXPECT_LE(a1_used, a2_ref);

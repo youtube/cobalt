@@ -91,6 +91,10 @@ struct WebAppIconDiagnosticResult;
 struct WebAppInstallInfo;
 enum class FetchManifestAndUpdateResult;
 
+namespace proto {
+enum WebAppMigrationBehavior : int;
+}  // namespace proto
+
 #if BUILDFLAG(IS_CHROMEOS)
 class CleanupBundleCacheSuccess;
 class CleanupBundleCacheError;
@@ -341,11 +345,12 @@ class WebAppCommandScheduler {
       base::OnceCallback<void(IsolatedWebAppApplyUpdateCommandResult)> callback,
       const base::Location& call_location = FROM_HERE);
 
-  // Checks if a Signed Web Bundle is a valid and installable Isolated Web App.
-  // It compares the version from the bundle's metadata with an already
-  // installed app (if one exists) to determine if the bundle is a new install,
-  // an update, or outdated.
-  virtual void CheckIsolatedWebAppBundleInstallability(
+  // Checks if a Signed Web Bundle is a valid and an Isolated Web App that can
+  // be installed by the user. It compares the version from the bundle's
+  // metadata with an already installed app (if one exists) to determine if the
+  // bundle is a new install, an update, or outdated. It also checks if the app
+  // is allowlisted to be installed by the user.
+  virtual void CheckIsolatedWebAppBundleUserInstallability(
       const SignedWebBundleMetadata& bundle_metadata,
       base::OnceCallback<void(IsolatedInstallabilityCheckResult,
                               std::optional<IwaVersion>)> callback,
@@ -734,6 +739,7 @@ class WebAppCommandScheduler {
   void ApplyManifestMigration(
       const webapps::AppId& source_app_id,
       const webapps::AppId& destination_app_id,
+      const proto::WebAppMigrationBehavior migration_behavior,
       std::unique_ptr<ScopedKeepAlive> keep_alive,
       std::unique_ptr<ScopedProfileKeepAlive> profile_keep_alive,
       ApplyManifestMigrationResultCallback callback,

@@ -184,6 +184,17 @@ Vector<LayoutUnit> GapGeometry::GenerateMainIntersectionList(
         return Vector<LayoutUnit>();
       }
 
+      const MainGap& main_gap = GetMainGaps()[gap_index];
+
+      if (main_gap.HasCrossGapsBefore()) {
+        wtf_size_t cross_gap_start_index = main_gap.GetCrossGapBeforeStart();
+        for (wtf_size_t i = cross_gap_start_index;
+             i <= main_gap.GetCrossGapBeforeEnd(); ++i) {
+          const CrossGap& cross_gap = GetCrossGaps()[i];
+          intersections.push_back(cross_gap.GetGapOffset().inline_offset);
+        }
+      }
+
       break;
   }
 
@@ -330,6 +341,8 @@ void GapGeometry::GenerateCrossIntersectionListForMulticol(
   // - The offset of any main gaps that intersect this cross gap.
   CHECK_EQ(direction, kForColumns);
 
+  // At most, any cross gap can intersect with all main gaps, plus the start and
+  // end of the container.
   intersections.ReserveInitialCapacity(main_gaps_.size() + 2);
 
   CHECK_LT(gap_index, GetCrossGaps().size());
@@ -350,7 +363,17 @@ void GapGeometry::GenerateCrossIntersectionListForMulticol(
   intersections.push_back(end_offset);
   if (main_gap_running_index_ < main_gaps_.size() &&
       main_gaps_[main_gap_running_index_].IsStartSpannerMainGap()) {
-    intersections.push_back(main_gaps_[main_gap_running_index_].GetGapOffset());
+    // The intersection at an end spanner main gap must still be added to
+    // the vector, so we can paint behind spanners with `rule-break: none`.
+    wtf_size_t spanner_index = main_gap_running_index_ + 1;
+    if (spanner_index < main_gaps_.size()) {
+      CHECK(main_gaps_[spanner_index].IsEndSpannerMainGap());
+      intersections.push_back(main_gaps_[spanner_index].GetGapOffset());
+    } else {
+      // If there is no column content after a spanner, there'll be no
+      // EndSpannerMainGap.
+      intersections.push_back(content_block_end_);
+    }
   }
 }
 

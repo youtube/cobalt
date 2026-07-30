@@ -17,44 +17,14 @@ export function getHtml(this: GlicInternalsAppElement) {
           <th>Property</th>
           <th>Value</th>
         </tr>
-        <tr>
-          <td>Enabled by Chrome Flags</td>
-          <td>${!this.data_.enablement.featureDisabled}</td>
-        </tr>
-        <tr>
-          <td>Regular profile</td>
-          <td>${!this.data_.enablement.notRegularProfile}</td>
-        </tr>
-        <tr>
-          <td>Pref or flag based rollout (flag or pref) applies</td>
-          <td>${!this.data_.enablement.notRolledOut}</td>
-        </tr>
-        <tr>
-          <td>Account exists and has the Gemini in Chrome capability</td>
-          <td>${!this.data_.enablement.primaryAccountNotCapable}</td>
-        </tr>
-        <tr>
-          <td>Account exists and is fully signed-in</td>
-          <td>${!this.data_.enablement.primaryAccountNotFullySignedIn}</td>
-        </tr>
-        <tr>
-          <td>
-            Chrome Enterprise policy allows this feature (or doesn't apply)
-          </td>
-          <td>${!this.data_.enablement.disallowedByChromePolicy}</td>
-        </tr>
-        <tr>
-          <td>Server side admin allows this feature</td>
-          <td>${!this.data_.enablement.disallowedByRemoteAdmin}</td>
-        </tr>
-        <tr>
-          <td>Server side allows this feature (Not admin policy)</td>
-          <td>${!this.data_.enablement.disallowedByRemoteOther}</td>
-        </tr>
-        <tr>
-          <td>User did pass the FRE</td>
-          <td>${!this.data_.enablement.notConsented}</td>
-        </tr>
+        ${this.getTableData_().map(item => html`
+          <tr>
+            <td>${item.label}</td>
+            <td class="status-${item.value}">
+              ${item.value ? '✅' : '🚫'}
+            </td>
+          </tr>
+        `)}
       </table>` :
       html`<h3 id="loadingMsg">Loading...</h3>`}
     <h2>Sub-features</h2>
@@ -66,7 +36,9 @@ export function getHtml(this: GlicInternalsAppElement) {
         </tr>
         <tr>
           <td>Account is eligible for Live</td>
-          <td>${!this.data_.enablement.liveDisallowed}</td>
+          <td class="status-${!this.data_.enablement.liveDisallowed}">
+            ${!this.data_.enablement.liveDisallowed ? '✅' : '🚫'}
+          </td>
         </tr>
         <tr>
           <td>Actuation eligibility</td>
@@ -93,6 +65,29 @@ export function getHtml(this: GlicInternalsAppElement) {
           <td>${this.data_.config.freGuestUrl}</td>
         </tr>
       </table>` :
+      html`<h3 id="loadingMsg">Loading...</h3>`}
+    <h2>Guest URL Presets</h2>
+    ${this.data_?.config ? html`
+      <div class="presets-container">
+        <label for="autopushInput">Autopush</label>
+        <input
+            id="autopushInput" .value="${this.data_.config.autopushGuestUrl}"
+            @change="${this.onAutopushInputChange}">
+        </input>
+        <label for="preprodInput">Preprod</label>
+        <input
+            id="preprodInput" .value="${this.data_.config.preprodGuestUrl}"
+            @change="${this.onPreprodInputChange}">
+        </input>
+        <label for="prodInput">Prod</label>
+        <input id="prodInput" .value="${this.data_.config.prodGuestUrl}"
+            @change="${this.onProdInputChange}">
+        </input>
+        <div id="inputErrorMsg" class="hiddenElement">
+            Invalid URL submitted: presets not updated
+        </div>
+        <cr-button @click="${this.onSavePresetsClick_}">Save</cr-button>
+      </div>` :
       html`<h3 id="loadingMsg">Loading...</h3>`}
   </div>
 <!--_html_template_end_-->`;

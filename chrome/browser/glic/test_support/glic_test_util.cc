@@ -146,12 +146,7 @@ GlicInstance* GlicInstanceTracker::GetGlicInstance() {
     return nullptr;
   }
   if (tracked_instance_id_) {
-    for (GlicInstance* instance : service->window_controller().GetInstances()) {
-      if (instance->id() == *tracked_instance_id_) {
-        return instance;
-      }
-    }
-    return nullptr;
+    return GetInstanceById(profile_.get(), *tracked_instance_id_);
   }
   if (track_only_glic_instance_) {
     return GetOnlyGlicInstance(profile_.get());
@@ -242,6 +237,10 @@ void GlicInstanceTracker::Clear() {
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 GlicInstance* GetOnlyGlicInstance(Profile* profile) {
+  if (!profile) {
+    LOG(ERROR) << "GetOnlyGlicInstance: Profile is null";
+    return nullptr;
+  }
   auto* service = GlicKeyedService::Get(profile);
   if (!service) {
     return nullptr;
@@ -260,6 +259,35 @@ GlicInstance* GetOnlyGlicInstance(Profile* profile) {
   return instances.empty() ? nullptr : instances[0];
 }
 
+GlicInstance* GetInstanceForTab(Profile* profile, tabs::TabInterface* tab) {
+  if (!profile) {
+    LOG(ERROR) << "GetInstanceForTab: Profile is null";
+    return nullptr;
+  }
+  auto* service = GlicKeyedService::Get(profile);
+  if (!service) {
+    return nullptr;
+  }
+  return service->GetInstanceForTab(tab);
+}
+
+GlicInstance* GetInstanceById(Profile* profile, InstanceId id) {
+  if (!profile) {
+    LOG(ERROR) << "GetInstanceById: Profile is null";
+    return nullptr;
+  }
+  auto* service = GlicKeyedService::Get(profile);
+  if (!service) {
+    return nullptr;
+  }
+  for (GlicInstance* instance : service->window_controller().GetInstances()) {
+    if (instance->id() == id) {
+      return instance;
+    }
+  }
+  return nullptr;
+}
+
 void ForceSigninAndGlicCapability(Profile* profile) {
   SetFRECompletion(profile, prefs::FreStatus::kCompleted);
   SigninWithPrimaryAccount(profile);
@@ -273,8 +301,10 @@ void SigninWithPrimaryAccount(Profile* profile) {
       identity_manager, "glic-test@example.com", signin::ConsentLevel::kSignin);
   ASSERT_FALSE(account_info.IsEmpty());
 
-  account_info.full_name = "Glic Testing";
-  account_info.given_name = "Glic";
+  account_info = AccountInfo::Builder(account_info)
+                     .SetFullName("Glic Testing")
+                     .SetGivenName("Glic")
+                     .Build();
   signin::UpdateAccountInfoForAccount(identity_manager, account_info);
 }
 

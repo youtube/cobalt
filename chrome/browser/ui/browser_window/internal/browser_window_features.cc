@@ -46,7 +46,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/browser_window/public/embedder_browser_window_features.h"
-#include "chrome/browser/ui/commerce/product_specifications_entry_point_controller.h"
+#include "chrome/browser/ui/context_highlight/context_highlight_window_feature.h"
 #include "chrome/browser/ui/contextual_search/searchbox_context_data.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
 #include "chrome/browser/ui/extensions/extension_installed_watcher.h"
@@ -270,19 +270,6 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
           profile, browser->GetTabStripModel());
     }
 
-    if (profile->IsRegularProfile()) {
-      auto* shopping_service =
-          commerce::ShoppingServiceFactory::GetForBrowserContext(profile);
-      if (shopping_service && commerce::CanLoadProductSpecificationsFullPageUi(
-                                  shopping_service->GetAccountChecker())) {
-        product_specifications_entry_point_controller_ =
-            GetUserDataFactory()
-                .CreateInstance<
-                    commerce::ProductSpecificationsEntryPointController>(
-                    *browser, browser);
-      }
-    }
-
     if (profile->IsRegularProfile() &&
         browser->GetTabStripModel()->SupportsTabGroups() &&
         tab_groups::TabGroupSyncServiceFactory::GetForProfile(profile)) {
@@ -433,13 +420,17 @@ void BrowserWindowFeatures::Init(BrowserWindowInterface* browser) {
       browser->GetType() == BrowserWindowInterface::Type::TYPE_DEVTOOLS);
 #endif  // defined(USE_AURA)
 
-  if (features::kGlicActorUiBorderGlow.Get()) {
+  if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+      features::kGlicActorUiBorderGlow.Get()) {
     actor_border_view_controller_ =
         std::make_unique<ActorBorderViewController>(browser);
   }
 
   browser_select_file_dialog_controller_ =
       std::make_unique<BrowserSelectFileDialogController>(profile);
+
+  context_highlight_window_feature_ =
+      std::make_unique<ContextHighlightWindowFeature>(*browser);
 
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
   profile_customization_bubble_sync_controller_ =
@@ -773,7 +764,8 @@ void BrowserWindowFeatures::InitPostBrowserViewConstruction(
                   kTabStripActionContainerElementId),
           glic_service);
 
-      if (features::kGlicActorUiTaskIcon.Get() &&
+      if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+          features::kGlicActorUiTaskIcon.Get() &&
           browser_->GetProfile()->IsRegularProfile()) {
         // Will be referenced in GlicActorNudgeController and thus needs to be
         // instantiated first.
@@ -993,6 +985,8 @@ void BrowserWindowFeatures::TearDownPreBrowserWindowDestruction() {
   ai_mode_page_action_controller_.reset();
 
   skills_ui_window_controller_.reset();
+
+  context_highlight_window_feature_.reset();
 }
 
 SidePanelUI* BrowserWindowFeatures::side_panel_ui() {

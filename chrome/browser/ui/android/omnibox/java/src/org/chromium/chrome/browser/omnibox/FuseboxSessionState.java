@@ -5,9 +5,9 @@
 package org.chromium.chrome.browser.omnibox;
 
 import org.chromium.base.UserData;
+import org.chromium.base.UserDataHost;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.components.omnibox.AutocompleteInput;
 
 /**
@@ -23,24 +23,40 @@ public class FuseboxSessionState implements UserData {
      * Details about the user input in the Omnibox. Retained to allow session reconstruction, for
      * example when the user switches tabs.
      */
-    public final AutocompleteInput autocompleteInput = new AutocompleteInput();
+    private AutocompleteInput mAutocompleteInput = new AutocompleteInput();
 
     private boolean mIsActive;
 
     /**
-     * Retrieve the session state for the supplied Tab.
+     * Retrieve the session state for the supplied Tab, or an ephemeral session state if no tab
+     * exists.
+     *
+     * @param dataProvider The {@link LocationBarDataProvider} to retrieve the current tab from.
+     * @return FuseboxSessionState appropriate for the supplied LocationBarDataProvider.
+     */
+    public static @Nullable FuseboxSessionState from(LocationBarDataProvider dataProvider) {
+        var userDataHost = dataProvider.getUserDataHost();
+        if (userDataHost == null) return null;
+
+        var state = getSessionForTab(userDataHost);
+        // Re-apply page metadata in case of ephemeral session, background reload etc.
+        state.mAutocompleteInput.setPageClassification(dataProvider.getPageClassification(false));
+        state.mAutocompleteInput.setPageUrl(dataProvider.getCurrentGurl());
+        state.mAutocompleteInput.setPageTitle(dataProvider.getTitle());
+        return state;
+    }
+
+    /**
+     * Returns session state for the supplied tab.
      *
      * @param tab The tab to retrieve the session state for.
-     * @return FuseboxSessionState for the supplied tab, or null if the tab is not valid.
+     * @return FuseboxSessionState for the supplied UserDataHost.
      */
-    static @Nullable FuseboxSessionState from(@Nullable Tab tab) {
-        if (tab == null || tab.isDestroyed()) {
-            return null;
-        }
-        FuseboxSessionState state = tab.getUserDataHost().getUserData(FuseboxSessionState.class);
+    private static FuseboxSessionState getSessionForTab(UserDataHost userDataHost) {
+        FuseboxSessionState state = userDataHost.getUserData(FuseboxSessionState.class);
         if (state == null) {
             state = new FuseboxSessionState();
-            tab.getUserDataHost().setUserData(FuseboxSessionState.class, state);
+            userDataHost.setUserData(FuseboxSessionState.class, state);
         }
         return state;
     }
@@ -52,9 +68,13 @@ public class FuseboxSessionState implements UserData {
      * @param isActive Whether the session should be active.
      */
     public void setSessionActive(boolean isActive) {
+        if (isActive == mIsActive) return;
+
         mIsActive = isActive;
-        if (!isActive) {
-            autocompleteInput.reset();
+        if (isActive) {
+            mAutocompleteInput.setUrlFocusTime(System.currentTimeMillis());
+        } else {
+            mAutocompleteInput.reset();
         }
     }
 
@@ -63,5 +83,17 @@ public class FuseboxSessionState implements UserData {
      */
     public boolean isSessionActive() {
         return mIsActive;
+    }
+
+    /** Applies the new AutocompleteInput to the current Session object. */
+    public void setAutocompleteInput(AutocompleteInput newInput) {
+        mAutocompleteInput = newInput;
+    }
+
+    /**
+     * @return The current AutocompleteInput.
+     */
+    public AutocompleteInput getAutocompleteInput() {
+        return mAutocompleteInput;
     }
 }

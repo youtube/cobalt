@@ -14,7 +14,9 @@
 
 class TabCollectionNode;
 
-// Container for the vertical tabstrip's pinned tabs.
+// The view class that represents the pinned tab region for the
+// vertical tab strip. It manages the layout of all the pinned tabs and serves
+// as the drag target for pinned tabs.
 class VerticalPinnedTabContainerView : public views::View,
                                        public views::LayoutDelegate,
                                        public VerticalDraggedTabsContainer {
@@ -32,6 +34,9 @@ class VerticalPinnedTabContainerView : public views::View,
   views::ProposedLayout CalculateProposedLayout(
       const views::SizeBounds& size_bounds) const override;
 
+  // views::View:
+  gfx::Size GetMinimumSize() const override;
+
  private:
   // VerticalDraggedTabsContainer:
   VerticalTabDragHandler& GetDragHandler() override;
@@ -39,7 +44,7 @@ class VerticalPinnedTabContainerView : public views::View,
   bool IsTabStripCollapsed() const override;
   views::ScrollView* GetScrollViewForContainer() const override;
   void UpdateLayoutForDrag() override;
-  void HandleTabDragInContainer(const gfx::Point point_in_container) override;
+  void HandleTabDragInContainer(const gfx::Rect& dragged_tab_bounds) override;
 
   void ResetCollectionNode();
 

@@ -3,7 +3,6 @@
 // found in the LICENSE file.
 
 // Subpages
-import './ai_page/ai_compare_subpage.js';
 import './ai_page/ai_tab_organization_subpage.js';
 import './ai_page/history_search_page.js';
 import './ai_page/offer_writing_help_page.js';
@@ -161,7 +160,6 @@ export {SettingsLiveCaptionElement} from './a11y_page/live_caption.js';
 export {SettingsLiveTranslateElement} from './a11y_page/live_translate.js';
 // </if>
 
-export {SettingsAiCompareSubpageElement} from './ai_page/ai_compare_subpage.js';
 export {isFeatureDisabledByPolicy, SettingsAiPolicyIndicator} from './ai_page/ai_policy_indicator.js';
 export {SettingsAiTabOrganizationSubpageElement} from './ai_page/ai_tab_organization_subpage.js';
 export {AiEnterpriseFeaturePrefName, AiPageActions, FeatureOptInState, SettingsAiPageFeaturePrefName} from './ai_page/constants.js';
@@ -256,7 +254,6 @@ export {PrivacyGuideMsbbFragmentElement} from './privacy_page/privacy_guide/priv
 export {SettingsPrivacyGuidePageElement} from './privacy_page/privacy_guide/privacy_guide_page.js';
 export {PrivacyGuideSafeBrowsingFragmentElement} from './privacy_page/privacy_guide/privacy_guide_safe_browsing_fragment.js';
 export {PrivacyGuideWelcomeFragmentElement} from './privacy_page/privacy_guide/privacy_guide_welcome_fragment.js';
-export {CrLottieElement} from './privacy_page/security/cr_lottie.js';
 export {FINGERPRINT_CHECK_DARK_URL, FINGERPRINT_CHECK_LIGHT_URL, FINGERPRINT_SCANNED_ICON_DARK, FINGERPRINT_SCANNED_ICON_LIGHT, FingerprintProgressArcElement, PROGRESS_CIRCLE_BACKGROUND_COLOR_DARK, PROGRESS_CIRCLE_BACKGROUND_COLOR_LIGHT, PROGRESS_CIRCLE_FILL_COLOR_DARK, PROGRESS_CIRCLE_FILL_COLOR_LIGHT} from './privacy_page/security/fingerprint_progress_arc.js';
 export {SafeBrowsingSetting} from './privacy_page/security/safe_browsing_types.js';
 export {SecureDnsResolverType, SettingsSecureDnsElement} from './privacy_page/security/secure_dns.js';

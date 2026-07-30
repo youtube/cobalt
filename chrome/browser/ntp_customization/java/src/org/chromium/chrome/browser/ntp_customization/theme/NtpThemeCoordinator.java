@@ -7,9 +7,9 @@ package org.chromium.chrome.browser.ntp_customization.theme;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.CHROME_COLORS;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME_COLLECTIONS;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.CHROME_COLOR;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.IMAGE_FROM_DISK;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.THEME_COLLECTION;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.CHROME_COLOR;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.IMAGE_FROM_DISK;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.THEME_COLLECTION;
 import static org.chromium.chrome.browser.ntp_customization.theme.NtpThemeProperty.THEME_KEYS;
 
 import android.app.Activity;
@@ -54,6 +54,7 @@ public class NtpThemeCoordinator {
     private final Runnable mDismissBottomSheetRunnable;
     private final NtpThemeCollectionManager mNtpThemeCollectionManager;
     private final CallbackController mCallbackController = new CallbackController();
+    private final Runnable mApplyPreviewScrimAlphaRunnable;
     private NtpThemeMediator mMediator;
     private NtpThemeBottomSheetView mNtpThemeBottomSheetView;
     private @Nullable UploadImagePreviewCoordinator mUploadPreviewCoordinator;
@@ -64,11 +65,13 @@ public class NtpThemeCoordinator {
             Context context,
             BottomSheetDelegate delegate,
             Profile profile,
-            Runnable dismissBottomSheet) {
+            Runnable dismissBottomSheet,
+            Runnable applyPreviewScrimAlphaRunnable) {
         mContext = context;
         mBottomSheetDelegate = delegate;
         mProfile = profile;
         mDismissBottomSheetRunnable = dismissBottomSheet;
+        mApplyPreviewScrimAlphaRunnable = applyPreviewScrimAlphaRunnable;
         mNtpThemeBottomSheetView =
                 (NtpThemeBottomSheetView)
                         LayoutInflater.from(context)
@@ -105,6 +108,10 @@ public class NtpThemeCoordinator {
                         profile,
                         mCallbackController.makeCancelable(
                                 (Bitmap bitmap) -> {
+                                    // Reduces scrim opacity to allow the user to preview the
+                                    // applied background.
+                                    mApplyPreviewScrimAlphaRunnable.run();
+
                                     initializeBottomSheetContent(
                                             BottomSheetType.SINGLE_THEME_COLLECTION);
                                     initializeBottomSheetContent(BottomSheetType.THEME_COLLECTIONS);
@@ -145,7 +152,7 @@ public class NtpThemeCoordinator {
                     NtpCustomizationUtils.calculateInitialThemeCollectionImageMatrices(
                             mContext, bitmap);
             NtpCustomizationConfigManager.getInstance().onUploadedImageSelected(bitmap, info);
-            onImageSelectedForPreviewImpl();
+            onPreviewClosed(/* isImageSelected= */ true);
             return;
         }
 
@@ -177,7 +184,8 @@ public class NtpThemeCoordinator {
                                     mContext,
                                     mBottomSheetDelegate,
                                     mCallbackController.makeCancelable(
-                                            onChromeColorSelectedCallback));
+                                            onChromeColorSelectedCallback),
+                                    mApplyPreviewScrimAlphaRunnable);
                 }
                 mNtpChromeColorsCoordinator.prepareToShow();
                 mBottomSheetDelegate.showBottomSheet(CHROME_COLORS);

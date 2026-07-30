@@ -78,6 +78,15 @@ const ValuablesDataManager* AutofillClient::GetValuablesDataManager() const {
   return const_cast<AutofillClient*>(this)->GetValuablesDataManager();
 }
 
+WalletPassAccessManager* AutofillClient::GetWalletPassAccessManager() {
+  return nullptr;
+}
+
+const WalletPassAccessManager* AutofillClient::GetWalletPassAccessManager()
+    const {
+  return const_cast<AutofillClient*>(this)->GetWalletPassAccessManager();
+}
+
 AutofillOptimizationGuideDecider*
 AutofillClient::GetAutofillOptimizationGuideDecider() const {
   return nullptr;
@@ -257,7 +266,7 @@ bool AutofillClient::IsCvcSavingSupported() const {
 
 bool AutofillClient::IsCreditCardUploadEnabled() const {
   return ::autofill::IsCreditCardUploadEnabled(
-      GetSyncService(), *GetPrefs(),
+      GetSyncService(),
       GetPersonalDataManager()
           .payments_data_manager()
           .GetCountryCodeForExperimentGroup(),
@@ -305,6 +314,10 @@ void AutofillClient::CloseEntityImportBubble() {
 }
 
 void AutofillClient::ShowAutofillAiLocalSaveNotification() {
+  NOTIMPLEMENTED();
+}
+
+void AutofillClient::ShowAutofillAiFailureNotification(std::u16string message) {
   NOTIMPLEMENTED();
 }
 

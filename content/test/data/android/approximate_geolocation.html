@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Approximate Geolocation</title>
+    </head>
+    <body>
+        <button id="get-location-button">Get Location</button>
+        <geolocation accuracymode="approximate" id="geolocation-element-approximate"></geolocation>
+        <geolocation accuracymode="precise" id="geolocation-element-precise"></geolocation>
+        <script>
+          let result;
+          let resolveLocation;
+
+          async function getAccuracyModeResult() {
+            return (await result).accuracyMode;
+          }
+
+          // This function needs to be called before the <geolocation> element
+          // is clicked.
+          function initResultPromise(resolve) {
+            result = new Promise((resolve) => {
+              resolveLocation = resolve;
+            });
+          }
+
+          document.getElementById('get-location-button').addEventListener('click', () => {
+              result = new Promise((resolve, reject) => {
+                navigator.geolocation.getCurrentPosition(resolve, reject);
+              });
+          });
+
+          ['geolocation-element-approximate', 'geolocation-element-precise'].forEach(id => {
+            document.getElementById(id).addEventListener('location', (event) => {
+              resolveLocation(event.target.position);
+            });
+          });
+        </script>
+    </body>
+</html>

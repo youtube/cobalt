@@ -108,6 +108,11 @@ class ClientSideDetectionHost
     // then used to provide the intelligent scan delegate the information about
     // the page.
     virtual void GetInnerText(HostInnerTextCallback callback) = 0;
+    // Triggers Gemini Antiscam Protection if conditions are met.
+    virtual void MaybeStartGeminiAntiscamProtection(
+        GURL url,
+        ClientSideDetectionType request_type,
+        std::optional<bool> did_match_high_confidence_allowlist) = 0;
 
 #if BUILDFLAG(IS_ANDROID)
     virtual internal::ReferringAppInfo GetReferringAppInfo(
@@ -193,6 +198,7 @@ class ClientSideDetectionHost
   friend class ClientSideDetectionHostScamDetectionTest;
   friend class ClientSideDetectionHostCreditCardFormTest;
   friend class ClientSideDetectionHostClipboardDataTest;
+  friend class ClientSideDetectionHostGeminiAntiscamProtectionTest;
   class ShouldClassifyUrlRequest;
   friend class ShouldClassifyUrlRequest;
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostPrerenderBrowserTest,
@@ -269,12 +275,10 @@ class ClientSideDetectionHost
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostCreditCardFormTest,
       EventDoesNotTriggerPreclassificationChecksWhenESBDisabled);
-  FRIEND_TEST_ALL_PREFIXES(
-      ClientSideDetectionHostCreditCardFormTest,
-      DoesNotStartPreclassificationOnRepeatSiteVisit);
-  FRIEND_TEST_ALL_PREFIXES(
-      ClientSideDetectionHostCreditCardFormTest,
-      DoesNotStartPreclassificationOnServerHeuristic);
+  FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
+                           DoesNotStartPreclassificationOnRepeatSiteVisit);
+  FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostCreditCardFormTest,
+                           DoesNotStartPreclassificationOnServerHeuristic);
   FRIEND_TEST_ALL_PREFIXES(
       ClientSideDetectionHostCreditCardFormReferringAppTest,
       DoesNotStartPreclassificationBecauseOfReferringAppFilter);
@@ -286,6 +290,8 @@ class ClientSideDetectionHost
                            CreditCardFormClassificationTriggersCSDPing);
   FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostBrowserTest,
                            NavigateTo404PageLogsErrorDocument);
+  FRIEND_TEST_ALL_PREFIXES(ClientSideDetectionHostGeminiAntiscamProtectionTest,
+                           GeminiAntiscamProtectionServiceCalledWithInnerText);
 
   // Extracts suspicious tokens from a copied clipboard payload into a
   // structured object.
@@ -294,8 +300,6 @@ class ClientSideDetectionHost
   // data extraction. UTF16 to UTF8 conversion is already done in the renderer,
   // and the payload parsing does not involve complex grammar.
   ClipboardExtractedData ExtractClipboardData(const std::u16string& payload);
-
-  std::vector<std::string_view> GetSuspiciousTokensListForTesting();
 
   // Helper function to create preclassification check once requirements are
   // met.

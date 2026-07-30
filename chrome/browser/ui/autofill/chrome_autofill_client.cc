@@ -37,6 +37,7 @@
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
 #include "chrome/browser/autofill/valuables_data_manager_factory.h"
+#include "chrome/browser/autofill/wallet_pass_access_manager_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/device_reauth/chrome_device_authenticator_factory.h"
 #include "chrome/browser/global_features.h"
@@ -517,6 +518,12 @@ EntityDataManager* ChromeAutofillClient::GetEntityDataManager() {
   return AutofillEntityDataManagerFactory::GetForProfile(profile);
 }
 
+WalletPassAccessManager* ChromeAutofillClient::GetWalletPassAccessManager() {
+  Profile* profile =
+      Profile::FromBrowserContext(web_contents()->GetBrowserContext());
+  return WalletPassAccessManagerFactory::GetForProfile(profile);
+}
+
 SingleFieldFillRouter& ChromeAutofillClient::GetSingleFieldFillRouter() {
   return single_field_fill_router_;
 }
@@ -783,7 +790,7 @@ void ChromeAutofillClient::ShowAutofillSettings(
           base::UmaHistogramEnumeration(
               "Autofill.YourSavedInfoSettingsPage.VisitReferrer",
               autofill_metrics::AutofillSettingsReferrer::kFillingFlowDropdown);
-          chrome::ShowSettingsSubPage(browser, chrome::kYourSavedInfoSubPage);
+          chrome::ShowSettingsSubPage(browser, chrome::kAutofillSubPage);
         } else {
           chrome::ShowSettingsSubPage(browser, chrome::kAutofillAiSubPage);
         }

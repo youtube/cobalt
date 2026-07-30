@@ -420,7 +420,7 @@ void CanvasResourceProviderSharedImage::OnResourceRefReturned(
   }
 }
 
-void CanvasResourceProviderSharedImage::SetResourceRecyclingEnabled(
+void Canvas2DResourceProviderSharedImage::SetResourceRecyclingEnabled(
     bool value) {
   resource_recycling_enabled_ = value;
   if (!resource_recycling_enabled_) {
@@ -958,6 +958,9 @@ void CanvasResourceProviderSharedImage::RasterRecord(
 
 sk_sp<SkSurface> CanvasResourceProviderSharedImage::CreateSkSurface() const {
   TRACE_EVENT0("blink", "CanvasResourceProviderSharedImage::CreateSkSurface");
+
+  CHECK(!IsAccelerated());
+
   if (is_software_) {
     const auto props = GetSkSurfaceProps();
     const auto info = SkImageInfo::Make(
@@ -971,13 +974,6 @@ sk_sp<SkSurface> CanvasResourceProviderSharedImage::CreateSkSurface() const {
   }
 
   const auto props = GetSkSurfaceProps();
-  if (is_accelerated_) {
-    // No longer supported post-OOP-C.
-    // TODO(crbug.com/391648152): Replace this conditional with a
-    // CHECK.
-    return nullptr;
-  }
-
   // For software raster path, we render into cpu memory managed internally
   // by SkSurface and copy the rendered results to the GMB before dispatching
   // it to the display compositor.
@@ -1055,8 +1051,9 @@ Canvas2DResourceProviderBitmap::Create(gfx::Size size,
   return nullptr;
 }
 
-std::unique_ptr<CanvasResourceProviderSharedImage>
-CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
+template <class T>
+std::unique_ptr<T>
+CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositorBase(
     gfx::Size size,
     viz::SharedImageFormat format,
     SkAlphaType alpha_type,
@@ -1073,9 +1070,9 @@ CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
   CHECK(format == viz::SharedImageFormat::N32Format() ||
         format == viz::SinglePlaneFormat::kRGBA_F16);
 
-  auto provider = std::make_unique<CanvasResourceProviderSharedImage>(
-      size, format, alpha_type, color_space, shared_image_interface_provider,
-      delegate);
+  auto provider =
+      std::make_unique<T>(size, format, alpha_type, color_space,
+                          shared_image_interface_provider, delegate);
   if (provider->IsValid()) {
     if (should_initialize ==
         CanvasResourceProvider::ShouldInitialize::kCallClear)
@@ -1086,23 +1083,6 @@ CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
   }
 
   return nullptr;
-}
-
-std::unique_ptr<CanvasResourceProviderSharedImage>
-CanvasResourceProvider::CreateSharedImageProvider(
-    gfx::Size size,
-    viz::SharedImageFormat format,
-    SkAlphaType alpha_type,
-    const gfx::ColorSpace& color_space,
-    ShouldInitialize should_initialize,
-    base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
-    RasterMode raster_mode,
-    gpu::SharedImageUsageSet shared_image_usage_flags,
-    Delegate* delegate) {
-  return CreateSharedImageProviderBase<CanvasResourceProviderSharedImage>(
-      size, format, alpha_type, color_space, should_initialize,
-      context_provider_wrapper, raster_mode, shared_image_usage_flags,
-      delegate);
 }
 
 std::unique_ptr<Canvas2DResourceProviderSharedImage>
@@ -1122,6 +1102,21 @@ Canvas2DResourceProviderSharedImage::Create(
       delegate);
 }
 
+std::unique_ptr<Canvas2DResourceProviderSharedImage>
+Canvas2DResourceProviderSharedImage::CreateForSoftwareCompositor(
+    gfx::Size size,
+    viz::SharedImageFormat format,
+    SkAlphaType alpha_type,
+    const gfx::ColorSpace& color_space,
+    ShouldInitialize initialize_provider,
+    WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
+    Delegate* delegate) {
+  return CreateSharedImageProviderForSoftwareCompositorBase<
+      Canvas2DResourceProviderSharedImage>(
+      size, format, alpha_type, color_space, initialize_provider,
+      shared_image_interface_provider, delegate);
+}
+
 std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
 CanvasNon2DResourceProviderSharedImage::Create(
     gfx::Size size,
@@ -1137,6 +1132,21 @@ CanvasNon2DResourceProviderSharedImage::Create(
       size, format, alpha_type, color_space, should_initialize,
       context_provider_wrapper, raster_mode, shared_image_usage_flags,
       delegate);
+}
+
+std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
+CanvasNon2DResourceProviderSharedImage::Create(
+    gfx::Size size,
+    const Canvas2DColorParams& color_params,
+    ShouldInitialize initialize_provider,
+    base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
+    RasterMode raster_mode,
+    gpu::SharedImageUsageSet shared_image_usage_flags,
+    Delegate* delegate) {
+  return Create(size, color_params.GetSharedImageFormat(),
+                color_params.GetAlphaType(), color_params.GetGfxColorSpace(),
+                initialize_provider, std::move(context_provider_wrapper),
+                raster_mode, shared_image_usage_flags, delegate);
 }
 
 template <class T>
@@ -1290,6 +1300,34 @@ CanvasNon2DResourceProviderSharedImage::CreateForWebGPU(
       shared_image_usage_flags | gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
           gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE,
       delegate);
+}
+
+std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
+CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
+    gfx::Size size,
+    viz::SharedImageFormat format,
+    SkAlphaType alpha_type,
+    const gfx::ColorSpace& color_space,
+    ShouldInitialize initialize_provider,
+    WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
+    Delegate* delegate) {
+  return CreateSharedImageProviderForSoftwareCompositorBase<
+      CanvasNon2DResourceProviderSharedImage>(
+      size, format, alpha_type, color_space, initialize_provider,
+      shared_image_interface_provider, delegate);
+}
+
+std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
+CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
+    gfx::Size size,
+    const Canvas2DColorParams& color_params,
+    ShouldInitialize initialize_provider,
+    WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
+    Delegate* delegate) {
+  return CreateForSoftwareCompositor(
+      size, color_params.GetSharedImageFormat(), color_params.GetAlphaType(),
+      color_params.GetGfxColorSpace(), initialize_provider,
+      shared_image_interface_provider, delegate);
 }
 
 CanvasResourceProvider::CanvasImageProvider::CanvasImageProvider(
@@ -1616,8 +1654,7 @@ std::optional<cc::PaintRecord> CanvasResourceProvider::FlushCanvas(
     return std::nullopt;
   }
   auto timer = CreateScopedRasterTimer();
-  bool want_to_print = (IsPrinting() && reason != FlushReason::kClear) ||
-                       reason == FlushReason::kPrinting ||
+  bool want_to_print = IsPrinting() || reason == FlushReason::kPrinting ||
                        reason == FlushReason::kCanvasPushFrameWhilePrinting;
   bool preserve_recording = want_to_print && clear_frame_;
 
@@ -1625,9 +1662,6 @@ std::optional<cc::PaintRecord> CanvasResourceProvider::FlushCanvas(
   // recording and must fallback to raster printing instead of vectorial
   // printing.
   clear_frame_ = false;
-  if (reason == FlushReason::kClear) {
-    clear_frame_ = true;
-  }
   cc::PaintRecord recording;
   recording = recorder_->ReleaseMainRecording();
   RasterRecord(recording);
@@ -1683,6 +1717,20 @@ Canvas2DResourceProviderSharedImage::Canvas2DResourceProviderSharedImage(
                                         shared_image_usage_flags,
                                         delegate) {}
 
+Canvas2DResourceProviderSharedImage::Canvas2DResourceProviderSharedImage(
+    gfx::Size size,
+    viz::SharedImageFormat format,
+    SkAlphaType alpha_type,
+    const gfx::ColorSpace& color_space,
+    WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
+    Delegate* delegate)
+    : CanvasResourceProviderSharedImage(size,
+                                        format,
+                                        alpha_type,
+                                        color_space,
+                                        shared_image_interface_provider,
+                                        delegate) {}
+
 CanvasNon2DResourceProviderSharedImage::CanvasNon2DResourceProviderSharedImage(
     gfx::Size size,
     viz::SharedImageFormat format,
@@ -1699,6 +1747,20 @@ CanvasNon2DResourceProviderSharedImage::CanvasNon2DResourceProviderSharedImage(
                                         context_provider_wrapper,
                                         is_accelerated,
                                         shared_image_usage_flags,
+                                        delegate) {}
+
+CanvasNon2DResourceProviderSharedImage::CanvasNon2DResourceProviderSharedImage(
+    gfx::Size size,
+    viz::SharedImageFormat format,
+    SkAlphaType alpha_type,
+    const gfx::ColorSpace& color_space,
+    WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
+    Delegate* delegate)
+    : CanvasResourceProviderSharedImage(size,
+                                        format,
+                                        alpha_type,
+                                        color_space,
+                                        shared_image_interface_provider,
                                         delegate) {}
 
 bool CanvasResourceProvider::UnacceleratedWritePixels(
@@ -1743,10 +1805,6 @@ void CanvasResourceProvider::ClearAtCreation() {
   }
 
   RasterRecord(recorder.ReleaseMainRecording());
-}
-
-uint32_t CanvasResourceProvider::ContentUniqueID() const {
-  return GetSkSurface()->generationID();
 }
 
 void CanvasResourceProvider::RestoreBackBuffer(const cc::PaintImage& image) {
@@ -1818,35 +1876,6 @@ Canvas2DResourceProviderBitmap::CreateForTesting(
   return Canvas2DResourceProviderBitmap::Create(
       size, color_params.GetSharedImageFormat(), color_params.GetAlphaType(),
       color_params.GetGfxColorSpace(), initialize_provider, delegate);
-}
-
-std::unique_ptr<CanvasResourceProviderSharedImage>
-CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
-    gfx::Size size,
-    const Canvas2DColorParams& color_params,
-    ShouldInitialize initialize_provider,
-    WebGraphicsSharedImageInterfaceProvider* shared_image_interface_provider,
-    Delegate* delegate) {
-  return CreateSharedImageProviderForSoftwareCompositor(
-      size, color_params.GetSharedImageFormat(), color_params.GetAlphaType(),
-      color_params.GetGfxColorSpace(), initialize_provider,
-      shared_image_interface_provider, delegate);
-}
-
-std::unique_ptr<CanvasResourceProviderSharedImage>
-CanvasResourceProvider::CreateSharedImageProvider(
-    gfx::Size size,
-    const Canvas2DColorParams& color_params,
-    ShouldInitialize initialize_provider,
-    base::WeakPtr<WebGraphicsContext3DProviderWrapper> context_provider_wrapper,
-    RasterMode raster_mode,
-    gpu::SharedImageUsageSet shared_image_usage_flags,
-    Delegate* delegate) {
-  return CreateSharedImageProvider(
-      size, color_params.GetSharedImageFormat(), color_params.GetAlphaType(),
-      color_params.GetGfxColorSpace(), initialize_provider,
-      std::move(context_provider_wrapper), raster_mode,
-      shared_image_usage_flags, delegate);
 }
 
 }  // namespace blink

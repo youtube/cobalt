@@ -27,7 +27,6 @@
 
 using base::android::ConvertUTF16ToJavaString;
 using base::android::ConvertUTF8ToJavaString;
-using base::android::RunRunnableAndroid;
 using base::android::ScopedJavaGlobalRef;
 using base::android::ScopedJavaLocalRef;
 using base::android::ToJavaArrayOfStrings;
@@ -133,6 +132,7 @@ ScopedJavaLocalRef<jobject> AutocompleteMatch::GetOrCreateJavaObject(
           ConvertUTF16ToJavaString(env, additional_text),
           tab_groups::UuidToJavaString(
               env, matching_tab_group_uuid.value_or(base::Uuid())),
+          ConvertUTF16ToJavaString(env, associated_keyword),
           j_suggest_template));
 
   return ScopedJavaLocalRef<jobject>(*java_match_);
@@ -176,7 +176,7 @@ void AutocompleteMatch::OnClipboardSuggestionContentUpdated(
     const base::android::JavaRef<jobject>& j_callback) {
   JNIEnv* env = base::android::AttachCurrentThread();
   UpdateClipboardContent(env);
-  RunRunnableAndroid(j_callback);
+  jni_zero::RunRunnable(j_callback);
 }
 
 void AutocompleteMatch::UpdateClipboardContent(JNIEnv* env) {

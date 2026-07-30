@@ -8,6 +8,7 @@
 
 html {
   height: 100%;
+  --cr-tree-label-user-select: text;
 }
 
 body {
@@ -69,6 +70,7 @@ body {
   min-width: 32em;
   padding: 0 20px 65px 0;
 }
+
 #content > div:not(.selected) {
   display: none;
 }
@@ -85,10 +87,6 @@ body {
   .content-header {
     background: none;
   }
-}
-
-html {
-  --cr-tree-label-user-select: text;
 }
 
 #isolated-origins-container {

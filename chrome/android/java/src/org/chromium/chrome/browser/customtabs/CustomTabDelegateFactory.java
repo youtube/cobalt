@@ -18,6 +18,7 @@ import androidx.annotation.VisibleForTesting;
 import org.chromium.base.ApiCompatibilityUtils;
 import org.chromium.base.CallbackUtils;
 import org.chromium.base.metrics.RecordHistogram;
+import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.blink.mojom.DisplayMode;
 import org.chromium.blink.mojom.DisplayMode.EnumType;
 import org.chromium.build.annotations.NullMarked;
@@ -497,17 +498,17 @@ public class CustomTabDelegateFactory implements TabDelegateFactory {
                 null,
                 null,
                 null,
-                () -> null,
-                () -> null,
-                () -> null,
+                SupplierUtils.ofNull(),
+                SupplierUtils.ofNull(),
+                SupplierUtils.ofNull(),
                 null,
-                null,
+                SupplierUtils.ofNull(),
                 ActivityType.CUSTOM_TAB,
                 null,
                 null,
                 null,
-                () -> false,
-                () -> false,
+                SupplierUtils.of(false),
+                SupplierUtils.of(false),
                 null,
                 null);
     }

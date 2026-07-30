@@ -76,7 +76,8 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
   protected maxFileCount_: number =
       loadTimeData.getInteger('composeboxFileMaxCount');
   private metricsSource_: string = loadTimeData.getString('composeboxSource');
-
+  protected showContextMenuHeaders_: boolean =
+      loadTimeData.getBoolean('ShowContextMenuHeaders');
   protected get supportedTools_(): Map<ToolMode, {
     id: string,
     icon: string,
@@ -111,6 +112,13 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
     icon: string,
   }> {
     return new Map([
+      [
+        ModelMode.kGeminiRegular,
+        {
+          id: 'geminiModelRegular',
+          icon: 'composebox:regularModel',
+        },
+      ],
       [
         ModelMode.kGeminiProAutoroute,
         {
@@ -177,6 +185,29 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
       return false;
     }
     return this.inputState.activeModel === model;
+  }
+
+  protected getToolLabel_(tool: ToolMode): string {
+    if (!this.inputState) {
+      return '';
+    }
+    const config = this.inputState.toolConfigs.find(c => c.tool === tool);
+    return config ? config.menuLabel : '';
+  }
+
+  protected getModelLabel_(model: ModelMode): string {
+    if (!this.inputState) {
+      return '';
+    }
+    const config = this.inputState.modelConfigs.find(c => c.model === model);
+    return config ? config.menuLabel : '';
+  }
+
+  protected get modelHeader_(): string {
+    if (this.inputState && this.inputState.modelSectionConfig) {
+      return this.inputState.modelSectionConfig.header;
+    }
+    return '';
   }
 
   // Checks if the image upload item in the context menu should be visible.
@@ -324,11 +355,12 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
     this.$.menu.close();
   }
 
-  protected onToolClick_(tool: ToolMode) {
+  protected onToolClick_(e: Event) {
+    const toolMode = Number((e.currentTarget as HTMLElement).dataset['mode']);
     this.dispatchEvent(new CustomEvent('tool-click', {
       bubbles: true,
       composed: true,
-      detail: {tool},
+      detail: {toolMode},
     }));
     this.$.menu.close();
   }

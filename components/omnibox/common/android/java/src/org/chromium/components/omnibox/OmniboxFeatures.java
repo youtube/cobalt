@@ -147,6 +147,13 @@ public class OmniboxFeatures {
     public static final BooleanCachedFeatureParam sMultiattachmentFusebox =
             newBooleanParam(sOmniboxMultimodalInput, "multi_context", false);
 
+    public static final BooleanCachedFeatureParam sRedirectComposeplateButton =
+            newBooleanParam(sOmniboxMultimodalInput, "redirect_composeplate_button", true);
+
+    /** A necessary but not sufficient condition to show the current tab button. */
+    public static final BooleanCachedFeatureParam sAllowCurrentTab =
+            newBooleanParam(sOmniboxMultimodalInput, "allow_current_tab", true);
+
     /**
      * If the expanded set of inputs (model picker as well as canvas tool) should be options. These
      * new types, as well as all existing types, should be driven through PEC instead of hard coded

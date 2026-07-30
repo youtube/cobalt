@@ -851,6 +851,7 @@ Google аккаунтуңуздун башка Google кызматтарынан
 <translation id="4685741273709472646">Түрүлмө тизмеден тандоо</translation>
 <translation id="4687718960473379118">Сайт сунуштаган жарнамалар</translation>
 <translation id="468924408576231679"><ph name="PAGE_TITLE" /> веб-баракчасынын шилтемесин көчүрүңүз. Булагы: <ph name="PAGE_URL" /></translation>
+<translation id="4692623383562244444">Издөө каражаттары</translation>
 <translation id="469286762610133730">Контентти жакшыртыңыз</translation>
 <translation id="4695891336199304370">{SHIPPING_OPTIONS,plural, =1{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 жана дагы <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}other{<ph name="SHIPPING_OPTION_PREVIEW" />\u2026 жана дагы <ph name="NUMBER_OF_ADDITIONAL_SHIPPING_OPTIONS" />}}</translation>
 <translation id="4698757800236023795">Активдүү (<ph name="ITEM_COUNT" />)</translation>
@@ -1019,7 +1020,6 @@ Google аккаунтуңуздун башка Google кызматтарынан
 <translation id="5375374982898812658">Сиз дароо "<ph name="GROUP_NAME" />" өтмөктөр тобуна кирүү мүмкүнчүлүгүн жоготуп, ал бардык түзмөктөрүңүздөн жок кылынат</translation>
 <translation id="5375577065097716013">Google Lens аркылуу издөө <ph name="BEGIN_NEW" />Жаңы<ph name="END_NEW" /></translation>
 <translation id="5390367025924544771"><ph name="WEBSITE_ORIGIN" /> электрондук капчыгыңыздагы жеке маалыматтарыңызды колдонгону жатат. Бул сайтка ишенсеңиз гана улантыңыз. Кооптуу сайттар толук аты-жөнүңүздү же паспорттун номерин алууга аракет кылышат.</translation>
-<translation id="5394331612381306435">Жашыруун режимден чыгуу</translation>
 <translation id="5395376160638294582">Google аккаунтуңуздагы Chrome маалыматын каалаган убакта колдоно аларыңызды текшериңиз</translation>
 <translation id="539881862970320163">Татаал сырсөз сунушталды. Баскычтоп жашырылган.</translation>
 <translation id="5409881200985013443"><ph name="CLIENT_NAME" /> түзмөгүнө <ph name="ONE_TIME_CODE" /> тапшырылсынбы?</translation>
@@ -1496,7 +1496,6 @@ Google аккаунтуңуздун башка Google кызматтарынан
 <translation id="7221869452894271364">Бул бетти кайра жүктөө</translation>
 <translation id="722681077040152344"><ph name="COUNT" /> сайтка катталуу токтотулду</translation>
 <translation id="7227218174981371415">{FILE_COUNT,plural, =1{1 жүктөп алуу күтүлүүдө}other{# жүктөп алуу күтүлүүдө}}</translation>
-<translation id="7230064152164845085">Жашыруун режимге которулуу</translation>
 <translation id="7237724030342645845">Сырсөздөрдү башкаргыч иштебей калды</translation>
 <translation id="7239496616545081903">Окуу режимин жашыруу</translation>
 <translation id="72415438529550637">Сырсөздү сунуштоо жабылды.</translation>
@@ -1533,6 +1532,7 @@ Google аккаунтуңуздун башка Google кызматтарынан
 <translation id="7376560087009844242">Барактагы көбүрөөк текст камтылса, тийип издегенде жакшыраак натыйжалар көрсөтүлүшү мүмкүн. Муну <ph name="BEGIN_LINK" />жөндөөлөрдөн<ph name="END_LINK" /> каалаган убакта өзгөртө аласыз.</translation>
 <translation id="7379900596734708416">Сайттар үчүн Караңгы тема жеткиликтүү</translation>
 <translation id="7384486627147155832">Кеңештер камтылган жарнамалык билдирме жарым экранда ачылды</translation>
+<translation id="7387951778417998929">Демейкиден башка издөө куралын колдонуу үчүн дарек тилкесине анын ыкчам баскычын, андан соң артыкчылыктуу ыкчам баскычты териңиз. Мындан тышкары, бул жерден демейки издөө куралын өзгөртө аласыз.</translation>
 <translation id="7388615499319468910">Сайттар менен жарнамачылар жарнамалардын майнаптуулугун талдай алышат. Бул параметр өчүк.</translation>
 <translation id="7400003506822844357">{FILE_COUNT,plural, =1{Башка, тизмеде 1 файл}other{Башка, тизмеде # файл}}</translation>
 <translation id="7400418766976504921">URL</translation>

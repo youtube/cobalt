@@ -57,6 +57,26 @@ IN_PROC_BROWSER_TEST_F(UpdaterAppTest, FilterSettingsTest) {
   RunTest("updater/event_list/filter_settings_test.js", "mocha.run();");
 }
 
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, ToolsTest) {
+  RunTest("updater/tools_test.js", "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, EnterprisePolicyValueTest) {
+  RunTest("updater/enterprise_policy_table/enterprise_policy_value_test.js",
+          "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, EnterprisePolicyTableSectionTest) {
+  RunTest(
+      "updater/enterprise_policy_table/enterprise_policy_table_section_test.js",
+      "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, EnterprisePolicyTableTest) {
+  RunTest("updater/enterprise_policy_table/enterprise_policy_table_test.js",
+          "mocha.run();");
+}
+
 IN_PROC_BROWSER_TEST_F(UpdaterAppTest, FilterDialogFooterTest) {
   RunTest("updater/event_list/filter_dialog/filter_dialog_footer_test.js",
           "mocha.run();");
@@ -79,6 +99,11 @@ IN_PROC_BROWSER_TEST_F(UpdaterAppTest, ScopeDialogTest) {
 
 IN_PROC_BROWSER_TEST_F(UpdaterAppTest, TypeDialogTest) {
   RunTest("updater/event_list/filter_dialog/type_dialog_test.js",
+          "mocha.run();");
+}
+
+IN_PROC_BROWSER_TEST_F(UpdaterAppTest, EnterpriseCompanionStateCardTest) {
+  RunTest("updater/updater_state/enterprise_companion_state_card_test.js",
           "mocha.run();");
 }
 

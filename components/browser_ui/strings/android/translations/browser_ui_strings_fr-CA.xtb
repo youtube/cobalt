@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Intégré sur <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Touchez Applis &gt; Applis par défaut.</translation>
 <translation id="1272079795634619415">Arrêter</translation>
+<translation id="1275718070701477396">Sélectionné</translation>
 <translation id="1289742167380433257">Pour vous faire économiser les données, Google a optimisé les images de cette page.</translation>
 <translation id="129382876167171263">Les fichiers enregistrés par les sites Web s'affichent ici</translation>
 <translation id="131112695174432497">Les données qui touchent la personnalisation des annonces sont supprimées</translation>
@@ -495,6 +496,7 @@ La protection avancée contrôle ces paramètres Chrome :
 <translation id="6085954183010297841">Supprimer l'autorisation de modification de fichier? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Lorsque cette option est activée, les sites peuvent entrer automatiquement en mode Incrustation d'image. Lorsqu'elle est désactivée, les sites ne peuvent pas entrer automatiquement en mode Incrustation d'image.</translation>
 <translation id="6120483543004435978">Lorsque cette option est activée, les sites peuvent vous demander si vous utilisez activement votre appareil. Lorsqu'elle est désactivée, les sites ne peuvent pas savoir si vous utilisez activement votre appareil.</translation>
+<translation id="6132075343662013154">Chrome vous proposera d'enregistrer votre mot de passe</translation>
 <translation id="615886654739818377">Ne pas autoriser les sites à gérer les fenêtres sur tous vos écrans</translation>
 <translation id="6165508094623778733">En savoir plus</translation>
 <translation id="6171020522141473435">Lorsque cette option est activée, les sites peuvent demander à utiliser des appareils Bluetooth. Lorsqu'elle est désactivée, les sites ne peuvent pas utiliser d'appareils Bluetooth.</translation>

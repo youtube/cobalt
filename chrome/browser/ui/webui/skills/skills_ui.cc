@@ -13,6 +13,7 @@
 #include "chrome/grit/skills_resources.h"
 #include "chrome/grit/skills_resources_map.h"
 #include "components/skills/features.h"
+#include "components/skills/public/skill.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui_data_source.h"
@@ -24,27 +25,62 @@
 
 namespace skills {
 
-void AddDialogStringResources(content::WebUIDataSource* source) {
+SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
+  Profile* profile = Profile::FromWebUI(web_ui);
+  content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
+      profile, chrome::kChromeUISkillsHost);
+  webui::SetupWebUIDataSource(source, kSkillsResources, IDR_SKILLS_SKILLS_HTML);
+  source->AddResourcePath("dialog", IDR_SKILLS_SKILLS_DIALOG_HTML);
+  bool isGlicEnabled = false;
+#if BUILDFLAG(ENABLE_GLIC)
+  isGlicEnabled = glic::GlicEnabling::IsEnabledForProfile(profile);
+#endif
+  source->AddBoolean("isGlicEnabled", isGlicEnabled);
   static constexpr webui::LocalizedString kStrings[] = {
       {"cancel", IDS_CANCEL},
       {"edit", IDS_EDIT2},
       {"save", IDS_SAVE},
+      {"delete", IDS_SKILL_PAGE_USER_SKILLS_DELETE},
+      {"add", IDS_ADD},
+      {"browseSkillsTitle", IDS_SKILL_PAGE_BROWSE_SKILLS_TITLE},
+      {"topPicksTitle", IDS_SKILL_PAGE_BROWSE_SKILLS_TOP_PICKS_TITLE},
+      {"firstPartyAddSkillErrorToast",
+       IDS_SKILL_PAGE_FIRST_PARTY_ADD_SKILL_ERROR_TOAST},
+      {"emptyStateTitle", IDS_SKILL_PAGE_EMPTY_STATE_TITLE},
+      {"emptyStateDescription", IDS_SKILL_PAGE_EMPTY_STATE_DESCRIPTION},
+      {"invalidSkillToastText", IDS_SKILL_PAGE_INVALID_SKILL_TOAST},
+      {"userSkillsTitle", IDS_SKILL_PAGE_USER_SKILLS_TITLE},
+      {"userSkillsDescription", IDS_SKILL_PAGE_USER_SKILLS_DESCRIPTION},
+      {"searchBarPlaceholderText", IDS_SKILL_PAGE_SEARCH_BAR_PLACEHOLDER_TEXT},
+      {"skillsTitle", IDS_SKILL_PAGE_TITLE},
+      {"mainMenu", IDS_SKILL_PAGE_MAIN_MENU},
+      {"errorPageTitle", IDS_SKILLS_ERROR_PAGE_TITLE},
+      {"errorPageDescription", IDS_SKILLS_ERROR_PAGE_DESCRIPTION},
+      {"footerText", IDS_SKILLS_SIDEBAR_FOOTER_TEXT},
+      {"footerBranding", IDS_SKILLS_SIDEBAR_FOOTER_BRANDING},
+      {"addSkillHeader", IDS_SKILLS_DIALOG_ADD_SKILL_HEADER},
+      {"editSkillHeader", IDS_SKILLS_DIALOG_EDIT_SKILL_HEADER},
+      {"skillDescription", IDS_SKILLS_DIALOG_DESCRIPTION},
+      {"name", IDS_SKILLS_DIALOG_NAME_LABEL},
+      {"namePlaceholder", IDS_SKILLS_DIALOG_NAME_PLACEHOLDER},
+      {"chooseIcon", IDS_SKILLS_DIALOG_CHOOSE_ICON_TOOLTIP},
+      {"instructions", IDS_SKILLS_DIALOG_INSTRUCTIONS_LABEL},
+      {"instructionsPlaceholder", IDS_SKILLS_DIALOG_INSTRUCTIONS_PLACEHOLDER},
+      {"undo", IDS_SKILLS_DIALOG_UNDO_TOOLTIP},
+      {"redo", IDS_SKILLS_DIALOG_REDO_TOOLTIP},
+      {"refine", IDS_SKILLS_DIALOG_REFINE_TOOLTIP},
+      {"refineError", IDS_SKILLS_DIALOG_REFINE_ERROR},
+      {"accountInfo", IDS_SKILLS_DIALOG_ACCOUNT_INFO},
+      {"copyInstructions", IDS_SKILL_PAGE_USER_SKILLS_COPY_INSTRUCTIONS},
   };
 
   source->AddLocalizedStrings(kStrings);
 }
 
-SkillsUI::SkillsUI(content::WebUI* web_ui) : ui::MojoWebUIController(web_ui) {
-  content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
-      Profile::FromWebUI(web_ui), chrome::kChromeUISkillsHost);
-  webui::SetupWebUIDataSource(source, kSkillsResources, IDR_SKILLS_SKILLS_HTML);
-  source->AddResourcePath("dialog", IDR_SKILLS_SKILLS_DIALOG_HTML);
-  AddDialogStringResources(source);
-}
-
-void SkillsUI::SetSkillsDialogDelegate(
-    base::WeakPtr<SkillsDialogDelegate> delegate) {
+void SkillsUI::InitializeDialog(base::WeakPtr<SkillsDialogDelegate> delegate,
+                                Skill skill) {
   delegate_ = delegate;
+  initial_skill_ = std::move(skill);
 }
 
 void SkillsUI::BindInterface(
@@ -66,7 +102,7 @@ void SkillsUI::CreateDialogHandler(
       std::move(receiver), web_ui()->GetWebContents(),
       OptimizationGuideKeyedServiceFactory::GetForProfile(
           Profile::FromWebUI(web_ui())),
-      delegate_);
+      std::move(initial_skill_), delegate_);
 }
 
 WEB_UI_CONTROLLER_TYPE_IMPL(SkillsUI)
@@ -74,14 +110,7 @@ WEB_UI_CONTROLLER_TYPE_IMPL(SkillsUI)
 SkillsUI::~SkillsUI() = default;
 
 bool SkillsUIConfig::IsWebUIEnabled(content::BrowserContext* browser_context) {
-  // TODO(b/481023023): Show error page instead of disabling the WebUI.
-  Profile* profile = Profile::FromBrowserContext(browser_context);
-#if BUILDFLAG(ENABLE_GLIC)
-  return base::FeatureList::IsEnabled(features::kSkillsEnabled) &&
-         glic::GlicEnabling::IsEnabledForProfile(profile);
-#else
-  return false;
-#endif
+  return base::FeatureList::IsEnabled(features::kSkillsEnabled);
 }
 
 }  // namespace skills

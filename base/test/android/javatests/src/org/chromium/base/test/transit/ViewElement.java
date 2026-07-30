@@ -53,10 +53,8 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
     /**
      * Minimum percentage of the View that needs to be displayed for a ViewElement's enter
      * Conditions to be considered fulfilled.
-     *
-     * <p>Matches Espresso's preconditions for ViewActions like click().
      */
-    public static final int MIN_DISPLAYED_PERCENT = 90;
+    public static final int MIN_DISPLAYED_PERCENT = 51;
 
     private final ViewSpec<ViewT> mViewSpec;
     private final Options mOptions;
@@ -161,16 +159,20 @@ public class ViewElement<ViewT extends View> extends Element<ViewT> implements V
 
     @Override
     public TripBuilder clickTo() {
-        if (mOptions.mDisplayedPercentageRequired > 90) {
-            return performViewActionTo(ViewActions.click());
-        } else {
+        if (mOptions.mDisplayedPercentageRequired <= 90) {
             return performViewActionTo(ForgivingClickAction.forgivingClick());
+        } else {
+            return performViewActionTo(ViewActions.click());
         }
     }
 
     @Override
     public TripBuilder longPressTo() {
-        return performViewActionTo(ViewActions.longClick());
+        if (mOptions.mDisplayedPercentageRequired <= 90) {
+            return performViewActionTo(ForgivingClickAction.forgivingLongClick());
+        } else {
+            return performViewActionTo(ViewActions.longClick());
+        }
     }
 
     @Override

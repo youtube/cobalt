@@ -183,7 +183,7 @@ scoped_refptr<NativePixmapFrameResource> NativePixmapFrameResource::Create(
   auto layout = media::VideoFrameLayout::CreateWithPlanes(
       *pixel_format, pixmap->GetBufferSize(), std::move(planes),
       media::VideoFrameLayout::kBufferAddressAlignment,
-      pixmap->GetBufferFormatModifier());
+      pixmap->GetFormatModifier());
   if (!layout) {
     DLOGF(ERROR) << " Invalid layout";
     return nullptr;
@@ -489,7 +489,8 @@ scoped_refptr<VideoFrame> NativePixmapFrameResource::CreateDmabufVideoFrame()
   return video_frame;
 }
 
-scoped_refptr<VideoFrame> NativePixmapFrameResource::CreateMappableVideoFrame(
+scoped_refptr<VideoFrame>
+NativePixmapFrameResource::CreateMappableSharedImageVideoFrame(
     gpu::SharedImageInterface* sii) const {
   LOG_ASSERT(buffer_usage_.has_value())
       << "Unsupported conversion from wrapped DMA buffers to "

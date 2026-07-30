@@ -425,8 +425,7 @@ std::unique_ptr<CanonicalCookie> CanonicalCookie::Create(
       cookie_util::IsCookiePrefixValid(prefix, url, parsed_cookie);
 
   if (collect_metrics) {
-    base::UmaHistogramEnumeration("Cookie.CookiePrefix.Subsampled", prefix,
-                                  COOKIE_PREFIX_LAST);
+    base::UmaHistogramEnumeration("Cookie.CookiePrefix.Subsampled", prefix);
   }
 
   if (parsed_cookie.Name() == "") {
@@ -441,9 +440,9 @@ std::unique_ptr<CanonicalCookie> CanonicalCookie::Create(
         CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_PREFIX);
   }
 
-  bool partition_has_nonce = CookiePartitionKey::HasNonce(cookie_partition_key);
   bool is_partitioned_valid = cookie_util::IsCookiePartitionedValid(
-      url, parsed_cookie, partition_has_nonce);
+      url, parsed_cookie.IsSecure(),
+      parsed_cookie.IsPartitioned() ? cookie_partition_key : std::nullopt);
   if (!is_partitioned_valid) {
     status->AddExclusionReason(
         CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_PARTITIONED);
@@ -451,6 +450,7 @@ std::unique_ptr<CanonicalCookie> CanonicalCookie::Create(
 
   // Collect metrics on whether usage of the Partitioned attribute is correct.
   // Do not include implicit nonce-based partitioned cookies in these metrics.
+  bool partition_has_nonce = CookiePartitionKey::HasNonce(cookie_partition_key);
   if (parsed_cookie.IsPartitioned()) {
     if (!partition_has_nonce && collect_metrics) {
       base::UmaHistogramBoolean("Cookie.IsPartitionedValid",
@@ -545,7 +545,7 @@ std::unique_ptr<CanonicalCookie> CanonicalCookie::Create(
 
     // Check for "__" prefixed names, excluding the cookie prefixes.
     bool name_prefixed_with_underscores =
-        (prefix == COOKIE_PREFIX_NONE) &&
+        (prefix == CookiePrefix::kNone) &&
         parsed_cookie.Name().starts_with("__");
 
     base::UmaHistogramBoolean("Cookie.DoubleUnderscorePrefixedName.Subsampled",
@@ -723,11 +723,7 @@ std::unique_ptr<CanonicalCookie> CanonicalCookie::CreateSanitizedCookie(
         net::CookieInclusionStatus::ExclusionReason::EXCLUDE_INVALID_PREFIX);
   }
 
-  if (!cookie_util::IsCookiePartitionedValid(
-          url, secure,
-          /*is_partitioned=*/partition_key.has_value(),
-          /*partition_has_nonce=*/
-          CookiePartitionKey::HasNonce(partition_key))) {
+  if (!cookie_util::IsCookiePartitionedValid(url, secure, partition_key)) {
     status->AddExclusionReason(net::CookieInclusionStatus::ExclusionReason::
                                    EXCLUDE_INVALID_PARTITIONED);
   }
@@ -1075,20 +1071,25 @@ CanonicalCookie::IsCanonicalForFromStorage() const {
   }
 
   CookiePrefix prefix = cookie_util::GetCookiePrefix(Name());
-  switch (prefix) {
-    case COOKIE_PREFIX_HOST:
-      if (!SecureAttribute() || Path() != "/" || Domain().empty() ||
-          Domain()[0] == '.') {
+  // Validate prefix attributes. Pass nullopt for URL since we're loading from
+  // storage and don't have the original URL. When URL is nullopt,
+  // IsCookiePrefixValid uses normalized domain semantics (non-empty, no leading
+  // dot for __Host-).
+  if (!cookie_util::IsCookiePrefixValid(prefix, /*url=*/std::nullopt,
+                                        SecureAttribute(), IsHttpOnly(),
+                                        Domain(), Path())) {
+    switch (prefix) {
+      case CookiePrefix::kHost:
         return Fail(CanonicalizationFailure::kInvalidHostPrefix);
-      }
-      break;
-    case COOKIE_PREFIX_SECURE:
-      if (!SecureAttribute()) {
+      case CookiePrefix::kSecure:
         return Fail(CanonicalizationFailure::kInvalidSecurePrefix);
-      }
-      break;
-    default:
-      break;
+      case CookiePrefix::kHttp:
+        return Fail(CanonicalizationFailure::kInvalidHttpPrefix);
+      case CookiePrefix::kHostHttp:
+        return Fail(CanonicalizationFailure::kInvalidHostHttpPrefix);
+      case CookiePrefix::kNone:
+        break;
+    }
   }
 
   if (Name() == "" && cookie_util::HasHiddenPrefixName(Value())) {
@@ -1264,6 +1265,10 @@ std::ostream& operator<<(std::ostream& os,
         return "kInvalidHostPrefix";
       case CanonicalCookie::CanonicalizationFailure::kInvalidSecurePrefix:
         return "kInvalidSecurePrefix";
+      case CanonicalCookie::CanonicalizationFailure::kInvalidHttpPrefix:
+        return "kInvalidHttpPrefix";
+      case CanonicalCookie::CanonicalizationFailure::kInvalidHostHttpPrefix:
+        return "kInvalidHostHttpPrefix";
       case CanonicalCookie::CanonicalizationFailure::kEmptyNameWithHiddenPrefix:
         return "kEmptyNameWithHiddenPrefix";
       case CanonicalCookie::CanonicalizationFailure::kPartitionedInsecure:

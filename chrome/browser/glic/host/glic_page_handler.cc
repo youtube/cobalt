@@ -24,7 +24,6 @@
 #include "base/uuid.h"
 #include "base/version_info/version_info.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/aggregated_journal.h"
 #include "chrome/browser/actor/aggregated_journal_file_serializer.h"
@@ -33,9 +32,7 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_features.h"
 #include "chrome/browser/enterprise/browser_management/management_service_factory.h"
-#include "chrome/browser/feedback/feedback_uploader_chrome.h"
-#include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
-#include "chrome/browser/feedback/system_logs/chrome_system_logs_fetcher.h"
+#include "chrome/browser/glic/actor/glic_actor_policy_checker.h"
 #include "chrome/browser/glic/common/future_browser_features.h"
 #include "chrome/browser/glic/fre/fre_util.h"
 #include "chrome/browser/glic/glic_metrics.h"
@@ -48,6 +45,7 @@
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/glic/host/glic_annotation_manager.h"
 #include "chrome/browser/glic/host/glic_features.mojom.h"
+#include "chrome/browser/glic/host/glic_skills_manager.h"
 #include "chrome/browser/glic/host/glic_synthetic_trial_manager.h"
 #include "chrome/browser/glic/host/glic_web_client_access.h"
 #include "chrome/browser/glic/host/guest_util.h"
@@ -98,6 +96,7 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "components/sessions/core/session_id.h"
 #include "components/signin/public/identity_manager/identity_manager.h"
+#include "components/sync/protocol/skill_specifics.pb.h"
 #include "components/tabs/public/tab_interface.h"
 #include "content/public/browser/devtools_agent_host.h"
 #include "content/public/browser/web_contents.h"
@@ -116,6 +115,9 @@
 #include "ui/views/widget/widget.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/feedback/feedback_uploader_chrome.h"
+#include "chrome/browser/feedback/feedback_uploader_factory_chrome.h"
+#include "chrome/browser/feedback/system_logs/chrome_system_logs_fetcher.h"
 #include "chrome/browser/glic/glic_hotkey.h"
 #include "chrome/browser/glic/host/context/glic_focused_browser_manager.h"
 #include "chrome/browser/skills/skills_service_factory.h"
@@ -188,14 +190,16 @@ GlicUnpinTrigger FromMojomUnpinTrigger(mojom::UnpinTrigger trigger) {
 // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only restrictions
 // from Skills backend.
 #if !BUILDFLAG(IS_ANDROID)
-mojom::SkillSource ToMojomSkillSource(skills::SkillSource source) {
+mojom::SkillSource ToMojomSkillSource(sync_pb::SkillSource source) {
   switch (source) {
-    case skills::SkillSource::kUnknown:
+    case sync_pb::SkillSource::SKILL_SOURCE_UNKNOWN:
       return mojom::SkillSource::kUnknown;
-    case skills::SkillSource::kFirstParty:
+    case sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY:
       return mojom::SkillSource::kFirstParty;
-    case skills::SkillSource::kUserCreated:
+    case sync_pb::SkillSource::SKILL_SOURCE_USER_CREATED:
       return mojom::SkillSource::kUserCreated;
+    case sync_pb::SkillSource::SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY:
+      return mojom::SkillSource::kDerivedFromFirstParty;
   }
 }
 
@@ -204,7 +208,21 @@ mojom::SkillPreviewPtr ToMojomSkillPreview(const skills::Skill* skill) {
     return nullptr;
   }
   return mojom::SkillPreview::New(skill->id, skill->name, skill->icon,
-                                  ToMojomSkillSource(skill->source));
+                                  ToMojomSkillSource(skill->source),
+                                  skill->description);
+}
+
+sync_pb::SkillSource FromMojomSkillSource(mojom::SkillSource source) {
+  switch (source) {
+    case mojom::SkillSource::kUnknown:
+      return sync_pb::SkillSource::SKILL_SOURCE_UNKNOWN;
+    case mojom::SkillSource::kFirstParty:
+      return sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY;
+    case mojom::SkillSource::kUserCreated:
+      return sync_pb::SkillSource::SKILL_SOURCE_USER_CREATED;
+    case mojom::SkillSource::kDerivedFromFirstParty:
+      return sync_pb::SkillSource::SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY;
+  }
 }
 #endif  // !BUILDFLAG(IS_ANDROID)
 
@@ -421,8 +439,6 @@ class DebouncerDeduper {
   glic::mojom::FocusedTabDataPtr next_data_candidate_;
 };
 
-// NEEDS_ANDROID_IMPL: Temporary to make glic build on Android.
-#if !BUILDFLAG(IS_ANDROID)
 const char kGlicActorJournalLog[] = "glic-actor-journal";
 // Class that encapsulates interacting with the actor journal.
 class JournalHandler {
@@ -546,6 +562,8 @@ class JournalHandler {
 
  private:
   void SendResponseFeedback(const std::string& reason) {
+// NEEDS_ANDROID_IMPL: FeedbackUploaderFactoryChrome
+#if !BUILDFLAG(IS_ANDROID)
     base::WeakPtr<feedback::FeedbackUploader> uploader =
         feedback::FeedbackUploaderFactoryChrome::GetForBrowserContext(
             actor_keyed_service_->GetProfile())
@@ -588,6 +606,7 @@ class JournalHandler {
               feedback_data->OnFeedbackPageDataComplete();
             },
             std::move(feedback_data)));
+#endif
   }
 
   void FileInitDone(bool success) {
@@ -606,10 +625,10 @@ class JournalHandler {
       file_journal_serializer_;
   raw_ptr<actor::ActorKeyedService> actor_keyed_service_;
 };
-#endif
 
 mojom::ProfileEnablementPtr BuildProfileEnablement(
-    content::BrowserContext* browser_context) {
+    content::BrowserContext* browser_context,
+    const GlicActorPolicyChecker& actor_policy_checker) {
   Profile* profile = Profile::FromBrowserContext(browser_context);
   GlicEnabling::ProfileEnablement enablement =
       GlicEnabling::EnablementForProfile(profile);
@@ -627,13 +646,7 @@ mojom::ProfileEnablementPtr BuildProfileEnablement(
   result->not_consented = enablement.not_consented;
   result->live_disallowed = enablement.live_disallowed;
 
-#if BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
-  result->actuation_eligibility =
-      mojom::ActuationEligibility::kPlatformUnsupported;
-#else
-  using CannotActReason = actor::ActorPolicyChecker::CannotActReason;
-  actor::ActorPolicyChecker& actor_policy_checker =
-      actor::ActorKeyedService::Get(profile)->GetPolicyChecker();
+  using CannotActReason = GlicActorPolicyChecker::CannotActReason;
   if (actor_policy_checker.CanActOnWeb()) {
     result->actuation_eligibility = mojom::ActuationEligibility::kEligible;
   } else {
@@ -658,7 +671,6 @@ mojom::ProfileEnablementPtr BuildProfileEnablement(
         NOTREACHED();
     }
   }
-#endif
 
   return result;
 }
@@ -699,12 +711,8 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
         browser_is_open_calculator_(profile_, this),
         receiver_(this, std::move(receiver)),
         annotation_manager_(
-            std::make_unique<GlicAnnotationManager>(glic_service_))
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
-        ,
-        journal_handler_(profile_)
-#endif
-  {
+            std::make_unique<GlicAnnotationManager>(glic_service_)),
+        journal_handler_(profile_) {
     active_state_calculator_.AddObserver(this);
   }
 
@@ -854,14 +862,15 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
             actor_service->AddTaskStateChangedCallback(base::BindRepeating(
                 &GlicWebClientHandler::NotifyActorTaskStateChanged,
                 base::Unretained(this)));
-        // CallbackListSubscription prevents these callbacks from being invoked
-        // when this object is destructed.
-        act_on_web_capability_changed_subscription_ =
-            actor_service->AddActOnWebCapabilityChangedCallback(
-                base::BindRepeating(
-                    &GlicWebClientHandler::NotifyActOnWebCapabilityChanged,
-                    base::Unretained(this)));
       }
+
+      // CallbackListSubscription prevents these callbacks from being invoked
+      // when this object is destructed.
+      act_on_web_capability_changed_subscription_ =
+          glic_service_->AddActOnWebCapabilityChangedCallback(
+              base::BindRepeating(
+                  &GlicWebClientHandler::NotifyActOnWebCapabilityChanged,
+                  base::Unretained(this)));
     }
 
     // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only
@@ -975,13 +984,10 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     state->enable_capture_region =
         base::FeatureList::IsEnabled(features::kGlicCaptureRegion);
     state->can_act_on_web = false;
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
     if (base::FeatureList::IsEnabled(features::kGlicActor)) {
-      if (auto* actor_service = actor::ActorKeyedService::Get(profile_)) {
-        state->can_act_on_web = actor_service->GetPolicyChecker().CanActOnWeb();
-      }
+      state->can_act_on_web =
+          glic_service_->actor_policy_checker().CanActOnWeb();
     }
-#endif
     state->enable_activate_tab = base::FeatureList::IsEnabled(
         glic::mojom::features::kGlicActivateTabApi);
     state->enable_get_tab_by_id =
@@ -1338,19 +1344,17 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
           "CreateSkill cannot be called without Skills enabled.");
       return;
     }
-    const auto& ftd = sharing_manager().GetFocusedTabData();
-    tabs::TabInterface* tab = ftd.focus() ? ftd.focus() : ftd.unfocused_tab();
-    if (!tab) {
-      return;
-    }
-    if (auto* controller = skills::SkillsUiTabControllerInterface::From(tab)) {
-      // Pass empty strings for id, name, and icon.
-      skills::Skill skill(/*id=*/"",
-                          /*name=*/"",
-                          /*icon=*/"", request->prompt);
-      controller->ShowDialog(skill);
-      std::move(scoped_callback).Run(true);
-    }
+    // There are three scenarios:
+    // 1. Users click the + button in the / menu: no field is set.
+    // 2. Users click the save as a skill button: only prompt is set.
+    // 3. Users edit a 1P skill: all fields are set.
+    // TODO(https://crbug.com/479950619): consider using mojom source enum
+    // directly in skills::Skill..
+    skills::Skill skill(request->id, request->name, request->icon,
+                        request->prompt, request->description,
+                        FromMojomSkillSource(request->source));
+    host().skills_manager().LaunchSkillsDialog(profile_, std::move(skill),
+                                               std::move(scoped_callback));
 #else
     receiver_.ReportBadMessage("CreateSkill isn't supported on Android.");
 #endif  //  !BUILDFLAG(IS_ANDROID)
@@ -1361,14 +1365,22 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only restrictions
 // from Skills backend.
 #if !BUILDFLAG(IS_ANDROID)
+    auto scoped_callback =
+        mojo::WrapCallbackWithDefaultInvokeIfNotRun(std::move(callback), false);
+
     if (!base::FeatureList::IsEnabled(features::kSkillsEnabled)) {
       receiver_.ReportBadMessage(
           "UpdateSkill cannot be called without Skills enabled.");
       return;
     }
-    // TODO(crbug.com/471796872): Add the actual implementation.
-    NOTIMPLEMENTED();
-    std::move(callback).Run(true);
+    // Get skill by ID from the SkillsService.
+    skills::SkillsService* skills_service =
+        skills::SkillsServiceFactory::GetForProfile(profile_);
+    if (const skills::Skill* skill =
+            skills_service->GetSkillById(request->id)) {
+      host().skills_manager().LaunchSkillsDialog(profile_, *skill,
+                                                 std::move(scoped_callback));
+    }
 #else
     receiver_.ReportBadMessage("UpdateSkill isn't supported on Android.");
 #endif  //  !BUILDFLAG(IS_ANDROID)
@@ -1633,57 +1645,41 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
                           int32_t task_id,
                           const std::string& event,
                           const std::string& details) override {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
     journal_handler_.LogBeginAsyncEvent(event_async_id, task_id, event,
                                         details);
-#endif
   }
 
   void LogEndAsyncEvent(uint64_t event_async_id,
                         const std::string& details) override {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
     journal_handler_.LogEndAsyncEvent(event_async_id, details);
-#endif
   }
 
   void LogInstantEvent(int32_t task_id,
                        const std::string& event,
                        const std::string& details) override {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
     journal_handler_.LogInstantEvent(task_id, event, details);
-#endif
   }
 
   void JournalClear() override {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
     journal_handler_.Clear();
-#endif
   }
 
   void JournalSnapshot(bool clear_journal,
                        JournalSnapshotCallback callback) override {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
     journal_handler_.Snapshot(clear_journal, std::move(callback));
-#endif
   }
 
   void JournalStart(uint64_t max_bytes, bool capture_screenshots) override {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
     journal_handler_.Start(max_bytes, capture_screenshots);
-#endif
   }
 
   void JournalStop() override {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
     journal_handler_.Stop();
-#endif
   }
 
   void JournalRecordFeedback(bool positive,
                              const std::string& reason) override {
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL: needs actor service
     journal_handler_.RecordFeedback(positive, reason);
-#endif
   }
 
   // TODO(crbug.com/450026474): Remove call to GlicMetrics once
@@ -2050,10 +2046,11 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     }
   }
 
-  void OnInitialized() override {
+  void OnStatusChanged() override {
     if (!web_client_) {
       return;
     }
+    host().skills_manager().UpdateSkillPreviews(std::nullopt);
     web_client_->NotifySkillPreviewsChanged(GetSkillPreviewsList());
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
@@ -2294,6 +2291,11 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
 // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only restrictions
 // from Skills backend.
 #if !BUILDFLAG(IS_ANDROID)
+    glic::mojom::SkillPtr contextual_skill =
+        host().skills_manager().GetContextualSkill(skill_id);
+    if (contextual_skill) {
+      return contextual_skill;
+    }
     if (!skills_service_) {
       return nullptr;
     }
@@ -2301,7 +2303,14 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
     if (!skill) {
       return nullptr;
     }
-    return mojom::Skill::New(ToMojomSkillPreview(skill), skill->prompt);
+    // We should only set the source_skill_id if the skill was derived from
+    // another skill.
+    return mojom::Skill::New(
+        ToMojomSkillPreview(skill), skill->prompt,
+        skill->source ==
+                sync_pb::SkillSource::SKILL_SOURCE_DERIVED_FROM_FIRST_PARTY
+            ? skill->source_skill_id
+            : std::string());
 #else
     return nullptr;
 #endif  //  !BUILDFLAG(IS_ANDROID)
@@ -2349,9 +2358,7 @@ class GlicWebClientHandler : public glic::mojom::WebClientHandler,
   const std::unique_ptr<GlicAnnotationManager> annotation_manager_;
   std::unique_ptr<system_permission_settings::ScopedObservation>
       system_permission_settings_observation_;
-#if !BUILDFLAG(IS_ANDROID)  // NEEDS_ANDROID_IMPL
   JournalHandler journal_handler_;
-#endif
   std::unique_ptr<DebouncerDeduper> debouncer_deduper_;
   std::unique_ptr<PageMetadataManager> page_metadata_manager_;
 // NEEDS_ANDROID_IMPL: (crbug.com/477622144) Remove desktop-only restrictions
@@ -2502,15 +2509,35 @@ void GlicPageHandler::GetInternalsDataPayload(
     GetInternalsDataPayloadCallback callback) {
   mojom::InternalsDataPayloadPtr payload = mojom::InternalsDataPayload::New();
 
-  payload->enablement = BuildProfileEnablement(browser_context_);
+  payload->enablement = BuildProfileEnablement(
+      browser_context_, GetGlicService()->actor_policy_checker());
 
   mojom::ConfigInfoPtr config = mojom::ConfigInfo::New();
-  Profile* profile = Profile::FromBrowserContext(browser_context_);
-  config->guest_url = GetGuestURL(profile);
-  config->fre_guest_url = GetFreURL(profile);
+  config->guest_url = GetGuestURL();
+  config->fre_guest_url =
+      GetFreURL(Profile::FromBrowserContext(browser_context_));
+
+  config->autopush_guest_url = GURL(g_browser_process->local_state()->GetString(
+      prefs::kGlicGuestUrlPresetAutopush));
+  config->preprod_guest_url = GURL(g_browser_process->local_state()->GetString(
+      prefs::kGlicGuestUrlPresetPreprod));
+  config->prod_guest_url = GURL(g_browser_process->local_state()->GetString(
+      prefs::kGlicGuestUrlPresetProd));
+
   payload->config = std::move(config);
 
   std::move(callback).Run(std::move(payload));
+}
+
+void GlicPageHandler::SetGuestUrlPresets(const GURL& autopush_url,
+                                         const GURL& preprod_url,
+                                         const GURL& prod_url) {
+  g_browser_process->local_state()->SetString(
+      prefs::kGlicGuestUrlPresetAutopush, autopush_url.spec());
+  g_browser_process->local_state()->SetString(prefs::kGlicGuestUrlPresetPreprod,
+                                              preprod_url.spec());
+  g_browser_process->local_state()->SetString(prefs::kGlicGuestUrlPresetProd,
+                                              prod_url.spec());
 }
 
 void GlicPageHandler::PanelStateChanged(

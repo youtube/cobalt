@@ -12,9 +12,11 @@ import static org.junit.Assert.assertThrows;
 import static org.junit.Assert.assertTrue;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.CHROME_COLORS;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationCoordinator.BottomSheetType.THEME;
@@ -54,10 +56,11 @@ import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.ntp_customization.BottomSheetDelegate;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
-import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.R;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo.NtpThemeColorId;
 import org.chromium.chrome.browser.ntp_customization.theme.upload_image.BackgroundImageInfo;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.ui.modelutil.PropertyModel;
 
 /** Unit tests for {@link NtpChromeColorsCoordinator}. */
@@ -78,6 +81,7 @@ public class NtpChromeColorsCoordinatorUnitTest {
     private PropertyModel mPropertyModel;
     private Context mContext;
     private View mBottomSheetView;
+    @Mock private BottomSheetController mBottomSheetController;
 
     @Before
     public void setUp() {
@@ -88,6 +92,7 @@ public class NtpChromeColorsCoordinatorUnitTest {
         NtpCustomizationUtils.resetSharedPreferenceForTesting();
         mNtpCustomizationConfigManager = new NtpCustomizationConfigManager();
         NtpCustomizationConfigManager.setInstanceForTesting(mNtpCustomizationConfigManager);
+        when(mBottomSheetDelegate.getBottomSheetController()).thenReturn(mBottomSheetController);
 
         createCoordinator();
     }
@@ -346,7 +351,7 @@ public class NtpChromeColorsCoordinatorUnitTest {
                 NtpThemeColorUtils.createNtpThemeColorInfo(mContext, colorId1);
 
         mNtpCustomizationConfigManager.onBackgroundColorChanged(
-                mContext, colorInfo, NtpBackgroundImageType.CHROME_COLOR);
+                mContext, colorInfo, NtpBackgroundType.CHROME_COLOR);
 
         createCoordinator();
         assertEquals(
@@ -453,7 +458,7 @@ public class NtpChromeColorsCoordinatorUnitTest {
                 NtpThemeColorUtils.createNtpThemeColorInfo(
                         mContext, NtpThemeColorInfo.NtpThemeColorId.NTP_COLORS_BLUE);
         mNtpCustomizationConfigManager.onBackgroundColorChanged(
-                mContext, colorInfo, NtpBackgroundImageType.CHROME_COLOR);
+                mContext, colorInfo, NtpBackgroundType.CHROME_COLOR);
 
         createCoordinator();
         // Verifies the primary color of the chrome color bottom sheet matches the current color
@@ -484,9 +489,7 @@ public class NtpChromeColorsCoordinatorUnitTest {
     @Test
     public void testPrepareToShow() {
         assertFalse(mPropertyModel.get(NtpChromeColorsProperties.IS_DAILY_REFRESH_SWITCH_CHECKED));
-        assertEquals(
-                NtpBackgroundImageType.DEFAULT,
-                mNtpCustomizationConfigManager.getBackgroundImageType());
+        assertEquals(NtpBackgroundType.DEFAULT, mNtpCustomizationConfigManager.getBackgroundType());
 
         // When no customized theme is selected, verifies that the Chrome color bottom sheet is
         // opened with daily refresh toggle turned off and no highlighted Chrome color item.
@@ -501,7 +504,7 @@ public class NtpChromeColorsCoordinatorUnitTest {
                         mContext, NtpThemeColorInfo.NtpThemeColorId.NTP_COLORS_BLUE);
         int expectedPosition = NtpThemeColorId.NTP_COLORS_BLUE - 1;
         mNtpCustomizationConfigManager.onBackgroundColorChanged(
-                mContext, colorInfo, NtpBackgroundImageType.CHROME_COLOR);
+                mContext, colorInfo, NtpBackgroundType.CHROME_COLOR);
 
         // Verifies that the Chrome color bottom sheet is opened with highlighted item.
         verifyIsDailyRefreshCheckedState(
@@ -559,7 +562,10 @@ public class NtpChromeColorsCoordinatorUnitTest {
 
         mCoordinator =
                 new NtpChromeColorsCoordinator(
-                        mContext, mBottomSheetDelegate, mOnChromeColorSelectedCallback);
+                        mContext,
+                        mBottomSheetDelegate,
+                        mOnChromeColorSelectedCallback,
+                        mock(Runnable.class));
         mCoordinator.prepareToShow();
 
         ArgumentCaptor<View> viewCaptor = ArgumentCaptor.forClass(View.class);

@@ -56,6 +56,9 @@ class WebIdlDiffToolTest(unittest.TestCase):
         ('mojo_private.idl', 'mojo_private.webidl'),
         ('networking_onc.idl', 'networking_onc.webidl'),
         ('networking_private.idl', 'networking_private.webidl'),
+        ('offscreen.idl', 'offscreen.webidl'),
+        ('power.idl', 'power.webidl'),
+        ('serial.idl', 'serial.webidl'),
     ]
     # LoadAndReturnUnifiedDiff expects file paths relative to the repo root.
     converted_schema_path = 'tools/json_schema_compiler/test/converted_schemas/'

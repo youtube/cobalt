@@ -29,6 +29,14 @@ export default {
     /*  Stylistic chceks. */
 
     'block-no-empty': true,
+
+    // https://google.github.io/styleguide/htmlcssguide.html#Rule_Separation
+    'rule-empty-line-before': [
+      'always', {
+        'ignore': ['after-comment', 'first-nested', 'inside-block'],
+      },
+    ],
+
     '@stylistic/no-missing-end-of-source-newline': true,
 
     // https://google.github.io/styleguide/htmlcssguide.html#CSS_Quotation_Marks
@@ -40,6 +48,7 @@ export default {
     '@stylistic/declaration-block-semicolon-space-before': 'never',
     '@stylistic/declaration-block-trailing-semicolon': 'always',
     '@stylistic/no-extra-semicolons': true,
+    '@stylistic/selector-list-comma-newline-after': 'always',
 
     // https://google.github.io/styleguide/htmlcssguide.html#Property_Name_Stops
     '@stylistic/media-feature-colon-space-after': 'always',

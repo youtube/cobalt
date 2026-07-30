@@ -648,8 +648,9 @@ TabListInterface* InProcessBrowserTest::GetTabListInterface() const {
 
 void InProcessBrowserTest::CloseBrowserSynchronously(
     BrowserWindowInterface* browser) {
+  ui_test_utils::BrowserDestroyedObserver observer(browser);
   CloseBrowserAsynchronously(browser);
-  ui_test_utils::WaitForBrowserToClose(browser);
+  observer.Wait();
 }
 
 void InProcessBrowserTest::CloseBrowserAsynchronously(
@@ -677,7 +678,7 @@ void InProcessBrowserTest::RunUntilBrowserProcessQuits() {
 
 // TODO(alexmos): This function should expose success of the underlying
 // navigation to tests, which should make sure navigations succeed when
-// appropriate. See https://crbug.com/425335
+// appropriate. See https://crbug.com/40390083
 bool InProcessBrowserTest::AddTabAtIndexToBrowser(
     BrowserWindowInterface* browser,
     int index,

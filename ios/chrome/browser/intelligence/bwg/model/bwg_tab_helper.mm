@@ -25,6 +25,8 @@
 #import "components/prefs/pref_service.h"
 #import "components/prefs/scoped_user_pref_update.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service.h"
+#import "ios/chrome/browser/intelligence/bwg/model/bwg_service_factory.h"
 #import "ios/chrome/browser/intelligence/bwg/model/bwg_snapshot_utils.h"
 #import "ios/chrome/browser/intelligence/bwg/model/gemini_page_context.h"
 #import "ios/chrome/browser/intelligence/bwg/ui/gemini_ui_utils.h"
@@ -44,16 +46,10 @@
 #import "ios/chrome/browser/shared/public/commands/bwg_commands.h"
 #import "ios/chrome/browser/shared/public/commands/help_commands.h"
 #import "ios/chrome/browser/shared/public/commands/location_bar_badge_commands.h"
-#import "ios/chrome/browser/shared/public/commands/snackbar_commands.h"
-#import "ios/chrome/browser/shared/public/snackbar/snackbar_message.h"
-#import "ios/chrome/browser/shared/public/snackbar/snackbar_message_action.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/snapshots/model/snapshot_tab_helper.h"
-#import "ios/chrome/browser/web/model/image_fetch/image_fetch_tab_helper.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/public/provider/chrome/browser/bwg/bwg_api.h"
-#import "ios/web/public/js_messaging/web_frame.h"
-#import "ios/web/public/js_messaging/web_frames_manager.h"
 #import "ios/web/public/navigation/navigation_context.h"
 #import "ios/web/public/web_state.h"
 #import "mojo/public/cpp/bindings/remote.h"
@@ -278,8 +274,10 @@ void BwgTabHelper::SetContextualCueLabel(NSString* cue_label) {
 
 GeminiPageContext* BwgTabHelper::GetPartialPageContext() {
   GeminiPageContext* gemini_page_context = [[GeminiPageContext alloc] init];
-  gemini_page_context.BWGPageContextComputationState =
-      ios::provider::BWGPageContextComputationState::kPending;
+  // TODO(crbug.com/467341090): Remove the chain assignment after the migration.
+  gemini_page_context.geminiPageContextComputationState =
+      gemini_page_context.BWGPageContextComputationState =
+          ios::provider::BWGPageContextComputationState::kPending;
   gemini_page_context.favicon = current_favicon_;
 
   std::unique_ptr<optimization_guide::proto::PageContext> page_context =
@@ -383,11 +381,6 @@ void BwgTabHelper::SetHelpCommandsHandler(id<HelpCommands> handler) {
   help_commands_handler_ = handler;
 }
 
-void BwgTabHelper::SetSnackbarCommandsHandler(id<SnackbarCommands> handler) {
-  CHECK(IsWebPageReportedImagesSheetEnabled());
-  snackbar_commands_handler_ = handler;
-}
-
 void BwgTabHelper::SetLocationBarBadgeCommandsHandler(
     id<LocationBarBadgeCommands> handler) {
   location_bar_badge_commands_handler_ = handler;
@@ -460,7 +453,11 @@ void BwgTabHelper::DidStartNavigation(
 
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
-  if (profile->GetPrefs()->GetBoolean(prefs::kIOSBWGPageContentSetting)) {
+  raw_ptr<BwgService> bwg_service = BwgServiceFactory::GetForProfile(profile);
+  const bool gemini_available =
+      bwg_service && bwg_service->IsBwgAvailableForWebState(web_state_);
+  if (gemini_available &&
+      profile->GetPrefs()->GetBoolean(prefs::kIOSBWGPageContentSetting)) {
     bool can_request_metadata =
         optimization_guide::IsUserPermittedToFetchFromRemoteOptimizationGuide(
             profile->IsOffTheRecord(), profile->GetPrefs());
@@ -469,7 +466,8 @@ void BwgTabHelper::DidStartNavigation(
           new_url_without_ref,
           optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS,
           base::BindOnce(&BwgTabHelper::OnGeminiEligibilityDecision,
-                         weak_ptr_factory_.GetWeakPtr(), new_url_without_ref));
+                         weak_ptr_factory_.GetWeakPtr(), new_url_without_ref,
+                         can_request_metadata));
     } else {
       optimization_guide_decider_->CanApplyOptimizationOnDemand(
           {new_url_without_ref},
@@ -535,10 +533,6 @@ void BwgTabHelper::PageLoaded(
     web::PageLoadCompletionStatus load_completion_status) {
   if (page_loaded_callback_) {
     std::move(page_loaded_callback_).Run();
-  }
-
-  if (IsWebPageReportedImagesSheetEnabled()) {
-    PrepareWebPageReportedImagesSnackbar();
   }
 }
 
@@ -771,6 +765,7 @@ bool BwgTabHelper::ComputeGeminiEligibility(
 
 void BwgTabHelper::OnGeminiEligibilityDecision(
     const GURL& url_without_ref,
+    bool user_enabled_request_metadata,
     optimization_guide::OptimizationGuideDecision decision,
     const optimization_guide::OptimizationMetadata& metadata) {
   // The URL has changed so the metadata is obsolete.
@@ -786,6 +781,7 @@ void BwgTabHelper::OnGeminiEligibilityDecision(
   ProfileIOS* profile =
       ProfileIOS::FromBrowserState(web_state_->GetBrowserState());
   if (eligible && IsGeminiImageRemixToolEnabled() &&
+      user_enabled_request_metadata &&
       feature_engagement::TrackerFactory::GetForProfile(profile)
           ->WouldTriggerHelpUI(
               feature_engagement::kIPHiOSGeminiImageRemixFeature) &&
@@ -804,13 +800,18 @@ void BwgTabHelper::OnGeminiEligibilityOnDemandDecision(
       decisions.find(optimization_guide::proto::GLIC_ZERO_STATE_SUGGESTIONS);
   if (it == decisions.end()) {
     // If the optimization type is missing, treat it as kTrue.
+    // On demand decisions are made for users who have not enabled metadata
+    // requests (MSBB).
     OnGeminiEligibilityDecision(
-        url_without_ref, optimization_guide::OptimizationGuideDecision::kTrue,
+        url_without_ref, false,
+        optimization_guide::OptimizationGuideDecision::kTrue,
         optimization_guide::OptimizationMetadata());
     return;
   }
 
-  OnGeminiEligibilityDecision(url_without_ref, it->second.decision,
+  // On demand decisions are made for users who have not enabled metadata
+  // requests (MSBB).
+  OnGeminiEligibilityDecision(url_without_ref, false, it->second.decision,
                               it->second.metadata);
 }
 
@@ -840,147 +841,4 @@ void BwgTabHelper::ParseSuggestionsResponse(
 
   std::move(callback).Run(ZeroStateSuggestionsAsNSArray(
       zero_state_suggestions_->suggestions.value()));
-}
-
-// TODO(crbug.com/456782848): Cleanup when no longer needed/wanted.
-#pragma mark - Experimental. Do not use in production code.
-
-// TODO(crbug.com/456782848): Cleanup when no longer needed/wanted.
-void BwgTabHelper::PrepareWebPageReportedImagesSnackbar() {
-  if (!IsWebPageReportedImagesSheetEnabled() || !web_state_) {
-    return;
-  }
-
-  web::WebFrame* main_frame =
-      web_state_->GetPageWorldWebFramesManager()->GetMainWebFrame();
-
-  if (!main_frame) {
-    return;
-  }
-
-  // Extract the OG image.
-  main_frame->ExecuteJavaScript(
-      u"(() => {"
-      u"return document.querySelector('meta[property=\"og:image\"]')?.content;"
-      u"})()",
-      base::BindOnce(&BwgTabHelper::OnImageExtractedFromWebState,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-// TODO(crbug.com/456782848): Cleanup when no longer needed/wanted.
-void BwgTabHelper::OnImageExtractedFromWebState(const base::Value* value,
-                                                NSError* error) {
-  if (!IsWebPageReportedImagesSheetEnabled() || !web_state_) {
-    return;
-  }
-
-  if (error) {
-    DLOG(WARNING) << "Failed to fetch og:image."
-                  << base::SysNSStringToUTF8([error localizedDescription]);
-    return;
-  }
-
-  // Skip to the last step if no og:image was found.
-  if (!value || !value->is_string()) {
-    OnImageTranscoded(nil, nil);
-    return;
-  }
-
-  // Fetch the image bytes.
-  ImageFetchTabHelper* image_fetcher =
-      ImageFetchTabHelper::FromWebState(web_state_.get());
-  const GURL& lastCommittedURL = web_state_->GetLastCommittedURL();
-  web::Referrer referrer(lastCommittedURL, web::ReferrerPolicyDefault);
-
-  if (!image_fetcher) {
-    return;
-  }
-
-  image_fetcher->GetImageData(
-      GURL(value->GetString()), referrer,
-      base::CallbackToBlock(base::BindOnce(&BwgTabHelper::OnImageFetched,
-                                           weak_ptr_factory_.GetWeakPtr())));
-}
-
-// TODO(crbug.com/456782848): Cleanup when no longer needed/wanted.
-void BwgTabHelper::OnImageFetched(NSData* data) {
-  if (!IsWebPageReportedImagesSheetEnabled() || !web_state_ || !data) {
-    return;
-  }
-
-  image_transcoder_ = std::make_unique<web::JavaScriptImageTranscoder>();
-  image_transcoder_->TranscodeImage(
-      data, @"image/png", nil, nil, nil,
-      base::BindOnce(&BwgTabHelper::OnImageTranscoded,
-                     weak_ptr_factory_.GetWeakPtr()));
-}
-
-// TODO(crbug.com/456782848): Cleanup when no longer needed/wanted.
-void BwgTabHelper::OnImageTranscoded(NSData* png_data, NSError* error) {
-  image_transcoder_ = nullptr;
-  if (!IsWebPageReportedImagesSheetEnabled() || !web_state_) {
-    return;
-  }
-
-  if (error) {
-    DLOG(WARNING) << "Failed to transcode og:image."
-                  << base::SysNSStringToUTF8([error localizedDescription]);
-    return;
-  }
-
-  UIWindow* web_state_window = web_state_->GetView().window;
-  UIViewController* parentVC = web_state_window.rootViewController;
-  ProceduralBlock present_sheet = ^{
-    if (!parentVC) {
-      return;
-    }
-
-    // Create the presentation sheet.
-    UIViewController* sheet = [[UIViewController alloc] init];
-    sheet.view.backgroundColor = [UIColor blackColor];
-
-    // Prepare the image if it exists.
-    UIImage* image = nil;
-    if (png_data) {
-      image = [UIImage imageWithData:png_data];
-      UIImageView* imageView = [[UIImageView alloc] initWithImage:image];
-      imageView.contentMode = UIViewContentModeScaleAspectFit;
-      imageView.frame = sheet.view.bounds;
-      imageView.autoresizingMask =
-          UIViewAutoresizingFlexibleWidth | UIViewAutoresizingFlexibleHeight;
-      [sheet.view addSubview:imageView];
-    }
-
-    // Prepare the label and its constraints.
-    NSString* labelText =
-        image ? [NSString stringWithFormat:@"og:image %.0fw x %.0fh",
-                                           image.size.width, image.size.height]
-              : @"no og:image reported";
-    UILabel* label = [[UILabel alloc] init];
-    label.text = labelText;
-    label.font = [UIFont boldSystemFontOfSize:16];
-    label.textColor = [UIColor whiteColor];
-    label.backgroundColor = [[UIColor blackColor] colorWithAlphaComponent:0.6];
-    label.translatesAutoresizingMaskIntoConstraints = NO;
-    [sheet.view addSubview:label];
-    [NSLayoutConstraint activateConstraints:@[
-      [label.centerXAnchor constraintEqualToAnchor:sheet.view.centerXAnchor],
-      [label.topAnchor
-          constraintEqualToAnchor:sheet.view.safeAreaLayoutGuide.topAnchor],
-    ]];
-
-    [parentVC presentViewController:sheet animated:YES completion:nil];
-  };
-
-  // Show a snackbar which shows a sheet as action.
-  SnackbarMessage* message = [[SnackbarMessage alloc]
-      initWithTitle:png_data ? @"og:image detected" : @"No og:image detected"];
-  if (png_data) {
-    SnackbarMessageAction* action = [[SnackbarMessageAction alloc] init];
-    action.handler = present_sheet;
-    action.title = @"View image";
-    message.action = action;
-  }
-
-  [snackbar_commands_handler_ showSnackbarMessage:message];
 }

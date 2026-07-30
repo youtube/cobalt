@@ -54,6 +54,7 @@
 #include "chrome/common/chrome_features.h"
 #include "components/optimization_guide/content/browser/page_content_proto_provider.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
+#include "components/password_manager/core/browser/features/password_features.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/web_contents.h"
 #include "ui/base/window_open_disposition.h"
@@ -61,6 +62,12 @@
 #if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_finder.h"
+#else
+#include "chrome/browser/ui/android/tab_model/tab_model.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
+#include "components/tabs/public/tab_interface.h"
 #endif
 
 namespace actor {
@@ -492,7 +499,40 @@ std::unique_ptr<ToolRequest> CreateAttemptLoginRequest(
     return nullptr;
   }
 
-  return std::make_unique<AttemptLoginToolRequest>(tab_handle);
+  std::optional<PageTarget> password_button;
+  std::optional<PageTarget> sign_in_with_google_button;
+  if (base::FeatureList::IsEnabled(
+          password_manager::features::kActorLoginFederatedLoginSupport)) {
+    for (const auto& login_target : action.login_targets()) {
+      if (!login_target.has_login_type() || !login_target.has_target()) {
+        return nullptr;
+      }
+
+      std::optional<PageTarget> target = ToPageTarget(login_target.target());
+      if (!target) {
+        return nullptr;
+      }
+
+      switch (login_target.login_type()) {
+        case optimization_guide::proto::
+            AttemptLoginAction_LoginTarget_LoginType_PASSWORD_FORM_SUBMIT:
+          password_button = target;
+          break;
+        case optimization_guide::proto::
+            AttemptLoginAction_LoginTarget_LoginType_FEDERATED_GOOGLE_SIGNIN:
+          sign_in_with_google_button = target;
+          break;
+        default:
+          // We ignore unknown types and proceed to attempt login with the
+          // options we do understand. For example, maybe a future version of
+          // chrome supports another federated signin provider.
+          break;
+      }
+    }
+  }
+
+  return std::make_unique<AttemptLoginToolRequest>(tab_handle, password_button,
+                                                   sign_in_with_google_button);
 }
 #endif  // !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 
@@ -1073,6 +1113,37 @@ void BuildActionsResultWithObservations(
       window_observation->add_tab_ids(tab->GetHandle().raw_value());
     }
   }
+#else
+  // TODO(b/482430429): Use the same implementation in Desktop and Android once
+  // ProfileBrowserCollection is implemented on Android.
+  GlobalBrowserCollection* browser_collection =
+      GlobalBrowserCollection::GetInstance();
+  browser_collection->ForEach(
+      [&response, &profile](BrowserWindowInterface* browser) {
+        if (browser->GetProfile() != profile) {
+          return true;
+        }
+
+        apc::WindowObservation* window_observation = response->add_windows();
+        window_observation->set_id(browser->GetSessionID().id());
+        // Treat the first window as active.
+        window_observation->set_active(response->windows_size() == 1);
+
+        if (TabModel* tab_model =
+                static_cast<TabModel*>(TabListInterface::From(browser))) {
+          if (tabs::TabInterface* active_tab = tab_model->GetActiveTab()) {
+            window_observation->set_activated_tab_id(
+                active_tab->GetHandle().raw_value());
+          }
+
+          for (const tabs::TabInterface* tab : tab_model->GetAllTabs()) {
+            window_observation->add_tab_ids(tab->GetHandle().raw_value());
+          }
+        }
+
+        return true;
+      },
+      BrowserCollection::Order::kActivation);
 #endif
 
   absl::flat_hash_map<tabs::TabInterface*, apc::TabObservation*> tabs_to_fetch;

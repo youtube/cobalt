@@ -238,7 +238,9 @@ IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest, FirstActionIsntTabScoped) {
 class GlicActorWithActorDisabledUiTest : public test::InteractiveGlicTest {
  public:
   GlicActorWithActorDisabledUiTest() {
-    scoped_feature_list_.InitAndDisableFeature(features::kGlicActor);
+    scoped_feature_list_.InitWithFeatures(
+        /*enabled_features*/ {},
+        /*disabled_features*/ {features::kGlicActor, features::kGlicActorUi});
   }
   ~GlicActorWithActorDisabledUiTest() override = default;
 
@@ -454,6 +456,37 @@ IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest,
       // Creating a new task now should succeed.
       CreateTask(second_task_id, ""),
       Check([&](){return !second_task_id.is_null();})
+    );
+  // clang-format on
+}
+
+class GlicActorGeneralUiTestWithoutPolicyExemption
+    : public GlicActorGeneralUiTest {
+ public:
+  GlicActorGeneralUiTestWithoutPolicyExemption() {
+    scoped_feature_list_.InitWithFeaturesAndParameters(
+        /*enabled_features=*/{{features::kGlicActor,
+                               {{features::kGlicActorPolicyControlExemption
+                                     .name,
+                                 "false"}}}},
+        /*disabled_features=*/{});
+  }
+  ~GlicActorGeneralUiTestWithoutPolicyExemption() override = default;
+
+ private:
+  base::test::ScopedFeatureList scoped_feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTestWithoutPolicyExemption,
+                       CreateTaskFails) {
+  // clang-format off
+  RunTestSequence(
+      DeprecatedOpenGlicWindow(GlicWindowMode::kAttached),
+
+      // Since policy exemption isn't enabled creating a task should fail with
+      // the policy block reason.
+      CreateTask(task_id_, "",
+        mojom::CreateTaskErrorReason::kBlockedByPolicy)
     );
   // clang-format on
 }

@@ -190,19 +190,6 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
       GLint* values);
   bool GetQueryObjectValueHelper(
       const char* function_name, GLuint id, GLenum pname, GLuint64* params);
-  bool GetProgramInterfaceivHelper(
-      GLuint program, GLenum program_interface, GLenum pname, GLint* params);
-  GLuint GetProgramResourceIndexHelper(
-      GLuint program, GLenum program_interface, const char* name);
-  bool GetProgramResourceNameHelper(
-      GLuint program, GLenum program_interface, GLuint index, GLsizei bufsize,
-      GLsizei* length, char* name);
-  bool GetProgramResourceivHelper(
-      GLuint program, GLenum program_interface, GLuint index,
-      GLsizei prop_count, const GLenum* props, GLsizei bufsize, GLsizei* length,
-      GLint* params);
-  GLint GetProgramResourceLocationHelper(
-      GLuint program, GLenum program_interface, const char* name);
 
   const GLCapabilities& gl_capabilities() const { return gl_capabilities_; }
 
@@ -258,10 +245,13 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
 
   // Base class for mapped resources.
   struct MappedResource {
-    MappedResource(GLenum _access, int _shm_id, void* mem, unsigned int offset)
+    MappedResource(GLenum _access,
+                   int _shm_id,
+                   base::span<uint8_t> span,
+                   unsigned int offset)
         : access(_access),
           shm_id(_shm_id),
-          shm_memory(mem),
+          shm_memory(span),
           shm_offset(offset) {}
 
     // access mode. Currently only GL_WRITE_ONLY is valid
@@ -270,8 +260,8 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
     // Shared memory ID for buffer.
     int shm_id;
 
-    // Address of shared memory
-    raw_ptr<void> shm_memory;
+    // Shared memory buffer as a byte span.
+    base::raw_span<uint8_t> shm_memory;
 
     // Offset of shared memory
     unsigned int shm_offset;
@@ -279,20 +269,19 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
 
   // Used to track mapped textures.
   struct MappedTexture : public MappedResource {
-    MappedTexture(
-        GLenum access,
-        int shm_id,
-        void* shm_mem,
-        unsigned int shm_offset,
-        GLenum _target,
-        GLint _level,
-        GLint _xoffset,
-        GLint _yoffset,
-        GLsizei _width,
-        GLsizei _height,
-        GLenum _format,
-        GLenum _type)
-        : MappedResource(access, shm_id, shm_mem, shm_offset),
+    MappedTexture(GLenum access,
+                  int shm_id,
+                  base::span<uint8_t> span,
+                  unsigned int shm_offset,
+                  GLenum _target,
+                  GLint _level,
+                  GLint _xoffset,
+                  GLint _yoffset,
+                  GLsizei _width,
+                  GLsizei _height,
+                  GLenum _format,
+                  GLenum _type)
+        : MappedResource(access, shm_id, span, shm_offset),
           target(_target),
           level(_level),
           xoffset(_xoffset),
@@ -300,8 +289,7 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
           width(_width),
           height(_height),
           format(_format),
-          type(_type) {
-    }
+          type(_type) {}
 
     // These match the arguments to TexSubImage2D.
     GLenum target;
@@ -316,19 +304,17 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
 
   // Used to track mapped buffers.
   struct MappedBuffer : public MappedResource {
-    MappedBuffer(
-        GLenum access,
-        int shm_id,
-        void* shm_mem,
-        unsigned int shm_offset,
-        GLenum _target,
-        GLintptr _offset,
-        GLsizeiptr _size)
-        : MappedResource(access, shm_id, shm_mem, shm_offset),
+    MappedBuffer(GLenum access,
+                 int shm_id,
+                 base::span<uint8_t> span,
+                 unsigned int shm_offset,
+                 GLenum _target,
+                 GLintptr _offset,
+                 GLsizeiptr _size)
+        : MappedResource(access, shm_id, span, shm_offset),
           target(_target),
           offset(_offset),
-          size(_size) {
-    }
+          size(_size) {}
 
     // These match the arguments to BufferSubData.
     GLenum target;
@@ -729,14 +715,10 @@ class GLES2_IMPL_EXPORT GLES2Implementation : public GLES2Interface,
   GLuint current_program_;
 
   GLuint bound_array_buffer_;
-  GLuint bound_atomic_counter_buffer_;
   GLuint bound_copy_read_buffer_;
   GLuint bound_copy_write_buffer_;
-  GLuint bound_dispatch_indirect_buffer_;
-  GLuint bound_draw_indirect_buffer_;
   GLuint bound_pixel_pack_buffer_;
   GLuint bound_pixel_unpack_buffer_;
-  GLuint bound_shader_storage_buffer_;
   GLuint bound_transform_feedback_buffer_;
   GLuint bound_uniform_buffer_;
   // We don't cache the currently bound transform feedback buffer, because

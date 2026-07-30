@@ -30,11 +30,13 @@
 <translation id="1324107359134968521">Chromium are nevoie de acces la Bluetooth pentru a explora 
  Dispozitive Bluetooth. <ph name="IDS_SERIAL_DEVICE_CHOOSER_AUTHORIZE_BLUETOOTH_LINK" /></translation>
 <translation id="1330562121671411446">Identifică limba</translation>
+<translation id="1330742950061766891">Folosește setările recomandate pentru browserul Chromium</translation>
 <translation id="1342274909142618978">Șterge și datele din Chromium (<ph name="URL" />)</translation>
 <translation id="1345251407431278948">S-a fixat! Poți să accesezi din nou Căutarea de imagini folosind noul buton din bara de instrumente</translation>
 <translation id="1356661055722410047">Nou! Poți traduce atât textul, cât și imaginile de pe ecran</translation>
 <translation id="1383876407941801731">Caută</translation>
 <translation id="1397530502368084401">&amp;Gestionează profilurile Chromium</translation>
+<translation id="1404026649028693342">Afișează întotdeauna Modul AI</translation>
 <translation id="141901961143729572">Spune-ți părerea</translation>
 <translation id="1465192221147974788">Pentru a permite accesul la fereastră, permite înregistrarea ecranului pentru Chromium din Setări de sistem.</translation>
 <translation id="1478370723027452770">Primește ajutor pentru Chrome for Testing</translation>
@@ -91,6 +93,7 @@
 <translation id="2039417478970545937">Setări.</translation>
 <translation id="2049376729098081731">Alege dacă se include istoricul Chromium pentru experiențe mai personalizate în serviciile Google</translation>
 <translation id="2064856577282482477">Dă clic pe butonul Personalizează Chromium din pagina Filă nouă pentru a-i oferi browserului Chromium un nou aspect</translation>
+<translation id="2066690553719545730">Afișează întotdeauna Modul AI</translation>
 <translation id="2086476982681781442">Chromium a blocat descărcarea, deoarece fișierul este înșelător și poate face modificări neașteptate pe dispozitiv</translation>
 <translation id="208726765006323911">Vei vedea o solicitare de a încerca <ph name="FEATURE_NAME" /> data viitoare când deschizi Chromium iOS.</translation>
 <translation id="2099452623287920103">Parolele și alte date Chromium pe care le-ai salvat în Contul Google se vor elimina de pe acest dispozitiv. Pentru a le folosi din nou în Chromium, conectează-te din nou.</translation>
@@ -193,6 +196,8 @@
 <translation id="3095811995836568724">Istoricul Chromium</translation>
 <translation id="3103660991484857065">Programul de instalare nu a putut decomprima arhiva. Descărcați din nou Chromium.</translation>
 <translation id="310459126943037700">Nu s-au putut încheia sarcinile.</translation>
+<translation id="3104828284009500087">Caută orice în pagină</translation>
+<translation id="3126784891977756556">Păstrează parolele, marcajele și istoricul perfect sincronizate pe toate dispozitivele. Accesează cu ușurință funcțiile pe care le cunoști și apreciezi actualizând browserul prestabilit la Chromium.</translation>
 <translation id="3130323860337406239">Chromium utilizează microfonul.</translation>
 <translation id="3130333203120345554">Căutare nouă</translation>
 <translation id="3137969841538672700">Trage pentru a căuta</translation>
@@ -305,6 +310,7 @@
 <translation id="4304713468139749426">Manager de parole</translation>
 <translation id="4334241893986177674">Caută în această captură de ecran</translation>
 <translation id="4334294535648607276">Descărcarea a fost finalizată.</translation>
+<translation id="4384993550046411228">Accesează cu ușurință funcțiile pe care le cunoști, le apreciezi și în care ai încredere setând Chromium ca browser prestabilit. Chromium va fi fixat în bara de activități pentru acces rapid.</translation>
 <translation id="439358628917130594"><ph name="MANAGER" /> îți solicită să citești și să accepți Termenii și condițiile următoare înainte de a folosi acest dispozitiv. Aceste condiții nu extind, nu modifică și nu limitează Condițiile sistemului de operare Chromium.</translation>
 <translation id="4407044323746248786">Ieși din Chromium oricum?</translation>
 <translation id="4413205837991854510">Afișează întotdeauna comanda rapidă pentru Căutarea de imagini</translation>
@@ -372,7 +378,6 @@
 <translation id="5289287148052354622">Descarcă browserul Chromium.</translation>
 <translation id="5294316920224716406">Atunci când navighezi în modul incognito, Chromium te va avertiza înainte de a încărca un site folosind o conexiune nesecurizată</translation>
 <translation id="5313228254328109263">Chromium Updater Internal Service</translation>
-<translation id="5346059693449184483">La ce te gândești?</translation>
 <translation id="5346389065299425353">Aprofundează căutarea adăugând mai multe file, fișiere și instrumente</translation>
 <translation id="5352264705793813212">Chromium a găsit câteva recomandări privind siguranța pe care să le examinezi</translation>
 <translation id="5352361688875342522">Alte profiluri Chromium</translation>
@@ -637,7 +642,6 @@ Chromium nu poate recupera setările.</translation>
 <translation id="8177472873527554730">Nu se găsește conținut în pagină</translation>
 <translation id="8200109504272824693">Introdu expresia de acces pentru a folosi și a salva datele Chromium în contul <ph name="USER_EMAIL" /></translation>
 <translation id="8221491193165283816">De obicei blochezi notificările. Ca să-i permiți acestui site să îți trimită notificări, dă clic aici.</translation>
-<translation id="8223142476690844338">Salut, <ph name="USER_NAME" />! La ce te gândești?</translation>
 <translation id="8223363452568144035">Pentru a folosi camera foto, permite accesul Chromium în <ph name="BEGIN_LINK" />setările de sistem<ph name="END_LINK" /></translation>
 <translation id="8232193495299001329">Chromium nu poate verifica de unde provine această extensie. Ar putea fi nesigură. Elimin-o din Chromium ca să nu mai poată vedea și modifica datele tale de pe site-urile pe care le accesezi, inclusiv informațiile cu caracter personal.</translation>
 <translation id="8248265253516264921">Dacă o imagine nu are o descriere utilă, Chromium va încerca să o completeze. Pentru a crea descrieri, imaginile sunt trimise la Google. Poți dezactiva această opțiune oricând din setări.</translation>
@@ -706,7 +710,6 @@ Chromium nu poate recupera setările.</translation>
 <translation id="897581876605952338">Sigla Chromium Enterprise</translation>
 <translation id="8981150672034878610">Nu se poate porni Chromium, deoarece a apărut o eroare la deschiderea profilului. Repornește Chromium.</translation>
 <translation id="8988036198400390003">Gestionează profilurile Chromium</translation>
-<translation id="9003988359820989654">Deschide Chromium la pornirea computerului</translation>
 <translation id="9019929317751753759">Pentru mai multă siguranță în Chromium, am dezactivat următoarea extensie care nu este inclusă în <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> și care este posibil să fi fost adăugată fără știrea ta.</translation>
 <translation id="904366664621834601">Chromium a blocat descărcarea deoarece fișierul arhivă include alte fișiere care pot ascunde programe malware</translation>
 <translation id="9062666675513499497">Conectează-te la Chromium când te conectezi la alte servicii Google</translation>

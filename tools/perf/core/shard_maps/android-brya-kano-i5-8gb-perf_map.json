@@ -15,8 +15,8 @@
     },
     "2": {
         "crossbench": {
-            "speedometer_3": {
-                "display_name": "speedometer3.crossbench",
+            "speedometer3.crossbench": {
+                "crossbench_name": "speedometer_3",
                 "arguments": [
                     "--fileserver",
                     "--debug"
@@ -26,29 +26,22 @@
         "benchmarks": {}
     },
     "3": {
-        "benchmarks": {}
-    },
-    "4": {
-        "benchmarks": {}
-    },
-    "5": {
-        "benchmarks": {}
-    },
-    "6": {
+        "executables": {
+            "web_tests_cuj": {
+                "path": "../../tools/perf/web_tests_cuj.py"
+            }
+        },
         "benchmarks": {}
     },
     "extra_infos": {
-        "num_stories": 3,
-        "predicted_min_shard_time": 0,
+        "num_stories": 4,
+        "predicted_min_shard_time": 10.0,
         "predicted_min_shard_index": 3,
-        "predicted_max_shard_time": 60,
-        "predicted_max_shard_index": 2,
-        "shard #0": 10,
-        "shard #1": 10,
+        "predicted_max_shard_time": 73.0,
+        "predicted_max_shard_index": 0,
+        "shard #0": 73.0,
+        "shard #1": 31.0,
         "shard #2": 60,
-        "shard #3": 0,
-        "shard #4": 0,
-        "shard #5": 0,
-        "shard #6": 0
+        "shard #3": 10.0
     }
 }

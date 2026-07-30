@@ -38,6 +38,10 @@ BASE_FEATURE(kContextualTasksContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualTasksSuggestionsEnabled,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables auto-suggestions for contextual tasks.
+BASE_FEATURE(kContextualTasksAutoSuggestionEnabled,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 BASE_FEATURE(kContextualTasksShowOnboardingTooltip,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -54,6 +58,21 @@ BASE_FEATURE(kContextualTasksRemoveTasksWithoutThreadsOrTabAssociations,
 
 BASE_FEATURE(kEnableNotifyZeroStateRenderedCapability,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kContextualTasksTabListInterfaceObserver,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kContextualTasksExpandButton, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<bool> kContextualTasksBasicModeZOrder(
+    &kContextualTasks,
+    "ContextualTasksBasicModeZOrder",
+    true);
+
+const base::FeatureParam<bool> kContextualTasksEnableCookieSync(
+    &kContextualTasks,
+    "ContextualTasksEnableCookieSync",
+    true);
 
 const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
     &kContextualTasksContext,
@@ -75,7 +94,7 @@ const base::FeatureParam<double> kContextualTasksContextLoggingSampleRate{
 // The base URL for the AI page.
 const base::FeatureParam<std::string> kContextualTasksAiPageUrl{
     &kContextualTasks, "contextual-tasks-ai-page-url",
-    "https://www.google.com/search?udm=50"};
+    "https://www.google.com/search?udm=50&sourceid=chrome"};
 
 // The host that any URL loaded in the embedded WebUi page will be routed to.
 const base::FeatureParam<std::string> kContextualTasksForcedEmbeddedPageHost{
@@ -132,10 +151,12 @@ const base::FeatureParam<bool> kEnableExpandedComposeboxVoiceSearch(
     "ContextualTasksEnableExpandedComposeboxVoiceSearch",
     true);
 
+// TODO(b/481079194): Remove `kAutoSubmitVoiceSearchQuery` and the code that
+// respects its disabled state.
 const base::FeatureParam<bool> kAutoSubmitVoiceSearchQuery(
     &kContextualTasks,
     "ContextualTasksAutoSubmitVoiceSearchQuery",
-    false);
+    true);
 
 const base::FeatureParam<std::string> kContextualTasksHelpUrl(
     &kContextualTasks,
@@ -188,6 +209,12 @@ const base::FeatureParam<bool> kContextualTasksEnableNativeZeroStateSuggestions(
     "ContextualTasksEnableNativeZeroStateSuggestions",
     false);
 
+const base::FeatureParam<bool>
+    kContextualTasksForceBasicModeIfOpeningThreadHistory(
+        &kContextualTasks,
+        "ContextualTasksForceBasicModeIfOpeningThreadHistory",
+        true);
+
 int GetContextualTasksShowOnboardingTooltipSessionImpressionCap() {
   if (!base::FeatureList::IsEnabled(kContextualTasksShowOnboardingTooltip)) {
     return 0;
@@ -231,6 +258,10 @@ bool GetIsProtectedPageErrorEnabled() {
 
 bool GetIsGhostLoaderEnabled() {
   return kEnableGhostLoader.Get();
+}
+
+bool ShouldForceBasicModeIfOpeningThreadHistory() {
+  return kContextualTasksForceBasicModeIfOpeningThreadHistory.Get();
 }
 
 bool ShouldForceGscInTabMode() {
@@ -325,6 +356,14 @@ bool ShouldUseSearchResultsScope() {
   return base::FeatureList::IsEnabled(kContextualTasksScopeChange);
 }
 
+bool ShouldEnableBasicModeZOrder() {
+  return kContextualTasksBasicModeZOrder.Get();
+}
+
+bool ShouldEnableCookieSync() {
+  return kContextualTasksEnableCookieSync.Get();
+}
+
 namespace flag_descriptions {
 
 const char kContextualTasksName[] = "Contextual Tasks";
@@ -339,6 +378,12 @@ const char kContextualTasksContextLibraryName[] =
     "Contextual Tasks Context Library";
 const char kContextualTasksContextLibraryDescription[] =
     "Enables integration with the server side context library.";
+
+const char kContextualTasksExpandButtonName[] =
+    "Contextual Tasks Expand Button";
+const char kContextualTasksExpandButtonDescription[] =
+    "Replace the overflow menu in the side panel with a button to move the "
+    "thread to a new tab.";
 
 const char kContextualTasksSuggestionsEnabledName[] =
     "Contextual Tasks Suggestions Enabled";

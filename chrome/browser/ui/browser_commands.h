@@ -288,6 +288,9 @@ void OpenFeedbackDialog(BrowserWindowInterface* bwi,
                         feedback::FeedbackSource source,
                         const std::string& description_template = std::string(),
                         const std::string& category_tag = std::string());
+#if BUILDFLAG(GOOGLE_CHROME_BRANDING)
+void OpenReportUnsafeSiteDialog(Browser* browser);
+#endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
 void ToggleBookmarkBar(Browser* browser);
 void ToggleShowFullURLs(Browser* browser);
 void ToggleShowGoogleLensShortcut(Browser* browser);
@@ -333,11 +336,6 @@ void ProcessInterceptedChromeURLNavigationInIncognito(Browser* browser,
                                                       const GURL& url);
 void ExecLensOverlay(Browser* browser);
 void ExecLensRegionSearch(Browser* browser);
-
-// Commerce
-void OpenCommerceProductSpecificationsTab(Browser* browser,
-                                          const std::vector<GURL>& urls,
-                                          const int position);
 
 }  // namespace chrome
 

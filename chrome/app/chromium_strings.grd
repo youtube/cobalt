@@ -2248,6 +2248,10 @@ Chromium is unable to recover your settings.
           desc="The hint text of the AI mode searchbox in the Lens side panel. This text is shown in the searchbox when the user has not yet typed any text but has opened the overlay to make AIM follow up queries.">
           Search anything on page
         </message>
+        <message name="IDS_LENS_COMPOSEBOX_HINT_TEXT_SELECT_PAGE"
+          desc="The hint text of the AI mode searchbox in the Lens side panel. This text is shown in the searchbox when the user has not yet typed any text but has opened the overlay to make AIM follow up queries.">
+          Select anything on page
+        </message>
         <message name="IDS_LENS_COMPOSEBOX_HINT_TEXT_ASK_ANYTHING"
           desc="The hint text of the AI mode searchbox in the Lens tab. This text is shown in the searchbox when the user has not yet typed any text, and prompts the user to ask a question.">
           Ask anything
@@ -2256,16 +2260,6 @@ Chromium is unable to recover your settings.
         <message name="IDS_AI_MODE_ASK_ABOUT_THIS_TAB"
           desc="Title for the AI Mode zero state welcome message in the Lens side panel. Prompts the user to ask questions about the current tab. Includes a line break to force desired line wrapping.">
           Ask<ph name="LINE_BREAK">$1</ph>about this tab
-        </message>
-
-        <message name="IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE"
-          desc="Title for the AI Mode zero state welcome message in the Lens tab. The first placeholder is the user's given name.">
-          Hi <ph name="USER_NAME">$1<ex>Josh</ex></ph>, what's on your mind?
-        </message>
-
-        <message name="IDS_AI_MODE_FRIENDLY_ZERO_STATE_TITLE_WITHOUT_NAME"
-          desc="Title for the AI Mode zero state welcome message in the Lens tab.">
-          What's on your mind?
         </message>
 
         <message name="IDS_AI_MODE_NEW_SEARCH"
@@ -2535,6 +2529,14 @@ Chromium is unable to recover your settings.
           Set Chromium as your default browser
         </message>
 
+        <!-- Default Browser Promo Refresh -->
+        <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_TITLE" desc="Title for the page that prompts user to set Chromium as their default browser in the refreshed first run experience.">
+          Set Chromium as default and pin it to taskbar
+        </message>
+        <message name="IDS_FRE_REFRESH_DEFAULT_BROWSER_SUBTITLE" desc="Subtitle for the page that prompts user to set Chromium as their default browser in the refreshed first run experience.">
+          Open links in Chromium from any app and keep the browser accessible on your taskbar
+        </message>
+
         <!-- Profile switch IPH -->
         <message name="IDS_PROFILE_SWITCH_PROMO" desc="Text of the In-Product-Help bubble for profile switching.">
           You can switch between Chromium profiles here
@@ -2593,7 +2595,16 @@ Chromium is unable to recover your settings.
       <!--Launch On Startup-->
       <if expr="is_win">
         <message name="IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_LABEL" desc="Label for settings toggle button that enables or disables opening Chromium on system startup">
-          Open Chromium when my computer starts
+          Launch Chromium when Windows starts
+        </message>
+        <message name="IDS_SETTINGS_FOREGROUND_LAUNCH_ON_STARTUP_SUB_LABEL" desc="Sub label for settings toggle button that enables or disables opening Chromium on system startup">
+          Launch Chromium automatically to begin browsing instantly.
+        </message>
+        <message name="IDS_STARTUP_LAUNCH_INFOBAR_OPT_IN_TITLE" desc="Title of the infobar shown to ask the user if they want to allow Chromium to launch when windows starts.">
+          Begin browsing instantly: Chromium can now launch when Windows starts.
+        </message>
+        <message name="IDS_STARTUP_LAUNCH_INFOBAR_OPT_OUT_TITLE" desc="Title of the infobar shown to inform the user that Chromium now starts automatically when Windows starts.">
+          Chromium now launches when Windows starts so you can begin browsing instantly. You can turn this off in settings.
         </message>
       </if>
 
@@ -3157,6 +3168,15 @@ Chromium is unable to recover your settings.
       <message name="IDS_DEFAULT_SEARCH_ENGINE_RESET_NOTIFICATION_LEARN_MORE_BUTTON"
          desc="Label for the 'Learn more' button in the default search engine reset notification, which opens a help center article.">
         Learn more
+      </message>
+
+      <!--Report-unsafe-site Dialog (accessed from Help menu)-->
+      <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_TITLE" desc="Title of the dialog for reporting an unsafe site to Chromium">
+        Report this site
+      </message>
+
+      <message name="IDS_REPORT_UNSAFE_SITE_DIALOG_DESCRIPTION" desc="Explanatory text in dialog for reporting an unsafe site to Chromium">
+        Improve online safety for everyone when you report a site you think is harmful.
       </message>
     </messages>
   </release>

@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Auf <ph name="WEBSITE_URL" /> eingebettet</translation>
 <translation id="1263609676484797429">Tippe auf „Apps“ &gt; „Standard-Apps“</translation>
 <translation id="1272079795634619415">Stoppen</translation>
+<translation id="1275718070701477396">Ausgewählt</translation>
 <translation id="1289742167380433257">Die Bilder auf dieser Seite wurden von Google optimiert, um den Datenverbrauch zu reduzieren.</translation>
 <translation id="129382876167171263">Hier werden von Websites gespeicherte Dateien angezeigt</translation>
 <translation id="131112695174432497">Daten, die sich auf personalisierte Werbung auswirken, werden gelöscht</translation>
@@ -495,6 +496,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="6085954183010297841">Berechtigung zur Dateibearbeitung widerrufen? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Wenn diese Option aktiviert ist, können Websites automatisch den Bild-im-Bild-Modus aktivieren. Wenn diese Option deaktiviert ist, können Websites den Bild-im-Bild-Modus nicht automatisch aktivieren.</translation>
 <translation id="6120483543004435978">Wenn dieser Schalter aktiviert ist, können Websites anfragen, ob sie ermitteln dürfen, wann du dein Gerät aktiv nutzt. Wenn er deaktiviert ist, können Websites nicht ermitteln, wann du dein Gerät aktiv nutzt.</translation>
+<translation id="6132075343662013154">Chrome bietet an, dein Passwort zu speichern</translation>
 <translation id="615886654739818377">Nicht zulassen, dass Websites Fenster auf allen deinen Bildschirmen verwalten</translation>
 <translation id="6165508094623778733">Weitere Informationen</translation>
 <translation id="6171020522141473435">Wenn dieser Schalter aktiviert ist, können Websites anfragen, ob sie Bluetooth-Geräte verwenden dürfen. Wenn er deaktiviert ist, können Websites keine Bluetooth-Geräte verwenden.</translation>
@@ -582,7 +584,7 @@ Diese Chrome-Einstellungen werden durch das erweiterte Sicherheitsprogramm geste
 <translation id="7055552182600664515">Zum Wiedergeben urheberrechtlich geschützter Inhalte müssen Websites eventuell einen Dienst für den Schutz von Inhalten verwenden. <ph name="BEGIN_LINK" />Weitere Informationen<ph name="END_LINK" /></translation>
 <translation id="7066151586745993502">{NUM_SELECTED,plural, =1{1 ausgewählt}other{# ausgewählt}}</translation>
 <translation id="708014373017851679"><ph name="APP_NAME" /> ist veraltet. Bitte aktualisiere die App.</translation>
-<translation id="7084115944294706056">Addressleistenposition auswählen</translation>
+<translation id="7084115944294706056">Leistenposition auswählen</translation>
 <translation id="7087918508125750058"><ph name="ITEM_COUNT" /> ausgewählt. Optionen sind oben auf dem Bildschirm verfügbar</translation>
 <translation id="7141896414559753902">Anzeige von Pop-ups und Weiterleitungen für Websites blockieren (empfohlen)</translation>
 <translation id="7176368934862295254"><ph name="KILOBYTES" /> KB</translation>

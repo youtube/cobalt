@@ -10,7 +10,6 @@
 #include "base/types/pass_key.h"
 #include "chrome/browser/actor/actor_features.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/site_policy.h"
@@ -264,7 +263,6 @@ void ActorNavigationThrottle::OnMayActOnUrlResult(
           break;
         }
         [[fallthrough]];
-      case MayActOnUrlBlockReason::kActuactionDisabled:
       case MayActOnUrlBlockReason::kIpAddress:
       case MayActOnUrlBlockReason::kLookalikeDomain:
       case MayActOnUrlBlockReason::kOptimizationGuideBlock:
@@ -273,6 +271,7 @@ void ActorNavigationThrottle::OnMayActOnUrlResult(
       case MayActOnUrlBlockReason::kUrlNotInAllowlist:
       case MayActOnUrlBlockReason::kWrongScheme:
       case MayActOnUrlBlockReason::kEnterprisePolicy:
+      case MayActOnUrlBlockReason::kBlockedByStaticList:
         tool_failure_code =
             mojom::ActionResultCode::kTriggeredNavigationBlocked;
         break;

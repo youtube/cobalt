@@ -11,6 +11,7 @@
 
 #include "base/files/file_path.h"
 #include "base/files/file_util.h"
+#include "base/json/values_util.h"
 #include "base/time/time.h"
 #include "base/trace_event/trace_event.h"
 #include "build/android_buildflags.h"
@@ -24,6 +25,7 @@
 #include "chrome/browser/browser_process_impl.h"
 #include "chrome/browser/chrome_content_browser_client.h"
 #include "chrome/browser/component_updater/component_updater_prefs.h"
+#include "chrome/browser/contextual_cueing/contextual_cueing_prefs.h"
 #include "chrome/browser/download/download_prefs.h"
 #include "chrome/browser/engagement/important_sites_util.h"
 #include "chrome/browser/enterprise/reporting/prefs.h"
@@ -44,7 +46,6 @@
 #include "chrome/browser/metrics/tab_stats/tab_stats_tracker.h"
 #include "chrome/browser/net/net_error_tab_helper.h"
 #include "chrome/browser/net/profile_network_context_service.h"
-#include "chrome/browser/net/secure_dns_util.h"
 #include "chrome/browser/net/system_network_context_manager.h"
 #include "chrome/browser/notifications/notification_display_service_impl.h"
 #include "chrome/browser/notifications/notifier_state_tracker.h"
@@ -184,7 +185,7 @@
 #include "components/supervised_user/core/browser/supervised_user_preferences.h"
 #include "components/supervised_user/core/common/pref_names.h"
 #include "components/sync/base/pref_names.h"
-#include "components/sync/service/device_statistics_tracker.h"
+#include "components/sync/service/device_statistics_scheduler.h"
 #include "components/sync/service/glue/sync_transport_data_prefs.h"
 #include "components/sync/service/sync_prefs.h"
 #include "components/sync_device_info/device_info_prefs.h"
@@ -259,7 +260,6 @@
 #include "components/webapps/browser/android/install_prompt_prefs.h"
 #else  // BUILDFLAG(IS_ANDROID)
 #include "chrome/browser/actor/ui/actor_ui_state_manager_prefs.h"
-#include "chrome/browser/contextual_cueing/contextual_cueing_prefs.h"
 #include "chrome/browser/gcm/gcm_product_util.h"
 #include "chrome/browser/hid/hid_policy_allowed_devices.h"
 #include "chrome/browser/intranet_redirect_detector.h"
@@ -969,6 +969,17 @@ constexpr char kDSEWasDisabledByPolicy[] = "dse_was_disabled_by_policy";
 constexpr char kCookieClearOnExitMigrationNoticeComplete[] =
     "signin.cookie_clear_on_exit_migration_notice_complete";
 
+// Deprecated 02/2026.
+// Note that these were replaced by local state prefs of the same names and
+// functions: those should not be removed. Only the profile prefs registered
+// here are deprecated.
+constexpr char kGlicGuestUrlPresetAutopush[] = "glic.guest_url_preset_autopush";
+constexpr char kGlicGuestUrlPresetPreprod[] = "glic.guest_url_preset_preprod";
+constexpr char kGlicGuestUrlPresetProd[] = "glic.guest_url_preset_prod";
+
+// Deprecated 02/2026.
+constexpr char kProfilesDeletedOld[] = "profiles.profiles_deleted";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1090,13 +1101,14 @@ void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
   // Deprecated 01/2026.
   registry->RegisterStringPref(kDeviceName, "");
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+  // Deprecated 02/2026.
+  registry->RegisterListPref(kProfilesDeletedOld);
 }
 
 // Register prefs used only for migration (clearing or moving to a new key).
 void RegisterProfilePrefsForMigration(
     user_prefs::PrefRegistrySyncable* registry) {
-  chrome_browser_net::secure_dns::RegisterProbesSettingBackupPref(registry);
-
   // Deprecated 01/2025.
   registry->RegisterBooleanPref(kCompactModeEnabled, false);
 
@@ -1342,6 +1354,11 @@ void RegisterProfilePrefsForMigration(
   // Deprecated 01/2026.
   registry->RegisterBooleanPref(kCookieClearOnExitMigrationNoticeComplete,
                                 false);
+
+  // Deprecated 02/2026.
+  registry->RegisterStringPref(kGlicGuestUrlPresetAutopush, std::string());
+  registry->RegisterStringPref(kGlicGuestUrlPresetPreprod, std::string());
+  registry->RegisterStringPref(kGlicGuestUrlPresetProd, std::string());
 }
 
 }  // namespace
@@ -1586,6 +1603,10 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
   os_crypt_async::AppBoundEncryptionProviderWin::RegisterLocalPrefs(registry);
   webnn::RegisterLocalPrefs(registry);
   registry->RegisterBooleanPref(prefs::kForegroundLaunchOnLogin, false);
+  registry->RegisterBooleanPref(prefs::kStartupLaunchInfobarAccepted, false);
+  registry->RegisterTimePref(prefs::kStartupLaunchInfobarLastDeclinedTime,
+                             base::Time());
+  registry->RegisterIntegerPref(prefs::kStartupLaunchInfobarDeclinedCount, 0);
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_DOWNGRADE_PROCESSING)
@@ -1657,6 +1678,9 @@ void RegisterLocalState(PrefRegistrySimple* registry) {
 
   registry->RegisterListPref(
       prefs::kManagedLocalNetworkAccessIpAddressSpaceOverrides);
+  registry->RegisterBooleanPref(
+      policy::policy_prefs::kLocalNetworkAccessPermissionsPolicyDefaultEnabled,
+      false);
 
   // This is intentionally last.
   RegisterLocalStatePrefsForMigration(registry);
@@ -1683,6 +1707,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   chrome_browser_net::NetErrorTabHelper::RegisterProfilePrefs(registry);
   chrome_prefs::RegisterProfilePrefs(registry);
   collaboration::prefs::RegisterProfilePrefs(registry);
+  contextual_cueing::prefs::RegisterProfilePrefs(registry);
   commerce::RegisterProfilePrefs(registry);
   contextual_search::ContextualSearchService::RegisterProfilePrefs(registry);
   registry->RegisterIntegerPref(prefs::kContextualTasksNextPanelOpenCount, 0);
@@ -1774,7 +1799,7 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   supervised_user::RegisterProfilePrefs(registry);
   sync_sessions::SessionSyncPrefs::RegisterProfilePrefs(registry);
   syncer::DeviceInfoPrefs::RegisterProfilePrefs(registry);
-  syncer::DeviceStatisticsTracker::RegisterProfilePrefs(registry);
+  syncer::DeviceStatisticsScheduler::RegisterProfilePrefs(registry);
   syncer::SyncPrefs::RegisterProfilePrefs(registry);
   syncer::SyncTransportDataPrefs::RegisterProfilePrefs(registry);
   TemplateURLPrepopulateData::RegisterProfilePrefs(registry);
@@ -1857,7 +1882,6 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   captions::LiveTranslateController::RegisterProfilePrefs(registry);
   ChromeAuthenticatorRequestDelegate::RegisterProfilePrefs(registry);
   commerce::CommerceUiTabHelper::RegisterProfilePrefs(registry);
-  contextual_cueing::prefs::RegisterProfilePrefs(registry);
   DriveService::RegisterProfilePrefs(registry);
   first_run::RegisterProfilePrefs(registry);
   gcm::RegisterProfilePrefs(registry);
@@ -2311,6 +2335,26 @@ void MigrateObsoleteLocalStatePrefs(PrefService* local_state) {
   local_state->ClearPref(kDeviceName);
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
+  // Added 02/2026.
+  if (local_state->HasPrefPath(kProfilesDeletedOld)) {
+    const base::ListValue& old_list = local_state->GetList(kProfilesDeletedOld);
+    if (!old_list.empty()) {
+      ScopedListPrefUpdate update(local_state, prefs::kProfilesDeleted);
+      for (const auto& value : old_list) {
+        std::optional<base::FilePath> path = base::ValueToFilePath(value);
+        if (path) {
+          base::FilePath basename = path->BaseName();
+          // Avoid the edge case where the base name is the root, e.g `/` on
+          // linux.
+          if (!basename.IsAbsolute()) {
+            update->Append(base::FilePathToValue(basename));
+          }
+        }
+      }
+    }
+    local_state->ClearPref(kProfilesDeletedOld);
+  }
+
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_LOCAL_STATE_PREFS
 
@@ -2359,12 +2403,6 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Check MigrateDeprecatedAutofillPrefs() to see if this is safe to remove.
   autofill::prefs::MigrateDeprecatedAutofillPrefs(profile_prefs);
-
-  // Added 3/2020.
-  // TODO(crbug.com/40122991): Remove this once the privacy settings redesign
-  // is fully launched.
-  chrome_browser_net::secure_dns::MigrateProbesSettingToOrFromBackup(
-      profile_prefs);
 
   // TODO(326079444): After experiment is over, update the deprecated date and
   // allow this to be cleaned up.
@@ -2598,6 +2636,11 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
 
   // Added 01/2026.
   profile_prefs->ClearPref(kCookieClearOnExitMigrationNoticeComplete);
+
+  // Added 02/2026.
+  profile_prefs->ClearPref(kGlicGuestUrlPresetAutopush);
+  profile_prefs->ClearPref(kGlicGuestUrlPresetPreprod);
+  profile_prefs->ClearPref(kGlicGuestUrlPresetProd);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

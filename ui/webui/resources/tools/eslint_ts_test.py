@@ -163,6 +163,202 @@ class EslintTsTest(unittest.TestCase):
       self.assertFalse(
           e in str(context.exception), f'Found unexpected error: {e}')
 
+  def testWebUiEslintPlugin_InlineEventHandler(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test(
+          ["with_webui_plugin_inline_event_handler_violations.html.ts"])
+
+    _EXPECTED_STRING = "@webui-eslint/inline-event-handler"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    _EXPECTED_ERROR = "Inline event handler for event '%(eventName)s' found on element '%(tagName)s'. Do not use inline arrow functions in templates"
+
+    # The following strings *should* appear in the error output since the events
+    # have inline lambda event handlers.
+    errors = [
+        _EXPECTED_ERROR % {
+            'eventName': 'click',
+            'tagName': 'cr-icon-button',
+        },
+        _EXPECTED_ERROR % {
+            'eventName': 'input',
+            'tagName': 'cr-input',
+        },
+        _EXPECTED_ERROR % {
+            'eventName': 'focus',
+            'tagName': 'cr-button',
+        },
+        _EXPECTED_ERROR % {
+            'eventName': 'animationend',
+            'tagName': 'div',
+        },
+    ]
+    for e in errors:
+      self.assertTrue(
+          e in str(context.exception), f'Didn\'t find expected error: {e}')
+
+    # The following strings *should not* appear in the error output since the
+    # event handlers are correctly bound to protected methods.
+    non_errors = [
+        _EXPECTED_ERROR % {
+            'eventName': 'change',
+            'tagName': 'select',
+        },
+        _EXPECTED_ERROR % {
+            'eventName': 'blur',
+            'tagName': 'cr-button',
+        },
+    ]
+    for e in non_errors:
+      self.assertFalse(
+          e in str(context.exception), f'Found unexpected error: {e}')
+
+  def testWebUiEslintPlugin_LitElementStructure(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test(["with_webui_plugin_lit_element_structure_violations.ts"])
+
+    # Expected ESLint rule violation that should be part of the error output.
+    _EXPECTED_STRING = "@webui-eslint/lit-element-structure"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR = "Missing customElements.define(%(className)s.is, %(className)s) call"
+    _EXPECTED_MISSING_STATIC_GET_IS_ERROR = "Missing 'static get is() {...}' for web component class %(className)s"
+    _EXPECTED_MISSING_SUPER_CALLS_ERROR = "Missing superclass calls for lifecycle method(s) %(lifecycleMethods)s in class %(className)s"
+    _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR = "Tag/class name pair registration to HTMLElementTagNameMap interface missing for %(domName)s ↔ %(className)s"
+
+    super_call_required_methods = [
+        'connectedCallback', 'disconnectedCallback', 'willUpdate', 'updated'
+    ]
+
+    # The following strings *should* appear in the error output.
+    errors = [
+        # Case1
+        _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
+            'className': 'SomeElement1'
+        },
+        _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
+            'className': 'SomeElement1'
+        },
+        # Case2
+        _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
+            'className': 'SomeElement2',
+            'domName': 'some-element2'
+        },
+        _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
+            'className': 'SomeElement2'
+        },
+        # Case3
+        _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
+            'className': 'SomeElement3'
+        },
+        # Case4
+        _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
+            'className': 'SomeElement4',
+            'domName': 'some-element4'
+        },
+        # Case5
+        _EXPECTED_MISSING_SUPER_CALLS_ERROR % {
+            'className': 'SomeElement5',
+            'lifecycleMethods': ', '.join(super_call_required_methods)
+        },
+    ]
+    for e in errors:
+      self.assertTrue(
+          e in str(context.exception), f'Didn\'t find expected error: {e}')
+
+    # The following strings *should not* appear in the error output.
+    non_errors = [
+        # Case6
+        _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
+            'className': 'SomeElement6'
+        },
+        _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
+            'className': 'SomeElement6',
+            'domName': 'some-element6'
+        },
+        _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
+            'className': 'SomeElement6'
+        },
+        _EXPECTED_MISSING_SUPER_CALLS_ERROR % {
+            'className': 'SomeElement6',
+            'lifecycleMethods': ', '.join(super_call_required_methods)
+        },
+        # Case7
+        _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
+            'className': 'SomeElement7'
+        },
+        _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
+            'className': 'SomeElement7',
+            'domName': 'some-element7'
+        },
+        _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
+            'className': 'SomeElement7'
+        },
+        _EXPECTED_MISSING_SUPER_CALLS_ERROR % {
+            'className': 'SomeElement7',
+            'lifecycleMethods': ', '.join(super_call_required_methods)
+        },
+        # Case8
+        _EXPECTED_MISSING_STATIC_GET_IS_ERROR % {
+            'className': 'SomeElement8'
+        },
+        _EXPECTED_MISSING_TAG_NAME_REGISTRATION_ERROR % {
+            'className': 'SomeElement8',
+            'domName': 'some-element8'
+        },
+        _EXPECTED_MISSING_CUSTOM_ELEMENTS_DEFINE_ERROR % {
+            'className': 'SomeElement8'
+        },
+        _EXPECTED_MISSING_SUPER_CALLS_ERROR % {
+            'className': 'SomeElement8',
+            'lifecycleMethods': ', '.join(super_call_required_methods)
+        },
+    ]
+    for e in non_errors:
+      self.assertFalse(
+          e in str(context.exception), f'Found unexpected error: {e}')
+
+  def testWebUiEslintPlugin_LitElementTemplateStructure(self):
+    with self.assertRaises(RuntimeError) as context:
+      self._run_test([
+          "with_webui_plugin_lit_element_template_structure_violations.html.ts"
+      ])
+
+    _EXPECTED_STRING = "@webui-eslint/lit-element-template-structure"
+    self.assertTrue(_EXPECTED_STRING in str(context.exception))
+
+    _FOR_STATEMENT_ERROR = "For loop found in the HTML template file 'with_webui_plugin_lit_element_template_structure_violations.html.ts'. Use the map() directive to render the same HTML for an array of items, and delegate more complex logic to the class definition file"
+
+    _FUNCTION_DEFINITION_ERROR = "Extra function definition '%(functionName)s' found in the HTML template file 'with_webui_plugin_lit_element_template_structure_violations.html.ts'. Complex logic should be delegated to the class definition file. Standalone/separate chunks of templates may need a dedicated custom element"
+
+    # The following strings *should* appear in the error output.
+    errors = [
+        _FOR_STATEMENT_ERROR,
+        _FUNCTION_DEFINITION_ERROR % {
+            'functionName': 'computeFoo'
+        },
+        _FUNCTION_DEFINITION_ERROR % {
+            'functionName': 'getButtonHtml'
+        },
+        _FUNCTION_DEFINITION_ERROR % {
+            'functionName': 'getSpinnerDiv'
+        },
+    ]
+    for e in errors:
+      self.assertTrue(
+          e in str(context.exception), f'Didn\'t find expected error: {e}')
+
+    # The following strings *should not* appear in the error output.
+    non_errors = [
+        # getHtml() declaration is allowed.
+        _FUNCTION_DEFINITION_ERROR % {
+            'functionName': 'getHtml'
+        },
+    ]
+    for e in non_errors:
+      self.assertFalse(
+          e in str(context.exception), f'Found unexpected error: {e}')
+
 
 if __name__ == "__main__":
   unittest.main()

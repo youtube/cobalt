@@ -118,21 +118,21 @@ class NetworkConnectionObserver
  public:
   // Waits for connection type to change to |type|.
   static void WaitForConnectionType(
-      network::mojom::ConnectionType type_to_wait_for,
-      base::android::ScopedJavaGlobalRef<jobject> callback) {
+      net::NetworkChangeNotifier::ConnectionType type_to_wait_for,
+      base::OnceClosure&& callback) {
     // NetworkConnectionObserver manages it's own lifetime.
     new NetworkConnectionObserver(type_to_wait_for, std::move(callback));
   }
 
  private:
   NetworkConnectionObserver(
-      network::mojom::ConnectionType type_to_wait_for,
-      base::android::ScopedJavaGlobalRef<jobject> callback)
+      net::NetworkChangeNotifier::ConnectionType type_to_wait_for,
+                            base::OnceClosure&& callback)
       : type_to_wait_for_(type_to_wait_for), callback_(std::move(callback)) {
     content::GetNetworkConnectionTracker()->AddNetworkConnectionObserver(this);
 
     // Call OnConnectionChanged() with the current state.
-    network::mojom::ConnectionType current_type;
+    net::NetworkChangeNotifier::ConnectionType current_type;
     if (content::GetNetworkConnectionTracker()->GetConnectionType(
             &current_type,
             base::BindOnce(&NetworkConnectionObserver::OnConnectionChanged,
@@ -147,16 +147,17 @@ class NetworkConnectionObserver
   }
 
   // network::NetworkConnectionTracker::NetworkConnectionObserver:
-  void OnConnectionChanged(network::mojom::ConnectionType type) override {
+  void OnConnectionChanged(
+      net::NetworkChangeNotifier::ConnectionType type) override {
     if (type == type_to_wait_for_) {
-      base::android::RunRunnableAndroid(callback_);
+      std::move(callback_).Run();
       delete this;
     }
   }
 
-  network::mojom::ConnectionType type_to_wait_for_ =
-      network::mojom::ConnectionType::CONNECTION_UNKNOWN;
-  base::android::ScopedJavaGlobalRef<jobject> callback_;
+  net::NetworkChangeNotifier::ConnectionType type_to_wait_for_ =
+      net::NetworkChangeNotifier::ConnectionType::CONNECTION_UNKNOWN;
+  base::OnceClosure callback_;
   base::WeakPtrFactory<NetworkConnectionObserver> weak_factory_{this};
 };
 
@@ -211,19 +212,15 @@ static JNI_EXPORT void JNI_OfflineTestUtil_StartRequestCoordinatorProcessing(
 }
 
 static void JNI_OfflineTestUtil_InterceptWithOfflineError(
-    JNIEnv* env,
-    const JavaRef<jstring>& j_url,
-    const JavaRef<jobject>& j_ready_callback) {
+    const std::string& url,
+    base::OnceClosure&& ready_callback) {
   if (!g_interceptor)
     g_interceptor = new Interceptor;
-  const std::string url = base::android::ConvertJavaStringToUTF8(env, j_url);
-  g_interceptor->InterceptWithOfflineError(
-      GURL(url), base::BindOnce(base::android::RunRunnableAndroid,
-                                base::android::ScopedJavaGlobalRef<jobject>(
-                                    env, j_ready_callback)));
+  g_interceptor->InterceptWithOfflineError(GURL(url),
+                                           std::move(ready_callback));
 }
 
-static void JNI_OfflineTestUtil_ClearIntercepts(JNIEnv* env) {
+static void JNI_OfflineTestUtil_ClearIntercepts() {
   delete g_interceptor;
   g_interceptor = nullptr;
 }
@@ -243,14 +240,12 @@ static void JNI_OfflineTestUtil_DumpRequestCoordinatorState(
 }
 
 static void JNI_OfflineTestUtil_WaitForConnectivityState(
-    JNIEnv* env,
     bool connected,
-    const base::android::JavaRef<jobject>& callback) {
-  network::mojom::ConnectionType type =
-      connected ? network::mojom::ConnectionType::CONNECTION_UNKNOWN
-                : network::mojom::ConnectionType::CONNECTION_NONE;
-  NetworkConnectionObserver::WaitForConnectionType(
-      type, base::android::ScopedJavaGlobalRef<jobject>(env, callback));
+    base::OnceClosure&& callback) {
+  net::NetworkChangeNotifier::ConnectionType type =
+      connected ? net::NetworkChangeNotifier::ConnectionType::CONNECTION_UNKNOWN
+                : net::NetworkChangeNotifier::ConnectionType::CONNECTION_NONE;
+  NetworkConnectionObserver::WaitForConnectionType(type, std::move(callback));
 }
 
 }  // namespace offline_pages

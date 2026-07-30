@@ -10,8 +10,26 @@
 
 namespace blink {
 
+CanvasNon2DSnapshotProviderBitmap::ImageProviderImpl::ImageProviderImpl(
+    CanvasSnapshotProvider::Info info) {
+  cc::TargetColorParams target_color_params;
+  target_color_params.color_space = info.color_space;
+
+  playback_image_provider_n32_ = std::make_unique<cc::PlaybackImageProvider>(
+      &Image::SharedCCDecodeCache(kN32_SkColorType), target_color_params,
+      cc::PlaybackImageProvider::Settings());
+
+  // If the image provider may require to decode to half float instead of
+  // uint8, create a f16 PlaybackImageProvider.
+  if (info.format == viz::SinglePlaneFormat::kRGBA_F16) {
+    playback_image_provider_f16_.emplace(
+        &Image::SharedCCDecodeCache(kRGBA_F16_SkColorType), target_color_params,
+        cc::PlaybackImageProvider::Settings());
+  }
+}
+
 cc::ImageProvider::ScopedResult
-CanvasNon2DSnapshotProviderBitmap::GetRasterContent(
+CanvasNon2DSnapshotProviderBitmap::ImageProviderImpl::GetRasterContent(
     const cc::DrawImage& draw_image) {
   cc::PaintImage paint_image = draw_image.paint_image();
   if (paint_image.IsDeferredPaintRecord()) {
@@ -43,12 +61,8 @@ CanvasNon2DSnapshotProviderBitmap::GetRasterContent(
 std::unique_ptr<CanvasNon2DSnapshotProviderBitmap>
 CanvasNon2DSnapshotProviderBitmap::Create(
     const CanvasSnapshotProvider::Info& info) {
-  auto provider = base::WrapUnique<CanvasNon2DSnapshotProviderBitmap>(
+  return base::WrapUnique<CanvasNon2DSnapshotProviderBitmap>(
       new CanvasNon2DSnapshotProviderBitmap(info));
-  if (provider->IsValid()) {
-    return provider;
-  }
-  return nullptr;
 }
 
 CanvasNon2DSnapshotProviderBitmap::CanvasNon2DSnapshotProviderBitmap(
@@ -57,17 +71,7 @@ CanvasNon2DSnapshotProviderBitmap::CanvasNon2DSnapshotProviderBitmap(
       snapshot_paint_image_id_(cc::PaintImage::GetNextId()),
       recorder_(
           std::make_unique<MemoryManagedPaintRecorder>(Size(),
-                                                       /*client=*/nullptr)) {
-  const bool can_use_lcd_text = info_.alpha_type == kOpaque_SkAlphaType;
-  const auto props =
-      skia::LegacyDisplayGlobals::ComputeSurfaceProps(can_use_lcd_text);
-  surface_ = SkSurfaces::Raster(
-      SkImageInfo::Make(info_.size.width(), info_.size.height(),
-                        viz::ToClosestSkColorType(info_.format),
-                        kPremul_SkAlphaType,
-                        info_.color_space.ToSkColorSpace()),
-      &props);
-}
+                                                       /*client=*/nullptr)) {}
 
 CanvasNon2DSnapshotProviderBitmap::~CanvasNon2DSnapshotProviderBitmap() =
     default;
@@ -77,54 +81,41 @@ bool CanvasNon2DSnapshotProviderBitmap::IsGpuContextLost() const {
 }
 
 bool CanvasNon2DSnapshotProviderBitmap::IsValid() const {
-  return surface_.get();
+  // This class doesn't attempt to create an SkSurface until
+  // DoExternalDrawAndSnapshot() is invoked; it will detect failure to create
+  // the surface at that point and return nullptr.
+  return true;
 }
 
 scoped_refptr<StaticBitmapImage>
 CanvasNon2DSnapshotProviderBitmap::DoExternalDrawAndSnapshot(
     base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
     ImageOrientation orientation /*= ImageOrientationEnum::kDefault*/) {
-  // The static creation method returns nullptr if `IsValid()` is false on the
-  // created instance, and once `surface_` is created, it is never destroyed
-  // until the instance itself is destroyed.
-  CHECK(surface_);
+  if (!surface_) {
+    const bool can_use_lcd_text = info_.alpha_type == kOpaque_SkAlphaType;
+    const auto props =
+        skia::LegacyDisplayGlobals::ComputeSurfaceProps(can_use_lcd_text);
+    surface_ = SkSurfaces::Raster(
+        SkImageInfo::Make(info_.size.width(), info_.size.height(),
+                          viz::ToClosestSkColorType(info_.format),
+                          kPremul_SkAlphaType,
+                          info_.color_space.ToSkColorSpace()),
+        &props);
+    if (!surface_) {
+      return nullptr;
+    }
+  }
 
   draw_callback(recorder_->getRecordingCanvas());
 
   if (recorder_->HasReleasableDrawOps()) {
-    if (!skia_canvas_) {
-      if (!playback_image_provider_n32_) {
-        // Create an ImageDecodeCache for half float images only if the canvas
-        // is using half float back storage.
-        cc::ImageDecodeCache* cache_f16 = nullptr;
-        if (info_.format == viz::SinglePlaneFormat::kRGBA_F16) {
-          cache_f16 = &Image::SharedCCDecodeCache(kRGBA_F16_SkColorType);
-        }
-
-        cc::ImageDecodeCache* cache_rgba8 =
-            &Image::SharedCCDecodeCache(kN32_SkColorType);
-
-        cc::TargetColorParams target_color_params;
-        target_color_params.color_space = info_.color_space;
-        playback_image_provider_n32_.emplace(
-            cache_rgba8, target_color_params,
-            cc::PlaybackImageProvider::Settings());
-
-        // If the image provider may require to decode to half float instead of
-        // uint8, create a f16 PlaybackImageProvider with the passed cache.
-        if (info_.format == viz::SinglePlaneFormat::kRGBA_F16) {
-          DCHECK(cache_f16);
-          playback_image_provider_f16_.emplace(
-              cache_f16, target_color_params,
-              cc::PlaybackImageProvider::Settings());
-        }
-      }
-
-      skia_canvas_ =
-          std::make_unique<cc::SkiaPaintCanvas>(surface_->getCanvas(), this);
+    if (!image_provider_impl_) {
+      image_provider_impl_.emplace(info_);
     }
 
-    skia_canvas_->drawPicture(recorder_->ReleaseMainRecording());
+    cc::PlaybackParams params(&image_provider_impl_.value(),
+                              surface_->getCanvas()->getLocalToDevice());
+    recorder_->ReleaseMainRecording().Playback(surface_->getCanvas(), params);
   }
 
   cc::PaintImage paint_image;

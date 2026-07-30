@@ -225,7 +225,6 @@ All changes to this list should go through Blink's feature review process: http:
     font-weight
     forced-color-adjust
     frame-sizing
-    gap-rule-overlap
     grid-auto-columns
     grid-auto-flow
     grid-auto-rows
@@ -275,6 +274,7 @@ All changes to this list should go through Blink's feature review process: http:
     margin-left
     margin-right
     margin-top
+    margin-trim
     marker-end
     marker-mid
     marker-start
@@ -368,6 +368,7 @@ All changes to this list should go through Blink's feature review process: http:
     ruby-align
     ruby-overhang
     ruby-position
+    rule-overlap
     rx
     ry
     scale
@@ -447,10 +448,10 @@ All changes to this list should go through Blink's feature review process: http:
     text-wrap-mode
     text-wrap-style
     timeline-scope
+    timeline-trigger-activation-range-end
+    timeline-trigger-activation-range-start
     timeline-trigger-active-range-end
     timeline-trigger-active-range-start
-    timeline-trigger-entry-range-end
-    timeline-trigger-entry-range-start
     timeline-trigger-name
     timeline-trigger-source
     top
@@ -976,18 +977,18 @@ All changes to this list should go through Blink's feature review process: http:
         text-wrap-mode
         text-wrap-style
     timeline-trigger
+        timeline-trigger-activation-range-end
+        timeline-trigger-activation-range-start
         timeline-trigger-active-range-end
         timeline-trigger-active-range-start
-        timeline-trigger-entry-range-end
-        timeline-trigger-entry-range-start
         timeline-trigger-name
         timeline-trigger-source
+    timeline-trigger-activation-range
+        timeline-trigger-activation-range-end
+        timeline-trigger-activation-range-start
     timeline-trigger-active-range
         timeline-trigger-active-range-end
         timeline-trigger-active-range-start
-    timeline-trigger-entry-range
-        timeline-trigger-entry-range-end
-        timeline-trigger-entry-range-start
     transition
         transition-behavior
         transition-delay

@@ -567,6 +567,17 @@ Nếu bạn đặt chính sách này thành Disabled (Tắt) hoặc không đặ
 Chính sách này chỉ áp dụng cho các kiểu máy cũ không tự động nhận được bản cập nhật mở rộng.
 
 Để biết thêm chi tiết, vui lòng truy cập https://support.google.com/chrome/a/?p=Expand_updates_support.</translation>
+<translation id="1432008122934973720">Theo mặc định, các quyền đối với Quyền truy cập mạng cục bộ (LNA) chỉ được phép yêu cầu trong các khung phụ trên nhiều nguồn gốc nếu được uỷ quyền rõ ràng. Bạn có thể sử dụng chính sách này để ghi đè chế độ mặc định này, sao cho quyền LNA được kế thừa theo mặc định vào các khung con, trừ phi bị từ chối rõ ràng trong chính sách quyền.
+
+Nếu bạn đặt chính sách này thành bật, thì theo mặc định, các khung con sẽ được uỷ quyền tất cả các tính năng của chính sách quyền LNA và có thể gửi yêu cầu đến mạng cục bộ (kích hoạt lời nhắc cấp quyền).
+
+Nếu bạn đặt chính sách này thành tắt hoặc không đặt, thì các khung con phải được uỷ quyền rõ ràng tính năng chính sách quyền để đưa ra yêu cầu về mạng cục bộ và kích hoạt lời nhắc về quyền.
+
+Chính sách này áp dụng cho các tính năng của chính sách quyền <ph name="LOCAL_NETWORK_ACCESS_FEATURE_NAME" />, <ph name="LOOPBACK_NETWORK_FEATURE_NAME" /> và <ph name="LOCAL_NETWORK_FEATURE_NAME" />.
+
+Để biết thêm thông tin về Quyền truy cập mạng cục bộ, hãy xem https://wicg.github.io/local-network-access/ và https://developer.chrome.com/blog/local-network-access.
+
+Để biết thêm thông tin về chính sách quyền, hãy xem https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Permissions_Policy.</translation>
 <translation id="1432834104376790711">Chính sách này bật hoặc tắt Chế độ tiết kiệm pin.
       Trên Chrome, chế độ cài đặt này điều chỉnh tốc độ khung hình để giảm mức tiêu thụ điện năng. Nếu bạn không đặt chính sách này, thì người dùng cuối có thể kiểm soát chế độ cài đặt này trong chrome://settings/performance.
       Trên ChromeOS, chế độ cài đặt này điều chỉnh tốc độ khung hình và tần suất của CPU, giảm độ sáng đèn nền và bật Chế độ tiết kiệm pin cho Android. Trên các thiết bị có nhiều CPU, một số CPU sẽ bị tắt.
@@ -1579,6 +1590,7 @@ Chính sách thiết bị này tương đương với chính sách người dùn
 <translation id="2090939118981888335">Nếu bạn đặt chính sách này thành Bật, proxy nén dữ liệu sẽ được phép hoạt động. Nếu bạn đặt chính sách này thành Tắt, proxy nén dữ liệu sẽ không được phép hoạt động.
 
       Nếu bạn đặt chính sách này, người dùng sẽ không thể thay đổi được. Nếu bạn không đặt chính sách này, người dùng có thể chọn sử dụng tính năng này.</translation>
+<translation id="2091689441590064807">Không cho phép các yêu cầu LNA trong khung phụ mà không cần uỷ quyền rõ ràng</translation>
 <translation id="2093552723795057221">Không báo cáo trạng thái âm thanh</translation>
 <translation id="209388704279338003">Chính sách này không còn được dùng nữa và không được hỗ trợ, vui lòng dùng <ph name="DEVICE_PRINTERS_ACCESS_MODE_POLICY_NAME" />.</translation>
 <translation id="2093951844062548778">Chính sách này cấp cho tính năng Thông tin nhanh quyền truy cập vào nội dung đã chọn và gửi thông tin đó đến máy chủ để nhận kết quả tra định nghĩa.
@@ -3185,7 +3197,7 @@ Nếu bạn phải sử dụng chính sách này để ngăn việc xoá window.
 <translation id="3181114468897395940">Chế độ cài đặt phím PageUp/PageDown sử dụng phím tắt chứa phím bổ trợ alt</translation>
 <translation id="3182503302060513467">Thông báo giữa trang sẽ xuất hiện trên trang Thẻ mới nếu có.</translation>
 <translation id="3184161739683646075">Kiểm soát chế độ DNS qua HTTPS</translation>
-<translation id="3184247679989063353">Danh sách mẫu URL. Những yêu cầu mạng bắt nguồn từ các trang web do nguồn gốc trùng khớp phân phát sẽ không phải trải qua bước kiểm tra <ph name="LOCAL_NETWORK_ACCESS" />.
+<translation id="3184247679989063353">Danh sách mẫu URL. Yêu cầu mạng khởi tạo từ các trang web có nguồn gốc trùng khớp sẽ không phải trải qua các bước kiểm tra <ph name="LOCAL_NETWORK_ACCESS" />.
 
 Đối với những nguồn gốc không được áp dụng các mẫu nêu ở đây, cấu hình cá nhân của người dùng sẽ được áp dụng.
 
@@ -4920,7 +4932,7 @@ Nếu bạn bật chính sách này, thì cú pháp cũ không dùng nữa cũng
 Nếu bạn tắt chính sách này, thì cú pháp cũ không dùng nữa cũng sẽ tắt.
 
 Nếu bạn không đặt chính sách này, thì cú pháp cũ không dùng nữa sẽ tắt.</translation>
-<translation id="4400152722459197056">Danh sách mẫu URL. Những yêu cầu mạng bắt nguồn từ các trang web do nguồn gốc trùng khớp phân phát đến thiết bị đầu cuối trên mạng cục bộ sẽ không phải trải qua bước kiểm tra <ph name="LOCAL_NETWORK_ACCESS" />.
+<translation id="4400152722459197056">Danh sách mẫu URL. Yêu cầu mạng gửi tới thiết bị đầu cuối trên mạng cục bộ, nếu được khởi tạo từ các trang web có nguồn gốc trùng khớp, sẽ không phải trải qua các bước kiểm tra <ph name="LOCAL_NETWORK_ACCESS" />.
 
 Đối với những nguồn gốc không được áp dụng các mẫu nêu ở đây, cấu hình cá nhân của người dùng sẽ được áp dụng.
 
@@ -4994,17 +5006,6 @@ Nếu bạn đặt chính sách này, người dùng sẽ không thể thay đ�
 <translation id="4426986640594727372">Cho phép truy cập vào dữ liệu định vị vị trí của hệ thống</translation>
 <translation id="4427173305799125784">Trình xem PDF không thể chú thích trong tệp PDF</translation>
 <translation id="4432762137771104529">Bật Báo cáo mở rộng trong Duyệt web an toàn</translation>
-<translation id="4432772502174730966">Chính sách này xác định chế độ cài đặt mặc định cho tất cả các tính năng AI tạo sinh được đề cập. Ví dụ: Nếu bạn đặt chính sách này thành giá trị 1, thì 1 sẽ là chế độ cài đặt mặc định cho tất cả các tính năng AI tạo sinh được đề cập. Các giá trị chính sách được đặt thủ công sẽ không bị ảnh hưởng. Chế độ cài đặt này sẽ xác định chế độ mặc định cho các tính năng AI tạo sinh được đề cập trong Chrome. Hãy truy cập vào https://support.google.com/chrome/a?p=generative_ai_settings để xem danh sách các tính năng được đề cập.
-
-0 = Cho phép sử dụng tính năng này và cho phép Google sử dụng dữ liệu liên quan để cải tiến các mô hình AI. Tuỳ thuộc vào tính năng, dữ liệu liên quan có thể bao gồm câu lệnh, thông tin đầu vào, thông tin đầu ra, tài liệu nguồn và phản hồi bằng văn bản. Dữ liệu này cũng có thể được nhân viên xem xét để cải tiến các mô hình AI. 0 là giá trị mặc định, trừ phi có ghi chú bên dưới.
-
-1 = Cho phép sử dụng tính năng nhưng không cho phép Google sử dụng nội dung của người dùng (bao gồm cả câu lệnh, thông tin đầu vào, thông tin đầu ra, tài liệu nguồn và phản hồi bằng văn bản) để cải tiến các mô hình. 1 là giá trị mặc định cho Người dùng doanh nghiệp do <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> quản lý và Tài khoản thuộc tổ chức giáo dục do <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> quản lý.
-
-2 = Không cho phép sử dụng tính năng này.
-
-Nếu một tính năng của Chrome được đề cập không có giá trị chính sách tương đương, thì giá trị cao hơn gần nhất sẽ được sử dụng. Một số chính sách, chẳng hạn như <ph name="GEMINI_SETTINGS_POLICY_NAME" />, chỉ hỗ trợ các trạng thái Được phép và Không được phép. Nếu bạn đặt chính sách <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> thành 0 hoặc 1, thì tính năng này sẽ được phép. Nếu bạn đặt chính sách này thành 2, thì tính năng này sẽ không được phép. Hãy xem tài liệu về mỗi tính năng để biết thêm thông tin về cách tính năng tương tác với các giá trị trong chính sách này.
-
-Để biết thêm thông tin về cách xử lý dữ liệu cho các tính năng AI tạo sinh, vui lòng truy cập https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="443454694385851356">Cũ (không an toàn)</translation>
 <translation id="4435032708588431506">Cho phép QUIC</translation>
 <translation id="443665821428652897">Xóa dữ liệu trang web khi đóng trình duyệt (không dùng nữa)</translation>
@@ -5610,6 +5611,23 @@ Khi bạn đặt chính sách này thành Tắt, người dùng sẽ không th�
       Nếu bạn đặt chính sách này thành bật, màn hình giới thiệu Gemini sẽ hiển thị.
 
       Nếu bạn không đặt chính sách này, màn hình giới thiệu Gemini sẽ bị bỏ qua đối với người dùng do doanh nghiệp quản lý và sẽ hiển thị với người dùng không được quản lý.</translation>
+<translation id="4781685421378746692">Chính sách này kiểm soát việc chia sẻ nội dung của trang và tệp với <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> và <ph name="GOOGLE_LENS_PRODUCT_NAME" /> thông qua bảng điều khiển bên hoặc các thẻ của <ph name="PRODUCT_NAME" />.
+
+Xin lưu ý rằng chính sách này không ảnh hưởng đến <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> trên web. Chính sách này chỉ kiểm soát cách người dùng có thể chia sẻ thông tin khi sử dụng <ph name="PRODUCT_NAME" />.
+
+0/chưa đặt = người dùng có thể chia sẻ nội dung của trang hoặc tệp với <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />.
+
+1 = người dùng không thể chia sẻ nội dung của trang hoặc tệp với <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />. Các điểm truy cập để chia sẻ ngữ cảnh và bảng điều khiển bên sẽ bị tắt hoặc ẩn.
+
+Chính sách này sẽ bị bỏ qua khi <ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> không phải là công cụ tìm kiếm mặc định của người dùng vì tính năng này bị tắt.
+
+Chính sách này không phụ thuộc vào chính sách <ph name="AI_MODE_SETTINGS_POLICY_NAME" />. Chính sách <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> chỉ kiểm soát các điểm truy cập trên thanh địa chỉ hoặc hộp tìm kiếm trên NTP trong khi chính sách này kiểm soát việc chia sẻ ngữ cảnh thông qua bảng điều khiển bên hoặc các thẻ.
+
+Chính sách này cũng không kiểm soát công cụ tích hợp <ph name="GOOGLE_GEMINI_PRODUCT_NAME" />. Bạn có thể tắt công cụ tích hợp này bằng <ph name="GEMINI_SETTINGS_POLICY_NAME" />.
+
+Nếu bạn không đặt chính sách này, hành vi của chính sách sẽ do chính sách <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> xác định.
+
+Để biết thêm thông tin về cách xử lý dữ liệu cho các tính năng AI tạo sinh, vui lòng truy cập https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="4783415902268741066">Cho phép hiện các trang kết quả mới đây nhất của công cụ tìm kiếm mặc định trong bảng điều khiển bên của Trình duyệt</translation>
 <translation id="4786784434769279324">Các thao tác sẽ diễn ra khi máy tính ở trạng thái rảnh</translation>
 <translation id="4787763197941188108">Ghi đè kích thước trang in mặc định.
@@ -6616,7 +6634,7 @@ Nếu bạn đặt chính sách này thành false (sai), thì người dùng s�
 <translation id="5395778184390568113">Kiểm soát phím tắt dùng để kích hoạt các phím Home/End trong "cụm 6 phím"</translation>
 <translation id="5396322417222266779">Cho phép người dùng tuỳ chỉnh phím tắt hệ thống</translation>
 <translation id="5398387276166014955">Cho phép đưa mã của bên thứ ba vào Chrome</translation>
-<translation id="5399022269499105814">Danh sách mẫu URL. Những yêu cầu mạng bắt nguồn từ các trang web do nguồn gốc trùng khớp phân phát đến thiết bị cục bộ sẽ không thể gửi yêu cầu <ph name="LOCAL_NETWORK_ACCESS" />.
+<translation id="5399022269499105814">Danh sách mẫu URL. Yêu cầu mạng gửi tới thiết bị cục bộ, nếu được khởi tạo từ các trang web có nguồn gốc trùng khớp, sẽ không được phép gửi các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" />.
 
 Đối với những nguồn gốc không được áp dụng các mẫu nêu ở đây, cấu hình cá nhân của người dùng sẽ được áp dụng.
 
@@ -7204,13 +7222,6 @@ Nếu bạn không đặt chính sách này hoặc đặt chính sách này thà
 <translation id="5746149754419996562">Cho phép Tiện ích xem nhanh hiện diện trên <ph name="PRODUCT_OS_NAME" />. Cụ thể, người dùng sẽ có thể truy cập các tiện ích này qua khối ngày trên kệ.
 Khi bạn bật chính sách này, Tiện ích xem nhanh sẽ bật trên <ph name="PRODUCT_OS_NAME" />.
 Khi bạn tắt hoặc không đặt chính sách này, Tiện ích xem nhanh sẽ không bật trên <ph name="PRODUCT_OS_NAME" />.</translation>
-<translation id="5747628966013559697">Thiết lập cách <ph name="PRODUCT_NAME" /> tải mô hình AI tạo sinh nền tảng xuống và dùng mô hình đó để suy luận cục bộ.
-
-Khi bạn không đặt chính sách này hoặc đặt chính sách này thành Allowed (Cho phép) (0), mô hình sẽ tự động được tải xuống và dùng để suy luận.
-
-Khi bạn đặt chính sách này thành Disabled (Tắt) (1), mô hình sẽ không được tải xuống.
-
-Trên nền tảng máy tính, bạn cũng có thể tắt tính năng tải mô hình xuống bằng chính sách <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />.</translation>
 <translation id="5749396052108288586">Chính sách này không còn dùng nữa. Thay vào đó, vui lòng sử dụng <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />.</translation>
 <translation id="574983287620584622">Bật phím tắt của tính năng hỗ trợ tiếp cận trên màn hình đăng nhập</translation>
 <translation id="5755002458331714762"> Các API Thành phần web phiên bản 0 (Shadow DOM v0, Custom Elements v0 và HTML Imports) đã ngừng hoạt động vào năm 2018 và bị tắt theo mặc định kể từ M80. Theo chính sách này, bạn có thể lựa chọn (các) tính năng nào trong số này sẽ bật lại cho đến M84.
@@ -7232,6 +7243,7 @@ Trên nền tảng máy tính, bạn cũng có thể tắt tính năng tải mô
 <translation id="5766438888216077649">Không đặt <ph name="WINDOW_OPENER_PROPERTY" /> cho các đường liên kết nhắm đến <ph name="BLANK_PAGE_NAME" /></translation>
 <translation id="5767776869128458023">Tắt các trang lỗi thay thế</translation>
 <translation id="5770738360657678870">Kênh nhà phát triển (có thể không ổn định)</translation>
+<translation id="5772841828612966342">Đã bật: Tính năng XSLT đã được bật.</translation>
 <translation id="5774345930803672932">Khi chính sách này được đặt thành Đúng (True) hoặc không đặt chính sách này, các sự kiện, phép đo từ xa và thông tin sẽ được báo cáo cho Quy trình báo cáo đã mã hóa. Khi chính sách này được đặt thành Sai (False), Quy trình báo cáo đã mã hóa sẽ tắt.</translation>
 <translation id="5774856474228476867">URL tìm kiếm nhà cung cấp dịch vụ tìm kiếm mặc định</translation>
 <translation id="5775235485119094648">Sạc pin khi thiết bị ở trong phạm vi cố định.</translation>
@@ -7691,6 +7703,7 @@ LƯU Ý: Chỉ các quy trình kết xuất đồ hoạ mới bắt đầu mới
 chính sách này trong khi trình duyệt đang chạy.</translation>
 <translation id="6083281887050888160">Cho phép ghép nối Bluetooth "Just Works"</translation>
 <translation id="6083631234867522991">Windows (ứng dụng Windows):</translation>
+<translation id="6085580138417523410">Cho phép các yêu cầu về Quyền truy cập mạng cục bộ (LNA) trong khung phụ mà không cần uỷ quyền rõ ràng</translation>
 <translation id="6087413944876892918">Sử dụng thuật toán <ph name="HAPPY_EYEBALLS_V3" /></translation>
 <translation id="608788685013546076">Đặt ngưỡng pin cho chế độ chuyển đổi điện năng cao điểm theo phần trăm</translation>
 <translation id="6089679180657323464">Kiểm soát các tùy chọn cài đặt của bộ điều khiển đo từ xa và chẩn đoán wilco.</translation>
@@ -9924,6 +9937,11 @@ Khi bạn đặt chính sách này thành False (Sai), hành vi cũ sẽ đượ
 <translation id="7410074797376205571">Cho phép <ph name="CHROME_REMOTE_DESKTOP_PRODUCT_NAME" /> thực thi các yêu cầu API WebAuthn được gửi qua proxy trên một máy chủ từ xa.</translation>
 <translation id="7412456346709338637">Cho phép thiết bị ngoại vi Thunderbolt/USB4 truy cập vào dữ liệu</translation>
 <translation id="7414890119082492552">Không có lựa chọn ưu tiên.</translation>
+<translation id="7416222110012824615">Chính sách này kiểm soát khả năng sử dụng tính năng XSLT (API XSLTProcessor JavaScript và hướng dẫn xử lý XSL).
+Nếu bạn đặt chính sách này thành Bật, thì tính năng XSLT sẽ hoạt động, bất kể trạng thái mặc định của tính năng này trong trình duyệt.
+Nếu bạn đặt chính sách này thành Tắt, thì tính năng XSLT sẽ không hoạt động, bất kể trạng thái mặc định của tính năng này trong trình duyệt.
+Nếu bạn không đặt chính sách này, thì khả năng sử dụng tính năng XSLT sẽ được xác định theo chế độ cài đặt mặc định của trình duyệt và các thử nghiệm thực tế.
+Đây là chính sách tạm thời và sẽ bị loại bỏ trong phiên bản M164.</translation>
 <translation id="7417438464912687020">Cho phép các kết nối truy cập từ xa vào máy này</translation>
 <translation id="7417972229667085380">Tỷ lệ phần trăm theo đó xác định độ trễ khi không hoạt động trong chế độ bản trình bày (không dùng nữa)</translation>
 <translation id="7421230730436851224">Không bao giờ chạy quy trình âm thanh trong hộp cát</translation>
@@ -9964,6 +9982,7 @@ Nếu bạn đặt chính sách này thành "<ph name="AUTOMATED_NAME" />", thì
 Về mặt chức năng thì việc không đặt chính sách này tương đương với việc đặt chính sách này thành "<ph name="ALLOWED_NAME" />" cho người dùng thông thường. Còn với người dùng doanh nghiệp, chính sách chưa được đặt có giá trị mặc định là "<ph name="DISALLOWED_NAME" />".</translation>
 <translation id="7438982301540282785">Tự động hoá quy trình thiết lập <ph name="MICROSOFT_ONE_DRIVE_NAME" /></translation>
 <translation id="7443356543619955157">Nếu bạn đặt chính sách này, cấu hình mạng sẽ được đẩy cho tất cả người dùng thiết bị <ph name="PRODUCT_OS_NAME" />. Cấu hình mạng là một chuỗi có định dạng JSON như được xác định trong định dạng Cấu hình mạng mở.</translation>
+<translation id="744349502210151344">Mặc định: Khả năng sử dụng tính năng XSLT sẽ được xác định theo chế độ mặc định của trình duyệt và các thử nghiệm thực tế.</translation>
 <translation id="7446978687387327623">Cho phép kiểm tra theo thời gian thực qua proxy của tính năng Duyệt web an toàn</translation>
 <translation id="7448430478749155471">Bật tính năng chọn để nói trên màn hình đăng nhập</translation>
 <translation id="7455912144588577399">Nếu bạn đặt chính sách này thành đúng thì hệ thống sẽ cho phép đọc to các trang
@@ -10180,7 +10199,7 @@ Nếu bạn để trống chính sách này, <ph name="FLOATING_SSO_DOMAIN_BLOCK
           Nếu bạn đặt chính sách này thành sai hoặc không đặt thì người dùng sẽ không được tự động gửi mã PIN trên màn hình đăng nhập và màn hình khoá.
 
           Nếu bạn đặt chính sách này, thì người dùng sẽ không có tuỳ chọn bật tính năng này.</translation>
-<translation id="7609566862616914296">Danh sách mẫu URL. Những yêu cầu mạng bắt nguồn từ các trang web do nguồn gốc trùng khớp phân phát đến thiết bị đầu cuối trên mạng cục bộ sẽ không thể gửi yêu cầu <ph name="LOCAL_NETWORK_ACCESS" />.
+<translation id="7609566862616914296">Danh sách mẫu URL. Yêu cầu mạng gửi tới thiết bị đầu cuối trên mạng cục bộ, nếu được khởi tạo từ các trang web có nguồn gốc trùng khớp, sẽ không được phép gửi các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" />.
 
 Đối với những nguồn gốc không được áp dụng các mẫu nêu ở đây, cấu hình cá nhân của người dùng sẽ được áp dụng.
 
@@ -10281,6 +10300,7 @@ Lưu ý: Chính sách này chỉ áp dụng cho những nền tảng hỗ trợ 
 <translation id="7669630878711068277">Nếu bạn đặt thành Bật hoặc không đặt chính sách này, thì người dùng có thể in trong <ph name="PRODUCT_NAME" /> và không thể thay đổi tùy chọn cài đặt này.
 
       Nếu bạn đặt chính sách này thành Tắt, người dùng sẽ không thể in từ <ph name="PRODUCT_NAME" />. Tính năng in bị tắt trong trình đơn ba chấm, các tiện ích và ứng dụng JavaScript.</translation>
+<translation id="7672510074688643558">Cho phép các yêu cầu LNA trong khung phụ mà không cần uỷ quyền rõ ràng</translation>
 <translation id="7673194325208122247">Khoảng thời gian (mili giây)</translation>
 <translation id="7677220829878081413">
       Khi bạn đặt chính sách này thành ArcSession, nếu Android đã khởi động, thì chính sách này sẽ buộc thiết bị khởi động lại khi người dùng đăng xuất.
@@ -10867,7 +10887,7 @@ Chính sách này chỉ áp dụng cho 1.000 mục.</translation>
 <translation id="8056273037819805106">Thông tin đăng nhập <ph name="PRODUCT_OS_NAME" /> sẽ được dùng để xác thực mạng với một proxy được quản lý.</translation>
 <translation id="8056800559672904373">Tài khoản được quản lý phải là tài khoản chính và không có tài khoản phụ, đồng thời người dùng có thể nhập dữ liệu duyệt web hiện có vào thời điểm tạo hồ sơ</translation>
 <translation id="8059164285174960932">URL nơi ứng dụng truy cập từ xa sẽ lấy mã thông báo xác thực</translation>
-<translation id="8059262352692096329">Danh sách mẫu URL. Những yêu cầu mạng bắt nguồn từ các trang web do nguồn gốc trùng khớp phân phát đến thiết bị cục bộ sẽ không phải trải qua bước kiểm tra <ph name="LOCAL_NETWORK_ACCESS" />.
+<translation id="8059262352692096329">Danh sách mẫu URL. Yêu cầu mạng gửi tới thiết bị cục bộ, nếu được khởi tạo từ các trang web có nguồn gốc trùng khớp, sẽ không phải trải qua các bước kiểm tra <ph name="LOCAL_NETWORK_ACCESS" />.
 
 Đối với những nguồn gốc không được áp dụng các mẫu nêu ở đây, cấu hình cá nhân của người dùng sẽ được áp dụng.
 
@@ -11173,7 +11193,7 @@ Mẫu so khớp sẽ có định dạng giống như các mẫu của chính sá
 
 Bạn có thể xem thêm thông tin về công nghệ cũ tại https://chromestatus.com/features.</translation>
 <translation id="8273183018575414926">Ứng dụng web tiến bộ</translation>
-<translation id="8274053052968966211">Danh sách mẫu URL. Những yêu cầu mạng bắt nguồn từ các trang web do nguồn gốc trùng khớp phân phát sẽ không thể gửi yêu cầu <ph name="LOCAL_NETWORK_ACCESS" />.
+<translation id="8274053052968966211">Danh sách mẫu URL. Yêu cầu mạng khởi tạo từ các trang web có nguồn gốc trùng khớp sẽ không được phép gửi các yêu cầu <ph name="LOCAL_NETWORK_ACCESS" />.
 
 Đối với những nguồn gốc không được áp dụng các mẫu nêu ở đây, cấu hình cá nhân của người dùng sẽ được áp dụng.
 
@@ -11225,6 +11245,7 @@ Có nhiều chính sách liệt kê những nguồn gốc ảnh hưởng đến 
           Nếu bạn đặt chính sách này thành một giá trị không nằm trong khoảng tối thiểu/tối đa, thì máy chủ lưu trữ có thể không khởi động được.
 
           Xin lưu ý rằng giới hạn thực tế cho kích thước của bảng nhớ tạm dựa trên kích thước thông báo tối đa của kênh dữ liệu WebRTC mà chính sách này không kiểm soát.</translation>
+<translation id="8294127013911518331">Kiểm soát khả năng sử dụng tính năng XSLT</translation>
 <translation id="8294750666104911727">Thông thường các trang có Tương thích với X-UA được đặt thành chrome=1 sẽ được hiển thị trong <ph name="PRODUCT_FRAME_NAME" /> bất kể chính sách 'ChromeFrameRendererSettings'.
 
           Nếu bạn bật cài đặt này, trang sẽ không được quét tìm thẻ meta.
@@ -11977,6 +11998,7 @@ Chính sách này không còn được dùng kể từ <ph name="PRODUCT_NAME" /
 <translation id="8807313206348471682">Hiển thị hộp thoại xác nhận đăng xuất</translation>
 <translation id="8807728576820212213">Bật tính năng tích hợp Ống kính</translation>
 <translation id="8809082103104823938">Hỗ trợ GIF trong bộ chọn biểu tượng cảm xúc</translation>
+<translation id="8809276335775270751">Đã tắt: Tính năng XSLT đã bị tắt.</translation>
 <translation id="8812091410765157924">Chỉ cho phép cửa sổ bật lên ở trạng thái mở với mục tiêu <ph name="BLANK_PAGE_NAME" /> để tương tác với chính trang đã mở cửa sổ bật lên nếu trang mở thể hiện rõ việc chọn sử dụng hoạt động tương tác đó</translation>
 <translation id="8812631362927615118">Bật tính năng xác thực bên thứ nhất khi báo cáo tín hiệu an toàn của người dùng</translation>
 <translation id="8816370949847593408">Ứng dụng Chrome có thể không được phép chạy, tùy thuộc vào trạng thái của việc ngừng phát hành.</translation>

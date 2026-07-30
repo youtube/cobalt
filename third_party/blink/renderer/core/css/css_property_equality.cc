@@ -586,6 +586,8 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.MarginRight() == b.MarginRight();
     case CSSPropertyID::kMarginTop:
       return a.MarginTop() == b.MarginTop();
+    case CSSPropertyID::kMarginTrim:
+      return a.MarginTrim() == b.MarginTrim();
     case CSSPropertyID::kMarkerEnd:
       return a.MarkerEndResource() == b.MarkerEndResource();
     case CSSPropertyID::kMarkerMid:
@@ -868,8 +870,8 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.ColumnGap() == b.ColumnGap();
     case CSSPropertyID::kRowGap:
       return a.RowGap() == b.RowGap();
-    case CSSPropertyID::kGapRuleOverlap:
-      return a.GapRuleOverlap() == b.GapRuleOverlap();
+    case CSSPropertyID::kRuleOverlap:
+      return a.RuleOverlap() == b.RuleOverlap();
     case CSSPropertyID::kColumnRuleBreak:
       return a.ColumnRuleBreak() == b.ColumnRuleBreak();
     case CSSPropertyID::kRowRuleBreak:
@@ -1055,8 +1057,8 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kScrollTimelineAxis:
     case CSSPropertyID::kScrollTimelineName:
     case CSSPropertyID::kTimelineTriggerName:
-    case CSSPropertyID::kTimelineTriggerEntryRangeStart:
-    case CSSPropertyID::kTimelineTriggerEntryRangeEnd:
+    case CSSPropertyID::kTimelineTriggerActivationRangeStart:
+    case CSSPropertyID::kTimelineTriggerActivationRangeEnd:
     case CSSPropertyID::kTimelineTriggerActiveRangeStart:
     case CSSPropertyID::kTimelineTriggerActiveRangeEnd:
     case CSSPropertyID::kTimelineTriggerSource:
@@ -1409,7 +1411,7 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kTextSpacing:
     case CSSPropertyID::kTextWrap:
     case CSSPropertyID::kTimelineTrigger:
-    case CSSPropertyID::kTimelineTriggerEntryRange:
+    case CSSPropertyID::kTimelineTriggerActivationRange:
     case CSSPropertyID::kTimelineTriggerActiveRange:
     case CSSPropertyID::kTransition:
     case CSSPropertyID::kViewTimeline:

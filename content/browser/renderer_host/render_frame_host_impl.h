@@ -50,6 +50,7 @@
 #include "content/browser/browser_interface_broker_impl.h"
 #include "content/browser/buckets/bucket_context.h"
 #include "content/browser/can_commit_status.h"
+#include "content/browser/locks/lock_manager.h"
 #include "content/browser/renderer_host/back_forward_cache_impl.h"
 #include "content/browser/renderer_host/back_forward_cache_metrics.h"
 #include "content/browser/renderer_host/browsing_context_state.h"
@@ -332,6 +333,7 @@ class CONTENT_EXPORT RenderFrameHostImpl
       public network::mojom::TrustTokenAccessObserver,
       public network::mojom::SharedDictionaryAccessObserver,
       public network::mojom::DeviceBoundSessionAccessObserver,
+      public LockManager<storage::BucketId>::Observer,
       public BucketContext,
       public base::MemoryPressureListener {
  public:
@@ -770,6 +772,9 @@ class CONTENT_EXPORT RenderFrameHostImpl
   // SiteInstanceGroup::Observer
   void RenderProcessGone(SiteInstanceGroup* site_instance_group,
                          const ChildProcessTerminationInfo& info) override;
+
+  // LockObserver
+  void OnLockContention() override;
 
   // ui::AXActionHandlerBase:
   void PerformAction(const ui::AXActionData& data) override;
@@ -2671,11 +2676,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
                        blink::mojom::LocalMainFrameHost::UpdateTargetURLCallback
                            callback) override;
   void RequestClose() override;
-  void ShowCreatedWindow(const blink::LocalFrameToken& opener_frame_token,
-                         WindowOpenDisposition disposition,
-                         blink::mojom::WindowFeaturesPtr window_features,
-                         bool user_gesture,
-                         ShowCreatedWindowCallback callback) override;
   void SetWindowRect(const gfx::Rect& bounds,
                      SetWindowRectCallback callback) override;
   void DidFirstVisuallyNonEmptyPaint() override;
@@ -3371,7 +3371,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
           keep_alive_loader_factory,
       mojo::PendingAssociatedRemote<blink::mojom::FetchLaterLoaderFactory>
           fetch_later_loader_factory,
-      const std::optional<network::ParsedPermissionsPolicy>& permissions_policy,
       blink::mojom::PolicyContainerPtr policy_container,
       const blink::DocumentToken& document_token,
       const base::UnguessableToken& devtools_navigation_token);
@@ -3932,9 +3931,6 @@ class CONTENT_EXPORT RenderFrameHostImpl
 
   // Stores a snapshot of the inherited base URL from the initiator's
   // FrameLoadRequest, if this document inherited one (e.g., about:srcdoc).
-  // TODO(crbug.com/40060678): about:blank frames will also need to inherit base
-  // URLs, from the initiator rather than the parent. See
-  // https://crbug.com/1356658#c7.
   void SetInheritedBaseUrl(const GURL& inherited_base_url);
 
   // Called when a navigation commits successfully to |url_info->url|. This

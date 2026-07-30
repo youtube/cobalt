@@ -27,12 +27,12 @@
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager_factory.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/file_analysis_request.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/multipart_uploader.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/resumable_uploader.h"
 #include "chrome/common/chrome_paths.h"
 #include "chrome/test/base/testing_profile.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_request.h"
 #include "components/enterprise/connectors/core/cloud_content_scanning/binary_upload_service.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/resumable_uploader.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/safe_browsing/core/common/features.h"
 #include "components/safe_browsing/core/common/safe_browsing_prefs.h"
@@ -1237,38 +1237,27 @@ TEST_F(CloudBinaryUploadServiceTest, TestMaxParallelRequestsFlag) {
   EXPECT_EQ(15UL, CloudBinaryUploadService::GetParallelActiveRequestsMax());
 
   {
-    base::test::ScopedCommandLine scoped_command_line;
-    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
-        "wp-max-parallel-active-requests", "10");
-    EXPECT_EQ(10UL, CloudBinaryUploadService::GetParallelActiveRequestsMax());
-  }
-
-  {
-    base::test::ScopedCommandLine scoped_command_line;
-    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
-        "wp-max-parallel-active-requests", "100");
-    EXPECT_EQ(100UL, CloudBinaryUploadService::GetParallelActiveRequestsMax());
-  }
-
-  {
-    base::test::ScopedCommandLine scoped_command_line;
-    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
-        "wp-max-parallel-active-requests", "0");
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeatureWithParameters(
+        enterprise_connectors::kEnableNewUploadCountLimit,
+        {{"max_parallel_requests", "0"}});
     EXPECT_EQ(15UL, CloudBinaryUploadService::GetParallelActiveRequestsMax());
   }
 
   {
-    base::test::ScopedCommandLine scoped_command_line;
-    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
-        "wp-max-parallel-active-requests", "foo");
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeatureWithParameters(
+        enterprise_connectors::kEnableNewUploadCountLimit,
+        {{"max_parallel_requests", "twenty"}});
     EXPECT_EQ(15UL, CloudBinaryUploadService::GetParallelActiveRequestsMax());
   }
 
   {
-    base::test::ScopedCommandLine scoped_command_line;
-    scoped_command_line.GetProcessCommandLine()->AppendSwitchASCII(
-        "wp-max-parallel-active-requests", "-1");
-    EXPECT_EQ(15UL, CloudBinaryUploadService::GetParallelActiveRequestsMax());
+    base::test::ScopedFeatureList scoped_feature_list;
+    scoped_feature_list.InitAndEnableFeatureWithParameters(
+        enterprise_connectors::kEnableNewUploadCountLimit,
+        {{"max_parallel_requests", "25"}});
+    EXPECT_EQ(25UL, CloudBinaryUploadService::GetParallelActiveRequestsMax());
   }
 }
 

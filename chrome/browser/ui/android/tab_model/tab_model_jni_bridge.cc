@@ -191,6 +191,22 @@ void TabModelJniBridge::MoveTabGroupToWindowForTesting(
 #endif  // BUILDFLAG(IS_DESKTOP_ANDROID)
 }
 
+bool TabModelJniBridge::IsThisTabListEditable() {
+  std::vector<tabs::TabInterface*> all_tabs = GetAllTabs();
+  for (auto* tab : all_tabs) {
+    if (static_cast<TabAndroid*>(tab)->IsDragging()) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool TabModelJniBridge::IsClosingAllTabs() {
+  JNIEnv* env = AttachCurrentThread();
+  return Java_TabModelJniBridge_isClosingAllTabs(env, java_object_.get(env));
+}
+
 void TabModelJniBridge::SetMuteSetting(JNIEnv* env,
                                        std::vector<TabAndroid*> tabs,
                                        bool mute) {

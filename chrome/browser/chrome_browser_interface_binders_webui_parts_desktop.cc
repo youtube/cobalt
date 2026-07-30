@@ -29,13 +29,10 @@
 #include "chrome/browser/ui/views/side_panel/history/history_side_panel_coordinator.h"
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast.mojom.h"
 #include "chrome/browser/ui/webui/access_code_cast/access_code_cast_ui.h"
-#include "chrome/browser/ui/webui/actor_internals/actor_internals.mojom.h"
-#include "chrome/browser/ui/webui/actor_internals/actor_internals_ui.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals.mojom.h"
 #include "chrome/browser/ui/webui/app_service_internals/app_service_internals_ui.h"
 #include "chrome/browser/ui/webui/autofill_ml_internals/autofill_ml_internals_ui.h"
 #include "chrome/browser/ui/webui/color_pipeline_internals/color_pipeline_internals_ui.h"
-#include "chrome/browser/ui/webui/commerce/product_specifications_ui.h"
 #include "chrome/browser/ui/webui/commerce/shopping_insights_side_panel_ui.h"
 #include "chrome/browser/ui/webui/customize_buttons/customize_buttons.mojom.h"
 #include "chrome/browser/ui/webui/data_sharing/data_sharing.mojom.h"
@@ -57,6 +54,8 @@
 #include "chrome/browser/ui/webui/new_tab_page/ntp_promo/ntp_promo.mojom.h"
 #include "chrome/browser/ui/webui/new_tab_page_third_party/new_tab_page_third_party_ui.h"
 #include "chrome/browser/ui/webui/ntp_microsoft_auth/ntp_microsoft_auth_untrusted_ui.h"
+#include "chrome/browser/ui/webui/omnibox/logging/logs.mojom.h"
+#include "chrome/browser/ui/webui/omnibox/omnibox_ui.h"
 #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
 #include "chrome/browser/ui/webui/on_device_internals/on_device_internals_ui.h"
 #include "chrome/browser/ui/webui/password_manager/password_manager_ui.h"
@@ -92,7 +91,6 @@
 #include "chrome/common/chrome_features.h"
 #include "components/autofill/core/browser/ml_model/logging/autofill_ml_internals.mojom.h"
 #include "components/browser_apis/browser_controls/browser_controls_api.mojom.h"
-#include "components/commerce/core/mojom/product_specifications.mojom.h"
 #include "components/commerce/core/mojom/shopping_service.mojom.h"  // nogncheck crbug.com/1125897
 #include "components/contextual_tasks/public/features.h"
 #include "components/data_sharing/public/features.h"
@@ -236,8 +234,6 @@ void BindColorChangeListener(
 void PopulateChromeWebUIFrameBindersPartsDesktop(
     mojo::BinderMapWithContext<content::RenderFrameHost*>* map,
     content::RenderFrameHost* render_frame_host) {
-  RegisterWebUIControllerInterfaceBinder<
-      actor_internals::mojom::PageHandlerFactory, ActorInternalsUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       search_engine_choice::mojom::PageHandlerFactory, SearchEngineChoiceUI>(
@@ -254,7 +250,8 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
                                            lens::LensOverlayUntrustedUI>(map);
   }
 
-  if (features::kGlicActorUiOverlay.Get()) {
+  if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+      features::kGlicActorUiOverlay.Get()) {
     RegisterWebUIControllerInterfaceBinder<
         actor::ui::mojom::ActorOverlayPageHandlerFactory,
         actor::ui::ActorOverlayUI>(map);
@@ -447,13 +444,7 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
 
   RegisterWebUIControllerInterfaceBinder<
       shopping_service::mojom::ShoppingServiceHandlerFactory,
-      BookmarksSidePanelUI, commerce::ProductSpecificationsUI,
-      ShoppingInsightsSidePanelUI>(map);
-
-  RegisterWebUIControllerInterfaceBinder<
-      commerce::product_specifications::mojom::
-          ProductSpecificationsHandlerFactory,
-      commerce::ProductSpecificationsUI>(map);
+      BookmarksSidePanelUI, ShoppingInsightsSidePanelUI>(map);
 
   RegisterWebUIControllerInterfaceBinder<
       commerce::price_tracking::mojom::PriceTrackingHandlerFactory,
@@ -538,6 +529,8 @@ void PopulateChromeWebUIFrameBindersPartsDesktop(
   if (is_contextual_tasks_enabled) {
     RegisterWebUIControllerInterfaceBinder<
         contextual_tasks::mojom::PageHandlerFactory, ContextualTasksUI>(map);
+    RegisterWebUIControllerInterfaceBinder<
+        omnibox::logging::mojom::PageHandlerFactory, OmniboxUI>(map);
   }
 
   // Registering bindings for all WebUIControllers, even if only one of the

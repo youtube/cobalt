@@ -68,8 +68,8 @@ pid_t ForkWaitingChild(base::OnceCallback<void(int)>
     char dummy_char = 'a';
     std::vector<base::ScopedFD> empty_fd_vec;
     // Wait for parent to exit before exiting ourselves.
-    base::UnixDomainSocket::RecvMsg(child_sync.get(), &dummy_char, 1,
-                                    &empty_fd_vec);
+    base::UnixDomainSocket::RecvMsg(
+        child_sync.get(), base::byte_span_from_ref(dummy_char), &empty_fd_vec);
     std::move(after_parent_signals_callback).Run(child_sync.get());
     _exit(1);
   }
@@ -221,8 +221,8 @@ SANDBOX_TEST(BrokerRemoteSyscallArgHandler, ReadChildExited) {
   // Wait for child to exit before reading memory.
   char dummy_char = 'a';
   std::vector<base::ScopedFD> empty_fd_vec;
-  base::UnixDomainSocket::RecvMsg(parent_sync.get(), &dummy_char, 1,
-                                  &empty_fd_vec);
+  base::UnixDomainSocket::RecvMsg(
+      parent_sync.get(), base::byte_span_from_ref(dummy_char), &empty_fd_vec);
 
   munmap(addr, base::GetPageSize());
 
@@ -247,7 +247,8 @@ SANDBOX_TEST(BrokerRemoteSyscallArgHandler, BasicWrite) {
                              memcmp(read_from, write_to, write_size));
 
                          base::UnixDomainSocket::SendMsg(
-                             child_sync_fd, &res, sizeof(res), empty_fd_vec);
+                             child_sync_fd, base::byte_span_from_ref(res),
+                             empty_fd_vec);
                          _exit(1);
                        }),
                        &parent_signal_fd);
@@ -259,14 +260,16 @@ SANDBOX_TEST(BrokerRemoteSyscallArgHandler, BasicWrite) {
 
   // Release child.
   char dummy_char = 'a';
-  base::UnixDomainSocket::SendMsg(parent_signal_fd.get(), &dummy_char, 1,
+  base::UnixDomainSocket::SendMsg(parent_signal_fd.get(),
+                                  base::byte_span_from_ref(dummy_char),
                                   empty_fd_vec);
 
   // Read result of memcmp and assert.
   int memcmp_res;
   std::vector<base::ScopedFD> dummy_fd_vec;
-  base::UnixDomainSocket::RecvMsg(parent_signal_fd.get(), &memcmp_res,
-                                  sizeof(memcmp_res), &dummy_fd_vec);
+  base::UnixDomainSocket::RecvMsg(parent_signal_fd.get(),
+                                  base::byte_span_from_ref(memcmp_res),
+                                  &dummy_fd_vec);
   SANDBOX_ASSERT_EQ(memcmp_res, 0);
 }
 
@@ -325,8 +328,8 @@ SANDBOX_TEST(BrokerRemoteSyscallArgHandler, WriteChildExited) {
   // Wait for child to exit before writing memory.
   char dummy_char = 'a';
   std::vector<base::ScopedFD> empty_fd_vec;
-  base::UnixDomainSocket::RecvMsg(parent_sync.get(), &dummy_char, 1,
-                                  &empty_fd_vec);
+  base::UnixDomainSocket::RecvMsg(
+      parent_sync.get(), base::byte_span_from_ref(dummy_char), &empty_fd_vec);
 
   std::string out_str;
   UNSAFE_TODO(SANDBOX_ASSERT_EQ(

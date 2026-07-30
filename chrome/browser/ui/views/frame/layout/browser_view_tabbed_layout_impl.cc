@@ -13,9 +13,11 @@
 #include "base/trace_event/common/trace_event_common.h"
 #include "base/trace_event/trace_event.h"
 #include "build/build_config.h"
+#include "chrome/browser/ui/color/chrome_color_id.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/views/bookmarks/bookmark_bar_view.h"
 #include "chrome/browser/ui/views/frame/custom_corners_background.h"
+#include "chrome/browser/ui/views/frame/custom_floating_corner.h"
 #include "chrome/browser/ui/views/frame/horizontal_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/frame/immersive_mode_controller.h"
 #include "chrome/browser/ui/views/frame/layout/browser_view_layout_delegate.h"
@@ -30,6 +32,7 @@
 #include "ui/gfx/geometry/outsets.h"
 #include "ui/gfx/geometry/size.h"
 #include "ui/views/controls/separator.h"
+#include "ui/views/view_utils.h"
 
 #if BUILDFLAG(IS_MAC)
 #include "chrome/browser/ui/fullscreen_util_mac.h"
@@ -315,6 +318,10 @@ BrowserViewTabbedLayoutImpl::CalculateVerticalTabStripAnimation(
   int leading_exclusion_height =
       GetCollapsedVerticalTabStripRelativeTop(params);
   VerticalTabStripAnimation animation;
+
+  // Default is to display the top outside corner.
+  animation.top_outside_corner_percent = 1.0;
+
   // Only need to do additional animation if animating downward.
   if (leading_exclusion_height == 0) {
     return animation;
@@ -388,6 +395,15 @@ BrowserViewTabbedLayoutImpl::GetTabStripType() const {
     return TabStripType::kWebUi;
   }
   if (delegate().ShouldDrawVerticalTabStrip()) {
+#if BUILDFLAG(IS_MAC)
+    // Do not lay out the vertical tabstrip in content-fullscreen on Mac. This
+    // check cannot be done in BrowserView because the immersive mode controller
+    // itself relies on BrowserView reporting which tab strip it *would* draw,
+    // creating a circular dependency/race condition.
+    if (fullscreen_utils::IsInContentFullscreen(browser())) {
+      return TabStripType::kNone;
+    }
+#endif
     return TabStripType::kVertical;
   }
   return delegate().ShouldDrawTabStrip() ? TabStripType::kHorizontal
@@ -598,6 +614,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
           preferred.width() *
           vertical_tab_strip_animation.top_outside_corner_percent));
       corner_bounds = gfx::Rect(params.visual_client_area.origin(), preferred);
+      corner_bounds.Outset(
+          gfx::Outsets::TLBR(0, views::Separator::kThickness, 0, 0));
     }
     layout.AddChild(views().vertical_tab_strip_top_corner, corner_bounds,
                     top_corner_visible);
@@ -614,6 +632,8 @@ BrowserViewTabbedLayoutImpl::CalculateProposedLayout(
           gfx::Rect(params.visual_client_area.x(),
                     params.visual_client_area.bottom() - preferred.height(),
                     preferred.width(), preferred.height());
+      corner_bounds.Outset(
+          gfx::Outsets::TLBR(0, views::Separator::kThickness, 0, 0));
     }
     layout.AddChild(views().vertical_tab_strip_bottom_corner, corner_bounds,
                     tab_strip_type == TabStripType::kVertical);
@@ -1029,7 +1049,7 @@ void BrowserViewTabbedLayoutImpl::ConfigureTopContainerBackground(
   // The top container always draws an opaque background when in vertical
   // tabstrip mode.
   background->SetVisible(true);
-  background->SetPrimaryColor(CustomCornersBackground::TopContainerTheme());
+  background->SetPrimaryColor(CustomCornersBackground::ToolbarTheme());
 
   // Rounded corners are drawn when not maximized or fullscreen.
   CustomCornersBackground::Corners corners;
@@ -1060,8 +1080,9 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
     auto* const vertical_tabs_background =
         static_cast<CustomCornersBackground*>(
             views().vertical_tab_strip_region_view->background());
-    CustomCornersBackground::Corners vertical_tabs_corners;
+
     // Ensure that corners of the window remain rounded.
+    CustomCornersBackground::Corners vertical_tabs_corners;
     if (window_state == WindowState::kNormal) {
       if (animation.top_offset == 0) {
         vertical_tabs_corners.upper_leading =
@@ -1088,6 +1109,16 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
       }
     }
     vertical_tabs_background->SetCorners(vertical_tabs_corners);
+
+    // Vertical tabs outline always draws trailing edge.
+    CustomCornersBackground::Outline vertical_tabs_outline;
+    vertical_tabs_outline.color = kColorVerticalTabStripShadow;
+    vertical_tabs_outline.trailing = true;
+    // Top edge is drawn if the layout is below the top of the parent.
+    if (views().vertical_tab_strip_region_view->y() > 0) {
+      vertical_tabs_outline.top = true;
+    }
+    vertical_tabs_background->SetOutline(vertical_tabs_outline);
   }
 
   // Set toolbar corners.
@@ -1125,7 +1156,8 @@ void BrowserViewTabbedLayoutImpl::DoPostLayoutVisualAdjustments(
       // directly above the toolbar, so no corners are needed.
       break;
     default:
-      // Ideally this should not be reached.
+      // This can happen in content fullscreen on Mac, but otherwise doesn't
+      // happen.
       break;
   }
   toolbar_background->SetCorners(toolbar_corners);

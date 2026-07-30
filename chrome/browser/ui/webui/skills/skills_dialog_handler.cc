@@ -6,13 +6,16 @@
 
 #include <optional>
 
+#include "base/check_deref.h"
 #include "base/logging.h"
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service.h"
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/ui/webui/skills/skills_dialog_delegate.h"
+#include "components/signin/public/identity_manager/identity_manager.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skill.mojom.h"
 #include "components/skills/public/skills_service.h"
@@ -36,22 +39,30 @@ SkillsDialogHandler::SkillsDialogHandler(
     mojo::PendingReceiver<DialogHandler> receiver,
     content::WebContents* web_contents,
     OptimizationGuideKeyedService* optimization_guide_keyed_service,
+    skills::Skill initial_skill,
     base::WeakPtr<SkillsDialogDelegate> delegate)
     : receiver_(this, std::move(receiver)),
-      web_contents_(web_contents),
+      web_contents_(CHECK_DEREF(web_contents)),
       optimization_guide_keyed_service_(optimization_guide_keyed_service),
-      delegate_(delegate) {}
+      initial_skill_(std::move(initial_skill)),
+      delegate_(delegate),
+      profile_(CHECK_DEREF(
+          Profile::FromBrowserContext(web_contents->GetBrowserContext()))) {}
 
 SkillsDialogHandler::~SkillsDialogHandler() = default;
 
 void SkillsDialogHandler::SubmitSkill(const skills::Skill& skill) {
-  if (auto* skills_service = SkillsServiceFactory::GetForProfile(
-          Profile::FromBrowserContext(web_contents_->GetBrowserContext()))) {
-    const Skill* skill_added =
-        skills_service->AddSkill(skill.name, skill.icon, skill.prompt);
-    // TODO(marissashen): Add support for UpdateSkill
-    if (skill_added && delegate_) {
-      delegate_->OnSkillSaved(skill_added->id);
+  if (auto* skills_service =
+          SkillsServiceFactory::GetForProfile(base::to_address(profile_))) {
+    const Skill* response =
+        skill.id.empty()
+            ? skills_service->AddSkill(skill.source_skill_id, skill.name,
+                                       skill.icon, skill.prompt)
+            : skills_service->UpdateSkill(skill.id, skill.name, skill.icon,
+                                          skill.prompt);
+    if (response && delegate_) {
+      // Triggers toast
+      delegate_->OnSkillSaved(response->id);
       delegate_->CloseDialog();
     }
   } else {
@@ -71,8 +82,7 @@ void SkillsDialogHandler::ShowEmojiPicker() {
 }
 
 void SkillsDialogHandler::GetInitialSkill(GetInitialSkillCallback callback) {
-  // TODO(marissashen): Return initial skill from dialog creation.
-  std::move(callback).Run(skills::Skill());
+  std::move(callback).Run(initial_skill_);
 }
 
 void SkillsDialogHandler::OnRefineSkillResponse(
@@ -129,6 +139,22 @@ void SkillsDialogHandler::RefineSkill(
       base::BindOnce(&SkillsDialogHandler::OnRefineSkillResponse,
                      weak_ptr_factory_.GetWeakPtr(),
                      std::move(wrapped_callback)));
+}
+
+void SkillsDialogHandler::GetSignedInEmail(GetSignedInEmailCallback callback) {
+  auto wrapped_callback = mojo::WrapCallbackWithDefaultInvokeIfNotRun(
+      std::move(callback), std::string());
+
+  auto* identity_manager =
+      IdentityManagerFactory::GetForProfile(base::to_address(profile_));
+
+  if (!identity_manager) {
+    return;
+  }
+
+  CoreAccountInfo primary_account_info =
+      identity_manager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
+  std::move(wrapped_callback).Run(primary_account_info.email);
 }
 
 }  // namespace skills

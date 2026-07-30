@@ -342,7 +342,9 @@ CreateInputDataFromAnnotatedPageContent(
   switch (_modeHolder.mode) {
     case ComposeboxMode::kRegularSearch:
     case ComposeboxMode::kCanvas:
-    case ComposeboxMode::kAIM: {
+    case ComposeboxMode::kAIM:
+    // TODO(crbug.com/481280186): Check deep search attachment limtitation.
+    case ComposeboxMode::kDeepSearch: {
       // For Regular search, canvas & AIM allow up to kAttachmentLimit items.
       return availableSlots;
     }
@@ -567,6 +569,9 @@ CreateInputDataFromAnnotatedPageContent(
     case omnibox::ToolMode::TOOL_MODE_CANVAS:
       _modeHolder.mode = ComposeboxMode::kCanvas;
       return;
+    case omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH:
+      _modeHolder.mode = ComposeboxMode::kDeepSearch;
+      return;
     case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN:
     case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD:
       _modeHolder.mode = ComposeboxMode::kImageGeneration;
@@ -594,6 +599,7 @@ CreateInputDataFromAnnotatedPageContent(
   [self.consumer
       setImageGenerationEnabled:mode == ComposeboxMode::kImageGeneration];
   [self.consumer setCanvasEnabled:mode == ComposeboxMode::kCanvas];
+  [self.consumer setDeepSearchEnabled:mode == ComposeboxMode::kDeepSearch];
 
   switch (mode) {
     case ComposeboxMode::kRegularSearch:
@@ -622,6 +628,12 @@ CreateInputDataFromAnnotatedPageContent(
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
       _inputStateModel->setActiveTool(omnibox::TOOL_MODE_CANVAS);
+      break;
+    case ComposeboxMode::kDeepSearch:
+      if (![self isEligibleToDeepSearch]) {
+        _modeHolder.mode = ComposeboxMode::kRegularSearch;
+      }
+      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_DEEP_SEARCH);
       break;
   }
 
@@ -922,6 +934,7 @@ CreateInputDataFromAnnotatedPageContent(
     case contextual_search::FileUploadStatus::kNotUploaded:
     case contextual_search::FileUploadStatus::kProcessing:
     case contextual_search::FileUploadStatus::kUploadStarted:
+    case contextual_search::FileUploadStatus::kUploadReplaced:
       // No-op, as the state is already `Uploading`.
       return;
   }
@@ -1127,6 +1140,8 @@ CreateInputDataFromAnnotatedPageContent(
     case ComposeboxMode::kCanvas:
       // TODO(crbug.com/477244841): Add metrics recording for canvas.
       break;
+    case ComposeboxMode::kDeepSearch:
+      // TODO(crbug.com/481280186): Add metrics recording for deep search.
   }
 }
 
@@ -1306,8 +1321,11 @@ CreateInputDataFromAnnotatedPageContent(
   // Register the file context with the UI as soon as the token is created so
   // that it can listen to all file upload events.
   [self onFileContextAdded:serverToken forIdentifier:identifier];
+  ComposeboxInputItem* item = [_items itemForIdentifier:identifier];
+  std::string fileName = item ? base::SysNSStringToUTF8(item.title) : "";
   _contextualSearchSession->StartFileContextUploadFlow(
-      serverToken, kPortableNetworkGraphicMimeType, std::move(buffer), options);
+      serverToken, fileName, kPortableNetworkGraphicMimeType, std::move(buffer),
+      options);
 }
 
 // Uploads the `image` for the item with the given `identifier`.
@@ -1384,8 +1402,10 @@ CreateInputDataFromAnnotatedPageContent(
     // Register the file context with the UI as soon as the token is created so
     // that it can listen to all file upload events.
     [self onFileContextAdded:serverToken forIdentifier:identifier];
+    std::string fileName = base::SysNSStringToUTF8(item.title);
     _contextualSearchSession->StartFileContextUploadFlow(
-        serverToken, kAdobePortableDocumentFormatMimeType, std::move(buffer),
+        serverToken, fileName, kAdobePortableDocumentFormatMimeType,
+        std::move(buffer),
         /*image_options=*/std::nullopt);
   }
 
@@ -1445,6 +1465,20 @@ CreateInputDataFromAnnotatedPageContent(
     return NO;
   }
   return _aimEligibilityService->IsCanvasEligible();
+}
+
+// Whether the client is eligible to access deep search mode.
+- (BOOL)isEligibleToDeepSearch {
+  if (!ShowDeepSearchTool()) {
+    return NO;
+  }
+  if (experimental_flags::ShouldForceDisableComposeboxDeepSearch()) {
+    return NO;
+  }
+  if (!_aimEligibilityService) {
+    return NO;
+  }
+  return _aimEligibilityService->IsDeepSearchEligible();
 }
 
 // Checks if the user is eligible to upload PDFs, taking into account
@@ -1578,6 +1612,10 @@ CreateInputDataFromAnnotatedPageContent(
       // TODO(crbug.com/477244841): Add metrics recording for canvas.
       [self sendText:[NSString cr_fromString16:text]];
       break;
+    case ComposeboxMode::kDeepSearch:
+      // TODO(crbug.com/481280186): Add metrics recording for deep search.
+      [self sendText:[NSString cr_fromString16:text]];
+      break;
   }
 }
 
@@ -1663,6 +1701,9 @@ CreateInputDataFromAnnotatedPageContent(
     case ComposeboxMode::kCanvas:
       modeSwitchButton = kCanvas;
       break;
+    case ComposeboxMode::kDeepSearch:
+      modeSwitchButton = kDeepSearch;
+      break;
   }
 
   ComposeboxInputPlateControls trailingAction = kNone;
@@ -1704,6 +1745,7 @@ CreateInputDataFromAnnotatedPageContent(
   BOOL canCreateImage = [self isEligibleToCreateImages];
   BOOL canSearchWithAI = [self isEligibleToAIM];
   BOOL canUseCanvas = [self isEligibleToCanvas];
+  BOOL canUseDeepSearch = [self isEligibleToDeepSearch];
 
   BOOL isImageCreationMode =
       _modeHolder.mode == ComposeboxMode::kImageGeneration;
@@ -1719,6 +1761,9 @@ CreateInputDataFromAnnotatedPageContent(
   // Canvas action.
   [self.consumer disableCanvasActions:![self canvasToolAllowed]];
   [self.consumer hideCanvasActions:!canUseCanvas];
+
+  // Deep search action.
+  [self.consumer hideDeepSearchActions:!canUseDeepSearch];
 
   // Model picker.
   // TODO(crbug.com/477888273): Handle attachment incompatibility based on

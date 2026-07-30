@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">嵌入来源：<ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">依次点按“应用”&gt;“默认应用”</translation>
 <translation id="1272079795634619415">停止</translation>
+<translation id="1275718070701477396">已选择</translation>
 <translation id="1289742167380433257">为节省您的流量，Google 已优化了此网页中的图片。</translation>
 <translation id="129382876167171263">网站保存的文件会显示在这里</translation>
 <translation id="131112695174432497">对广告个性化有影响的数据会被删除</translation>
@@ -495,6 +496,7 @@
 <translation id="6085954183010297841">要撤消文件修改权限吗？<ph name="FILE" /></translation>
 <translation id="6104860901391833523">开启此设置后，网站可以自动进入画中画模式。关闭此设置后，网站无法自动进入画中画模式。</translation>
 <translation id="6120483543004435978">开启此设置后，网站可以请求监测您是否正在使用设备。关闭此设置后，网站无法得知您是否正在使用设备。</translation>
+<translation id="6132075343662013154">Chrome 会询问您是否保存密码</translation>
 <translation id="615886654739818377">不允许网站管理所有显示屏上的窗口</translation>
 <translation id="6165508094623778733">了解详情</translation>
 <translation id="6171020522141473435">开启此设置后，网站可以请求使用蓝牙设备。关闭此设置后，网站无法使用蓝牙设备。</translation>

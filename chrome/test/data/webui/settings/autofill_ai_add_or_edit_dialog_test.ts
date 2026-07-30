@@ -7,6 +7,7 @@ import 'chrome://settings/lazy_load.js';
 
 import {flushTasks} from 'chrome://webui-test/polymer_test_util.js';
 import {assertDeepEquals, assertEquals, assertFalse, assertNotEquals, assertTrue} from 'chrome://webui-test/chai_assert.js';
+import {loadTimeData} from 'chrome://settings/settings.js';
 import type {CrButtonElement, CrInputElement, SettingsAutofillAiAddOrEditDialogElement} from 'chrome://settings/lazy_load.js';
 import {EntityDataManagerProxyImpl} from 'chrome://settings/lazy_load.js';
 import {eventToPromise, isVisible} from 'chrome://webui-test/test_util.js';
@@ -24,6 +25,7 @@ suite('AutofillAiAddOrEditDialogUiTest', function() {
   let testAttributeTypes: chrome.autofillPrivate.AttributeType[];
 
   setup(function() {
+    loadTimeData.overrideValues({enableSaveToWalletFromSettings: true});
     document.body.innerHTML = window.trustedTypes!.emptyHTML;
 
     entityDataManager = new TestEntityDataManagerProxy();
@@ -36,7 +38,7 @@ suite('AutofillAiAddOrEditDialogUiTest', function() {
         addEntityTypeString: 'Add vehicle',
         editEntityTypeString: 'Edit vehicle',
         deleteEntityTypeString: 'Delete vehicle',
-        supportsWalletStorage: false,
+        supportsWalletStorage: true,
       },
       attributeInstances: [
         {
@@ -194,6 +196,12 @@ suite('AutofillAiAddOrEditDialogUiTest', function() {
               dialog.shadowRoot!.querySelector<HTMLElement>('.action-button');
           assertTrue(!!saveButton);
 
+          // Expect storedInWallet to be set if supportsWalletStorage is true
+          // and only when new entities.
+          if (params.add && testEntityInstance.type.supportsWalletStorage) {
+            expectedEntityInstance.storedInWallet = true;
+          }
+
           const dialogConfirmedPromise =
               eventToPromise('autofill-ai-add-or-edit-done', dialog);
           saveButton.click();
@@ -230,7 +238,7 @@ suite('AutofillAiAddOrEditDialogUiTest', function() {
     // The validation error should not be visible yet and the save button
     // should be enabled.
     const validationError =
-        dialog.shadowRoot!.querySelector<HTMLElement>('#validation-error');
+        dialog.shadowRoot!.querySelector<HTMLElement>('#validation-error-top');
     const saveButton =
         dialog.shadowRoot!.querySelector<CrButtonElement>('.action-button');
     assertTrue(!!validationError);
@@ -300,7 +308,7 @@ suite('AutofillAiAddOrEditDialogUiTest', function() {
     const saveButton =
         dialog.shadowRoot!.querySelector<CrButtonElement>('.action-button');
     const validationError =
-        dialog.shadowRoot!.querySelector<HTMLElement>('#validation-error');
+        dialog.shadowRoot!.querySelector<HTMLElement>('#validation-error-top');
     const inputs = dialog.shadowRoot!.querySelectorAll<CrInputElement>(
         '#attribute-instance-field');
 
@@ -354,6 +362,57 @@ suite('AutofillAiAddOrEditDialogUiTest', function() {
     assertFalse(isVisible(validationError));
     assertFalse(
         inputs[0]!.invalid, 'Required field should be valid after input');
+  });
+
+  test('FooterVisibleForEligibleEntityWithEmail', async function() {
+    const userEmail = 'test@example.com';
+    const originalGetAccountInfo = chrome.autofillPrivate.getAccountInfo;
+    chrome.autofillPrivate.getAccountInfo = () => Promise.resolve({
+      email: userEmail,
+      isSyncEnabledForAutofillProfiles: true,
+      isEligibleForAddressAccountStorage: true,
+      isAutofillSyncToggleEnabled: true,
+      isAutofillSyncToggleAvailable: true,
+    });
+
+    try {
+      // Use the test entity which has supportsWalletStorage set to true.
+      const newEntity = structuredClone(testEntityInstance);
+      newEntity.guid = '';
+      dialog.entityInstance = newEntity;
+      loadTimeData.overrideValues({
+        saveInfoToWalletAccountNotice: 'Save to $1 using $2',
+        googleWalletTitle: 'Google Wallet',
+      });
+
+      document.body.appendChild(dialog);
+      await entityDataManager.whenCalled(
+          'getAllAttributeTypesForEntityTypeName');
+      await flushTasks();
+
+      const footer = dialog.shadowRoot!.querySelector<HTMLElement>('#footer');
+      assertTrue(!!footer);
+      assertFalse(
+          footer.hidden, 'Footer should be visible for eligible entity');
+    } finally {
+      // Restore to its original state so that it doesn't affect other tests.
+      chrome.autofillPrivate.getAccountInfo = originalGetAccountInfo;
+    }
+  });
+
+  test('FooterHiddenForIneligibleEntity', async function() {
+    // Create ineligible entity
+    const ineligibleEntity = structuredClone(testEntityInstance);
+    ineligibleEntity.type.supportsWalletStorage = false;
+
+    dialog.entityInstance = ineligibleEntity;
+    document.body.appendChild(dialog);
+    await entityDataManager.whenCalled('getAllAttributeTypesForEntityTypeName');
+    await flushTasks();
+
+    const footer = dialog.shadowRoot!.querySelector<HTMLElement>('#footer');
+    assertTrue(!!footer);
+    assertTrue(footer.hidden, 'Footer should be hidden for ineligible entity');
   });
 });
 
@@ -687,7 +746,7 @@ suite('AutofillAiAddOrEditDialogSelectElementUiTest', function() {
     // The validation error should not be visible yet and the save button
     // should be enabled.
     const validationError =
-        dialog.shadowRoot!.querySelector<HTMLElement>('#validation-error');
+        dialog.shadowRoot!.querySelector<HTMLElement>('#validation-error-top');
     const saveButton =
         dialog.shadowRoot!.querySelector<CrButtonElement>('.action-button');
     assertTrue(!!validationError);
@@ -742,7 +801,7 @@ suite('AutofillAiAddOrEditDialogSelectElementUiTest', function() {
     const dateValidationError =
         dialog.shadowRoot!.querySelector<HTMLElement>('#date-validation-error');
     const regularValidationError =
-        dialog.shadowRoot!.querySelector<HTMLElement>('#validation-error');
+        dialog.shadowRoot!.querySelector<HTMLElement>('#validation-error-top');
     const saveButton =
         dialog.shadowRoot!.querySelector<CrButtonElement>('.action-button');
     assertTrue(!!dateSelectLabel);

@@ -29,6 +29,7 @@
 #include "net/disk_cache/sql/entry_write_buffer.h"
 #include "net/disk_cache/sql/exclusive_operation_coordinator.h"
 #include "net/disk_cache/sql/sql_persistent_store.h"
+#include "net/disk_cache/sql/sql_write_buffer_memory_monitor.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
 
 // This backend is experimental and only available when the build flag is set.
@@ -138,12 +139,15 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
       base::Time last_used,
       const std::optional<MemoryEntryDataHints>& new_hints,
       scoped_refptr<net::GrowableIOBuffer> head_buffer,
-      int64_t header_size_delta);
+      int64_t header_size_delta,
+      CompletionOnceCallback callback);
 
   // Writes data to an entry's body (stream 1). This can be used to write new
   // data, overwrite existing data, or append to the entry. The operation is
   // scheduled via the `ExclusiveOperationCoordinator` to ensure proper
   // serialization.
+  // If `db_handle` is in the initial state, creates entry information in the
+  // DB. `last_used` is used only in that case.
   // If the backend is deleted during execution, the callback will be called
   // with net::ERR_ABORTED.
   int WriteEntryData(const CacheEntryKey& key,
@@ -152,6 +156,7 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
                      int64_t body_end,
                      EntryWriteBuffer buffer,
                      bool truncate,
+                     base::Time last_used,
                      bool copy_buffer_for_optimistic_write,
                      CompletionOnceCallback callback);
 
@@ -188,6 +193,11 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
                          const scoped_refptr<EntryDbHandle>& db_handle,
                          MemoryEntryDataHints hints);
 
+  // Returns the memory monitor for write buffers.
+  SqlWriteBufferMemoryMonitor& write_buffer_monitor() {
+    return write_buffer_monitor_;
+  }
+
   // Sends a dummy operation through the background task runner via the
   // operation coordinator, for unit tests.
   int FlushQueueForTest(CompletionOnceCallback callback);
@@ -206,11 +216,6 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
   // silently recovering.
   void EnableStrictCorruptionCheckForTesting();
 
-  // Reports a change in the total size of write buffers.
-  void ReportWriteBufferChange(int delta);
-
-  int64_t GetWriteBufferTotalSize() const { return write_buffer_total_size_; }
-
   // Returns the current size of the `in_flight_entry_modifications_` map.
   // This is for testing purposes only.
   size_t GetSizeOfInFlightEntryModificationsMapForTesting() {
@@ -218,8 +223,14 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
   }
 
   int64_t GetOptimisticWriteBufferTotalSizeForTesting() {
-    return optimistic_write_buffer_total_size_;
+    return optimistic_write_buffer_monitor_.CurrentSize();
   }
+
+  int64_t GetWriteBufferTotalSizeForTesting() {
+    return write_buffer_monitor_.CurrentSize();
+  }
+
+  base::WeakPtr<SqlBackendImpl> GetWeakPtr();
 
  private:
   class IteratorImpl;
@@ -250,6 +261,7 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
                               scoped_refptr<net::GrowableIOBuffer> head);
     InFlightEntryModification(const scoped_refptr<EntryDbHandle>& db_handle,
                               base::Time last_used,
+                              const std::optional<MemoryEntryDataHints>& hints,
                               scoped_refptr<net::GrowableIOBuffer> head,
                               int64_t body_end);
     InFlightEntryModification(const scoped_refptr<EntryDbHandle>& db_handle,
@@ -259,6 +271,7 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
 
     scoped_refptr<EntryDbHandle> db_handle;
     std::optional<base::Time> last_used;
+    std::optional<MemoryEntryDataHints> hints;
     std::optional<scoped_refptr<net::GrowableIOBuffer>> head;
     std::optional<int64_t> body_end;
   };
@@ -312,13 +325,6 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
   EntryResult SpeculativeCreateEntry(
       const CacheEntryKey& entry_key,
       std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle);
-
-  // Called when the background database operation for a speculative entry
-  // creation is finished.
-  void OnSpeculativeCreateEntryFinished(
-      const scoped_refptr<EntryDbHandle>& db_handle,
-      std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle,
-      SqlPersistentStore::EntryInfoOrError result);
 
   // Handles the backend logic for `DoomActiveEntry()`. This method is scheduled
   // as a normal operation via the `ExclusiveOperationCoordinator`.
@@ -377,6 +383,7 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
       scoped_refptr<net::GrowableIOBuffer> head_buffer,
       int64_t header_size_delta,
       PopInFlightEntryModificationRunner pop_in_flight_entry_modification,
+      SqlPersistentStore::ResIdOrErrorCallback callback,
       std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle);
 
   // Handles the backend logic for a non-optimistic write operation. This method
@@ -388,7 +395,8 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
       int64_t old_body_end,
       EntryWriteBuffer buffer,
       bool truncate,
-      SqlPersistentStore::ErrorCallback callback,
+      base::Time last_used,
+      SqlPersistentStore::ResIdOrErrorCallback callback,
       PopInFlightEntryModificationRunner pop_in_flight_entry_modification,
       std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle);
 
@@ -401,20 +409,19 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
       int64_t old_body_end,
       EntryWriteBuffer buffer,
       bool truncate,
-      SqlPersistentStore::ErrorCallback maybe_update_res_id_or_error_callback,
+      base::Time last_used,
+      SqlPersistentStore::ResIdOrErrorCallback callback,
       PopInFlightEntryModificationRunner pop_in_flight_entry_modification,
       std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle);
 
-  // Called when an optimistic write is finished. `buf_len` is the memory usage
-  // consumed for the optimistic write.
+  // Called when an optimistic write is finished.
   void OnOptimisticWriteFinished(
       const CacheEntryKey& key,
-      SqlPersistentStore::ResId res_id,
-      int buf_len,
-      SqlPersistentStore::ErrorCallback maybe_update_res_id_or_error_callback,
+      std::optional<SqlPersistentStore::ResId> res_id,
+      SqlPersistentStore::ResIdOrErrorCallback callback,
       PopInFlightEntryModificationRunner pop_in_flight_entry_modification,
       std::unique_ptr<ExclusiveOperationCoordinator::OperationHandle> handle,
-      SqlPersistentStore::Error result);
+      SqlPersistentStore::ResIdOrError result);
 
   // Handles the backend logic for `ReadEntryData()`. This method is scheduled
   // as a normal operation via the `ExclusiveOperationCoordinator` and forwards
@@ -523,13 +530,23 @@ class NET_EXPORT_PRIVATE SqlBackendImpl final : public Backend {
   // task is pending, only one will be in the queue at any time.
   bool eviction_operation_queued_ = false;
 
-  // The memory usage consumed for optimistic writes. Optimistic writes are
-  // performed as long as this value does not exceed
+  // Monitors and limits the memory usage for optimistic writes to stream 1.
+  // Optimistic writes allow the backend to complete write operations
+  // immediately by posting the operation to a background sequence and returning
+  // the result synchronously, assuming success. This monitor ensures that the
+  // total size of data pending in these operations does not exceed
   // `kSqlDiskCacheOptimisticWriteBufferSize`.
-  int64_t optimistic_write_buffer_total_size_ = 0;
+  SqlWriteBufferMemoryMonitor optimistic_write_buffer_monitor_;
 
-  // The total size of write buffers across all entries.
-  int64_t write_buffer_total_size_ = 0;
+  // Monitors and limits the total memory usage of write buffers across all
+  // open entries. Entries buffer sequential writes to stream 1 up to
+  // `kSqlDiskCacheMaxWriteBufferSizePerEntry` before flushing to the backend.
+  // This monitor limits the aggregate size of these buffers to
+  // `kSqlDiskCacheMaxWriteBufferTotalSize`. When a buffer is flushed, the
+  // reservation is released. If the flush is handled as an optimistic write,
+  // the reservation is effectively transferred to
+  // `optimistic_write_buffer_monitor_`.
+  SqlWriteBufferMemoryMonitor write_buffer_monitor_;
 
   // Weak pointer factory for this class.
   base::WeakPtrFactory<SqlBackendImpl> weak_factory_{this};

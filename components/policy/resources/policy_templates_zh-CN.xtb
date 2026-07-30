@@ -563,6 +563,17 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 此政策仅适用于不会自动接收延长更新的旧型号。
 
 如需了解更多详情，请访问 https://support.google.com/chrome/a/?p=extended_updates_support。</translation>
+<translation id="1432008122934973720">默认情况下，只有在明确委托时，才允许在跨源子框架中请求本地网络访问 (LNA) 权限。此政策可用于替换此默认行为，以便 LNA 权限默认继承到子框架中，除非权限政策明确拒绝。
+
+如果此政策设为启用，默认情况下，子框架会被委托所有 LNA 权限政策功能，并且可以发出本地网络请求（触发权限提示）。
+
+如果此政策设为停用或未设置，子框架必须明确获得权限政策功能的授权，才能发出本地网络请求并触发权限提示。
+
+此政策适用于权限政策功能 <ph name="LOCAL_NETWORK_ACCESS_FEATURE_NAME" />、<ph name="LOOPBACK_NETWORK_FEATURE_NAME" /> 和 <ph name="LOCAL_NETWORK_FEATURE_NAME" />。
+
+如需详细了解本地网络访问，请参阅 https://wicg.github.io/local-network-access/ 和 https://developer.chrome.com/blog/local-network-access。
+
+如需详细了解权限政策，请参阅 https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Permissions_Policy。</translation>
 <translation id="1432834104376790711">此政策用于启用或停用“省电模式”设置。
       在 Chrome 中，如果启用了该设置，系统会限制帧速率，从而降低耗电量。如果此政策未设置，最终用户可在 chrome://settings/performance 上控制该设置。
       在 ChromeOS 上，如果启用了该设置，系统会限制帧速率和 CPU 频率，调暗背光，并将 Android 置于省电模式。在具有多个 CPU 的设备上，某些 CPU 会被关闭。
@@ -1224,6 +1235,7 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 
           此政策只在启用了“DefaultSearchProviderEnabled”政策的前提下才会生效。</translation>
 <translation id="1850439894606905202">默认情况下，文档会被放入以网站为键的代理集群中。document.domain 会处于可设置状态。</translation>
+<translation id="1851025124923805399">允许网站向本地设备和本地网络端点发送网络请求。</translation>
 <translation id="1851034156561932736">启用充电提示音</translation>
 <translation id="1851282952069386119">用户可选择与 Google 分享 Chrome 清理功能的运行结果</translation>
 <translation id="1852294065645015766">允许自动播放媒体内容</translation>
@@ -1553,6 +1565,7 @@ Chrome 政策的优先级高于此政策，例如：如果某个扩展程序已�
 <translation id="2090939118981888335">如果此政策已启用，系统会允许使用数据压缩代理。如果此政策已停用，系统将禁止使用该代理。
 
       如果您设置了此政策，用户便无法更改相关设置。如果您未设置此政策，用户可以选择使用该功能。</translation>
+<translation id="2091689441590064807">不允许在子框架中发出 LNA 请求，除非明确委托</translation>
 <translation id="2093552723795057221">不报告音频状态</translation>
 <translation id="209388704279338003">此政策已被弃用且不再受支持，请改用 <ph name="DEVICE_PRINTERS_ACCESS_MODE_POLICY_NAME" />。</translation>
 <translation id="2093951844062548778">此政策旨在授权快速解答功能访问所选内容并将相关信息发送给服务器，以获得定义结果。
@@ -1771,6 +1784,7 @@ IPv4 地址的前缀为 0010；IPv6 地址的前缀为 0020。对于双栈网络
 <translation id="2200698565850397198">配置本地消息传递主机屏蔽名单</translation>
 <translation id="220157212534775145">在 File System Access API 中为 <ph name="FILE_SYSTEM_SYNC_ACCESS_HANDLE" /> 重新启用已弃用的异步接口</translation>
 <translation id="2202787915587511214">开启 NTLMv2</translation>
+<translation id="2202789864457330375">禁止网站向本地设备发送网络请求。</translation>
 <translation id="2204379573346866896">当前小时内已流逝的分钟数。</translation>
 <translation id="2204753382813641270">控制任务栏是否自动隐藏</translation>
 <translation id="2208092773610663977">如果已启用此政策，用户便可让 <ph name="PRODUCT_NAME" /> 检查所输入的用户名和密码是否已泄露。
@@ -3157,6 +3171,22 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 变体可控制是否为顶层
 <translation id="3181114468897395940">PageUp/PageDown 设置使用包含 Alt 辅助键的快捷键</translation>
 <translation id="3182503302060513467">“新标签页”页面将会显示中间槽通知（若有）</translation>
 <translation id="3184161739683646075">控制 DNS-over-HTTPS 模式</translation>
+<translation id="3184247679989063353">指定一系列网址格式。从匹配源所提供网站发起的网络请求不会受到<ph name="LOCAL_NETWORK_ACCESS" />检查机制的约束。
+
+          对于与此处所列格式不匹配的源，系统会应用用户的个人配置。
+
+如需详细了解有效网址格式，请访问 https://chromeenterprise.google/policies/url-patterns/。
+
+如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
+
+有多项政策列出了相关源，这些政策会影响向本地设备和本地网络端点发送的请求。如果某个源同时匹配以下多项政策，则政策的优先级顺序如下：
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LoopbackNetworkAccessBlockedForUrls
+  - LoopbackNetworkAccessAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="3184638144755436350">Chrome 会阻止从沙盒化 iframe 内导航到外部协议。请参阅 https://chromestatus.com/features/5680742077038592。
 
       如果此政策设为 True，Chrome 会阻止此类导航。
@@ -4812,6 +4842,20 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 如果此政策已停用，已弃用的旧语法将会停用。
 
 如果此政策未设置，已弃用的旧语法将会停用。</translation>
+<translation id="4400152722459197056">指定一系列网址格式。从匹配源所提供网站发起的针对本地网络端点的网络请求不会受到<ph name="LOCAL_NETWORK_ACCESS" />检查机制的约束。
+
+对于与此处所列格式不匹配的源，系统会应用用户的个人配置。
+
+如需详细了解有效网址格式，请访问 https://chromeenterprise.google/policies/url-patterns/。
+
+如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
+
+有多项政策列出了相关源，这些政策会影响向本地网络端点发送的请求。如果某个源同时匹配以下多项政策，则政策的优先级顺序如下：
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="4401196752827224189">从 M110 开始，不安全情境中的 WebSQL 将被移除。此政策用于重新启用该 API。
           如果此政策设为 true，不安全情境中的 WebSQL 将可用。
           如果此政策设为 false 或未设置，不安全情境中的 WebSQL 在 M109 之前将一直可用，然后从 M110 起将不再可用。
@@ -4872,17 +4916,6 @@ ServiceWorkerAutoPreload 功能会在 ServiceWorker 引导过程开始的同时�
 <translation id="4426986640594727372">允许访问系统地理定位</translation>
 <translation id="4427173305799125784">PDF 查看器无法在 PDF 文件中添加注释</translation>
 <translation id="4432762137771104529">启用安全浏览扩展报告功能</translation>
-<translation id="4432772502174730966">此政策用于为其涵盖的所有生成式 AI 功能定义默认设置。例如，如果此政策的值设为 1，则 1 将是其涵盖的所有生成式 AI 功能的默认设置。这不会影响任何手动设置的政策值。此设置将为 Chrome 中涵盖的生成式 AI 功能定义默认值。如需查看此政策涵盖的功能列表，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。
-
-0 表示允许使用此功能，同时允许 Google 使用相关数据改进其 AI 模型。相关数据可能包括提示、输入、输出、素材和书面反馈，具体取决于相应功能。工作人员也可能会审核这些数据，以改进 AI 模型。除非下文另有说明，否则默认值是 0。
-
-1 表示允许使用此功能，但不允许 Google 使用用户内容（包括提示、输入、输出、素材和书面反馈）改进模型。对于受 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />管理的企业用户和受 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> 管理的教育版账号，默认值是 1。
-
-2 表示不允许使用此功能。
-
-如果此政策涵盖的 Chrome 功能没有对应的政策值，系统将使用最接近的较高值。某些政策（例如 <ph name="GEMINI_SETTINGS_POLICY_NAME" />）仅支持“允许”和“不允许”状态。如果 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策设为 0 或 1，系统将允许使用此功能。如果此政策设为 2，系统将禁止使用此功能。请查看各功能的文档，详细了解各功能如何与此政策中的值相互作用。
-
-如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="443454694385851356">旧版（不安全）</translation>
 <translation id="4435032708588431506">允许使用 QUIC</translation>
 <translation id="443665821428652897">在浏览器关闭时清除网站数据（已弃用）</translation>
@@ -5476,6 +5509,23 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
       如果此政策已启用，系统将会显示 Gemini 介绍画面。
 
       如果此政策未设置，系统将为受企业管理的用户跳过 Gemini 介绍画面，而为非受管用户显示该介绍画面。</translation>
+<translation id="4781685421378746692">此政策用于控制是否可以通过 <ph name="PRODUCT_NAME" /> 侧边栏或标签页与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />和<ph name="GOOGLE_LENS_PRODUCT_NAME" />分享网页和文件内容。
+
+请注意，此政策不影响在网页上使用 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />，仅控制用户在使用 <ph name="PRODUCT_NAME" /> 时可如何与该 AI 模式分享信息。
+
+0/未设置 = 用户可以与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />分享网页或文件内容。
+
+1 = 用户无法与 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />分享网页或文件内容。用于分享上下文的入口点和侧边栏将被停用或隐藏。
+
+如果 <ph name="GOOGLE_SEARCH_PRODUCT_NAME" />未设为用户的默认搜索引擎，系统会忽略此政策，因为相应功能已停用。
+
+此政策独立于 <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 政策。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 政策仅控制多功能框或 NTP 搜索框中的入口点，而此政策旨在控制是否可以通过侧边栏或标签页分享上下文。
+
+此政策也不会控制 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 集成功能，该功能可通过 <ph name="GEMINI_SETTINGS_POLICY_NAME" /> 政策停用。
+
+如果未设置此政策，相关行为将由 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 政策决定。
+
+如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="4783415902268741066">允许在浏览器侧边栏中显示默认搜索引擎的最新搜索结果页面</translation>
 <translation id="4786784434769279324">在计算机处于闲置状态时要运行的操作</translation>
 <translation id="4787763197941188108">替换默认打印页面大小。
@@ -6439,6 +6489,20 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="5395778184390568113">控制用于触发 Home/End 等六个按键的快捷键</translation>
 <translation id="5396322417222266779">允许用户自定义系统快捷方式</translation>
 <translation id="5398387276166014955">允许在 Chrome 中注入第三方代码</translation>
+<translation id="5399022269499105814">指定一系列网址格式。从匹配源所提供网站发起的针对本地设备的网络请求将无法发出<ph name="LOCAL_NETWORK_ACCESS" />请求。
+
+对于与此处所列格式不匹配的源，系统会应用用户的个人配置。
+
+如需详细了解有效网址格式，请访问 https://chromeenterprise.google/policies/url-patterns/。
+
+如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
+
+有多项政策列出了相关源，这些政策会影响向本地设备发送的请求。如果某个源同时匹配以下多项政策，则政策的优先级顺序如下：
+
+  - LoopbackNetworkBlockedForUrls
+  - LoopbackNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="5401574762248900530">配置“<ph name="CLASS_TOOLS_NAME" />”的查看屏幕功能</translation>
 <translation id="5401696449591951427">启用 <ph name="CHROME_DEVICES_LINK" /></translation>
 <translation id="5404749470367600971">允许进行无障碍性能过滤。</translation>
@@ -6996,13 +7060,6 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5746149754419996562">允许在 <ph name="PRODUCT_OS_NAME" /> 上显示 Glanceables widget。具体来说就是，可通过任务栏上的条状日期标签访问这些 widget。
 如果此政策已启用，系统会在 <ph name="PRODUCT_OS_NAME" /> 上启用 Glanceables。
 如果此政策已停用或未设置，系统不会在 <ph name="PRODUCT_OS_NAME" /> 上启用 Glanceables。</translation>
-<translation id="5747628966013559697">配置 <ph name="PRODUCT_NAME" /> 如何下载基础生成式 AI 模型并在本地用于推理。
-
-如果此政策设为“允许”（即值为 0）或未设置，系统会自动下载模型，并将其用于推理。
-
-如果此政策设为“停用”（即值为 1），系统将不会下载模型。
-
-在桌面平台上，也可以通过 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> 禁止下载模型。</translation>
 <translation id="5749396052108288586">此政策已被弃用。请改用 <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" />。</translation>
 <translation id="574983287620584622">在登录屏幕上启用无障碍功能快捷方式</translation>
 <translation id="5755002458331714762"> Web Components v0 API（Shadow DOM v0、Custom Elements v0 和 HTML Imports）已于 2018 年被弃用，并且从 M80 起就已默认处于停用状态。此政策允许有选择地重新启用这些功能直至 M84。
@@ -7024,6 +7081,7 @@ Microsoft SharePoint 和 OneDrive 卡片需要由管理员进行额外配置。�
 <translation id="5766438888216077649">不为那些定位到“<ph name="BLANK_PAGE_NAME" />”页面的链接设置 <ph name="WINDOW_OPENER_PROPERTY" /></translation>
 <translation id="5767776869128458023">停用备用的错误页面</translation>
 <translation id="5770738360657678870">开发者版（可能不稳定）</translation>
+<translation id="5772841828612966342">已启用：XSLT 已明确启用。</translation>
 <translation id="5774345930803672932">如果此政策设为 True 或未设置，事件、遥测和信息都将报告至加密报告管道。如果此政策设为 False，则会停用加密报告管道。</translation>
 <translation id="5774856474228476867">默认搜索服务提供商的搜索网址</translation>
 <translation id="5775235485119094648">在电池电量位于指定范围内时为电池充电。</translation>
@@ -7474,6 +7532,7 @@ IP 地址空间覆盖有两种形式：
 注意：在浏览器运行期间，只有新启动的渲染程序进程才会反映对此政策的更改。</translation>
 <translation id="6083281887050888160">启用“Just Works”蓝牙配对</translation>
 <translation id="6083631234867522991">Windows（Windows 客户端）：</translation>
+<translation id="6085580138417523410">允许在子框架中发出本地网络访问 (LNA) 请求，而无需明确委托</translation>
 <translation id="6087413944876892918">使用 <ph name="HAPPY_EYEBALLS_V3" /> 算法</translation>
 <translation id="608788685013546076">设定用电高峰转移电量阈值（以百分比表示）</translation>
 <translation id="6089679180657323464">控制 Wilco 诊断和遥测控制器设置。</translation>
@@ -9631,6 +9690,11 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 <translation id="7410074797376205571">允许 <ph name="CHROME_REMOTE_DESKTOP_PRODUCT_NAME" /> 执行远程主机通过代理发送的 WebAuthn API 请求。</translation>
 <translation id="7412456346709338637">启用 Thunderbolt/USB4 外围设备数据访问</translation>
 <translation id="7414890119082492552">无偏好设置。</translation>
+<translation id="7416222110012824615">此政策用于控制 XSLT 功能（XSLTProcessor JavaScript API 和 XSL 处理指令）的可用性。
+如果此政策已启用，无论浏览器中此功能的默认状态如何，XSLT 都将可用。
+如果此政策已停用，无论浏览器中此功能的默认状态如何，XSLT 都将不可用。
+如果此政策未设置，XSLT 的可用性将由浏览器的默认设置和现场试验决定。
+此政策是一项暂时性措施，将在 M164 中移除。</translation>
 <translation id="7417438464912687020">允许与这台计算机建立远程访问连接</translation>
 <translation id="7417972229667085380">演示模式下待机延迟时间的调整幅度（百分比）（已弃用）</translation>
 <translation id="7421230730436851224">一律不在沙盒中处理音频</translation>
@@ -9671,6 +9735,7 @@ JavaScript 优化政策的例外情况仅在网站级别 (eTLD+1) 上强制执�
 对于普通用户，未设置此政策在功能上等同于将它设为“<ph name="ALLOWED_NAME" />”；对于企业用户，未设置此政策即默认设为“<ph name="DISALLOWED_NAME" />”。</translation>
 <translation id="7438982301540282785">自动设置 <ph name="MICROSOFT_ONE_DRIVE_NAME" /></translation>
 <translation id="7443356543619955157">通过设置此政策，您可以允许向某部 <ph name="PRODUCT_OS_NAME" />设备推送要用于其所有用户的网络配置。网络配置是 JSON 格式的字符串，如 Open Network Configuration 格式所定义。</translation>
+<translation id="744349502210151344">默认值：XSLT 可用性将由浏览器默认设置和现场试验决定。</translation>
 <translation id="7446978687387327623">允许“安全浏览”功能通过代理进行实时检查</translation>
 <translation id="7448430478749155471">在登录屏幕上启用“随选朗读”</translation>
 <translation id="7455912144588577399">如果此政策设为 true，用户便可让系统使用文字转语音功能大声朗读符合条件的网页。这是通过服务器端内容提取和音频合成来实现的。如果此政策设为 false，系统会停用该功能。如果此政策设为默认值或未设置，系统会启用大声朗读。</translation>
@@ -9877,6 +9942,20 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
           如果此政策设为 false 或未设置，用户将无法在锁定的屏幕和登录屏幕上自动提交 PIN 码。
 
           如果您设置了此政策，用户将无法选择启用该功能。</translation>
+<translation id="7609566862616914296">指定一系列网址格式。从匹配源所提供网站发起的针对本地网络端点的网络请求将无法发出<ph name="LOCAL_NETWORK_ACCESS" />请求。
+
+对于与此处所列格式不匹配的源，系统会应用用户的个人配置。
+
+如需详细了解有效网址格式，请访问 https://chromeenterprise.google/policies/url-patterns/。
+
+如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
+
+有多项政策列出了相关源，这些政策会影响向本地网络端点发送的请求。如果某个源同时匹配以下多项政策，则政策的优先级顺序如下：
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="7612030083959326401">配置将停用<ph name="PASSWORD_MANAGER_NAME" />（保存和填充）的网域列表</translation>
 <translation id="7612059745454194563">不允许显示弹出式提醒“Credential Provider 扩展程序”</translation>
 <translation id="7612157962821894603">在 <ph name="PRODUCT_NAME" /> 启动时应用于整个系统的设置</translation>
@@ -9963,6 +10042,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="7669630878711068277">如果此政策已启用或未设置，用户便可在 <ph name="PRODUCT_NAME" /> 中使用打印功能，但无法更改相关设置。
 
       如果此政策已停用，用户将无法通过 <ph name="PRODUCT_NAME" /> 进行打印。在三点状菜单、扩展程序和 JavaScript 应用中，打印功能处于关闭状态。</translation>
+<translation id="7672510074688643558">允许在子框架中发出 LNA 请求，而无需明确委托</translation>
 <translation id="7673194325208122247">时间段（毫秒）</translation>
 <translation id="7677220829878081413">
       如果此政策设为 ArcSession，且 Android 已启动，那么每当用户退出后，系统都会强制相应设备重新启动。
@@ -10061,6 +10141,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="7719808201797990069">舍弃标签页时的网址格式例外情况</translation>
 <translation id="7721944091689270995"><ph name="PLUGIN_VM_NAME" /> 用户 ID</translation>
 <translation id="7728486978686128364">不大写除 DELETE/GET/HEAD/OPTIONS/POST/PUT 之外的请求方法</translation>
+<translation id="7729564356092798350">禁止网站向本地网络端点发送网络请求。</translation>
 <translation id="7731026922044991970">将所有网站上的 Cookie 都恢复为旧版 <ph name="ATTRIBUTE_SAMESITE_NAME" /> 行为</translation>
 <translation id="7732907212083471072">已移除的政策</translation>
 <translation id="7734212505800048991">
@@ -10535,6 +10616,20 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8056273037819805106"><ph name="PRODUCT_OS_NAME" />登录凭证会被用于向受管理的代理进行网络身份验证。</translation>
 <translation id="8056800559672904373">受管理的账号必须是主账号，无任何辅助账号，而且允许用户在创建个人资料时导入现有浏览数据</translation>
 <translation id="8059164285174960932">远程访问客户端获取身份验证令牌的网址</translation>
+<translation id="8059262352692096329">指定一系列网址格式。从匹配源所提供网站发起的针对本地设备的网络请求不会受到<ph name="LOCAL_NETWORK_ACCESS" />检查机制的约束。
+
+对于与此处所列格式不匹配的源，系统会应用用户的个人配置。
+
+如需详细了解有效网址格式，请访问 https://chromeenterprise.google/policies/url-patterns/。
+
+如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
+
+有多项政策列出了相关源，这些政策会影响向本地设备发送的请求。如果某个源同时匹配以下多项政策，则政策的优先级顺序如下：
+
+  - LoopbackNetworkBlockedForUrls
+  - LoopbackNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="8059352177830050556">启用设备背光信息报告功能</translation>
 <translation id="8062485064082966327">使用匿名 Google 服务为无标签图片提供自动说明</translation>
 <translation id="8066428282805800713">在 ChromeOS Flex 上发送其他硬件数据</translation>
@@ -10825,6 +10920,22 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
 如需详细了解旧版技术，请访问 https://chromestatus.com/features。</translation>
 <translation id="8273183018575414926">渐进式 Web 应用</translation>
+<translation id="8274053052968966211">指定一系列网址格式。从匹配源所提供网站发起的网络请求将无法发出<ph name="LOCAL_NETWORK_ACCESS" />请求。
+
+对于与此处所列格式不匹配的源，系统会应用用户的个人配置。
+
+如需详细了解有效网址格式，请访问 https://chromeenterprise.google/policies/url-patterns/。
+
+如需了解<ph name="LOCAL_NETWORK_ACCESS" />限制，请访问 https://wicg.github.io/local-network-access/。
+
+有多项政策列出了相关源，这些政策会影响向本地设备和本地网络端点发送的请求。如果某个源同时匹配以下多项政策，则政策的优先级顺序如下：
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LoopbackNetworkAccessBlockedForUrls
+  - LoopbackNetworkAccessAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="8274603902181597201">清空用户的 ecryptfs 主目录，并改用全新的 ext4 加密主目录。</translation>
 <translation id="8274926413890711289">启用精细报告控件</translation>
 <translation id="8275103737670730746">允许在不使用以往用户手势的情况下调用文件或目录选择器 API</translation>
@@ -10861,6 +10972,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
           如果您为此政策指定的值不在下限值/上限值范围内，则可能会导致相应主机无法启动。
 
           请注意，剪贴板数据大小的实际上限取决于不受此政策控制的 WebRTC 数据通道消息大小上限。</translation>
+<translation id="8294127013911518331">控制 XSLT 功能的可用性</translation>
 <translation id="8294750666104911727">XX-UA-Compatible 设置为chrome=1的网页通常在“<ph name="PRODUCT_FRAME_NAME" />”中进行渲染，而不考虑“ChromeFrameRendererSettings”政策。
 
           如果启用了该设置，将不扫描网页的元标记。
@@ -11099,6 +11211,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8477885780684655676">TLS 1.0</translation>
 <translation id="8479032202539686055">WebRTC 会在搜索最佳路径时使用所有可用接口。</translation>
 <translation id="8479496880635054740">为登录界面停用无障碍虚拟键盘</translation>
+<translation id="8482513475154035196">允许网站向本地网络端点发送网络请求。</translation>
 <translation id="8482518340010585741">配置登录时的应用恢复</translation>
 <translation id="8483004350080020634">先剔除 https:// 网址中关乎隐私和安全性的敏感部分，然后再将网址传递给 PAC（代理自动配置）脚本，以供 <ph name="PRODUCT_NAME" /> 在代理解析期间使用。
 
@@ -11224,6 +11337,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 
 如需详细了解生成式 AI 功能的数据处理机制，请访问 https://support.google.com/chrome/a?p=generative_ai_settings。</translation>
 <translation id="8533145294731270627">拦截恶意下载内容和危险文件类型。</translation>
+<translation id="8540083431549244064">禁止网站向本地设备和本地网络端点发送网络请求。</translation>
 <translation id="8543108307976719751">禁止与这台计算机建立远程访问连接</translation>
 <translation id="8543639085146778837">允许从 Google 服务收集 WebRTC 文本日志</translation>
 <translation id="8543975123557636331">允许输出音频</translation>
@@ -11591,6 +11705,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="8807313206348471682">显示让用户确认退出登录的对话框</translation>
 <translation id="8807728576820212213">启用智能镜头集成</translation>
 <translation id="8809082103104823938">表情符号选择器中的 GIF 支持</translation>
+<translation id="8809276335775270751">已停用：XSLT 已明确停用。</translation>
 <translation id="8812091410765157924">允许以 <ph name="BLANK_PAGE_NAME" /> 为目标打开的弹出式窗口与那个打开弹出式窗口的页面互动，但前提是这个页面已明确接受此类互动</translation>
 <translation id="8812631362927615118">在报告用户安全信号时启用第一方身份验证</translation>
 <translation id="8816370949847593408">Chrome 应用能否运行取决于弃用安排的状态。</translation>
@@ -12166,6 +12281,7 @@ Gemini 只能在部分国家/地区启用，并且仅支持部分语言。设置
 <translation id="9200828125069750521">在使用 POST 的图片网址中所需的参数</translation>
 <translation id="9204520300236345497">允许网站使用受保护内容标识符，这有助于提升受保护内容的播放质量。</translation>
 <translation id="9204863016826119209">已安装完毕且列在此政策中的 Android 应用可以使用企业密钥。</translation>
+<translation id="9206364386317031168">允许网站向本地设备发送网络请求。</translation>
 <translation id="9206472508136116830">不允许 NetBIOS 共享操作发现</translation>
 <translation id="9207596996305971030">不报告登录/退出事件</translation>
 <translation id="9210647066889383361">允许用户通过 Smart Lock 登录自己的设备</translation>

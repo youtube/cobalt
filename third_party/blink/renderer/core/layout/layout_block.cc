@@ -133,7 +133,7 @@ void LayoutBlock::StyleDidChange(
   // Computes old scaling factor before PaintLayer::UpdateTransform()
   // updates Layer()->Transform().
   double old_squared_scale = 1;
-  if (Layer() && diff.TransformChanged() && HasSVGTextDescendants()) {
+  if (Layer() && diff.transform_changed && HasSVGTextDescendants()) {
     old_squared_scale =
         ComputeSquaredLocalFontSizeScalingFactor(Layer()->Transform());
   }
@@ -162,7 +162,7 @@ void LayoutBlock::StyleDidChange(
 
   PropagateStyleToAnonymousChildren();
 
-  if (diff.TransformChanged() && HasSVGTextDescendants()) {
+  if (diff.transform_changed && HasSVGTextDescendants()) {
     const double new_squared_scale = ComputeSquaredLocalFontSizeScalingFactor(
         Layer() ? Layer()->Transform() : nullptr);
     // Compare local scale before and after.
@@ -289,6 +289,7 @@ void LayoutBlock::Paint(const PaintInfo& paint_info) const {
 
   // Avoid painting dirty objects because descendants maybe already destroyed.
   if (NeedsLayout() && !ChildLayoutBlockedByDisplayLock()) [[unlikely]] {
+    DumpForBug478682594();
     DUMP_WILL_BE_NOTREACHED();
     return;
   }

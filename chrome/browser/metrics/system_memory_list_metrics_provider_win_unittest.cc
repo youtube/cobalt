@@ -8,8 +8,13 @@
 
 #include <ntstatus.h>
 
+#include "base/metrics/metrics_hashes.h"
+#include "base/profiler/metadata_recorder.h"
+#include "base/profiler/sample_metadata.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/task_environment.h"
+#include "base/threading/platform_thread.h"
 #include "base/time/time.h"
 #include "testing/gmock/include/gmock/gmock.h"
 
@@ -29,6 +34,11 @@ constexpr char kZeroListCountHistogramName[] =
     "Memory.SystemMemoryLists.ZeroPageCount";
 constexpr char kModifiedListCountHistogramName[] =
     "Memory.SystemMemoryLists.ModifiedPageCount";
+constexpr char kStandbyListCountHistogramName[] =
+    "Memory.SystemMemoryLists.StandbyPageCount";
+
+constexpr char kStandbyListByPriorityCatString[] =
+    "Memory.SystemMemoryLists.StandbyPageCountByPriority.";
 
 class MemoryListInfoGetter {
  public:
@@ -112,17 +122,26 @@ TEST_F(WinSystemMemoryListMetricsProviderTest, SystemListEmpty) {
 
   histogram_tester_.ExpectUniqueSample(kFreeListCountHistogramName, 0, 2);
   histogram_tester_.ExpectUniqueSample(kZeroListCountHistogramName, 0, 2);
+  histogram_tester_.ExpectUniqueSample(kStandbyListCountHistogramName, 0, 2);
+  for (int priority_number = 1; priority_number <= 8; ++priority_number) {
+    histogram_tester_.ExpectUniqueSample(
+        base::StrCat({kStandbyListByPriorityCatString,
+                      base::NumberToString(priority_number)}),
+        0, 2);
+  }
   histogram_tester_.ExpectUniqueSample(kModifiedListCountHistogramName, 0, 2);
 }
 
 // Verifies that we correctly set a non-empty memory list as non-exhausted.
 TEST_F(WinSystemMemoryListMetricsProviderTest, SystemListFull) {
   EXPECT_CALL(getter_, Get(testing::_))
-      .WillOnce(
-          [](SYSTEM_MEMORY_LIST_INFORMATION& memory_list_info) -> NTSTATUS {
-            memory_list_info = SYSTEM_MEMORY_LIST_INFORMATION{1, 1, 1, 1};
-            return STATUS_SUCCESS;
-          })
+      .WillOnce([](SYSTEM_MEMORY_LIST_INFORMATION& memory_list_info)
+                    -> NTSTATUS {
+        memory_list_info = SYSTEM_MEMORY_LIST_INFORMATION{
+            1, 1, 1, 1, 1, {1, 1, 1, 1, 1, 1, 1, 1}, {1, 1, 1, 1, 1, 1, 1, 1},
+            1};
+        return STATUS_SUCCESS;
+      })
       .WillOnce(
           [quit_closure = run_loop_.QuitClosure()](
               SYSTEM_MEMORY_LIST_INFORMATION& memory_list_info) -> NTSTATUS {
@@ -154,6 +173,13 @@ TEST_F(WinSystemMemoryListMetricsProviderTest, SystemListFull) {
 
   histogram_tester_.ExpectUniqueSample(kFreeListCountHistogramName, 1, 1);
   histogram_tester_.ExpectUniqueSample(kZeroListCountHistogramName, 1, 1);
+  histogram_tester_.ExpectUniqueSample(kStandbyListCountHistogramName, 7, 1);
+  for (int priority_number = 1; priority_number <= 8; ++priority_number) {
+    histogram_tester_.ExpectUniqueSample(
+        base::StrCat({kStandbyListByPriorityCatString,
+                      base::NumberToString(priority_number)}),
+        1, 1);
+  }
   histogram_tester_.ExpectUniqueSample(kModifiedListCountHistogramName, 1, 1);
 }
 
@@ -191,5 +217,49 @@ TEST_F(WinSystemMemoryListMetricsProviderTest, SystemListCounterReset) {
                                        2);
   histogram_tester_.ExpectUniqueSample(kFreeListCountHistogramName, 0, 2);
   histogram_tester_.ExpectUniqueSample(kZeroListCountHistogramName, 0, 2);
+  histogram_tester_.ExpectUniqueSample(kStandbyListCountHistogramName, 0, 2);
+  for (int priority_number = 1; priority_number <= 8; ++priority_number) {
+    histogram_tester_.ExpectUniqueSample(
+        base::StrCat({kStandbyListByPriorityCatString,
+                      base::NumberToString(priority_number)}),
+        0, 2);
+  }
+
   histogram_tester_.ExpectUniqueSample(kModifiedListCountHistogramName, 0, 2);
+}
+
+TEST_F(WinSystemMemoryListMetricsProviderTest, SampleMetadataSetDuringRuns) {
+  base::MetadataRecorder::ItemArray items;
+  size_t initial_item_count =
+      base::MetadataRecorder::MetadataProvider(
+          base::GetSampleMetadataRecorder(), base::PlatformThread::CurrentId())
+          .GetItems(&items);
+
+  auto success_closure =
+      [](SYSTEM_MEMORY_LIST_INFORMATION& memory_list_info) -> NTSTATUS {
+    memory_list_info = SYSTEM_MEMORY_LIST_INFORMATION{0};
+    return STATUS_SUCCESS;
+  };
+  EXPECT_CALL(getter_, Get(testing::_))
+      .WillOnce(success_closure)
+      .WillOnce(
+          [&](SYSTEM_MEMORY_LIST_INFORMATION& memory_list_info) -> NTSTATUS {
+            EXPECT_EQ(initial_item_count + 1,
+                      base::MetadataRecorder::MetadataProvider(
+                          base::GetSampleMetadataRecorder(),
+                          base::PlatformThread::CurrentId())
+                          .GetItems(&items));
+            EXPECT_EQ(base::HashMetricName("WindowsZeroPageCount"),
+                      items[initial_item_count].name_hash);
+            EXPECT_FALSE(items[initial_item_count].key.has_value());
+            EXPECT_EQ(0, items[initial_item_count].value);
+            run_loop_.Quit();
+            return STATUS_ACCESS_DENIED;
+          });
+
+  TestSystemMemoryListMetricsProvider sampler(base::Milliseconds(100),
+                                              base::Milliseconds(50), getter_);
+
+  sampler.OnRecordingEnabled();
+  run_loop_.Run();
 }

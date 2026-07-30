@@ -5,6 +5,7 @@
 #include "chrome/browser/ui/views/toolbar/webui_toolbar_web_view.h"
 
 #include "base/command_line.h"
+#include "base/strings/strcat.h"
 #include "base/strings/to_string.h"
 #include "base/task/sequenced_task_runner.h"
 #include "base/test/bind.h"
@@ -14,21 +15,27 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/app/chrome_command_ids.h"
+#include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
+#include "chrome/browser/ui/tabs/split_tab_metrics.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/chrome_features.h"
+#include "chrome/common/pref_names.h"
 #include "chrome/common/webui_url_constants.h"
+#include "chrome/grit/generated_resources.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
+#include "components/prefs/pref_service.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
 #include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/render_process_host.h"
@@ -46,6 +53,7 @@
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "third_party/skia/include/core/SkColor.h"
 #include "ui/accessibility/platform/ax_platform_node_delegate.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/gfx/image/image.h"
 #include "ui/snapshot/snapshot.h"
 #include "ui/views/controls/menu/menu_runner.h"
@@ -59,6 +67,62 @@ namespace {
 constexpr int kNumMaxRecoveryTime = 2;
 constexpr base::TimeDelta kRecoveryResetInterval = base::Seconds(10);
 constexpr base::TimeDelta kRecoveryRetryInterval = base::Seconds(20);
+
+std::string GetSplitTabsButtonAppJS() {
+  return "document.querySelector('toolbar-app')?.shadowRoot"
+         "?.querySelector('split-tabs-button-app')";
+}
+
+std::string GetSplitTabsButtonIconJS() {
+  return GetSplitTabsButtonAppJS() +
+         "?.shadowRoot?.querySelector('cr-icon-button')";
+}
+
+bool WaitForSplitTabsButtonVisible(content::WebContents* web_contents) {
+  static constexpr char kScript[] = R"(
+    (() => {
+      const btn = %s;
+      return !!btn && btn.checkVisibility();
+    })();
+  )";
+
+  return base::test::RunUntil([&]() {
+    return content::EvalJs(
+               web_contents,
+               base::StringPrintf(kScript, GetSplitTabsButtonAppJS().c_str()))
+        .ExtractBool();
+  });
+}
+
+WebUIToolbarWebView* GetWebUIToolbarWebView(Browser* browser) {
+  return static_cast<ToolbarButtonProvider*>(
+             BrowserView::GetBrowserViewForBrowser(browser)->toolbar())
+      ->GetWebUIToolbarViewForTesting();
+}
+
+void EnableSplitTabsButton(Browser* browser, views::WebView* web_view) {
+  browser->profile()->GetPrefs()->SetBoolean(prefs::kPinSplitTabButton, true);
+  content::WaitForCopyableViewInWebContents(web_view->GetWebContents());
+}
+
+bool ClickSplitTabsButton(content::WebContents* web_contents) {
+  return content::ExecJs(
+      web_contents, base::StrCat({GetSplitTabsButtonIconJS(), "?.click();"}));
+}
+
+bool RightClickSplitTabsButton(content::WebContents* web_contents) {
+  static constexpr char kRightClickScript[] = R"(
+      ?.dispatchEvent(new MouseEvent('contextmenu', {
+          bubbles: true,
+          cancelable: true,
+          view: window
+      }));
+  )";
+
+  return content::ExecJs(web_contents, base::StrCat({GetSplitTabsButtonIconJS(),
+                                                     kRightClickScript}));
+}
+
 }  // namespace
 
 class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
@@ -67,6 +131,7 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
     // All features for Webium Production should be included here.
     feature_list_.InitWithFeatures(
         {features::kInitialWebUI, features::kWebUIReloadButton,
+         features::kWebUISplitTabsButton,
          features::kSkipIPCChannelPausingForNonGuests,
          features::kWebUIInProcessResourceLoadingV2,
          features::kInitialWebUISyncNavStartToCommit},
@@ -255,6 +320,55 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
 
   // Verify reload button background returns to transparent.
   EXPECT_EQ(GetCenterPixelColor(web_view, control_rect), SK_ColorTRANSPARENT);
+}
+
+// TODO(crbug.com/479341115): Failing on mac-bots.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_CheckSplitTabsButtonColor DISABLED_CheckSplitTabsButtonColor
+#else
+#define MAYBE_CheckSplitTabsButtonColor CheckSplitTabsButtonColor
+#endif  // BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
+                       MAYBE_CheckSplitTabsButtonColor) {
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kPinSplitTabButton, true);
+
+  ui::TrackedElement* element = nullptr;
+  WebUIToolbarWebView* webui_toolbar_view = nullptr;
+  views::WebView* web_view = nullptr;
+  ASSERT_NO_FATAL_FAILURE(SetUpWebUI(kToolbarSplitTabsToolbarButtonElementId,
+                                     &element, &webui_toolbar_view, &web_view));
+
+  WebUISplitTabsControl* split_tabs_control =
+      &webui_toolbar_view->split_tabs_control_;
+
+  gfx::Rect control_rect = element->GetScreenBounds();
+  gfx::Rect view_rect = webui_toolbar_view->GetBoundsInScreen();
+  control_rect.Offset(-view_rect.OffsetFromOrigin());
+
+  // Sample a point in the background area (e.g. 5,5 from top-left).
+  gfx::Rect background_probe_rect(control_rect.x() + 5, control_rect.y() + 5, 1,
+                                  1);
+
+  // Verify initial state is transparent.
+  EXPECT_EQ(GetCenterPixelColor(web_view, background_probe_rect),
+            SK_ColorTRANSPARENT);
+
+  // Show context menu.
+  split_tabs_control->HandleContextMenu(
+      browser_controls_api::mojom::ContextMenuType::kSplitTabsContext,
+      element->GetScreenBounds().bottom_right(),
+      ui::mojom::MenuSourceType::kMouse);
+
+  // Verify background is highlighted (NOT transparent).
+  EXPECT_NE(GetCenterPixelColor(web_view, background_probe_rect),
+            SK_ColorTRANSPARENT);
+
+  // Close context menu.
+  split_tabs_control->menu_runner_->Cancel();
+
+  // Verify split tabs button background returns to transparent.
+  EXPECT_EQ(GetCenterPixelColor(web_view, background_probe_rect),
+            SK_ColorTRANSPARENT);
 }
 
 class WebUIToolbarWebViewStabilityTest : public InProcessBrowserTest {
@@ -549,9 +663,10 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
   content::JavaScriptDialogManager* dialog_manager =
       static_cast<content::WebContentsDelegate*>(browser())
           ->GetJavaScriptDialogManager(active_web_contents);
+  ui_test_utils::BrowserDestroyedObserver observer(browser());
   dialog_manager->HandleJavaScriptDialog(active_web_contents, /*accept=*/true,
                                          /*prompt_override=*/nullptr);
-  ui_test_utils::WaitForBrowserToClose(browser());
+  observer.Wait();
 }
 
 class WebUIReloadButtonBrowserTest : public InProcessBrowserTest {
@@ -583,4 +698,213 @@ IN_PROC_BROWSER_TEST_F(WebUIReloadButtonBrowserTest, NoCrashOnCommandUpdate) {
   browser()->command_controller()->UpdateCommandEnabled(IDC_BACK, !enabled);
 
   // Verify no crash.
+}
+
+class WebUIToolbarWebViewSplitTabsBrowserTest : public InProcessBrowserTest {
+ public:
+  WebUIToolbarWebViewSplitTabsBrowserTest() {
+    feature_list_.InitWithFeatures(
+        {features::kInitialWebUI, features::kWebUISplitTabsButton,
+         features::kSkipIPCChannelPausingForNonGuests,
+         features::kWebUIInProcessResourceLoadingV2,
+         features::kInitialWebUISyncNavStartToCommit},
+        {});
+  }
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    ThemeServiceFactory::GetForProfile(browser()->profile())
+        ->SetBrowserColorScheme(ThemeService::BrowserColorScheme::kLight);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+class WebUIToolbarWebViewSplitTabsWithReloadBrowserTest
+    : public InProcessBrowserTest {
+ public:
+  WebUIToolbarWebViewSplitTabsWithReloadBrowserTest() {
+    feature_list_.InitWithFeatures(
+        {features::kInitialWebUI, features::kWebUIReloadButton,
+         features::kWebUISplitTabsButton,
+         features::kSkipIPCChannelPausingForNonGuests,
+         features::kWebUIInProcessResourceLoadingV2,
+         features::kInitialWebUISyncNavStartToCommit},
+        {});
+  }
+
+  void SetUpOnMainThread() override {
+    InProcessBrowserTest::SetUpOnMainThread();
+    ThemeServiceFactory::GetForProfile(browser()->profile())
+        ->SetBrowserColorScheme(ThemeService::BrowserColorScheme::kLight);
+  }
+
+ private:
+  base::test::ScopedFeatureList feature_list_;
+};
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsWithReloadBrowserTest,
+                       ToggleSplitTabsButtonVisibility) {
+  content::ScopedAccessibilityModeOverride mode_override(ui::kAXModeComplete);
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  ASSERT_TRUE(webui_toolbar_view);
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  ASSERT_TRUE(web_view);
+
+  // Initially, the button should NOT be visible (default is unpinned).
+  std::string button_name =
+      l10n_util::GetStringUTF8(IDS_ACCNAME_SPLIT_TABS_TOOLBAR_BUTTON_PINNED);
+
+  EnableSplitTabsButton(browser(), web_view);
+  EXPECT_TRUE(WaitForSplitTabsButtonVisible(web_view->GetWebContents()));
+
+  // Wait for it to appear in accessibility tree.
+  content::WaitForAccessibilityTreeToContainNodeWithName(
+      web_view->GetWebContents(), button_name);
+
+  // Verify accessibility properties.
+  content::FindAccessibilityNodeCriteria find_criteria;
+  find_criteria.name = button_name;
+  find_criteria.role = ax::mojom::Role::kButton;
+  ui::AXPlatformNodeDelegate* split_tabs_node =
+      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
+  ASSERT_TRUE(split_tabs_node);
+
+  // Disable the button via pref.
+  browser()->profile()->GetPrefs()->SetBoolean(prefs::kPinSplitTabButton,
+                                               false);
+  // Wait for the tree to change.
+  content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
+
+  // Verify it is gone.
+  split_tabs_node =
+      content::FindAccessibilityNode(web_view->GetWebContents(), find_criteria);
+  EXPECT_FALSE(split_tabs_node);
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
+                       ClickSplitTabsButton) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  EnableSplitTabsButton(browser(), web_view);
+  EXPECT_TRUE(WaitForSplitTabsButtonVisible(web_view->GetWebContents()));
+
+  // Ensure NOT in split view initially.
+  auto* tab_strip_model = browser()->tab_strip_model();
+  EXPECT_FALSE(tab_strip_model->GetActiveTab()->IsSplit());
+
+  EXPECT_TRUE(ClickSplitTabsButton(web_view->GetWebContents()));
+
+  // Verify entered split view. This might take a moment, so need to wait.
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return tab_strip_model->GetActiveTab()->IsSplit(); }));
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
+                       SplitTabsButtonAriaHasPopup) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  content::WebContents* web_contents = web_view->GetWebContents();
+
+  EnableSplitTabsButton(browser(), web_view);
+  ASSERT_TRUE(WaitForSplitTabsButtonVisible(web_contents));
+
+  // Initially NOT split. aria-haspopup should be 'false'.
+  const std::string kGetAriaHasPopup =
+      base::StrCat({GetSplitTabsButtonIconJS(),
+                    "?.getAttribute('aria-haspopup') || 'false'"});
+  EXPECT_EQ("false", content::EvalJs(web_contents, kGetAriaHasPopup));
+
+  EXPECT_TRUE(ClickSplitTabsButton(web_contents));
+
+  auto* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return tab_strip_model->GetActiveTab()->IsSplit(); }));
+
+  // Now split. aria-haspopup should be 'menu'.
+  // The state update is async from the browser back to the WebUI.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(web_contents, kGetAriaHasPopup).ExtractString() ==
+           "menu";
+  }));
+}
+
+// TODO(crbug.com/479341115): Failing on mac-bots.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_RightClickSplitTabsButton DISABLED_RightClickSplitTabsButton
+#else
+#define MAYBE_RightClickSplitTabsButton RightClickSplitTabsButton
+#endif  // BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
+                       MAYBE_RightClickSplitTabsButton) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  EnableSplitTabsButton(browser(), web_view);
+  EXPECT_TRUE(WaitForSplitTabsButtonVisible(web_view->GetWebContents()));
+  EXPECT_TRUE(RightClickSplitTabsButton(web_view->GetWebContents()));
+
+  // Verify no crash.
+}
+
+// TODO(crbug.com/479341115): Failing on mac-bots.
+#if BUILDFLAG(IS_MAC)
+#define MAYBE_ClickSplitTabsButtonWhileSplit \
+  DISABLED_ClickSplitTabsButtonWhileSplit
+#else
+#define MAYBE_ClickSplitTabsButtonWhileSplit ClickSplitTabsButtonWhileSplit
+#endif  // BUILDFLAG(IS_MAC)
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
+                       MAYBE_ClickSplitTabsButtonWhileSplit) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  EnableSplitTabsButton(browser(), web_view);
+  EXPECT_TRUE(WaitForSplitTabsButtonVisible(web_view->GetWebContents()));
+
+  // Create a split tab group manually to simulate being in split mode.
+  chrome::NewSplitTab(browser(),
+                      split_tabs::SplitTabCreatedSource::kToolbarButton);
+  auto* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return tab_strip_model->GetActiveTab()->IsSplit(); }));
+
+  // Click the button while in split mode.
+  EXPECT_TRUE(ClickSplitTabsButton(web_view->GetWebContents()));
+
+  // Verify no crash.
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewSplitTabsBrowserTest,
+                       VerifySplitTabLocations) {
+  WebUIToolbarWebView* webui_toolbar_view = GetWebUIToolbarWebView(browser());
+  views::WebView* web_view = webui_toolbar_view->GetWebViewForTesting();
+  EnableSplitTabsButton(browser(), web_view);
+  EXPECT_TRUE(WaitForSplitTabsButtonVisible(web_view->GetWebContents()));
+
+  // Create split [A, B]. A is active.
+  chrome::NewSplitTab(browser(),
+                      split_tabs::SplitTabCreatedSource::kToolbarButton);
+  auto* tab_strip_model = browser()->tab_strip_model();
+  ASSERT_TRUE(base::test::RunUntil(
+      [&]() { return tab_strip_model->GetActiveTab()->IsSplit(); }));
+
+  // Verify icon is 'split-scene-right' (kEnd) because new tab is active and on
+  // the right.
+  EXPECT_EQ("split-tabs-button:split-scene-right",
+            content::EvalJs(web_view->GetWebContents(),
+                            base::StrCat({GetSplitTabsButtonIconJS(),
+                                          "?.getAttribute('iron-icon')"}))
+                .ExtractString());
+
+  // Activate the other tab (Left/Start).
+  int other_index = tab_strip_model->active_index() == 0 ? 1 : 0;
+  tab_strip_model->ActivateTabAt(other_index);
+
+  // Verify icon is 'split-scene-left' (kStart).
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return content::EvalJs(web_view->GetWebContents(),
+                           base::StrCat({GetSplitTabsButtonIconJS(),
+                                         "?.getAttribute('iron-icon')"}))
+               .ExtractString() == "split-tabs-button:split-scene-left";
+  }));
 }

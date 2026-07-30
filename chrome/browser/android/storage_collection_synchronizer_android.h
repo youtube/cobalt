@@ -7,6 +7,7 @@
 
 #include <jni.h>
 
+#include "chrome/browser/android/tab_android.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/tab/storage_collection_synchronizer.h"
 #include "chrome/browser/tab/tab_state_storage_service.h"
@@ -27,6 +28,8 @@ class StorageCollectionSynchronizerAndroid {
       const StorageCollectionSynchronizerAndroid&) = delete;
 
   void FullSave(JNIEnv* env);
+  void SaveTab(JNIEnv* env, TabAndroid* tab);
+  void SaveTabGroupPayload(JNIEnv* env, base::Token group_id);
 
   void ConsumeRestoreOrchestratorFactory(
       JNIEnv* env,

@@ -134,8 +134,6 @@ typedef NS_ENUM(NSInteger, BookmarksContextBarState) {
   BookmarksContextBarMixedSelection,  // Multiple URL / Folders selected.
 };
 
-// Estimated TableView row height.
-constexpr CGFloat kEstimatedRowHeight = 65.0;
 // Separation between non-empty account and profile sections.
 constexpr CGFloat kSpaceBetweenAccountAndProfileSections = 32.0;
 
@@ -262,6 +260,8 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   BOOL _isBeingDismissed;
   // The Signin coordinator displayed, if any.
   SigninCoordinator* _signinCoordinator;
+  // Whether the UI is disabled.
+  BOOL _UIDisabled;
 }
 
 @synthesize editingFolderCell = _editingFolderCell;
@@ -555,7 +555,6 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   self.tableView.dragInteractionEnabled = true;
 
   self.tableView.accessibilityIdentifier = kBookmarksHomeTableViewIdentifier;
-  self.tableView.estimatedRowHeight = kEstimatedRowHeight;
   self.tableView.allowsMultipleSelectionDuringEditing = YES;
 
   // Create the mediator and hook up the table view.
@@ -654,24 +653,15 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
   // Start loading a favicon.
   __weak BookmarksHomeViewController* weakSelf = self;
-  GURL blockURL(node->url());
   auto faviconLoadedBlock = ^(FaviconAttributes* attributes, bool cached) {
-    BookmarksHomeViewController* strongSelf = weakSelf;
-    if (!strongSelf) {
-      return;
-    }
-    // Due to search filtering, we also need to validate the indexPath
-    // requested versus what is in the table now.
-    if (![strongSelf hasItemAtIndexPath:indexPath] ||
-        [strongSelf nodeAtIndexPath:indexPath] != node) {
-      return;
-    }
-    URLItem.faviconAttributes = attributes;
-    if (!cached && attributes.faviconImage) {
-      [strongSelf.tableView reconfigureRowsAtIndexPaths:@[ indexPath ]];
-    }
+    [weakSelf didFetchFaviconAttributes:attributes
+                                 cached:cached
+                                   item:URLItem
+                              indexPath:indexPath
+                                   node:node];
   };
 
+  GURL blockURL(node->url());
   self.faviconLoader->FaviconForPageUrl(
       blockURL, kDesiredMediumFaviconSizePt, kMinFaviconSizePt,
       /*fallback_to_google_server=*/fallbackToGoogleServer, faviconLoadedBlock);
@@ -876,6 +866,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   base::RecordAction(base::UserMetricsAction(userAction));
   const BookmarkNode* editedNode = *(nodes.begin());
   const BookmarkNode* selectedFolder = editedNode->parent();
+  _UIDisabled = YES;
   _folderChooserCoordinator = [[BookmarksFolderChooserCoordinator alloc]
       initWithBaseViewController:self.navigationController
                          browser:_browser.get()
@@ -929,6 +920,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
                             node:bookmarkNode
          snackbarCommandsHandler:self.snackbarCommandsHandler];
   self.bookmarkEditorCoordinator.delegate = self;
+  _UIDisabled = YES;
   [self.bookmarkEditorCoordinator start];
 }
 
@@ -951,6 +943,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
                       folderNode:bookmarkNode];
   self.folderEditorCoordinator.delegate = self;
   [self.folderEditorCoordinator start];
+  _UIDisabled = YES;
 }
 
 - (void)openAllURLs:(std::vector<GURL>)urls
@@ -982,6 +975,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   if (self.actionSheetCoordinator) {
     return;
   }
+  _UIDisabled = YES;
   __weak BookmarksHomeViewController* weakSelf = self;
   [self.mediator queryLocalBookmarks:^(int local_bookmarks_count,
                                        std::string user_email) {
@@ -1046,6 +1040,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
       "IOS.Bookmarks.BulkSaveBookmarksInAccountCount", localBookmarksCount);
 
   [self refreshContents];
+  _UIDisabled = NO;
 
   NSString* snackbarMessage = base::SysUTF16ToNSString(
       base::i18n::MessageFormatter::FormatWithNamedArgs(
@@ -1503,6 +1498,36 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
 #pragma mark - Private
 
+// Called when a favicon is fetched.
+- (void)didFetchFaviconAttributes:(FaviconAttributes*)attributes
+                           cached:(bool)cached
+                             item:(BookmarksHomeNodeItem*)item
+                        indexPath:(NSIndexPath*)indexPath
+                             node:(const BookmarkNode*)node {
+  // Due to search filtering, we also need to validate the indexPath
+  // requested versus what is in the table now.
+  if (![self hasItemAtIndexPath:indexPath] ||
+      [self nodeAtIndexPath:indexPath] != node) {
+    return;
+  }
+  item.faviconAttributes = attributes;
+  if (!cached && attributes.faviconImage) {
+    if ([self.tableViewModel itemAtIndexPath:indexPath] != item) {
+      return;
+    }
+    LegacyTableViewCell* cell =
+        base::apple::ObjCCastStrict<LegacyTableViewCell>(
+            [self.tableView cellForRowAtIndexPath:indexPath]);
+    if (!cell) {
+      return;
+    }
+    // Even if Apple documentation hints toward reconfiguring the row instead
+    // of just updating the cell, it creates a visible jank. Use the item
+    // configuration method instead. See crbug.com/479692041 for more info.
+    [item configureCell:cell withStyler:self.styler];
+  }
+}
+
 // Creates a delete action for the swipe menu with destructive style (and red
 // color).
 - (UIContextualAction*)createDeleteActionForIndexPath:(NSIndexPath*)indexPath {
@@ -1606,6 +1631,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 }
 
 - (void)dismissActionSheetCoordinator {
+  _UIDisabled = NO;
   [self.actionSheetCoordinator stop];
   self.actionSheetCoordinator = nil;
 }
@@ -1613,12 +1639,14 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 // Stops the folder chooser coordinator.
 - (void)stopFolderChooserCoordinator {
   [_folderChooserCoordinator stop];
+  _UIDisabled = NO;
   _folderChooserCoordinator.delegate = nil;
   _folderChooserCoordinator = nil;
 }
 
 // Stops the bookmark editor coordinator.
 - (void)stopBookmarksEditorCoordinator {
+  _UIDisabled = NO;
   [self.bookmarkEditorCoordinator stop];
   self.bookmarkEditorCoordinator.delegate = nil;
   self.bookmarkEditorCoordinator = nil;
@@ -1626,6 +1654,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 
 // Stops the folder editor coordinator.
 - (void)stopBookmarksFolderEditorCoordinator {
+  _UIDisabled = NO;
   [self.folderEditorCoordinator stop];
   self.folderEditorCoordinator.delegate = nil;
   self.folderEditorCoordinator = nil;
@@ -2194,7 +2223,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
       [[SharingCoordinator alloc] initWithBaseViewController:self
                                                      browser:_browser.get()
                                                       params:params
-                                                  originView:cellView];
+                                                  sourceItem:cellView];
   [self.sharingCoordinator start];
 }
 
@@ -2689,7 +2718,7 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
 }
 
 - (void)handleLongPress:(UILongPressGestureRecognizer*)gestureRecognizer {
-  if (self.mediator.currentlyInEditMode ||
+  if (_UIDisabled || self.mediator.currentlyInEditMode ||
       gestureRecognizer.state != UIGestureRecognizerStateBegan) {
     return;
   }
@@ -2968,13 +2997,13 @@ BookmarkNodeIDSet GetBookmarkNodeIDSet(
   return configuration;
 }
 
-- (CGFloat)tableView:(UITableView*)tableView
-    heightForRowAtIndexPath:(NSIndexPath*)indexPath {
-  return UITableViewAutomaticDimension;
-}
-
 - (void)tableView:(UITableView*)tableView
     didSelectRowAtIndexPath:(NSIndexPath*)indexPath {
+  if (_UIDisabled) {
+    // Deselect row.
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
+    return;
+  }
   BookmarksHomeSectionIdentifier sectionIdentifier =
       (BookmarksHomeSectionIdentifier)([self.tableViewModel
           sectionIdentifierForSectionIndex:indexPath.section]);

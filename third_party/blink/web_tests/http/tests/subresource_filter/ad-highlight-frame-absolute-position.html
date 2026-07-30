@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<meta name=fuzzy content="maxDifference=0-3; totalPixels=0-2000">
+<head><script src="resources/ad-iframe-writer.js"></script></head>
+<body>
+<script type="text/javascript">
+if (window.testRunner) {
+  testRunner.setHighlightAds();
+}
+
+ad_frame = createAdFrame();
+ad_frame.width = 100;
+ad_frame.height = 200;
+
+// Apply absolute positioning to the iframe
+ad_frame.style.position = "absolute";
+ad_frame.style.top = "50px";
+ad_frame.style.left = "50px";
+
+ad_frame.onload = function () {
+  // Finish the test after the ad highlight is drawn.
+  requestAnimationFrame(function() {
+    requestAnimationFrame(function() {
+      if (window.testRunner)
+        testRunner.notifyDone();
+    });
+  });
+}
+ad_frame.src = "about:blank";
+
+if (window.testRunner)
+  testRunner.waitUntilDone();
+</script>
+</body>
+</html>

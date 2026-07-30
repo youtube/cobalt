@@ -27,6 +27,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.timeout;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -55,6 +56,7 @@ import org.mockito.junit.MockitoRule;
 
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.base.test.BaseActivityTestRule;
 import org.chromium.base.test.util.ApplicationTestUtils;
 import org.chromium.base.test.util.CriteriaHelper;
@@ -68,6 +70,7 @@ import org.chromium.chrome.browser.device_lock.DeviceLockActivityLauncherImpl;
 import org.chromium.chrome.browser.firstrun.FirstRunStatus;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
 import org.chromium.chrome.browser.init.ChromeBrowserInitializer;
+import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.signin.services.SigninMetricsUtils.State;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig;
 import org.chromium.chrome.browser.ui.signin.BottomSheetSigninAndHistorySyncConfig.NoAccountSigninMode;
@@ -1167,6 +1170,10 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
         ChromeTabbedActivity baseActivity = mBaseActivityTestRule.getActivity();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
+                    Profile profile =
+                            baseActivity.getProfileProviderSupplier().get().getOriginalProfile();
+                    OneshotSupplierImpl<Profile> profileSupplier = new OneshotSupplierImpl<>();
+                    profileSupplier.set(profile);
                     mCoordinator =
                             BottomSheetSigninAndHistorySyncCoordinator
                                     .createAndObserveAddAccountResult(
@@ -1176,8 +1183,8 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
                                                     .getActivityResultTracker(),
                                             /* delegate= */ mDelegate,
                                             DeviceLockActivityLauncherImpl.get(),
-                                            baseActivity.getProfileProviderSupplier(),
-                                            getBottomSheetController(),
+                                            profileSupplier,
+                                            this::getBottomSheetController,
                                             baseActivity.getModalDialogManagerSupplier(),
                                             baseActivity.getSnackbarManager(),
                                             mSigninAccessPoint);
@@ -1211,6 +1218,61 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
                                 new Result(
                                         /* hasSignedIn= */ true,
                                         /* hasOptedInHistorySync= */ false)));
+    }
+
+    @Test
+    @MediumTest
+    @EnableFeatures(SigninFeatures.ENABLE_SEAMLESS_SIGNIN)
+    public void testIncognitoProfileCannotStartSigninFlow() {
+        mSigninTestRule.addAccount(TestAccounts.ACCOUNT1);
+
+        AccountPickerBottomSheetStrings bottomSheetStrings =
+                new AccountPickerBottomSheetStrings.Builder("Title").build();
+        BottomSheetSigninAndHistorySyncConfig config =
+                new BottomSheetSigninAndHistorySyncConfig.Builder(
+                                bottomSheetStrings,
+                                NoAccountSigninMode.BOTTOM_SHEET,
+                                WithAccountSigninMode.SEAMLESS_SIGNIN,
+                                HistorySyncConfig.OptInMode.REQUIRED,
+                                "Title",
+                                "Subtitle")
+                        .useSeamlessWithAccountSignin(TestAccounts.ACCOUNT1.getId())
+                        .build();
+
+        mBaseActivityTestRule.startOnBlankPage();
+        ChromeTabbedActivity baseActivity = mBaseActivityTestRule.getActivity();
+        Profile incognitoProfile =
+                ThreadUtils.runOnUiThreadBlocking(
+                        () ->
+                                baseActivity
+                                        .getProfileProviderSupplier()
+                                        .get()
+                                        .getOrCreateOffTheRecordProfile());
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    OneshotSupplierImpl<Profile> incognitoProfileSupplier =
+                            new OneshotSupplierImpl<>();
+                    incognitoProfileSupplier.set(incognitoProfile);
+                    mCoordinator =
+                            BottomSheetSigninAndHistorySyncCoordinator
+                                    .createAndObserveAddAccountResult(
+                                            baseActivity.getWindowAndroid(),
+                                            /* activity= */ baseActivity,
+                                            /* activityResultTracker= */ baseActivity
+                                                    .getActivityResultTracker(),
+                                            /* delegate= */ mDelegate,
+                                            DeviceLockActivityLauncherImpl.get(),
+                                            incognitoProfileSupplier,
+                                            this::getBottomSheetController,
+                                            baseActivity.getModalDialogManagerSupplier(),
+                                            baseActivity.getSnackbarManager(),
+                                            mSigninAccessPoint);
+                    Assert.assertThrows(
+                            IllegalStateException.class,
+                            () -> mCoordinator.startSigninFlow(config));
+                });
+
+        verify(mDelegate, never()).onFlowComplete(any());
     }
 
     private void launchSeamlessSigninAndVerifySignedIn(
@@ -1253,6 +1315,10 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
         ChromeTabbedActivity baseActivity = mBaseActivityTestRule.getActivity();
         ThreadUtils.runOnUiThreadBlocking(
                 () -> {
+                    Profile profile =
+                            baseActivity.getProfileProviderSupplier().get().getOriginalProfile();
+                    OneshotSupplierImpl<Profile> profileSupplier = new OneshotSupplierImpl<>();
+                    profileSupplier.set(profile);
                     mCoordinator =
                             BottomSheetSigninAndHistorySyncCoordinator
                                     .createAndObserveAddAccountResult(
@@ -1262,8 +1328,8 @@ public class BottomSheetSigninAndHistorySyncIntegrationTest {
                                                     .getActivityResultTracker(),
                                             /* delegate= */ mDelegate,
                                             DeviceLockActivityLauncherImpl.get(),
-                                            baseActivity.getProfileProviderSupplier(),
-                                            getBottomSheetController(),
+                                            profileSupplier,
+                                            this::getBottomSheetController,
                                             baseActivity.getModalDialogManagerSupplier(),
                                             baseActivity.getSnackbarManager(),
                                             mSigninAccessPoint);

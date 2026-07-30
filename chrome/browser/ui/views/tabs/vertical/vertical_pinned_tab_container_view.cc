@@ -133,6 +133,19 @@ views::ProposedLayout VerticalPinnedTabContainerView::CalculateProposedLayout(
   return layouts;
 }
 
+gfx::Size VerticalPinnedTabContainerView::GetMinimumSize() const {
+  // The minimum size should be enough to show a row and a half, if needed.
+  const int num_children = collection_node_->GetDirectChildren().size();
+  const float min_rows = std::min((IsTabStripCollapsed() ? 1.5f : 1.0f),
+                                  static_cast<float>(num_children));
+  const int min_height =
+      base::ClampCeil(GetLayoutConstant(LayoutConstant::kVerticalTabHeight) *
+                      min_rows) +
+      (num_children > 1 ? kTabPadding : 0);
+  return gfx::Size(GetLayoutConstant(LayoutConstant::kVerticalTabMinWidth),
+                   min_height);
+}
+
 void VerticalPinnedTabContainerView::ResetCollectionNode() {
   collection_node_ = nullptr;
 }
@@ -166,10 +179,10 @@ void VerticalPinnedTabContainerView::UpdateLayoutForDrag() {
 }
 
 void VerticalPinnedTabContainerView::HandleTabDragInContainer(
-    const gfx::Point point_in_container) {
+    const gfx::Rect& dragged_tab_bounds) {
   const views::ProposedLayout& target_layout = layout_manager_->target_layout();
   views::View* view_at_point =
-      GetViewAtPoint(target_layout, point_in_container);
+      GetViewForDragBounds(target_layout, dragged_tab_bounds);
   const TabCollectionNode* node = nullptr;
   if (auto* tab_view = views::AsViewClass<VerticalTabView>(view_at_point)) {
     node = tab_view->collection_node();

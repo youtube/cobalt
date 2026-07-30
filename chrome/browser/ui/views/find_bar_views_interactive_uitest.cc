@@ -31,6 +31,7 @@
 #include "chrome/test/interaction/interactive_browser_test.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/bookmarks/test/bookmark_test_helpers.h"
+#include "components/enterprise/data_controls/content/browser/last_replaced_clipboard_data.h"
 #include "components/enterprise/data_controls/core/browser/test_utils.h"
 #include "components/find_in_page/find_notification_details.h"
 #include "components/find_in_page/find_tab_helper.h"
@@ -85,6 +86,8 @@ DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<bool>,
                                     kTextCopiedState);
 DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<bool>,
                                     kTextSelectedState);
+DEFINE_LOCAL_STATE_IDENTIFIER_VALUE(ui::test::PollingStateObserver<bool>,
+                                    kReplacedDataUpdatedState);
 const ui::Accelerator ctrl_c_accelerator(ui::VKEY_C, ui::EF_CONTROL_DOWN);
 const ui::Accelerator ctrl_v_accelerator(ui::VKEY_V, ui::EF_CONTROL_DOWN);
 }  // namespace
@@ -1156,7 +1159,7 @@ IN_PROC_BROWSER_TEST_F(FindBarViewsUiTest, FindBarWidgetIsNotActivatable) {
 //
 // Disabled on Linux Wayland: Linux Wayland doesn't support window activation.
 // See crbug.com/40863331.
-#if BUILDFLAG(IS_LINUX) && BUILDFLAG(IS_OZONE_WAYLAND)
+#if BUILDFLAG(IS_LINUX) && BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 #define MAYBE_FindBarTextfieldActivatesBrowserOnClick \
   DISABLED_FindBarTextfieldActivatesBrowserOnClick
 #else
@@ -1302,7 +1305,9 @@ IN_PROC_BROWSER_TEST_P(FindBarViewsUiTest, CopyBlockedByPolicy) {
                [](views::Textfield* textfield) {
                  textfield->SelectWord();
                  EXPECT_EQ(textfield->GetSelectedText(), u"text");
-                 textfield->ExecuteCommand(views::Textfield::kCopy, 0);
+                 textfield->ExecuteCommand(
+                     std::to_underlying(ui::TouchEditable::MenuCommands::kCopy),
+                     0);
                }),
       PollState(
           kTextCopiedState,
@@ -1313,5 +1318,25 @@ IN_PROC_BROWSER_TEST_P(FindBarViewsUiTest, CopyBlockedByPolicy) {
                                 /* data_dst = */ nullptr, &clipboard_text);
             return base::EqualsASCII(clipboard_text, kExpectedText);
           }),
-      WaitForState(kTextCopiedState, true));
+      WaitForState(kTextCopiedState, true),
+      // When copying to the clipboard is restricted, we have to wait for the
+      // internal data tracking to identify the sequence number that will need
+      // to be replaced before pasting.
+      PollState(
+          kReplacedDataUpdatedState,
+          [&]() {
+            return !clipboard_restricted_by_policy ||
+                   ui::Clipboard::GetForCurrentThread()->GetSequenceNumber(
+                       ui::ClipboardBuffer::kCopyPaste) ==
+                       data_controls::GetLastReplacedClipboardData().seqno;
+          }),
+      WaitForState(kReplacedDataUpdatedState, true),
+      // Regardless of whether the copied data made it to the clipboard, pasting
+      // it back into the FindBar will result in getting the original text back
+      // as the current policy doesn't block it.
+      WithView(FindBarView::kTextField, [&](views::Textfield* textfield) {
+        textfield->ExecuteCommand(
+            std::to_underlying(ui::TouchEditable::MenuCommands::kPaste), 0);
+        ASSERT_EQ(textfield->GetText(), u"some text");
+      }));
 }

@@ -23,6 +23,7 @@
 #import "ios/chrome/browser/shared/public/commands/command_dispatcher.h"
 #import "ios/chrome/browser/shared/public/commands/drive_file_picker_commands.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
+#import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
 #import "ios/chrome/browser/signin/model/system_identity.h"
@@ -68,6 +69,10 @@
   self = [super initWithBaseViewController:baseNavigationController
                                    browser:browser];
   if (self) {
+    CHECK(browser);
+    // We need the regular browser in order to get the services related to the
+    // identities.
+    CHECK_EQ(browser->type(), Browser::Type::kRegular);
     CHECK(webState);
     CHECK(collection);
     _baseNavigationController = baseNavigationController;
@@ -82,17 +87,19 @@
 
 - (void)start {
   _viewController = [[DriveFilePickerTableViewController alloc] init];
-  _mediator =
-      [[DriveFilePickerMediator alloc] initWithWebState:_webState.get()
-                                             collection:std::move(_collection)
-                                                options:_options];
-
   ProfileIOS* profile = self.profile->GetOriginalProfile();
+  _mediator = [[DriveFilePickerMediator alloc]
+           initWithWebState:_webState.get()
+                 collection:std::move(_collection)
+                    options:_options
+            identityManager:IdentityManagerFactory::GetForProfile(profile)
+      authenticationService:AuthenticationServiceFactory::GetForProfile(
+                                profile)];
+
   _mediator.delegate = self;
   _mediator.driveFilePickerHandler = HandlerForProtocol(
       self.browser->GetCommandDispatcher(), DriveFilePickerCommands);
   _mediator.driveService = drive::DriveServiceFactory::GetForProfile(profile);
-  _mediator.identityManager = IdentityManagerFactory::GetForProfile(profile);
   _mediator.accountManagerService =
       ChromeAccountManagerServiceFactory::GetForProfile(profile);
   _mediator.imageFetcher = _imageFetcher;

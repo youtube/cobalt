@@ -2887,7 +2887,7 @@ targets.bundle(
         "browser_tests_no_field_trial": targets.mixin(
             ci_only = True,
             swarming = targets.swarming(
-                shards = 10,
+                shards = 20,
             ),
         ),
         "components_browsertests_no_field_trial": targets.mixin(
@@ -3217,46 +3217,46 @@ targets.bundle(
         "upload_inv_extended_properties",
     ],
     per_test_modifications = {
-        "blink_web_tests": [
+        "blink_web_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): uploading invocations is not supported
             # by blink_web_tests yet.
-            "has_native_resultdb_integration",
-        ],
-        "blink_wpt_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "blink_wpt_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): uploading invocations is not supported
             # by blink_wpt_tests yet.
-            "has_native_resultdb_integration",
-        ],
-        "context_lost_passthrough_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "context_lost_passthrough_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "expected_color_pixel_passthrough_test": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "expected_color_pixel_passthrough_test": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "gpu_process_launch_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "gpu_process_launch_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "hardware_accelerated_feature_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "hardware_accelerated_feature_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "pixel_skia_gold_passthrough_test": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "pixel_skia_gold_passthrough_test": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "screenshot_sync_passthrough_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "screenshot_sync_passthrough_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
     },
 )
 
@@ -3274,46 +3274,46 @@ targets.bundle(
         "upload_inv_extended_properties",
     ],
     per_test_modifications = {
-        "blink_web_tests": [
+        "blink_web_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): uploading invocations is not supported
             # by blink_web_tests yet.
-            "has_native_resultdb_integration",
-        ],
-        "blink_wpt_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "blink_wpt_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): uploading invocations is not supported
             # by blink_wpt_tests yet.
-            "has_native_resultdb_integration",
-        ],
-        "context_lost_validating_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "context_lost_validating_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "expected_color_pixel_validating_test": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "expected_color_pixel_validating_test": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "gpu_process_launch_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "gpu_process_launch_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "hardware_accelerated_feature_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "hardware_accelerated_feature_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "pixel_skia_gold_validating_test": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "pixel_skia_gold_validating_test": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
-        "screenshot_sync_validating_tests": [
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
+        "screenshot_sync_validating_tests": targets.per_test_modification(
             # TODO(crbug.com/337058844): Merging upload_inv_extended_properties
             # with has_native_resultdb_integration is not supported yet.
-            "has_native_resultdb_integration",
-        ],
+            remove_mixins = ["upload_inv_extended_properties"],
+        ),
     },
 )
 
@@ -3376,14 +3376,12 @@ targets.bundle(
         targets.bundle(
             targets = "gpu_angle_ios_end2end_gtests",
             variants = [
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_14_18_2",
             ],
         ),
         targets.bundle(
             targets = "gpu_angle_ios_white_box_gtests",
             variants = [
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_14_18_2",
             ],
         ),
@@ -5019,7 +5017,6 @@ targets.bundle(
         targets.bundle(
             targets = "ios_common_tests",
             variants = [
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_5",
             ],
         ),
@@ -5029,7 +5026,6 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_5",
             ],
         ),
@@ -5041,7 +5037,6 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_PRO_7TH_GEN_18_5",
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_5",
             ],
         ),
@@ -5053,7 +5048,6 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_PRO_7TH_GEN_18_5",
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_5",
             ],
         ),
@@ -5216,9 +5210,7 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPAD_AIR_5TH_GEN_17_5",
                 "SIM_IPAD_AIR_6TH_GEN_18_2",
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
             ],
         ),
@@ -5228,9 +5220,7 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPAD_AIR_5TH_GEN_17_5",
                 "SIM_IPAD_AIR_6TH_GEN_18_2",
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
             ],
         ),
@@ -5454,7 +5444,6 @@ targets.bundle(
         targets.bundle(
             targets = "ios_common_tests",
             variants = [
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
                 #"SIM_IPHONE_16_26_0",
             ],
@@ -5465,10 +5454,8 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPAD_PRO_6TH_GEN_17_5",
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
                 #"SIM_IPAD_PRO_7TH_GEN_26_0",
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
                 #"SIM_IPHONE_16_26_0",
             ],
@@ -5479,10 +5466,8 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPAD_PRO_6TH_GEN_17_5",
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
                 #"SIM_IPAD_PRO_7TH_GEN_26_0",
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
                 #"SIM_IPHONE_16_26_0",
             ],
@@ -5490,10 +5475,8 @@ targets.bundle(
         targets.bundle(
             targets = "ios_screen_size_dependent_tests",
             variants = [
-                "SIM_IPAD_PRO_6TH_GEN_17_5",
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
                 #"SIM_IPAD_PRO_7TH_GEN_26_0",
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
                 #"SIM_IPHONE_16_26_0",
             ],
@@ -5647,7 +5630,6 @@ targets.bundle(
             ],
             variants = [
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
-                "SIM_IPHONE_14_17_5",
                 "SIM_IPHONE_15_18_2",
             ],
         ),
@@ -5712,7 +5694,6 @@ targets.bundle(
                 "xcodebuild_sim_runner",
             ],
             variants = [
-                "SIM_IPHONE_SE_3RD_GEN_17_5",
                 "SIM_IPHONE_SE_3RD_GEN_18_2",
                 "SIM_IPHONE_SE_3RD_GEN_26_0",
             ],
@@ -5725,7 +5706,6 @@ targets.bundle(
                 "mac_15_vm_optional",
             ],
             variants = [
-                "SIM_IPAD_AIR_5TH_GEN_17_5",
                 "SIM_IPAD_AIR_6TH_GEN_18_2",
             ],
         ),
@@ -5746,7 +5726,6 @@ targets.bundle(
                 "record_failed_tests",
             ],
             variants = [
-                "SIM_IPAD_PRO_6TH_GEN_17_5",
                 "SIM_IPAD_PRO_7TH_GEN_18_2",
                 "SIM_IPAD_PRO_7TH_GEN_26_0",
             ],
@@ -6108,6 +6087,16 @@ targets.bundle(
     name = "linux_viz_gtests",
     targets = [
         "gpu_fyi_vulkan_swiftshader_gtests",
+    ],
+)
+
+# Last MacOS supported on intel
+# Run select tests to ensure minimum coverage
+targets.bundle(
+    name = "mac26_x86_tests",
+    targets = [
+        "telemetry_gpu_unittests",
+        "gpu_unittests",
     ],
 )
 
@@ -6847,15 +6836,9 @@ targets.bundle(
         ),
         "content_browsertests": targets.mixin(
             args = ["--disable-features=TreesInViz"],
-            swarming = targets.swarming(
-                shards = 8,
-            ),
         ),
         "browser_tests": targets.mixin(
             args = ["--disable-features=TreesInViz"],
-            swarming = targets.swarming(
-                shards = 20,
-            ),
         ),
     },
 )
@@ -6881,15 +6864,9 @@ targets.bundle(
         ),
         "content_browsertests": targets.mixin(
             args = ["--enable-features=TreesInViz"],
-            swarming = targets.swarming(
-                shards = 8,
-            ),
         ),
         "browser_tests": targets.mixin(
             args = ["--enable-features=TreesInViz"],
-            swarming = targets.swarming(
-                shards = 20,
-            ),
         ),
     },
 )
@@ -6907,18 +6884,21 @@ targets.bundle(
             args = ["--enable-features=TreesInViz"],
         ),
     ],
-    per_test_modifications = {
-        "android_browsertests": targets.mixin(
-            swarming = targets.swarming(
-                shards = 20,
-            ),
+)
+
+targets.bundle(
+    name = "trees_in_viz_enabled_tests_chromeos",
+    targets = [
+        "cc_unittests",
+        "viz_unittests",
+        "content_browsertests",
+        "browser_tests",
+    ],
+    mixins = [
+        targets.mixin(
+            args = ["--enable-features=TreesInViz"],
         ),
-        "content_browsertests": targets.mixin(
-            swarming = targets.swarming(
-                shards = 8,
-            ),
-        ),
-    },
+    ],
 )
 
 targets.bundle(

@@ -48,8 +48,6 @@ source_set("public") {
     "contextual_search_metrics_recorder.h",
     "contextual_search_service.h",
     "contextual_search_session_handle.h",
-    "contextual_search_types.cc",
-    "contextual_search_types.h",
     "input_state_model.h",
   ]
 
@@ -57,6 +55,7 @@ source_set("public") {
     "//components/keyed_service/core",
     "//components/lens/proto/server:proto",
     "//components/omnibox/common",
+    "//components/omnibox/composebox:mojo_bindings",
     "//components/prefs",
     "//components/search_engines",
     "//components/sessions",
@@ -70,9 +69,25 @@ source_set("public") {
   ]
 
   public_deps = [
+    ":types",
     "//base",
     "//components/lens",
     "//third_party/lens_server_proto:lens_overlay_proto",
+  ]
+}
+
+source_set("types") {
+  sources = [
+    "contextual_search_types.cc",
+    "contextual_search_types.h",
+  ]
+
+  public_deps = [
+    "//base",
+    "//components/lens",
+    "//components/sessions:session_id",
+    "//third_party/lens_server_proto:lens_overlay_proto",
+    "//url",
   ]
 }
 

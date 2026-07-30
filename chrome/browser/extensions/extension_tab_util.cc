@@ -12,6 +12,7 @@
 #include <optional>
 #include <utility>
 
+#include "base/auto_reset.h"
 #include "base/containers/fixed_flat_set.h"
 #include "base/hash/hash.h"
 #include "base/metrics/histogram_functions.h"
@@ -94,6 +95,9 @@ using extensions::mojom::APIPermissionID;
 namespace extensions {
 
 namespace {
+
+// Whether to disable tab list editing for testing purposes.
+bool g_disable_tab_list_editing_for_testing = false;
 
 constexpr char kGroupNotFoundError[] = "No group with id: *.";
 constexpr char kInvalidUrlError[] = "Invalid url: \"*\".";
@@ -1360,30 +1364,36 @@ void ExtensionTabUtil::ClearBackForwardCache() {
 
 // static
 bool ExtensionTabUtil::IsTabStripEditable() {
+  if (g_disable_tab_list_editing_for_testing) {
+    return false;
+  }
+
+  // TODO(https://crbug.com/482088886): Migrate this to just use
+  // TabListInterface::CanEditTabList().
+
   // See comments in the header for why we need to check all of them.
   for (WindowController* window : *WindowControllerList::GetInstance()) {
-    if (!window->HasEditableTabStrip()) {
+    TabListInterface* tab_list =
+        TabListInterface::From(window->GetBrowserWindowInterface());
+    if (tab_list && !tab_list->IsThisTabListEditable()) {
       return false;
     }
   }
   return true;
 }
 
+// static
 TabListInterface* ExtensionTabUtil::GetEditableTabList(
     BrowserWindowInterface& browser) {
-  if (!IsTabStripEditable()) {
+  if (!TabListInterface::CanEditTabList(*browser.GetProfile())) {
     return nullptr;
   }
   return TabListInterface::From(&browser);
 }
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
 // static
-TabStripModel* ExtensionTabUtil::GetEditableTabStripModel(Browser* browser) {
-  if (!IsTabStripEditable())
-    return nullptr;
-  return browser->tab_strip_model();
+base::AutoReset<bool> ExtensionTabUtil::DisableTabListEditingForTesting() {
+  return base::AutoReset<bool>(&g_disable_tab_list_editing_for_testing, true);
 }
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
 
 }  // namespace extensions

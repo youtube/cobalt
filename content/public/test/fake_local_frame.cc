@@ -153,8 +153,12 @@ void FakeLocalFrame::GetSavableResourceLinks(
     GetSavableResourceLinksCallback callback) {}
 
 #if BUILDFLAG(IS_MAC)
-void FakeLocalFrame::GetCharacterIndexAtPoint(const gfx::Point& point) {}
-void FakeLocalFrame::GetFirstRectForRange(const gfx::Range& range) {}
+void FakeLocalFrame::GetCharacterIndexAtPoint(
+    const base::UnguessableToken& request_token,
+    const gfx::Point& point) {}
+void FakeLocalFrame::GetFirstRectForRange(
+    const base::UnguessableToken& request_token,
+    const gfx::Range& range) {}
 void FakeLocalFrame::GetStringForRange(const gfx::Range& range,
                                        GetStringForRangeCallback callback) {
   std::move(callback).Run(nullptr, gfx::Point());
@@ -254,7 +258,7 @@ void FakeLocalFrame::GetScrollPosition(GetScrollPositionCallback callback) {
 }
 
 #if BUILDFLAG(IS_ANDROID)
-void FakeLocalFrame::PerformSpellCheck() {}
+void FakeLocalFrame::PerformFullContentSpellCheck() {}
 #endif
 
 }  // namespace content

@@ -17,6 +17,9 @@
 #include "third_party/blink/public/mojom/service_worker/service_worker_stream_handle.mojom-forward.h"
 
 namespace content {
+class ServiceWorkerClient;
+class StoragePartitionImpl;
+
 // (crbug.com/352578800): `ServiceWorkerSyntheticResponseManager` handles
 // requests and responses for SyntheticResponse.
 // This class is responsible for 1) initiating a network request, 2) sending
@@ -51,8 +54,7 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
                               blink::mojom::ServiceWorkerFetchEventTimingPtr,
                               scoped_refptr<ServiceWorkerVersion>)>;
 
-  ServiceWorkerSyntheticResponseManager(
-      scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+  explicit ServiceWorkerSyntheticResponseManager(
       scoped_refptr<ServiceWorkerVersion> version);
   ServiceWorkerSyntheticResponseManager(
       const ServiceWorkerSyntheticResponseManager&) = delete;
@@ -60,13 +62,26 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
       const ServiceWorkerSyntheticResponseManager&) = delete;
   ~ServiceWorkerSyntheticResponseManager();
 
-  void StartRequest(int request_id,
-                    uint32_t options,
-                    const network::ResourceRequest& request,
-                    OnReceiveResponseCallback receive_response_callback,
-                    OnReceiveRedirectCallback receive_redirect_callback,
-                    OnCompleteCallback complete_callback);
-  void StartSyntheticResponse(FetchCallback callback);
+  // Starts the network request.
+  //
+  // If `IsServiceWorkerSyntheticResponseNetworkService()` is true and the
+  // manager is `kReady`, this method modifies the `request` object by
+  // populating its `trusted_params`. Specifically:
+  // 1. `expected_response_headers_for_synthetic_response` is set to the
+  //    cached synthetic response headers.
+  // 2. `response_body_stream` is set to a data pipe producer handle for
+  //    the synthetic response body.
+  // These changes allow the network service to serve the synthetic response
+  // without additional copies in the browser process.
+  void InitiateRequest(ServiceWorkerClient* service_worker_client,
+                       StoragePartitionImpl* storage_partition,
+                       network::ResourceRequest& request,
+                       OnReceiveResponseCallback receive_response_callback,
+                       OnReceiveRedirectCallback receive_redirect_callback,
+                       OnCompleteCallback complete_callback);
+  // Tries to start the synthetic response. Returns true if the synthetic
+  // response is started, otherwise returns false.
+  bool MaybeStartSyntheticResponse(FetchCallback callback);
   SyntheticResponseStatus Status() const { return status_; }
 
   // The static function to override the dry run mode.
@@ -75,6 +90,13 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
 
  private:
   class SyntheticResponseURLLoaderClient;
+
+  void StartRequest(int request_id,
+                    uint32_t options,
+                    network::ResourceRequest& request,
+                    OnReceiveResponseCallback receive_response_callback,
+                    OnReceiveRedirectCallback receive_redirect_callback,
+                    OnCompleteCallback complete_callback);
 
   void OnReceiveResponse(network::mojom::URLResponseHeadPtr response_head,
                          mojo::ScopedDataPipeConsumerHandle body);
@@ -129,7 +151,7 @@ class CONTENT_EXPORT ServiceWorkerSyntheticResponseManager {
   std::optional<RaceNetworkRequestSimpleBufferManager> simple_buffer_manager_;
   std::optional<ServiceWorkerSyntheticResponseDataPipeConnector>
       data_pipe_connector_;
-  bool did_start_synthetic_response = false;
+  bool did_start_synthetic_response_ = false;
 
   base::TimeTicks request_start_time_;
   base::TimeTicks response_received_time_;

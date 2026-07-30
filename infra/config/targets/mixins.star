@@ -1318,18 +1318,6 @@ targets.mixin(
 )
 
 targets.mixin(
-    name = "ios_runtime_cache_17_5",
-    swarming = targets.swarming(
-        named_caches = [
-            swarming.cache(
-                name = "runtime_ios_17_5",
-                path = "Runtime-ios-17.5",
-            ),
-        ],
-    ),
-)
-
-targets.mixin(
     name = "ios_runtime_cache_18_2",
     swarming = targets.swarming(
         named_caches = [
@@ -1867,7 +1855,7 @@ targets.mixin(
     swarming = targets.swarming(
         dimensions = {
             "cpu": "x86-64",
-            "os": "Mac-15",
+            "os": "Mac-26",
         },
     ),
 )

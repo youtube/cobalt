@@ -40,7 +40,7 @@ import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.ntp.NewTabPage;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationConfigManager;
-import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo.NtpThemeColorId;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorUtils;
@@ -64,13 +64,15 @@ public class StatusBarColorControllerUnitTest {
             new ActivityScenarioRule<>(TestActivity.class);
 
     @Mock private StatusBarColorProvider mStatusBarColorProvider;
-    @Mock private MonotonicObservableSupplier<LayoutManager> mLayoutManagerSupplier;
     @Mock private ActivityLifecycleDispatcher mActivityLifecycleDispatcher;
     @Mock private TopUiThemeColorProvider mTopUiThemeColorProvider;
     @Mock private EdgeToEdgeSystemBarColorHelper mSystemBarColorHelper;
     @Mock private DesktopWindowStateManager mDesktopWindowStateManager;
     @Mock private Tab mNtpTab;
     @Mock private NewTabPage mNewTabPage;
+
+    private final MonotonicObservableSupplier<LayoutManager> mLayoutManagerSupplier =
+            ObservableSuppliers.alwaysNull();
 
     private final ActivityTabProvider mActivityTabProvider = new ActivityTabProvider();
     private final SettableNonNullObservableSupplier<Integer> mOverviewColorSupplier =
@@ -240,8 +242,7 @@ public class StatusBarColorControllerUnitTest {
                 new NtpCustomizationConfigManager();
         NtpCustomizationConfigManager.setInstanceForTesting(ntpCustomizationConfigManager);
 
-        ntpCustomizationConfigManager.setBackgroundImageTypeForTesting(
-                NtpBackgroundImageType.CHROME_COLOR);
+        ntpCustomizationConfigManager.setBackgroundTypeForTesting(NtpBackgroundType.CHROME_COLOR);
         ntpCustomizationConfigManager.setNtpThemeColorInfoForTesting(colorInfo);
 
         // Verifies when customized NTP background isn't supported, the status bar color is set to

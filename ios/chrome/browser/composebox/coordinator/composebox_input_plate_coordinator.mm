@@ -83,6 +83,7 @@ const CGFloat kSnackbarBottomMargin = 10;
     ComposeboxInputPlateViewControllerDelegate,
     LocationBarModelDelegateWebStateProvider,
     LocationBarURLLoader,
+    OmniboxFocusDelegate,
     PHPickerViewControllerDelegate,
     UIDocumentPickerDelegate,
     UIImagePickerControllerDelegate,
@@ -209,6 +210,7 @@ const CGFloat kSnackbarBottomMargin = 10;
                    omniboxClient:std::move(omniboxClient)
              presentationContext:OmniboxPresentationContext::kComposebox];
   _omniboxCoordinator.presenterDelegate = self.omniboxPopupPresenterDelegate;
+  _omniboxCoordinator.focusDelegate = self;
   [_omniboxCoordinator start];
 
   [_omniboxCoordinator.managedViewController
@@ -413,6 +415,15 @@ const CGFloat kSnackbarBottomMargin = 10;
   }
 }
 
+- (void)composeboxViewControllerDidTapDeepSearchButton:
+    (ComposeboxInputPlateViewController*)composeboxViewController {
+  if (_modeHolder.mode == ComposeboxMode::kDeepSearch) {
+    _modeHolder.mode = ComposeboxMode::kRegularSearch;
+  } else {
+    _modeHolder.mode = ComposeboxMode::kDeepSearch;
+  }
+}
+
 - (void)didFailToAttachDueToIneligibleAttachments:
     (ComposeboxInputPlateViewController*)composeboxViewController {
   CHECK_EQ(_viewController, composeboxViewController);
@@ -420,6 +431,7 @@ const CGFloat kSnackbarBottomMargin = 10;
     case ComposeboxMode::kRegularSearch:
     case ComposeboxMode::kAIM:
     case ComposeboxMode::kCanvas:
+    case ComposeboxMode::kDeepSearch:
       [self showMaxAttachmentSnackbarError];
       return;
     case ComposeboxMode::kImageGeneration:
@@ -604,6 +616,21 @@ const CGFloat kSnackbarBottomMargin = 10;
 - (void)hideComposeboxTabPicker {
   [_tabPickerCoordinator stop];
   _tabPickerCoordinator = nil;
+}
+
+#pragma mark - OmniboxFocusDelegate
+
+- (void)omniboxDidBecomeFirstResponder {
+  // When the omnibox is focused the first time, set the initial `_query` if
+  // there is one. This can be used by features like QR code scanner to write
+  // URLs in the omnibox.
+  if (_query) {
+    [_omniboxCoordinator insertTextToOmnibox:_query];
+    _query = nil;
+  }
+}
+
+- (void)omniboxDidResignFirstResponder {
 }
 
 #pragma mark - Private helpers

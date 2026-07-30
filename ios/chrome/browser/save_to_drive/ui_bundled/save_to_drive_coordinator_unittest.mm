@@ -28,6 +28,7 @@
 #import "ios/chrome/browser/shared/public/commands/settings_commands.h"
 #import "ios/chrome/browser/shared/public/commands/show_signin_command.h"
 #import "ios/chrome/browser/signin/model/authentication_service.h"
+#import "ios/chrome/browser/signin/model/authentication_service_delegate.h"
 #import "ios/chrome/browser/signin/model/authentication_service_factory.h"
 #import "ios/chrome/browser/signin/model/chrome_account_manager_service_factory.h"
 #import "ios/chrome/browser/signin/model/fake_authentication_service_delegate.h"
@@ -60,6 +61,10 @@ class SaveToDriveCoordinatorTest : public PlatformTest {
   void SetUp() final {
     PlatformTest::SetUp();
     TestProfileIOS::Builder builder;
+    builder.AddTestingFactory(
+        AuthenticationServiceFactory::GetInstance(),
+        AuthenticationServiceFactory::GetFactoryWithDelegate(
+            std::make_unique<FakeAuthenticationServiceDelegate>()));
     builder.AddTestingFactory(
         IdentityManagerFactory::GetInstance(),
         base::BindRepeating(IdentityTestEnvironmentBrowserStateAdaptor::
@@ -117,6 +122,8 @@ class SaveToDriveCoordinatorTest : public PlatformTest {
                 manageStorageAlertHandler:[OCMArg any]
                      accountPickerHandler:[OCMArg any]
                               prefService:pref_service_
+                    authenticationService:ios::OCM::AnyPointer<
+                                              AuthenticationService>()
                     accountManagerService:account_manager_service_
                           identityManager:ios::OCM::AnyPointer<
                                               signin::IdentityManager>()
@@ -186,6 +193,8 @@ TEST_F(SaveToDriveCoordinatorTest, StartsAndDisconnectsMediator) {
                 manageStorageAlertHandler:manage_storage_commands
                      accountPickerHandler:account_picker_commands
                               prefService:pref_service_
+                    authenticationService:ios::OCM::AnyPointer<
+                                              AuthenticationService>()
                     accountManagerService:account_manager_service_
                           identityManager:IdentityManagerFactory::GetForProfile(
                                               profile_.get())

@@ -24,8 +24,7 @@ component("sync") {
     "//components/signin/core/browser",
     "//components/sync:unit_tests",
     "//components/sync/nigori",
-    "//components/sync/service",
-    "//headless:headless_non_renderer",
+    "//headless:headless_browser",
     "//ios/chrome/browser/web/model:web_internal",
     "//services/network:network_service",
     "//services/test/echo:lib",
@@ -112,8 +111,13 @@ static_library("test_support") {
   deps = [
     ":sync",
     "//base",
+    "//crypto",
     "//testing/gtest",
   ]
+  if (is_apple) {
+    sources += [ "os_crypt_mocker_mac.mm" ]
+    deps += [ "//crypto:mock_apple_keychain" ]
+  }
   if (is_linux && !is_castos) {
     sources += [
       "os_crypt_mocker_linux.cc",
@@ -146,7 +150,7 @@ source_set("unit_tests") {
   ]
 
   if (is_apple) {
-    sources += [ "os_crypt_mac_unittest.cc" ]
+    sources += [ "os_crypt_mac_unittest.mm" ]
     deps += [ "//crypto:mock_apple_keychain" ]
   } else if (is_linux && !is_castos) {
     sources += [

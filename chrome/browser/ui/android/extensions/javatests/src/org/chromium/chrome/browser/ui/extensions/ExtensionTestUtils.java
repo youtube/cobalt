@@ -67,6 +67,19 @@ public class ExtensionTestUtils {
     }
 
     /**
+     * Uninstalls the extension with the given ID.
+     *
+     * @param profile The profile the extension belongs to.
+     * @param extensionId The ID of the extension to uninstall.
+     */
+    public static void uninstallExtension(Profile profile, String extensionId) {
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    ExtensionTestUtilsJni.get().uninstallExtension(profile, extensionId);
+                });
+    }
+
+    /**
      * Sets whether the extension action is visible in the toolbar.
      *
      * @param profile The profile the extension belongs to.
@@ -82,6 +95,21 @@ public class ExtensionTestUtils {
                 });
     }
 
+    /**
+     * Returns the number of active RenderFrameHosts for the given extension.
+     *
+     * @param profile The profile the extension belongs to.
+     * @param extensionId The ID of the extension.
+     * @return The number of active RenderFrameHosts.
+     */
+    public static int getRenderFrameHostCount(Profile profile, String extensionId) {
+        return ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    return ExtensionTestUtilsJni.get()
+                            .getRenderFrameHostCount(profile, extensionId);
+                });
+    }
+
     @NativeMethods
     public interface Natives {
         void loadUnpackedExtensionAsync(
@@ -92,9 +120,15 @@ public class ExtensionTestUtils {
         void disableExtension(
                 @JniType("Profile*") Profile profile, @JniType("std::string") String extensionId);
 
+        void uninstallExtension(
+                @JniType("Profile*") Profile profile, @JniType("std::string") String extensionId);
+
         void setExtensionActionVisible(
                 @JniType("Profile*") Profile profile,
                 @JniType("std::string") String extensionId,
                 boolean visible);
+
+        int getRenderFrameHostCount(
+                @JniType("Profile*") Profile profile, @JniType("std::string") String extensionId);
     }
 }

@@ -2,7 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-import type {AiPageCompareInteractions, AiPageComposeInteractions, AiPageHistorySearchInteractions, AiPageInteractions, AiPageTabOrganizationInteractions, AutofillSettingsReferrer, DeleteBrowsingDataAction, MetricsBrowserProxy, PrivacyElementInteractions, PrivacyGuideInteractions, PrivacyGuideSettingsStates, PrivacyGuideStepsEligibleAndReached, SafeBrowsingInteractions, SafetyCheckNotificationsModuleInteractions, SafetyCheckUnusedSitePermissionsModuleInteractions, SafetyHubCardState, SafetyHubEntryPoint, SafetyHubModuleType, SafetyHubSurfaces, YourSavedInfoDataCategory, YourSavedInfoDataChip, YourSavedInfoRelatedService} from 'chrome://settings/settings.js';
+import {YourSavedInfoDataCategory, YourSavedInfoDataChip, YourSavedInfoRelatedService} from 'chrome://settings/settings.js';
+import type {AiPageComposeInteractions, AiPageHistorySearchInteractions, AiPageInteractions, AiPageTabOrganizationInteractions, AutofillSettingsReferrer, DeleteBrowsingDataAction, MetricsBrowserProxy, PrivacyElementInteractions, PrivacyGuideInteractions, PrivacyGuideSettingsStates, PrivacyGuideStepsEligibleAndReached, SafeBrowsingInteractions, SafetyCheckNotificationsModuleInteractions, SafetyCheckUnusedSitePermissionsModuleInteractions, SafetyHubCardState, SafetyHubEntryPoint, SafetyHubModuleType, SafetyHubSurfaces} from 'chrome://settings/settings.js';
 import {TestBrowserProxy} from 'chrome://webui-test/test_browser_proxy.js';
 
 export class TestMetricsBrowserProxy extends TestBrowserProxy implements
@@ -36,7 +37,6 @@ export class TestMetricsBrowserProxy extends TestBrowserProxy implements
       // </if>
       'recordAiPageInteractions',
       'recordAiPageHistorySearchInteractions',
-      'recordAiPageCompareInteractions',
       'recordAiPageComposeInteractions',
       'recordAiPageTabOrganizationInteractions',
       'recordAutofillSettingsReferrer',
@@ -176,10 +176,6 @@ export class TestMetricsBrowserProxy extends TestBrowserProxy implements
     this.methodCalled('recordAiPageHistorySearchInteractions', interaction);
   }
 
-  recordAiPageCompareInteractions(interaction: AiPageCompareInteractions) {
-    this.methodCalled('recordAiPageCompareInteractions', interaction);
-  }
-
   recordAiPageComposeInteractions(interaction: AiPageComposeInteractions) {
     this.methodCalled('recordAiPageComposeInteractions', interaction);
   }
@@ -191,13 +187,25 @@ export class TestMetricsBrowserProxy extends TestBrowserProxy implements
 
   recordYourSavedInfoCategoryClick(category: YourSavedInfoDataCategory) {
     this.methodCalled('recordYourSavedInfoCategoryClick', [category]);
+    if (category !== YourSavedInfoDataCategory.MAX_VALUE) {
+      this.recordAction(`Settings.YourSavedInfo.CategoryClick.${
+          YourSavedInfoDataCategory[category]}`);
+    }
   }
 
   recordYourSavedInfoDataChipClick(chip: YourSavedInfoDataChip) {
     this.methodCalled('recordYourSavedInfoDataChipClick', [chip]);
+    if (chip !== YourSavedInfoDataChip.MAX_VALUE) {
+      this.recordAction(
+          `Settings.YourSavedInfo.ChipClick.${YourSavedInfoDataChip[chip]}`);
+    }
   }
 
   recordYourSavedInfoRelatedServiceClick(service: YourSavedInfoRelatedService) {
     this.methodCalled('recordYourSavedInfoRelatedServiceClick', [service]);
+    if (service !== YourSavedInfoRelatedService.MAX_VALUE) {
+      this.recordAction(`Settings.YourSavedInfo.RelatedServiceClick.${
+          YourSavedInfoRelatedService[service]}`);
+    }
   }
 }

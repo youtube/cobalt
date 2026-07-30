@@ -7,20 +7,20 @@
 #include <string_view>
 
 #include "base/feature_list.h"
-#include "chrome/browser/on_device_translation/service_controller.h"
-#include "chrome/browser/on_device_translation/service_controller_manager.h"
+#include "chrome/browser/on_device_translation/service_controller_manager_factory.h"
 #include "components/component_updater/component_updater_service.h"
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/content_settings/core/common/content_settings.h"
 #include "components/content_settings/core/common/content_settings_types.h"
 #include "components/crx_file/id_util.h"
-#include "components/on_device_ai/ai_crx_component.h"
 #include "components/on_device_translation/component_manager.h"
 #include "components/on_device_translation/constants.h"
 #include "components/on_device_translation/features.h"
 #include "components/on_device_translation/metrics.h"
 #include "components/on_device_translation/public/language_pack.h"
 #include "components/on_device_translation/public/pref_names.h"
+#include "components/on_device_translation/service_controller.h"
+#include "components/on_device_translation/service_controller_manager.h"
 #include "components/on_device_translation/translation_manager_util.h"
 #include "components/on_device_translation/translator.h"
 #include "components/permissions/permissions_client.h"
@@ -247,6 +247,8 @@ void TranslationManagerImpl::CreateTranslatorImpl(
     mojo::PendingRemote<TranslationManagerCreateTranslatorClient> client,
     const std::string& source_language,
     const std::string& target_language,
+    std::unique_ptr<optimization_guide::OnDeviceModelDownloadProgressManager>
+        model_download_progress_manager,
     base::expected<mojo::PendingRemote<mojom::Translator>,
                    CreateTranslatorError> result) {
   if (!client) {
@@ -331,6 +333,9 @@ void TranslationManagerImpl::CreateTranslator(
     return;
   }
 
+  std::unique_ptr<optimization_guide::OnDeviceModelDownloadProgressManager>
+      model_download_progress_manager = nullptr;
+
   if (options->observer_remote) {
     base::flat_set<std::string> component_ids = {
         crx_file::id_util::GenerateIdFromHash(
@@ -344,24 +349,29 @@ void TranslationManagerImpl::CreateTranslator(
       component_ids.insert(
           crx_file::id_util::GenerateIdFromHash(config.public_key_sha));
     }
-    model_download_progress_manager_.AddObserver(
-        std::move(options->observer_remote),
-        on_device_ai::AICrxComponent::FromComponentIds(
-            component_update_service_, std::move(component_ids)));
+
+    model_download_progress_manager = std::make_unique<
+        optimization_guide::OnDeviceModelDownloadProgressManager>(
+        component_update_service_, std::move(component_ids),
+        /*enable_unloadable_progress=*/false);
+
+    model_download_progress_manager->AddObserver(
+        std::move(options->observer_remote));
   }
 
   GetServiceController().CreateTranslator(
       source_language, target_language,
       base::BindOnce(&TranslationManagerImpl::CreateTranslatorImpl,
                      weak_ptr_factory_.GetWeakPtr(), std::move(client),
-                     source_language, target_language));
+                     source_language, target_language,
+                     std::move(model_download_progress_manager)));
 }
 
 OnDeviceTranslationServiceController&
 TranslationManagerImpl::GetServiceController() {
   if (!service_controller_) {
     ServiceControllerManager* manager =
-        ServiceControllerManager::GetForBrowserContext(browser_context());
+        ServiceControllerManagerFactory::GetInstance()->Get(browser_context());
     CHECK(manager);
     service_controller_ = manager->GetServiceControllerForOrigin(origin_);
   }

@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Imepachikwa kwenye <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Gusa Programu  &gt; Programu chaguomsingi</translation>
 <translation id="1272079795634619415">Simamisha</translation>
+<translation id="1275718070701477396">Umeichagua</translation>
 <translation id="1289742167380433257">Ili uhifadhi data yako, picha kwenye ukurasa huu zimeboreshwa na Google.</translation>
 <translation id="129382876167171263">Faili zinazohifadhiwa na tovuti huonekana hapa</translation>
 <translation id="131112695174432497">Data inayoathiri uwekaji mapendeleo ya matangazo imefutwa</translation>
@@ -38,6 +39,7 @@
 <translation id="1415855080660575082">Ruhusu Chrome ionyeshe vichupo vyako vya hivi majuzi kwenye kifaa chako ili vionekane katika orodha ya programu na matokeo ya utafutaji kwenye kifaa chako. Unaweza kuwasha au kuzima kipengele hiki kwenye mipangilio ya Chrome.</translation>
 <translation id="1420688843103859429">Sogeza mbele na nyuma kwa kutelezesha vidole viwili kwenye padi ya kugusa</translation>
 <translation id="1432650420699700107">Tovuti zinaweza kuomba ruhusa ya kuunganisha na kifaa chochote kwenye mtandao wako wa karibu</translation>
+<translation id="1442081309487427303">Washa viungo vya Hali ya Kusoma</translation>
 <translation id="1448064542941920355">Punguza ukuzaji</translation>
 <translation id="1464044141348608623">Usiruhusu tovuti zijue wakati unatumia kifaa chako</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{Tovuti <ph name="SITE_COUNT" />}other{Tovuti <ph name="SITE_COUNT" />}}</translation>
@@ -72,6 +74,7 @@
 <translation id="1766455884659449403">Pata arifa za vidokezo vya Chrome</translation>
 <translation id="1777815584158991902">Safu ya chini ya kipengele cha gundua mipasho</translation>
 <translation id="1779089405699405702">Kisimbuaji cha picha</translation>
+<translation id="1781533683087883868">Zima viungo vya Hali ya Kusoma</translation>
 <translation id="1785415724048343560">Inapendekezwa kwa ajili ya hali bora ya utumiaji</translation>
 <translation id="1796588414813960292">Vipengele vinavyohitaji sauti havitafanya kazi</translation>
 <translation id="1799920918471566157">Vidokezo vya Chrome</translation>
@@ -495,6 +498,7 @@ Ulinzi wa Hali ya Juu hudhibiti mipangilio hii ya Chrome:
 <translation id="6085954183010297841">Ungependa kufuta ruhusa ya kubadilisha faili? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Ukiwa umewasha, tovuti zitaweza kutumia kipengele cha kupachika picha ndani ya picha nyingine kiotomatiki. Ukiwa umezima, tovuti hazitaweza kutumia kipengele cha kupachika picha ndani ya picha nyingine kiotomatiki.</translation>
 <translation id="6120483543004435978">Kikiwashwa, tovuti zinaweza kuomba ruhusa ya kujua unapotumia kifaa chako sana. Kikizimwa, tovuti haziwezi kujua unapotumia kifaa chako sana.</translation>
+<translation id="6132075343662013154">Chrome itakuomba kuhifadhi nenosiri lako</translation>
 <translation id="615886654739818377">Usiruhusu tovuti zidhibiti madirisha kwenye skrini zako zote</translation>
 <translation id="6165508094623778733">Pata maelezo zaidi</translation>
 <translation id="6171020522141473435">Kikiwashwa, tovuti zinaweza kuomba ruhusa ya kutumia vifaa vya Bluetooth. Kikizimwa, tovuti haziwezi kutumia vifaa vya Bluetooth.</translation>

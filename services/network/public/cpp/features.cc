@@ -246,6 +246,13 @@ BASE_FEATURE_PARAM(bool,
 BASE_FEATURE(kLocalNetworkAccessChecksWebRTC,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables the Network Service to use an existing Mojo data pipe producer
+// handle for the response body, instead of creating its own. This is primarily
+// used for ServiceWorkerSyntheticResponse to achieve zero-copy data transfer.
+// crbug.com/352578800 for more details.
+BASE_FEATURE(kURLLoaderUseProvidedResponseBodyStream,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If true, local network access checks will only apply for loopback addresses.
 BASE_FEATURE_PARAM(bool,
                    kLocalNetworkAccessChecksWebRTCLoopbackOnly,
@@ -375,14 +382,7 @@ BASE_FEATURE_PARAM(bool,
 
 // Enables Document-Isolation-Policy (DIP).
 // https://github.com/WICG/document-isolation-policy
-BASE_FEATURE(kDocumentIsolationPolicy,
-#if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_WIN) || BUILDFLAG(IS_CHROMEOS) || \
-    BUILDFLAG(IS_LINUX)
-             base::FEATURE_ENABLED_BY_DEFAULT
-#else
-             base::FEATURE_DISABLED_BY_DEFAULT
-#endif
-);
+BASE_FEATURE(kDocumentIsolationPolicy, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kConnectionAllowlists, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -625,9 +625,25 @@ BASE_FEATURE_PARAM(bool,
                    true);
 
 BASE_FEATURE(kNetworkServicePerPriorityTaskQueues,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kUseUnexportableKeyServiceInBrowserProcess,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kServiceWorkerSyntheticResponseHeaderCheck,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE_PARAM(
+    std::string,
+    kServiceWorkerSyntheticResponseIgnoredHeaders,
+    &kServiceWorkerSyntheticResponseHeaderCheck,
+    /*name=*/"ignored_headers",
+    /*default_value=*/"date,alt-svc,p3p,strict-transport-security");
+
+BASE_FEATURE_PARAM(bool,
+                   kServiceWorkerSyntheticResponseReportInconsistentHeader,
+                   &kServiceWorkerSyntheticResponseHeaderCheck,
+                   /*name=*/"report_inconsistent_header",
+                   /*default_value=*/false);
 
 }  // namespace network::features

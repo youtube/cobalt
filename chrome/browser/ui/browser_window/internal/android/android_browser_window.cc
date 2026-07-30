@@ -9,6 +9,7 @@
 #include "base/android/jni_android.h"
 #include "base/android/scoped_java_ref.h"
 #include "base/check_deref.h"
+#include "base/memory/weak_ptr.h"
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "chrome/browser/content_settings/host_content_settings_map_factory.h"
@@ -101,13 +102,16 @@ const SessionID& AndroidBrowserWindow::GetSessionID() const {
 }
 
 bool AndroidBrowserWindow::IsDeleteScheduled() const {
-  // TODO(https://crbug.com/479892742): Implement this for android.
-  NOTIMPLEMENTED();
-  return false;
+  return Java_AndroidBrowserWindow_isDeleteScheduled(
+      AttachCurrentThread(), java_android_browser_window_);
 }
 
 BrowserWindowInterface::Type AndroidBrowserWindow::GetType() const {
   return type_;
+}
+
+base::WeakPtr<BrowserWindowInterface> AndroidBrowserWindow::GetWeakPtr() {
+  return weak_ptr_factory_.GetWeakPtr();
 }
 
 content::WebContents* AndroidBrowserWindow::OpenURL(

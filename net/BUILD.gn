@@ -538,6 +538,7 @@ component("net") {
     "disk_cache/blockfile/storage_block.h",
     "disk_cache/blockfile/stress_support.h",
     "disk_cache/cache_encryption_delegate.h",
+    "disk_cache/cache_entry_hasher.h",
     "disk_cache/cache_file.h",
     "disk_cache/cache_util.cc",
     "disk_cache/cache_util.h",
@@ -579,6 +580,8 @@ component("net") {
     "disk_cache/simple/simple_util.h",
     "disk_cache/simple/simple_version_upgrade.cc",
     "disk_cache/simple/simple_version_upgrade.h",
+    "disk_cache/trivial_cache_entry_hasher.cc",
+    "disk_cache/trivial_cache_entry_hasher.h",
     "filter/filter_source_stream.cc",
     "filter/filter_source_stream.h",
     "filter/gzip_header.cc",
@@ -1875,6 +1878,8 @@ component("net") {
       "disk_cache/sql/sql_persistent_store_queries.h",
       "disk_cache/sql/sql_read_cache_memory_monitor.cc",
       "disk_cache/sql/sql_read_cache_memory_monitor.h",
+      "disk_cache/sql/sql_write_buffer_memory_monitor.cc",
+      "disk_cache/sql/sql_write_buffer_memory_monitor.h",
     ]
     deps += [
       "//components/performance_manager/scenario_api",

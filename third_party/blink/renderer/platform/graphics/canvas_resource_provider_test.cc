@@ -155,7 +155,7 @@ TEST_F(CanvasResourceProviderTest,
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
@@ -203,7 +203,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderAcceleratedOverlay) {
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
 
@@ -233,7 +233,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderTexture) {
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
 
@@ -260,7 +260,7 @@ TEST_F(CanvasResourceProviderTest, CanvasResourceProviderUnacceleratedOverlay) {
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kCPU, shared_image_usage_flags);
 
@@ -286,7 +286,7 @@ std::unique_ptr<CanvasResourceProviderSharedImage> MakeCanvasResourceProvider(
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  return CanvasResourceProvider::CreateSharedImageProvider(
+  return CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper, raster_mode, shared_image_usage_flags);
@@ -302,7 +302,7 @@ scoped_refptr<CanvasResource> UpdateResource(
 
 TEST_F(CanvasResourceProviderTest,
        CanvasResourceProviderSharedImageEndExternalWrite) {
-  // Set up this test to use OOP rasterization to be able to verify
+  // Set up this test to use GPU rasterization to be able to verify
   // conditions against the test raster interface.
   SharedGpuContext::Reset();
   auto raster_context_provider = viz::TestContextProvider::CreateRaster();
@@ -315,7 +315,7 @@ TEST_F(CanvasResourceProviderTest,
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       SharedGpuContext::ContextProviderWrapper(), RasterMode::kGPU,
@@ -356,7 +356,7 @@ TEST_F(CanvasResourceProviderTest,
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
 
@@ -504,7 +504,7 @@ TEST_F(CanvasResourceProviderTest,
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
@@ -559,7 +559,7 @@ TEST_F(CanvasResourceProviderTest,
           TestWebGraphicsSharedImageInterfaceProvider::Create();
 
   EXPECT_FALSE(
-      CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
+      CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
           gfx::Size(10, 10),
           Canvas2DColorParams(PredefinedColorSpace::kSRGB,
                               CanvasPixelFormat::kUint8, /*has_alpha=*/true),
@@ -582,7 +582,7 @@ TEST_F(CanvasResourceProviderTest,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
   auto provider =
-      CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
+      CanvasNon2DResourceProviderSharedImage::CreateForSoftwareCompositor(
           kSize, color_params,
           CanvasResourceProvider::ShouldInitialize::kCallClear,
           test_web_shared_image_interface_provider.get());
@@ -608,7 +608,7 @@ TEST_F(CanvasResourceProviderTest,
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       kSize, color_params, CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, shared_image_usage_flags);
 
@@ -652,17 +652,17 @@ TEST_F(CanvasResourceProviderTest, DimensionsExceedMaxTextureSize_SharedImage) {
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(kMaxTextureSize - 1, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
   EXPECT_TRUE(provider && provider->IsValid());
-  provider = CanvasResourceProvider::CreateSharedImageProvider(
+  provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(kMaxTextureSize, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
   EXPECT_TRUE(provider && provider->IsValid());
-  provider = CanvasResourceProvider::CreateSharedImageProvider(
+  provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(kMaxTextureSize + 1, kMaxTextureSize), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
@@ -675,12 +675,12 @@ TEST_F(CanvasResourceProviderTest, FlushForImage) {
   Canvas2DColorParams color_params(PredefinedColorSpace::kSRGB,
                                    CanvasPixelFormat::kUint8,
                                    /*has_alpha=*/true);
-  auto src_provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto src_provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());
 
-  auto dst_provider = CanvasResourceProvider::CreateSharedImageProvider(
+  auto dst_provider = CanvasNon2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), color_params,
       CanvasResourceProvider::ShouldInitialize::kCallClear,
       context_provider_wrapper_, RasterMode::kGPU, gpu::SharedImageUsageSet());

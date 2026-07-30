@@ -18,6 +18,7 @@ import androidx.appcompat.content.res.AppCompatResources;
 import androidx.constraintlayout.widget.ConstraintLayout;
 
 import org.chromium.base.Callback;
+import org.chromium.base.DeviceInfo;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
@@ -28,7 +29,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList.FuseboxAttachmentChangeListener;
-import org.chromium.chrome.browser.omnibox.fusebox.FuseboxMetrics.AiModeActivationSource;
 import org.chromium.chrome.browser.omnibox.suggestions.AutocompleteController;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
@@ -187,12 +187,6 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
 
         // Set the bridge for the model list to enable tight coupling.
         mModelList.setComposeboxQueryControllerBridge(mComposeboxQueryControllerBridge);
-
-        mModel.set(
-                FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE,
-                mComposeboxQueryControllerBridge.isCreateImagesEligible()
-                        && (OmniboxFeatures.sShowImageGenerationButtonInIncognito.getValue()
-                                || !profile.isIncognitoBranded()));
         mMediator =
                 new FuseboxMediator(
                         mContext,
@@ -238,11 +232,6 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         mMediator.updateVisualsForState(brandedColorScheme);
     }
 
-    public void onAiModeActivatedFromNtp() {
-        if (mMediator == null) return;
-        mMediator.activateAiMode(AiModeActivationSource.NTP_BUTTON);
-    }
-
     /**
      * Called when the user begins / resumes interacting with the Omnibox.
      *
@@ -254,6 +243,11 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
      *     through the endInput() (valid -> valid). This is the case for tab switching.
      */
     public void beginInput(AutocompleteInput input) {
+        // We can't do inclusive check due to missing `isPhone()` case in `DeviceInfo`.
+        // Additionally these values may change at runtime, e.g. if the user starts Chrome on phone
+        // and moves to Android Auto.
+        boolean isSupportedDeviceType =
+                !DeviceInfo.isAutomotive() && !DeviceInfo.isXr() && !DeviceInfo.isTV();
         boolean isSupportedPageClass =
                 switch (input.getRawPageClassification()) {
                     // LINT.IfChange(FuseboxSupportedPageClassifications)
@@ -268,7 +262,10 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
         // Terminate any current input to re-set session and re-install observers.
         // This should ideally be an assert ensuring that we don't begin a new input while the old
         // one is still active; will turn to an assert separately in case this scenario happens.
-        if (mMediator == null || !isSupportedPageClass || !mDefaultSearchEngineIsGoogle) {
+        if (mMediator == null
+                || !isSupportedDeviceType
+                || !isSupportedPageClass
+                || !mDefaultSearchEngineIsGoogle) {
             endInput();
             return;
         }
@@ -298,11 +295,6 @@ public class FuseboxCoordinator implements TemplateUrlServiceObserver {
             assumeNonNull(mMediator).setToolbarVisible(false);
         }
     }
-
-    /**
-     * @return An {@link NonNullObservableSupplier} that notifies observers when the autocomplete
-     *     request type changes.
-     */
 
     /** Returns the URL associated with the current AIM session. */
     public void getAimUrl(GURL url, Callback<GURL> callback) {

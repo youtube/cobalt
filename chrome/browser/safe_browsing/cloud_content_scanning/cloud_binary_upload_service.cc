@@ -23,9 +23,9 @@
 #include "chrome/browser/safe_browsing/advanced_protection_status_manager_factory.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/deep_scanning_utils.h"
 #include "chrome/browser/safe_browsing/cloud_content_scanning/multipart_uploader.h"
-#include "chrome/browser/safe_browsing/cloud_content_scanning/resumable_uploader.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "components/enterprise/common/proto/connectors.pb.h"
+#include "components/enterprise/connectors/core/cloud_content_scanning/resumable_uploader.h"
 #include "components/enterprise/connectors/core/features.h"
 #include "components/enterprise/connectors/core/reporting_utils.h"
 #include "components/policy/core/common/management/management_service.h"
@@ -45,12 +45,6 @@ namespace {
 
 using ::enterprise_connectors::BinaryUploadRequest;
 using ::enterprise_connectors::GetBrowserPolicyConnector;
-
-// The default maximum number of concurrent active requests. This is used to
-// limit the number of requests that are actively being uploaded. This is set to
-// default of 15 because it was determined to be a good value through
-// experiments. See http://crbug.com/329293309.
-constexpr int kDefaultMaxParallelActiveRequests = 15;
 
 constexpr base::TimeDelta kAuthTimeout = base::Seconds(10);
 constexpr base::TimeDelta kScanningTimeout = base::Minutes(5);
@@ -203,20 +197,13 @@ bool IgnoreErrorResultForResumableUpload(
 
 // static
 size_t CloudBinaryUploadService::GetParallelActiveRequestsMax() {
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-  if (command_line->HasSwitch(switches::kWpMaxParallelActiveRequests)) {
-    int parsed_max;
-    if (base::StringToInt(command_line->GetSwitchValueASCII(
-                              switches::kWpMaxParallelActiveRequests),
-                          &parsed_max) &&
-        parsed_max > 0) {
-      return parsed_max;
-    } else {
-      DVLOG(1) << "wp-max-parallel-active-requests had invalid value";
-    }
+  size_t experiment_max =
+      enterprise_connectors::kParallelContentAnalysisRequestCountMax.Get();
+  if (experiment_max > 0) {
+    return experiment_max;
   }
 
-  return kDefaultMaxParallelActiveRequests;
+  return enterprise_connectors::kDefaultMaxParallelActiveRequests;
 }
 
 CloudBinaryUploadService::CloudBinaryUploadService(Profile* profile)
@@ -524,7 +511,8 @@ void CloudBinaryUploadService::OnGetRequestData(
                       : enterprise_connectors::ConnectorUploadRequest::STRING,
                   histogram_suffix, std::move(traffic_annotation),
                   std::move(verdict_received_callback),
-                  std::move(content_uploaded_callback), force_sync_upload)
+                  std::move(content_uploaded_callback), force_sync_upload,
+                  content::GetUIThreadTaskRunner({}))
             : MultipartUploadRequest::CreateStringRequest(
                   url_loader_factory_, url, metadata, data.contents,
                   histogram_suffix, std::move(traffic_annotation),
@@ -537,7 +525,8 @@ void CloudBinaryUploadService::OnGetRequestData(
                   data.size, data.is_obfuscated, histogram_suffix,
                   std::move(traffic_annotation),
                   std::move(verdict_received_callback),
-                  std::move(content_uploaded_callback), force_sync_upload)
+                  std::move(content_uploaded_callback), force_sync_upload,
+                  content::GetUIThreadTaskRunner({}))
             : MultipartUploadRequest::CreateFileRequest(
                   url_loader_factory_, url, metadata, data.path, data.size,
                   data.is_obfuscated, histogram_suffix,
@@ -551,7 +540,8 @@ void CloudBinaryUploadService::OnGetRequestData(
                   std::move(data.page), histogram_suffix,
                   std::move(traffic_annotation),
                   std::move(verdict_received_callback),
-                  std::move(content_uploaded_callback), force_sync_upload)
+                  std::move(content_uploaded_callback), force_sync_upload,
+                  content::GetUIThreadTaskRunner({}))
             : MultipartUploadRequest::CreatePageRequest(
                   url_loader_factory_, url, metadata, std::move(data.page),
                   histogram_suffix, std::move(traffic_annotation),

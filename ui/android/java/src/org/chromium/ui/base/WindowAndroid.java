@@ -55,7 +55,7 @@ import org.chromium.base.UnownedUserDataHost;
 import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.lifetime.LifetimeAssert;
 import org.chromium.base.metrics.RecordHistogram;
-import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.base.task.PostTask;
@@ -379,7 +379,7 @@ public class WindowAndroid
     }
 
     /** A supplier that returns whether the window is occluded or not. */
-    public MonotonicObservableSupplier<Boolean> getOcclusionSupplier() {
+    public NonNullObservableSupplier<Boolean> getOcclusionSupplier() {
         return mOcclusionSupplier;
     }
 
@@ -1404,10 +1404,14 @@ public class WindowAndroid
     private boolean setHasKeyboardCapture(boolean hasCapture) {
         Window window = getWindow();
         if (window == null) return false;
-        AconfigFlaggedApiDelegate aconfigFlaggedApiDelegate =
-                AconfigFlaggedApiDelegate.getInstance();
-        if (aconfigFlaggedApiDelegate == null) return false;
-        return aconfigFlaggedApiDelegate.setKeyboardCaptureEnabled(window, hasCapture);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.BAKLAVA
+                && Build.VERSION.SDK_INT_FULL >= Build.VERSION_CODES_FULL.BAKLAVA_1) {
+            WindowManager.LayoutParams params = window.getAttributes();
+            params.setKeyboardCaptureEnabled(hasCapture);
+            window.setAttributes(params);
+            return true;
+        }
+        return false;
     }
 
     /**

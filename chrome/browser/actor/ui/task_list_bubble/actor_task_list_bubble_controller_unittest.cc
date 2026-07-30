@@ -11,7 +11,7 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_keyed_service_fake.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
+#include "chrome/browser/actor/actor_test_util.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble.h"
 #include "chrome/browser/actor/ui/task_list_bubble/actor_task_list_bubble_controller.h"
 #include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
@@ -33,23 +33,14 @@
 #include "chrome/browser/ui/tabs/glic_actor_task_icon_manager_factory.h"
 #endif
 
-class ActorTaskListBubbleControllerTest
-    : public ChromeViewsTestBase,
-      public testing::WithParamInterface<bool> {
+class ActorTaskListBubbleControllerTest : public ChromeViewsTestBase {
  public:
   ActorTaskListBubbleControllerTest() {
     std::vector<base::test::FeatureRefAndParams> enabled_features = {
         {features::kGlicActor,
          {{features::kGlicActorPolicyControlExemption.name, "true"}}}};
-    std::vector<base::test::FeatureRef> disabled_features;
-    if (GetParam()) {
-      enabled_features.push_back(
-          {features::kGlicActorUiGlobalTaskIndicator, {}});
-    } else {
-      disabled_features.push_back(features::kGlicActorUiGlobalTaskIndicator);
-    }
     feature_list_.InitWithFeaturesAndParameters(std::move(enabled_features),
-                                                std::move(disabled_features));
+                                                {});
   }
 
   void SetUp() override {
@@ -152,13 +143,14 @@ class ActorTaskListBubbleControllerTest
   base::test::ScopedFeatureList feature_list_;
 };
 
-TEST_P(ActorTaskListBubbleControllerTest, ShowBubbleRecordsHistogram) {
+TEST_F(ActorTaskListBubbleControllerTest, ShowBubbleRecordsHistogram) {
 #if BUILDFLAG(ENABLE_GLIC)
   actor::ActorKeyedService* actor_service =
       actor::ActorKeyedService::Get(profile_.get());
   tabs::GlicActorTaskIconManager* manager =
       tabs::GlicActorTaskIconManagerFactory::GetForProfile(profile_.get());
-  actor::TaskId task_id = actor_service->CreateTask();
+  actor::TaskId task_id =
+      actor_service->CreateTask(actor::NoEnterprisePolicyChecker());
   actor_service->GetTask(task_id)->Pause(true);
   manager->UpdateTaskIconComponents(task_id);
 
@@ -176,7 +168,8 @@ TEST_P(ActorTaskListBubbleControllerTest, ShowBubbleRecordsHistogram) {
   manager->UpdateTaskIconComponents(task_id);
 
   for (int i = 0; i < 3; i++) {
-    actor::TaskId new_task_id = actor_service->CreateTask();
+    actor::TaskId new_task_id =
+        actor_service->CreateTask(actor::NoEnterprisePolicyChecker());
     actor_service->GetTask(new_task_id)->Pause(true);
     manager->UpdateTaskIconComponents(new_task_id);
   }
@@ -185,23 +178,10 @@ TEST_P(ActorTaskListBubbleControllerTest, ShowBubbleRecordsHistogram) {
       anchor_widget_->GetContentsView());
 
   histogram_tester.ExpectBucketCount("Actor.Ui.TaskListBubble.Rows", 1, 1);
-  if (ActorTaskListBubbleControllerTest::GetParam()) {
-    histogram_tester.ExpectBucketCount("Actor.Ui.TaskListBubble.Rows", 4, 1);
-  } else {
-    // Row will be removed on stop if GlicActorUiGlobalTaskIndicator is
-    // disabled.
-    histogram_tester.ExpectBucketCount("Actor.Ui.TaskListBubble.Rows", 3, 1);
-  }
+  histogram_tester.ExpectBucketCount("Actor.Ui.TaskListBubble.Rows", 4, 1);
+
   EXPECT_EQ(
       2u,
       histogram_tester.GetAllSamples("Actor.Ui.TaskListBubble.Rows").size());
 #endif
 }
-
-INSTANTIATE_TEST_SUITE_P(All,
-                         ActorTaskListBubbleControllerTest,
-                         testing::Bool(),
-                         [](const testing::TestParamInfo<bool>& info) {
-                           return info.param ? "GlobalIndicatorEnabled"
-                                             : "GlobalIndicatorDisabled";
-                         });

@@ -583,6 +583,12 @@ are declared in tools/grit/grit_args.gni.
         <message name="IDS_CONTENT_CONTEXT_INSPECTELEMENT" desc="The name of the Inspect Element command in the content area context menu">
           I&amp;nspect
         </message>
+        <message name="IDS_CONTENT_CONTEXT_INSPECTELEMENT_WITH_GEMINI" desc="Context menu item for inspecting the element with Gemini.">
+          With Gemini
+        </message>
+        <message name="IDS_CONTENT_CONTEXT_INSPECTELEMENT_WITH_DEVTOOLS" desc="Context menu item for inspecting the element with DevTools.">
+          With DevTools
+        </message>
         <message name="IDS_CONTENT_CONTEXT_ACCESSIBILITY_LABELS_DIALOG_TITLE" desc="The title of a dialog that asks whether to integrate the accessibility image labeling service of Google to Chrome.">
           Get image descriptions from Google?
         </message>
@@ -1637,6 +1643,9 @@ are declared in tools/grit/grit_args.gni.
         <message name="IDS_TAKE_SCREENSHOT" desc="The text label of the Take Screenshot menu item">
           T&amp;ake screenshot
         </message>
+        <message name="IDS_REPORT_UNSAFE_SITE" desc="Text label of the Report Unsafe Site menu item">
+          Report an &amp;unsafe site...
+        </message>
         <message name="IDS_RESTORE_ALL_TABS" desc="The text label of the Restore All Tabs menu item.">
           R&amp;estore all tabs
         </message>
@@ -1698,6 +1707,9 @@ are declared in tools/grit/grit_args.gni.
         </message>
         <message name="IDS_REOPEN_GROUP" desc="In Title Case: The text label of the Reopen Closed Group menu item">
           Reopen Closed Group
+        </message>
+        <message name="IDS_REPORT_UNSAFE_SITE" desc="In Title Case: Text label of the Report Unsafe Site menu item">
+          Report an &amp;Unsafe Site...
         </message>
         <message name="IDS_RESTORE_WINDOW" desc="In Title Case: The text label of the Restore Window menu item">
           &amp;Restore Window
@@ -6621,6 +6633,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
         <message name="IDS_EXTENSIONS_MENU_CONTEXT_MENU_TOOLTIP" desc="Title of the context menu for individual extensions in the Extensions Menu" formatter_data="android_java">
           More options
         </message>
+        <message name="IDS_EXTENSIONS_MENU_ZERO_STATE_HEADER" desc="Header in the Extensions Menu when there are no extensions installed." formatter_data="android_java">
+          Get started with extensions
+        </message>
       </if>
       <message name="IDS_EXTENSIONS_MENU_CONTEXT_MENU_TOOLTIP_ACCESSIBLE_NAME" desc="Title of the context menu for individual extensions in the Extensions Menu">
           <ph name="EXTENSION_NAME">More options for $1<ex>MyExtension</ex></ph>
@@ -7611,9 +7626,6 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_OMNIBOX_KEYWORD_TEXT" desc="Text shown in the search button at the front of the omnibox when the user has selected a keyword">
         Search <ph name="SITE_NAME">$1<ex>google.com</ex></ph>:
       </message>
-      <message name="IDS_OMNIBOX_KEYWORD_TEXT_MD" desc="Text shown in the search button at the front of the omnibox when the user has selected a keyword, in MD (no final colon)">
-        Search <ph name="SITE_NAME">$1<ex>google.com</ex></ph>
-      </message>
       <message name="IDS_OMNIBOX_CLEAR_ALL" desc="Accessibility text for the button that deletes all text input from the omnibox on touch devices.">
         Clear input
       </message>
@@ -7659,6 +7671,16 @@ Keep your key file in a safe place. You will need it to create new versions of y
             Show search shortcuts
           </message>
         </else>
+      </if>
+
+      <!-- Launch On Startup -->
+      <if expr="is_win">
+        <message name="IDS_STARTUP_LAUNCH_INFOBAR_ALLOW_BUTTON" desc="Label for the button on the infobar offering to allow Chrome to launch when windows starts.">
+          Allow
+        </message>
+        <message name="IDS_STARTUP_LAUNCH_INFOBAR_SETTINGS_BUTTON" desc="Label for the button on the infobar that opens settings.">
+          Settings
+        </message>
       </if>
 
       <!-- WebUI Omnibox -->
@@ -10409,16 +10431,16 @@ Keep your key file in a safe place. You will need it to create new versions of y
             Move Tabs To The Top
           </message>
           <message name="IDS_COLLAPSE_VERTICAL_TABS" desc="In Title Case: The tooltip for the button in the top container that collapses the vertical tab strip.">
-            Collapse Vertical Tabs
+            Collapse Tabs
           </message>
           <message name="IDS_EXPAND_VERTICAL_TABS" desc="In Title Case: The tooltip for the button in the top container that expands the vertical tab strip.">
-            Expand Vertical Tabs
+            Expand Tabs
           </message>
           <message name="IDS_VERTICAL_TAB_GROUP_MORE_OPTIONS" is_accessibility_with_no_ui="true" desc="In Title Case: The accessibility label for the button in the tab group header that opens the editor bubble.">
             More Options
           </message>
-          <message name="IDS_VERTICAL_TABS_SEND_FEEDBACK" translateable="false" desc="In Title Case: The button in context menu that allows users to send feedback about vertical tabs.">
-            Send Feedback About Vertical Tabs
+          <message name="IDS_VERTICAL_TABS_SEND_FEEDBACK" desc="In Title Case: The button in context menu that allows users to send feedback about vertical tabs.">
+            Send Feedback About the Tab Strip
           </message>
         </then>
         <else>
@@ -10429,16 +10451,16 @@ Keep your key file in a safe place. You will need it to create new versions of y
             Move tabs to the top
           </message>
           <message name="IDS_COLLAPSE_VERTICAL_TABS" desc="The tooltip for the button in the top container that collapses the vertical tab strip.">
-            Collapse vertical tabs
+            Collapse tabs
           </message>
           <message name="IDS_EXPAND_VERTICAL_TABS" desc="The tooltip for the button in the top container that expands the vertical tab strip.">
-            Expand vertical tabs
+            Expand tabs
           </message>
           <message name="IDS_VERTICAL_TAB_GROUP_MORE_OPTIONS" is_accessibility_with_no_ui="true"  desc="The accessibility label for the button in the tab group header that opens the editor bubble.">
             More options
           </message>
-          <message name="IDS_VERTICAL_TABS_SEND_FEEDBACK" translateable="false" desc="The button in context menu that allows users to send feedback about vertical tabs.">
-            Send feedback about vertical tabs
+          <message name="IDS_VERTICAL_TABS_SEND_FEEDBACK" desc="The button in context menu that allows users to send feedback about vertical tabs.">
+            Send feedback about the tab strip
           </message>
         </else>
       </if>
@@ -10459,6 +10481,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
           <message name="IDS_RECENT_CHATS_TITLE" desc="In Title Case: The title for the recent chats container in the projects panel.">
             Recent Chats
           </message>
+          <message name="IDS_TAB_GROUP_MORE_OPTIONS" desc="In Title Case: The tooltip for the button in a tab group item that opens the options menu.">
+            More options
+          </message>
         </then>
         <else>
           <message name="IDS_VIEW_PROJECTS_PANEL" desc="The tooltip for the button in the top container that shows the projects panel.">
@@ -10472,6 +10497,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
           </message>
           <message name="IDS_RECENT_CHATS_TITLE" desc="In Title Case: The title for the recent chats container in the projects panel.">
             Recent chats
+          </message>
+          <message name="IDS_TAB_GROUP_MORE_OPTIONS" desc="The tooltip for the button in a tab group item that opens the options menu.">
+            More options
           </message>
         </else>
       </if>
@@ -12277,9 +12305,6 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       </if>
 
       <!-- Tab Search -->
-      <message name="IDS_TAB_SEARCH_PROMO" desc="Promo UI shown next to the tab search button to encourage it's use.">
-        To search your tabs, click here
-      </message>
       <message name="IDS_TAB_SEARCH_TOOLBAR_BUTTON_PROMO_TITLE" desc="Title text on the tab search toolbar button promo UI.">
         Tab search is now pinned to your toolbar
       </message>
@@ -19537,6 +19562,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
     <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_SUBTITLE" desc="Subtitle of the error dialog that is shown when an Isolated Web App failed to install">
       The installation could not be completed. Please try again or close this window
     </message>
+    <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_BUNDLE_NOT_ON_USER_INSTALL_ALLOWLIST_SUBTITLE" desc="Subtitle of the error dialog that is shown when an Isolated Web App failed to install because it's not on the user install allowlist">
+      This application can't be installed by the user. Please contact the developer
+    </message>
     <message name="IDS_IWA_INSTALLER_INSTALL_FAILED_RETRY" desc="Label of the retry button in the error dialog that is shown when an Isolated Web App failed to install">
       Retry
     </message>
@@ -19893,6 +19921,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_APP_NAME_OR_ID" desc="Placeholder text in a search box asking the user to enter an application name or identifier string.">
         App Name or ID
       </message>
+      <message name="IDS_UPDATER_APP_POLICIES" desc="Header for a section of the enterprise policy table detailing the policies in effect for a specific application.">
+        <ph name="APP_NAME">$1<ex>Google Chrome</ex></ph> policies
+      </message>
       <message name="IDS_UPDATER_APP_STATES_QUERY_FAILED" desc="An error message indicating that the list of installed applications could not be retrieved from Chrome's updater.">
         Failed to query installed applications.
       </message>
@@ -19938,8 +19969,41 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_END_DATE" desc="Label for the end date input field.">
         End Date:
       </message>
-      <message name="IDS_UPDATER_ERROR_DETAILS" desc="Details of an error encountered by the updater, including numeric category, code, and extra code values.">
-        Error: Category: <ph name="CATEGORY">$1<ex>1</ex></ph>, Code: <ph name="CODE">$2<ex>2</ex></ph>, Extra Code: <ph name="EXTRA_CODE">$3<ex>0</ex></ph>
+      <message name="IDS_UPDATER_ERROR_ACCESS_DENIED" desc="Error message indicating that Chrome's updater could not communicate with a remote server due to the request being blocked (e.g. by a firewall or proxy server).">
+        The update was blocked by network policy or a proxy server.
+      </message>
+      <message name="IDS_UPDATER_ERROR_CORRUPT" desc="Error message indicating that an update package is invalid or corrupted.">
+        The downloaded update does not contain the expected content.
+      </message>
+      <message name="IDS_UPDATER_ERROR_DISABLED" desc="Error message indicating that an action recorded in the event log could not be taken by Chrome's updater because it was disallowed by enterprise policy.">
+        The action was disallowed by the configured policies.
+      </message>
+      <message name="IDS_UPDATER_ERROR_DISK_FULL" desc="Error message indicating that an update could not be downloaded or applied because the disk is full.">
+        The update failed because the system lacks sufficient storage space.
+      </message>
+      <message name="IDS_UPDATER_ERROR_DOWNLOAD" desc="Generic error message indicating that Chrome's Updater encountered an issue while downloading content (e.g. an update).">
+        Failed to download content due to an unknown reason.
+      </message>
+      <message name="IDS_UPDATER_ERROR_INSTALL" desc="Generic error message indicating that an error occurred while installing an update.">
+        Installation failed due to an unknown reason.
+      </message>
+      <message name="IDS_UPDATER_ERROR_INSTALLER_FAILED" desc="Error message indicating that an application's (e.g. Chrome's) installer program failed to complete successfully.">
+        The application's installer program failed.
+      </message>
+      <message name="IDS_UPDATER_ERROR_NETWORK" desc="Error message indicating that a network communication error occurred with the update server.">
+        A network error occurred. Check your internet connection and network settings.
+      </message>
+      <message name="IDS_UPDATER_ERROR_RESTRICTED" desc="Error message indicating that an update check was refused by the server because the application is restricted in the user's region.">
+        The application is restricted in this region.
+      </message>
+      <message name="IDS_UPDATER_ERROR_UNPACK" desc="Generic error message indicating that an error occurred while unpacking an update package.">
+        The update package could not be unpacked.
+      </message>
+      <message name="IDS_UPDATER_ERROR_UPDATE_CHECK" desc="Generic error message indicating that an error occurred while checking for updates.">
+        The update check failed.
+      </message>
+      <message name="IDS_UPDATER_ERROR_UNKNOWN" desc="Generic error message indicating that an operation recorded in Chrome's updater's event log failed for a reason unknown to Chrome.">
+        The operation failed due to an unknown reason.
       </message>
       <message name="IDS_UPDATER_EVENT_LIST_TITLE" desc="Title for a section of the chrome://updater page which displays an event log detailing the activity of Chrome's updater on a user's system.">
         Event History
@@ -20019,6 +20083,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_NO_APPS_FOUND" desc="A message indicating that Chrome's updater is not managing any applications on the user's system.">
         No applications are installed.
       </message>
+      <message name="IDS_UPDATER_NO_POLICIES" desc="A message indicating that no enterprise policies are in effect for the Chrome Updater or any of its managed applications.">
+        No policies are in effect.
+      </message>
       <message name="IDS_UPDATER_NO_UPDATER_FOUND" desc="A message indicating that Chrome's updater does not appear to be installed on the user's machine.">
         No updater installations could be found.
       </message>
@@ -20054,6 +20121,27 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_UPDATER_PERSISTED_DATA_SUMMARY" desc="Summary of an event indicating how many apps are registered.">
         <ph name="APP_COUNT">$1<ex>5</ex></ph> apps registered
+      </message>
+      <message name="IDS_UPDATER_POLICY_CONFLICT_WARNING" desc="Tooltip for a warning icon in the enterprise policy table indicating that a policy has been configured differently from multiple sources.">
+        Policy configured with conflicting values from multiple sources.
+      </message>
+      <message name="IDS_UPDATER_POLICY_IGNORED" desc="Label for a value of an enterprise policy that is being ignored because another source has higher priority.">
+        Ignored:
+      </message>
+      <message name="IDS_UPDATER_POLICY_NAME" desc="Title of a column in the enterprise policy table which displays the name of the policy.">
+        Policy Name
+      </message>
+      <message name="IDS_UPDATER_POLICY_OK" desc="Tooltip for a checkmark icon in the enterprise policy table indicating that a policy has been configured.">
+        Policy configured.
+      </message>
+      <message name="IDS_UPDATER_POLICY_SOURCE" desc="Title of a column in the enterprise policy table which displays the source of the policy (e.g. 'Platform', 'Cloud').">
+        Source
+      </message>
+      <message name="IDS_UPDATER_POLICY_STATUS" desc="Title of a column in the enterprise policy table which displays the status of the policy.">
+        Status
+      </message>
+      <message name="IDS_UPDATER_POLICY_VALUE" desc="Title of a column in the enterprise policy table which displays the value of the policy.">
+        Policy Value
       </message>
       <message name="IDS_UPDATER_PROCESS_SUMMARY" desc="Summary of an event that involved executing a command on the system, including the numeric exit code.">
         Process exited with code <ph name="EXIT_CODE">$1<ex>0</ex></ph>
@@ -20093,6 +20181,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_UPDATER_UPDATED_TO" desc="Summary of an update event that succeeded, including the new version.">
         Updated to version <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_UPDATER_POLICIES" desc="Header for a section of the enterprise policy table detailing the policies in effect for the Chrome Updater itself.">
+        Updater policies
       </message>
       <message name="IDS_UPDATER_UPDATER_VERSION" desc="Label indicating the version of the updater itself.">
         Updater version: <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>

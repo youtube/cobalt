@@ -13,13 +13,11 @@
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
 #include "chrome/browser/commerce/browser_utils.h"
-#include "chrome/browser/commerce/product_specifications/product_specifications_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/send_tab_to_self/send_tab_to_self_util.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
-#include "chrome/browser/ui/tabs/existing_comparison_table_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/existing_tab_group_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/existing_window_sub_menu_model.h"
 #include "chrome/browser/ui/tabs/features.h"
@@ -147,44 +145,43 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
   }
   SetElementIdentifierAt(GetItemCount() - 1, kAddNewTabAdjacentMenuItem);
 
-    if (!tab_strip->GetSplitForTab(index).has_value()) {
-      if (tab_strip->GetActiveTab()->IsSplit()) {
-        swap_with_split_submenu_ =
-            std::make_unique<SplitTabSwapMenuModel>(tab_strip, index);
-        AddSubMenuWithStringIdAndIcon(
-            TabStripModel::CommandSwapWithActiveSplit,
-            IDS_TAB_CXMENU_SWAP_WITH_ACTIVE_SPLIT,
-            swap_with_split_submenu_.get(),
-            ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
-                                           kTabMenuIconSize));
-        const int swap_with_split_index = GetItemCount() - 1;
-        SetEnabledAt(swap_with_split_index, num_tabs == 1);
-        SetElementIdentifierAt(swap_with_split_index, kSwapSplitTabsMenuItem);
-      } else {
-        AddItemWithStringIdAndIcon(
-            TabStripModel::CommandAddToSplit,
-            index == tab_strip->active_index()
-                ? IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT
-                : IDS_TAB_CXMENU_NEW_SPLIT_WITH_CURRENT,
-            ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
-                                           kTabMenuIconSize));
-        const int add_to_split_index = GetItemCount() - 1;
-        SetEnabledAt(add_to_split_index, num_tabs == 1 || num_tabs == 2);
-        SetElementIdentifierAt(add_to_split_index, kSplitTabsMenuItem);
-      }
-    } else {
-      arrange_split_view_submenu_ = std::make_unique<SplitTabMenuModel>(
-          tab_strip, SplitTabMenuModel::MenuSource::kTabContextMenu, index);
+  if (!tab_strip->GetSplitForTab(index).has_value()) {
+    if (tab_strip->GetActiveTab()->IsSplit()) {
+      swap_with_split_submenu_ =
+          std::make_unique<SplitTabSwapMenuModel>(tab_strip, index);
       AddSubMenuWithStringIdAndIcon(
-          TabStripModel::CommandArrangeSplit, IDS_TAB_CXMENU_ARRANGE_SPLIT,
-          arrange_split_view_submenu_.get(),
+          TabStripModel::CommandSwapWithActiveSplit,
+          IDS_TAB_CXMENU_SWAP_WITH_ACTIVE_SPLIT, swap_with_split_submenu_.get(),
           ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
                                          kTabMenuIconSize));
-      SetElementIdentifierAt(GetItemCount() - 1, kArrangeSplitTabsMenuItem);
+      const int swap_with_split_index = GetItemCount() - 1;
+      SetEnabledAt(swap_with_split_index, num_tabs == 1);
+      SetElementIdentifierAt(swap_with_split_index, kSwapSplitTabsMenuItem);
+    } else {
+      AddItemWithStringIdAndIcon(
+          TabStripModel::CommandAddToSplit,
+          index == tab_strip->active_index()
+              ? IDS_TAB_CXMENU_ADD_TAB_TO_NEW_SPLIT
+              : IDS_TAB_CXMENU_NEW_SPLIT_WITH_CURRENT,
+          ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
+                                         kTabMenuIconSize));
+      const int add_to_split_index = GetItemCount() - 1;
+      SetEnabledAt(add_to_split_index, num_tabs == 1 || num_tabs == 2);
+      SetElementIdentifierAt(add_to_split_index, kSplitTabsMenuItem);
     }
-    SetIsNewFeatureAt(GetItemCount() - 1,
-                      UserEducationService::MaybeShowNewBadge(
-                          tab_strip->profile(), features::kSideBySide));
+  } else {
+    arrange_split_view_submenu_ = std::make_unique<SplitTabMenuModel>(
+        tab_strip, SplitTabMenuModel::MenuSource::kTabContextMenu, index);
+    AddSubMenuWithStringIdAndIcon(
+        TabStripModel::CommandArrangeSplit, IDS_TAB_CXMENU_ARRANGE_SPLIT,
+        arrange_split_view_submenu_.get(),
+        ui::ImageModel::FromVectorIcon(kSplitSceneIcon, ui::kColorMenuIcon,
+                                       kTabMenuIconSize));
+    SetElementIdentifierAt(GetItemCount() - 1, kArrangeSplitTabsMenuItem);
+  }
+  SetIsNewFeatureAt(GetItemCount() - 1,
+                    UserEducationService::MaybeShowNewBadge(
+                        tab_strip->profile(), features::kSideBySide));
 
   if (ExistingTabGroupSubMenuModel::ShouldShowSubmenu(
           tab_strip, index, tab_menu_model_delegate_)) {
@@ -211,28 +208,6 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
     }
   }
 
-  if (num_tabs == 1 &&
-      base::FeatureList::IsEnabled(commerce::kProductSpecifications)) {
-    auto* product_specs_service =
-        commerce::ProductSpecificationsServiceFactory::GetForBrowserContext(
-            tab_strip->profile());
-    if (commerce::ExistingComparisonTableSubMenuModel::ShouldShowSubmenu(
-            tab_strip->GetWebContentsAt(index)->GetLastCommittedURL(),
-            product_specs_service)) {
-      // Create submenu with existing comparison tables.
-      add_to_existing_comparison_table_submenu_ =
-          std::make_unique<commerce::ExistingComparisonTableSubMenuModel>(
-              delegate(), tab_menu_model_delegate_, tab_strip, index,
-              product_specs_service);
-      AddSubMenuWithStringId(TabStripModel::CommandAddToExistingComparisonTable,
-                             IDS_COMPARE_ADD_TAB_TO_COMPARISON_TABLE,
-                             add_to_existing_comparison_table_submenu_.get());
-    } else if (product_specs_service) {
-      AddItemWithStringId(TabStripModel::CommandAddToNewComparisonTable,
-                          IDS_TAB_CXMENU_ADD_TAB_TO_NEW_COMPARISON_TABLE);
-    }
-  }
-
   if (ExistingWindowSubMenuModel::ShouldShowSubmenu(tab_strip->profile())) {
     // Create submenu with existing windows
     add_to_existing_window_submenu_ = ExistingWindowSubMenuModel::Create(
@@ -254,13 +229,6 @@ void TabMenuModel::Build(TabStripModel* tab_strip, int index) {
       AddItemWithStringId(TabStripModel::CommandOrganizeTabs,
                           IDS_TAB_CXMENU_ORGANIZE_TABS);
     }
-  }
-
-  if (commerce::IsProductSpecsMultiSelectMenuEnabled(
-          tab_strip->profile(), tab_strip->GetWebContentsAt(index)) &&
-      num_tabs >= commerce::kProductSpecificationsMinTabsCount) {
-    AddItemWithStringId(TabStripModel::CommandCommerceProductSpecifications,
-                        IDS_TAB_CXMENU_COMMERCE_PRODUCT_SPEC);
   }
 
   AddSeparator(ui::NORMAL_SEPARATOR);

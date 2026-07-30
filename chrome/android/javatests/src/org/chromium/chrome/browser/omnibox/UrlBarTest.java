@@ -470,6 +470,7 @@ public class UrlBarTest {
 
     @Test
     @SmallTest
+    @DisabledTest(message = "Disabled because of crbug.com/477262537")
     public void testAutocorrectionChangesTriggerCorrectSuggestions() {
         mOmnibox.setComposingText("test", 0, 4);
         mOmnibox.setAutocompleteText("ing is fun", null);
@@ -840,6 +841,7 @@ public class UrlBarTest {
 
     @Test
     @SmallTest
+    @DisabledTest(message = "Disabled because of crbug.com/483152321")
     public void typingStarted_clipboardPasteTriggersTypingStartedWithRetainOmniboxOnFocusEnabled() {
         OmniboxFeatures.setShouldRetainOmniboxOnFocusForTesting(true);
         testTypingStarted_clipboardPasteTriggersTypingStarted();

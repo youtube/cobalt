@@ -38,21 +38,20 @@
 namespace {
 
 struct TestCase {
-  using TupleT = std::tuple<bool, bool, bool, bool, bool>;
+  using TupleT = std::tuple<bool, bool, bool, bool>;
 
   explicit TestCase(TupleT configuration)
       : is_generation_available(std::get<0>(configuration)),
         is_model_execution_allowed(std::get<1>(configuration)),
         is_saving_allowed(std::get<2>(configuration)),
-        is_disabled_by_policy(std::get<3>(configuration)),
-        is_feature_enabled(std::get<4>(configuration)) {}
+        is_disabled_by_policy(std::get<3>(configuration)) {}
 
   bool expected_outcome() const {
 #if BUILDFLAG(IS_ANDROID)
     return false;
 #else
     return is_generation_available & is_model_execution_allowed &
-           is_saving_allowed & is_feature_enabled & !is_disabled_by_policy;
+           is_saving_allowed & !is_disabled_by_policy;
 #endif  // BUILDFLAG(IS_ANDROID)
   }
 
@@ -60,8 +59,23 @@ struct TestCase {
   const bool is_model_execution_allowed;
   const bool is_saving_allowed;
   const bool is_disabled_by_policy;
-  const bool is_feature_enabled;
 };
+
+#if !BUILDFLAG(IS_ANDROID)
+password_manager::PasswordForm CreateTestForm(const GURL& url,
+                                              bool is_signup_form) {
+  password_manager::PasswordForm form;
+  form.url = url;
+  form.signon_realm = url.spec();
+  form.username_element_renderer_id = autofill::FieldRendererId(1);
+  if (is_signup_form) {
+    form.new_password_element_renderer_id = autofill::FieldRendererId(2);
+  } else {
+    form.password_element_renderer_id = autofill::FieldRendererId(3);
+  }
+  return form;
+}
+#endif  // !BUILDFLAG(IS_ANDROID)
 
 }  // namespace
 
@@ -123,8 +137,6 @@ class ChromePasswordChangeServiceBase {
  private:
   content::BrowserTaskEnvironment task_environment_{
       base::test::TaskEnvironment::TimeSource::MOCK_TIME};
-  base::test::ScopedFeatureList feature_list_{
-      password_manager::features::kImprovedPasswordChangeService};
   autofill::LogRouter log_router_;
   TestingPrefServiceSimple prefs_;
   testing::StrictMock<affiliations::MockAffiliationService>
@@ -184,10 +196,29 @@ TEST_P(ChromePasswordChangeServiceTest, PasswordChangeSupportedForURL) {
   EXPECT_CALL(*feature_manager(), IsGenerationEnabled)
       .WillOnce(testing::Return(true));
   EXPECT_TRUE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.PasswordChangeAvailability",
       PasswordChangeAvailability::kAvailable, 1);
+}
+
+TEST_P(ChromePasswordChangeServiceTest,
+       PasswordChangeNotSupportedForSignupForm) {
+  base::HistogramTester histogram_tester;
+  GURL url("https://test.com/");
+  EXPECT_CALL(mock_optimization_service(), ShouldModelExecutionBeAllowedForUser)
+      .WillOnce(testing::Return(true));
+  EXPECT_CALL(settings_service(), IsSettingEnabled)
+      .WillOnce(testing::Return(true));
+  EXPECT_CALL(*feature_manager(), IsGenerationEnabled)
+      .WillOnce(testing::Return(true));
+  EXPECT_FALSE(change_service()->IsPasswordChangeSupported(
+      CreateTestForm(url, /*is_signup_form=*/true),
+      autofill::LanguageCode("en")));
+  histogram_tester.ExpectUniqueSample(
+      "PasswordManager.PasswordChangeAvailability",
+      PasswordChangeAvailability::kSignupForm, 1);
 }
 
 TEST_P(ChromePasswordChangeServiceTest, NoChangePasswordUrl) {
@@ -205,7 +236,8 @@ TEST_P(ChromePasswordChangeServiceTest, NoChangePasswordUrl) {
   EXPECT_CALL(*feature_manager(), IsGenerationEnabled)
       .WillOnce(testing::Return(true));
   EXPECT_FALSE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.PasswordChangeAvailability",
       PasswordChangeAvailability::kNotSupportedSite, 1);
@@ -229,13 +261,15 @@ TEST_P(ChromePasswordChangeServiceTest, DifferentCountry) {
     EXPECT_CALL(affiliation_service(), GetChangePasswordURL(url))
         .WillOnce(testing::Return(GURL("https://test.com/password/")));
     EXPECT_TRUE(change_service()->IsPasswordChangeSupported(
-        url, autofill::LanguageCode("en")));
+        CreateTestForm(url, /*is_signup_form=*/false),
+        autofill::LanguageCode("en")));
     histogram_tester.ExpectUniqueSample(
         "PasswordManager.PasswordChangeAvailability",
         PasswordChangeAvailability::kAvailable, 1);
   } else {
     EXPECT_FALSE(change_service()->IsPasswordChangeSupported(
-        url, autofill::LanguageCode("en")));
+        CreateTestForm(url, /*is_signup_form=*/false),
+        autofill::LanguageCode("en")));
     histogram_tester.ExpectUniqueSample(
         "PasswordManager.PasswordChangeAvailability",
         PasswordChangeAvailability::kUnsupportedCountryCode, 1);
@@ -260,14 +294,16 @@ TEST_P(ChromePasswordChangeServiceTest, DifferentLanguage) {
     EXPECT_CALL(affiliation_service(), GetChangePasswordURL(url))
         .WillOnce(testing::Return(GURL("https://test.com/password/")));
     EXPECT_TRUE(change_service()->IsPasswordChangeSupported(
-        url, autofill::LanguageCode("ru")));
+        CreateTestForm(url, /*is_signup_form=*/false),
+        autofill::LanguageCode("ru")));
     histogram_tester.ExpectUniqueSample(
         "PasswordManager.PasswordChangeAvailability",
         PasswordChangeAvailability::kAvailable, 1);
   } else {
     EXPECT_CALL(affiliation_service(), GetChangePasswordURL).Times(0);
     EXPECT_FALSE(change_service()->IsPasswordChangeSupported(
-        url, autofill::LanguageCode("ru")));
+        CreateTestForm(url, /*is_signup_form=*/false),
+        autofill::LanguageCode("ru")));
     histogram_tester.ExpectUniqueSample(
         "PasswordManager.PasswordChangeAvailability",
         PasswordChangeAvailability::kUnsupportedLanguage, 1);
@@ -284,7 +320,8 @@ TEST_P(ChromePasswordChangeServiceTest,
   EXPECT_CALL(*feature_manager(), IsGenerationEnabled)
       .WillOnce(testing::Return(true));
   EXPECT_FALSE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.PasswordChangeAvailability",
       PasswordChangeAvailability::kModelExecutionNotAllowed, 1);
@@ -300,7 +337,8 @@ TEST_P(ChromePasswordChangeServiceTest,
   EXPECT_CALL(affiliation_service(), GetChangePasswordURL).Times(0);
 
   EXPECT_TRUE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.PasswordChangeAvailability",
       PasswordChangeAvailability::kAvailable, 1);
@@ -316,7 +354,8 @@ TEST_P(ChromePasswordChangeServiceTest,
   EXPECT_CALL(affiliation_service(), GetChangePasswordURL).Times(0);
 
   EXPECT_TRUE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.PasswordChangeAvailability",
       PasswordChangeAvailability::kAvailable, 1);
@@ -339,7 +378,8 @@ TEST_P(ChromePasswordChangeServiceTest,
       .WillOnce(testing::Return(true));
 
   EXPECT_FALSE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
 }
 
 TEST_P(ChromePasswordChangeServiceTest, PasswordChangeThrottledAfterFailure) {
@@ -357,7 +397,8 @@ TEST_P(ChromePasswordChangeServiceTest, PasswordChangeThrottledAfterFailure) {
   EXPECT_CALL(*feature_manager(), IsGenerationEnabled)
       .WillRepeatedly(testing::Return(true));
   EXPECT_TRUE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
   histogram_tester.ExpectUniqueSample(
       "PasswordManager.PasswordChangeAvailability",
       PasswordChangeAvailability::kAvailable, 1);
@@ -366,7 +407,8 @@ TEST_P(ChromePasswordChangeServiceTest, PasswordChangeThrottledAfterFailure) {
       password_manager::prefs::kLastNegativePasswordChangeTimestamp,
       base::Time::Now());
   EXPECT_FALSE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
 
   EXPECT_THAT(histogram_tester.GetAllSamples(
                   "PasswordManager.PasswordChangeAvailability"),
@@ -374,11 +416,13 @@ TEST_P(ChromePasswordChangeServiceTest, PasswordChangeThrottledAfterFailure) {
                   base::Bucket(PasswordChangeAvailability::kAvailable, 1),
                   base::Bucket(PasswordChangeAvailability::kThrottled, 1)));
 
-  AdvanceClock(password_manager::features::kPasswordChangeThrottleTime.Get() +
-               base::Seconds(1));
+  AdvanceClock(base::Days(14) + base::Seconds(1));
 
+  EXPECT_CALL(affiliation_service(), GetChangePasswordURL(url))
+      .WillOnce(testing::Return(GURL("https://test.com/password/")));
   EXPECT_TRUE(change_service()->IsPasswordChangeSupported(
-      url, autofill::LanguageCode("en")));
+      CreateTestForm(url, /*is_signup_form=*/false),
+      autofill::LanguageCode("en")));
   EXPECT_THAT(histogram_tester.GetAllSamples(
                   "PasswordManager.PasswordChangeAvailability"),
               testing::ElementsAre(
@@ -395,9 +439,6 @@ class ChromePasswordChangeServiceAvailabilityTest
       public ChromePasswordChangeServiceBase {
  public:
   ChromePasswordChangeServiceAvailabilityTest() {
-    feature_list_.InitWithFeatureState(
-        password_manager::features::kImprovedPasswordChangeService,
-        GetParam().is_feature_enabled);
     if (GetParam().is_disabled_by_policy) {
       constexpr int kPolicyDisabled =
           std::to_underlying(optimization_guide::model_execution::prefs::
@@ -493,7 +534,6 @@ INSTANTIATE_TEST_SUITE_P(
         testing::Combine(testing::Bool(),
                          testing::Bool(),
                          testing::Bool(),
-                         testing::Bool(),
                          testing::Bool())),
     [](const ::testing::TestParamInfo<TestCase>& info) {
       std::string test_name;
@@ -503,6 +543,5 @@ INSTANTIATE_TEST_SUITE_P(
                                                          : "ExecutionOff";
       test_name += info.param.is_saving_allowed ? "SavingOn" : "SavingOff";
       test_name += info.param.is_disabled_by_policy ? "DisabledByPolicy" : "";
-      test_name += info.param.is_feature_enabled ? "FeatureOn" : "FeatureOff";
       return test_name;
     });

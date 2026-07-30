@@ -24,6 +24,7 @@ source_set("skills") {
     "skills_dialog.h",
     "skills_dialog_delegate.h",
     "skills_dialog_handler.h",
+    "skills_page_handler.h",
     "skills_ui.h",
   ]
 
@@ -31,7 +32,6 @@ source_set("skills") {
     "skills_dialog.cc",
     "skills_dialog_handler.cc",
     "skills_page_handler.cc",
-    "skills_page_handler.h",
     "skills_ui.cc",
   ]
 
@@ -43,12 +43,14 @@ source_set("skills") {
     "//chrome/browser/profiles:profile",
     "//chrome/browser/profiles/keep_alive",
     "//chrome/browser/resources/skills:resources",
+    "//chrome/browser/signin",
     "//chrome/browser/skills",
     "//chrome/browser/skills:public",
     "//chrome/browser/ui/browser_window",
     "//chrome/browser/ui/webui",
     "//chrome/common",
     "//components/optimization_guide/proto:optimization_guide_proto",
+    "//components/signin/public/identity_manager",
     "//components/skills:features",
     "//components/skills/public",
     "//components/skills/public:mojo_bindings",
@@ -67,13 +69,19 @@ source_set("skills") {
 
 source_set("unit_tests") {
   testonly = true
-  sources = [ "skills_dialog_handler_unittest.cc" ]
+  sources = [
+    "skills_dialog_handler_unittest.cc",
+    "skills_page_handler_unittest.cc",
+  ]
   deps = [
     ":skills",
     "//chrome/browser/optimization_guide:test_support",
+    "//chrome/browser/skills",
     "//chrome/test:test_support",
     "//components/optimization_guide/core:test_support",
+    "//components/skills/mocks",
     "//components/skills/public:mojo_bindings",
+    "//content/public/browser",
     "//content/test:test_support",
     "//testing/gmock",
     "//testing/gtest",

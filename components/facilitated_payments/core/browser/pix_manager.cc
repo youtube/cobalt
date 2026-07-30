@@ -31,6 +31,9 @@ namespace {
 static constexpr base::TimeDelta kProgressScreenDismissDelay = base::Seconds(2);
 static constexpr FacilitatedPaymentsType kPaymentsType =
     FacilitatedPaymentsType::kPix;
+// Experiment and control IDs for iframe.
+constexpr int64_t kIframeExperimentId = 3397365;
+constexpr int64_t kIframeControlId = 3397366;
 
 PixCodeValidationResult ConvertPixQrCodeTypeToValidationResult(
     base::expected<mojom::PixQrCodeType, std::string> pix_qr_code_type) {
@@ -72,7 +75,7 @@ void PixManager::Reset() {
   initiate_payment_request_details_ =
       std::make_unique<FacilitatedPaymentsInitiatePaymentRequestDetails>();
   ui_state_ = UiState::kHidden;
-  pix_payment_page_origin_ = url::Origin();
+  pix_payment_page_main_frame_origin_ = url::Origin();
   weak_ptr_factory_.InvalidateWeakPtrs();
 }
 
@@ -92,16 +95,33 @@ void PixManager::OnPixCodeCopiedToClipboard(
   pix_code_copied_timestamp_ = base::TimeTicks::Now();
   ukm_source_id_ = ukm_source_id;
   LogPixCodeCopied(ukm_source_id_);
-  // Check whether the domain for the main_frame_url is allowlisted.
-  if (!IsMerchantAllowlisted(main_frame_url)) {
+  // TODO(crbug.com/479520609): Stop populating experiment IDs once backend
+  // experiment is fully enabled without the integrator trigger.
+  if (base::FeatureList::IsEnabled(kEnableIframeForPix)) {
+    initiate_payment_request_details_->chrome_experiment_ids_.push_back(
+        kIframeExperimentId);
+  } else {
+    initiate_payment_request_details_->chrome_experiment_ids_.push_back(
+        kIframeControlId);
+  }
+  // If the copy event happened inside an iframe, check whether the iframe URL
+  // is allowlisted. Otherwise, check whether the main frame URL is allowlisted.
+  if (iframe_url.has_value()) {
+    if (!IsIframeUrlAllowlisted(iframe_url.value())) {
+      // The iframe URL is not part of the allowlist, ignore the copy event.
+      LogPixFlowExitedReason(PixFlowExitedReason::kIframeUrlNotAllowlisted);
+      return;
+    }
+    // Set psp hostname to initiate payment request details.
+    initiate_payment_request_details_->psp_hostname_ = iframe_url->GetHost();
+  } else if (!IsMerchantAllowlisted(main_frame_url)) {
     // The merchant is not part of the allowlist, ignore the copy event.
     LogPixFlowExitedReason(PixFlowExitedReason::kMerchantNotAllowlisted);
     return;
   }
-  // TODO(crbug.com/479520609): Add PSP allowlist check.
   initiate_payment_request_details_->merchant_payment_page_hostname_ =
       main_frame_url.GetHost();
-  pix_payment_page_origin_ = main_frame_origin;
+  pix_payment_page_main_frame_origin_ = main_frame_origin;
   if (base::FeatureList::IsEnabled(kUseRustPixCodeValidator)) {
     // This logic is duplicated into faciliated_payments_metrics.h, but it's
     // temporary and will be cleaned up once the validator is fully switched
@@ -146,6 +166,13 @@ bool PixManager::IsMerchantAllowlisted(const GURL& url) const {
   // queried it, it will be `kUnknown`.
   return optimization_guide_decider_->CanApplyOptimization(
              url, optimization_guide::proto::PIX_MERCHANT_ORIGINS_ALLOWLIST,
+             /*optimization_metadata=*/nullptr) ==
+         optimization_guide::OptimizationGuideDecision::kTrue;
+}
+
+bool PixManager::IsIframeUrlAllowlisted(const GURL& url) const {
+  return optimization_guide_decider_->CanApplyOptimization(
+             url, optimization_guide::proto::PIX_PSP_ALLOWLIST,
              /*optimization_metadata=*/nullptr) ==
          optimization_guide::OptimizationGuideDecision::kTrue;
 }
@@ -211,7 +238,7 @@ void PixManager::OnValidPixCode(std::string pix_code,
   if (!payments_data_manager->HasMaskedBankAccounts()) {
     LogPixFlowExitedReason(PixFlowExitedReason::kNoLinkedAccount);
     if (base::FeatureList::IsEnabled(kEnablePixAccountLinking)) {
-      client_->InitPixAccountLinkingFlow(pix_payment_page_origin_);
+      client_->InitPixAccountLinkingFlow(pix_payment_page_main_frame_origin_);
     }
     return;
   }

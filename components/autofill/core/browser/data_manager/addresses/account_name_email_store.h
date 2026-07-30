@@ -69,9 +69,8 @@ class AccountNameEmailStore : public signin::IdentityManager::Observer,
   void OnSyncShutdown(syncer::SyncService* sync) override;
   void OnStateChanged(syncer::SyncService* sync_service) override;
 
-  // Checks that the necessary data is available and that the user has enabled
-  // autofill sync before updating/creating the kAccountNameEmail profile.
-  // This prevents premature update/create without all of the relevant data.
+  // Evaluates the current Sync and data state to determine if the
+  // kAccountNameEmail profile should be created, updated, or removed.
   void MaybeUpdateOrCreateAccountNameEmail();
 
 #if BUILDFLAG(IS_IOS)
@@ -113,7 +112,7 @@ class AccountNameEmailStore : public signin::IdentityManager::Observer,
 
   // Updates the kAccountNameEmail autofill profile with the account `info`. If
   // the kAccountNameEmail profile doesn't exist, it is created.
-  void UpdateOrCreateAccountNameEmail(AccountInfo& info);
+  void UpdateOrCreateAccountNameEmail(const AccountInfo& info);
 
   // Hashes concatenated full_name and email_address delimited by |.
   std::string HashAccountInfo(const AccountInfo& info) const;
@@ -126,15 +125,19 @@ class AccountNameEmailStore : public signin::IdentityManager::Observer,
   std::optional<ProfileUpdateBlockReason>
   GetBlockAccountNameEmailUpdateReason();
 
+  // Evaluates potential reasons to block the kAccountNameEmail profile (e.g.,
+  // sign-out, sync disabled).
+  // - If a block reason exists, it handles it by performing necessary
+  //   cleanup (e.g., removing the profile or clearing prefs) and returns false.
+  // - If no block reason exists, it returns true, indicating the update
+  //   flow can proceed to create/update the profile.
+  bool ReconcileProfileWithBlockReason();
+
   // Called when `prefs::kAutofillNameAndEmailProfileNotSelectedCounter` pref is
   // updated. If it's value exceeds
   // `kAutofillNameAndEmailProfileNotSelectedThreshold` the kAccountNameEmail
   // profile will be removed.
   void OnCounterPrefUpdated();
-
-  // Returns true if primary account exists and there are no blocking reasons,
-  // false otherwise.
-  bool ShouldUpdateOrCreateAccountNameEmail();
 
   // `this` is owned by `address_data_manager_`, so `address_data_manager_` will
   // outlive this class.

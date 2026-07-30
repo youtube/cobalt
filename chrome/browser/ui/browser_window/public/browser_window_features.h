@@ -25,6 +25,7 @@ class GlicActorNudgeController;
 #endif
 
 class ActorUiWindowController;
+class ContextHighlightWindowFeature;
 
 class ActorBorderViewController;
 class ActorTaskListBubbleController;
@@ -146,10 +147,6 @@ namespace chrome {
 class BrowserCommandController;
 }  // namespace chrome
 
-namespace commerce {
-class ProductSpecificationsEntryPointController;
-}  // namespace commerce
-
 namespace contextual_tasks {
 class ActiveTaskContextProvider;
 class ContextualTasksSidePanelCoordinator;
@@ -223,6 +220,10 @@ class SkillsUiWindowController;
 // feature compatible with `UnownedUserDataHost` and then use
 // `GetUserDataFactoryForTesting()` to inject your test-specific feature
 // object(s).
+//
+// Do not add more public accessors. Instead use the UnownedUserData design
+// pattern, see ui/base/unowned_user_data/README.md.
+// TODO(crbug.com/481268779a): Remove existing public accessors.
 class BrowserWindowFeatures {
  public:
   BrowserWindowFeatures();
@@ -260,11 +261,6 @@ class BrowserWindowFeatures {
 
   ChromeLabsCoordinator* chrome_labs_coordinator() {
     return chrome_labs_coordinator_.get();
-  }
-
-  contextual_tasks::ActiveTaskContextProvider*
-  contextual_tasks_active_task_context_provider() {
-    return contextual_tasks_active_task_context_provider_.get();
   }
 
   media_router::CastBrowserController* cast_browser_controller() {
@@ -553,9 +549,6 @@ class BrowserWindowFeatures {
 
   std::unique_ptr<ChromeLabsCoordinator> chrome_labs_coordinator_;
 
-  std::unique_ptr<commerce::ProductSpecificationsEntryPointController>
-      product_specifications_entry_point_controller_;
-
   std::unique_ptr<ImmersiveModeController> immersive_mode_controller_;
 
   std::unique_ptr<WebUIBrowserExclusiveAccessContext>
@@ -815,6 +808,9 @@ class BrowserWindowFeatures {
 #if BUILDFLAG(IS_CHROMEOS)
   std::unique_ptr<ash::boca::OnTaskLockedController> on_task_locked_controller_;
 #endif  // BUILDFLAG(IS_CHROMEOS)
+
+  std::unique_ptr<ContextHighlightWindowFeature>
+      context_highlight_window_feature_;
 
   // Keep this member last to ensure embedder features are torn down first, in
   // reverse order of initialization.

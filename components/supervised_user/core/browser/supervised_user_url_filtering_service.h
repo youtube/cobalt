@@ -5,6 +5,10 @@
 #ifndef COMPONENTS_SUPERVISED_USER_CORE_BROWSER_SUPERVISED_USER_URL_FILTERING_SERVICE_H_
 #define COMPONENTS_SUPERVISED_USER_CORE_BROWSER_SUPERVISED_USER_URL_FILTERING_SERVICE_H_
 
+#include <memory>
+#include <optional>
+#include <string>
+
 #include "base/callback_list.h"
 #include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
@@ -23,6 +27,13 @@ class SupervisedUserService;
 class UrlFilteringDelegate;
 class SupervisedUserUrlFilteringService;
 
+enum class InterstitialMode {
+  // Simple interstitial, which only shows a learn more page.
+  kLearnMoreInterstitial,
+  // Interstitial that allows the user to request parental review.
+  kParentalReviewInterstitial,
+};
+
 // Represents the result of url filtering request.
 struct WebFilteringResult {
   using Callback = base::OnceCallback<void(WebFilteringResult result)>;
@@ -35,6 +46,9 @@ struct WebFilteringResult {
   FilteringBehaviorReason reason;
   // Details of asynchronous check if it was performed, otherwise empty.
   std::optional<safe_search_api::ClassificationDetails> async_check_details;
+  // The interstitial mode to use for the URL filtering result (with a default).
+  InterstitialMode interstitial_mode =
+      InterstitialMode::kParentalReviewInterstitial;
 
   bool IsFromManualList() const {
     return reason == FilteringBehaviorReason::MANUAL;
@@ -63,6 +77,17 @@ struct WebFilteringResult {
                safe_search_api::ClassificationDetails::Reason::
                    kFailedUseDefault;
   }
+
+  // Creates a callback for safe search api that will invoke `callback` argument
+  // with check result.
+  static safe_search_api::URLChecker::CheckCallback BindUrlCheckerCallback(
+      Callback callback,
+      const GURL& requested_url,
+      InterstitialMode interstitial_mode);
+
+  // Serializes this instance as a top level filtering result. Undefined if
+  // FilteringBehavior is kInvalid.
+  SupervisedUserFilterTopLevelResult ToTopLevelResult() const;
 };
 
 // Internal observer interface for communication between delegates and the
@@ -93,6 +118,8 @@ class UrlFilteringDelegate {
   virtual ~UrlFilteringDelegate();
 
   virtual WebFilterType GetWebFilterType() const = 0;
+
+  // TODO(crbug.com/481303877): Reconsider naming of GetFiltering* methods.
   virtual WebFilteringResult GetFilteringBehavior(const GURL& url) const = 0;
 
   // TODO(crbug.com/478188599): Declare const after url_checker_ clients are
@@ -109,6 +136,12 @@ class UrlFilteringDelegate {
       WebFilteringResult::Callback callback,
       const WebFilterMetricsOptions& options) = 0;
 
+  base::WeakPtr<UrlFilteringDelegate> GetWeakPtr();
+
+  // Returns the unique name of the delegate. Used to eg.: generate histogram
+  // names.
+  virtual std::string_view GetName() const = 0;
+
   void AddObserver(UrlFilteringDelegateObserver* observer);
   void RemoveObserver(UrlFilteringDelegateObserver* observer);
 
@@ -117,8 +150,15 @@ class UrlFilteringDelegate {
   void NotifyUrlFilteringDelegateChanged() const;
   void NotifyUrlChecked(WebFilteringResult result) const;
 
+  // Wraps the callback with a metrics callback (see ::EmitMetrics) that records
+  // details about the url filtering result.
+  WebFilteringResult::Callback WrapCallbackWithUrlServiceMetrics(
+      WebFilteringResult::Callback callback,
+      const WebFilterMetricsOptions& options) const;
+
  private:
   base::ObserverList<UrlFilteringDelegateObserver> observers_;
+  base::WeakPtrFactory<UrlFilteringDelegate> weak_ptr_factory_{this};
 };
 
 // Performs URL filtering workflows for supervised users, aggregating results
@@ -139,8 +179,10 @@ class SupervisedUserUrlFilteringService : public KeyedService,
     virtual void OnUrlChecked(WebFilteringResult result) {}
   };
 
-  explicit SupervisedUserUrlFilteringService(
-      const SupervisedUserService& supervised_user_service);
+  SupervisedUserUrlFilteringService(
+      const SupervisedUserService& supervised_user_service,
+      std::unique_ptr<UrlFilteringDelegate>
+          device_parental_controls_url_filter);
 
   ~SupervisedUserUrlFilteringService() override;
   SupervisedUserUrlFilteringService(const SupervisedUserUrlFilteringService&) =
@@ -187,6 +229,8 @@ class SupervisedUserUrlFilteringService : public KeyedService,
   // Provides access to legacy way of resolving URL filtering. Temporarily, also
   // owns one of the delegates (Family Link url filter delegate).
   raw_ref<const SupervisedUserService> supervised_user_service_;
+  // Owns the device parental controls url filter delegate.
+  std::unique_ptr<UrlFilteringDelegate> device_parental_controls_url_filter_;
 
   // External observers.
   base::ObserverList<Observer> observer_list_;
@@ -194,6 +238,8 @@ class SupervisedUserUrlFilteringService : public KeyedService,
   // Own observees.
   base::ScopedObservation<UrlFilteringDelegate, UrlFilteringDelegateObserver>
       family_link_url_filter_observation_{this};
+  base::ScopedObservation<UrlFilteringDelegate, UrlFilteringDelegateObserver>
+      device_parental_controls_url_filter_observation_{this};
 
   base::WeakPtrFactory<SupervisedUserUrlFilteringService> weak_ptr_factory_{
       this};

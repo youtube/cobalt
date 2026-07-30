@@ -100,7 +100,7 @@ void WebNNTensorImplBackendTest::SetUp() {
 
   GTEST_SKIP() << "WebNNTensor not implemented on macOS";
 }
-#elif BUILDFLAG(WEBNN_USE_TFLITE)
+#elif BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
 class WebNNTensorImplBackendTest : public testing::Test {
  public:
   WebNNTensorImplBackendTest()
@@ -120,7 +120,7 @@ class WebNNTensorImplBackendTest : public testing::Test {
   WebNNTestEnvironment webnn_test_environment_;
   mojo::Remote<mojom::WebNNContextProvider> webnn_provider_remote_;
 };
-#endif  // BUILDFLAG(WEBNN_USE_TFLITE)
+#endif  // BUILDFLAG(WEBNN_USE_TFLITE) || BUILDFLAG(WEBNN_USE_LITERT)
 
 void WebNNTensorImplBackendTest::TearDown() {
   base::RunLoop().RunUntilIdle();
@@ -235,15 +235,16 @@ TEST_F(WebNNTensorImplBackendTest, CreateTensorImplManyTest) {
 }
 
 // Test creating a WebNNTensor larger than tensor byte length limit.
-// The test is failing on android x86 builds: https://crbug.com/390358145.
-#if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_X86)
-#define MAYBE_CreateTooLargeTensorTest DISABLED_CreateTooLargeTensorTest
-#else
-#define MAYBE_CreateTooLargeTensorTest CreateTooLargeTensorTest
-#endif  // #if BUILDFLAG(IS_ANDROID) && defined(ARCH_CPU_X86)
-TEST_F(WebNNTensorImplBackendTest, MAYBE_CreateTooLargeTensorTest) {
+TEST_F(WebNNTensorImplBackendTest, CreateTooLargeTensorTest) {
+#if defined(ARCH_CPU_64_BITS)
   const std::array<uint32_t, 3> large_shape{std::numeric_limits<int32_t>::max(),
                                             2, 2};
+#else
+  // Use a smaller shape for 32-bit architecture to avoid exceeding maximum
+  // element count which is based on a size_t.
+  const std::array<uint32_t, 3> large_shape{
+      std::numeric_limits<int32_t>::max() / 4, 2, 2};
+#endif
 
   BadMessageTestHelper bad_message_helper;
 

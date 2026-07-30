@@ -129,6 +129,7 @@ class ChromeAutofillClient : public ContentAutofillClient {
   PersonalDataManager& GetPersonalDataManager() final;
   ValuablesDataManager* GetValuablesDataManager() final;
   EntityDataManager* GetEntityDataManager() final;
+  WalletPassAccessManager* GetWalletPassAccessManager() final;
   SingleFieldFillRouter& GetSingleFieldFillRouter() final;
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() final;
   AutofillComposeDelegate* GetComposeDelegate() final;
@@ -363,7 +364,6 @@ class ChromeAutofillClient : public ContentAutofillClient {
   // the current tab. When present, some parts of Autofill may behave
   // differently. There can be at most one actor on a given tab. If there is no
   // actor interacting with the current tab it is `std::nullopt`.
-  // TODO(crbug.com/469428128): Handle actor mode in the relevant flows.
   std::optional<actor::TaskId> active_actor_task_;
 #endif  // BUILDFLAG(IS_ANDROID)
 

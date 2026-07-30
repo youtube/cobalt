@@ -150,7 +150,8 @@ public class ToolbarTablet extends ToolbarLayout {
         mLocationBar = locationBarCoordinator;
         mLocationBar
                 .getFuseboxStateSupplier()
-                .addObserver(mCallbackController.makeCancelable(mFuseboxStateObserver));
+                .addSyncObserverAndPostIfNonNull(
+                        mCallbackController.makeCancelable(mFuseboxStateObserver));
         final @ColorInt int color = SemanticColorUtils.getColorSurfaceContainer(getContext());
         mLocationBar.getTabletCoordinator().tintBackground(color);
 
@@ -695,13 +696,8 @@ public class ToolbarTablet extends ToolbarLayout {
             }
 
             int width = getResources().getDimensionPixelSize(R.dimen.toolbar_button_width);
-            if (availableWidth >= width) {
-                setOptionalButtonVisibility(true);
-                return width;
-            } else {
-                setOptionalButtonVisibility(false);
-                return 0;
-            }
+            setOptionalButtonVisibility(availableWidth >= width);
+            return Math.min(availableWidth, width);
         }
 
         @Override

@@ -574,6 +574,17 @@ PromptInTab으로 설정하면, 사용자의 인증이 만료되는 즉시 Googl
 
 자세한 내용은
 https://support.google.com/chrome/a/?p=extended_updates_support 페이지를 참고하세요.</translation>
+<translation id="1432008122934973720">기본적으로 로컬 네트워크 액세스(LNA) 권한은 명시적으로 위임된 경우에만 교차 출처 서브프레임에서 요청할 수 있습니다. 이 정책을 사용하여 이 기본 동작을 재정의할 수 있습니다. 이렇게 하면 권한 정책에서 명시적으로 거부하지 않는 한, LNA 권한이 기본적으로 서브프레임에 상속됩니다.
+
+이 정책을 사용 설정하면 서브프레임에 기본적으로 모든 LNA 권한 정책 기능이 위임되며, 서브프레임이 로컬 네트워크 요청을 수행할 수 있습니다(권한 메시지가 표시됨).
+
+정책을 사용 중지하거나 설정하지 않으면 로컬 네트워크 요청을 수행하고 권한 메시지를 표시하려면 서브프레임에 권한 정책 기능을 명시적으로 위임해야 합니다.
+
+이 정책은 <ph name="LOCAL_NETWORK_ACCESS_FEATURE_NAME" />, <ph name="LOOPBACK_NETWORK_FEATURE_NAME" />, <ph name="LOCAL_NETWORK_FEATURE_NAME" /> 권한 정책 기능에 적용됩니다.
+
+로컬 네트워크 액세스에 관한 자세한 내용은 https://wicg.github.io/local-network-access/ 및 https://developer.chrome.com/blog/local-network-access를 참고하세요.
+
+권한 정책에 대한 자세한 내용은 https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Permissions_Policy를 참고하세요.</translation>
 <translation id="1432834104376790711">이 정책은 절전 모드 설정을 사용 또는 사용 중지합니다.
       Chrome에서 이 설정을 사용하면 프레임 속도가 제한되어 전력 소비가 줄어듭니다. 정책을 설정하지 않으면 최종 사용자가 chrome://settings/performance에서 이 설정을 제어할 수 있습니다.
       ChromeOS에서 이 설정을 사용하면 프레임 속도와 CPU 주파수가 떨어지고 백라이트가 어두워지며 Android가 절전 모드로 전환됩니다. CPU가 여러 개인 기기에서 일부 CPU가 사용 중지됩니다. 수준은 다음과 같습니다. <ph name="BATTERY_SAVER_MODE_DISABLED" /> (0): 절전 모드가 사용 중지됩니다.
@@ -1254,6 +1265,7 @@ Manifest V2 확장 프로그램 지원이 중단되며 향후 모든 확장 프�
 
           이 정책은 'DefaultSearchProviderEnabled' 정책을 사용하도록 설정한 경우에만 적용됩니다.</translation>
 <translation id="1850439894606905202">기본적으로 문서는 사이트 관련 에이전트 클러스터에 배치되고 document.domain은 설정 가능한 상태로 유지됩니다.</translation>
+<translation id="1851025124923805399">사이트에서 로컬 기기 및 로컬 네트워크 엔드포인트로 네트워크 요청을 보낼 수 있도록 허용합니다.</translation>
 <translation id="1851034156561932736">충전 소리 켜기</translation>
 <translation id="1851282952069386119">사용자가 Chrome 정리도구 정리 결과를 Google과 공유하도록 선택할 수 있음</translation>
 <translation id="1852294065645015766">미디어 자동 재생 허용</translation>
@@ -1585,6 +1597,7 @@ URL로 입력된 측정항목 수집이 허용되거나 사용자가 이를 사�
 <translation id="2090939118981888335">정책을 사용 설정하면 데이터 압축 프록시가 허용됩니다. 정책을 사용 중지하면 프록시가 허용되지 않습니다.
 
       정책을 설정하면 사용자가 변경할 수 없습니다. 정책을 설정하지 않으면 사용자가 기능을 사용하도록 선택할 수 있습니다.</translation>
+<translation id="2091689441590064807">명시적 위임 없이 서브프레임에서 LNA 요청 허용 불가</translation>
 <translation id="2093552723795057221">오디오 상태 보고 안 함</translation>
 <translation id="209388704279338003">이 정책은 지원 중단되었으며 지원되지 않습니다. 대신 <ph name="DEVICE_PRINTERS_ACCESS_MODE_POLICY_NAME" /> 정책을 사용하세요.</translation>
 <translation id="2093951844062548778">이 정책은 선택한 콘텐츠에 액세스하고 정의 결과를 얻기 위해 정보를 서버로 보낼 권한을 빠른 답변에 부여합니다.
@@ -1803,6 +1816,7 @@ URI 템플릿에 <ph name="HTTP_VARIABLE_DNS" /> 변수가 포함된 경우 리�
 <translation id="2200698565850397198">기본 메시지 차단 목록 설정</translation>
 <translation id="220157212534775145">File System Access API에서 <ph name="FILE_SYSTEM_SYNC_ACCESS_HANDLE" />에 대해 지원 중단된 비동기 인터페이스를 다시 사용 설정합니다.</translation>
 <translation id="2202787915587511214">NTLMv2 사용 설정</translation>
+<translation id="2202789864457330375">사이트에서 로컬 기기로 네트워크 요청을 보내지 못하도록 차단합니다.</translation>
 <translation id="2204379573346866896">현재 시에서 경과한 분입니다.</translation>
 <translation id="2204753382813641270">임시보관함 자동 숨김 제어</translation>
 <translation id="2208092773610663977">정책을 사용 설정하면 사용자가 입력한 사용자 이름 및 비밀번호가 유출되었는지 <ph name="PRODUCT_NAME" />에서 확인할 수 있습니다.
@@ -3202,6 +3216,22 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName 변형은 크로스 사이트 
 <translation id="3181114468897395940">PageUp/PageDown 설정은 Alt 수정자가 포함된 단축키를 사용합니다.</translation>
 <translation id="3182503302060513467">가운데 슬롯을 사용할 수 있으면 새 탭 페이지에 알림을 표시함</translation>
 <translation id="3184161739683646075">DNS-over-HTTPS 모드 제어</translation>
+<translation id="3184247679989063353">URL 패턴 목록입니다. 일치하는 출처에 의해 게재된 웹사이트에서 시작한 네트워크 요청은 <ph name="LOCAL_NETWORK_ACCESS" /> 확인 대상이 아닙니다.
+
+여기 명시된 패턴에 해당하지 않는 출처에는 사용자의 개인 설정이 적용됩니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세요.
+
+<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 https://wicg.github.io/local-network-access/ 페이지를 참고하세요.
+
+로컬 기기 및 로컬 네트워크 엔드포인트에 대한 요청에 영향을 미치는 출처를 나열하는 정책이 여러 개 있습니다. 출처가 다음 정책 중 둘 이상과 일치하는 경우 정책은 다음 순서로 우선 적용됩니다.
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LoopbackNetworkAccessBlockedForUrls
+  - LoopbackNetworkAccessAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="3184638144755436350">Chrome이 샌드박스 처리된 iframe 내부에서 외부 프로토콜로의 이동을
       차단합니다. https://chromestatus.com/features/5680742077038592 페이지를 참고하세요.
 
@@ -4910,6 +4940,20 @@ Chrome Root Store를 공개 신뢰의 소스로 사용하는 내장된
 정책을 사용 중지하면 지원 중단된 이전 문법이 사용 중지됩니다.
 
 정책을 설정하지 않으면 지원 중단된 이전 문법이 사용 중지됩니다.</translation>
+<translation id="4400152722459197056">URL 패턴 목록입니다. 로컬 네트워크 엔드포인트와 일치하는 출처에 의해 게재된 웹사이트에서 시작한 네트워크 요청은 <ph name="LOCAL_NETWORK_ACCESS" /> 확인 대상이 아닙니다.
+
+여기 명시된 패턴에 해당하지 않는 출처에는 사용자의 개인 설정이 적용됩니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세요.
+
+<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 https://wicg.github.io/local-network-access/ 페이지를 참고하세요.
+
+로컬 네트워크 엔드포인트에 대한 요청에 영향을 미치는 출처를 나열하는 정책이 여러 개 있습니다. 출처가 다음 정책 중 둘 이상과 일치하는 경우 정책은 다음 순서로 우선 적용됩니다.
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="4401196752827224189">비보안 컨텍스트의 WebSQL이 M110부터 삭제됩니다. 이 정책은 해당 API를 다시 사용 설정합니다.
           정책을 True로 설정하면 비보안 컨텍스트에서 WebSQL을 사용할 수 있습니다.
           정책을 False로 설정하거나 설정하지 않으면 비보안 컨텍스트의 WebSQL은 M109까지 사용 가능하며 M110부터 사용할 수 없게 됩니다.
@@ -4970,17 +5014,6 @@ Chrome Root Store를 공개 신뢰의 소스로 사용하는 내장된
 <translation id="4426986640594727372">시스템 위치정보 액세스 허용</translation>
 <translation id="4427173305799125784">PDF 뷰어에서 PDF에 주석 작성 불가능</translation>
 <translation id="4432762137771104529">세이프 브라우징 확장 보고 사용 설정</translation>
-<translation id="4432772502174730966">이 정책은 적용 범위 내의 모든 생성형 AI 기능에 대한 기본 설정을 정의합니다. 예를 들어 정책이 값 1로 설정되면 모든 적용되는 생성형 AI 기능의 기본 설정이 1이 됩니다. 수동으로 설정된 정책 값에는 영향을 미치지 않습니다. 이 설정은 Chrome의 적용 범위에 해당하는 생성형 AI 기능의 기본값을 정의합니다. 적용되는 기능 목록은 https://support.google.com/chrome/a?p=generative_ai_settings를 참고하세요.
-
-0 = 이 기능을 사용하도록 허용하면서 Google에서 관련 데이터를 사용하여 AI 모델을 개선하도록 허용합니다. 관련 데이터에는 기능에 따라 프롬프트나 입력, 출력, 소스 자료, 서면 의견이 포함될 수 있습니다. AI 모델을 개선하기 위해 사람이 데이터를 검토할 수도 있습니다. 아래에 명시된 경우를 제외하고 0이 기본값입니다.
-
-1 = 기능을 사용하도록 허용하되 Google에서 사용자 콘텐츠(프롬프트, 입력, 출력, 소스 자료, 서면 의견 등)를 사용하여 모델을 개선하도록 허용하지 않습니다. 1은 <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" />에서 관리되는 기업 사용자 및 <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" />에서 관리되는 Education 계정의 기본값입니다.
-
-2 = 기능을 허용하지 않습니다.
-
-적용되는 Chrome 기능에 해당하는 정책 값이 없는 경우 가장 가까운 더 높은 값이 사용됩니다. <ph name="GEMINI_SETTINGS_POLICY_NAME" />와 같은 일부 정책은 허용 및 허용되지 않음 상태만 지원합니다. <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책을 0 또는 1로 설정하면 이 기능이 허용됩니다. 정책을 2로 설정하면 이 기능이 허용되지 않습니다. 기능이 이 정책의 값과 상호작용하는 방식에 관한 자세한 내용은 각 기능의 문서를 검토하세요.
-
-생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="443454694385851356">이전(안전하지 않음)</translation>
 <translation id="4435032708588431506">QUIC 허용</translation>
 <translation id="443665821428652897">브라우저 종료 시 사이트 데이터 지우기(지원 중단)</translation>
@@ -5590,6 +5623,23 @@ JavaScript 최적화 정책 예외는 사이트 세부사항에서만 시행됩�
       사용 설정하면 Gemini 소개 화면이 표시됩니다.
 
       설정하지 않으면 기업 관리 사용자에게는 Gemini 소개 화면이 표시되지 않고, 비관리 사용자에게는 표시됩니다.</translation>
+<translation id="4781685421378746692">정책은 <ph name="PRODUCT_NAME" /> 측면 패널 또는 탭을 통해 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> 및 <ph name="GOOGLE_LENS_PRODUCT_NAME" />에 페이지 및 파일 콘텐츠를 공유하는 것을 제어합니다.
+
+이 정책은 웹의 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에는 영향을 미치지 않습니다. <ph name="PRODUCT_NAME" /> 이용 시 사용자가 정보를 공유하는 방식을 제어할 뿐입니다.
+
+0/설정 안 함 = 사용자가 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에 페이지 또는 파일 콘텐츠를 공유할 수 있습니다.
+
+1 = 사용자가 <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" />에 페이지 또는 파일 콘텐츠를 공유할 수 없습니다. 컨텍스트 공유의 진입점과 측면 패널이 사용 중지되거나 숨겨집니다.
+
+이 기능이 사용 중지되어 있으므로 <ph name="GOOGLE_SEARCH_PRODUCT_NAME" />이 사용자의 기본 검색엔진이 아닌 경우 정책은 무시됩니다.
+
+이 정책은 <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 정책과 별개입니다. <ph name="AI_MODE_SETTINGS_POLICY_NAME" /> 정책은 검색주소창 또는 NTP 검색창의 진입점만 제어하는 반면, 이 정책은 측면 패널 또는 탭을 통한 컨텍스트 공유를 제어합니다.
+
+또한 이 정책은 <ph name="GEMINI_SETTINGS_POLICY_NAME" />에서 사용 중지할 수 있는 <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> 통합은 제어하지 않습니다.
+
+정책을 설정하지 않으면 <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> 정책에 따라 동작이 결정됩니다.
+
+생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="4783415902268741066">브라우저 측면 패널에 가장 최근의 기본 검색엔진 결과 페이지가 표시되도록 허용합니다.</translation>
 <translation id="4786784434769279324">컴퓨터가 유휴 상태일 때 실행할 작업</translation>
 <translation id="4787763197941188108">기본 인쇄 페이지 크기를 재정의합니다.
@@ -6585,6 +6635,20 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 <translation id="5395778184390568113">Home/End '6팩' 키를 트리거하는 데 사용되는 단축키를 제어합니다.</translation>
 <translation id="5396322417222266779">사용자가 시스템 바로가기를 맞춤설정하도록 허용</translation>
 <translation id="5398387276166014955">서드 파티 코드가 Chrome에 삽입되도록 허용</translation>
+<translation id="5399022269499105814">URL 패턴 목록입니다. 로컬 기기와 일치하는 출처에 의해 게재된 웹사이트에서 시작한 네트워크 요청은 <ph name="LOCAL_NETWORK_ACCESS" /> 요청을 발행할 수 없습니다.
+
+여기 명시된 패턴에 해당하지 않는 출처에는 사용자의 개인 설정이 적용됩니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세요.
+
+<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 https://wicg.github.io/local-network-access/ 페이지를 참고하세요.
+
+로컬 기기에 대한 요청에 영향을 미치는 출처를 나열하는 정책이 여러 개 있습니다. 출처가 다음 정책 중 둘 이상과 일치하는 경우 정책은 다음 순서로 우선 적용됩니다.
+
+  - LoopbackNetworkBlockedForUrls
+  - LoopbackNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="5401574762248900530"><ph name="CLASS_TOOLS_NAME" /> 뷰 화면 기능 구성</translation>
 <translation id="5401696449591951427"><ph name="CHROME_DEVICES_LINK" /> 사용 설정</translation>
 <translation id="5404749470367600971">접근성 성능 필터링을 허용합니다.</translation>
@@ -7161,13 +7225,6 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5746149754419996562"><ph name="PRODUCT_OS_NAME" />에서 한눈에 보기 위젯을 사용하도록 설정합니다. 구체적으로는 앱 표시줄의 날짜 칩을 통해 액세스할 수 있는 위젯입니다.
 이 정책을 사용 설정하면 <ph name="PRODUCT_OS_NAME" />에서 한눈에 보기가 사용 설정됩니다.
 이 정책을 사용 중지하거나 설정하지 않으면 <ph name="PRODUCT_OS_NAME" />에서 한눈에 보기가 사용 설정되지 않습니다.</translation>
-<translation id="5747628966013559697"><ph name="PRODUCT_NAME" />에서 기본적인 생성형 AI 모델을 다운로드하고 로컬에서 추론에 사용하는 방법을 구성합니다.
-
-정책을 허용됨(0)으로 설정하거나 설정하지 않으면 모델이 자동으로 다운로드되어 추론에 사용됩니다.
-
-정책을 사용 안 함(1)으로 설정하면 모델이 다운로드되지 않습니다.
-
-데스크톱 플랫폼의 경우 <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />에서 모델 다운로드를 사용 중지할 수도 있습니다.</translation>
 <translation id="5749396052108288586">지원 중단된 정책입니다. 대신 <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" /> 정책을 사용하세요.</translation>
 <translation id="574983287620584622">로그인 화면에서 접근성 기능 단축키 사용 설정</translation>
 <translation id="5755002458331714762"> Web Components v0 API(Shadow DOM v0, Custom Elements v0, HTML Imports)는 2018년에 지원 중단되었으며 M80부터는 기본적으로 사용 중지되어 있습니다. 이 정책을 사용하면 위에서 언급된 기능을 M84까지 선택적으로 다시 사용 설정할 수 있습니다.
@@ -7189,6 +7246,7 @@ Microsoft SharePoint 및 OneDrive 카드에는 추가 관리자 구성이 필요
 <translation id="5766438888216077649"><ph name="BLANK_PAGE_NAME" />을(를) 타겟팅하는 링크의 경우 <ph name="WINDOW_OPENER_PROPERTY" /> 속성을 설정하지 않음</translation>
 <translation id="5767776869128458023">대체 오류 페이지 사용 중지</translation>
 <translation id="5770738360657678870">개발자 채널(불안정할 수 있음)</translation>
+<translation id="5772841828612966342">사용 설정됨: XSLT가 명시적으로 사용 설정되었습니다.</translation>
 <translation id="5774345930803672932">정책을 True로 설정하거나 설정하지 않은 채로 두면 이벤트, 원격 분석, 정보가 암호화된 보고 파이프라인에 보고됩니다. 정책을 False로 설정하면 암호화된 보고 파이프라인이 사용 중지됩니다.</translation>
 <translation id="5774856474228476867">기본 검색 공급자 검색 URL</translation>
 <translation id="5775235485119094648">고정 범위에 해당할 때 배터리를 충전합니다.</translation>
@@ -7651,6 +7709,7 @@ false로 설정되면 기능에 액세스할 수 없습니다.</translation>
 참고: 새로 시작된 렌더기 프로세스만 브라우저가 실행되는 동안 이 정책의 변경사항을 반영합니다.</translation>
 <translation id="6083281887050888160">'Just Works' 블루투스 페어링 사용 설정</translation>
 <translation id="6083631234867522991">Windows(Windows 클라이언트):</translation>
+<translation id="6085580138417523410">명시적 위임 없이 서브프레임에서 로컬 네트워크 액세스(LNA) 요청 허용</translation>
 <translation id="6087413944876892918"><ph name="HAPPY_EYEBALLS_V3" /> 알고리즘 사용</translation>
 <translation id="608788685013546076">전력 피크 시프트 배터리 임계값을 퍼센트로 설정</translation>
 <translation id="6089679180657323464">Wilco 진단 및 텔레메트리 컨트롤러 설정을 제어합니다.</translation>
@@ -9874,6 +9933,11 @@ URL 패턴은 <ph name="WEB_PRINTING_ALLOWED_FOR_URLS_POLICY_NAME" /> 정책과 
 <translation id="7410074797376205571"><ph name="CHROME_REMOTE_DESKTOP_PRODUCT_NAME" />이(가) 원격 호스트에서 프록시된 WebAuthn API 요청을 실행하도록 허용합니다.</translation>
 <translation id="7412456346709338637">Thunderbolt/USB4 주변기기 데이터 액세스 사용 설정</translation>
 <translation id="7414890119082492552">환경설정 없음.</translation>
+<translation id="7416222110012824615">이 정책은 XSLT 기능(XSLTProcessor JavaScript API 및 XSL 처리 안내)의 사용 가능 여부를 제어합니다.
+이 정책을 사용 설정으로 설정하면 브라우저의 기능 기본 상태와 관계없이 XSLT를 사용할 수 있습니다.
+이 정책을 사용 안함으로 설정하면 브라우저의 기능 기본 상태와 관계없이 XSLT를 사용할 수 없습니다.
+정책을 설정하지 않으면 브라우저의 기본 설정 및 필드 체험판에 따라 XSLT 사용 가능 여부가 결정됩니다.
+이 정책은 일시적인 조치이며 M164에서 삭제될 예정입니다.</translation>
 <translation id="7417438464912687020">이 시스템으로 원격 액세스 연결을 허용</translation>
 <translation id="7417972229667085380">프레젠테이션 모드에서 유휴 지연 시간이 조정되는 비율(지원 중단됨)</translation>
 <translation id="7421230730436851224">오디오 처리를 샌드박스로 실행하지 않음</translation>
@@ -9914,6 +9978,7 @@ Kyber 제공 서비스는 이전 버전과 호환됩니다. 기존 TLS 서버 �
 정책을 설정하지 않으면 일반 사용자를 대상으로 정책을 '<ph name="ALLOWED_NAME" />'로 설정하는 것과 기능적으로 동일합니다. 엔터프라이즈 사용자의 정책을 설정하지 않은 경우 기본값은 '<ph name="DISALLOWED_NAME" />'입니다.</translation>
 <translation id="7438982301540282785"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> 설정 자동화</translation>
 <translation id="7443356543619955157">정책을 설정하면 <ph name="PRODUCT_OS_NAME" /> 기기의 모든 사용자에게 네트워크 구성을 푸시할 수 있습니다. 네트워크 구성은 공개 네트워크 구성 형식에 정의된 JSON 형식 문자열입니다.</translation>
+<translation id="744349502210151344">기본값: XSLT 사용 가능 여부는 브라우저 기본값 및 필드 테스트에 따라 결정됩니다.</translation>
 <translation id="7446978687387327623">세이프 브라우징 프록시 실시간 검사 허용</translation>
 <translation id="7448430478749155471">로그인 화면에서 텍스트 읽어주기 사용</translation>
 <translation id="7455912144588577399">정책을 true로 설정하면 사용자가 텍스트 음성 변환을 사용하여 대상 웹페이지를 소리 내어 읽어주기를 할 수 있습니다. 이 기능은 서버 측 콘텐츠 정제 및 오디오 합성을 통해 제공됩니다. false로 설정하면 이 기능이 사용 중지됩니다. 이 정책이 기본값으로 설정되거나 설정되지 않으면 소리 내어 읽어주기가 사용 설정됩니다.</translation>
@@ -10130,6 +10195,20 @@ URL 패턴은 <ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FOR_URLS_P
           정책을 False로 설정하거나 설정하지 않으면 사용자의 잠금 및 로그인 화면에 PIN 자동 제출 기능이 표시되지 않습니다.
 
           정책을 설정하면 사용자가 이 기능을 사용 설정할 수 없습니다.</translation>
+<translation id="7609566862616914296">URL 패턴 목록입니다. 로컬 네트워크 엔드포인트와 일치하는 출처에 의해 게재된 웹사이트에서 시작한 네트워크 요청은 <ph name="LOCAL_NETWORK_ACCESS" /> 요청을 발행할 수 없습니다.
+
+여기 명시된 패턴에 해당하지 않는 출처에는 사용자의 개인 설정이 적용됩니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세요.
+
+<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 https://wicg.github.io/local-network-access/ 페이지를 참고하세요.
+
+로컬 네트워크 엔드포인트에 대한 요청에 영향을 미치는 출처를 나열하는 정책이 여러 개 있습니다. 출처가 다음 정책 중 둘 이상과 일치하는 경우 정책은 다음 순서로 우선 적용됩니다.
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="7612030083959326401"><ph name="PASSWORD_MANAGER_NAME" />(저장 및 입력)을 사용 중지할 도메인 목록을 구성합니다.</translation>
 <translation id="7612059745454194563">Credential Provider Extension Promo를 표시하도록 허용 안함</translation>
 <translation id="7612157962821894603"><ph name="PRODUCT_NAME" /> 시작 시 시스템 전체 플래그 적용</translation>
@@ -10217,6 +10296,7 @@ URL 패턴은 <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> 정책과 
 <translation id="7669630878711068277">정책을 사용 설정하거나 설정하지 않으면 사용자가 <ph name="PRODUCT_NAME" />에서 인쇄할 수 있으며, 이 설정을 변경할 수 없습니다.
 
       사용 중지하면 사용자가 <ph name="PRODUCT_NAME" />에서 인쇄할 수 없습니다. 점 3개로 된 메뉴, 확장 프로그램, 자바스크립트 애플리케이션에서는 인쇄 기능이 사용 중지됩니다.</translation>
+<translation id="7672510074688643558">명시적 위임 없이 서브프레임에서 LNA 요청 허용</translation>
 <translation id="7673194325208122247">기간(밀리초)</translation>
 <translation id="7677220829878081413">
       이 정책을 ArcSession으로 설정하면 Android가 시작되었을 때 사용자가 로그아웃하면 기기가 강제로 재부팅됩니다.
@@ -10315,6 +10395,7 @@ URL 패턴은 <ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> 정책과 
 <translation id="7719808201797990069">탭 삭제 관련 URL 패턴 예외</translation>
 <translation id="7721944091689270995"><ph name="PLUGIN_VM_NAME" /> 사용자 ID</translation>
 <translation id="7728486978686128364">DELETE/GET/HEAD/OPTIONS/POST/PUT을 제외한 요청 메서드를 대문자로 표시하지 않음</translation>
+<translation id="7729564356092798350">사이트에서 로컬 네트워크 엔드포인트로 네트워크 요청을 보내는 것을 차단합니다.</translation>
 <translation id="7731026922044991970">모든 사이트에서 쿠키의 레거시 <ph name="ATTRIBUTE_SAMESITE_NAME" /> 동작으로 되돌리기</translation>
 <translation id="7732907212083471072">삭제된 정책</translation>
 <translation id="7734212505800048991">
@@ -10806,6 +10887,20 @@ URL 패턴이 검사 중인 페이지의 URL과 일치합니다. 일치하는 �
 <translation id="8056273037819805106"><ph name="PRODUCT_OS_NAME" /> 로그인 사용자 인증 정보가 관리 프록시 네트워크 인증에 사용됩니다.</translation>
 <translation id="8056800559672904373">관리 계정은 기본 계정이어야 하고 보조 계정이 없어야 하며 프로필 생성 시 기존 인터넷 사용 기록을 가져오도록 허용됨</translation>
 <translation id="8059164285174960932">원격 액세스 클라이언트가 인증 토큰을 확보해야 하는 URL</translation>
+<translation id="8059262352692096329">URL 패턴 목록입니다. 로컬 기기와 일치하는 출처에 의해 게재된 웹사이트에서 시작한 네트워크 요청은 <ph name="LOCAL_NETWORK_ACCESS" /> 확인 대상이 아닙니다.
+
+여기 명시된 패턴에 해당하지 않는 출처에는 사용자의 개인 설정이 적용됩니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세요.
+
+<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 https://wicg.github.io/local-network-access/ 페이지를 참고하세요.
+
+로컬 기기에 대한 요청에 영향을 미치는 출처를 나열하는 정책이 여러 개 있습니다. 출처가 다음 정책 중 둘 이상과 일치하는 경우 정책은 다음 순서로 우선 적용됩니다.
+
+  - LoopbackNetworkBlockedForUrls
+  - LoopbackNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="8059352177830050556">기기 백라이트 정보 보고 사용 설정</translation>
 <translation id="8062485064082966327">익명의 Google 서비스를 통해 라벨이 지정되지 않은 이미지에 자동 생성된 설명 제공</translation>
 <translation id="8066428282805800713">ChromeOS Flex에서 추가 하드웨어 데이터 전송</translation>
@@ -11098,6 +11193,22 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
 
 기존 기술에 관한 자세한 정보는 https://chromestatus.com/features에서 확인할 수 있습니다.</translation>
 <translation id="8273183018575414926">프로그레시브 웹 앱</translation>
+<translation id="8274053052968966211">URL 패턴 목록입니다. 일치하는 출처에 의해 게재된 웹사이트에서 시작한 네트워크 요청은 <ph name="LOCAL_NETWORK_ACCESS" /> 요청을 발행할 수 없습니다.
+
+여기 명시된 패턴에 해당하지 않는 출처에는 사용자의 개인 설정이 적용됩니다.
+
+유효한 URL 패턴에 관한 자세한 내용은 https://chromeenterprise.google/policies/url-patterns/ 페이지를 참고하세요.
+
+<ph name="LOCAL_NETWORK_ACCESS" /> 제한사항에 관한 내용은 https://wicg.github.io/local-network-access/ 페이지를 참고하세요.
+
+로컬 기기 및 로컬 네트워크 엔드포인트에 대한 요청에 영향을 미치는 출처를 나열하는 정책이 여러 개 있습니다. 출처가 다음 정책 중 둘 이상과 일치하는 경우 정책은 다음 순서로 우선 적용됩니다.
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LoopbackNetworkAccessBlockedForUrls
+  - LoopbackNetworkAccessAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="8274603902181597201">사용자의 ecryptfs 홈 디렉터리를 삭제하고 ext4로 암호화된 새 홈 디렉터리로 시작합니다.</translation>
 <translation id="8274926413890711289">상세 보고 제어 사용</translation>
 <translation id="8275103737670730746">이전 사용자 동작 없이 파일 또는 디렉터리 선택 도구 API를 호출할 수 있도록 허용</translation>
@@ -11134,6 +11245,7 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
           최소/최대 범위를 벗어난 값으로 설정하면 호스트가 시작되지 않을 수 있습니다.
 
           클립보드 크기의 실제 상한값은 정책으로 제어할 수 없는 최대 WebRTC 데이터 채널 메시지 크기를 따릅니다.</translation>
+<translation id="8294127013911518331">XSLT 기능의 사용 가능 여부 제어</translation>
 <translation id="8294750666104911727">일반적으로 X-UA-호환성이 chrome=1로 설정된 페이지는 'ChromeFrameRendererSettings' 정책에 관계없이 <ph name="PRODUCT_FRAME_NAME" />에서 렌더링됩니다.
 
           이 설정을 사용하도록 설정하면 메타 태그에 대해 페이지가 스캔되지 않습니다.
@@ -11384,6 +11496,7 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
 <translation id="8477885780684655676">TLS 1.0</translation>
 <translation id="8479032202539686055">WebRTC가 최상의 경로를 검색할 때 가능한 모든 인터페이스를 사용합니다.</translation>
 <translation id="8479496880635054740">로그인 화면에서 접근성 가상 키보드 사용 중지</translation>
+<translation id="8482513475154035196">사이트에서 로컬 네트워크 엔드포인트로 네트워크 요청을 보낼 수 있도록 허용합니다.</translation>
 <translation id="8482518340010585741">로그인 시 앱 복원을 구성합니다.</translation>
 <translation id="8483004350080020634">https:// URL의 개인 정보 보호 및 보안 관련 민감한 부분을 제거한 후 프록시 확인 시 <ph name="PRODUCT_NAME" />에 의해 사용된 PAC 스크립트(Proxy 자동 설정)에 전달합니다.
 
@@ -11517,6 +11630,7 @@ Windows에서는 GPO를 통해 정책을 설정하는 것이 좋습니다. 하�
 
 생성형 AI 기능의 데이터 처리에 관한 자세한 내용은 https://support.google.com/chrome/a?p=generative_ai_settings 페이지를 참고하세요.</translation>
 <translation id="8533145294731270627">악성 다운로드와 위험한 파일 형식을 차단합니다.</translation>
+<translation id="8540083431549244064">사이트에서 로컬 기기 및 로컬 네트워크 엔드포인트로 네트워크 요청을 보내는 것을 차단합니다.</translation>
 <translation id="8543108307976719751">이 시스템으로 원격 액세스 연결을 차단</translation>
 <translation id="8543639085146778837">Google 서비스에서 WebRTC 텍스트 로그 수집 허용</translation>
 <translation id="8543975123557636331">오디오 출력 사용 설정</translation>
@@ -11888,6 +12002,7 @@ False로 설정되면 관련 웹사이트 세트 기능이 사용 중지됩니�
 <translation id="8807313206348471682">로그아웃 확인 대화상자 표시</translation>
 <translation id="8807728576820212213">렌즈 통합 사용 설정</translation>
 <translation id="8809082103104823938">그림 이모티콘 선택 도구에서 GIF 지원</translation>
+<translation id="8809276335775270751">사용 중지됨: XSLT가 명시적으로 사용 중지되었습니다.</translation>
 <translation id="8812091410765157924">팝업이 열리는 페이지가 팝업 상호작용을 명시적으로 수락하는 경우 <ph name="BLANK_PAGE_NAME" /> 대상으로 열리는 팝업만 팝업을 표시하는 페이지와 상호작용하도록 허용</translation>
 <translation id="8812631362927615118">사용자 보안 신호를 보고할 때 퍼스트 파티 인증 사용 설정</translation>
 <translation id="8816370949847593408">지원 중단 출시 상태에 따라 Chrome 앱이 실행되지 않을 수도 있습니다.</translation>
@@ -12482,6 +12597,7 @@ https://chromeenterprise.google/policies/url-patterns 페이지를 참고하세�
 <translation id="9200828125069750521">POST를 사용하는 이미지 URL용 매개변수</translation>
 <translation id="9204520300236345497">사이트에서 보호된 콘텐츠 식별자를 사용하도록 허용하며, 이를 통해 보호된 콘텐츠 재생 품질을 높일 수 있습니다.</translation>
 <translation id="9204863016826119209">회사 키가 설치되고 이 정책 목록에 포함된 Android 애플리케이션에서 사용할 수 있습니다.</translation>
+<translation id="9206364386317031168">사이트에서 로컬 기기로 네트워크 요청을 보낼 수 있도록 허용합니다.</translation>
 <translation id="9206472508136116830">NetBIOS 공유 검색 허용 안함</translation>
 <translation id="9207596996305971030">로그인/로그아웃 이벤트 보고하지 않음</translation>
 <translation id="9210647066889383361">사용자가 Smart Lock으로 기기에 로그인하도록 허용</translation>

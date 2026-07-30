@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Incorporado en <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Presiona Apps &gt; Apps predeterminadas</translation>
 <translation id="1272079795634619415">Interrumpir</translation>
+<translation id="1275718070701477396">Seleccionada</translation>
 <translation id="1289742167380433257">Para ahorrar datos, Google optimizó las imágenes de esta página.</translation>
 <translation id="129382876167171263">Aquí se mostrarán los archivos que guarden los sitios web</translation>
 <translation id="131112695174432497">Se borran los datos que afectan la personalización de anuncios</translation>
@@ -495,6 +496,7 @@ La Protección avanzada controla estos parámetros de configuración de Chrome:
 <translation id="6085954183010297841">¿Quieres borrar la autorización de edición de archivos? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Cuando esta opción está activada, los sitios pueden ingresar automáticamente al modo de pantalla en pantalla. Cuando está desactivada, los sitios no pueden ingresar automáticamente al modo de pantalla en pantalla.</translation>
 <translation id="6120483543004435978">Cuando esta opción está activada, los sitios pueden solicitar saber si estás usando activamente el dispositivo. Cuando está desactivada, los sitios no pueden saber si estás usando activamente el dispositivo.</translation>
+<translation id="6132075343662013154">Chrome te ofrecerá guardar la contraseña</translation>
 <translation id="615886654739818377">No permitir que los sitios administren las ventanas de todas tus pantallas</translation>
 <translation id="6165508094623778733">Más información</translation>
 <translation id="6171020522141473435">Cuando esta opción está activada, los sitios pueden solicitar permiso para usar dispositivos Bluetooth. Cuando está desactivada, los sitios no pueden usar dispositivos Bluetooth.</translation>

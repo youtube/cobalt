@@ -1018,7 +1018,6 @@ mega_cq_excluded_builders = [
     # created for them.
     "android-arm64-archive-rel",
     "linux-chromeos-archive-rel",
-    "linux-rel-test-selection",
 ]
 
 mega_cq_excluded_gardener_rotations = [
@@ -1087,6 +1086,10 @@ standalone_trybot_excluded_builders = [
     "linux-utr-tester",
     "mac-utr-tester",
     "win-utr-tester",
+    # The autotest tester doesn't currently support CI-try mirroring.
+    "linux-autotest-tester",
+    "mac-autotest-tester",
+    "win-autotest-tester",
 ]
 
 standalone_trybot_excluded_builder_groups = [

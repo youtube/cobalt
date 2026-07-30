@@ -16,6 +16,7 @@
 #include "services/network/public/cpp/url_loader_factory_builder.h"
 #include "services/network/public/mojom/url_loader.mojom.h"
 #include "services/network/public/mojom/url_loader_factory.mojom.h"
+#include "url/origin.h"
 
 namespace enterprise_auth {
 
@@ -39,10 +40,15 @@ class ProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
       ChromeContentBrowserClient::URLLoaderFactoryType type,
       network::URLLoaderFactoryBuilder& factory_builder);
 
-  // Checks if request matches pattern of Okta's SSO URL request, which is:
-  // POST
-  // https://<DOMAIN>/idp/idx/authenticators/sso_extension/transactions/<ID>/verify
-  static bool IsOktaSSORequest(const network::ResourceRequest& request);
+  // While alive all requests executed by
+  // URLSessionURLLoader will return 200 OK with
+  // |URLSessionURLLoader::kTestServerResponseBody|.
+  // There should every only be one instance of this object.
+  class ScopedURLSessionOverrideForTesting {
+   public:
+    ScopedURLSessionOverrideForTesting();
+    ~ScopedURLSessionOverrideForTesting();
+  };
 
   // network::mojom::URLLoaderFactory:
   void CreateLoaderAndStart(
@@ -61,15 +67,19 @@ class ProxyingURLLoaderFactory : public network::mojom::URLLoaderFactory {
   ProxyingURLLoaderFactory(
       mojo::PendingReceiver<network::mojom::URLLoaderFactory> receiver,
       mojo::PendingRemote<network::mojom::URLLoaderFactory> target_factory,
-      base::flat_set<std::string> configured_hosts);
+      base::flat_set<std::string> configured_hosts,
+      const url::Origin& request_initiator);
 
   void OnTargetFactoryDisconnect();
 
   void OnProxyDisconnect();
 
+  bool ShouldInterceptRequest(const network::ResourceRequest& request);
+
   base::flat_set<std::string> configured_hosts_;
   mojo::ReceiverSet<network::mojom::URLLoaderFactory> proxy_receivers_;
   mojo::Remote<network::mojom::URLLoaderFactory> target_factory_;
+  const url::Origin request_initiator_;
 
   inline void SetDestructionCallbackForTesting(
       base::OnceCallback<void()> callback) {

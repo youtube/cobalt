@@ -52,12 +52,6 @@ BASE_FEATURE(kRealboxCr23Theming,
              "NtpRealboxCr23Theming",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// If enabled, the NTP "realbox" will have same border/drop shadow in hover
-// state as searchbox.
-BASE_FEATURE(kRealboxMatchSearchboxTheme,
-             "NtpRealboxMatchSearchboxTheme",
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
 // If enabled, the real search box ("realbox") on the New Tab page will show a
 // Google (g) icon instead of the typical magnifying glass (aka loupe).
 BASE_FEATURE(kRealboxUseGoogleGIcon,
@@ -99,9 +93,6 @@ BASE_FEATURE(kNtpDriveModuleHistorySyncRequirement,
 // If enabled, segmentation data will be collected to decide whether or not to
 // show the Drive module.
 BASE_FEATURE(kNtpDriveModuleSegmentation, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// If enabled, six files show in the NTP Drive module, instead of three.
-BASE_FEATURE(kNtpDriveModuleShowSixFiles, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, logo will be shown.
 // This is a kill switch. Keep indefinitely.

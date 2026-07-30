@@ -6,8 +6,36 @@
   /* Indentation for the nested content of the 3rd radio button */
   .settings-box.indent {
     padding-inline-start: var(--cr-button-height);
-    padding-bottom: 12px;
     padding-top: 0;
+  }
+
+  controlled-radio-button {
+    column-gap: 16px;
+    padding-block-start: var(--cr-section-vertical-padding, 12px);
+    padding-inline: 20px;
+  }
+
+  controlled-radio-button:last-of-type {
+    padding-block-end: var(--cr-section-vertical-padding, 12px);
+  }
+
+  controlled-radio-button::part(labelWrapper) {
+    align-items: center;
+    display: flex;
+  }
+
+  controlled-radio-button[toggle-unchecked]::part(labelWrapper),
+  controlled-radio-button[disabled]::part(labelWrapper) {
+    color: var(--cr-secondary-text-color);
+  }
+
+  controlled-radio-button[toggle-unchecked]::part(disc) {
+    --cr-radio-button-checked-color: var(--color-radio-foreground-disabled,
+        var(--cr-fallback-color-disabled-foreground));
+    --cr-radio-button-unchecked-color:
+        var(--color-radio-foreground-disabled,
+            var(--cr-fallback-color-disabled-foreground));
+    opacity: var(--cr-disabled-opacity);
   }
 
   /* Make the dropdown take full width of its container */
@@ -34,10 +62,6 @@
     flex-direction: column;
     width: 100%;
   }
-
-  #secureDnsRadioGroup {
-    padding-inline-start: var(--cr-section-indent-width);
-  }
 </style>
 
 <security-page-feature-row
@@ -60,19 +84,22 @@
           id="automaticRadioButton"
           name="[[resolverTypeEnum_.AUTOMATIC]]"
           pref="[[prefs.dns_over_https.mode]]"
-          label="$i18n{securitySecureDnsDefault}">
+          label="$i18n{securitySecureDnsDefault}"
+          toggle-unchecked$="[[!secureDnsTogglePref_.value]]">
       </controlled-radio-button>
       <controlled-radio-button
           id="fallbackRadioButton"
           name="[[resolverTypeEnum_.FALLBACK]]"
           pref="[[prefs.dns_over_https.automatic_mode_fallback_to_doh]]"
-          label="$i18n{securitySecureDnsFallback}">
+          label="$i18n{securitySecureDnsFallback}"
+          toggle-unchecked$="[[!secureDnsTogglePref_.value]]">
       </controlled-radio-button>
       <controlled-radio-button
           id="customRadioButton"
           name="[[resolverTypeEnum_.CUSTOM]]"
           pref="[[prefs.dns_over_https.templates]]"
-          label="$i18n{securitySecureDnsCustom}">
+          label="$i18n{securitySecureDnsCustom}"
+          toggle-unchecked$="[[!secureDnsTogglePref_.value]]">
         <div class="settings-box indent">
           <div class="flex-column">
             <select id="resolverSelect"

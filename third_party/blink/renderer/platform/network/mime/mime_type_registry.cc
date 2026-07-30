@@ -65,22 +65,24 @@ STATIC_ASSERT_ENUM(MIMETypeRegistry::kMaybeSupported,
 
 }  // namespace
 
-String MIMETypeRegistry::GetMIMETypeForExtension(const String& ext) {
+String MIMETypeRegistry::GetMIMETypeForExtension(const StringView& ext_view) {
   // The sandbox restricts our access to the registry, so we need to proxy
   // these calls over to the browser process.
   DEFINE_STATIC_LOCAL(MimeRegistryPtrHolder, registry_holder, ());
+  String ext = ext_view.IsNull() ? g_empty_string : ext_view.ToString();
   String mime_type;
-  if (!registry_holder.mime_registry->GetMimeTypeFromExtension(
-          ext.IsNull() ? "" : ext, &mime_type)) {
+  if (!registry_holder.mime_registry->GetMimeTypeFromExtension(ext,
+                                                               &mime_type)) {
     return String();
   }
   return mime_type;
 }
 
-String MIMETypeRegistry::GetWellKnownMIMETypeForExtension(const String& ext) {
+String MIMETypeRegistry::GetWellKnownMIMETypeForExtension(
+    const StringView& ext) {
   // This method must be thread safe and should not consult the OS/registry.
   std::string mime_type;
-  net::GetWellKnownMimeTypeFromExtension(WebStringToFilePath(ext).value(),
+  net::GetWellKnownMimeTypeFromExtension(StringViewToFilePath(ext).value(),
                                          &mime_type);
   return String::FromUTF8(mime_type);
 }

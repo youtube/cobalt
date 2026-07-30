@@ -2,8 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include "base/test/scoped_feature_list.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "third_party/blink/public/common/features.h"
 #include "third_party/blink/renderer/core/frame/local_frame.h"
+#include "third_party/blink/renderer/core/frame/visual_viewport.h"
 #include "third_party/blink/renderer/core/html/html_iframe_element.h"
 #include "third_party/blink/renderer/core/layout/layout_embedded_content.h"
 #include "third_party/blink/renderer/core/layout/layout_text.h"
@@ -1992,6 +1995,146 @@ TEST_P(VisualRectMappingTest, FractionalSnapping) {
   EXPECT_TRUE(b->MapToVisualRectInAncestorSpace(
       &GetLayoutView(), b_visual_rect_mapper, kUseGeometryMapper));
   EXPECT_EQ(PhysicalRect(75, 0, 100, 100), b_visual_rect_mapper);
+}
+
+TEST_P(VisualRectMappingTest,
+       ViewportMappingIsConsistentWithAndWithoutGeometryMapperUnderPinchZoom) {
+  // Regression test for a slow-path bug: viewport mapping (ancestor == nullptr)
+  // should produce the same result with and without the GeometryMapper fast
+  // path, even when pinch-zoom is active.
+  base::test::ScopedFeatureList scoped_feature_list;
+  scoped_feature_list.InitAndEnableFeature(
+      blink::features::kVisualRectMappingApplyLocalVisualViewportTransform);
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      body { margin: 0; }
+      #target {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 50px;
+        height: 50px;
+        background: green;
+      }
+    </style>
+    <div id="target"></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+
+  // Simulate pinch-zoom by changing the visual viewport scale and location.
+  // The location is in CSS pixels.
+  VisualViewport& visual_viewport =
+      GetDocument().GetPage()->GetVisualViewport();
+  visual_viewport.SetScaleAndLocation(2.f, /*is_pinch_gesture_active=*/true,
+                                      gfx::PointF(0, 20));
+  UpdateAllLifecyclePhasesForTest();
+
+  auto* target = GetLayoutObjectByElementId("target");
+  ASSERT_TRUE(target);
+
+  constexpr VisualRectFlags kBaseFlags = static_cast<VisualRectFlags>(
+      kIgnoreFilters | kVisualRectApplyRemoteViewportTransform);
+
+  gfx::RectF slow_path_rect(0, 0, 50, 50);
+  ASSERT_TRUE(target->MapToVisualRectInAncestorSpace(nullptr, slow_path_rect,
+                                                     kBaseFlags));
+
+  constexpr VisualRectFlags kGeomFlags =
+      static_cast<VisualRectFlags>(kBaseFlags | kUseGeometryMapper);
+  gfx::RectF geometry_mapper_rect(0, 0, 50, 50);
+  ASSERT_TRUE(target->MapToVisualRectInAncestorSpace(
+      nullptr, geometry_mapper_rect, kGeomFlags));
+
+  EXPECT_EQ(gfx::ToEnclosingRect(slow_path_rect),
+            gfx::ToEnclosingRect(geometry_mapper_rect));
+}
+
+TEST_P(VisualRectMappingTest,
+       ViewportMappingAppliesVisualViewportTransformButClipsToLayoutViewport) {
+  // This test documents a potentially surprising behavior for viewport mapping
+  // (ancestor == nullptr):
+  //
+  // Layout viewport vs visual viewport:
+  // - Layout viewport: the viewport used for layout and scrolling.
+  // - Visual viewport: what the user actually sees. It can be offset relative
+  //   to the layout viewport (for example while browser controls animate in/out
+  //   during scroll on mobile, or during pinch-zoom).
+  //
+  // - Under pinch-zoom, viewport mapping applies the visual viewport transform
+  //   (page scale and visual viewport location), so the final mapped rect is
+  //   expressed in visual-viewport coordinates.
+  // - Viewport clipping is still applied in layout-viewport space
+  //   (LayoutView::ViewRect()).
+  //
+  // IMPORTANT: This mixes two viewports in one API call: the returned
+  // coordinates are in visual-viewport space, but clipping uses the layout
+  // viewport. This can be surprising.
+  //
+  // As a result, when the visual viewport origin is offset relative to the
+  // layout viewport origin, the mapped rect can be clipped even though
+  // coordinates are defined relative to the visual viewport.
+  //
+  // Example (like this test):
+  // - The element is at the layout-viewport origin (top: 0).
+  // - The visual viewport is shifted down (e.g. location.y = 20 CSS px under
+  //   pinch-zoom).
+  // - After applying the visual viewport transform, the element's visual-
+  //   viewport-relative y becomes negative (it is "above" the visual viewport
+  //   origin).
+  // - Clipping still uses the layout viewport rect (y >= 0), so the negative-y
+  //   portion is removed.
+  SetBodyInnerHTML(R"HTML(
+    <style>
+      body { margin: 0; }
+      #target {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 50px;
+        height: 50px;
+        background: green;
+      }
+    </style>
+    <div id="target"></div>
+  )HTML");
+  UpdateAllLifecyclePhasesForTest();
+
+  VisualViewport& visual_viewport =
+      GetDocument().GetPage()->GetVisualViewport();
+  visual_viewport.SetScaleAndLocation(2.f, /*is_pinch_gesture_active=*/true,
+                                      gfx::PointF(0, 20));
+  UpdateAllLifecyclePhasesForTest();
+
+  auto* target = GetLayoutObjectByElementId("target");
+  ASSERT_TRUE(target);
+
+  constexpr VisualRectFlags kBaseFlags = static_cast<VisualRectFlags>(
+      kIgnoreFilters | kVisualRectApplyRemoteViewportTransform);
+
+  gfx::RectF slow_path_rect(0, 0, 50, 50);
+  ASSERT_TRUE(target->MapToVisualRectInAncestorSpace(nullptr, slow_path_rect,
+                                                     kBaseFlags));
+
+  constexpr VisualRectFlags kGeomFlags =
+      static_cast<VisualRectFlags>(kBaseFlags | kUseGeometryMapper);
+  gfx::RectF geometry_mapper_rect(0, 0, 50, 50);
+  ASSERT_TRUE(target->MapToVisualRectInAncestorSpace(
+      nullptr, geometry_mapper_rect, kGeomFlags));
+
+  // Both implementations should exhibit the same two-viewport behavior.
+  const gfx::Rect slow_path_enclosing = gfx::ToEnclosingRect(slow_path_rect);
+  const gfx::Rect geometry_mapper_enclosing =
+      gfx::ToEnclosingRect(geometry_mapper_rect);
+  EXPECT_EQ(slow_path_enclosing, geometry_mapper_enclosing);
+
+  // Pinch-zoom scale should affect viewport mapping.
+  EXPECT_GT(slow_path_enclosing.width(), 50);
+  EXPECT_GT(slow_path_enclosing.height(), 50);
+
+  // Viewport clipping is applied in layout-viewport space. The visual viewport
+  // is shifted down by 20 CSS px at 2.0x, so the top portion is clipped.
+  EXPECT_EQ(slow_path_enclosing.y(), 0);
+  EXPECT_LT(slow_path_enclosing.height(), slow_path_enclosing.width());
 }
 
 }  // namespace blink

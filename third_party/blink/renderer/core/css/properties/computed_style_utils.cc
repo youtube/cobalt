@@ -1075,7 +1075,8 @@ CSSPrimitiveValue* ComputedStyleUtils::ValueForFontStretch(
 }
 
 CSSValue* ComputedStyleUtils::ValueForFontStyle(const ComputedStyle& style) {
-  FontSelectionValue angle = style.GetFontDescription().Style();
+  FontSelectionValue angle =
+      style.GetFontDescription().Style().ClampToObliqueRange();
   if (angle == kNormalSlopeValue) {
     return CSSIdentifierValue::Create(CSSValueID::kNormal);
   }
@@ -2823,27 +2824,27 @@ CSSValue* ComputedStyleUtils::ValueForAnimationTriggerBehaviorList(
                                   &ValueForAnimationTriggerBehavior);
 }
 
-CSSValue* ComputedStyleUtils::ValueForTimelineTriggerEntryRangeStartList(
+CSSValue* ComputedStyleUtils::ValueForTimelineTriggerActivationRangeStartList(
     const CSSAnimationData* animation_data,
     const ComputedStyle& style) {
   return ValueForAnimationRangeList(
       animation_data
-          ? animation_data->TimelineTriggerEntryRangeStartList()
+          ? animation_data->TimelineTriggerActivationRangeStartList()
           : Vector<std::optional<
                 TimelineOffset>>{CSSAnimationData::
-                                     InitialTimelineTriggerEntryRangeStart()},
+                                     InitialTimelineTriggerActivationRangeStart()},
       style, Length::Percent(0.0));
 }
 
-CSSValue* ComputedStyleUtils::ValueForTimelineTriggerEntryRangeEndList(
+CSSValue* ComputedStyleUtils::ValueForTimelineTriggerActivationRangeEndList(
     const CSSAnimationData* animation_data,
     const ComputedStyle& style) {
   return ValueForAnimationRangeList(
       animation_data
-          ? animation_data->TimelineTriggerEntryRangeEndList()
+          ? animation_data->TimelineTriggerActivationRangeEndList()
           : Vector<std::optional<
                 TimelineOffset>>{CSSAnimationData::
-                                     InitialTimelineTriggerEntryRangeEnd()},
+                                     InitialTimelineTriggerActivationRangeEnd()},
       style, Length::Percent(100.0));
 }
 

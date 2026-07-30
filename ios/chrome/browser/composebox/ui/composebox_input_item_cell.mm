@@ -11,6 +11,7 @@
 #import "base/strings/utf_string_conversions.h"
 #import "ios/chrome/browser/composebox/public/composebox_constants.h"
 #import "ios/chrome/browser/composebox/ui/composebox_input_item_view.h"
+#import "ios/chrome/browser/composebox/ui/composebox_ui_constants.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
@@ -131,6 +132,7 @@ const CGFloat kCloseButtonAlpha = 0.9;
   _inputItemView.backgroundColor = theme.inputItemBackgroundColor;
 
   self.isAccessibilityElement = YES;
+  self.accessibilityIdentifier = kComposeboxCarouselItemAccessibilityIdentifier;
   switch (item.type) {
     case ComposeboxInputItemType::kComposeboxInputItemTypeImage: {
       std::u16string pattern = l10n_util::GetStringUTF16(
@@ -219,6 +221,8 @@ const CGFloat kCloseButtonAlpha = 0.9;
 - (void)setupCloseButton {
   _closeButton = [UIButton buttonWithType:UIButtonTypeSystem];
   _closeButton.translatesAutoresizingMaskIntoConstraints = NO;
+  _closeButton.accessibilityIdentifier =
+      kComposeboxInputItemCellCloseButtonAccessibilityIdentifier;
   _closeButton.isAccessibilityElement = NO;
   [_closeButton addTarget:self
                    action:@selector(closeButtonTapped)

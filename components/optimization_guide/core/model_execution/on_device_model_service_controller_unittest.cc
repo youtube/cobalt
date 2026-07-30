@@ -16,6 +16,7 @@
 #include "base/strings/string_util.h"
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
+#include "base/test/power_monitor_test.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
@@ -1738,141 +1739,6 @@ TEST_F(OnDeviceModelServiceControllerTest,
   EXPECT_TRUE(broker_.launcher().did_launch_service());
   EXPECT_TRUE(base::test::RunUntil(
       [&]() { return !broker_.launcher().is_service_running(); }));
-}
-
-TEST_F(OnDeviceModelServiceControllerTest, RedactedField) {
-  auto config = SimpleComposeConfig();
-  config.set_can_skip_text_safety(true);
-  *config.mutable_output_config()->mutable_redact_rules() =
-      SimpleRedactRule("bar");
-  FakeAdaptationAsset compose_asset({.config = config});
-  Initialize({
-      .base_model_content = standard_assets_.base_model_content,
-      .adaptations = {&compose_asset},
-  });
-
-  // `foo` doesn't match the redaction, so should be returned.
-  auto session1 = CreateSession(SessionConfigParams{});
-  ASSERT_TRUE(session1);
-  session1->ExecuteModel(UserInputRequest("foo"),
-                         response_.GetStreamingCallback());
-  task_environment_.RunUntilIdle();
-  const std::string expected_response1 = "execute:foo max:1024";
-  EXPECT_EQ(*response_.value(), expected_response1);
-  EXPECT_THAT(response_.partials(), IsEmpty());
-
-  // Input and output contain text matching redact, so should not be redacted.
-  auto session2 = CreateSession(SessionConfigParams{});
-  ASSERT_TRUE(session2);
-  ResponseHolder response2;
-  session2->ExecuteModel(UserInputRequest("abarx"),
-                         response2.GetStreamingCallback());
-  task_environment_.RunUntilIdle();
-  const std::string expected_response2 = "execute:abarx max:1024";
-  EXPECT_EQ(*response2.value(), expected_response2);
-  EXPECT_THAT(response2.partials(), IsEmpty());
-
-  // Output contains redacted text (and  input doesn't), so redact.
-  broker_.service_settings().set_execute_result({"abarx max:1024"});
-  auto session3 = CreateSession(SessionConfigParams{});
-  ASSERT_TRUE(session3);
-  ResponseHolder response3;
-  session3->ExecuteModel(UserInputRequest("foo"),
-                         response3.GetStreamingCallback());
-  task_environment_.RunUntilIdle();
-  const std::string expected_response3 = "a[###]x max:1024";
-  EXPECT_EQ(*response3.value(), expected_response3);
-  EXPECT_THAT(response3.partials(), IsEmpty());
-}
-
-TEST_F(OnDeviceModelServiceControllerTest, RejectedField) {
-  auto config = SimpleComposeConfig();
-  config.set_can_skip_text_safety(true);
-  *config.mutable_output_config()->mutable_redact_rules() =
-      SimpleRedactRule("bar", proto::RedactBehavior::REJECT);
-  FakeAdaptationAsset compose_asset({.config = config});
-  Initialize({
-      .base_model_content = standard_assets_.base_model_content,
-      .safety = &standard_assets_.safety,
-      .language = &standard_assets_.language,
-      .adaptations = {&compose_asset},
-  });
-
-  auto session1 = CreateSession(SessionConfigParams{});
-  ASSERT_TRUE(session1);
-  session1->ExecuteModel(UserInputRequest("bar"),
-                         response_.GetStreamingCallback());
-  task_environment_.RunUntilIdle();
-  EXPECT_FALSE(response_.value());
-  ASSERT_TRUE(response_.error());
-  EXPECT_EQ(*response_.error(), OnDeviceError::kFiltered);
-  // Although we send an error, we should be sending a log entry back so the
-  // filtering can be logged.
-  ASSERT_TRUE(response_.model_execution_info());
-  EXPECT_GT(response_.model_execution_info()
-                ->on_device_model_execution_info()
-                .execution_infos_size(),
-            0);
-  EXPECT_EQ(response_.model_execution_info()
-                ->on_device_model_execution_info()
-                .execution_infos(0)
-                .response()
-                .on_device_model_service_response()
-                .status(),
-            proto::ON_DEVICE_MODEL_SERVICE_RESPONSE_STATUS_RETRACTED);
-}
-
-TEST_F(OnDeviceModelServiceControllerTest, UsePreviousResponseForRewrite) {
-  auto config = SimpleComposeConfig();
-  config.set_can_skip_text_safety(true);
-  *config.mutable_output_config()->mutable_redact_rules() =
-      SimpleRedactRule("bar");
-  // Add a rule that identifies `previous_response` of `rewrite_params`.
-  auto& output_config = *config.mutable_output_config();
-  auto& redact_rules = *output_config.mutable_redact_rules();
-  redact_rules.mutable_fields_to_check()->Add(PreviousResponseField());
-  FakeAdaptationAsset compose_asset({.config = config});
-  Initialize({
-      .base_model_content = standard_assets_.base_model_content,
-      .adaptations = {&compose_asset},
-  });
-
-  // Force 'bar' to be returned from model.
-  broker_.service_settings().set_execute_result({"bar max:1024"});
-
-  auto session = CreateSession(SessionConfigParams{});
-  ASSERT_TRUE(session);
-
-  session->ExecuteModel(RewriteRequest("bar"),
-                        response_.GetStreamingCallback());
-  task_environment_.RunUntilIdle();
-  // `bar` shouldn't be rewritten as it's in the input.
-  const std::string expected_response = "bar max:1024";
-  EXPECT_EQ(*response_.value(), expected_response);
-  EXPECT_THAT(response_.partials(), IsEmpty());
-}
-
-TEST_F(OnDeviceModelServiceControllerTest, ReplacementText) {
-  auto config = SimpleComposeConfig();
-  config.set_can_skip_text_safety(true);
-  *config.mutable_output_config()->mutable_redact_rules() =
-      SimpleRedactRule("bar", proto::REDACT_IF_ONLY_IN_OUTPUT, "[redacted]");
-  FakeAdaptationAsset compose_asset({.config = config});
-  Initialize({
-      .base_model_content = standard_assets_.base_model_content,
-      .adaptations = {&compose_asset},
-  });
-
-  // Output contains redacted text (and  input doesn't), so redact.
-  broker_.service_settings().set_execute_result({"abarx max:1024"});
-  auto session = CreateSession(SessionConfigParams{});
-  ASSERT_TRUE(session);
-  session->ExecuteModel(UserInputRequest("foo"),
-                        response_.GetStreamingCallback());
-  task_environment_.RunUntilIdle();
-  const std::string expected_response = "a[redacted]x max:1024";
-  EXPECT_EQ(*response_.value(), expected_response);
-  EXPECT_THAT(response_.partials(), IsEmpty());
 }
 
 TEST_F(OnDeviceModelServiceControllerTest, DetectsRepeats) {
@@ -3807,5 +3673,114 @@ TEST_F(OnDeviceModelServiceControllerTest, EvictModelForRankUpdate) {
   std::vector<uint32_t> expected_ranks{1, 32, 2};
   EXPECT_EQ(get_current_ranks(), expected_ranks);
 }
+
+// Test fixtures for background download experiments.
+struct BackgroundDownloadTestParams {
+  std::string test_name;
+  std::string allowed_features;
+  bool clear_usage_history = true;
+  std::optional<proto::ModelExecutionFeature> initialized_feature;
+  std::vector<std::pair<mojom::OnDeviceFeature, OnDeviceModelEligibilityReason>>
+      expectations;
+};
+
+class OnDeviceModelServiceControllerBackgroundDownloadTest
+    : public OnDeviceModelServiceControllerTest,
+      public testing::WithParamInterface<BackgroundDownloadTestParams> {};
+
+TEST_P(OnDeviceModelServiceControllerBackgroundDownloadTest, Run) {
+  const auto& params = GetParam();
+
+  if (params.clear_usage_history) {
+    broker_.local_state().ClearPref(
+        model_execution::prefs::localstate::kLastUsageByFeature);
+  }
+
+  base::test::ScopedPowerMonitorTestSource power_monitor_source;
+  // Set to external power so that `RegisterInstaller` is called and
+  // `GetOnDeviceModelState` returns kSuccess.
+  power_monitor_source.GeneratePowerStateEvent(
+      base::PowerStateObserver::BatteryPowerStatus::kExternalPower);
+
+  base::test::ScopedFeatureList feature_list;
+  if (!params.allowed_features.empty()) {
+    feature_list.InitAndEnableFeatureWithParameters(
+        features::kOnDeviceModelBackgroundDownload,
+        {{"allowed_features", params.allowed_features}});
+  } else {
+    feature_list.InitAndDisableFeature(
+        features::kOnDeviceModelBackgroundDownload);
+  }
+
+  if (params.initialized_feature) {
+    FakeAdaptationAsset fake_asset({.config = [&] {
+      auto config = SimpleComposeConfig();
+      config.set_feature(*params.initialized_feature);
+      config.set_can_skip_text_safety(true);
+      return config;
+    }()});
+    Initialize({
+        .base_model_content = standard_assets_.base_model_content,
+        .safety = nullptr,
+        .language = nullptr,
+        .adaptations = {&fake_asset},
+    });
+  }
+
+  for (const auto& [feature, expected] : params.expectations) {
+    EXPECT_EQ(
+        broker_.GetOrCreateBrokerState().GetOnDeviceModelEligibility(feature),
+        expected)
+        << "for feature: " << feature;
+  }
+  task_environment_.RunUntilIdle();
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    OnDeviceModelServiceControllerBackgroundDownloadTest,
+    testing::Values(
+        BackgroundDownloadTestParams{
+            .test_name = "EligibleIfBackgroundDownloadEnabled",
+            .allowed_features = "PromptApi,Summarize",
+            .initialized_feature = proto::MODEL_EXECUTION_FEATURE_PROMPT_API,
+            .expectations = {{mojom::OnDeviceFeature::kPromptApi,
+                              OnDeviceModelEligibilityReason::kSuccess},
+                             {mojom::OnDeviceFeature::kSummarize,
+                              OnDeviceModelEligibilityReason::
+                                  kConfigNotAvailableForFeature}}},
+        BackgroundDownloadTestParams{
+            .test_name =
+                "EligibilityReturnsPendingUsageIfFeatureDisabledInParam",
+            .allowed_features = "PromptApi",
+            .initialized_feature = proto::MODEL_EXECUTION_FEATURE_PROMPT_API,
+            .expectations =
+                {{mojom::OnDeviceFeature::kSummarize,
+                  OnDeviceModelEligibilityReason::kNoOnDeviceFeatureUsed},
+                 {mojom::OnDeviceFeature::kPromptApi,
+                  OnDeviceModelEligibilityReason::kSuccess}}},
+        BackgroundDownloadTestParams{
+            .test_name =
+                "EligibilityReturnsPendingUsageIfModelInstalledForOtherFeature",
+            .allowed_features = "PromptApi",
+            .clear_usage_history = false,
+            .initialized_feature = proto::MODEL_EXECUTION_FEATURE_COMPOSE,
+            .expectations =
+                {{mojom::OnDeviceFeature::kCompose,
+                  OnDeviceModelEligibilityReason::kSuccess},
+                 {mojom::OnDeviceFeature::kPromptApi,
+                  OnDeviceModelEligibilityReason::
+                      kConfigNotAvailableForFeature},
+                 {mojom::OnDeviceFeature::kSummarize,
+                  OnDeviceModelEligibilityReason::kNoOnDeviceFeatureUsed}}},
+        BackgroundDownloadTestParams{
+            .test_name =
+                "EligibilityReturnsNoFeatureUsedIfBackgroundDownloadDisabled",
+            .expectations =
+                {{mojom::OnDeviceFeature::kPromptApi,
+                  OnDeviceModelEligibilityReason::kNoOnDeviceFeatureUsed}}}),
+    [](const testing::TestParamInfo<BackgroundDownloadTestParams>& info) {
+      return info.param.test_name;
+    });
 
 }  // namespace optimization_guide

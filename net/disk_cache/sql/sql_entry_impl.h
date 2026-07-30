@@ -8,6 +8,7 @@
 #include <queue>
 #include <variant>
 
+#include "base/functional/callback_helpers.h"
 #include "base/memory/ref_counted.h"
 #include "base/memory/weak_ptr.h"
 #include "net/disk_cache/buildflags.h"
@@ -16,6 +17,7 @@
 #include "net/disk_cache/sql/entry_db_handle.h"
 #include "net/disk_cache/sql/entry_write_buffer.h"
 #include "net/disk_cache/sql/sql_persistent_store.h"
+#include "net/disk_cache/sql/sql_write_buffer_memory_monitor.h"
 #include "net/log/net_log_with_source.h"
 
 // This backend is experimental and only available when the build flag is set.
@@ -91,6 +93,13 @@ class NET_EXPORT_PRIVATE SqlEntryImpl final
   // Returns the holder for the resource ID or an error.
   const scoped_refptr<EntryDbHandle>& db_handle() const { return db_handle_; }
 
+  // Returns the new hints value if it has been modified via
+  // SetEntryInMemoryData(). This value might not yet be persisted to the
+  // database.
+  const std::optional<MemoryEntryDataHints>& new_hints() const {
+    return new_hints_;
+  }
+
   // Marks the entry as doomed. This is called by the backend when an
   // active entry is doomed.
   void MarkAsDoomed();
@@ -99,6 +108,11 @@ class NET_EXPORT_PRIVATE SqlEntryImpl final
 
   // Updates the `last_used_` timestamp to the current time.
   void UpdateLastUsed();
+
+  // Flushes the write buffer to the backend.
+  // When `force_flush_for_creation` is true, this flushes even when the write
+  // buffer is empty to create an entry in the DB.
+  void FlushBuffer(bool force_flush_for_creation);
 
  private:
   friend class base::RefCounted<SqlEntryImpl>;
@@ -122,15 +136,15 @@ class NET_EXPORT_PRIVATE SqlEntryImpl final
                        CompletionOnceCallback callback,
                        bool sparse_reading);
 
-  // Flushes the write buffer to the backend.
-  void FlushBuffer();
-
-  // Consolidates the write buffer and returns it, clearing the internal buffer
-  // state. Returns std::nullopt if the buffer is empty.
-  std::optional<EntryWriteBuffer> TakeWriteBuffer();
+  // Retrieves the write buffer and returns true if successful. If the buffer
+  // is empty, returns false. The `reservation` will be populated with the
+  // scoped reservation for the write buffer, which should be kept alive until
+  // the buffer is written to the backend.
+  bool TakeWriteBuffer(
+      EntryWriteBuffer& buffer,
+      SqlWriteBufferMemoryMonitor::ScopedReservation& reservation);
 
   base::WeakPtr<SqlBackendImpl> backend_;
-
   // The key for this cache entry.
   const CacheEntryKey key_;
 
@@ -167,6 +181,10 @@ class NET_EXPORT_PRIVATE SqlEntryImpl final
 
   // Buffers data for stream 1 writes.
   EntryWriteBuffer write_buffer_;
+
+  // A scoped reservation that holds the memory usage of `write_buffer_` in the
+  // `SqlWriteBufferMemoryMonitor`.
+  SqlWriteBufferMemoryMonitor::ScopedReservation write_buffer_reservation_;
 
   // A buffer containing data read beyond the requested range.
   scoped_refptr<net::IOBuffer> read_cache_buffer_;

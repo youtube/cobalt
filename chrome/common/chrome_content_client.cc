@@ -206,6 +206,7 @@ void ChromeContentClient::AddAdditionalSchemes(Schemes* schemes) {
 
 #if BUILDFLAG(IS_ANDROID)
   schemes->referrer_schemes.push_back(content::kAndroidAppScheme);
+  schemes->referrer_schemes.push_back(dom_distiller::kDomDistillerScheme);
 #endif
 
 #if BUILDFLAG(ENABLE_EXTENSIONS_CORE)
@@ -322,7 +323,7 @@ std::string ChromeContentClient::GetProcessTypeNameInEnglish(int type) {
 }
 
 blink::OriginTrialPolicy* ChromeContentClient::GetOriginTrialPolicy() {
-  // Prevent initialization race (see crbug.com/721144). There may be a
+  // Prevent initialization race (see crbug.com/41318781). There may be a
   // race when the policy is needed for worker startup (which happens on a
   // separate worker thread).
   base::AutoLock auto_lock(origin_trial_policy_lock_);

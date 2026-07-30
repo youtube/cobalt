@@ -45,7 +45,6 @@
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
 #include "build/buildflag.h"
-#include "components/url_pattern/simple_url_pattern_matcher.h"
 #include "components/viz/host/host_frame_sink_manager.h"
 #include "content/browser/agent_cluster_key.h"
 #include "content/browser/blob_storage/chrome_blob_storage_context.h"
@@ -1455,7 +1454,7 @@ std::unique_ptr<NavigationRequest> NavigationRequest::CreateRendererInitiated(
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
           /*commit_target_frame_token=*/std::nullopt,
           /*is_initial_webui=*/false,
-          /*permissions_policy_override=*/std::nullopt);
+          /*isolated_app_policy=*/std::nullopt);
 #if !BUILDFLAG(IS_ANDROID)
   CHECK(!GetContentClient()->browser()->IsInitialWebUIURL(common_params->url));
 #endif
@@ -1612,7 +1611,7 @@ NavigationRequest::CreateForSynchronousRendererCommit(
           /*navigation_metrics_token=*/base::UnguessableToken::Create(),
           /*commit_target_frame_token=*/std::nullopt,
           /*is_initial_webui=*/false,
-          /*permissions_policy_override=*/std::nullopt);
+          /*isolated_app_policy=*/std::nullopt);
   blink::mojom::BeginNavigationParamsPtr begin_params =
       blink::mojom::BeginNavigationParams::New();
   std::unique_ptr<NavigationRequest> navigation_request(new NavigationRequest(
@@ -1780,12 +1779,7 @@ NavigationRequest::NavigationRequest(
           frame_tree_node_->current_frame_host()
               ->GetSiteInstance()
               ->GetSiteURL());
-  bool is_reload_or_crash_recovery_from_initial_webui =
-      current_rfh_is_initial_webui &&
-      (IsReload() ||
-       !frame_tree_node_->current_frame_host()->IsRenderFrameLive());
-  CHECK(!current_rfh_is_initial_webui ||
-        is_reload_or_crash_recovery_from_initial_webui);
+  CHECK(!current_rfh_is_initial_webui || IsInitialWebUINavigation());
   if (IsInitialWebUINavigation()) {
     // Initial WebUI navigations must satisfy all these conditions
     // - Is browser initiated
@@ -1808,7 +1802,7 @@ NavigationRequest::NavigationRequest(
             .GetLastCommittedEntry()
             ->IsInitialEntry();
     CHECK(is_navigating_from_initial_empty_document ||
-          is_reload_or_crash_recovery_from_initial_webui);
+          current_rfh_is_initial_webui);
   }
 #endif
 
@@ -2141,9 +2135,13 @@ NavigationRequest::NavigationRequest(
             frame_tree_node_->current_frame_host())) {
       auto* storage_partition =
           frame_tree_node_->current_frame_host()->GetStoragePartition();
+
+      // TODO(crbug.com/447954811): pass the `network_restrictions_id` from the
+      // caller.
       storage_partition->GetNetworkContext()->PreconnectSockets(
           1, common_params_->url, network::mojom::CredentialsMode::kInclude,
           GetIsolationInfo().network_anonymization_key(),
+          /*network_restrictions_id=*/std::nullopt,
           net::MutableNetworkTrafficAnnotationTag(),
           /*keepalive_config=*/std::nullopt, mojo::NullRemote());
     }
@@ -7381,23 +7379,8 @@ bool NavigationRequest::IsAllowedByConnectionAllowlist() {
     return true;
   }
 
-  for (const auto& url_string :
-       policies->connection_allowlists.enforced->allowlist) {
-    auto matcher = url_pattern::SimpleUrlPatternMatcher::Create(
-        url_string, /*base_url=*/nullptr);
-    if (!matcher.has_value()) {
-      // TODO(crbug.com/447954811): This case should result in an issue
-      // delivered to the devtools console (and ideally we'd avoid it
-      // entirely by parsing these strings as URL Patterns when initially
-      // parsing the header rather than here when enforcing it).
-      continue;
-    }
-    if (matcher.value()->Match(common_params_->url)) {
-      return true;
-    }
-  }
-
-  return false;
+  return network::ConnectionAllowlistMatchesUrl(
+      policies->connection_allowlists.enforced.value(), common_params_->url);
 }
 
 bool NavigationRequest::IsAllowedByCSPDirective(
@@ -12128,7 +12111,27 @@ NavigationRequest::GenerateNavigationTimelineForMetrics(
     timeline.did_commit_ipc_received = timeline.commit_ipc_sent;
   }
 
+  // Populates information in `navigation_handle_timing_` from the
+  // `NavigationTimeline` so that it can be accessed by PageLoadMetricsObservers
+  // via `NavigationRequest::GetNavigationHandleTiming()`.
+  UpdateNavigationHandleTimingsFromNavigationTimeline(timeline);
+
   return timeline;
+}
+
+void NavigationRequest::UpdateNavigationHandleTimingsFromNavigationTimeline(
+    const NavigationRequest::Timeline& timeline) {
+  navigation_handle_timing_.user_interaction = timeline.user_interaction;
+
+  navigation_handle_timing_.actual_navigation_start = timeline.start;
+
+  navigation_handle_timing_.before_unload_dialog_duration =
+      std::max(base::TimeDelta(),
+               timeline.beforeunload_phase1_dialog_closed -
+                   timeline.beforeunload_phase1_dialog_opened) +
+      std::max(base::TimeDelta(),
+               timeline.beforeunload_phase2_dialog_closed -
+                   timeline.beforeunload_phase2_dialog_opened);
 }
 
 void NavigationRequest::SanitizeDocumentIsolationPolicyHeader() {

@@ -49,9 +49,6 @@ BASE_FEATURE(kBiometricTouchToFill, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCheckIfSubmittedFormIdenticalToObserved,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kCheckVisibilityInChangePasswordFormWaiter,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kClearUndecryptablePasswords,
 #if BUILDFLAG(IS_MAC) || BUILDFLAG(IS_IOS)
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -76,7 +73,7 @@ BASE_FEATURE(kCredentialManagementUnifiedUi, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kDebugUiForOtps, base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kDisableFillingOnPageLoadForLeakedCredentials,
+BASE_FEATURE(kDisablePasswordChangeFromNewPasswordFields,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)  // Desktop
@@ -98,12 +95,6 @@ BASE_FEATURE(kFillChangePasswordFormByTyping,
 BASE_FEATURE(kFillOnAccountSelect,
              "fill-on-account-select",
              base::FEATURE_DISABLED_BY_DEFAULT);
-
-#if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kFillRecoveryPassword, base::FEATURE_ENABLED_BY_DEFAULT);
-#endif
-
-BASE_FEATURE(kImprovedPasswordChangeService, base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_IOS)
 BASE_FEATURE(kIosCleanupHangingPasswordFormExtractionRequests,
@@ -158,8 +149,6 @@ BASE_FEATURE(kRestartToGainAccessToKeychain,
 BASE_FEATURE(kRunPasswordChangeInBackgroundTab,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kShowRecoveryPassword, base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kShowTabWithPasswordChangeOnSuccess,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -170,10 +159,6 @@ BASE_FEATURE(kSkipUndecryptablePasswords,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
-
-BASE_FEATURE(kStopLoginCheckOnFailedLogin, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kThrottlePasswordChangeDialog, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kTriggerPasswordResyncWhenUndecryptablePasswordsDetected,
              base::FEATURE_ENABLED_BY_DEFAULT);

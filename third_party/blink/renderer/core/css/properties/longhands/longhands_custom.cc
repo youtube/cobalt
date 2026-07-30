@@ -200,14 +200,9 @@ const CSSValue* PositionAnchor::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
-  if (RuntimeEnabledFeatures::CSSPositionAnchorNoneEnabled()) {
-    if (CSSValue* value =
-            css_parsing_utils::ConsumeIdent<CSSValueID::kNone>(stream)) {
-      return value;
-    }
-  }
   if (CSSValue* value =
-          css_parsing_utils::ConsumeIdent<CSSValueID::kAuto>(stream)) {
+          css_parsing_utils::ConsumeIdent<CSSValueID::kNone, CSSValueID::kAuto>(
+              stream)) {
     return value;
   }
   return css_parsing_utils::ConsumeDashedIdent(stream, context, local_context);
@@ -734,7 +729,7 @@ const CSSValue* TimelineTriggerName::InitialValue() const {
   return CSSIdentifierValue::Create(CSSValueID::kNone);
 }
 
-const CSSValue* TimelineTriggerEntryRangeStart::ParseSingleValue(
+const CSSValue* TimelineTriggerActivationRangeStart::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
@@ -744,20 +739,20 @@ const CSSValue* TimelineTriggerEntryRangeStart::ParseSingleValue(
 }
 
 const CSSValue*
-TimelineTriggerEntryRangeStart::CSSValueFromComputedStyleInternal(
+TimelineTriggerActivationRangeStart::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForTimelineTriggerEntryRangeStartList(
+  return ComputedStyleUtils::ValueForTimelineTriggerActivationRangeStartList(
       style.Animations(), style);
 }
 
-const CSSValue* TimelineTriggerEntryRangeStart::InitialValue() const {
+const CSSValue* TimelineTriggerActivationRangeStart::InitialValue() const {
   return CSSIdentifierValue::Create(CSSValueID::kNormal);
 }
 
-const CSSValue* TimelineTriggerEntryRangeEnd::ParseSingleValue(
+const CSSValue* TimelineTriggerActivationRangeEnd::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
     CSSParserLocalContext& local_context) const {
@@ -766,16 +761,17 @@ const CSSValue* TimelineTriggerEntryRangeEnd::ParseSingleValue(
       /* default_offset_percent */ 100.0, /*allow_auto=*/false);
 }
 
-const CSSValue* TimelineTriggerEntryRangeEnd::CSSValueFromComputedStyleInternal(
+const CSSValue*
+TimelineTriggerActivationRangeEnd::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return ComputedStyleUtils::ValueForTimelineTriggerEntryRangeEndList(
+  return ComputedStyleUtils::ValueForTimelineTriggerActivationRangeEndList(
       style.Animations(), style);
 }
 
-const CSSValue* TimelineTriggerEntryRangeEnd::InitialValue() const {
+const CSSValue* TimelineTriggerActivationRangeEnd::InitialValue() const {
   return CSSIdentifierValue::Create(CSSValueID::kNormal);
 }
 
@@ -7120,6 +7116,155 @@ const CSSValue* MarginTop::CSSValueFromComputedStyleInternal(
                                                              style);
 }
 
+// none |
+// [ block || inline ] |
+// [ block-start || inline-start || block-end || inline-end ]
+const CSSValue* MarginTrim::ParseSingleValue(CSSParserTokenStream& stream,
+                                             const CSSParserContext& context,
+                                             CSSParserLocalContext&) const {
+  MarginTrimMask margin_trim = 0;
+  auto add_flags = [&margin_trim](MarginTrimMask flags) {
+    if (margin_trim & flags) {
+      return false;
+    }
+    margin_trim |= flags;
+    return true;
+  };
+
+  CSSValueID id = stream.Peek().Id();
+  if (id == CSSValueID::kInvalid) {
+    return nullptr;
+  }
+  if (id == CSSValueID::kNone) {
+    // none
+    return css_parsing_utils::ConsumeIdent(stream);
+  } else if (id == CSSValueID::kBlock || id == CSSValueID::kInline) {
+    // [ block || inline ]
+    while (!stream.AtEnd()) {
+      id = stream.ConsumeIncludingWhitespace().Id();
+      if (id == CSSValueID::kBlock) {
+        if (!add_flags(kMarginTrimBlock)) {
+          return nullptr;
+        }
+      } else if (id == CSSValueID::kInline) {
+        if (!add_flags(kMarginTrimInline)) {
+          return nullptr;
+        }
+      } else {
+        return nullptr;
+      }
+    }
+  } else {
+    // [ block-start || inline-start || block-end || inline-end ]
+    while (!stream.AtEnd()) {
+      id = stream.ConsumeIncludingWhitespace().Id();
+      if (id == CSSValueID::kBlockStart) {
+        if (!add_flags(kMarginTrimBlockStart)) {
+          return nullptr;
+        }
+      } else if (id == CSSValueID::kInlineStart) {
+        if (!add_flags(kMarginTrimInlineStart)) {
+          return nullptr;
+        }
+      } else if (id == CSSValueID::kBlockEnd) {
+        if (!add_flags(kMarginTrimBlockEnd)) {
+          return nullptr;
+        }
+      } else if (id == CSSValueID::kInlineEnd) {
+        if (!add_flags(kMarginTrimInlineEnd)) {
+          return nullptr;
+        }
+      } else {
+        return nullptr;
+      }
+    }
+  }
+
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+  bool has_single_edges =
+      ((margin_trim & kMarginTrimBlock) &&
+       (margin_trim & kMarginTrimBlock) != kMarginTrimBlock) ||
+      ((margin_trim & kMarginTrimInline) &&
+       (margin_trim & kMarginTrimInline) != kMarginTrimInline);
+  if (has_single_edges) {
+    // At least one axis has only one edge present.
+    if (margin_trim & kMarginTrimBlockStart) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kBlockStart));
+    }
+    if (margin_trim & kMarginTrimInlineStart) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kInlineStart));
+    }
+    if (margin_trim & kMarginTrimBlockEnd) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kBlockEnd));
+    }
+    if (margin_trim & kMarginTrimInlineEnd) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kInlineEnd));
+    }
+  } else {
+    // Both edges for an axis are either present or absent.
+    if (margin_trim & kMarginTrimBlock) {
+      DCHECK_EQ((margin_trim & kMarginTrimBlock), kMarginTrimBlock);
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kBlock));
+    }
+    if (margin_trim & kMarginTrimInline) {
+      DCHECK_EQ((margin_trim & kMarginTrimInline), kMarginTrimInline);
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kInline));
+    }
+  }
+
+  DCHECK(list->length());
+  return list;
+}
+
+const CSSValue* MarginTrim::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  unsigned trim = style.MarginTrim();
+  if (!trim) {
+    return CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+  CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+
+  // If one axis only trims at only one edge, we need to output individual edges
+  // for the other axis, even if both edges are set there, because that's what
+  // valid syntax looks like.
+  bool needs_separate_edge_values =
+      ((trim & kMarginTrimBlock) &&
+       (trim & kMarginTrimBlock) != kMarginTrimBlock) ||
+      ((trim & kMarginTrimInline) &&
+       (trim & kMarginTrimInline) != kMarginTrimInline);
+
+  if (trim & kMarginTrimBlockStart) {
+    if ((trim & kMarginTrimBlockEnd) && !needs_separate_edge_values) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kBlock));
+    } else {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kBlockStart));
+    }
+  }
+
+  if (trim & kMarginTrimInlineStart) {
+    if ((trim & kMarginTrimInlineEnd) && !needs_separate_edge_values) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kInline));
+    } else {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kInlineStart));
+    }
+  }
+
+  if (needs_separate_edge_values) {
+    if (trim & kMarginTrimBlockEnd) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kBlockEnd));
+    }
+    if (trim & kMarginTrimInlineEnd) {
+      list->Append(*CSSIdentifierValue::Create(CSSValueID::kInlineEnd));
+    }
+  }
+
+  DCHECK(list->length());
+  return list;
+}
+
 const CSSValue* MarkerEnd::ParseSingleValue(
     CSSParserTokenStream& stream,
     const CSSParserContext& context,
@@ -8827,12 +8972,12 @@ const CSSValue* RowGap::CSSValueFromComputedStyleInternal(
   return ComputedStyleUtils::ValueForGapLength(style.RowGap(), style);
 }
 
-const CSSValue* GapRuleOverlap::CSSValueFromComputedStyleInternal(
+const CSSValue* RuleOverlap::CSSValueFromComputedStyleInternal(
     const ComputedStyle& style,
     const LayoutObject*,
     bool allow_visited_style,
     CSSValuePhase value_phase) const {
-  return CSSIdentifierValue::Create(style.GapRuleOverlap());
+  return CSSIdentifierValue::Create(style.RuleOverlap());
 }
 
 const CSSValue* Rx::ParseSingleValue(

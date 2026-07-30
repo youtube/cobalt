@@ -28,6 +28,7 @@
 #include <string_view>
 
 #include "third_party/blink/renderer/platform/wtf/text/string_builder.h"
+#include "third_party/blink/renderer/platform/wtf/text/string_to_number.h"
 #include "third_party/blink/renderer/platform/wtf/text/wtf_string.h"
 
 namespace blink {
@@ -299,7 +300,7 @@ bool MediaFragmentURIParser::ParseNPTTime(std::string_view time_string,
   // npt-ss        =   2DIGIT      ; 0-59
 
   String digits1 = CollectDigits(time_string, offset);
-  int value1 = digits1.ToInt();
+  int value1 = StringToInt(digits1).value_or(0);
   if (offset >= time_string.size() || time_string[offset] == ',') {
     time = value1;
     return true;
@@ -311,7 +312,7 @@ bool MediaFragmentURIParser::ParseNPTTime(std::string_view time_string,
       return true;
     }
     String digits = CollectFraction(time_string, offset);
-    fraction = digits.ToDouble();
+    fraction = StringToDouble(digits).value_or(0);
     time = value1 + fraction;
     return true;
   }
@@ -328,7 +329,7 @@ bool MediaFragmentURIParser::ParseNPTTime(std::string_view time_string,
     return false;
   }
   String digits2 = CollectDigits(time_string, offset);
-  int value2 = digits2.ToInt();
+  int value2 = StringToInt(digits2).value_or(0);
   if (digits2.length() != 2)
     return false;
 
@@ -357,7 +358,7 @@ bool MediaFragmentURIParser::ParseNPTTime(std::string_view time_string,
     String digits3 = CollectDigits(time_string, offset);
     if (digits3.length() != 2)
       return false;
-    value3 = digits3.ToInt();
+    value3 = StringToInt(digits3).value_or(0);
     if (value2 > 59 || value3 > 59) {
       return false;
     }
@@ -368,7 +369,7 @@ bool MediaFragmentURIParser::ParseNPTTime(std::string_view time_string,
   }
 
   if (offset < time_string.size() && time_string[offset] == '.') {
-    fraction = CollectFraction(time_string, offset).ToDouble();
+    fraction = StringToDouble(CollectFraction(time_string, offset)).value_or(0);
   }
 
   const int kSecondsPerHour = 3600;

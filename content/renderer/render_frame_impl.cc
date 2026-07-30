@@ -2593,7 +2593,6 @@ void RenderFrameImpl::CommitNavigation(
     const blink::DocumentToken& document_token,
     const base::UnguessableToken& devtools_navigation_token,
     const base::Uuid& base_auction_nonce,
-    const std::optional<network::ParsedPermissionsPolicy>& permissions_policy,
     blink::mojom::PolicyContainerPtr policy_container,
     mojo::PendingRemote<blink::mojom::CodeCacheHost> code_cache_host,
     mojo::PendingRemote<blink::mojom::CodeCacheHost>
@@ -6993,7 +6992,6 @@ WebView* RenderFrameImpl::CreateNewWindow(
 
   if (reply->widget_screen_rect.has_value() &&
       reply->window_screen_rect.has_value()) {
-    CHECK(base::FeatureList::IsEnabled(blink::features::kCombineNewWindowIPCs));
     web_view->MainFrameWidget()->SetScreenRects(*reply->widget_screen_rect,
                                                 *reply->window_screen_rect);
   } else {

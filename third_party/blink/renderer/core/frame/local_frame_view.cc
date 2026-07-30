@@ -44,7 +44,6 @@
 #include "cc/base/features.h"
 #include "cc/input/main_thread_scrolling_reason.h"
 #include "cc/layers/picture_layer.h"
-#include "cc/paint/canvas_draw_element_ids.h"
 #include "cc/tiles/frame_viewer_instrumentation.h"
 #include "cc/trees/layer_tree_host.h"
 #include "cc/view_transition/view_transition_request.h"
@@ -99,7 +98,6 @@
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
 #include "third_party/blink/renderer/core/highlight/highlight_registry.h"
 #include "third_party/blink/renderer/core/html/anchor_element_viewport_position_tracker.h"
-#include "third_party/blink/renderer/core/html/canvas/html_canvas_element.h"
 #include "third_party/blink/renderer/core/html/fenced_frame/document_fenced_frames.h"
 #include "third_party/blink/renderer/core/html/fenced_frame/html_fenced_frame_element.h"
 #include "third_party/blink/renderer/core/html/forms/text_control_element.h"
@@ -170,7 +168,6 @@
 #include "third_party/blink/renderer/platform/bindings/script_forbidden_scope.h"
 #include "third_party/blink/renderer/platform/fonts/font_performance.h"
 #include "third_party/blink/renderer/platform/graphics/compositing/paint_artifact_compositor.h"
-#include "third_party/blink/renderer/platform/graphics/compositor_element_id.h"
 #include "third_party/blink/renderer/platform/graphics/dark_mode_settings_builder.h"
 #include "third_party/blink/renderer/platform/graphics/graphics_context.h"
 #include "third_party/blink/renderer/platform/graphics/paint/cull_rect.h"
@@ -244,26 +241,6 @@ void LogCursorSizeCounter(LocalFrame* frame, const ui::Cursor& cursor) {
 // confuse users expecting a new page to appear after navigation and the omnibar
 // has updated the url display.
 constexpr int kCommitDelayDefaultInMs = 500;  // 30 frames @ 60hz
-
-void CollectCanvasDrawElementIds(
-    PaintLayer* layer,
-    cc::AllCanvasDrawElementIds& all_canvas_draw_element_ids) {
-  auto* element = DynamicTo<Element>(layer->GetLayoutObject().GetNode());
-  auto* canvas = element
-                     ? DynamicTo<HTMLCanvasElement>(element->parentElement())
-                     : nullptr;
-  // If `element` is a direct child of a canvas with the layoutsubtree attr.
-  if (canvas && element->IsInCanvasSubtree() && canvas->layoutSubtree()) {
-    auto canvas_id = CompositorElementIdFromDOMNodeId(canvas->GetDomNodeId());
-    auto element_id = CompositorElementIdFromDOMNodeId(element->GetDomNodeId());
-    all_canvas_draw_element_ids[canvas_id][element_id] =
-        element->GetIdAttribute().Utf8();
-  }
-  for (PaintLayer* child = layer->FirstChild(); child;
-       child = child->NextSibling()) {
-    CollectCanvasDrawElementIds(child, all_canvas_draw_element_ids);
-  }
-}
 
 }  // namespace
 
@@ -1100,22 +1077,21 @@ LayoutSVGRoot* LocalFrameView::EmbeddedReplacedContent() const {
 LocalFrameView::NaturalSizeLayoutScope::NaturalSizeLayoutScope(
     LocalFrameView* view) {
   const gfx::Size layout_size = view->GetLayoutSize();
-  if (!view->layout_height_for_natural_size_) {
+  if (!view->layout_size_for_natural_size_) {
     // If this is the first time, save the height and return. This will be the
     // "consistent ICB" size.
-    view->layout_height_for_natural_size_ = layout_size.height();
+    view->layout_size_for_natural_size_ = layout_size;
     return;
   }
-  if (*view->layout_height_for_natural_size_ == layout_size.height()) {
+  if (*view->layout_size_for_natural_size_ == layout_size) {
     return;
   }
 
   view_ = view;
   is_fixed_to_frame_size_ = view->LayoutSizeFixedToFrameSize();
-  height_ = layout_size.height();
+  saved_layout_size_ = layout_size;
   view->SetLayoutSizeFixedToFrameSize(false);
-  view->SetLayoutSizeInternal(
-      {layout_size.width(), *view->layout_height_for_natural_size_});
+  view->SetLayoutSizeInternal(*view->layout_size_for_natural_size_);
 }
 
 LocalFrameView::NaturalSizeLayoutScope::~NaturalSizeLayoutScope() {
@@ -1124,7 +1100,7 @@ LocalFrameView::NaturalSizeLayoutScope::~NaturalSizeLayoutScope() {
   }
   view_->SetLayoutSizeFixedToFrameSize(is_fixed_to_frame_size_);
   if (!is_fixed_to_frame_size_) {
-    view_->SetLayoutSizeInternal({view_->GetLayoutSize().width(), height_});
+    view_->SetLayoutSizeInternal(saved_layout_size_);
   }
 }
 
@@ -1592,6 +1568,8 @@ void LocalFrameView::ScheduleRelayoutOfSubtree(LayoutObject* relayout_root) {
 
     if (GetPage()->Animator().IsServicingAnimations())
       Lifecycle().EnsureStateAtMost(DocumentLifecycle::kStyleClean);
+  } else {
+    relayout_root->DumpForBug478682594();
   }
   DEVTOOLS_TIMELINE_TRACE_EVENT_INSTANT_WITH_CATEGORIES(
       TRACE_DISABLED_BY_DEFAULT("devtools.timeline"), "InvalidateLayout",
@@ -3221,29 +3199,10 @@ void LocalFrameView::PushPaintArtifactToCompositor(bool repainted) {
   }
 #endif
 
-  cc::AllCanvasDrawElementIds all_canvas_draw_element_ids;
-  if (RuntimeEnabledFeatures::CanvasDrawElementEnabled()) {
-    ForAllNonThrottledLocalFrameViews([&all_canvas_draw_element_ids](
-                                          LocalFrameView& frame_view) {
-      // Skip canvas draw elements from detached frames, or any subframe of
-      // a detached frame.
-      if (!frame_view.IsAttached() && !frame_view.GetFrame().IsLocalRoot()) {
-        return false;
-      }
-      if (auto* frame_layout_view = frame_view.GetLayoutView()) {
-        if (PaintLayer* root_layer = frame_layout_view->Layer()) {
-          CollectCanvasDrawElementIds(root_layer, all_canvas_draw_element_ids);
-        }
-      }
-      return true;
-    });
-  }
-
   paint_artifact_compositor_->Update(
       paint_controller_persistent_data_->GetPaintArtifact(),
       viewport_properties, scroll_translation_nodes,
-      std::move(view_transition_requests),
-      std::move(all_canvas_draw_element_ids));
+      std::move(view_transition_requests));
 }
 
 void LocalFrameView::AppendViewTransitionRequests(

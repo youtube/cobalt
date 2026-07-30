@@ -230,14 +230,14 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
         }
         ContentView contentView = ContentView.createContentView(this, mWebContents);
         mThinWebView = ThinWebViewFactory.create(this, new ThinWebViewConstraints(), windowAndroid);
-        mThinWebView.attachWebContents(
-                mWebContents, contentView, new DocumentPictureInPictureWebContentsDelegate());
         mWebContents.setDelegates(
                 VersionInfo.getProductVersion(),
                 ViewAndroidDelegate.createBasicDelegate(contentView),
                 contentView,
                 windowAndroid,
                 WebContents.createDefaultInternalsHolder());
+        mThinWebView.attachWebContents(
+                mWebContents, contentView, new DocumentPictureInPictureWebContentsDelegate());
 
         View rootLayout =
                 getLayoutInflater().inflate(R.layout.document_picture_in_picture_main_layout, null);
@@ -254,6 +254,7 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
                         findViewById(R.id.document_picture_in_picture_header),
                         assumeNonNull(mAppHeaderCoordinator),
                         assumeNonNull(mAppThemeColorProvider),
+                        /* context= */ this,
                         /* delegate= */ this,
                         !assumeNonNull(mWindowOptions).disallowReturnToOpener,
                         // TODO(crbug.com/479456911): Dynamically set the security level and
@@ -263,7 +264,7 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
                         SecurityStateModel.getMaliciousContentStatusForWebContents(mWebContents),
                         mParentWebContents.getVisibleUrl());
 
-        if (ChromeFeatureList.isEnabled(ChromeFeatureList.AUTO_DOC_PIP_PERMISSION_PROMPT_ANDROID)) {
+        if (ChromeFeatureList.sAutoDocPipPermissionPromptAndroid.isEnabled()) {
             WebContents webContents = mParentWebContents;
             if (webContents != null
                     && AutoPictureInPicturePermissionController.isAutoPictureInPictureInUse(
@@ -345,6 +346,12 @@ public class DocumentPictureInPictureActivity extends AsyncInitializationActivit
         if (mWebContents != null) {
             mWebContents.destroy();
             mWebContents = null;
+        }
+
+        if (ChromeFeatureList.sAutoDocPipPermissionPromptAndroid.isEnabled()
+                && mParentWebContents != null
+                && !mParentWebContents.isDestroyed()) {
+            AutoPictureInPicturePermissionController.handleWindowDestruction(mParentWebContents);
         }
 
         if (mInitiatorTabObserver != null && mInitiatorTab != null) {

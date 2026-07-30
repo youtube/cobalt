@@ -22,6 +22,7 @@
 #include "chrome/browser/ui/tabs/saved_tab_groups/tab_group_action_context_desktop.h"
 #include "chrome/browser/ui/tabs/tab_group_model.h"
 #include "chrome/browser/ui/tabs/tab_group_theme.h"
+#include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/bookmarks/saved_tab_groups/saved_tab_group_tabs_menu_model.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/favicon/core/favicon_service.h"
@@ -39,6 +40,8 @@ static constexpr int kUIUpdateIconSize = 16;
 
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(STGTabsMenuModel, kDeleteGroupMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(STGTabsMenuModel, kLeaveGroupMenuItem);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(STGTabsMenuModel,
+                                      kConvertToBookmarkMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(STGTabsMenuModel,
                                       kMoveGroupToNewWindowMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(STGTabsMenuModel, kOpenGroup);
@@ -63,9 +66,13 @@ void STGTabsMenuModel::Build(
     base::RepeatingCallback<int()> get_next_command_id) {
   command_id_to_action_.clear();
   should_enable_move_menu_item_ = true;
+  should_enable_open_menu_item_ = true;
   sync_id_ = saved_group.saved_guid();
-
   // Add item: open in browser.
+  if (saved_group.local_group_id().has_value()) {
+    should_enable_open_menu_item_ = false;
+  }
+
   int latest_command_id = get_next_command_id.Run();
   AddItemWithStringIdAndIcon(
       latest_command_id, IDS_OPEN_GROUP_IN_BROWSER_MENU,
@@ -141,6 +148,22 @@ void STGTabsMenuModel::Build(
                            sync_id_.value()});
   }
 
+  if (!saved_group.is_shared_tab_group() &&
+      features::IsTabGroupMenuImprovementsEnabled()) {
+    latest_command_id = get_next_command_id.Run();
+    AddItemWithStringIdAndIcon(
+        latest_command_id,
+        IDS_TAB_GROUP_HEADER_CXMENU_CONVERT_GROUP_TO_BOOKMARK_FOLDER,
+        ui::ImageModel::FromVectorIcon(kBookmarkAllTabsChromeRefreshIcon,
+                                       ui::kColorMenuIcon, kUIUpdateIconSize));
+    SetElementIdentifierAt(GetIndexOfCommandId(latest_command_id).value(),
+                           kConvertToBookmarkMenuItem);
+    command_id_to_action_.emplace(
+        latest_command_id,
+        TabGroupMenuAction{TabGroupMenuAction::Type::CONVERT_TO_BOOKMARK,
+                           sync_id_.value()});
+  }
+
   // Add a separator and title.
   AddSeparator(ui::NORMAL_SEPARATOR);
   AddTitleWithStringId(IDS_TABS_TITLE_CXMENU);
@@ -186,15 +209,17 @@ void STGTabsMenuModel::Build(
     const Browser* const browser_with_local_group_id =
         SavedTabGroupUtils::GetBrowserWithTabGroupId(
             saved_group.local_group_id().value());
-    const TabStripModel* const tab_strip_model =
-        browser_with_local_group_id->tab_strip_model();
+    if (browser_with_local_group_id) {
+      const TabStripModel* const tab_strip_model =
+          browser_with_local_group_id->tab_strip_model();
 
-    // Show the menu item if there are tabs outside of the saved group.
-    should_enable_move_menu_item_ =
-        tab_strip_model->count() !=
-        tab_strip_model->group_model()
-            ->GetTabGroup(saved_group.local_group_id().value())
-            ->tab_count();
+      // Show the menu item if there are tabs outside of the saved group.
+      should_enable_move_menu_item_ =
+          tab_strip_model->count() !=
+          tab_strip_model->group_model()
+              ->GetTabGroup(saved_group.local_group_id().value())
+              ->tab_count();
+    }
   }
 }
 
@@ -209,6 +234,9 @@ bool STGTabsMenuModel::IsCommandIdEnabled(int command_id) const {
   CHECK(it != command_id_to_action_.end());
   if (it->second.type == TabGroupMenuAction::Type::OPEN_OR_MOVE_TO_NEW_WINDOW) {
     return should_enable_move_menu_item_;
+  }
+  if (it->second.type == TabGroupMenuAction::Type::OPEN_IN_BROWSER) {
+    return should_enable_open_menu_item_;
   }
   return true;
 }

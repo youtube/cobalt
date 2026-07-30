@@ -152,8 +152,9 @@ void DelayedOneTimeMessageCallbackHelper(
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
           context, CreatePerContextData::kDontCreateIfMissing);
-  if (!data)
+  if (!data) {
     return;
+  }
 
   // Retrieve the CallbackID from v8 that we set when we created the callback.
   v8::Local<v8::String> callback_id_v8_string = info.Data().As<v8::String>();
@@ -432,8 +433,9 @@ bool OneTimeMessageHandler::HasPort(ScriptContext* script_context,
       GetPerContextData<OneTimeMessageContextData>(
           script_context->v8_context(),
           CreatePerContextData::kDontCreateIfMissing);
-  if (!data)
+  if (!data) {
     return false;
+  }
   return port_id.is_opener ? data->openers.contains(port_id)
                            : data->receivers.contains(port_id);
 }
@@ -466,8 +468,9 @@ v8::Local<v8::Promise> OneTimeMessageHandler::SendMessage(
   if (wants_response) {
     // If this is a promise based request no callback should have been passed
     // in.
-    if (async_type == binding::AsyncResponseType::kPromise)
+    if (async_type == binding::AsyncResponseType::kPromise) {
       DCHECK(response_callback.IsEmpty());
+    }
 
     APIRequestHandler::RequestDetails details =
         bindings_system_->api_system()->request_handler()->AddPendingRequest(
@@ -616,7 +619,6 @@ OneTimeMessageHandler::CreateListenerErrorCallback(const PortId& port_id) {
 
 void OneTimeMessageHandler::OnAllCallbacksCollected(
     ScriptContext* script_context,
-    v8::Local<v8::Context> context,
     const PortId& port_id) {
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
@@ -655,12 +657,14 @@ bool OneTimeMessageHandler::DeliverMessageToReceiver(
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
           context, CreatePerContextData::kDontCreateIfMissing);
-  if (!data)
+  if (!data) {
     return handled;
+  }
 
   auto iter = data->receivers.find(target_port_id);
-  if (iter == data->receivers.end())
+  if (iter == data->receivers.end()) {
     return handled;
+  }
 
   handled = true;
   OneTimeReceiver& port = iter->second;
@@ -748,12 +752,14 @@ bool OneTimeMessageHandler::DeliverReplyToOpener(ScriptContext* script_context,
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
           v8_context, CreatePerContextData::kDontCreateIfMissing);
-  if (!data)
+  if (!data) {
     return handled;
+  }
 
   auto iter = data->openers.find(target_port_id);
-  if (iter == data->openers.end())
+  if (iter == data->openers.end()) {
     return handled;
+  }
 
   handled = true;
 
@@ -783,8 +789,16 @@ bool OneTimeMessageHandler::DeliverReplyToOpener(ScriptContext* script_context,
   }
 
   v8::LocalVector<v8::Value> args(isolate, {v8_message});
+
+  // Keep a WeakPtr, since `CompleteRequest` may destroy the context / `this`.
+  base::WeakPtr<OneTimeMessageHandler> weak_this = weak_factory_.GetWeakPtr();
+
   bindings_system_->api_system()->request_handler()->CompleteRequest(
       port.request_id, args, error);
+
+  if (!weak_this) {
+    return handled;
+  }
 
   bindings_system_->messaging_service()->CloseMessagePort(
       script_context, target_port_id, /*close_channel=*/true);
@@ -802,12 +816,14 @@ bool OneTimeMessageHandler::DisconnectReceiver(ScriptContext* script_context,
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
           context, CreatePerContextData::kDontCreateIfMissing);
-  if (!data)
+  if (!data) {
     return handled;
+  }
 
   auto iter = data->receivers.find(port_id);
-  if (iter == data->receivers.end())
+  if (iter == data->receivers.end()) {
     return handled;
+  }
 
   handled = true;
   // With the channel closed, clean up the receiver port and its pending
@@ -830,12 +846,14 @@ bool OneTimeMessageHandler::DisconnectOpener(ScriptContext* script_context,
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
           v8_context, CreatePerContextData::kDontCreateIfMissing);
-  if (!data)
+  if (!data) {
     return handled;
+  }
 
   auto iter = data->openers.find(port_id);
-  if (iter == data->openers.end())
+  if (iter == data->openers.end()) {
     return handled;
+  }
 
   handled = true;
 
@@ -880,9 +898,6 @@ void OneTimeMessageHandler::CloseReceiverMessagePortOrChannel(
     const PortId& port_id,
     bool close_channel,
     std::optional<std::string> error) {
-  // With the message port closing callbacks aren't allowed to be called after
-  // this point so proactively clean them up.
-  callback_manager_->ClearCallbackDataForPortId(script_context, port_id);
 
   // If there was an error send it back to the message sender.
   if (close_channel && error) {
@@ -909,14 +924,16 @@ void OneTimeMessageHandler::OnOneTimeMessageResponse(
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
           context, CreatePerContextData::kDontCreateIfMissing);
-  if (!data)
+  if (!data) {
     return;
+  }
 
   auto iter = data->receivers.find(port_id);
   // The channel may already be closed (if a listener replied (promise rejected)
   // or listener threw error).
-  if (iter == data->receivers.end())
+  if (iter == data->receivers.end()) {
     return;
+  }
   // The response will be sent after this point so we no longer need to track
   // the receiver.
   data->receivers.erase(port_id);
@@ -924,12 +941,18 @@ void OneTimeMessageHandler::OnOneTimeMessageResponse(
   v8::Local<v8::Value> value;
   // We allow omitting the message argument (e.g., sendMessage()). Default the
   // value to undefined.
-  if (arguments->Length() > 0)
+  if (arguments->Length() > 0) {
     CHECK(arguments->GetNext(&value));
-  else
+  } else {
     value = v8::Undefined(isolate);
+  }
 
   ScriptContext* script_context = GetScriptContextFromV8Context(context);
+
+  // With the message port closing callbacks aren't allowed to be called after
+  // this point so try to proactively clean them up.
+  CHECK(script_context->is_valid());
+  callback_manager_->ClearCallbackDataForPortId(script_context, port_id);
 
   std::string message_creation_error;
   std::unique_ptr<Message> message = messaging_util::MessageFromV8(
@@ -955,9 +978,6 @@ void OneTimeMessageHandler::OnOneTimeMessageResponse(
                                       /*close_channel=*/true,
                                       /*error=*/std::nullopt);
   }
-
-  // With the message port closed no more callbacks should be called.
-  callback_manager_->ClearCallbackDataForPortId(script_context, port_id);
 }
 
 v8::Local<v8::Function> OneTimeMessageHandler::OneTimeMessageCallbackManager::
@@ -1036,19 +1056,10 @@ void OneTimeMessageHandler::OneTimeMessageCallbackManager::
     OnDelayedOneTimeMessageCallbackCollected(ScriptContext* script_context,
                                              const PortId& port_id,
                                              CallbackID callback_id) {
-  // TODO(crbug.com/475029699): Can probably remove this check after this is
-  // resolved because then we'll know that the script context will be valid when
-  // this is called.
-  // The ScriptContext may have been invalidated (and the `v8::Context`
-  // released) if this callback was created during context invalidation. In that
-  // case, the `OneTimeMessageContextData` will be destroyed when the
-  // `v8::Context` is garbage collected, so we can just return.
-  if (!script_context->is_valid()) {
-    return;
-  }
-
-  // Note: we know |script_context| is still valid because the GC callback won't
+  // Note: we know `script_context` is still valid because the GC callback won't
   // be called after context invalidation.
+  CHECK(script_context->is_valid());
+
   v8::HandleScope handle_scope(script_context->isolate());
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
@@ -1057,8 +1068,9 @@ void OneTimeMessageHandler::OneTimeMessageCallbackManager::
   // ScriptContext invalidation and PerContextData cleanup happen "around" the
   // same time, but there aren't strict guarantees about ordering. It's possible
   // the data was collected.
-  if (!data)
+  if (!data) {
     return;
+  }
 
   // Since there is no way to call the callback anymore, we can remove it from
   // the pending callbacks and delete the port entry if this was the last
@@ -1086,8 +1098,7 @@ void OneTimeMessageHandler::OneTimeMessageCallbackManager::
   }
 
   // Notify `message_handler_` so it can update the port state.
-  message_handler_->OnAllCallbacksCollected(
-      script_context, script_context->v8_context(), port_id);
+  message_handler_->OnAllCallbacksCollected(script_context, port_id);
   // More callbacks could be collected later so we'll leave the callback data
   // alone after closing the port.
 }
@@ -1148,6 +1159,11 @@ void OneTimeMessageHandler::OnPromiseRejectedResponse(
   CHECK(arguments->Length() > 0);
   CHECK(arguments->GetNext(&promise_reject_value));
 
+  // With the message port closing callbacks aren't allowed to be called after
+  // this point so try to proactively clean them up.
+  CHECK(script_context->is_valid());
+  callback_manager_->ClearCallbackDataForPortId(script_context, port_id);
+
   // If promise rejection reason is a JS Error type then close the message port
   // with the Error's .message property. Otherwise return a generic error
   // message.
@@ -1198,6 +1214,13 @@ void OneTimeMessageHandler::OnListenerThrowsError(const PortId& port_id,
   // The listener thrown error will be sent as an error response after this
   // point so we no longer need to track the receiver.
   data->receivers.erase(port_id);
+
+  // Since we catch the error thrown by the context in order to get here the
+  // context should still be valid at this point.
+  CHECK(script_context->is_valid());
+  // With the message port closing callbacks aren't allowed to be called after
+  // this point so try to proactively clean them up.
+  callback_manager_->ClearCallbackDataForPortId(script_context, port_id);
 
   v8::Local<v8::Value> listener_thrown_value;
   CHECK(arguments->Length() > 0);
@@ -1301,8 +1324,9 @@ void OneTimeMessageHandler::OnEventFired(
   OneTimeMessageContextData* data =
       GetPerContextData<OneTimeMessageContextData>(
           context, CreatePerContextData::kDontCreateIfMissing);
-  if (!data)
+  if (!data) {
     return;
+  }
 
   ScriptContext* script_context = GetScriptContextFromV8Context(context);
   DCHECK(script_context)
@@ -1313,7 +1337,13 @@ void OneTimeMessageHandler::OnEventFired(
   // for synchronous thrown errors to appear after all listeners have finished
   // being dispatched to.
   if (IsMessagePolyfillSupportEnabled(script_context) &&
-      listener_error_callback_id) {
+      listener_error_callback_id
+      // We get here once all listeners have been dispatched to, but since any
+      // of them could invalidate the context we need to check it's still valid
+      // before trying to access the context to cleanup the callback. If the
+      // context is invalid the cleanup will happen shortly after this when the
+      // context destructs.
+      && binding::IsContextValid(context)) {
     callback_manager_->DeleteCallbackDataForCallbackId(
         script_context, port_id, *listener_error_callback_id);
   }

@@ -43,13 +43,10 @@ enum class GeminiLocationPermissionState {
   kEnterpriseDisabled,
 };
 
-// TODO(crbug.com/467339718): Remove this alias once all callers have migrated.
-using BWGLocationPermissionState = GeminiLocationPermissionState;
-
-// Enum representing the page context computation state of the BWG experience.
+// Enum representing a page context computation state for the Gemini experience.
 // This needs to stay in sync with GCRGeminiPageContextComputationState (and its
 // SDK counterpart).
-enum class BWGPageContextComputationState {
+enum class GeminiPageContextComputationState {
   // The state of the page context is unknown; this likely means that it was not
   // set.
   kUnknown,
@@ -67,6 +64,9 @@ enum class BWGPageContextComputationState {
   // The page context is still being created.
   kPending,
 };
+
+// TODO(crbug.com/467341090): Remove this alias once all callers have migrated.
+using BWGPageContextComputationState = GeminiPageContextComputationState;
 
 // Enum representing the page context attachment state of the BWG experience.
 // This needs to stay in sync with GCRGeminiPageContextAttachmentState (and its
@@ -163,6 +163,9 @@ GeminiViewState GetCurrentGeminiViewState();
 
 // Requests a UI change for a specific element type.
 void RequestUIChange(GeminiUIElementType ui_element_type);
+
+// Attaches an image to the Gemini floaty.
+void AttachImage(UIImage* image);
 
 }  // namespace ios::provider
 

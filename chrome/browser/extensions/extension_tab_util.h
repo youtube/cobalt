@@ -9,6 +9,7 @@
 #include <string>
 #include <vector>
 
+#include "base/auto_reset.h"
 #include "base/functional/callback.h"
 #include "base/types/expected.h"
 #include "base/values.h"
@@ -341,12 +342,9 @@ class ExtensionTabUtil {
   // IsTabStripEditable() for details.
   static TabListInterface* GetEditableTabList(BrowserWindowInterface& browser);
 
-#if BUILDFLAG(ENABLE_EXTENSIONS)
-  // Retrieve a TabStripModel only if every browser is editable.
-  // TODO(https://crbug.com/430344931): Remove this in favor of
-  // GetEditableTabList().
-  static TabStripModel* GetEditableTabStripModel(Browser* browser);
-#endif  // BUILDFLAG(ENABLE_EXTENSIONS)
+  // Disables editing of the tab list for testing purposes. This will be reset
+  // when the returned AutoReset<> goes out of scope.
+  static base::AutoReset<bool> DisableTabListEditingForTesting();
 };
 
 }  // namespace extensions

@@ -16,13 +16,13 @@ found in the LICENSE file.
   <dimen name="educational_tip_module_button_padding_start">14dp</dimen>
 
   <!-- Educational tip two-cell layout dimens -->
-  <dimen name="educational_tip_two_cell_icon_container_size">49dp</dimen>
+  <dimen name="educational_tip_two_cell_icon_container_size">52dp</dimen>
   <dimen name="educational_tip_two_cell_divider_margin_start">65dp</dimen>
 
   <!-- Default browser promo card dimens -->
   <dimen name="default_browser_bottom_sheet_drag_handel_bar_height">4dp</dimen>
   <dimen name="default_browser_bottom_sheet_drag_handel_bar_margin_vertical">8dp</dimen>
-  <dimen name="default_browser_bottom_sheet_drag_handel_bar_width">32dp</dimen>
+  <dimen name="default_browser_bottom_sheet_drag_handle_bar_width">32dp</dimen>
   <dimen name="default_browser_bottom_sheet_scroll_view_padding_lateral">24dp</dimen>
   <dimen name="default_browser_bottom_sheet_icon_container_height">99dp</dimen>
   <dimen name="default_browser_bottom_sheet_icon_container_margin_top">4dp</dimen>
@@ -37,4 +37,8 @@ found in the LICENSE file.
   <dimen name="default_browser_bottom_sheet_step_content_margin_start">16dp</dimen>
   <dimen name="default_browser_bottom_sheet_button_margin_top">16dp</dimen>
   <dimen name="default_browser_bottom_sheet_button_margin_bottom">24dp</dimen>
+
+  <!-- Educational tip instructional bottom sheet dimens -->
+  <dimen name="save_passwords_instructional_bottom_sheet_animation_height">250dp</dimen>
+  <dimen name="save_passwords_instructional_bottom_sheet_step_vertical_padding">12dp</dimen>
 </resources>

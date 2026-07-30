@@ -7,9 +7,9 @@
 #include <algorithm>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <utility>
 
-#include "base/no_destructor.h"
 #include "base/strings/string_util.h"
 #include "base/values.h"
 #include "components/google/core/common/google_util.h"
@@ -24,10 +24,7 @@ using ::boca::LockedNavigationOptions;
 
 constexpr char kAllTrafficWildcard[] = "*";
 
-const std::string& GetCommonUrlPrefix() {
-  static const base::NoDestructor<std::string> prefix("www.");
-  return *prefix;  // provides pointer-like access
-}
+constexpr std::string_view kCommonUrlPrefix = "www.";
 
 // Returns a URL filter that covers all URL navigations.
 base::ListValue GetAllTrafficFilter() {
@@ -36,7 +33,7 @@ base::ListValue GetAllTrafficFilter() {
   return all_traffic;
 }
 
-void RemovePrefix(std::string& url_str, const std::string& prefix) {
+void RemovePrefix(std::string& url_str, std::string_view prefix) {
   if (base::StartsWith(url_str, prefix)) {
     std::string::size_type iter = url_str.find(prefix);
     if (iter != std::string::npos) {
@@ -50,7 +47,7 @@ base::ListValue GetDomainLevelTrafficFilter(const GURL& url) {
 
   std::string domain_traffic_filter = url.GetWithEmptyPath().GetContent();
 
-  RemovePrefix(domain_traffic_filter, GetCommonUrlPrefix());
+  RemovePrefix(domain_traffic_filter, kCommonUrlPrefix);
   allowed_traffic.Append(domain_traffic_filter);
   return allowed_traffic;
 }
@@ -182,14 +179,16 @@ void OnTaskBlocklist::RefreshForUrlBlocklist(content::WebContents* tab) {
   // rewritten (ex. google drive home page to user authenticated google drive
   // home page.). Note: The navigation throttler is responsible for updating the
   // web contents and their restriction levels.
-  if (child_tab_to_nav_filters_.contains(tab_id)) {
-    restriction_level = child_tab_to_nav_filters_[tab_id];
+  if (auto child_tab_it = child_tab_to_nav_filters_.find(tab_id);
+      child_tab_it != child_tab_to_nav_filters_.end()) {
+    restriction_level = child_tab_it->second;
     blocklist_source =
         std::make_unique<OnTaskBlocklistSource>(url, restriction_level);
     current_page_restriction_level_ = restriction_level;
 
-  } else if (parent_tab_to_nav_filters_.contains(tab_id)) {
-    restriction_level = parent_tab_to_nav_filters_[tab_id];
+  } else if (auto parent_tab_it = parent_tab_to_nav_filters_.find(tab_id);
+             parent_tab_it != parent_tab_to_nav_filters_.end()) {
+    restriction_level = parent_tab_it->second;
     blocklist_source =
         std::make_unique<OnTaskBlocklistSource>(url, restriction_level);
     current_page_restriction_level_ = restriction_level;
@@ -224,14 +223,14 @@ void OnTaskBlocklist::RefreshForUrlBlocklist(content::WebContents* tab) {
 
 void OnTaskBlocklist::RemoveParentFilter(content::WebContents* tab) {
   const SessionID tab_id = sessions::SessionTabHelper::IdForTab(tab);
-  if (tab_id.is_valid() && parent_tab_to_nav_filters_.contains(tab_id)) {
+  if (tab_id.is_valid()) {
     parent_tab_to_nav_filters_.erase(tab_id);
   }
 }
 
 void OnTaskBlocklist::RemoveChildFilter(content::WebContents* tab) {
   const SessionID tab_id = sessions::SessionTabHelper::IdForTab(tab);
-  if (tab_id.is_valid() && child_tab_to_nav_filters_.contains(tab_id)) {
+  if (tab_id.is_valid()) {
     child_tab_to_nav_filters_.erase(tab_id);
   }
 }
@@ -253,18 +252,20 @@ bool OnTaskBlocklist::CanPerformOneLevelNavigation(content::WebContents* tab) {
   // committed URL is in the same domain as the original URL that was being
   // tracked. This helps us determine if we have already navigated 1LD.
   const SessionID tab_id = sessions::SessionTabHelper::IdForTab(tab);
-  if (tab_id.is_valid() && one_level_deep_original_url_.contains(tab_id)) {
-    const GURL one_level_deep_original_url =
-        one_level_deep_original_url_[tab_id];
-    const GURL last_committed_url = tab->GetLastCommittedURL();
-    if (current_page_restriction_level_ ==
-        LockedNavigationOptions::LIMITED_NAVIGATION) {
-      return one_level_deep_original_url == last_committed_url;
-    }
+  if (tab_id.is_valid()) {
+    if (auto it = one_level_deep_original_url_.find(tab_id);
+        it != one_level_deep_original_url_.end()) {
+      const GURL one_level_deep_original_url = it->second;
+      const GURL last_committed_url = tab->GetLastCommittedURL();
+      if (current_page_restriction_level_ ==
+          LockedNavigationOptions::LIMITED_NAVIGATION) {
+        return one_level_deep_original_url == last_committed_url;
+      }
 
-    // Same domain + 1LD navigation restriction.
-    return last_committed_url.is_valid() &&
-           IsURLInDomain(last_committed_url, one_level_deep_original_url);
+      // Same domain + 1LD navigation restriction.
+      return last_committed_url.is_valid() &&
+             IsURLInDomain(last_committed_url, one_level_deep_original_url);
+    }
   }
   return true;
 }

@@ -13,7 +13,6 @@
 
 #include "base/callback_list.h"
 #include "base/memory/raw_ref.h"
-#include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "base/sequence_checker.h"
 #include "components/safe_search_api/url_checker.h"
@@ -170,6 +169,7 @@ class FamilyLinkUrlFilter : public UrlFilteringDelegate {
       const GURL& main_frame_url,
       WebFilteringResult::Callback callback,
       const WebFilterMetricsOptions& options) override;
+  std::string_view GetName() const override;
 
  private:
   // Allows proxying deprecated calls to the filter for the time of migration.
@@ -180,17 +180,6 @@ class FamilyLinkUrlFilter : public UrlFilteringDelegate {
   void RunAsyncChecker(const GURL& url, WebFilteringResult::Callback callback);
 
   FilteringBehavior GetManualFilteringBehaviorForURL(const GURL& url) const;
-
-  // `requested_url` is the system's input, and `checked_url` is what was sent
-  // to the remote async service. Since synchronous checks use the same
-  // normalization methods but report actual requested url as filtered, the
-  // async checks will behave the same. Normalized url that is sent to async
-  // services is implementation detail.
-  void CheckCallback(WebFilteringResult::Callback callback,
-                     const GURL& requested_url,
-                     const GURL& checked_url,
-                     safe_search_api::Classification classification,
-                     safe_search_api::ClassificationDetails details) const;
 
   // Calculates a URL that should unblock the filtering result but without the
   // normalization it (eg. stripping username, password, query params, ref).
@@ -221,8 +210,6 @@ class FamilyLinkUrlFilter : public UrlFilteringDelegate {
   base::CallbackListSubscription family_link_settings_subscription_;
 
   SEQUENCE_CHECKER(sequence_checker_);
-
-  base::WeakPtrFactory<FamilyLinkUrlFilter> weak_factory_{this};
 };
 
 }  // namespace supervised_user

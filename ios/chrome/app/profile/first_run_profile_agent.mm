@@ -252,6 +252,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
 }
 
 - (void)startGuidedTour {
+  [_postActionsProvider setGuidedTourStarted:YES];
   __weak FirstRunProfileAgent* weakSelf = self;
   ProceduralBlock completion = ^{
     [weakSelf showNTPStep];
@@ -330,6 +331,7 @@ const char kGuidedTourStepDidFinishHistogram[] = "IOS.GuidedTour.DidFinishStep";
   DCHECK(_presentingSceneState);
 
   ProfileIOS* profile = [self originalProfile];
+  CHECK(profile);
 
   DCHECK(!_firstRunUIBlocker);
   _firstRunUIBlocker = std::make_unique<ScopedUIBlocker>(_presentingSceneState);

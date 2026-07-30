@@ -71,6 +71,7 @@ class GPU_GLES2_EXPORT FeatureInfo : public base::RefCounted<FeatureInfo> {
     bool ext_texture_format_astc_hdr = false;
     bool ext_texture_format_atc = false;
     bool ext_texture_format_bgra8888 = false;
+    bool disable_mac_swangle_rgbx = false;
     bool ext_texture_format_dxt1 = false;
     bool ext_texture_format_dxt5 = false;
     bool enable_shader_name_hashing = false;
@@ -203,7 +204,6 @@ class GPU_GLES2_EXPORT FeatureInfo : public base::RefCounted<FeatureInfo> {
   bool IsWebGL1OrES2Context() const;
   bool IsWebGL2OrES3Context() const;
   bool IsWebGL2OrES3OrHigherContext() const;
-  bool IsES31ForTestingContext() const;
 
   void EnableCHROMIUMColorBufferFloatRGBA();
   void EnableCHROMIUMColorBufferFloatRGB();

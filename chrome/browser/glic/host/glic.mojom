@@ -69,6 +69,12 @@ struct ConfigInfo {
 
   // The URL from which the FRE page is loaded from.
   url.mojom.Url fre_guest_url;
+
+  // User configured preset URLs for different environments of the guest web
+  // client.
+  url.mojom.Url autopush_guest_url;
+  url.mojom.Url preprod_guest_url;
+  url.mojom.Url prod_guest_url;
 };
 
 // Consolidated data payload to populate the Glic internals page.
@@ -244,6 +250,10 @@ interface PageHandler {
 
   // Called by the internals WebUI page to get the data it will present.
   GetInternalsDataPayload() => (InternalsDataPayload internals_data);
+
+  // Sets the guest URL presets for the internals page.
+  SetGuestUrlPresets(
+      url.mojom.Url autopush, url.mojom.Url preprod, url.mojom.Url prod);
 };
 
 // @generate glic_api
@@ -270,6 +280,9 @@ enum CreateTaskErrorReason {
   // The host already has an existing task in progress. The client must stop it
   // before requesting a new task.
   [MinVersion=1] kExistingActiveTask = 2,
+
+  // The user's browser policy or account settings prevent creating actor tasks.
+  [MinVersion=2] kBlockedByPolicy = 3,
 };
 
 // @generate glic_api
@@ -594,8 +607,12 @@ enum SkillSource {
   kFirstParty = 1,
   // Skill created by an end-user.
   kUserCreated = 2,
+  // Skill derived from a first party skill.
+  [MinVersion=1] kDerivedFromFirstParty = 3,
 };
-// LINT.ThenChange(//depot/chromium/components/skills/public/skill.mojom:SkillSource, //depot/chromium/components/skills/public/skill.h:SkillSource)
+// clang-format off
+// LINT.ThenChange(//components/skills/public/skill.mojom:SkillSource, //components/sync/protocol/skill_specifics.proto:SkillSource)
+// clang-format on
 
 // LINT.IfChange(Skill)
 // A single skill preview.
@@ -608,6 +625,8 @@ struct SkillPreview {
   string icon;
   // The source of the skill which can be 1P or user created.
   SkillSource source;
+  // The description of the skill.
+  string description;
 };
 
 // A single skill.
@@ -616,13 +635,28 @@ struct Skill {
   SkillPreview preview;
   // The prompt of the skill.
   string prompt;
+  // The id of the source skill this skill is derived from. This is only present
+  // if the SkillSource is kDerivedFromFirstParty.
+  string? source_skill_id;
 };
-// LINT.ThenChange(//depot/chromium/components/skills/public/skill.mojom:Skill, //depot/chromium/components/skills/public/skill.h:Skill)
+// clang-format off
+// LINT.ThenChange(//components/skills/public/skill.mojom:Skill, //components/skills/public/skill.h:Skill, //chrome/browser/resources/glic/glic_api/glic_api.ts:Skill)
+// clang-format on
 
 // Request to create a skill.
 struct CreateSkillRequest {
+  // The unique identifier of the skill which is an UUID.
+  string id;
+  // The name of the skill.
+  string name;
+  // The icon of the skill, which is an emoji.
+  string icon;
+  // The source of the skill.
+  SkillSource source;
   // A prompt for the skill which can be an empty string.
   string prompt;
+  // The description of the skill.
+  string description;
 };
 
 // Request to update a skill.

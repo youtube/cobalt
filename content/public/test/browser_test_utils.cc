@@ -3200,6 +3200,14 @@ void InputEventAckWaiter::OnInputEventAck(
   }
 }
 
+void GestureTapEventObserver::OnInputEvent(const RenderWidgetHost& host,
+                                           const blink::WebInputEvent& event,
+                                           InputEventSource source) {
+  if (event.GetType() == blink::WebInputEvent::Type::kGestureTap) {
+    num_gesture_tap_seen_++;
+  }
+}
+
 // TODO(dcheng): Make the test clipboard on different threads share the
 // same backing store. crbug.com/629765
 // TODO(slangley): crbug.com/775830 - Cleanup BrowserTestClipboardScope now that
@@ -4452,7 +4460,7 @@ void ProxyDSFObserver::OnCreation(RenderFrameProxyHost* rfph) {
   // CrossProcessFrameConnector. We're only interested in the ones that do.
   if (auto* cpfc = rfph->cross_process_frame_connector()) {
     proxy_host_created_dsf_.push_back(
-        cpfc->screen_infos().current().device_scale_factor);
+        cpfc->GetScreenInfos().current().device_scale_factor);
   }
   if (runner_) {
     runner_->Quit();

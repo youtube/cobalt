@@ -25,6 +25,7 @@ source_set("model") {
     ":tab_helper",
     "//ios/chrome/app/strings:ios_strings",
     "//ios/chrome/browser/intelligence/bwg/metrics",
+    "//ios/chrome/browser/intelligence/bwg/utils:constants",
     "//ios/chrome/browser/intelligence/features",
     "//ios/chrome/browser/shared/model/browser",
     "//ios/chrome/browser/shared/model/prefs:pref_names",
@@ -88,6 +89,8 @@ source_set("tab_helper") {
     "gemini_tab_helper_observer.h",
   ]
   deps = [
+    ":bwg_service",
+    ":bwg_service_factory",
     ":page_context",
     ":snapshot_utils",
     "//components/favicon/ios",
@@ -111,14 +114,10 @@ source_set("tab_helper") {
     "//ios/chrome/browser/shared/model/url",
     "//ios/chrome/browser/shared/model/utils",
     "//ios/chrome/browser/shared/public/commands",
-    "//ios/chrome/browser/shared/public/snackbar",
     "//ios/chrome/browser/shared/ui/symbols",
     "//ios/chrome/browser/snapshots/model",
-    "//ios/chrome/browser/web/model/image_fetch",
     "//ios/public/provider/chrome/browser/bwg:bwg_api",
     "//ios/web/public",
-    "//ios/web/public/js_image_transcoder",
-    "//ios/web/public/js_messaging",
     "//mojo/public/cpp/bindings",
   ]
 }
@@ -168,6 +167,8 @@ source_set("config") {
   sources = [
     "gemini_configuration.h",
     "gemini_configuration.mm",
+    "gemini_startup_configuration.h",
+    "gemini_startup_configuration.mm",
   ]
   deps = [
     "//base",
@@ -211,6 +212,7 @@ source_set("unit_tests") {
   deps = [
     ":browser_agent",
     ":bwg_service",
+    ":bwg_service_factory",
     ":model",
     ":snapshot_utils",
     ":tab_helper",

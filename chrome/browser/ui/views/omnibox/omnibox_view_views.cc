@@ -51,6 +51,7 @@
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_edit_model.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
+#include "chrome/browser/ui/omnibox/omnibox_tab_helper.h"
 #include "chrome/browser/ui/page_action/page_action_icon_type.h"
 #include "chrome/browser/ui/view_ids.h"
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
@@ -154,8 +155,6 @@ using ::ui::mojom::DragOperation;
 
 // Stores omnibox state for each tab.
 struct OmniboxState : public base::SupportsUserData::Data {
-  static const char kKey[];
-
   OmniboxState(const OmniboxEditModel::State& model_state,
                const gfx::Range& selection,
                const gfx::Range& saved_selection_for_focus_change);
@@ -171,9 +170,6 @@ struct OmniboxState : public base::SupportsUserData::Data {
   const gfx::Range selection;
   const gfx::Range saved_selection_for_focus_change;
 };
-
-// static
-const char OmniboxState::kKey[] = "OmniboxState";
 
 OmniboxState::OmniboxState(const OmniboxEditModel::State& model_state,
                            const gfx::Range& selection,
@@ -363,9 +359,10 @@ void OmniboxViewViews::SaveStateToTab(content::WebContents* tab) {
   // important.
   const OmniboxEditModel::State state =
       controller()->edit_model()->GetStateForTabSwitch();
-  tab->SetUserData(OmniboxState::kKey, std::make_unique<OmniboxState>(
-                                           state, GetSelectedRange(),
-                                           saved_selection_for_focus_change_));
+  tab->SetUserData(
+      OmniboxTabHelper::kOmniboxStateKey,
+      std::make_unique<OmniboxState>(state, GetSelectedRange(),
+                                     saved_selection_for_focus_change_));
   UpdateAccessibleTextSelection();
 }
 
@@ -375,7 +372,7 @@ void OmniboxViewViews::OnTabChanged(const content::WebContents* web_contents) {
   Observe(const_cast<content::WebContents*>(web_contents));
 
   const OmniboxState* state = static_cast<OmniboxState*>(
-      web_contents->GetUserData(&OmniboxState::kKey));
+      web_contents->GetUserData(OmniboxTabHelper::kOmniboxStateKey));
   controller()->edit_model()->RestoreState(state ? &state->model_state
                                                  : nullptr);
   if (state) {
@@ -402,7 +399,7 @@ void OmniboxViewViews::OnTabChanged(const content::WebContents* web_contents) {
 }
 
 void OmniboxViewViews::ResetTabState(content::WebContents* web_contents) {
-  web_contents->SetUserData(OmniboxState::kKey, nullptr);
+  web_contents->SetUserData(OmniboxTabHelper::kOmniboxStateKey, nullptr);
 }
 
 void OmniboxViewViews::InstallPlaceholderText() {
@@ -742,7 +739,7 @@ void OmniboxViewViews::ExecuteCommand(int command_id, int event_flags) {
       return;
 
     // These commands do invoke the popup.
-    case Textfield::kPaste:
+    case std::to_underlying(ui::TouchEditable::MenuCommands::kPaste):
       ExecuteTextEditCommand(ui::TextEditCommand::PASTE);
       return;
     default:
@@ -1766,7 +1763,8 @@ void OmniboxViewViews::OnBlur() {
 }
 
 bool OmniboxViewViews::IsCommandIdEnabled(int command_id) const {
-  if (command_id == Textfield::kPaste) {
+  if (command_id ==
+      std::to_underlying(ui::TouchEditable::MenuCommands::kPaste)) {
     return !GetReadOnly() && CanGetClipboardText();
   }
   if (command_id == IDC_PASTE_AND_GO) {
@@ -1846,6 +1844,7 @@ void OmniboxViewViews::DoInsertChar(char16_t ch) {
     DCHECK_EQ(latency_histogram_state_, LatencyHistogramState::kNotActive);
     latency_histogram_state_ = LatencyHistogramState::kCharTyped;
     insert_char_time_ = base::TimeTicks::Now();
+    controller()->edit_model()->NotifyObserversCharTyped(insert_char_time_);
   }
   Textfield::DoInsertChar(ch);
 }
@@ -2307,7 +2306,8 @@ void OmniboxViewViews::UpdateContextMenu(ui::SimpleMenuModel* menu_contents) {
   MaybeAddSendTabToSelfItem(menu_contents);
 
   const std::optional<size_t> paste_position =
-      menu_contents->GetIndexOfCommandId(Textfield::kPaste);
+      menu_contents->GetIndexOfCommandId(
+          std::to_underlying(ui::TouchEditable::MenuCommands::kPaste));
   DCHECK(paste_position.has_value());
   menu_contents->InsertItemWithStringIdAt(paste_position.value() + 1,
                                           IDC_PASTE_AND_GO, IDS_PASTE_AND_GO);

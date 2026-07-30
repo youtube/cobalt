@@ -33,7 +33,7 @@
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/tabs/glic/glic_button.h"
+#include "chrome/browser/ui/views/tabs/glic/tab_strip_glic_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip_action_container.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
@@ -143,8 +143,9 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, ShowAndCloseDetachedWidget) {
 
 IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, DoNotCrashOnBrowserClose) {
   RunTestSequence(OpenGlicFloatingWindow());
+  ui_test_utils::BrowserDestroyedObserver observer(browser());
   chrome::CloseAllBrowsers();
-  ui_test_utils::WaitForBrowserToClose();
+  observer.Wait();
 }
 
 IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, DoNotCrashWhenReopening) {
@@ -772,10 +773,11 @@ IN_PROC_BROWSER_TEST_F(GlicWindowControllerUiTest, PermanentlyDeleteProfile) {
   EXPECT_TRUE(service1->IsWindowShowing());
 
   // Delete the second profile
+  ui_test_utils::BrowserDestroyedObserver observer(browser1);
   profile_manager->GetDeleteProfileHelper().MaybeScheduleProfileForDeletion(
       browser1->profile()->GetPath(), base::DoNothing(),
       ProfileMetrics::DELETE_PROFILE_USER_MANAGER);
-  ui_test_utils::WaitForBrowserToClose(browser1);
+  observer.Wait();
 
   EXPECT_FALSE(service1->IsWindowShowing());
 }

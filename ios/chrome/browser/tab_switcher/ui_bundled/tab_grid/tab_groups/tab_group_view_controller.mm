@@ -55,6 +55,7 @@ constexpr CGFloat kBottomToolbarMargin = 8;
 constexpr CGFloat kButtonSpacing = 10;
 constexpr CGFloat kCloseImageSize = 12.5;
 constexpr CGFloat kMenuImageSize = 16;
+constexpr CGFloat kButtonAlpha = 0.6;
 
 // Animation.
 constexpr CGFloat kTranslationCompletion = 0;
@@ -442,15 +443,10 @@ UIButton* TopToolbarButton(NSString* symbol_name,
 - (void)setGroupColor:(UIColor*)color {
   _groupColor = color;
   _gridViewController.groupColor = color;
-  [_coloredDotView setBackgroundColor:_groupColor];
+}
 
-  if (!IsTabGroupColorOnSurfaceEnabled()) {
-    return;
-  }
-  // Create the palette.
-  _tabGroupColorPalette =
-      [[TabGroupColorPalette alloc] initWithSeedColor:color];
-  [_coloredDotView setBackgroundColor:_tabGroupColorPalette.commonColor];
+- (void)setTabGroupColorPalette:(TabGroupColorPalette*)tabGroupColorPalette {
+  _tabGroupColorPalette = tabGroupColorPalette;
   // Forward it to the TabGroupGridViewController.
   _gridViewController.tabGroupColorPalette = _tabGroupColorPalette;
 }
@@ -527,6 +523,10 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   button.accessibilityIdentifier = kTabGroupOverflowMenuButtonIdentifier;
   button.accessibilityLabel = l10n_util::GetNSString(
       IDS_IOS_TAB_GROUP_THREE_DOT_MENU_BUTTON_ACCESSIBILITY_LABEL);
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    button.backgroundColor = [_tabGroupColorPalette.commonColor
+        colorWithAlphaComponent:kButtonAlpha];
+  }
   return button;
 }
 
@@ -542,6 +542,10 @@ UIButton* TopToolbarButton(NSString* symbol_name,
                 primaryAction:[UIAction actionWithHandler:^(UIAction* action) {
                   [weakSelf didTapFacePileButton];
                 }]];
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    container.backgroundColor = [_tabGroupColorPalette.commonColor
+        colorWithAlphaComponent:kButtonAlpha];
+  }
   container.accessibilityIdentifier = kTabGroupFacePileButtonIdentifier;
   [self updateFacePileContainer:container withFacePile:_facePileView];
   return container;
@@ -570,6 +574,10 @@ UIButton* TopToolbarButton(NSString* symbol_name,
       TopToolbarButton(kXMarkSymbol, closeAction, kCloseImageSize);
   closeButton.accessibilityLabel = l10n_util::GetNSString(IDS_CLOSE);
   closeButton.accessibilityIdentifier = kTabGroupCloseButtonIdentifier;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    closeButton.backgroundColor = [_tabGroupColorPalette.commonColor
+        colorWithAlphaComponent:kButtonAlpha];
+  }
 
   [stackView addArrangedSubview:closeButton];
 
@@ -632,7 +640,11 @@ UIButton* TopToolbarButton(NSString* symbol_name,
   UIView* dotView = [[UIView alloc] initWithFrame:CGRectZero];
   dotView.translatesAutoresizingMaskIntoConstraints = NO;
   dotView.layer.cornerRadius = kDotSize / 2;
-  dotView.backgroundColor = _groupColor;
+  if (IsTabGroupColorOnSurfaceEnabled()) {
+    dotView.backgroundColor = _tabGroupColorPalette.commonColor;
+  } else {
+    dotView.backgroundColor = _groupColor;
+  }
 
   [NSLayoutConstraint activateConstraints:@[
     [dotView.heightAnchor constraintEqualToConstant:kDotSize],

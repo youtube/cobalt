@@ -85,6 +85,8 @@ class TabListBridge : public TabListInterface, public TabStripModelObserver {
   void MoveTabGroupToWindow(tab_groups::TabGroupId group_id,
                             SessionID destination_window_id,
                             int destination_index) override;
+  bool IsThisTabListEditable() override;
+  bool IsClosingAllTabs() override;
 
  private:
   // TabStripModelObserver:
@@ -92,6 +94,7 @@ class TabListBridge : public TabListInterface, public TabStripModelObserver {
       TabStripModel* tab_strip_model,
       const TabStripModelChange& change,
       const TabStripSelectionChange& selection) override;
+  void WillCloseAllTabs(TabStripModel* model) override;
 
   // The underlying TabStripModel that this serves as a bridge for.
   // Must outlive this object.

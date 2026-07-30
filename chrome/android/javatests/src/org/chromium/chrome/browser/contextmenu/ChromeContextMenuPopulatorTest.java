@@ -54,6 +54,7 @@ import org.chromium.base.Callback;
 import org.chromium.base.CollectionUtil;
 import org.chromium.base.ContextUtils;
 import org.chromium.base.ThreadUtils;
+import org.chromium.base.supplier.SupplierUtils;
 import org.chromium.base.test.BaseJUnit4ClassRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -207,7 +208,7 @@ public class ChromeContextMenuPopulatorTest {
                 Mockito.spy(
                         new ChromeContextMenuPopulator(
                                 mItemDelegate,
-                                () -> mShareDelegate,
+                                SupplierUtils.of(mShareDelegate),
                                 actions,
                                 mode,
                                 ContextUtils.getApplicationContext(),
@@ -869,7 +870,10 @@ public class ChromeContextMenuPopulatorTest {
     @Test
     @SmallTest
     @UiThreadTest
-    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    @DisableFeatures({
+        ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW,
+        ChromeFeatureList.CONTEXT_MENU_PICTURE_IN_PICTURE_ANDROID
+    })
     public void testVideoLink() {
         FirstRunStatus.setFirstRunFlowComplete(false);
         GURL sourceUrl = new GURL("http://www.blah.com/");
@@ -981,7 +985,10 @@ public class ChromeContextMenuPopulatorTest {
     @Test
     @SmallTest
     @UiThreadTest
-    @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
+    @DisableFeatures({
+        ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW,
+        ChromeFeatureList.CONTEXT_MENU_PICTURE_IN_PICTURE_ANDROID
+    })
     public void testVideoLinkWithDownloadBlockedByPolicy() {
         FirstRunStatus.setFirstRunFlowComplete(true);
         DownloadUtils.setIsDownloadRestrictedByPolicyForTesting(true);

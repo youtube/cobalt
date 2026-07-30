@@ -1299,43 +1299,6 @@ error::Error GLES2DecoderImpl::HandleGetBooleanv(
   return error::kNoError;
 }
 
-error::Error GLES2DecoderImpl::HandleGetBooleani_v(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  if (!feature_info_->IsWebGL2OrES3OrHigherContext())
-    return error::kUnknownCommand;
-  const volatile gles2::cmds::GetBooleani_v& c =
-      *static_cast<const volatile gles2::cmds::GetBooleani_v*>(cmd_data);
-  GLenum pname = static_cast<GLenum>(c.pname);
-  GLuint index = static_cast<GLuint>(c.index);
-  typedef cmds::GetBooleani_v::Result Result;
-  GLsizei num_values = 0;
-  if (!GetNumValuesReturnedForGLGet(pname, &num_values)) {
-    LOCAL_SET_GL_ERROR_INVALID_ENUM(":GetBooleani_v", pname, "pname");
-    return error::kNoError;
-  }
-  uint32_t checked_size = 0;
-  if (!Result::ComputeSize(num_values).AssignIfValid(&checked_size)) {
-    return error::kOutOfBounds;
-  }
-  Result* result = GetSharedMemoryAs<Result*>(c.data_shm_id, c.data_shm_offset,
-                                              checked_size);
-  GLboolean* data = result ? result->GetData() : nullptr;
-  if (!validators_->indexed_g_l_state.IsValid(pname)) {
-    LOCAL_SET_GL_ERROR_INVALID_ENUM("glGetBooleani_v", pname, "pname");
-    return error::kNoError;
-  }
-  if (data == nullptr) {
-    return error::kOutOfBounds;
-  }
-  // Check that the client initialized the result.
-  if (result->size != 0) {
-    return error::kInvalidArguments;
-  }
-  DoGetBooleani_v(pname, index, data, num_values);
-  result->SetNumResults(num_values);
-  return error::kNoError;
-}
 error::Error GLES2DecoderImpl::HandleGetBufferParameteri64v(
     uint32_t immediate_data_size,
     const volatile void* cmd_data) {
@@ -4715,78 +4678,6 @@ error::Error GLES2DecoderImpl::HandleFramebufferParameteri(
   }
   DoFramebufferParameteri(target, pname, param);
   return error::kNoError;
-}
-
-error::Error GLES2DecoderImpl::HandleBindImageTexture(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleDispatchCompute(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleDispatchComputeIndirect(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleDrawArraysIndirect(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleDrawElementsIndirect(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleGetProgramInterfaceiv(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleGetProgramResourceIndex(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleGetProgramResourceName(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleGetProgramResourceiv(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleGetProgramResourceLocation(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleMemoryBarrierEXT(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
-}
-
-error::Error GLES2DecoderImpl::HandleMemoryBarrierByRegion(
-    uint32_t immediate_data_size,
-    const volatile void* cmd_data) {
-  return error::kUnknownCommand;
 }
 
 error::Error GLES2DecoderImpl::HandleGetMaxValueInBufferCHROMIUM(

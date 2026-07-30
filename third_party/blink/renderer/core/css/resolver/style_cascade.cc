@@ -1530,8 +1530,8 @@ const CSSValue* StyleCascade::ResolveRevertRule(const CSSProperty& property,
                                                 CascadePriority priority,
                                                 CascadeOrigin& origin,
                                                 CascadeResolver& resolver) {
-  const CascadePriority* p = map_.FindRevertRule(property.GetCSSPropertyName(),
-                                                 priority.GetRuleIndex());
+  const CascadePriority* p =
+      map_.FindRevertRule(property.GetCSSPropertyName(), priority);
   if (!p || !p->HasOrigin()) {
     origin = CascadeOrigin::kNone;
     return cssvalue::CSSUnsetValue::Create();
@@ -1648,8 +1648,7 @@ bool StyleCascade::ResolveTokensInto(CSSParserTokenStream& stream,
       CSSParserTokenStream::BlockGuard guard(stream);
       success &=
           ResolveAutoBaseInto(stream, tree_scope, resolver, context, out);
-    } else if (token.FunctionId() == CSSValueID::kIf &&
-               RuntimeEnabledFeatures::CSSInlineIfForStyleQueriesEnabled()) {
+    } else if (token.FunctionId() == CSSValueID::kIf) {
       CSSParserTokenStream::BlockGuard guard(stream);
       success &= ResolveIfInto(stream, tree_scope, resolver, context,
                                function_context, out);
@@ -2208,10 +2207,10 @@ void StyleCascade::FlattenFunctionBody(
   for (const Member<StyleRuleBase>& child : group.ChildRules()) {
     if (auto* function_declarations =
             DynamicTo<StyleRuleFunctionDeclarations>(child.Get())) {
-      const CSSPropertyValueSet& propety_value_set =
+      const CSSPropertyValueSet& property_value_set =
           function_declarations->Properties();
       for (const CSSPropertyValue& property_value :
-           propety_value_set.Properties()) {
+           property_value_set.Properties()) {
         if (property_value.PropertyID() == CSSPropertyID::kVariable) {
           const auto& unresolved_local =
               To<CSSUnparsedDeclarationValue>(property_value.Value());
@@ -2220,7 +2219,7 @@ void StyleCascade::FlattenFunctionBody(
         }
       }
       if (auto* r = DynamicTo<CSSUnparsedDeclarationValue>(
-              propety_value_set.GetPropertyCSSValue(CSSPropertyID::kResult))) {
+              property_value_set.GetPropertyCSSValue(CSSPropertyID::kResult))) {
         result = r->VariableDataValue();
       }
     } else if (auto* supports_rule =
@@ -2743,7 +2742,6 @@ bool StyleCascade::EvalIfCondition(CSSParserTokenStream& stream,
 
     KleeneValue EvaluateMediaQuerySet(const MediaQuerySet& query) override {
       // Evaluate media() function
-      DCHECK(RuntimeEnabledFeatures::CSSInlineIfForMediaQueriesEnabled());
       resolver_state_.StyleBuilder().SetAffectedByFunctionalMedia();
       StyleEngine& style_engine =
           resolver_state_.GetDocument().GetStyleEngine();

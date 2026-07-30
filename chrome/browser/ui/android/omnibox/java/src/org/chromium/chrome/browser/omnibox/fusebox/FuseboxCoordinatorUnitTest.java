@@ -5,7 +5,6 @@
 package org.chromium.chrome.browser.omnibox.fusebox;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNull;
@@ -308,52 +307,6 @@ public class FuseboxCoordinatorUnitTest {
 
     @Test
     @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
-    public void createImageButtonVisibility_isCreateImagesEligible() {
-        doReturn(/* nativeInstance= */ 1L)
-                .when(mComposeboxController)
-                .init(any(Profile.class), any(ComposeboxQueryControllerBridge.class));
-
-        doReturn(true).when(mComposeboxController).isCreateImagesEligible(anyLong());
-        mProfileSupplier.set(mIncognitoProfile);
-        assertTrue(
-                mCoordinator
-                        .getModelForTesting()
-                        .get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
-
-        doReturn(false).when(mComposeboxController).isCreateImagesEligible(anyLong());
-        mProfileSupplier.set(mProfile);
-        assertFalse(
-                mCoordinator
-                        .getModelForTesting()
-                        .get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
-    }
-
-    @Test
-    @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
-    public void createImageButtonVisibility_incognitoProfile() {
-        doReturn(/* nativeInstance= */ 1L)
-                .when(mComposeboxController)
-                .init(any(Profile.class), any(ComposeboxQueryControllerBridge.class));
-        doReturn(true).when(mComposeboxController).isCreateImagesEligible(anyLong());
-
-        OmniboxFeatures.sShowImageGenerationButtonInIncognito.setForTesting(false);
-        mProfileSupplier.set(mIncognitoProfile);
-        assertFalse(
-                mCoordinator
-                        .getModelForTesting()
-                        .get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
-
-        OmniboxFeatures.sShowImageGenerationButtonInIncognito.setForTesting(true);
-        mProfileSupplier.set(mProfile);
-        mProfileSupplier.set(mIncognitoProfile);
-        assertTrue(
-                mCoordinator
-                        .getModelForTesting()
-                        .get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
-    }
-
-    @Test
-    @EnableFeatures({OmniboxFeatureList.OMNIBOX_MULTIMODAL_INPUT})
     public void createImageButtonVisibility_regularProfile() {
         doReturn(/* nativeInstance= */ 1L)
                 .when(mComposeboxController)
@@ -365,7 +318,7 @@ public class FuseboxCoordinatorUnitTest {
         assertTrue(
                 mCoordinator
                         .getModelForTesting()
-                        .get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
+                        .get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE));
 
         OmniboxFeatures.sShowImageGenerationButtonInIncognito.setForTesting(true);
         mProfileSupplier.set(mIncognitoProfile);
@@ -373,7 +326,7 @@ public class FuseboxCoordinatorUnitTest {
         assertTrue(
                 mCoordinator
                         .getModelForTesting()
-                        .get(FuseboxProperties.POPUP_CREATE_IMAGE_BUTTON_VISIBLE));
+                        .get(FuseboxProperties.POPUP_TOOL_CREATE_IMAGE_VISIBLE));
     }
 
     @Test

@@ -1,0 +1,77 @@
+// Copyright 2026 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef COMPONENTS_SYNC_SERVICE_DEVICE_STATISTICS_SCHEDULER_H_
+#define COMPONENTS_SYNC_SERVICE_DEVICE_STATISTICS_SCHEDULER_H_
+
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "base/memory/raw_ptr.h"
+#include "base/memory/weak_ptr.h"
+#include "url/gurl.h"
+
+namespace signin {
+class IdentityManager;
+}  // namespace signin
+
+struct CoreAccountInfo;
+class PrefRegistrySimple;
+class PrefService;
+
+namespace syncer {
+
+class DeviceStatisticsRequest;
+class DeviceStatisticsTracker;
+
+// Responsible for scheduling the recording of multi-account device metrics
+// (from DeviceStatisticsTracker) once per day.
+class DeviceStatisticsScheduler {
+ public:
+  class Delegate {
+   public:
+    virtual ~Delegate() = default;
+
+    virtual bool IsDeviceStatisticsMetricReportingEnabled() = 0;
+
+    virtual std::unique_ptr<DeviceStatisticsRequest>
+    CreateDeviceStatisticsRequest(const CoreAccountInfo&, const GURL&) = 0;
+
+    virtual std::vector<std::string>
+    GetCurrentDeviceCacheGuidsForDeviceStatistics() = 0;
+  };
+
+  // Starts the periodic recording of metrics once per day: If there was no
+  // previous invocation today, kicks off a recording run immediately. If
+  // metrics *were* recorded today already, and every time a recording run
+  // finishes, schedules another run for the next day.
+  // `delegate, `pref_service`, and `identity_manager` must not be null and must
+  // outlive this object.
+  DeviceStatisticsScheduler(Delegate* delegate,
+                            PrefService* pref_service,
+                            signin::IdentityManager* identity_manager,
+                            const GURL& sync_server_url);
+  ~DeviceStatisticsScheduler();
+
+  static void RegisterProfilePrefs(PrefRegistrySimple* registry);
+
+ private:
+  void StartTracker();
+  void TrackerDone();
+
+  const raw_ptr<Delegate> delegate_;
+  const raw_ptr<PrefService> pref_service_;
+  const raw_ptr<signin::IdentityManager> identity_manager_;
+
+  const GURL sync_server_url_;
+
+  std::unique_ptr<DeviceStatisticsTracker> tracker_;
+
+  base::WeakPtrFactory<DeviceStatisticsScheduler> weak_factory_{this};
+};
+
+}  // namespace syncer
+
+#endif  // COMPONENTS_SYNC_SERVICE_DEVICE_STATISTICS_SCHEDULER_H_

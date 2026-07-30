@@ -17,7 +17,6 @@ import org.chromium.base.supplier.OneshotSupplierImpl;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.profiles.Profile;
-import org.chromium.chrome.browser.profiles.ProfileProvider;
 import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
 import org.chromium.chrome.browser.signin.services.ProfileDataCache;
 import org.chromium.chrome.browser.sync.SyncServiceFactory;
@@ -116,7 +115,7 @@ public class SigninPromoCoordinator
             Profile profile,
             ActivityResultTracker activityResultTracker,
             SigninAndHistorySyncActivityLauncher launcher,
-            BottomSheetController bottomSheetController,
+            Supplier<BottomSheetController> bottomSheetController,
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             SnackbarManager snackbarManager,
             DeviceLockActivityLauncher deviceLockActivityLauncher,
@@ -127,21 +126,8 @@ public class SigninPromoCoordinator
             return;
         }
 
-        OneshotSupplierImpl<ProfileProvider> profileSupplier = new OneshotSupplierImpl<>();
-        ProfileProvider profileProvider =
-                new ProfileProvider() {
-                    @Override
-                    public Profile getOriginalProfile() {
-                        return profile;
-                    }
-
-                    @Override
-                    public @Nullable Profile getOffTheRecordProfile(boolean createIfNeeded) {
-                        throw new RuntimeException(
-                                "Profile used by sign-in flow cannot be off-the-record");
-                    }
-                };
-        profileSupplier.set(profileProvider);
+        OneshotSupplierImpl<Profile> profileSupplier = new OneshotSupplierImpl<>();
+        profileSupplier.set(profile);
         mSigninCoordinator =
                 launcher.createBottomSheetSigninCoordinatorAndObserveAddAccountResult(
                         windowAndroid,

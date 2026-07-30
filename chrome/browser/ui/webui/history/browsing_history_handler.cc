@@ -90,10 +90,9 @@ constexpr base::TimeDelta kHistorySyncPromoCooldown = base::Days(7);
 
 history::mojom::AccountInfoPtr CreateAccountInfoDataMojo(
     const AccountInfo& info) {
-  history::mojom::AccountInfoPtr account_info_mojo =
-      history::mojom::AccountInfo::New();
-  account_info_mojo->name = info.full_name;
-  account_info_mojo->email = info.email;
+  auto account_info_mojo = history::mojom::AccountInfo::New();
+  account_info_mojo->name = std::string(info.GetFullName().value_or(""));
+  account_info_mojo->email = std::string(info.GetEmail());
   account_info_mojo->account_image_src =
       GURL(signin::GetAccountPictureUrl(info));
   return account_info_mojo;
@@ -382,7 +381,13 @@ void BrowsingHistoryHandler::SetPage(
     return;
   }
 
-  if (history::IsBrowsingHistoryActorIntegrationM3Enabled() &&
+  // Experiment group HaTS survey should trigger if the HaTS experiment group
+  // feature is enabled and any of the history improvement features is enabled.
+  // Check the HaTS feature last, so that clients are only counted as active if
+  // one of the other feature is enabled.
+  if ((history::IsBrowsingHistoryActorIntegrationM3Enabled() ||
+       base::FeatureList::IsEnabled(
+           history::kBrowsingHistorySimilarVisitsGrouping)) &&
       base::FeatureList::IsEnabled(
           features::kHappinessTrackingSurveysForDesktopHistoryPageExperiment)) {
     hats_service->LaunchDelayedSurveyForWebContents(
@@ -392,7 +397,13 @@ void BrowsingHistoryHandler::SetPage(
             .InMilliseconds());
   }
 
+  // Control group HaTS survey should trigger if the HaTS control group feature
+  // is enabled and none of the history improvement features is enabled.
+  // Check the HaTS feature last, so that clients are only counted as active if
+  // all of the other features are disabled.
   if (!history::IsBrowsingHistoryActorIntegrationM3Enabled() &&
+      !base::FeatureList::IsEnabled(
+          history::kBrowsingHistorySimilarVisitsGrouping) &&
       base::FeatureList::IsEnabled(
           features::kHappinessTrackingSurveysForDesktopHistoryPageControl)) {
     hats_service->LaunchDelayedSurveyForWebContents(
@@ -418,12 +429,14 @@ void BrowsingHistoryHandler::StartQueryHistory() {
       this, local_history, sync_service);
 
   // 150 = RESULTS_PER_PAGE from chrome/browser/resources/history/constants.js
-  SendHistoryQuery(150, std::string(), std::nullopt);
+  SendHistoryQuery(150, std::string(), std::nullopt, true, true);
 }
 
 void BrowsingHistoryHandler::QueryHistory(const std::string& query,
                                           int max_count,
                                           std::optional<double> begin_timestamp,
+                                          bool include_user_visits,
+                                          bool include_actor_visits,
                                           QueryHistoryCallback callback) {
   if (!browsing_history_service_) {
     // Page was refreshed, so need to call StartQueryHistory here
@@ -442,18 +455,22 @@ void BrowsingHistoryHandler::QueryHistory(const std::string& query,
 
   query_history_callback_ = std::move(callback);
 
-  SendHistoryQuery(max_count, query, begin_timestamp);
+  SendHistoryQuery(max_count, query, begin_timestamp, include_user_visits,
+                   include_actor_visits);
 }
 
 void BrowsingHistoryHandler::SendHistoryQuery(
     int max_count,
     const std::string& query,
-    std::optional<double> begin_timestamp) {
+    std::optional<double> begin_timestamp,
+    bool include_user_visits,
+    bool include_actor_visits) {
   history::QueryOptions options;
   options.max_count = max_count;
   options.policy_for_404_visits = history::VisitQuery404sPolicy::kExclude404s;
   options.duplicate_policy = history::QueryOptions::REMOVE_DUPLICATES_PER_DAY;
-  options.include_actor_visits = true;
+  options.include_actor_visits = include_actor_visits;
+  options.include_user_visits = include_user_visits;
   std::string query_without_prefix = query;
 
   const std::string kHostPrefix = "host:";
@@ -587,13 +604,13 @@ void BrowsingHistoryHandler::IncrementHistoryPageHistorySyncPromoShownCount() {
 int BrowsingHistoryHandler::GetHistoryPageHistorySyncPromoShownCount() const {
   const AccountInfo account =
       signin_ui_util::GetSingleAccountForPromos(&identity_manager_.get());
-  if (account.gaia.empty()) {
+  if (account.GetGaiaId().empty()) {
     return profile_->GetPrefs()->GetInteger(
         prefs::kHistoryPageHistorySyncPromoShownCountPerProfile);
   }
 
   return SigninPrefs(*profile_->GetPrefs())
-      .GetHistoryPageHistorySyncPromoShownCount(account.gaia);
+      .GetHistoryPageHistorySyncPromoShownCount(account.GetGaiaId());
 }
 
 base::Time
@@ -601,13 +618,13 @@ BrowsingHistoryHandler::GetHistoryPageHistorySyncPromoLastDismissedTimestamp()
     const {
   const AccountInfo account =
       signin_ui_util::GetSingleAccountForPromos(&identity_manager_.get());
-  if (account.gaia.empty()) {
+  if (account.GetGaiaId().empty()) {
     return profile_->GetPrefs()->GetTime(
         prefs::kHistoryPageHistorySyncPromoLastDismissedTimestampPerProfile);
   }
 
   return SigninPrefs(*profile_->GetPrefs())
-      .GetHistoryPageHistorySyncPromoLastDismissedTimestamp(account.gaia)
+      .GetHistoryPageHistorySyncPromoLastDismissedTimestamp(account.GetGaiaId())
       .value_or(base::Time());
 }
 
@@ -615,27 +632,27 @@ bool BrowsingHistoryHandler::IsHistoryPageHistorySyncPromoShownAfterDismissal()
     const {
   const AccountInfo account =
       signin_ui_util::GetSingleAccountForPromos(&identity_manager_.get());
-  if (account.gaia.empty()) {
+  if (account.GetGaiaId().empty()) {
     return profile_->GetPrefs()->GetBoolean(
         prefs::kHistoryPageHistorySyncPromoShownAfterDismissalPerProfile);
   }
 
   return SigninPrefs(*profile_->GetPrefs())
-      .GetHistoryPageHistorySyncPromoShownAfterDismissal(account.gaia);
+      .GetHistoryPageHistorySyncPromoShownAfterDismissal(account.GetGaiaId());
 }
 
 void BrowsingHistoryHandler::
     SetHistoryPageHistorySyncPromoLastDismissedTimestamp(base::Time time) {
   const AccountInfo account =
       signin_ui_util::GetSingleAccountForPromos(&identity_manager_.get());
-  if (account.gaia.empty()) {
+  if (account.GetGaiaId().empty()) {
     profile_->GetPrefs()->SetTime(
         prefs::kHistoryPageHistorySyncPromoLastDismissedTimestampPerProfile,
         time);
   } else {
     SigninPrefs(*profile_->GetPrefs())
-        .SetHistoryPageHistorySyncPromoLastDismissedTimestamp(account.gaia,
-                                                              time);
+        .SetHistoryPageHistorySyncPromoLastDismissedTimestamp(
+            account.GetGaiaId(), time);
   }
 }
 
@@ -643,7 +660,7 @@ void BrowsingHistoryHandler::
     IncrementHistoryPageHistorySyncPromoShownCountPref() {
   const AccountInfo account =
       signin_ui_util::GetSingleAccountForPromos(&identity_manager_.get());
-  if (account.gaia.empty()) {
+  if (account.GetGaiaId().empty()) {
     const int promo_shown_count = profile_->GetPrefs()->GetInteger(
         prefs::kHistoryPageHistorySyncPromoShownCountPerProfile);
     profile_->GetPrefs()->SetInteger(
@@ -651,7 +668,7 @@ void BrowsingHistoryHandler::
         promo_shown_count + 1);
   } else {
     SigninPrefs(*profile_->GetPrefs())
-        .IncrementHistoryPageHistorySyncPromoShownCount(account.gaia);
+        .IncrementHistoryPageHistorySyncPromoShownCount(account.GetGaiaId());
   }
 }
 
@@ -659,12 +676,12 @@ void BrowsingHistoryHandler::
     SetHistoryPageHistorySyncPromoShownAfterDismissal() {
   const AccountInfo account =
       signin_ui_util::GetSingleAccountForPromos(&identity_manager_.get());
-  if (account.gaia.empty()) {
+  if (account.GetGaiaId().empty()) {
     profile_->GetPrefs()->SetBoolean(
         prefs::kHistoryPageHistorySyncPromoShownAfterDismissalPerProfile, true);
   } else {
     SigninPrefs(*profile_->GetPrefs())
-        .SetHistoryPageHistorySyncPromoShownAfterDismissal(account.gaia);
+        .SetHistoryPageHistorySyncPromoShownAfterDismissal(account.GetGaiaId());
   }
 }
 #endif

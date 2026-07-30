@@ -62,7 +62,7 @@ std::wstring MakeAbsoluteFilePath(const std::wstring& input) {
 
 // The same as GetUserDataDirectory(), but directly queries the global command
 // line object for the --user-data-dir flag. This is the more commonly used
-// function, where GetUserDataDirectory() is used primiarily for testing.
+// function, where GetUserDataDirectory() is used primarily for testing.
 bool GetUserDataDirectoryUsingProcessCommandLine(
     const InstallConstants& mode,
     std::wstring* result,
@@ -135,7 +135,7 @@ bool GetUserDataDirectoryImpl(const std::wstring& command_line,
   }
 
   // On Windows, trailing separators leave Chrome in a bad state. See
-  // crbug.com/464616.
+  // crbug.com/41161181.
   while (!user_data_dir.empty() &&
          (user_data_dir.back() == '\\' || user_data_dir.back() == '/')) {
     user_data_dir.pop_back();

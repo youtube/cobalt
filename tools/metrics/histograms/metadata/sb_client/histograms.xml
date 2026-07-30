@@ -562,6 +562,29 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram
+    name="SBClientPhishing.ClipboardCopyApi.PayloadExtraction.IsOverallSuspicious"
+    enum="Boolean" expires_after="2027-02-02">
+  <owner>liu@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records the volume of analyzed clipboard payloads and whether they're deemed
+    likely to be malicious.
+  </summary>
+</histogram>
+
+<histogram
+    name="SBClientPhishing.ClipboardCopyApi.PayloadExtraction.ProcessingDuration"
+    units="ms" expires_after="2027-02-02">
+  <owner>liu@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records the duration it took to process the clipboard payload and analyze
+    its suspicion levels. This is recorded each time the clipboard payload is
+    processed for client-side detection.
+  </summary>
+</histogram>
+
+<histogram
     name="SBClientPhishing.ClipboardCopyApi.PayloadExtraction.SplitStringDuration"
     units="ms" expires_after="2026-10-23">
   <owner>liu@chromium.org</owner>
@@ -592,6 +615,17 @@ useful for Chirp alerts (go/crca-alerts). -->
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
     Records the number of tokens created when splitting the clipboard payload.
+    This is recorded each time the clipboard payload is processed for
+    client-side detection.
+  </summary>
+</histogram>
+
+<histogram name="SBClientPhishing.ClipboardCopyApi.PayloadExtraction.UrlCount"
+    units="urls" expires_after="2027-02-02">
+  <owner>liu@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records the number of URLs extracted from a suspicious clipboard payload.
     This is recorded each time the clipboard payload is processed for
     client-side detection.
   </summary>
@@ -874,6 +908,16 @@ useful for Chirp alerts (go/crca-alerts). -->
   </summary>
   <token key="IntelligentScanRequestType"
       variants="ClientSideDetectionIntelligentScanRequestType"/>
+</histogram>
+
+<histogram name="SBClientPhishing.IsOnDeviceModelAvailableOnSessionCreation"
+    enum="BooleanSuccess" expires_after="2026-08-06">
+  <owner>xinghuilu@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records whether the on device model is available at the time of session
+    creation.
+  </summary>
 </histogram>
 
 <histogram name="SBClientPhishing.LlamaForcedTriggerInfo.IntelligentScan"
@@ -1426,6 +1470,19 @@ useful for Chirp alerts (go/crca-alerts). -->
     we try to remove a timestamp from it. This is logged when a scam warning is
     shown to the user, which refunds the quota. This should never happen if the
     pref is intact.
+  </summary>
+</histogram>
+
+<histogram name="SBClientPhishing.ServerSideModelQuotaCountOnScamWarningShown"
+    units="queries" expires_after="2026-08-06">
+  <owner>xinghuilu@chromium.org</owner>
+  <owner>chrome-counter-abuse-alerts@google.com</owner>
+  <summary>
+    Records the number of server-side model queries made before a scam warning
+    is shown to the user. This is logged when a scam warning is shown to the
+    user, before the quota is refunded. This number can help inform how
+    adjusting the quota size affects protection (i.e. how many warning we will
+    lose if we reduce the quota).
   </summary>
 </histogram>
 

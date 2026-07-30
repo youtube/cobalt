@@ -4,9 +4,11 @@
 
 #include "services/network/public/cpp/connection_allowlist_parser.h"
 
+#include "components/url_pattern/simple_url_pattern_matcher.h"
 #include "net/http/structured_headers.h"
 #include "services/network/public/cpp/connection_allowlist.h"
 #include "services/network/public/mojom/connection_allowlist.mojom-shared.h"
+#include "services/network/public/mojom/devtools_observer.mojom.h"
 #include "url/gurl.h"
 #include "url/origin.h"
 
@@ -24,8 +26,14 @@ std::optional<std::string> ParsePattern(
     return kResponseOriginToken;
   } else if (pattern.item.is_string() &&
              pattern.item.GetString() != kResponseOriginToken) {
-    // TODO(mkwst): Validate the string as a `URLPattern`.
-    return pattern.item.GetString();
+    const std::string& pattern_string = pattern.item.GetString();
+    if (!url_pattern::SimpleUrlPatternMatcher::Create(pattern_string,
+                                                      /*base_url=*/nullptr)
+             .has_value()) {
+      issues.push_back(mojom::ConnectionAllowlistIssue::kInvalidUrlPattern);
+      return std::nullopt;
+    }
+    return pattern_string;
   } else {
     issues.push_back(
         mojom::ConnectionAllowlistIssue::kInvalidAllowlistItemType);
@@ -111,6 +119,32 @@ ConnectionAllowlists ParseConnectionAllowlistsFromHeaders(
   }
 
   return result;
+}
+
+void ReportConnectionAllowlistIssuesToDevtools(
+    const ConnectionAllowlists& allowlists,
+    const raw_ptr<mojom::DevToolsObserver> devtools_observer,
+    const std::string& devtools_request_id,
+    const GURL& request_url) {
+  if (!devtools_observer || devtools_request_id.empty()) {
+    return;
+  }
+
+  if (allowlists.enforced) {
+    for (const mojom::ConnectionAllowlistIssue issue :
+         allowlists.enforced->issues) {
+      devtools_observer->OnConnectionAllowlistIssue(devtools_request_id,
+                                                    request_url, issue);
+    }
+  }
+
+  if (allowlists.report_only) {
+    for (const mojom::ConnectionAllowlistIssue issue :
+         allowlists.report_only->issues) {
+      devtools_observer->OnConnectionAllowlistIssue(devtools_request_id,
+                                                    request_url, issue);
+    }
+  }
 }
 
 }  // namespace network

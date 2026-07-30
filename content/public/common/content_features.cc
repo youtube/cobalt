@@ -321,9 +321,6 @@ const base::FeatureParam<content::BtmTriggeringAction> kBtmTriggeringAction{
 const base::FeatureParam<base::TimeDelta> kBtmClientBounceDetectionTimeout{
     &kBtm, "client_bounce_detection_timeout", base::Seconds(10)};
 
-// Enables Bounce Tracking Mitigations for Dual Use sites.
-BASE_FEATURE(kBtmDualUse, base::FEATURE_DISABLED_BY_DEFAULT);
-
 // Enables HW decode acceleration for WebRTC.
 BASE_FEATURE(kWebRtcHWDecoding,
              "webrtc-hw-decoding",
@@ -1370,7 +1367,7 @@ BASE_FEATURE(kWebauthnDisabledOnAuto,
 
 // Enables Exclusive Access Manager on Android platform
 #if BUILDFLAG(IS_ANDROID)
-BASE_FEATURE(kEnableExclusiveAccessManager, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableExclusiveAccessManager, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 #if BUILDFLAG(IS_ANDROID)

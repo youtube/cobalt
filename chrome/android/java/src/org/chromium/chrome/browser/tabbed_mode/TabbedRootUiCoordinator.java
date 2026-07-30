@@ -76,6 +76,7 @@ import org.chromium.chrome.browser.collaboration.messaging.MessagingBackendServi
 import org.chromium.chrome.browser.compositor.CompositorViewHolder;
 import org.chromium.chrome.browser.compositor.layouts.LayoutManagerImpl;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager;
+import org.chromium.chrome.browser.contextual_tasks.ContextualTasksBridge;
 import org.chromium.chrome.browser.crash.ChromePureJavaExceptionReporter;
 import org.chromium.chrome.browser.customtabs.CustomTabActivity;
 import org.chromium.chrome.browser.data_sharing.DataSharingNotificationManager;
@@ -128,6 +129,7 @@ import org.chromium.chrome.browser.notifications.permissions.NotificationPermiss
 import org.chromium.chrome.browser.notifications.tips.TipsOptInCoordinator;
 import org.chromium.chrome.browser.notifications.tips.TipsUtils;
 import org.chromium.chrome.browser.ntp.NewTabPageLaunchOrigin;
+import org.chromium.chrome.browser.ntp.NewTabPageLocationPolicyManager;
 import org.chromium.chrome.browser.ntp.NewTabPageUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.policy.NtpCustomizationPolicyManager;
@@ -186,7 +188,6 @@ import org.chromium.chrome.browser.tasks.tab_management.TabGroupListFaviconResol
 import org.chromium.chrome.browser.tasks.tab_management.TabUiUtils;
 import org.chromium.chrome.browser.tasks.tab_management.UndoGroupSnackbarController;
 import org.chromium.chrome.browser.tasks.tab_management.tab_bottom_sheet.TabBottomSheetManager;
-import org.chromium.chrome.browser.tasks.tab_management.tab_bottom_sheet.TabBottomSheetSimpleManager;
 import org.chromium.chrome.browser.tasks.tab_management.tab_bottom_sheet.TabBottomSheetUtils;
 import org.chromium.chrome.browser.toolbar.ToolbarButtonInProductHelpController;
 import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
@@ -306,7 +307,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private @Nullable LoadingFullscreenCoordinator mLoadingFullscreenCoordinator;
     private @Nullable BookmarkOpener mBookmarkOpener;
     private @Nullable TabBottomSheetManager mTabBottomSheetManager;
-    private @Nullable TabBottomSheetSimpleManager mTabBottomSheetSimpleManager;
     private final @NonNull MonotonicObservableSupplier<BookmarkManagerOpener>
             mBookmarkManagerOpenerSupplier;
     private @NonNull AdvancedProtectionCoordinator mAdvancedProtectionCoordinator;
@@ -316,11 +316,12 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private final OneshotSupplier<ChromeInactivityTracker> mInactivityTrackerSupplier;
     private final InactivityObserver mInactivityObserver;
     private @Nullable NtpSyncedThemeManager mNtpSyncedThemeManager;
-    private final @NonNull CrossDeviceSettingImporter mCrossDeviceSettingImporter;
+    private final @Nullable CrossDeviceSettingImporter mCrossDeviceSettingImporter;
     private @Nullable SideUiCoordinator mSideUiCoordinator;
     private @Nullable SidePanelContainerCoordinator mSidePanelContainerCoordinator;
     private final OneshotSupplierImpl<Boolean> mTrackerInitializedOneshotSupplier =
             new OneshotSupplierImpl<>();
+    private ContextualTasksBridge mContextualTasksBridge;
 
     // Activity tab observer that updates the current tab used by various UI components.
     private class RootUiTabObserver extends ActivityTabTabObserver {
@@ -400,7 +401,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
      * @param tabContentManagerSupplier Supplies the {@link TabContentManager}.
      * @param snackbarManagerSupplier Supplies the {@link SnackbarManager}.
      * @param edgeToEdgeSupplier Supplies the {@link EdgeToEdgeController}.
-     * @param topInsetProviderSupplier Supplies the {@link TopInsetProvider}.
+     * @param topInsetProvider The {@link TopInsetProvider} instance.
      * @param systemBarColorHelperSupplier Supplies the {@link SystemBarColorHelper} for the
      *     edge-to-edge bottom chin.
      * @param activityType The {@link ActivityType} for the activity.
@@ -457,7 +458,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             @NonNull Supplier<TabContentManager> tabContentManagerSupplier,
             @NonNull Supplier<SnackbarManager> snackbarManagerSupplier,
             @NonNull SettableMonotonicObservableSupplier<EdgeToEdgeController> edgeToEdgeSupplier,
-            @NonNull SettableMonotonicObservableSupplier<TopInsetProvider> topInsetProviderSupplier,
+            @NonNull TopInsetProvider topInsetProvider,
             @NonNull OneshotSupplierImpl<SystemBarColorHelper> systemBarColorHelperSupplier,
             @ActivityType int activityType,
             @NonNull Supplier<Boolean> isInOverviewModeSupplier,
@@ -515,7 +516,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 tabContentManagerSupplier,
                 snackbarManagerSupplier,
                 edgeToEdgeSupplier,
-                topInsetProviderSupplier,
+                topInsetProvider,
                 activityType,
                 isInOverviewModeSupplier,
                 appMenuDelegate,
@@ -643,12 +644,14 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 });
 
         mCrossDeviceSettingImporter =
-                new CrossDeviceSettingImporter(
-                        activityLifecycleDispatcher,
-                        mActivityTabProvider.asObservable(),
-                        mActivity,
-                        modalDialogManagerSupplier,
-                        snackbarManagerSupplier);
+                DeviceInfo.isDesktop()
+                        ? null
+                        : new CrossDeviceSettingImporter(
+                                activityLifecycleDispatcher,
+                                mActivityTabProvider.asObservable(),
+                                mActivity,
+                                modalDialogManagerSupplier,
+                                snackbarManagerSupplier);
 
         new OneShotCallback<>(mProfileSupplier, this::waitForTrackerInit);
 
@@ -813,12 +816,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mTabBottomSheetManager.destroy();
             mTabBottomSheetManager = null;
         }
-        if (mTabBottomSheetSimpleManager != null) {
-            mTabBottomSheetSimpleManager.destroy();
-            mTabBottomSheetSimpleManager = null;
-        }
 
-        mCrossDeviceSettingImporter.destroy();
+        if (mCrossDeviceSettingImporter != null) {
+            mCrossDeviceSettingImporter.destroy();
+        }
 
         if (mSideUiCoordinator != null) {
             mSideUiCoordinator.destroy();
@@ -828,6 +829,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (mSidePanelContainerCoordinator != null) {
             mSidePanelContainerCoordinator.destroy();
             mSidePanelContainerCoordinator = null;
+        }
+
+        if (mContextualTasksBridge != null) {
+            mContextualTasksBridge.destroy();
+            mContextualTasksBridge = null;
         }
 
         super.onDestroy();
@@ -1077,6 +1083,9 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
         mSideUiCoordinator = SideUiCoordinatorFactory.create();
         mSidePanelContainerCoordinator = SidePanelContainerCoordinatorFactory.create();
+        if (ChromeFeatureList.isEnabled(ChromeFeatureList.CONTEXTUAL_TASKS)) {
+            mContextualTasksBridge = new ContextualTasksBridge();
+        }
 
         initiateTabBottomSheetManagers();
     }
@@ -1141,6 +1150,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             NtpCustomizationPolicyManager.getInstance()
                     .onFinishNativeInitialization(currentlySelectedProfile);
         }
+        NewTabPageLocationPolicyManager.getInstance().onFinishNativeInitialization(originalProfile);
     }
 
     /** Creates an instance of {@link IncognitoReauthCoordinatorFactory} for tabbed activity. */
@@ -1635,7 +1645,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         if (!BrowserControlsUtils.isTopControlsRefactorOffsetEnabled()) {
             mToolbarManager
                     .getTabStripHeightSupplier()
-                    .addObserver(mOnTabStripHeightChangedCallback);
+                    .addSyncObserverAndPostIfNonNull(mOnTabStripHeightChangedCallback);
         }
     }
 
@@ -1644,15 +1654,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             mTabBottomSheetManager =
                     new TabBottomSheetManager(
                             mActivity,
-                            mProfileSupplier,
+                            mProfileSupplier.asNonNull(),
                             mWindowAndroid,
                             mActivityLifecycleDispatcher,
                             mSnackbarManagerSupplier.get(),
                             getBottomSheetController());
-
-            mTabBottomSheetSimpleManager =
-                    new TabBottomSheetSimpleManager(
-                            mTabModelSelectorSupplier.get().getModel(/* incognito= */ false));
         }
     }
 
@@ -1957,6 +1963,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
         // Any promo that has a force-show feature flag should be added to this list (and of course
         // any promo that you want to trigger at every startup (temporarily for debugging and/or
         // development).
+        if (FullscreenSigninPromoLauncher.launchPromoIfForced(
+                mActivity, profile, SigninAndHistorySyncActivityLauncherImpl.get())) return true;
         if (PwaRestorePromoUtils.maybeForceShowPromo(profile, mWindowAndroid)) return true;
 
         return false;

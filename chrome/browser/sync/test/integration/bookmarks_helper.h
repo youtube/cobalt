@@ -61,43 +61,37 @@ enum class StoreType {
 [[nodiscard]] bookmarks::BookmarkModel* GetBookmarkModel(int index);
 
 // Used to access the bookmark bar within a particular sync profile.
-// TODO(crbug.com/353425612): Remove the default value for `store`.
 [[nodiscard]] const bookmarks::BookmarkNode* GetBookmarkBarNode(
     int index,
-    StoreType store_type = StoreType::kLocalOrSyncableStore);
+    StoreType store_type);
 
 // Used to access the "other bookmarks" node within a particular sync profile.
-// TODO(crbug.com/353425612): Remove the default value for `store`.
-[[nodiscard]] const bookmarks::BookmarkNode* GetOtherNode(
-    int index,
-    StoreType store_type = StoreType::kLocalOrSyncableStore);
+[[nodiscard]] const bookmarks::BookmarkNode* GetOtherNode(int index,
+                                                          StoreType store_type);
 
 // Used to access the "Synced Bookmarks" node within a particular sync profile.
-// TODO(crbug.com/353425612): Add StoreType parameter.
-[[nodiscard]] const bookmarks::BookmarkNode* GetSyncedBookmarksNode(int index);
+[[nodiscard]] const bookmarks::BookmarkNode* GetSyncedBookmarksNode(
+    int index,
+    StoreType store_type);
 
 // Used to access the "Managed Bookmarks" node for the given profile.
 [[nodiscard]] const bookmarks::BookmarkNode* GetManagedNode(int index);
 
 // Adds a URL with address |url| and title |title| to the bookmark bar of
 // profile |profile|. Returns a pointer to the node that was added.
-// TODO(crbug.com/353425612): Remove the default value for `store`.
-const bookmarks::BookmarkNode* AddURL(
-    int profile,
-    const std::u16string& title,
-    const GURL& url,
-    StoreType store_type = StoreType::kLocalOrSyncableStore);
+const bookmarks::BookmarkNode* AddURL(int profile,
+                                      const std::u16string& title,
+                                      const GURL& url,
+                                      StoreType store_type);
 
 // Adds a URL with address |url| and title |title| to the bookmark bar of
 // profile |profile| at position |index|. Returns a pointer to the node that
 // was added.
-// TODO(crbug.com/353425612): Remove the default value for `store`.
-const bookmarks::BookmarkNode* AddURL(
-    int profile,
-    size_t index,
-    const std::u16string& title,
-    const GURL& url,
-    StoreType store_type = StoreType::kLocalOrSyncableStore);
+const bookmarks::BookmarkNode* AddURL(int profile,
+                                      size_t index,
+                                      const std::u16string& title,
+                                      const GURL& url,
+                                      StoreType store_type);
 
 // Adds a URL with address |url| and title |title| under the node |parent| of
 // profile |profile| at position |index|. Returns a pointer to the node that
@@ -110,20 +104,16 @@ const bookmarks::BookmarkNode* AddURL(int profile,
 
 // Adds a folder named |title| to the bookmark bar of profile |profile|.
 // Returns a pointer to the folder that was added.
-// TODO(crbug.com/353425612): Remove the default value for `store`.
-const bookmarks::BookmarkNode* AddFolder(
-    int profile,
-    const std::u16string& title,
-    StoreType store_type = StoreType::kLocalOrSyncableStore);
+const bookmarks::BookmarkNode* AddFolder(int profile,
+                                         const std::u16string& title,
+                                         StoreType store_type);
 
 // Adds a folder named |title| to the bookmark bar of profile |profile| at
 // position |index|. Returns a pointer to the folder that was added.
-// TODO(crbug.com/353425612): Remove the default value for `store`.
-const bookmarks::BookmarkNode* AddFolder(
-    int profile,
-    size_t index,
-    const std::u16string& title,
-    StoreType store_type = StoreType::kLocalOrSyncableStore);
+const bookmarks::BookmarkNode* AddFolder(int profile,
+                                         size_t index,
+                                         const std::u16string& title,
+                                         StoreType store_type);
 
 // Adds a folder named |title| to the node |parent| in the bookmark model of
 // profile |profile| at position |index|. Returns a pointer to the node that
@@ -467,12 +457,10 @@ class BookmarksUuidChecker : public SingleBookmarksModelMatcherChecker {
 class BookmarkModelMatchesFakeServerChecker
     : public SingleClientStatusChangeChecker {
  public:
-  // TODO(crbug.com/353425612): Remove the default value for `store`.
-  BookmarkModelMatchesFakeServerChecker(
-      bookmarks::BookmarkModel* model,
-      syncer::SyncServiceImpl* service,
-      fake_server::FakeServer* fake_server,
-      StoreType store_type = StoreType::kLocalOrSyncableStore);
+  BookmarkModelMatchesFakeServerChecker(bookmarks::BookmarkModel* model,
+                                        syncer::SyncServiceImpl* service,
+                                        fake_server::FakeServer* fake_server,
+                                        StoreType store_type);
   ~BookmarkModelMatchesFakeServerChecker() override;
 
   bool IsExitConditionSatisfied(std::ostream* os) override;

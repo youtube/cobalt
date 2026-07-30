@@ -30,6 +30,11 @@ is a bad design.
 1. APIs should minimize the potential for misuse, especially misuse with
    security implications (such as undefined behavior).
 
+## Compatibility with the Generic Rust Guidelines
+
+1. APIs should follow the
+   [Rust API Guidelines](https://rust-lang.github.io/api-guidelines/)
+
 ## (Un)Safety
 1. APIs should not require users to use `unsafe` code if at all possible.
     1. This includes `unsafe` functions, as well as those that require `unsafe`
@@ -39,5 +44,6 @@ is a bad design.
        annoying enough that developers will try to avoid using them.
 1. If we provide an `unsafe` API, we should try to provide an equivalent safe
    API and encourage its use when possible.
-1. _Internal_ use of `unsafe` is acceptable, so long it is not exposed to the
+1. _Internal_ use of `unsafe` is acceptable, so long it is encapsulated and
+   not exposed to the
    user, and there isn’t an easy safe alternative.

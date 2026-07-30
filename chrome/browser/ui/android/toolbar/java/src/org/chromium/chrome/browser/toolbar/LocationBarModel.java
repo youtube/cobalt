@@ -22,6 +22,7 @@ import org.jni_zero.NativeMethods;
 
 import org.chromium.base.ObserverList;
 import org.chromium.base.TraceEvent;
+import org.chromium.base.UserDataHost;
 import org.chromium.base.supplier.NonNullObservableSupplier;
 import org.chromium.build.annotations.EnsuresNonNullIf;
 import org.chromium.build.annotations.NullMarked;
@@ -52,6 +53,7 @@ import org.chromium.components.security_state.ConnectionMaliciousContentStatus;
 import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.components.security_state.SecurityStateModel;
 import org.chromium.content_public.browser.WebContents;
+import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.url.GURL;
 
 import java.util.Objects;
@@ -251,6 +253,7 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
             mChromeAutocompleteSchemeClassifier.destroy();
             mChromeAutocompleteSchemeClassifier = null;
         }
+
         if (mNativeLocationBarModelAndroid == 0) return;
         LocationBarModelJni.get().destroy(mNativeLocationBarModelAndroid);
         mNativeLocationBarModelAndroid = 0;
@@ -317,6 +320,12 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         // we no longer wait for TAB_CLOSED events to remove this tab.  Otherwise there is a chance
         // we use this tab after {@link Tab#destroy()} is called.
         return mTab != null && mTab.isInitialized() && !mTab.isDestroyed();
+    }
+
+    @Override
+    public @Nullable UserDataHost getUserDataHost() {
+        if (!hasTab()) return null;
+        return assumeNonNull(getTab()).getUserDataHost();
     }
 
     @Override
@@ -419,6 +428,17 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
 
             GURL gurl = getCurrentGurl();
             if (!UrlBarData.shouldShowUrl(gurl, isOffTheRecord())) {
+                if (isNonMultiDisplayContextOnTablet()
+                        && gurl.getScheme().equals(UrlConstants.CHROME_NATIVE_SCHEME)
+                        && !UrlUtilities.isNtpUrl(gurl)) {
+                    String url = gurl.getSpec();
+                    String displayUrl =
+                            url.replaceFirst(
+                                    UrlConstants.CHROME_NATIVE_URL_PREFIX,
+                                    UrlConstants.CHROME_URL_PREFIX);
+                    return UrlBarData.create(
+                            gurl, displayUrl, 0, displayUrl.length(), /* editingText= */ null);
+                }
                 return UrlBarData.EMPTY;
             }
 
@@ -926,6 +946,11 @@ public class LocationBarModel implements ToolbarDataProvider, LocationBarDataPro
         GURL getUrlOfVisibleNavigationEntry(long nativeLocationBarModelAndroid);
 
         int getPageClassification(long nativeLocationBarModelAndroid, boolean isPrefetch);
+    }
+
+    @VisibleForTesting
+    protected boolean isNonMultiDisplayContextOnTablet() {
+        return DeviceFormFactor.isNonMultiDisplayContextOnTablet(mContext);
     }
 
     public void onPageLoadStopped() {

@@ -4,6 +4,13 @@
 
 module composebox_query.mojom;
 
+// A single URL parameter key-value pair.
+// Named AimUrlParam instead of UrlParam to avoid collision with mojo::internal generated types.
+struct AimUrlParam {
+  string param_key;
+  string param_value;
+};
+
 // Upload status of a file.
 enum FileUploadStatus {
   // Not uploaded.
@@ -22,6 +29,8 @@ enum FileUploadStatus {
   kUploadExpired = 6,
   // File being processed, and suggest signals are ready.
   kProcessingSuggestSignalsReady = 7,
+  // File is being replaced.
+  kUploadReplaced = 8,
 };
 
 // For upload error notifications and metrics.
@@ -43,6 +52,7 @@ enum FileUploadErrorType {
 };
 
 // The AIM model mode.
+// LINT.IfChange(ModelMode)
 enum ModelMode {
   // Model is unspecified.
   kUnspecified = 0,
@@ -53,8 +63,10 @@ enum ModelMode {
   // Uses Gemini Pro Model with automatic routing capabilities.
   kGeminiProAutoroute = 3,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/enums.xml:ContextualSearchAimModel)
 
 // The AIM tool mode.
+// LINT.IfChange(ToolMode)
 enum ToolMode {
   // Tool is unspecified.
   kUnspecified = 0,
@@ -62,15 +74,24 @@ enum ToolMode {
   kDeepSearch = 1,
   // Enables Canvas Tool.
   kCanvas = 2,
+  // Enables Gemini Pro mode.
+  kGeminiPro = 3,
   // Enables Image generation functionality.
-  kImageGen = 3,
+  kImageGen = 4,
   // Enables Deep Browse functionality.
-  kDeepBrowse = 4,
-  // Enables Image Generation for uploaded images.
-  kImageGenUpload = 5,
+  kDeepBrowse = 5,
   // Enables Image Generation for Selfie type images.
   kImageGenSelfie = 6,
+  // Enables Image Generation for uploaded images.
+  kImageGenUpload = 7,
+  // Disables suggestions.
+  kDisableSuggest = 8,
+  // Enables AIM mode.
+  kAim = 9,
+  // Enables AIM Gen Prompt mode.
+  kAimGenPrompt = 10,
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/contextual_search/enums.xml:ContextualSearchAimTool)
 
 // The AIM input type.
 enum InputType {
@@ -84,7 +105,31 @@ enum InputType {
   kBrowserTab = 3,
 };
 
+// Configuration for a tool.
+struct ToolConfig {
+  ToolMode tool;
+  bool disable_active_model_selection;
+  string menu_label;
+  string chip_label;
+  string hint_text;
+  array<AimUrlParam> aim_url_params;
+};
+
+// Configuration for a model.
+struct ModelConfig {
+  ModelMode model;
+  string menu_label;
+  string hint_text;
+  array<AimUrlParam> aim_url_params;
+};
+
+// Configuration for a section.
+struct SectionConfig {
+  string header;
+};
+
 // Represents the current state of inputs, models, and tools within AIM.
+// This struct is only ever sent from the browser to WebUI.
 // LINT.IfChange(InputState)
 struct InputState {
   // The set of allowed models.
@@ -103,5 +148,15 @@ struct InputState {
   array<ToolMode> disabled_tools;
   // The set of currently disabled input types.
   array<InputType> disabled_input_types;
+  // Configuration for available tools.
+  array<ToolConfig> tool_configs;
+  // Configuration for available models.
+  array<ModelConfig> model_configs;
+  // Configuration for the tools section.
+  SectionConfig? tools_section_config;
+  // Configuration for the model section.
+  SectionConfig? model_section_config;
+  // Hint text to display in the input.
+  string hint_text;
 };
-// LINT.ThenChange(//components/contextual_search/input_state_model.h:InputState)
+// LINT.ThenChange(//components/omnibox/common/input_state.h:InputState)

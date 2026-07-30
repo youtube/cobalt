@@ -155,7 +155,7 @@ BASE_FEATURE(kAutofillAiAvailableByDefault, base::FEATURE_DISABLED_BY_DEFAULT);
 // whether other features are enabled. This is necessary so that cleaning up the
 // browsing data also removes data if the user left the study.
 BASE_FEATURE(kAutofillAiCreateEntityDataManager,
-#if BUILDFLAG(IS_ANDROID)
+#if BUILDFLAG(IS_ANDROID) || BUILDFLAG(IS_IOS)
              base::FEATURE_DISABLED_BY_DEFAULT
 #else
              base::FEATURE_ENABLED_BY_DEFAULT
@@ -197,10 +197,20 @@ BASE_FEATURE_PARAM(std::string,
                    "autofill_ai_geo_ip_blocklist",
                    "");
 
+// If enabled, Autofill AI ignores the GeoIp restrictions for uploading private
+// passes to Wallet. Even with the feature enabled, we continue to check whether
+// Wallet is supported in the country at all.
+BASE_FEATURE(kAutofillAiIgnorePrivatePassGeoIpRestrictions,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, Autofill AI does not depend on Autofill for addresses being
 // enabled.
 BASE_FEATURE(kAutofillAiIgnoresWhetherAddressPrefIsEnabled,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, Autofill AI will use a new update prompt on Desktop that shows
+// both the previous and the new value of an updated entity attribute.
+BASE_FEATURE(kAutofillAiNewUpdatePrompt, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, AutofillAi requires re-auth when filling/viewing sensitive
 // fields. As part of this feature sensitive fields are also obfuscated during
@@ -307,15 +317,6 @@ BASE_FEATURE(kAutofillAiWithDataSchema,
              IS_AUTOFILL_AI_PLATFORM ? base::FEATURE_ENABLED_BY_DEFAULT
                                      : base::FEATURE_DISABLED_BY_DEFAULT);
 
-// This parameter enables adding an experiment id to requests to the Autofill
-// to enable Autofill AI predictions. The experiment id is not used for other
-// backends.
-BASE_FEATURE_PARAM(int,
-                   kAutofillAiWithDataSchemaServerExperimentId,
-                   &kAutofillAiWithDataSchema,
-                   "autofill_ai_server_experiment_id",
-                   IS_AUTOFILL_AI_PLATFORM ? 3314871 : 0);
-
 // When enabled, autofill will fill not skip filling fields that had an initial
 // value which was modified.
 BASE_FEATURE(kAutofillAllowFillingModifiedInitialValues,
@@ -359,6 +360,10 @@ BASE_FEATURE(kAutofillAndroidDisableSuggestionsOnJSFocus,
 // TODO(crbug.com/438125774): Remove when launched.
 BASE_FEATURE(kAutofillAndroidKeyboardAccessoryDynamicPositioning,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If @memory is enabled, typing "@@" in an input field triggers search popup,
+// allowing to recall and insert the info anywhere using plain language.
+BASE_FEATURE(kAutofillAtMemory, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, the placeholder is not considered a label fallback on the
 // renderer side anymore. Instead, local heuristic will match regexes against
@@ -533,7 +538,7 @@ BASE_FEATURE(kAutofillEnableImportWhenMultiplePhoneNumbers,
 // Controls if Chrome Keyboard Accessory on Android displays 2 line chips.
 // TODO: crbug.com/385172647 - Clean up after the feature is launched.
 BASE_FEATURE(kAutofillEnableKeyboardAccessoryChipRedesign,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -541,7 +546,7 @@ BASE_FEATURE(kAutofillEnableKeyboardAccessoryChipRedesign,
 // the first 2 chips to display a part of the next one on the screen.
 // TODO: crbug.com/385172647 - Clean up after the feature is launched.
 BASE_FEATURE(kAutofillEnableKeyboardAccessoryChipWidthAdjustment,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 // When enabled, the precedence is given to the field label over the name when
@@ -559,6 +564,10 @@ BASE_FEATURE(kAutofillEnableLoyaltyCardsFilling,
 // When enabled, Autofill will help users fill in non-affiliated loyalty cards
 // on loyalty card only fields.
 BASE_FEATURE(kAutofillEnableNonAffiliatedLoyaltyCardsFilling,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Kill switch for saving entities to wallet from settings.
+BASE_FEATURE(kAutofillEnableSaveToWalletFromSettings,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
@@ -581,7 +590,12 @@ BASE_FEATURE(kAutofillEnableSupportForHomeAndWork,
 // When enabled, chrome will support name and email address profile.
 // TODO(crbug.com/356845298): Clean up when launched.
 BASE_FEATURE(kAutofillEnableSupportForNameAndEmail,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_IOS)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else  // Desktop and Android
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // The number of times after which, a never accepted `kAccountNameEmail`
 // suggestion will result in the `kAccountNameEmail` profile being deleted.
@@ -670,6 +684,13 @@ BASE_FEATURE(kAutofillIgnoreCheckableElements,
 // suggestion UI.
 // TODO(crbug.com/381531027): Remove when launched.
 BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When enabled, a new grammar for phone numbers is considered and we get
+// slightly better at detecting cases where the generic regex for
+// PHONE_COUNTRY_CODE matches a field that should not actually be classified as
+// such.
+BASE_FEATURE(kAutofillImprovePhoneFieldParser,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // TODO(crbug.com/346507576): Remove once the experiment is over.
@@ -855,6 +876,12 @@ BASE_FEATURE(kAutofillSmsOtpCrowdsourcing, base::FEATURE_ENABLED_BY_DEFAULT);
 // number, address line 2" as a sequence.
 // TODO(crbug.com/40266693) Remove once launched.
 BASE_FEATURE(kAutofillStructuredFieldsDisableAddressLines,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Enables parsing of fields that combine postal code and city in France,
+// e.g. a single field containing "75008 Paris".
+// TODO(crbug.com/465119085): Clean up when launched.
+BASE_FEATURE(kAutofillSupportCombinedZipAndCityFR,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables using custom name model with last name prefixes support.

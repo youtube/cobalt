@@ -8,9 +8,11 @@
 #include <map>
 #include <memory>
 #include <optional>
+#include <set>
 #include <string>
 
 #include "components/contextual_search/contextual_search_types.h"
+#include "components/omnibox/composebox/composebox_query.mojom.h"
 
 namespace base {
 class ElapsedTimer;
@@ -81,6 +83,8 @@ struct SessionMetrics {
   // The number of times a tab with a duplicate title is added as context to the
   // session.
   int tab_with_duplicate_title_clicked_count = 0;
+  // The set of active funnels for this session.
+  std::set<std::string> active_funnels;
 };
 
 class ContextualSearchMetricsRecorder {
@@ -91,6 +95,9 @@ class ContextualSearchMetricsRecorder {
   // Should be called when there are session state changes to keep track of
   // session state metrics. Virtual for testing.
   virtual void NotifySessionStateChanged(SessionState session_state);
+
+  // Activates a funnel for metrics logging.
+  virtual void ActivateMetricsFunnel(const std::string& funnel_name);
 
   virtual void OnFileUploadStatusChanged(
       lens::MimeType file_mime_type,
@@ -105,8 +112,6 @@ class ContextualSearchMetricsRecorder {
   static std::string ContextualSearchSourceToString(
       ContextualSearchSource source);
   ContextualSearchSource source() const { return source_; }
-  // Maps submission types to its string version for histogram naming.
-  std::string SubmissionTypeToString(SubmissionType submission_type);
 
   // Records several metrics about the query, such the number of characters
   // found in the query.
@@ -127,13 +132,20 @@ class ContextualSearchMetricsRecorder {
   void RecordTabContextMenuMetrics(int total_tab_count,
                                    int duplicate_title_count);
 
-  void RecordToolsSubmissionType(SubmissionType submission_type);
-
-  void RecordToolState(SubmissionType submission_type, AimToolState tool_state);
-
   // Records whether the config was parsed successfully.
   static void RecordConfigParseSuccess(ContextualSearchSource source,
                                        bool success);
+
+  // Records the tool mode (i.e. Deep Search, Create Images, etc.).
+  virtual void RecordToolMode(composebox_query::mojom::ToolMode tool_mode);
+
+  // Records the model mode (i.e. Gemini Pro, Gemini Pro Autoroute, etc.).
+  virtual void RecordModelMode(composebox_query::mojom::ModelMode model_mode);
+
+  // Records tool mode and model mode on query submission.
+  virtual void RecordModesOnSubmission(
+      composebox_query::mojom::ToolMode tool_mode,
+      composebox_query::mojom::ModelMode model_mode);
 
  private:
   // Called when the session starts to correctly track session

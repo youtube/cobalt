@@ -492,6 +492,14 @@ content::WebUIDataSource* CreateAndAddPasswordsUIHTMLSource(
       {"weakPasswordsEmpty", IDS_PASSWORD_MANAGER_UI_NO_WEAK_PASSWORDS},
       {"weakPasswordsTitle", IDS_PASSWORD_MANAGER_UI_HAS_WEAK_PASSWORDS},
       {"websiteLabel", IDS_PASSWORD_MANAGER_UI_WEBSITE_LABEL},
+      {"moveSinglePasswordDialogDescription",
+       IDS_PASSWORD_MANAGER_UI_MOVE_SINGLE_PASSWORD_TO_ACCOUNT_DIALOG_DESCRIPTION},
+      {"movePasswordsDialogTitle",
+       IDS_PASSWORD_MANAGER_SAVE_IN_ACCOUNT_BUBBLE_TITLE},
+      {"movePasswordsDialogSaveButton",
+       IDS_PASSWORD_MANAGER_SAVE_IN_ACCOUNT_BUBBLE_SAVE_BUTTON},
+      {"movePasswordToAccountIconTooltip",
+       IDS_PASSWORD_MANAGER_UI_MOVE_TO_ACCOUNT_ICON_TOOLTIP},
 #if BUILDFLAG(IS_MAC)
       {"biometricAuthenticationForFillingLabel",
        IDS_PASSWORD_MANAGER_UI_BIOMETRIC_AUTHENTICATION_FOR_FILLING_TOGGLE_LABEL_MAC},
@@ -731,6 +739,12 @@ void AddPluralStrings(content::WebUI* web_ui) {
       "searchResults", IDS_PASSWORD_MANAGER_UI_SEARCH_RESULT);
   plural_string_handler->AddLocalizedString(
       "movePasswords", IDS_PASSWORD_MANAGER_UI_MOVE_PASSWORDS_TO_ACCOUNT);
+  plural_string_handler->AddLocalizedString(
+      "movePasswordsDialogDescription",
+      IDS_PASSWORD_MANAGER_UI_MOVE_PASSWORDS_TO_ACCOUNT_DIALOG_DESCRIPTION);
+  plural_string_handler->AddLocalizedString(
+      "movePasswordsDialogPasswordsTitle",
+      IDS_PASSWORD_MANAGER_UI_MOVE_PASSWORDS_TO_ACCOUNT_DIALOG_PASSWORDS_TITLE);
   plural_string_handler->AddLocalizedString(
       "deviceOnlyListItemAriaLabel",
       IDS_PASSWORD_MANAGER_UI_PASSWORD_LIST_ITEM_ARIA_LABEL);

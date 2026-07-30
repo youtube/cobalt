@@ -127,24 +127,6 @@ void ToastService::RegisterToasts(
           .AddGlobalScoped()
           .Build());
 
-  if (base::FeatureList::IsEnabled(commerce::kProductSpecifications)) {
-    toast_registry_->RegisterToast(
-        ToastId::kAddedToComparisonTable,
-        ToastSpecification::Builder(omnibox::kProductSpecificationsAddedIcon,
-                                    IDS_COMPARE_PAGE_ACTION_ADDED)
-            .AddCloseButton()
-            .AddActionButton(IDS_COMPARE_ADDED_TO_TABLE_TOAST_ACTION_BUTTON,
-                             base::BindRepeating(
-                                 [](BrowserWindowInterface* window) {
-                                   window->GetActiveTabInterface()
-                                       ->GetTabFeatures()
-                                       ->commerce_ui_tab_helper()
-                                       ->OnOpenComparePageClicked();
-                                 },
-                                 base::Unretained(browser_window_interface)))
-            .Build());
-  }
-
   if (base::FeatureList::IsEnabled(
           plus_addresses::features::kPlusAddressesEnabled)) {
     toast_registry_->RegisterToast(
@@ -283,7 +265,8 @@ void ToastService::RegisterToasts(
           .SetToastAsActionable()
           .Build());
 
-  if (features::kGlicActorUiToast.Get()) {
+  if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+      features::kGlicActorUiToast.Get()) {
     toast_registry_->RegisterToast(
         ToastId::kGeminiWorkingOnTask,
         ToastSpecification::Builder(GetTaskInProgressIcon(),
@@ -376,7 +359,7 @@ void ToastService::RegisterToasts(
             .AddCloseButton()
             .AddActionButton(
                 IDS_AUTOFILL_AI_TOAST_BUTTON,
-                base::BindRepeating(chrome::ShowYourSavedInfo,
+                base::BindRepeating(chrome::ShowAutofill,
                                     base::Unretained(browser_window_interface)))
             .AddGlobalScoped()
             .Build());

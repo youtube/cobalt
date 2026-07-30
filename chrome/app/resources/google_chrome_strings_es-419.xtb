@@ -40,6 +40,7 @@
 <translation id="137466361146087520">Google Chrome Beta</translation>
 <translation id="1383876407941801731">Buscar</translation>
 <translation id="1399397803214730675">Este equipo ya cuenta con una versión más reciente de Google Chrome. Si el software no funciona, desinstala Google Chrome y descárgalo nuevamente.</translation>
+<translation id="1404026649028693342">Mostrar siempre el Modo IA</translation>
 <translation id="141901961143729572">Comparte tu opinión</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome terminó de actualizarse. Puedes usar la versión más reciente cuando reinicies el dispositivo. Luego, se volverán a abrir las pestañas actuales.}=1{Chrome terminó de actualizarse. Puedes usar la versión más reciente cuando reinicies el dispositivo. Luego, se volverán a abrir las pestañas actuales. No se volverá a abrir la ventana de incógnito.}other{Chrome terminó de actualizarse. Puedes usar la versión más reciente cuando reinicies el dispositivo. Luego, se volverán a abrir las pestañas actuales. No se volverán a abrir # ventanas de incógnito.}}</translation>
 <translation id="1434626383986940139">Aplicaciones de Chrome Canary</translation>
@@ -64,6 +65,7 @@
 <translation id="1640672724030957280">Descargando...</translation>
 <translation id="1651617469580841801">Cuando usas Google Lens, el título de la página, la URL y el contenido, incluidos los archivos PDF, se envían a Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">Acerca de ChromeOS Flex</translation>
+<translation id="1665867022636014702">Usar la configuración recomendada del navegador Google</translation>
 <translation id="1674870198290878346">Abrir vínculo en una ventana de navegación de incó&amp;gnito de Chrome</translation>
 <translation id="1682634494516646069">Google Chrome no puede leer ni agregar datos al directorio de datos: <ph name="USER_DATA_DIRECTORY" /></translation>
 <translation id="1688214853608504530">Cuando escribes en la barra de direcciones o en el cuadro de búsqueda, Chrome envía lo que escribes a las herramientas de búsqueda, IA y agentes de tu organización para obtener sugerencias.</translation>
@@ -97,6 +99,7 @@
 <translation id="2026377840141807639">Los perfiles de Chrome te permiten mantener separadas la navegación personal y la laboral. Agrega un perfil nuevo ahora.</translation>
 <translation id="2034233344106846793">Chrome actualiza automáticamente las conexiones no seguras a HTTPS cuando es posible</translation>
 <translation id="2039417478970545937">Configuración.</translation>
+<translation id="2066690553719545730">Mostrar siempre el Modo IA</translation>
 <translation id="2091012649849228750">Para recibir las próximas actualizaciones de Google Chrome, necesitarás Windows 10 o una versión posterior. Esta computadora usa Windows 8.</translation>
 <translation id="2094648590148273905">Condiciones de ChromeOS Flex</translation>
 <translation id="2094919256425865063">¿Deseas salir de Chrome de todos modos?</translation>
@@ -200,6 +203,7 @@
 <translation id="308397506772922478">Si olvidaste tu frase de contraseña o quieres cambiar este parámetro de configuración, <ph name="BEGIN_LINK" />borra los datos de Chrome de tu cuenta<ph name="END_LINK" /></translation>
 <translation id="3100998948628680988">Asígnale un nombre a tu perfil de Chrome</translation>
 <translation id="310459126943037700">No se pudieron finalizar las tareas.</translation>
+<translation id="3104828284009500087">Buscar cualquier cosa en la página</translation>
 <translation id="3112458742631356345">Chrome bloqueó esta descarga porque el archivo no se descarga con frecuencia y puede ser peligroso</translation>
 <translation id="3114643501466072395">Para comprobar si tus otras contraseñas están a salvo de violaciones de la seguridad de los datos y otros problemas de seguridad, <ph name="BEGIN_LINK" />accede a Chrome<ph name="END_LINK" />.</translation>
 <translation id="3119573284443908657">Chrome bloqueó esta descarga porque el archivo incluye otros archivos que pueden ocultar software malicioso</translation>
@@ -354,6 +358,7 @@
 <translation id="4885446229353981848">Mostrar siempre el acceso directo a Google Lens</translation>
 <translation id="4891791193823137474">Permitir que Google Chrome se ejecute en segundo plano</translation>
 <translation id="4895437082222824641">Abrir vínculo en una pes&amp;taña nueva de Chrome</translation>
+<translation id="4896867431081882115">Establece Chrome como tu navegador predeterminado para acceder fácilmente a las funciones que conoces, te encantan y en las que confías. Chrome se fijará a la barra de tareas para que puedas acceder a él rápidamente.</translation>
 <translation id="4918086044614829423">Aceptar</translation>
 <translation id="4918844574251943176">Se copió la imagen</translation>
 <translation id="4926882258455737990">Para usar otra Cuenta de Google con Gemini en Chrome, <ph name="BEGIN_LINK" />crea un nuevo perfil<ph name="END_LINK" /> y accede con la cuenta que quieras</translation>
@@ -393,7 +398,6 @@
 <translation id="5334309298019785904">El ChromeOS no pudo sincronizar los datos porque la sincronización no está disponible para el dominio.</translation>
 <translation id="5334487786912937552">Chrome necesita permiso de acceso al almacenamiento para descargar archivos.</translation>
 <translation id="5337648990166757586">Opcional: Para ayudarnos a mejorar las funciones y el rendimiento de ChromeOS, envía automáticamente datos de uso y diagnóstico a Google.</translation>
-<translation id="5346059693449184483">¿En qué estás pensando?</translation>
 <translation id="5346389065299425353">Profundiza tu búsqueda agregando varias pestañas, archivos y herramientas</translation>
 <translation id="5353252989841766347">Exportar contraseñas desde Chrome</translation>
 <translation id="5368118228313795342">Código adicional: <ph name="EXTRA_CODE" />.</translation>
@@ -501,7 +505,6 @@
 <translation id="6321592572353357376">La extensión "<ph name="EXTENSION_NAME" />" quiere que accedas a Chrome</translation>
 <translation id="6326175484149238433">Quitar de Chrome</translation>
 <translation id="6327105987658262776">No hay actualizaciones disponibles.</translation>
-<translation id="6333195756043503664">Abrir Chrome cuando al iniciar la computadora</translation>
 <translation id="6334815226785304306">Establece Google Chrome como navegador predeterminado y fíjalo a la barra de tareas</translation>
 <translation id="63540178978900677">Chrome ya no es tu navegador predeterminado. ¿Quieres establecer Chrome como el navegador predeterminado?</translation>
 <translation id="6360449101159168105">Mientras esta pestaña estaba inactiva, se liberó memoria para mantener Chrome rápido. Puedes elegir que este sitio nunca esté inactivo.</translation>
@@ -554,6 +557,7 @@
 <translation id="6885412569789873916">Apps de Chrome Beta</translation>
 <translation id="6893363893008038481">Quitar la cuenta de Chrome</translation>
 <translation id="6896758677409633944">Copiar</translation>
+<translation id="6908182077349113099">Mantén tus contraseñas, favoritos y el historial perfectamente sincronizados en todos los dispositivos. Actualiza tu navegador predeterminado a Chrome para acceder fácilmente a las funciones que conoces y te encantan.</translation>
 <translation id="6930294499209825">Mantiene actualizado tu software de Google. Si este servicio se desactiva o se detiene, tu software de Google no se mantendrá actualizado, lo que implica que las vulnerabilidades de seguridad que puedan aparecer no podrán solucionarse y es posible que no se puedan usar algunas funciones. Este servicio se desinstalará automáticamente si ningún software de Google lo utiliza.</translation>
 <translation id="6933858244219479645">Sistema de ChromeOS</translation>
 <translation id="6938166777909186039">Para recibir las próximas actualizaciones de Google Chrome, necesitarás Windows 10 o una versión posterior. Esta computadora usa Windows 8.1.</translation>
@@ -685,7 +689,6 @@
 <translation id="8162006532256575008">Usar Chrome sin una cuenta</translation>
 <translation id="8177472873527554730">No se puede encontrar el contenido de la página</translation>
 <translation id="8221491193165283816">Por lo general, bloqueas las notificaciones. Si quieres permitir que este sitio las muestre, haz clic aquí.</translation>
-<translation id="8223142476690844338">Hola <ph name="USER_NAME" />. ¿Qué tienes en mente?</translation>
 <translation id="8255190535488645436">Google Chrome está usando tu cámara y tu micrófono.</translation>
 <translation id="8267953129876836456">Chrome encontró algunas recomendaciones de seguridad para que revises</translation>
 <translation id="8286862437124483331">Google Chrome está intentando mostrar contraseñas. Para permitirlo, ingresa tu contraseña de Windows.</translation>

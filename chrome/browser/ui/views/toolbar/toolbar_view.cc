@@ -245,8 +245,8 @@ void ToolbarView::Init() {
   if (display_mode_ == DisplayMode::kNormal) {
     SetBackground(std::make_unique<CustomCornersBackground>(
         *this, *browser_view_,
-        /*primary_color=*/CustomCornersBackground::TopContainerTheme(),
-        /*corner_color=*/CustomCornersBackground::FrameColor()));
+        /*primary_color=*/CustomCornersBackground::ToolbarTheme(),
+        /*corner_color=*/CustomCornersBackground::FrameTheme()));
   } else if (display_mode_ == DisplayMode::kCustomTab) {
     custom_tab_bar_ =
         AddChildView(std::make_unique<CustomTabBarView>(browser_view_, this));
@@ -324,13 +324,16 @@ void ToolbarView::Init() {
         browser_->profile(), browser_->command_controller(),
         InitialWebUIWindowMetricsManager::From(browser_)));
   }
+
   if (!features::IsWebUIHomeButtonEnabled()) {
     home_ = AddChildView(std::make_unique<HomeButton>(
         browser_, base::BindRepeating(callback, browser_, IDC_HOME)));
   }
-  std::unique_ptr<SplitTabsToolbarButton> split =
-      std::make_unique<SplitTabsToolbarButton>(browser_);
-  split_tabs_ = AddChildView(std::move(split));
+
+  if (!features::IsWebUISplitTabsButtonEnabled()) {
+    split_tabs_ =
+        AddChildView(std::make_unique<SplitTabsToolbarButton>(browser_));
+  }
 
   if (base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
       ((contextual_tasks::kShowEntryPoint.Get() ==

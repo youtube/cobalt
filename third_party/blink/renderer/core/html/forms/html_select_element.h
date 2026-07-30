@@ -162,14 +162,22 @@ class CORE_EXPORT HTMLSelectElement final
   const ListItems& GetListItems() const;
 
   // NearestAncestorSelectNoNesting is called with <hr>, <option>, and
-  // <optgroup> elements to determine if they have an ancestor <select> which
-  // they are associated with. An ancestor <select> will not be returned in some
-  // cases, such as nested <option>s, in order to match the logic in
-  // RecalcListItems and OptionList. This method also returns an <optgroup> if
-  // there is an <optgroup> in between the provided element and the returned
-  // <select>.
-  static std::pair<HTMLSelectElement*, HTMLOptGroupElement*>
-  AssociatedSelectAndOptgroup(const Element&);
+  // <optgroup> elements to determine if they have an ancestor <select> or
+  // <datalist> which they are associated with. An ancestor <select> will not be
+  // returned in some cases, such as nested <option>s, in order to match the
+  // logic in RecalcListItems and OptionList. This method also returns an
+  // <optgroup> if there is an <optgroup> in between the provided element and
+  // the returned <select>.
+  struct SelectOptgroupDatalist {
+    STACK_ALLOCATED();
+
+   public:
+    HTMLSelectElement* select;
+    HTMLOptGroupElement* optgroup;
+    HTMLDataListElement* datalist;
+  };
+  static SelectOptgroupDatalist AssociatedSelectAndOptgroupAndDatalist(
+      const Element&);
 
   void AccessKeyAction(SimulatedClickCreationScope creation_scope) override;
   void SelectOptionByAccessKey(HTMLOptionElement*);
@@ -211,7 +219,7 @@ class CORE_EXPORT HTMLSelectElement final
   LayoutUnit ClientPaddingRight() const;
   void SelectOptionByPopup(int list_index);
   void SelectOptionByPopup(HTMLOptionElement* option);
-  void SelectMultipleOptionsByPopup(const Vector<int>& list_indices);
+  void SelectMultipleOptions(const Vector<int>& list_indices);
   // SelectOptionFromPopoverPickerOrBaseListbox is called when an option element
   // is clicked in the following modes:
   // - When UsesPopoverPickerElement() returns true
@@ -347,11 +355,6 @@ class CORE_EXPORT HTMLSelectElement final
   // traversals which look for option elements inside of a select, such as <hr>
   // and <datalist> elements.
   static bool ShouldIgnoreDescendantsForOptionTraversals(Element* element);
-
-  // Used for the (experimental) declarative WebMCP prototype.
-  bool SupportsWebMCP() const override { return true; }
-  std::unique_ptr<JSONObject> GetWebMCPParameterSchema() const override;
-  void FillWebMCPData(JSONValue& data) override;
 
  private:
   mojom::blink::FormControlType FormControlType() const override;

@@ -98,15 +98,35 @@ InputStateModel::InputStateModel(
     rule_set_ = mutable_config.rule_set();
 
     // Initialize allowed tools, models, inputs in `state_`.
+    state_.allowed_tools.reserve(rule_set_.allowed_tools().size());
     for (const auto& tool : rule_set_.allowed_tools()) {
       state_.allowed_tools.push_back(static_cast<omnibox::ToolMode>(tool));
     }
+    state_.allowed_models.reserve(rule_set_.allowed_models().size());
     for (const auto& model : rule_set_.allowed_models()) {
       state_.allowed_models.push_back(static_cast<omnibox::ModelMode>(model));
     }
+    state_.allowed_input_types.reserve(rule_set_.allowed_input_types().size());
     for (const auto& input_type : rule_set_.allowed_input_types()) {
       state_.allowed_input_types.push_back(
           static_cast<omnibox::InputType>(input_type));
+    }
+    state_.tool_configs.reserve(mutable_config.tool_configs_size());
+    for (const auto& tool_config : mutable_config.tool_configs()) {
+      state_.tool_configs.push_back(tool_config);
+    }
+    state_.model_configs.reserve(mutable_config.model_configs_size());
+    for (const auto& model_config : mutable_config.model_configs()) {
+      state_.model_configs.push_back(model_config);
+    }
+    if (mutable_config.has_tools_section_config()) {
+      state_.tools_section_config = mutable_config.tools_section_config();
+    }
+    if (mutable_config.has_model_section_config()) {
+      state_.model_section_config = mutable_config.model_section_config();
+    }
+    if (mutable_config.has_hint_text()) {
+      state_.hint_text = mutable_config.hint_text();
     }
   }
 
@@ -119,12 +139,9 @@ InputStateModel::InputStateModel(
     state_.allowed_input_types.push_back(omnibox::INPUT_TYPE_BROWSER_TAB);
   }
 
-  state_.active_tool = mutable_config.has_initial_tool_mode()
-                           ? mutable_config.initial_tool_mode()
-                           : omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
-  state_.active_model = mutable_config.has_initial_model_mode()
-                            ? mutable_config.initial_model_mode()
-                            : omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
+  state_.active_tool = omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+  // the initial model should be the first allowed model.
+  state_.active_model = state_.GetDefaultModel();
 
   updateDisabledState();
 }
@@ -200,7 +217,9 @@ const omnibox::ToolRule* GetToolRule(const omnibox::RuleSet& rule_set,
 std::vector<omnibox::InputType> GetCurrentInputTypes(
     const contextual_search::ContextualSearchSessionHandle& session_handle) {
   std::vector<omnibox::InputType> input_types;
-  for (const auto& file_info : session_handle.GetUploadedContextFileInfos()) {
+  const auto& uploaded_files = session_handle.GetUploadedContextFileInfos();
+  input_types.reserve(uploaded_files.size());
+  for (const auto& file_info : uploaded_files) {
     if (file_info.tab_url) {
       input_types.push_back(omnibox::InputType::INPUT_TYPE_BROWSER_TAB);
       continue;
@@ -269,26 +288,31 @@ bool InputStateModel::IsSearchContentSharingEnabled() const {
 
 void InputStateModel::UpdateDisabledTools() {
   // Disable a tool if:
+  // - It is currently active (to prevent re-activation).
   // - Incompatible with the active model.
   // - Incompatible with the current inputs.
   state_.disabled_tools.clear();
+  state_.disabled_tools.reserve(state_.allowed_tools.size());
   const omnibox::ModelRule* active_model_rule =
       GetModelRule(rule_set_, state_.active_model);
   for (const auto& tool : state_.allowed_tools) {
     if (tool == state_.active_tool) {
+      state_.disabled_tools.push_back(tool);
       continue;
     }
 
     bool incompatible_with_model =
-        state_.active_model != omnibox::ModelMode::MODEL_MODE_UNSPECIFIED &&
-        (!active_model_rule ||
-         !IsItemAllowed(tool, active_model_rule->allowed_tools()));
+            state_.active_model != omnibox::ModelMode::MODEL_MODE_UNSPECIFIED &&
+            active_model_rule &&
+            !active_model_rule->allow_all_tools() &&
+            !IsItemAllowed(tool, active_model_rule->allowed_tools());
 
     const omnibox::ToolRule* tool_rule = GetToolRule(rule_set_, tool);
     bool incompatible_with_inputs =
         !tool_rule ||
-        !AreItemsAllowed(GetCurrentInputTypes(session_handle_.get()),
-                         tool_rule->allowed_input_types());
+        (!tool_rule->allow_all_input_types() &&
+         !AreItemsAllowed(GetCurrentInputTypes(session_handle_.get()),
+                          tool_rule->allowed_input_types()));
 
     if (incompatible_with_model || incompatible_with_inputs) {
       state_.disabled_tools.push_back(tool);
@@ -298,10 +322,10 @@ void InputStateModel::UpdateDisabledTools() {
 
 void InputStateModel::UpdateDisabledModels() {
   // Disable a model if:
-  // - Another model is active.
   // - Incompatible with the active tool.
   // - Incompatible with the current inputs.
   state_.disabled_models.clear();
+  state_.disabled_models.reserve(state_.allowed_models.size());
 
   for (const auto& model : state_.allowed_models) {
     if (model == state_.active_model) {
@@ -313,19 +337,16 @@ void InputStateModel::UpdateDisabledModels() {
     bool incompatible_with_tool =
         state_.active_tool != omnibox::ToolMode::TOOL_MODE_UNSPECIFIED &&
         (!model_rule ||
-         !IsItemAllowed(state_.active_tool, model_rule->allowed_tools()));
-
-    // If a model is already active, all other models are disabled.
-    bool another_model_active =
-        state_.active_model != omnibox::ModelMode::MODEL_MODE_UNSPECIFIED;
+         (!model_rule->allow_all_tools() &&
+          !IsItemAllowed(state_.active_tool, model_rule->allowed_tools())));
 
     bool incompatible_with_inputs =
         (!model_rule ||
-         !AreItemsAllowed(GetCurrentInputTypes(session_handle_.get()),
-                          model_rule->allowed_input_types()));
+         (!model_rule->allow_all_input_types() &&
+          !AreItemsAllowed(GetCurrentInputTypes(session_handle_.get()),
+                           model_rule->allowed_input_types())));
 
-    if (another_model_active || incompatible_with_tool ||
-        incompatible_with_inputs) {
+    if (incompatible_with_tool || incompatible_with_inputs) {
       state_.disabled_models.push_back(model);
     }
   }
@@ -339,6 +360,7 @@ void InputStateModel::UpdateDisabledInputTypes() {
   // - Incompatible with the active model.
   // - Incompatible with the active tool.
   state_.disabled_input_types.clear();
+  state_.disabled_input_types.reserve(state_.allowed_input_types.size());
 
   if (!IsSearchContentSharingEnabled()) {
     std::erase_if(state_.allowed_input_types, [](auto input_type) {
@@ -351,12 +373,12 @@ void InputStateModel::UpdateDisabledInputTypes() {
   const auto current_inputs = GetCurrentInputTypes(session_handle_.get());
 
   // Check max inputs reached.
-  bool input_limit_reached =
+  bool global_limit_reached =
       rule_set_.has_max_total_inputs() && rule_set_.max_total_inputs() > 0 &&
       current_inputs.size() >=
           static_cast<size_t>(rule_set_.max_total_inputs());
 
-  if (input_limit_reached) {
+  if (global_limit_reached) {
     state_.disabled_input_types = state_.allowed_input_types;
     return;
   }
@@ -373,6 +395,7 @@ void InputStateModel::UpdateDisabledInputTypes() {
       GetToolRule(rule_set_, state_.active_tool);
 
   for (const auto& input_type : state_.allowed_input_types) {
+    bool input_limit_reached = false;
     if (limits.count(input_type)) {
       int limit = limits.at(input_type);
       if (limit > 0 && current_input_counts.count(input_type) &&
@@ -384,11 +407,12 @@ void InputStateModel::UpdateDisabledInputTypes() {
     bool incompatible_with_model =
         state_.active_model != omnibox::ModelMode::MODEL_MODE_UNSPECIFIED &&
         active_model_rule &&
+        !active_model_rule->allow_all_input_types() &&
         !IsItemAllowed(input_type, active_model_rule->allowed_input_types());
 
     bool incompatible_with_tool =
         state_.active_tool != omnibox::ToolMode::TOOL_MODE_UNSPECIFIED &&
-        active_tool_rule &&
+        active_tool_rule && !active_tool_rule->allow_all_input_types() &&
         !IsItemAllowed(input_type, active_tool_rule->allowed_input_types());
 
     if (input_limit_reached || incompatible_with_model ||
@@ -431,16 +455,6 @@ std::map<std::string, std::string> InputStateModel::GetAdditionalQueryParams() {
       break;
   }
 
-  switch (state_.active_model) {
-    case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO:
-      additional_params["m"] = "1";
-      break;
-    case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE:
-      additional_params["m"] = "2";
-      break;
-    default:
-      break;
-  }
   return additional_params;
 }
 

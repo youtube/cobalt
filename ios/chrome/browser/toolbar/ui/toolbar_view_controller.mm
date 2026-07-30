@@ -29,6 +29,8 @@ namespace {
 // TODO(crbug.com/472279443): Use real design.
 constexpr CGFloat kLocationBarHeight = 40;
 
+constexpr CGFloat kStackViewSpacing = 9;
+
 }  // namespace
 
 @implementation ToolbarViewController {
@@ -262,7 +264,7 @@ constexpr CGFloat kLocationBarHeight = 40;
         forControlEvents:UIControlEventTouchUpInside];
   _shareButton = [self.buttonFactory makeShareButton];
   [_shareButton addTarget:self
-                   action:@selector(shareButtonTapped)
+                   action:@selector(shareButtonTapped:)
          forControlEvents:UIControlEventTouchUpInside];
   _tabGridButton = [self.buttonFactory makeTabGridButton];
   [_tabGridButton addTarget:self
@@ -287,9 +289,12 @@ constexpr CGFloat kLocationBarHeight = 40;
   _stackView.axis = UILayoutConstraintAxisHorizontal;
   _stackView.distribution = UIStackViewDistributionFill;
   _stackView.alignment = UIStackViewAlignmentCenter;
+  _stackView.spacing = kStackViewSpacing;
 
   [self.view addSubview:_stackView];
-  AddSameConstraints(self.view.safeAreaLayoutGuide, _stackView);
+  AddSameConstraintsWithInsets(
+      _stackView, self.view.safeAreaLayoutGuide,
+      NSDirectionalEdgeInsetsMake(0, kStackViewSpacing, 0, kStackViewSpacing));
 
   [self updateButtonVisibility];
   [self
@@ -328,8 +333,8 @@ constexpr CGFloat kLocationBarHeight = 40;
 }
 
 // Handles share button tap.
-- (void)shareButtonTapped {
-  [self.activityServiceHandler showShareSheet];
+- (void)shareButtonTapped:(UIView*)sender {
+  [self.activityServiceHandler showShareSheetFromShareButton:sender];
 }
 
 // Handles tools menu button tap.

@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "base/memory/raw_ptr.h"
-#include "content/browser/renderer_host/render_frame_host_impl.h"
-
 #include "base/command_line.h"
+#include "base/memory/raw_ptr.h"
 #include "base/test/scoped_feature_list.h"
+#include "content/browser/renderer_host/render_frame_host_impl.h"
 #include "content/browser/web_contents/web_contents_impl.h"
 #include "content/public/browser/content_browser_client.h"
 #include "content/public/common/content_client.h"
+#include "content/public/common/content_features.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_base.h"
 #include "content/public/test/browser_test_utils.h"
@@ -19,8 +20,10 @@
 #include "content/public/test/content_mock_cert_verifier.h"
 #include "content/shell/browser/shell.h"
 #include "content/test/content_browser_test_utils_internal.h"
+#include "net/base/registry_controlled_domains/registry_controlled_domain.h"
 #include "net/dns/mock_host_resolver.h"
 #include "net/test/embedded_test_server/embedded_test_server.h"
+#include "third_party/blink/public/common/features.h"
 
 namespace content {
 
@@ -39,7 +42,9 @@ class MockContentBrowserClient : public ContentBrowserTestContentBrowserClient {
 
 // Test the effect of the OriginAgentCluster: header on document.domain
 // settability and how it (doesn't) affect process assignment.
-class OriginAgentClusterBrowserTest : public ContentBrowserTest {
+class OriginAgentClusterBrowserTest
+    : public ContentBrowserTest,
+      public ::testing::WithParamInterface<bool> {
  public:
   OriginAgentClusterBrowserTest()
       : OriginAgentClusterBrowserTest(
@@ -53,6 +58,14 @@ class OriginAgentClusterBrowserTest : public ContentBrowserTest {
 
     ContentBrowserTest::SetUp();
   }
+
+  static std::string OriginIsolationParamToString(
+      const ::testing::TestParamInfo<bool>& info) {
+    return info.param ? "OriginKeyedProcessesByDefaultEnabled"
+                      : "OriginKeyedProcessesByDefaultDisabled";
+  }
+
+  bool AreOriginKeyedProcessesEnabled() { return GetParam(); }
 
  protected:
   enum OriginAgentClusterState { kUnset, kSetTrue, kSetFalse, kMalformed };
@@ -69,11 +82,15 @@ class OriginAgentClusterBrowserTest : public ContentBrowserTest {
     std::vector<base::test::FeatureRef> enabled, disabled;
     (origin_cluster_default_enabled_ ? enabled : disabled)
         .push_back(blink::features::kOriginAgentClusterDefaultEnabled);
-    // TODO(https://crbug.com/40259221): update this test to be parameterized on
-    // kOriginKeyedProcessesByDefault, and then make sure all the tests have
-    // correct expectations both with and without. This will assist in removing
-    // the kOriginAgentClusterDefaultEnabled flag.
-    disabled.push_back(features::kOriginKeyedProcessesByDefault);
+    if (AreOriginKeyedProcessesEnabled()) {
+      enabled.push_back(features::kOriginKeyedProcessesByDefault);
+      // This is needed because Android builds do not have site-per-process
+      // enabled by default.
+      base::CommandLine::ForCurrentProcess()->AppendSwitch(
+          switches::kSitePerProcess);
+    } else {
+      disabled.push_back(features::kOriginKeyedProcessesByDefault);
+    }
     features_.InitWithFeatures(enabled, disabled);
   }
 
@@ -111,12 +128,66 @@ class OriginAgentClusterBrowserTest : public ContentBrowserTest {
         ->GetProcess();
   }
 
+  std::string GetSameSiteCrossOriginDomain(
+      const std::string& original_hostname) {
+    std::string registrable_domain =
+        net::registry_controlled_domains::GetDomainAndRegistry(
+            original_hostname,
+            net::registry_controlled_domains::INCLUDE_PRIVATE_REGISTRIES);
+
+    // Ensure the new domain is cross-origin but same-site.
+    std::string new_domain = "alt." + registrable_domain;
+
+    // Avoid accidentally using the same subdomain.
+    if (new_domain == original_hostname) {
+      new_domain = "othersub." + registrable_domain;
+    }
+
+    return new_domain;
+  }
+
   bool CanDocumentDomain(std::string from,
                          std::string to,
                          OriginAgentClusterState oac_state) {
+    // This initial navigation is needed to do a browsing instance swap, which
+    // will ensure that the test's actual navigation swaps to a fresh
+    // BrowsingInstance. This is so the correct MockContentBrowserClient is
+    // installed before that BrowsingInstance is created and looks up OAC
+    // isolation policy.
+    EXPECT_TRUE(NavigateToURL(
+        shell(), server()->GetURL("othersite.com", "/empty.html")));
+
     WebContents* contents = Navigate(from, oac_state);
     DCHECK(contents);
-    return EvalJs(contents, SetDocumentDomainTo(to)).ExtractBool();
+
+    // Create a new cross-origin same-site pop-up window that has an OAC header
+    // set to the same value as its opener.
+    Shell* popup_shell =
+        OpenPopup(contents->GetPrimaryMainFrame(),
+                  server()->GetURL(GetSameSiteCrossOriginDomain(from),
+                                   ClusterStateToRelativeURL(oac_state)),
+                  "");
+    EXPECT_TRUE(popup_shell);
+    WebContents* popup_contents = popup_shell->web_contents();
+    DCHECK(popup_contents);
+
+    // Set both document's domains to the same domain.
+    EXPECT_TRUE(ExecJs(contents, SetDocumentDomainTo(to)));
+    EXPECT_TRUE(ExecJs(popup_contents, SetDocumentDomainTo(to)));
+
+    // Attempt to script the popup page's opener.
+    auto result = EvalJs(popup_contents,
+                         "try { "
+                         "  window.opener.location.href; "
+                         "} catch (e) { "
+                         "  'error'; "
+                         "}");
+    if (result.ExtractString() == "error") {
+      return false;
+    }
+
+    return result.ExtractString() ==
+           EvalJs(contents, "window.location.href").ExtractString();
   }
 
   // This tries to set document.domain. But instead of checking whether setting
@@ -163,6 +234,19 @@ class OriginAgentClusterBrowserTest : public ContentBrowserTest {
     return shell()->web_contents();
   }
 
+  std::string ClusterStateToRelativeURL(OriginAgentClusterState state) {
+    switch (state) {
+      case kUnset:
+        return "/empty.html";
+      case kSetTrue:
+        return "/set-header?Origin-Agent-Cluster: ?1";
+      case kSetFalse:
+        return "/set-header?Origin-Agent-Cluster: ?0";
+      case kMalformed:
+        return "/set-header?Origin-Agent-Cluster: potato";
+    }
+  }
+
   // For the purpose of this test, we only care about the Origin-Agent-Cluster:
   // header. The test setup has four pages corresponding to the three valid
   // states (absent, true ("?1"), and false ("?0"), and one malformed one
@@ -170,16 +254,7 @@ class OriginAgentClusterBrowserTest : public ContentBrowserTest {
   // test page.
   WebContents* Navigate(std::string domain,
                         const OriginAgentClusterState state) {
-    switch (state) {
-      case kUnset:
-        return Navigate(domain, "/empty.html");
-      case kSetTrue:
-        return Navigate(domain, "/set-header?Origin-Agent-Cluster: ?1");
-      case kSetFalse:
-        return Navigate(domain, "/set-header?Origin-Agent-Cluster: ?0");
-      case kMalformed:
-        return Navigate(domain, "/set-header?Origin-Agent-Cluster: potato");
-    }
+    return Navigate(domain, ClusterStateToRelativeURL(state));
   }
 
  protected:
@@ -228,39 +303,41 @@ class OriginAgentClusterInsecureEnabledBrowserTest
 //
 // These tests ensure that the flag will change the default behaviour only.
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, DocumentDomain_Default) {
-  EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kUnset));
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, DocumentDomain_Default) {
+  EXPECT_EQ(CanDocumentDomain("a.domain.test", "domain.test", kUnset),
+            !AreOriginKeyedProcessesEnabled());
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, DocumentDomain_Enabled) {
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, DocumentDomain_Enabled) {
   EXPECT_FALSE(CanDocumentDomain("a.domain.test", "domain.test", kSetTrue));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, DocumentDomain_Disabled) {
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, DocumentDomain_Disabled) {
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest,
                        DocumentDomain_Malformed) {
-  EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kMalformed));
+  EXPECT_EQ(CanDocumentDomain("a.domain.test", "domain.test", kMalformed),
+            !AreOriginKeyedProcessesEnabled());
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        DocumentDomain_Default) {
   EXPECT_FALSE(CanDocumentDomain("a.domain.test", "domain.test", kUnset));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        DocumentDomain_Enabled) {
   EXPECT_FALSE(CanDocumentDomain("a.domain.test", "domain.test", kSetTrue));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        DocumentDomain_Disabled) {
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        DocumentDomain_Malformed) {
   EXPECT_FALSE(CanDocumentDomain("a.domain.test", "domain.test", kMalformed));
 }
@@ -275,93 +352,115 @@ IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
 // this behaviour, since we use same-process clustering. (Unlike some earlier
 // plans, where we were trying to change the process model as well.)
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, SameProcess_Default) {
-  EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kUnset),
-            NavigateAndGetProcess("b.domain.test", kUnset));
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, SameProcess_Default) {
+  if (AreOriginKeyedProcessesEnabled()) {
+    EXPECT_NE(NavigateAndGetProcess("a.domain.test", kUnset),
+              NavigateAndGetProcess("b.domain.test", kUnset));
+  } else {
+    EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kUnset),
+              NavigateAndGetProcess("b.domain.test", kUnset));
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, SameProcess_Enabled) {
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, SameProcess_Enabled) {
   EXPECT_NE(NavigateAndGetProcess("a.domain.test", kSetTrue),
             NavigateAndGetProcess("b.domain.test", kSetTrue));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, SameProcess_Disabled) {
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, SameProcess_Disabled) {
   EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kSetFalse),
             NavigateAndGetProcess("b.domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, SameProcess_Malformed) {
-  EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kMalformed),
-            NavigateAndGetProcess("b.domain.test", kMalformed));
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, SameProcess_Malformed) {
+  if (AreOriginKeyedProcessesEnabled()) {
+    EXPECT_NE(NavigateAndGetProcess("a.domain.test", kMalformed),
+              NavigateAndGetProcess("b.domain.test", kMalformed));
+  } else {
+    EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kMalformed),
+              NavigateAndGetProcess("b.domain.test", kMalformed));
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        SameProcess_Default) {
-  EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kUnset),
-            NavigateAndGetProcess("b.domain.test", kUnset));
+  if (AreOriginKeyedProcessesEnabled()) {
+    EXPECT_NE(NavigateAndGetProcess("a.domain.test", kUnset),
+              NavigateAndGetProcess("b.domain.test", kUnset));
+  } else {
+    EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kUnset),
+              NavigateAndGetProcess("b.domain.test", kUnset));
+  }
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        SameProcess_Enabled) {
   EXPECT_NE(NavigateAndGetProcess("a.domain.test", kSetTrue),
             NavigateAndGetProcess("b.domain.test", kSetTrue));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        SameProcess_Disabled) {
   EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kSetFalse),
             NavigateAndGetProcess("b.domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        SameProcess_Malformed) {
-  EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kMalformed),
-            NavigateAndGetProcess("b.domain.test", kMalformed));
+  if (AreOriginKeyedProcessesEnabled()) {
+    EXPECT_NE(NavigateAndGetProcess("a.domain.test", kMalformed),
+              NavigateAndGetProcess("b.domain.test", kMalformed));
+  } else {
+    EXPECT_EQ(NavigateAndGetProcess("a.domain.test", kMalformed),
+              NavigateAndGetProcess("b.domain.test", kMalformed));
+  }
 }
 
 // WarningMessage: Test whether setting document.domain triggers a console
 // message, for each Origin-Agent-Cluster: header state
 // (enabled/disabled/default/malformed), and each flag (none/enable/message).
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, WarningMessage_Default) {
-  EXPECT_TRUE(CanDocumentDomainMessage("a.domain.test", "domain.test", kUnset));
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, WarningMessage_Default) {
+  EXPECT_EQ(CanDocumentDomainMessage("a.domain.test", "domain.test", kUnset),
+            !AreOriginKeyedProcessesEnabled());
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, WarningMessage_Enabled) {
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, WarningMessage_Enabled) {
   EXPECT_FALSE(
       CanDocumentDomainMessage("a.domain.test", "domain.test", kSetTrue));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest, WarningMessage_Disabled) {
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest, WarningMessage_Disabled) {
   EXPECT_TRUE(
       CanDocumentDomainMessage("a.domain.test", "domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterBrowserTest,
                        WarningMessage_Malformed) {
-  EXPECT_TRUE(
-      CanDocumentDomainMessage("a.domain.test", "domain.test", kMalformed));
+  EXPECT_EQ(
+      CanDocumentDomainMessage("a.domain.test", "domain.test", kMalformed),
+      !AreOriginKeyedProcessesEnabled());
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        WarningMessage_Default) {
   EXPECT_FALSE(
       CanDocumentDomainMessage("a.domain.test", "domain.test", kUnset));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        WarningMessage_Enabled) {
   EXPECT_FALSE(
       CanDocumentDomainMessage("a.domain.test", "domain.test", kSetTrue));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        WarningMessage_Disabled) {
   EXPECT_TRUE(
       CanDocumentDomainMessage("a.domain.test", "domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        WarningMessage_Malformed) {
   EXPECT_FALSE(
       CanDocumentDomainMessage("a.domain.test", "domain.test", kMalformed));
@@ -373,49 +472,49 @@ IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
 // (The case without policy is adequately covered by the tests above, since
 // none of them modify the policy.)
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        Policy_SetTrue_Default) {
   SetEnterprisePolicy(false);
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kUnset));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        Policy_SetFalse_Default) {
   SetEnterprisePolicy(true);
   EXPECT_FALSE(CanDocumentDomain("a.domain.test", "domain.test", kUnset));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        Policy_SetTrue_Enabled) {
   SetEnterprisePolicy(false);
   EXPECT_FALSE(CanDocumentDomain("a.domain.test", "domain.test", kSetTrue));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        Policy_SetFalse_Enabled) {
   SetEnterprisePolicy(true);
   EXPECT_FALSE(CanDocumentDomain("a.domain.test", "domain.test", kSetTrue));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        Policy_SetTrue_Disabled) {
   SetEnterprisePolicy(false);
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        Policy_SetFalse_Disabled) {
   SetEnterprisePolicy(true);
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        Policy_SetTrue_Malformed) {
   SetEnterprisePolicy(false);
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kMalformed));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        Policy_SetFalse_Malformed) {
   SetEnterprisePolicy(true);
   EXPECT_FALSE(CanDocumentDomain("a.domain.test", "domain.test", kMalformed));
@@ -423,20 +522,22 @@ IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
 
 // Make sure that the default isolation state is correctly generated with
 // respect to the enterprise policy.
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterEnabledBrowserTest,
                        DefaultIsolationStateEnterprisePolicyTest) {
   // OAC by default not disabled by enterprise policy.
   SetEnterprisePolicy(true);
   {
     OriginAgentClusterIsolationState default_isolation_state =
-        OriginAgentClusterIsolationState::CreateForDefaultIsolation(nullptr);
+        OriginAgentClusterIsolationState::CreateForDefaultIsolation(
+            shell()->web_contents()->GetBrowserContext());
     EXPECT_TRUE(default_isolation_state.is_origin_agent_cluster());
   }
   // OAC by default disabled by enterprise policy.
   SetEnterprisePolicy(false);
   {
     OriginAgentClusterIsolationState default_isolation_state =
-        OriginAgentClusterIsolationState::CreateForDefaultIsolation(nullptr);
+        OriginAgentClusterIsolationState::CreateForDefaultIsolation(
+            shell()->web_contents()->GetBrowserContext());
     EXPECT_FALSE(default_isolation_state.is_origin_agent_cluster());
   }
 }
@@ -449,17 +550,17 @@ IN_PROC_BROWSER_TEST_F(OriginAgentClusterEnabledBrowserTest,
 // should ensure that one can still set document.domain in an insecure context
 // when Origin-Agent-Cluster: ?0 is set.
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterInsecureEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterInsecureEnabledBrowserTest,
                        DocumentDomain_Default) {
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kUnset));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterInsecureEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterInsecureEnabledBrowserTest,
                        DocumentDomain_Disabled) {
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kSetFalse));
 }
 
-IN_PROC_BROWSER_TEST_F(OriginAgentClusterInsecureEnabledBrowserTest,
+IN_PROC_BROWSER_TEST_P(OriginAgentClusterInsecureEnabledBrowserTest,
                        DocumentDomain_Malformed) {
   EXPECT_TRUE(CanDocumentDomain("a.domain.test", "domain.test", kMalformed));
 }
@@ -467,5 +568,21 @@ IN_PROC_BROWSER_TEST_F(OriginAgentClusterInsecureEnabledBrowserTest,
 // We are (deliberately) not testing the kSetTrue case in this set of tests,
 // since that is bound to a secure context. But the disable cases should
 // continue to remain compatible with legacy behaviour.
+
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    OriginAgentClusterBrowserTest,
+    ::testing::Bool(),
+    OriginAgentClusterBrowserTest::OriginIsolationParamToString);
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    OriginAgentClusterEnabledBrowserTest,
+    ::testing::Bool(),
+    OriginAgentClusterBrowserTest::OriginIsolationParamToString);
+INSTANTIATE_TEST_SUITE_P(
+    All,
+    OriginAgentClusterInsecureEnabledBrowserTest,
+    ::testing::Bool(),
+    OriginAgentClusterBrowserTest::OriginIsolationParamToString);
 
 }  // namespace content

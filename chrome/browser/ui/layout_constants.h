@@ -203,6 +203,9 @@ enum class LayoutConstant {
   // content when in the collapsed state.
   kVerticalTabStripCollapsedPadding,
 
+  // The width of the separator in the vertical tab strip when collapsed.
+  kVerticalTabStripCollapsedSeparatorWidth,
+
   // The icon size of top buttons in the vertical tab strip.
   kVerticalTabStripTopButtonIconSize,
 
@@ -222,6 +225,14 @@ enum class LayoutConstant {
   // The default height of the top container for the vertical tab strip when
   // uncollapsed.
   kVerticalTabStripTopButtonContainerHeight,
+
+  // The default height and width of the new tab button for the vertical tab
+  // strip.
+  kVerticalTabStripNewTabButtonSize,
+
+  // The default height and width of the tab groups and tab search buttons for
+  // the vertical tab strip.
+  kVerticalTabStripTopContainerButtonSize,
 
   // The size of the app menu button in a web app browser window.
   kWebAppMenuButtonSize,

@@ -162,68 +162,6 @@ constexpr char kCannotFindTabToDiscard[] = "Cannot find a tab to discard.";
 
 // Tabs ------------------------------------------------------------------------
 
-ExtensionFunction::ResponseAction TabsUngroupFunction::Run() {
-  std::optional<tabs::Ungroup::Params> params =
-      tabs::Ungroup::Params::Create(args());
-  EXTENSION_FUNCTION_VALIDATE(params);
-
-  std::vector<int> tab_ids;
-  if (params->tab_ids.as_integers) {
-    tab_ids = *params->tab_ids.as_integers;
-    EXTENSION_FUNCTION_VALIDATE(!tab_ids.empty());
-  } else {
-    EXTENSION_FUNCTION_VALIDATE(params->tab_ids.as_integer);
-    tab_ids.push_back(*params->tab_ids.as_integer);
-  }
-
-  std::string error;
-  for (int tab_id : tab_ids) {
-    if (!UngroupTab(tab_id, &error)) {
-      return RespondNow(Error(std::move(error)));
-    }
-  }
-
-  return RespondNow(NoArguments());
-}
-
-bool TabsUngroupFunction::UngroupTab(int tab_id, std::string* error) {
-  WindowController* window = nullptr;
-  int tab_index = -1;
-  if (!tabs_internal::GetTabById(tab_id, browser_context(),
-                                 include_incognito_information(), &window,
-                                 nullptr, &tab_index, error) ||
-      !window) {
-    return false;
-  }
-
-  if (!window->HasEditableTabStrip()) {
-    *error = ExtensionTabUtil::kTabStripNotEditableError;
-    return false;
-  }
-
-  TabStripModel* tab_strip_model = window->GetBrowser()->tab_strip_model();
-  if (!tab_strip_model->SupportsTabGroups()) {
-    *error = ExtensionTabUtil::kTabStripDoesNotSupportTabGroupsError;
-    return false;
-  }
-
-  std::optional<split_tabs::SplitTabId> split_id =
-      tab_strip_model->GetSplitForTab(tab_index);
-  if (split_id.has_value()) {
-    // If the tab is part of a split view, ungroup both tabs.
-    gfx::Range index_range =
-        tab_strip_model->GetSplitData(split_id.value())->GetIndexRange();
-    std::vector<int> split_indices(index_range.length());
-    std::iota(split_indices.begin(), split_indices.end(),
-              static_cast<int>(index_range.start()));
-    tab_strip_model->RemoveFromGroup(split_indices);
-  } else {
-    tab_strip_model->RemoveFromGroup({tab_index});
-  }
-
-  return true;
-}
-
 ExtensionFunction::ResponseAction TabsDiscardFunction::Run() {
   std::optional<tabs::Discard::Params> params =
       tabs::Discard::Params::Create(args());

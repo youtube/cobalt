@@ -240,6 +240,7 @@ class PA_COMPONENT_EXPORT(PARTITION_ALLOC) ThreadCache {
   //
   // May only be called by a single PartitionRoot.
   static void Init(PartitionRoot* root);
+  static bool IsInitialized();
 
   static void DeleteForTesting();
 
@@ -549,7 +550,7 @@ PA_ALWAYS_INLINE internal::UntaggedSlotStart ThreadCache::GetFromCache(
     size_t bucket_index,
     size_t* slot_size) {
 #if PA_CONFIG(THREAD_CACHE_ALLOC_STATS)
-  PA_UNSAFE_TODO(stats_.allocs_per_bucket_[bucket_index])++;
+  stats_.allocs_per_bucket_[bucket_index]++;
 #endif
 
   PA_REENTRANCY_GUARD(is_in_thread_cache_);

@@ -1004,6 +1004,9 @@ bool BrowserCommandController::ExecuteCommandWithDisposition(
     case IDC_FEEDBACK:
       OpenFeedbackDialog(browser_, feedback::kFeedbackSourceBrowserCommand);
       break;
+    case IDC_REPORT_UNSAFE_SITE:
+      OpenReportUnsafeSiteDialog(browser_);
+      break;
 #endif
     case IDC_SHOW_CHROME_LABS:
       window()->ShowChromeLabs();
@@ -2105,6 +2108,7 @@ void BrowserCommandController::UpdateCommandsForFullscreenMode() {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
   command_updater_.UpdateCommandEnabled(
       IDC_FEEDBACK, show_main_ui || browser_->is_type_devtools());
+  command_updater_.UpdateCommandEnabled(IDC_REPORT_UNSAFE_SITE, show_main_ui);
 #endif
 
   command_updater_.UpdateCommandEnabled(IDC_EDIT_SEARCH_ENGINES, show_main_ui);
@@ -2295,7 +2299,8 @@ void BrowserCommandController::UpdateCommandsForFind() {
   bool is_actor_overlay_visible = false;
 
   // If the actor overlay is visible, we disable find and close it if it's open.
-  if (features::kGlicActorUiOverlay.Get()) {
+  if (base::FeatureList::IsEnabled(features::kGlicActorUi) &&
+      features::kGlicActorUiOverlay.Get()) {
     if (BrowserView* browser_view =
             BrowserView::GetBrowserViewForBrowser(browser_)) {
       if (auto* active_container =

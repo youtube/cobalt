@@ -8,6 +8,8 @@
 
 #include "base/no_destructor.h"
 #include "base/time/time.h"
+#include "base/uuid.h"
+#include "chrome/browser/ui/browser_window/test/mock_browser_window_interface.h"
 #include "components/saved_tab_groups/public/saved_tab_group.h"
 #include "components/saved_tab_groups/test_support/mock_tab_group_sync_service.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -191,6 +193,22 @@ TEST_F(ProjectsPanelControllerTest, RemovesGroup) {
   EXPECT_EQ(GetGroup1DayOlder().saved_guid(), tab_groups[0].saved_guid());
 }
 
+TEST_F(ProjectsPanelControllerTest, OpenTabGroupCallsService) {
+  auto controller = GetInitializedController();
+  const base::Uuid uuid =
+      base::Uuid::ParseLowercase("00000000-0000-0000-0000-000000000001");
+
+  EXPECT_CALL(mock_tab_group_sync_service_,
+              OpenTabGroup(testing::Eq(uuid), testing::_))
+      .Times(1);
+
+  testing::NiceMock<MockBrowserWindowInterface> mock_browser_window_interface;
+  EXPECT_CALL(mock_browser_window_interface, GetBrowserForMigrationOnly())
+      .WillOnce(testing::Return(nullptr));
+
+  controller->OpenTabGroup(uuid, &mock_browser_window_interface);
+}
+
 class ProjectsPanelControllerObserverTest : public ProjectsPanelControllerTest {
  public:
   void SetUp() override {
@@ -277,4 +295,23 @@ TEST_F(ProjectsPanelControllerObserverTest, NotifiesObserverOnUnpinning) {
 
   EXPECT_EQ(group_to_unpin.saved_guid(),
             controller_->GetTabGroups()[1].saved_guid());
+}
+
+TEST_F(ProjectsPanelControllerObserverTest, NotifiesObserverOnLocalIdChange) {
+  auto group = CreateGroup(u"Group", kFixedTime);
+
+  EXPECT_CALL(mock_tab_group_sync_service_, GetAllGroups())
+      .WillOnce(
+          testing::Return(std::vector<tab_groups::SavedTabGroup>({group})));
+  InitializeController();
+
+  auto local_group_id = tab_groups::LocalTabGroupID::FromRawToken(
+      base::Token{0x12345678, 0x9ABCDEF0});
+  group.SetLocalGroupId(local_group_id);
+
+  EXPECT_CALL(observer_, OnTabGroupUpdated(GroupIs(group), 0, testing::_));
+  controller_->OnTabGroupLocalIdChanged(group.saved_guid(), local_group_id);
+
+  EXPECT_EQ(group.local_group_id(),
+            controller_->GetTabGroups()[0].local_group_id());
 }

@@ -21,8 +21,11 @@ import static org.chromium.chrome.test.util.ChromeTabUtils.getIndexOnUiThread;
 
 import android.graphics.Bitmap;
 import android.graphics.drawable.BitmapDrawable;
+import android.view.View;
+import android.widget.FrameLayout;
 import android.widget.ImageView;
 
+import androidx.recyclerview.widget.RecyclerView;
 import androidx.test.filters.MediumTest;
 
 import org.junit.Before;
@@ -33,7 +36,7 @@ import org.junit.runner.RunWith;
 import org.chromium.base.ThreadUtils;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
+import org.chromium.base.test.util.CriteriaHelper;
 import org.chromium.base.test.util.DisabledTest;
 import org.chromium.base.test.util.Feature;
 import org.chromium.base.test.util.Features.DisableFeatures;
@@ -70,9 +73,9 @@ import org.chromium.chrome.test.transit.page.CtaPageStation;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.transit.tabmodel.TabThumbnailsCapturedCarryOn;
 import org.chromium.chrome.test.util.ChromeRenderTestRule;
+import org.chromium.components.embedder_support.util.UrlConstants;
 import org.chromium.components.tab_groups.TabGroupColorId;
 import org.chromium.mojo.system.Pair;
-import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.PageTransition;
 
 import java.io.IOException;
@@ -258,7 +261,6 @@ public class TabSwitcherLayoutPTTest {
     @Test
     @MediumTest
     @Feature({"RenderTest"})
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testRenderGrid_Incognito() throws IOException {
         ChromeTabbedActivity cta = mCtaTestRule.getActivity();
         // Prepare some incognito tabs and enter tab switcher.
@@ -312,6 +314,68 @@ public class TabSwitcherLayoutPTTest {
 
         mRenderTestRule.render(
                 tabSwitcher.getActivity().findViewById(R.id.pane_frame), "regular_pinned_tabs");
+
+        RegularNewTabPageStation previousPage =
+                tabSwitcher.leaveHubToPreviousTabViaBack(RegularNewTabPageStation.newBuilder());
+        assertFinalDestination(previousPage);
+    }
+
+    @Test
+    @MediumTest
+    @Feature({"RenderTest"})
+    @EnableFeatures(ChromeFeatureList.ANDROID_PINNED_TABS)
+    public void testRenderGrid_PinnedTabs_Scrolled() throws IOException {
+        ChromeTabbedActivity cta = mCtaTestRule.getActivity();
+        RegularNewTabPageStation pageStation =
+                Journeys.prepareTabsWithThumbnails(
+                        mStartPage,
+                        28,
+                        0,
+                        UrlConstants.NTP_URL,
+                        RegularNewTabPageStation::newBuilder);
+
+        // Make sure all thumbnails are there before switching tabs.
+        RegularTabSwitcherStation tabSwitcherStation =
+                enterRegularHtsWithThumbnailChecking(pageStation);
+
+        // Pin 2 tabs
+        RegularNewTabPageStation firstPage =
+                tabSwitcherStation.selectTabAtIndex(0, RegularNewTabPageStation.newBuilder());
+        int firstTabId = firstPage.loadedTabElement.value().getId();
+        RegularNewTabPageStation secondPage = firstPage.openNewTabFast();
+        int secondTabId = secondPage.loadedTabElement.value().getId();
+        RegularTabSwitcherStation tabSwitcher = secondPage.openRegularTabSwitcher();
+
+        TabSwitcherListEditorFacility<RegularTabSwitcherStation> editor =
+                tabSwitcher.openAppMenu().clickSelectTabs();
+        editor = editor.addTabToSelection(0, firstTabId);
+        editor = editor.addTabToSelection(1, secondTabId);
+
+        editor.openAppMenuWithEditor().pinTabs();
+
+        // Scroll to the bottom to make the pinned tab strip visible.
+        ThreadUtils.runOnUiThreadBlocking(
+                () -> {
+                    RecyclerView recyclerView = cta.findViewById(R.id.tab_list_recycler_view);
+                    recyclerView.scrollToPosition(recyclerView.getAdapter().getItemCount() - 1);
+                });
+
+        CriteriaHelper.pollUiThread(
+                () -> {
+                    RecyclerView recyclerView = cta.findViewById(R.id.tab_list_recycler_view);
+                    if (recyclerView.getScrollState() != RecyclerView.SCROLL_STATE_IDLE) {
+                        return false;
+                    }
+                    FrameLayout parent = (FrameLayout) recyclerView.getParent();
+                    View pinnedTabView = parent.getChildAt(0);
+                    return pinnedTabView != null
+                            && pinnedTabView.getVisibility() == View.VISIBLE
+                            && pinnedTabView.getAlpha() == 1.0f
+                            && pinnedTabView.getTranslationY() == 0f;
+                });
+
+        mRenderTestRule.render(
+                cta.findViewById(R.id.hub_main_container), "regular_pinned_tabs_scrolled");
 
         RegularNewTabPageStation previousPage =
                 tabSwitcher.leaveHubToPreviousTabViaBack(RegularNewTabPageStation.newBuilder());
@@ -734,7 +798,6 @@ public class TabSwitcherLayoutPTTest {
     @MediumTest
     // TODO(crbug.com/457847264): Change to @Restriction(DeviceFormFactor.PHONE) after launch.
     @DisableFeatures(ChromeFeatureList.ANDROID_OPEN_INCOGNITO_AS_WINDOW)
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testUrlUpdatedNotCrashing_ForTabNotInCurrentModel() throws Exception {
         WebPageStation regularPage = mCtaTestRule.startOnBlankPage();
         Tab regularTab = regularPage.loadedTabElement.value();
@@ -773,7 +836,6 @@ public class TabSwitcherLayoutPTTest {
     @Test
     @MediumTest
     @Feature({"RenderTest"})
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testRenderGrid_TabGroupColor_Incognito_2TabsInGroup() throws IOException {
         doTestRenderGrid_TabGroupColor_Parameterized(
                 /* isIncognito= */ true,
@@ -794,7 +856,6 @@ public class TabSwitcherLayoutPTTest {
     @Test
     @MediumTest
     @Feature({"RenderTest"})
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // https://crbug.com/446934111
     public void testRenderGrid_TabGroupColor_Incognito_5TabsInGroup() throws IOException {
         doTestRenderGrid_TabGroupColor_Parameterized(
                 /* isIncognito= */ true,

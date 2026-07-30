@@ -17,6 +17,7 @@
 #include "base/types/expected.h"
 #include "base/types/optional_ref.h"
 #include "base/version.h"
+#include "chrome/browser/web_applications/isolated_web_apps/install/non_installed_bundle_inspection_context.h"
 #include "chrome/browser/web_applications/isolated_web_apps/isolated_web_app_url_info.h"
 #include "chrome/browser/web_applications/jobs/manifest_to_web_app_install_info_job.h"
 #include "chrome/browser/web_applications/web_app_install_info.h"
@@ -65,18 +66,6 @@ void CleanupLocationIfOwned(const base::FilePath& profile_dir,
                             const IsolatedWebAppStorageLocation& location,
                             base::OnceClosure closure);
 
-enum class KeyRotationLookupResult { kNoKeyRotation, kKeyFound, kKeyBlocked };
-
-// Queries the `IwaKeyDistributionInfoProvider` whether there's
-// `KeyRotationInfo` associated with the given `web_bundle_id`.
-//   * If there's no key found, returns `kNoKeyRotation`.
-//   * If the rotated key is null, reflects this in `debug_log` and returns
-//     `kKeyBlocked`.
-//   * Otherwise, writes the key data into `debug_log` and returns `kKeyFound.`
-KeyRotationLookupResult LookupRotatedKey(
-    const web_package::SignedWebBundleId& web_bundle_id,
-    base::optional_ref<base::DictValue> debug_log = std::nullopt);
-
 // Provides the key rotation data associated with a particular IWA.
 struct KeyRotationData {
   base::raw_span<const uint8_t> rotated_key;
@@ -90,10 +79,10 @@ struct KeyRotationData {
   bool pending_update_has_rk;
 };
 
-// Computes the key rotation data as outlined above.
-// This function must only be called if the result of invoking
-// `LookupRotatedKey()` has yielded `kKeyFound` (will CHECK otherwise).
-KeyRotationData GetKeyRotationData(
+// Computes the key rotation data for `web_bundle_id` wrt rules above. Will
+// return `std::nullopt` if there's no key rotation entry for this
+// `web_bundle_id`.
+std::optional<KeyRotationData> GetKeyRotationData(
     const web_package::SignedWebBundleId& web_bundle_id,
     const IsolationData& isolation_data);
 
@@ -125,6 +114,7 @@ class IsolatedWebAppInstallCommandHelper {
   // Returns the integrity block if the IWA is backed by a signed web bundle.
   void CheckTrustAndSignatures(
       const IwaSourceWithMode& location,
+      const IwaOperation& operation,
       Profile* profile,
       base::OnceCallback<
           void(base::expected<
@@ -135,6 +125,7 @@ class IsolatedWebAppInstallCommandHelper {
   // Use this overload if you don't need the returned integrity block.
   void CheckTrustAndSignatures(
       const IwaSourceWithMode& location,
+      const IwaOperation& operation,
       Profile* profile,
       base::OnceCallback<void(base::expected<void, std::string>)> callback);
 
@@ -142,6 +133,7 @@ class IsolatedWebAppInstallCommandHelper {
 
   void LoadInstallUrl(
       const IwaSourceWithMode& source,
+      const IwaOperation& operation,
       content::WebContents& web_contents,
       webapps::WebAppUrlLoader& url_loader,
       base::OnceCallback<void(base::expected<void, std::string>)> callback);

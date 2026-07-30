@@ -10,9 +10,9 @@
 #include "base/test/bind.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "chrome/browser/actor/actor_features.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_test_util.h"
+#include "chrome/browser/actor/enterprise_policy_url_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/ui/event_dispatcher.h"
 #include "chrome/browser/actor/ui/test_support/mock_actor_ui_state_manager.h"
@@ -41,16 +41,12 @@ std::unique_ptr<ui::ActorUiStateManagerInterface> BuildUiStateManagerMock() {
   return ui_state_manager;
 }
 
-constexpr char kActorTaskCreatedHistogram[] = "Actor.Task.Created";
-
 class ActorKeyedServiceTest : public testing::Test {
  public:
   ActorKeyedServiceTest()
       : task_environment_(base::test::TaskEnvironment::TimeSource::MOCK_TIME),
         testing_profile_manager_(TestingBrowserProcess::GetGlobal()) {
-    scoped_feature_list_.InitAndEnableFeatureWithParameters(
-        features::kGlicActor,
-        {{features::kGlicActorPolicyControlExemption.name, "true"}});
+    scoped_feature_list_.InitAndEnableFeature(features::kGlicActor);
   }
   ~ActorKeyedServiceTest() override = default;
 
@@ -74,16 +70,16 @@ class ActorKeyedServiceTest : public testing::Test {
   base::CallbackListSubscription confirm_navigation_subscription_;
 
  private:
+  base::test::ScopedFeatureList scoped_feature_list_;
   content::BrowserTaskEnvironment task_environment_;
   TestingProfileManager testing_profile_manager_;
   raw_ptr<TestingProfile> profile_;
-  base::test::ScopedFeatureList scoped_feature_list_;
 };
 
 // Adds a task to ActorKeyedService
 TEST_F(ActorKeyedServiceTest, AddActiveTask) {
   auto* actor_service = ActorKeyedService::Get(profile());
-  actor_service->CreateTask();
+  actor_service->CreateTask(NoEnterprisePolicyChecker());
   ASSERT_EQ(actor_service->GetActiveTasks().size(), 1u);
   EXPECT_EQ(actor_service->GetActiveTasks().begin()->second->GetState(),
             ActorTask::State::kCreated);
@@ -92,7 +88,7 @@ TEST_F(ActorKeyedServiceTest, AddActiveTask) {
 // Stops a task.
 TEST_F(ActorKeyedServiceTest, StopActiveTask) {
   auto* actor_service = ActorKeyedService::Get(profile());
-  TaskId id = actor_service->CreateTask();
+  TaskId id = actor_service->CreateTask(NoEnterprisePolicyChecker());
 
   // Add a tab to the task
   base::WeakPtr<ActorTask> task = actor_service->GetTask(id)->GetWeakPtr();
@@ -113,8 +109,8 @@ TEST_F(ActorKeyedServiceTest, StopActiveTask) {
 
 TEST_F(ActorKeyedServiceTest, FindTaskIdsInActive_ReturnsSuccessfully) {
   auto* actor_service = ActorKeyedService::Get(profile());
-  actor_service->CreateTask();
-  const TaskId id2 = actor_service->CreateTask();
+  actor_service->CreateTask(NoEnterprisePolicyChecker());
+  const TaskId id2 = actor_service->CreateTask(NoEnterprisePolicyChecker());
   actor_service->GetTask(id2)->Pause(/*from_actor=*/true);
 
   // Find a single active task.
@@ -129,7 +125,7 @@ TEST_F(ActorKeyedServiceTest, FindTaskIdsInActive_ReturnsSuccessfully) {
 // Test that adding a tab to a paused or stopped task has no effect.
 TEST_F(ActorKeyedServiceTest, AddTabToPausedOrStoppedTask) {
   auto* actor_service = ActorKeyedService::Get(profile());
-  TaskId id = actor_service->CreateTask();
+  TaskId id = actor_service->CreateTask(NoEnterprisePolicyChecker());
 
   base::WeakPtr<ActorTask> task = actor_service->GetTask(id)->GetWeakPtr();
   ASSERT_TRUE(task);
@@ -160,7 +156,7 @@ TEST_F(ActorKeyedServiceTest, AddTabToPausedOrStoppedTask) {
 // Test tab association to a paused task.
 TEST_F(ActorKeyedServiceTest, PausedTaskTabs) {
   auto* actor_service = ActorKeyedService::Get(profile());
-  TaskId id = actor_service->CreateTask();
+  TaskId id = actor_service->CreateTask(NoEnterprisePolicyChecker());
 
   base::WeakPtr<ActorTask> task = actor_service->GetTask(id)->GetWeakPtr();
   ASSERT_TRUE(task);
@@ -214,15 +210,6 @@ TEST_F(ActorKeyedServiceTest, PausedTaskTabs) {
   // Stop the task. This should remove the tab from the task.
   actor_service->StopTask(id, ActorTask::StoppedReason::kTaskComplete);
   EXPECT_FALSE(task);
-}
-
-TEST_F(ActorKeyedServiceTest, LogsActorTaskCreatedOnCreateTask) {
-  base::HistogramTester histogram_tester;
-  histogram_tester.ExpectTotalCount(kActorTaskCreatedHistogram, 0);
-
-  ActorKeyedService::Get(profile())->CreateTask();
-
-  histogram_tester.ExpectBucketCount(kActorTaskCreatedHistogram, true, 1);
 }
 
 }  // namespace

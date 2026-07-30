@@ -49,6 +49,10 @@
 #include "ui/webui/webui_allowlist.h"
 #include "ui/webui/webui_util.h"
 
+#if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+#include "chrome/grit/guest_view_shared_resources_map.h"  // nogncheck
+#endif  // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
 namespace glic {
 
 // Enables sending bitmaps across glic for favicons instead of converting to
@@ -146,6 +150,13 @@ GlicUI::GlicUI(content::WebUI* web_ui)
   webui::SetupWebUIDataSource(source, kGlicResources, IDR_GLIC_GLIC_HTML);
   ConfigureSharedWebUISource(*source);
 
+#if !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+  auto bindings = web_ui->GetBindings();
+  bindings.Put(content::BindingsPolicyValue::kSlimWebView);
+  web_ui->SetBindings(bindings);
+  source->AddResourcePaths(kGuestViewSharedResources);
+#endif  // !BUILDFLAG(ENABLE_EXTENSIONS_CORE)
+
   for (const auto& resource : kGlicFreResources) {
     source->AddResourcePath(base::StrCat({"fre/", resource.path}), resource.id);
   }
@@ -174,10 +185,8 @@ GlicUI::GlicUI(content::WebUI* web_ui)
   source->AddBoolean("loggingEnabled",
                      command_line->HasSwitch(::switches::kGlicHostLogging));
 
-  auto* profile = Profile::FromBrowserContext(browser_context);
-
   // Set up guest URL via cli flag or default to finch param value.
-  const GURL guest_url = GetGuestURL(profile);
+  const GURL guest_url = GetGuestURL();
   source->AddString("glicGuestURL", guest_url.spec());
   net_log::LogDummyNetworkRequestForTrafficAnnotation(guest_url,
                                                       net_log::GlicPage::kGlic);
@@ -200,6 +209,7 @@ GlicUI::GlicUI(content::WebUI* web_ui)
   }
 
   // Allow corp origins for @google accounts.
+  auto* profile = Profile::FromBrowserContext(browser_context);
   signin::IdentityManager* identity_manager =
       IdentityManagerFactory::GetForProfile(profile);
   if (identity_manager && IsPrimaryAccountGoogleInternal(*identity_manager)) {

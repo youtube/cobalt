@@ -37,13 +37,13 @@ export function getHtml(this: SearchboxElement) {
         @add-tab-context="${this.addTabContext_}"
         @add-file-context="${this.addFileContext_}"
         @on-file-validation-error="${this.onFileValidationError_}"
-        @set-deep-search-mode="${this.setDeepSearchMode_}"
-        @set-create-image-mode="${this.setCreateImageMode_}"
-        @set-canvas-mode="${this.setCanvasMode_}"
+        @set-tool-mode="${this.onSetToolMode_}"
         @model-click="${this.onModelClick_}"
         @get-tab-preview="${this.getTabPreview_}"
         @context-menu-container-click="${this.onContextMenuContainerClick_}"
+        @context-menu-entrypoint-click="${this.onContextMenuEntrypointClick_}"
         @context-menu-closed="${this.onContextMenuClosed_}"
+        @context-menu-opened="${this.onContextMenuOpened_}"
         ?show-dropdown="${this.dropdownIsVisible}"
         ?show-recent-tab-chip="${this.computeShowRecentTabChip_()}"
         .inputState="${this.inputState_}"
@@ -140,7 +140,7 @@ export function getHtml(this: SearchboxElement) {
       <search-animated-glow animation-state="${this.animationState}" part="animated-glow">
       </search-animated-glow>
       ${compactLayout ? html`
-        <div id="inputInnerContainer">
+        <div id="inputInnerContainer" ?inert="${this.errorMessage_}">
           <div class="contextualEntrypointContainer contextualEntrypointContainerCompact">
             ${contextualEntrypoint}
           </div>
@@ -149,9 +149,9 @@ export function getHtml(this: SearchboxElement) {
           ${lensSearchButton}
           ${composeButton}
         </div>
-        <div class="dropdownContainer">
+        <div class="dropdownContainer" ?inert="${this.errorMessage_}">
           ${dropdown}
-          ${this.recentTabForChip_ && this.dropdownIsVisible && this.isInputEmpty() ? html`
+          ${this.shouldShowRecentTabChipInDropdown_() ? html`
           <div id="recentTabChipContainer">
             <composebox-recent-tab-chip
                 .recentTab="${this.recentTabForChip_}"
@@ -161,11 +161,11 @@ export function getHtml(this: SearchboxElement) {
           ` : nothing}
         </div>
       ` : html`
-        <div id="inputInnerContainer">
+        <div id="inputInnerContainer" ?inert="${this.errorMessage_}">
           ${inputContent}
           ${composeButton}
         </div>
-        <div id="inputInnerBottomContainer">
+        <div id="inputInnerBottomContainer" ?inert="${this.errorMessage_}">
           <div class="contextualEntrypointContainer">
             ${contextualEntrypoint}
           </div>

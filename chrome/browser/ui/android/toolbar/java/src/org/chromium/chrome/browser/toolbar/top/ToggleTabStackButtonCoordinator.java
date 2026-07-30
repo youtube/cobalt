@@ -4,6 +4,7 @@
 
 package org.chromium.chrome.browser.toolbar.top;
 
+import static org.chromium.build.NullUtil.assertNonNull;
 import static org.chromium.build.NullUtil.assumeNonNull;
 import static org.chromium.chrome.browser.data_sharing.ui.versioning.VersionUpdateIphHandler.maybeShowVersioningIph;
 
@@ -156,7 +157,7 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChildButton {
         }
 
         mNotificationDotSupplier = tabModelNotificationDotSupplier;
-        mNotificationDotSupplier.addObserver(mNotificationDotObserver);
+        mNotificationDotSupplier.addSyncObserverAndPostIfNonNull(mNotificationDotObserver);
 
         mToggleTabStackButton.setOnClickListener(onClickListener);
         mToggleTabStackButton.setOnLongClickListener(onLongClickListener);
@@ -164,12 +165,12 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChildButton {
 
         mArchivedTabCountSupplier = archivedTabCountSupplier;
         if (mArchivedTabCountSupplier != null) {
-            mArchivedTabCountSupplier.addObserver(mArchivedTabCountObserver);
+            mArchivedTabCountSupplier.addSyncObserverAndPostIfNonNull(mArchivedTabCountObserver);
             mArchivedTabsIphShownCallback = archivedTabsIphShownCallback;
             mArchivedTabsIphDismissedCallback = archivedTabsIphDismissedCallback;
         }
 
-        TabModelSelector tabModelSelector = mTabModelSelectorSupplier.get();
+        TabModelSelector tabModelSelector = assertNonNull(mTabModelSelectorSupplier.get());
         TabModelUtils.runOnTabStateInitialized(
                 tabModelSelector,
                 mCallbackController.makeCancelable(
@@ -346,7 +347,8 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChildButton {
     void handlePageLoadFinished() {
         if (!mToggleTabStackButton.isShown()) return;
 
-        Profile profile = mTabModelSelectorSupplier.get().getCurrentModel().getProfile();
+        Profile profile =
+                assumeNonNull(mTabModelSelectorSupplier.get()).getCurrentModel().getProfile();
         if (profile != null) {
             maybeShowVersioningIph(
                     mUserEducationHelper,
@@ -360,7 +362,7 @@ public class ToggleTabStackButtonCoordinator extends ToolbarChildButton {
         IphCommandBuilder builder = null;
         if (IncognitoUtils.shouldOpenIncognitoAsWindow()
                 && mTabModelSelectorSupplier.get() != null) {
-            TabModelSelector selector = mTabModelSelectorSupplier.get();
+            TabModelSelector selector = assumeNonNull(mTabModelSelectorSupplier.get());
             // When in Incognito, show IPH to switch out.
             if (selector.getCurrentModel().isIncognitoBranded()) {
                 builder =

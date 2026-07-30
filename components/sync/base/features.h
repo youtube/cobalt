@@ -87,6 +87,23 @@ BASE_DECLARE_FEATURE(kSeparateLocalAndAccountSearchEngines);
 
 // Feature flag to replace all sync-related UI with sign-in ones.
 BASE_DECLARE_FEATURE(kReplaceSyncPromosWithSignInPromos);
+// Enables syncing extensions only if the user newly signs in to Chrome, not if
+// they were already signed in by the time `kReplaceSyncPromosWithSignInPromos`
+// was enabled.
+BASE_DECLARE_FEATURE_PARAM(bool, kExplicitSigninForExtensions);
+
+// Feature flag to enable an observer for awaiting the sync engine startup.
+BASE_DECLARE_FEATURE(kEnableAwaitSyncServiceStartup);
+
+// Configurable timeout for the sync engine startup observation in the profile
+// picker.
+extern const base::FeatureParam<int>
+    kAwaitSyncServiceStartupInProfilePickerTimeoutSeconds;
+
+// Configurable timeout for the sync engine startup observation when browser is
+// open.
+extern const base::FeatureParam<int>
+    kAwaitSyncServiceStartupInBrowserTimeoutSeconds;
 
 // If enabled, allowlisted priority preferences will be synced even if the
 // preferences user toggle is off. Note that this flag is only meaningful if
@@ -192,10 +209,6 @@ BASE_DECLARE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements);
 // If enabled, the preferences sync service will use the selected types to
 // determine whether the pref values should be set in the account storage.
 BASE_DECLARE_FEATURE(kSyncPreferencesUseSelectedTypes);
-
-// When enabled, Sync will use OSCryptAsync for encryption/decryption instead
-// of OSCrypt within the sync code.
-BASE_DECLARE_FEATURE(kSyncUseOsCryptAsync);
 
 BASE_DECLARE_FEATURE(kSyncDetermineAccountManagedStatus);
 BASE_DECLARE_FEATURE_PARAM(base::TimeDelta,

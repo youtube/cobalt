@@ -16,7 +16,6 @@ import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.lifecycle.ActivityLifecycleDispatcher;
 import org.chromium.chrome.browser.omnibox.LocationBar;
-import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tabmodel.IncognitoStateProvider;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
@@ -25,7 +24,6 @@ import org.chromium.chrome.browser.toolbar.ToolbarTabController;
 import org.chromium.chrome.browser.toolbar.top.NavigationPopup;
 import org.chromium.chrome.browser.toolbar.top.ToolbarChildButton;
 import org.chromium.chrome.browser.toolbar.top.ToolbarUtils;
-import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.ui.widget.ChromeImageButton;
 
 import java.util.function.Supplier;
@@ -198,14 +196,7 @@ public class ForwardButtonCoordinator extends ToolbarChildButton {
     private void maybeUnfocusUrlBar() {
         LocationBar locationBar = mLocationBarSupplier.get();
         if (locationBar != null && locationBar.getOmniboxStub() != null) {
-            locationBar
-                    .getOmniboxStub()
-                    .setUrlBarFocus(
-                            /* shouldBeFocused= */ false,
-                            null,
-                            /* selectText= */ false,
-                            OmniboxFocusReason.UNFOCUS,
-                            AutocompleteRequestType.SEARCH);
+            locationBar.getOmniboxStub().setUrlBarFocus(null);
         }
     }
 

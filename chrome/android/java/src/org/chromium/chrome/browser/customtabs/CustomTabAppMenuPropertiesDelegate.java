@@ -326,7 +326,7 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
                 ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
                         ChromeFeatureList.CCT_ADAPTIVE_BUTTON,
                         SHOW_OPEN_IN_BROWSER_MENU_TOP_PARAM,
-                        false);
+                        true);
         if (openInChromeItemVisible && showOpenInBrowserAtTop) {
             addOpenInChrome(modelList, /* showIcon= */ true);
         }
@@ -435,11 +435,15 @@ public class CustomTabAppMenuPropertiesDelegate extends AppMenuPropertiesDelegat
     }
 
     private void addOpenInChrome(MVCListAdapter.ModelList modelList, boolean showIcon) {
-        String title =
-                mIsOffTheRecord
-                        ? ContextUtils.getApplicationContext()
-                                .getString(R.string.menu_open_in_incognito_chrome)
-                        : DefaultBrowserInfo.getTitleOpenInDefaultBrowser(mIsOpenedByChrome);
+        String title;
+        Context context = ContextUtils.getApplicationContext();
+        if (mIsOffTheRecord) {
+            title = context.getString(R.string.menu_open_in_incognito_chrome);
+        } else if (mIsOpenedByChrome) {
+            title = context.getString(R.string.menu_open_in_new_tab);
+        } else {
+            title = DefaultBrowserInfo.getTitleOpenInDefaultBrowser(false);
+        }
         PropertyModel model =
                 buildBaseModelForTextItem(R.id.open_in_browser_id)
                         .with(AppMenuItemProperties.TITLE, title)

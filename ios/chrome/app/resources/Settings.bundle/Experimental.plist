@@ -97,11 +97,13 @@
 			<integer>0</integer>
 			<key>Values</key>
 			<array>
+				<integer>-1</integer>
 				<integer>10</integer>
 				<integer>3600</integer>
 			</array>
 			<key>Titles</key>
 			<array>
+				<string>Instant Trigger</string>
 				<string>10 Seconds</string>
 				<string>1 Hour</string>
 			</array>
@@ -687,6 +689,16 @@
 			<string>Disable Composebox Canvas eligibility</string>
 			<key>Key</key>
 			<string>ForceDisableCanvasEligibility</string>
+			<key>DefaultValue</key>
+			<false/>
+		</dict>
+		<dict>
+			<key>Type</key>
+			<string>PSToggleSwitchSpecifier</string>
+			<key>Title</key>
+			<string>Disable Composebox Deep Search eligibility</string>
+			<key>Key</key>
+			<string>ForceDisableDeepSearchEligibility</string>
 			<key>DefaultValue</key>
 			<false/>
 		</dict>

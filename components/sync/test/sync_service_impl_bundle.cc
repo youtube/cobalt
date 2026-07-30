@@ -11,7 +11,7 @@
 #include "components/os_crypt/async/browser/test_utils.h"
 #include "components/pref_registry/pref_registry_syncable.h"
 #include "components/sync/base/features.h"
-#include "components/sync/service/device_statistics_tracker.h"
+#include "components/sync/service/device_statistics_scheduler.h"
 #include "components/sync/service/sync_prefs.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/weak_wrapper_shared_url_loader_factory.h"
@@ -26,7 +26,7 @@ using testing::Return;
 SyncServiceImplBundle::SyncServiceImplBundle()
     : identity_test_env_(&test_url_loader_factory_, &pref_service_) {
   SyncPrefs::RegisterProfilePrefs(pref_service_.registry());
-  DeviceStatisticsTracker::RegisterProfilePrefs(pref_service_.registry());
+  DeviceStatisticsScheduler::RegisterProfilePrefs(pref_service_.registry());
   identity_test_env_.SetAutomaticIssueOfAccessTokens(true);
   os_crypt_async_ = os_crypt_async::GetTestOSCryptAsyncForTesting();
 }
@@ -64,9 +64,7 @@ SyncServiceImpl::InitParams SyncServiceImplBundle::CreateBasicInitParams(
   init_params.network_connection_tracker =
       network::TestNetworkConnectionTracker::GetInstance();
   init_params.debug_identifier = "fakeDebugName";
-  if (base::FeatureList::IsEnabled(syncer::kSyncUseOsCryptAsync)) {
-    init_params.os_crypt_async = os_crypt_async_.get();
-  }
+  init_params.os_crypt_async = os_crypt_async_.get();
 
   return init_params;
 }

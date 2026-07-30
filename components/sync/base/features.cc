@@ -84,6 +84,26 @@ BASE_FEATURE(kReplaceSyncPromosWithSignInPromos,
              base::FEATURE_DISABLED_BY_DEFAULT
 #endif
 );
+BASE_FEATURE_PARAM(bool,
+                   kExplicitSigninForExtensions,
+                   &kReplaceSyncPromosWithSignInPromos,
+                   "explicit_signin_for_extensions",
+                   false);
+
+BASE_FEATURE(kEnableAwaitSyncServiceStartup, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const int kAwaitSyncServiceStartupInProfilePickerTimeoutDefaultValue = 10;
+const base::FeatureParam<int>
+    kAwaitSyncServiceStartupInProfilePickerTimeoutSeconds{
+        &kEnableAwaitSyncServiceStartup,
+        /*name=*/"AwaitSyncServiceStartupInProfilePickerTimeoutSeconds",
+        kAwaitSyncServiceStartupInProfilePickerTimeoutDefaultValue};
+
+const int kAwaitSyncServiceStartupInBrowserTimeoutDefaultValue = 3;
+const base::FeatureParam<int> kAwaitSyncServiceStartupInBrowserTimeoutSeconds{
+    &kEnableAwaitSyncServiceStartup,
+    /*name=*/"AwaitSyncServiceStartupInBrowserTimeoutSeconds",
+    kAwaitSyncServiceStartupInBrowserTimeoutDefaultValue};
 
 BASE_FEATURE(kSyncSupportAlwaysSyncingPriorityPreferences,
 #if BUILDFLAG(IS_CHROMEOS)
@@ -164,8 +184,6 @@ BASE_FEATURE(kSyncTrustedVaultInfobarMessageImprovements,
 
 BASE_FEATURE(kSyncPreferencesUseSelectedTypes,
              base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kSyncUseOsCryptAsync, base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSyncDetermineAccountManagedStatus,
              base::FEATURE_DISABLED_BY_DEFAULT);

@@ -107,7 +107,7 @@ public class AppearanceSettingsFragmentTest {
 
         // Update bookmark bar setting and notify observers when supplier changes.
         mBookmarkBarSettingSupplier = ObservableSuppliers.createNonNull(false);
-        mBookmarkBarSettingSupplier.addObserver(
+        mBookmarkBarSettingSupplier.addSyncObserverAndPostIfNonNull(
                 enabled -> {
                     BookmarkBarUtils.setSettingEnabledForTesting(enabled);
                     // Safely call onPreferenceChange only on non-null observers (since tablets
@@ -191,7 +191,7 @@ public class AppearanceSettingsFragmentTest {
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.PHONE_OR_TABLET) // https://crbug.com/446934111
+    @Restriction(DeviceFormFactor.PHONE_OR_TABLET) // https://crbug.com/481444857
     public void testBookmarkBarPreferenceUpdatesSettingWhenChanged_NonDesktop() {
         BookmarkBarUtils.setDeviceBookmarkBarCompatibleForTesting(true);
         launchSettings();
@@ -212,7 +212,7 @@ public class AppearanceSettingsFragmentTest {
 
     @Test
     @SmallTest
-    @Restriction(DeviceFormFactor.PHONE_OR_TABLET) // https://crbug.com/446934111
+    @Restriction(DeviceFormFactor.PHONE_OR_TABLET) // https://crbug.com/481444857
     public void testBookmarkBarPreferenceIsUpdatedWhenSettingChanges_NonDesktop() {
         BookmarkBarUtils.setDeviceBookmarkBarCompatibleForTesting(true);
         launchSettings();

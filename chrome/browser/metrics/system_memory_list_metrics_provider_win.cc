@@ -7,11 +7,15 @@
 #include <windows.h>
 #include <winternl.h>
 
+#include <stdint.h>
+
 #include <optional>
 
 #include "base/check.h"
 #include "base/metrics/histogram_functions.h"
 #include "base/numerics/safe_conversions.h"
+#include "base/profiler/sample_metadata.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/time/time.h"
 
 SystemMemoryListMetricsProvider::SystemMemoryListMetricsProvider(
@@ -97,6 +101,9 @@ void SystemMemoryListMetricsProvider::ExhaustedIntervalThreadDelegate::Run() {
   base::TimeTicks last_pressured_interval_emission_time =
       base::TimeTicks::Now();
 
+  base::SampleMetadata zero_page_sample_metadata{
+      "WindowsZeroPageCount", base::SampleMetadataScope::kProcess};
+
   while (!exit_signal_.TimedWait(sampling_interval_)) {
     SYSTEM_MEMORY_LIST_INFORMATION memory_list_information;
 
@@ -126,6 +133,8 @@ void SystemMemoryListMetricsProvider::ExhaustedIntervalThreadDelegate::Run() {
       } else {
         last_free_interval_was_exhausted = false;
       }
+
+      zero_page_sample_metadata.Set(memory_list_information.ZeroPageCount);
 
       const base::TimeTicks now = base::TimeTicks::Now();
       if (last_pressured_interval_emission_time <=
@@ -160,6 +169,21 @@ void SystemMemoryListMetricsProvider::ExhaustedIntervalThreadDelegate::Run() {
                 memory_list_information.ModifiedPageCount),
             1, 500000000, 75);
 
+        int priority_number = 1;
+        uintptr_t total_standby_pages = 0;
+        for (uintptr_t standby_page_count :
+             memory_list_information.PageCountByPriority) {
+          total_standby_pages += standby_page_count;
+          base::UmaHistogramCustomCounts(
+              base::StrCat(
+                  {"Memory.SystemMemoryLists.StandbyPageCountByPriority.",
+                   base::NumberToString(priority_number++)}),
+              standby_page_count, 1, 500000000, 75);
+        }
+        base::UmaHistogramCustomCounts(
+            "Memory.SystemMemoryLists.StandbyPageCount", total_standby_pages, 1,
+            500000000, 75);
+
         free_list_exhausted_interval_count = 0;
         zero_list_exhausted_interval_count = 0;
         both_lists_exhausted_interval_count = 0;
@@ -176,7 +200,8 @@ void SystemMemoryListMetricsProvider::ExhaustedIntervalThreadDelegate::Run() {
                                status);
 
       // Exit the thread on error to not spam the API for no reason.
-      return;
+      break;
     }
   }
+  zero_page_sample_metadata.Remove();
 }

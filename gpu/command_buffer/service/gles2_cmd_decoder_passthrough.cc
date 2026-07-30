@@ -948,9 +948,6 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
                    "missing GL_ANGLE_request_extension");
   FAIL_INIT_IF_NOT(feature_info_->feature_flags().khr_debug,
                    "missing GL_KHR_debug");
-  FAIL_INIT_IF_NOT(!IsES31ForTestingContextType(context_type) ||
-                       feature_info_->gl_version_info().IsAtLeastGLES(3, 1),
-                   "ES 3.1 context type requires an ES 3.1 ANGLE context");
 
 #undef FAIL_INIT_IF_NOT
 
@@ -988,12 +985,6 @@ gpu::ContextResult GLES2DecoderPassthroughImpl::Initialize(
     bound_buffers_[GL_COPY_WRITE_BUFFER] = 0;
     bound_buffers_[GL_TRANSFORM_FEEDBACK_BUFFER] = 0;
     bound_buffers_[GL_UNIFORM_BUFFER] = 0;
-  }
-  if (feature_info_->gl_version_info().IsAtLeastGLES(3, 1)) {
-    bound_buffers_[GL_ATOMIC_COUNTER_BUFFER] = 0;
-    bound_buffers_[GL_SHADER_STORAGE_BUFFER] = 0;
-    bound_buffers_[GL_DRAW_INDIRECT_BUFFER] = 0;
-    bound_buffers_[GL_DISPATCH_INDIRECT_BUFFER] = 0;
   }
   bound_element_array_buffer_dirty_ = false;
 
@@ -1299,7 +1290,8 @@ gpu::Capabilities GLES2DecoderPassthroughImpl::GetCapabilities() {
       feature_info_->feature_flags().oes_egl_image_external_essl3;
   caps.texture_format_bgra8888 =
       feature_info_->feature_flags().ext_texture_format_bgra8888;
-
+  caps.disable_mac_swangle_rgbx =
+      feature_info_->feature_flags().disable_mac_swangle_rgbx;
   caps.texture_format_etc1_npot =
       feature_info_->feature_flags().oes_compressed_etc1_rgb8_texture &&
       !feature_info_->workarounds().etc1_power_of_two_only;
@@ -1737,8 +1729,6 @@ error::Error GLES2DecoderPassthroughImpl::PatchGetNumericResults(GLenum pname,
     case GL_COPY_READ_BUFFER_BINDING:
     case GL_COPY_WRITE_BUFFER_BINDING:
     case GL_UNIFORM_BUFFER_BINDING:
-    case GL_DISPATCH_INDIRECT_BUFFER_BINDING:
-    case GL_DRAW_INDIRECT_BUFFER_BINDING:
       if (*params != 0 &&
           !GetClientID(&resources_->buffer_id_map, *params, params)) {
         return error::kInvalidArguments;
@@ -1977,15 +1967,9 @@ bool GLES2DecoderPassthroughImpl::LazySharedContextState::Initialize() {
   attribs.robust_resource_initialization = true;
   attribs.robust_buffer_access = true;
   attribs.allow_client_arrays = false;
+  attribs.allow_es_version_fallback = true;
   auto gl_context = gl::init::CreateGLContext(impl_->context_->share_group(),
                                               gl_surface.get(), attribs);
-  if (!gl_context) {
-    LOG(ERROR) << "Failed to create GLES3 context, fallback to GLES2.";
-    attribs.client_major_es_version = 2;
-    attribs.client_minor_es_version = 0;
-    gl_context = gl::init::CreateGLContext(impl_->context_->share_group(),
-                                           gl_surface.get(), attribs);
-  }
   if (!gl_context) {
     impl_->InsertError(
         GL_INVALID_OPERATION,

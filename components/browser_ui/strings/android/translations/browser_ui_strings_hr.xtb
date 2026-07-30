@@ -9,7 +9,7 @@
 <translation id="1074758928858737435">Možete zatražiti prikaz verzije web-lokacija za računala</translation>
 <translation id="1085696779717592361">Koristite Chrome prema zadanim postavkama</translation>
 <translation id="113098737392899175">Krećite se stranicama pomoću pokazivača za tekst kad je tipkovnica povezana</translation>
-<translation id="1149644372535087155">Spremajte zaporke u Chromeu</translation>
+<translation id="1149644372535087155">Spremite zaporke u Chromeu</translation>
 <translation id="1178015372320901893">Donja tablica Moji prečaci</translation>
 <translation id="1178581264944972037">Pauziraj</translation>
 <translation id="1181037720776840403">Ukloni</translation>
@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Ugrađeno na <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Dodirnite Aplikacije &gt; Zadane aplikacije</translation>
 <translation id="1272079795634619415">Zaustavi</translation>
+<translation id="1275718070701477396">Odabrano</translation>
 <translation id="1289742167380433257">Google je optimizirao slike na ovoj stranici radi uštede vaših podataka.</translation>
 <translation id="129382876167171263">Ovdje se prikazuju datoteke koje su spremile web-lokacije</translation>
 <translation id="131112695174432497">Brišu se podaci koji utječu na personalizaciju oglasa</translation>
@@ -402,7 +403,7 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="512938610812707830">Donja tablica zbirki tema izgleda stranice Nova kartica otvorena je u punoj visini</translation>
 <translation id="5137460097045297858">Donja tablica feeda Discovera otvorena je na pola visine</translation>
 <translation id="5139253256813381453">{PRICE_DROP_COUNT,plural, =1{Sniženje cijene na otvorenoj kartici}one{Sniženja cijena na otvorenim karticama}few{Sniženja cijena na otvorenim karticama}other{Sniženja cijena na otvorenim karticama}}</translation>
-<translation id="5150048675001754041">Brza i jednostavna prijava na web-lokacije i u aplikacije</translation>
+<translation id="5150048675001754041">Brzo se i jednostavno prijavite na web-lokacije i u aplikacije</translation>
 <translation id="5186036860380548585">Opcija je dostupna pri vrhu zaslona</translation>
 <translation id="5197729504361054390">Kontakti koje odaberete podijelit će se s web-lokacijom <ph name="BEGIN_BOLD" /><ph name="SITE" /><ph name="END_BOLD" />.</translation>
 <translation id="5198930230016462977">Zatvorena je prilagodba donje tablice stranice nove kartice</translation>
@@ -495,6 +496,7 @@ Napredna zaštita kontrolira sljedeće postavke Chromea:
 <translation id="6085954183010297841">Želite li izbrisati odobrenje za uređivanje datoteke? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Kad je ta postavka uključena, web-lokacije mogu automatski pristupiti slici u slici. Kad je ta postavka isključena, web-lokacije ne mogu automatski pristupiti slici u slici.</translation>
 <translation id="6120483543004435978">Kad je ta postavka uključena, web-lokacije mogu tražiti informacije kada aktivno koristite uređaj. Kad je ta postavka isključena, web-lokacije ne mogu znati kad aktivno koristite uređaj.</translation>
+<translation id="6132075343662013154">Chrome će ponuditi spremanje zaporke</translation>
 <translation id="615886654739818377">Nemoj dopustiti web-lokacijama da upravljaju prozorima na svim zaslonima</translation>
 <translation id="6165508094623778733">Saznajte više</translation>
 <translation id="6171020522141473435">Kad je ta postavka uključena, web-lokacije mogu tražiti dopuštenje za upotrebu Bluetooth uređaja. Kad je ta postavka isključena, web-lokacije ne mogu upotrebljavati Bluetooth uređaje.</translation>

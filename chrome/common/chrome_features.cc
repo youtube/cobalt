@@ -69,7 +69,7 @@ BASE_FEATURE(kAppShimLaunchChromeSilently, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // When enabled, notifications coming from PWAs will be displayed via their app
 // shim processes, rather than directly by chrome.
-// https://crbug.com/938661
+// https://crbug.com/40616749
 BASE_FEATURE(kAppShimNotificationAttribution,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -282,8 +282,6 @@ const base::FeatureParam<base::TimeDelta> kGlicActorClickDelay{
 
 // Controls whether the Actor UI components are enabled.
 BASE_FEATURE(kGlicActorUi, base::FEATURE_ENABLED_BY_DEFAULT);
-// Controls whether the global task indicator and related features are enabled.
-BASE_FEATURE(kGlicActorUiGlobalTaskIndicator, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls whether we ignore users preference of reduced motion enabled and
 // still show the tab indicator spinner. No-op if kGlicActorUiTabIndicator is
 // disabled.
@@ -293,6 +291,9 @@ BASE_FEATURE(kGlicActorUiTabIndicatorSpinnerIgnoreReducedMotion,
 // Controls theming updates for Actor UI, including the tab indicator spinner
 // and other elements.
 BASE_FEATURE(kActorUiThemed, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether UI bug fixes for the Task Icon are enabled.
+BASE_FEATURE(kGlicActorUiTaskIconUiFixes, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, post tasks in the window controller to fix re-entrancy crash.
 BASE_FEATURE(kGlicActorPostTaskUiUpdateEnabled,
@@ -434,7 +435,7 @@ BASE_FEATURE_ENUM_PARAM(GlicActorEnterprisePrefDefault,
                         kGlicActorEnterprisePrefDefault,
                         &kGlicActor,
                         "glic_actor_enterprise_pref_default",
-                        GlicActorEnterprisePrefDefault::kDisabledByDefault,
+                        GlicActorEnterprisePrefDefault::kForcedDisabled,
                         &kGlicActorEnterprisePrefDefaultOptions);
 
 const base::FeatureParam<bool> kGlicActorPolicyControlExemption{
@@ -1936,10 +1937,6 @@ BASE_FEATURE(kWinPinPWAShortcutWithLAF, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(IS_CHROMEOS)
-// A feature to enable event based log uploads. See
-// go/cros-eventbasedlogcollection-dd.
-BASE_FEATURE(kEventBasedLogUpload, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // A feature to enable periodic log upload migration. This includes using new
 // mechanism for collecting, exporting and uploading logs. See
 // go/legacy-log-upload-migration.

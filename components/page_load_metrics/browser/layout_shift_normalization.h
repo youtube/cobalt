@@ -7,6 +7,7 @@
 
 #include <vector>
 
+#include "base/containers/span.h"
 #include "base/time/time.h"
 #include "components/page_load_metrics/browser/page_load_metrics_observer.h"
 
@@ -28,10 +29,8 @@ class LayoutShiftNormalization {
     return normalized_cls_data_;
   }
 
-  void AddNewLayoutShifts(
-      const std::vector<page_load_metrics::mojom::LayoutShiftPtr>& new_shifts,
-      base::TimeTicks current_time,
-      /*Whole page CLS*/ float cumulative_layout_shift_score);
+  void AddNewLayoutShifts(base::span<const mojom::LayoutShiftPtr> new_shifts,
+                          base::TimeTicks current_time);
 
   void ClearAllLayoutShifts();
 
@@ -46,8 +45,7 @@ class LayoutShiftNormalization {
       std::vector<std::pair<base::TimeTicks, double>>::const_iterator first,
       std::vector<std::pair<base::TimeTicks, double>>::const_iterator
           first_non_stale,
-      std::vector<std::pair<base::TimeTicks, double>>::const_iterator last,
-      float cumulative_layout_shift_score);
+      std::vector<std::pair<base::TimeTicks, double>>::const_iterator last);
 
   void UpdateSessionWindow(
       SessionWindow* session_window,

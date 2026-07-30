@@ -13,6 +13,7 @@
 #include "base/test/protobuf_matchers.h"
 #include "base/test/task_environment.h"
 #include "base/uuid.h"
+#include "components/skills/mocks/mock_skills_service.h"
 #include "components/skills/proto/skill_local_data.pb.h"
 #include "components/skills/public/skill.h"
 #include "components/skills/public/skills_service.h"
@@ -55,19 +56,24 @@ MATCHER_P4(HasSkill, id, name, icon, prompt, "") {
          arg.prompt == prompt;
 }
 
-sync_pb::SkillSpecifics CreateSkillSpecifics(std::string prompt) {
+sync_pb::SkillSpecifics CreateSkillSpecifics(std::string prompt,
+                                             std::string description) {
   sync_pb::SkillSpecifics specifics;
   specifics.set_guid(base::Uuid::GenerateRandomV4().AsLowercaseString());
   specifics.mutable_simple_skill()->set_prompt(std::move(prompt));
+  specifics.mutable_simple_skill()->set_description(std::move(description));
+  specifics.set_skill_source(sync_pb::SKILL_SOURCE_USER_CREATED);
+  specifics.set_source_skill_id("");
   specifics.set_schema_version(kDefaultSchemaVersion);
   return specifics;
 }
 
 syncer::EntityData CreateSkillEntityData(
-    std::string prompt = std::string(kDefaultPrompt)) {
+    std::string prompt = std::string(kDefaultPrompt),
+    std::string description = "") {
   syncer::EntityData entity_data;
   *entity_data.specifics.mutable_skill() =
-      CreateSkillSpecifics(std::move(prompt));
+      CreateSkillSpecifics(std::move(prompt), std::move(description));
   return entity_data;
 }
 
@@ -80,40 +86,6 @@ std::vector<syncer::EntityData> ExtractEntityDataFromBatch(
   }
   return result;
 }
-
-class MockSkillsService : public SkillsService {
- public:
-  MOCK_METHOD(void, LoadInitialSkills, (std::vector<std::unique_ptr<Skill>>));
-  MOCK_METHOD(const Skill*, GetSkillById, (std::string_view), (const));
-  MOCK_METHOD(const std::vector<std::unique_ptr<Skill>>&,
-              GetSkills,
-              (),
-              (const));
-  MOCK_METHOD(const Skill*,
-              AddSkill,
-              (const std::string&, const std::string&, const std::string&));
-  MOCK_METHOD(const Skill*,
-              AddOrUpdateSkillFromSync,
-              (std::string_view,
-               std::string_view,
-               std::string_view,
-               std::string_view,
-               base::Time,
-               base::Time));
-  MOCK_METHOD(
-      const Skill*,
-      UpdateSkill,
-      (std::string_view, std::string_view, std::string_view, std::string_view));
-  MOCK_METHOD(bool, IsInitialized, (), (const));
-  MOCK_METHOD(void, DeleteSkill, (std::string_view, UpdateSource));
-  MOCK_METHOD(void, FetchDiscoverySkills, ());
-  MOCK_METHOD(void, Handle1pSkillsMap, (std::unique_ptr<SkillsMap>));
-  MOCK_METHOD(void, AddObserver, (Observer*));
-  MOCK_METHOD(void, RemoveObserver, (Observer*));
-  MOCK_METHOD(base::WeakPtr<syncer::DataTypeControllerDelegate>,
-              GetControllerDelegate,
-              ());
-};
 
 class SkillsSyncBridgeTest : public testing::Test {
  public:
@@ -198,23 +170,18 @@ TEST_F(SkillsSyncBridgeTest, IsEntityDataValid_EmptyGuid) {
   EXPECT_FALSE(bridge().IsEntityDataValid(entity_data));
 }
 
-TEST_F(SkillsSyncBridgeTest, IsEntityDataValid_MissingSimpleSkill) {
-  syncer::EntityData entity_data = CreateSkillEntityData();
-  ASSERT_TRUE(bridge().IsEntityDataValid(entity_data));
-
-  entity_data.specifics.mutable_skill()->clear_simple_skill();
-  EXPECT_FALSE(bridge().IsEntityDataValid(entity_data));
-}
-
 TEST_F(SkillsSyncBridgeTest, ShouldTrimAllKnownFields) {
   sync_pb::SkillSpecifics specifics;
   specifics.set_guid("guid");
   specifics.set_name("name");
   specifics.set_icon("icon");
   specifics.mutable_simple_skill()->set_prompt("prompt");
+  specifics.mutable_simple_skill()->set_description("description");
+  specifics.set_skill_source(sync_pb::SKILL_SOURCE_FIRST_PARTY);
   specifics.set_creation_time_windows_epoch_micros(1234567890);
   specifics.set_last_update_time_windows_epoch_micros(1234567891);
   specifics.set_schema_version(1);
+  specifics.set_source_skill_id("source_skill_id");
 
   sync_pb::EntitySpecifics entity_specifics;
   *entity_specifics.mutable_skill() = std::move(specifics);
@@ -264,7 +231,7 @@ TEST_F(SkillsSyncBridgeTest, GetDataForCommit) {
   Skill skill1(kSkillId1, "name1", "icon1", "prompt1");
   Skill skill2(kSkillId2, "name2", "icon2", "prompt2");
   Skill skill_not_requested(
-      /*id=*/base::Uuid::GenerateRandomV4().AsLowercaseString(), "name3",
+      /*id=*/base::Uuid::GenerateRandomV4().AsLowercaseString(), "", "name3",
       "icon3", "prompt3");
 
   ON_CALL(mock_skills_service(), GetSkillById(kSkillId1))
@@ -287,6 +254,9 @@ TEST_F(SkillsSyncBridgeTest, GetDataForCommit) {
   expected_specifics_1.set_last_update_time_windows_epoch_micros(
       skill1.last_update_time.ToDeltaSinceWindowsEpoch().InMicroseconds());
   expected_specifics_1.mutable_simple_skill()->set_prompt("prompt1");
+  expected_specifics_1.mutable_simple_skill()->set_description("");
+  expected_specifics_1.set_skill_source(sync_pb::SKILL_SOURCE_USER_CREATED);
+  expected_specifics_1.set_source_skill_id("");
   expected_specifics_1.set_schema_version(kDefaultSchemaVersion);
 
   sync_pb::SkillSpecifics expected_specifics_2;
@@ -298,6 +268,9 @@ TEST_F(SkillsSyncBridgeTest, GetDataForCommit) {
   expected_specifics_2.set_last_update_time_windows_epoch_micros(
       skill2.last_update_time.ToDeltaSinceWindowsEpoch().InMicroseconds());
   expected_specifics_2.mutable_simple_skill()->set_prompt("prompt2");
+  expected_specifics_2.mutable_simple_skill()->set_description("");
+  expected_specifics_2.set_skill_source(sync_pb::SKILL_SOURCE_USER_CREATED);
+  expected_specifics_2.set_source_skill_id("");
   expected_specifics_2.set_schema_version(kDefaultSchemaVersion);
 
   EXPECT_THAT(
@@ -332,6 +305,9 @@ TEST_F(SkillsSyncBridgeTest, GetAllDataForDebugging) {
   expected_specifics_1.set_last_update_time_windows_epoch_micros(
       skills[0]->last_update_time.ToDeltaSinceWindowsEpoch().InMicroseconds());
   expected_specifics_1.mutable_simple_skill()->set_prompt("prompt1");
+  expected_specifics_1.mutable_simple_skill()->set_description("");
+  expected_specifics_1.set_skill_source(sync_pb::SKILL_SOURCE_USER_CREATED);
+  expected_specifics_1.set_source_skill_id("");
   expected_specifics_1.set_schema_version(kDefaultSchemaVersion);
 
   sync_pb::SkillSpecifics expected_specifics_2;
@@ -343,6 +319,9 @@ TEST_F(SkillsSyncBridgeTest, GetAllDataForDebugging) {
   expected_specifics_2.set_last_update_time_windows_epoch_micros(
       skills[1]->last_update_time.ToDeltaSinceWindowsEpoch().InMicroseconds());
   expected_specifics_2.mutable_simple_skill()->set_prompt("prompt2");
+  expected_specifics_2.mutable_simple_skill()->set_description("");
+  expected_specifics_2.set_skill_source(sync_pb::SKILL_SOURCE_USER_CREATED);
+  expected_specifics_2.set_source_skill_id("");
   expected_specifics_2.set_schema_version(kDefaultSchemaVersion);
 
   EXPECT_THAT(
@@ -352,14 +331,22 @@ TEST_F(SkillsSyncBridgeTest, GetAllDataForDebugging) {
           EntityDataHasSkillSpecifics(EqualsProto(expected_specifics_2))));
 }
 
+TEST_F(SkillsSyncBridgeTest, MergeFullSyncData_Empty) {
+  EXPECT_CALL(mock_skills_service(), SyncStatusChanged);
+  ASSERT_EQ(bridge().MergeFullSyncData(bridge().CreateMetadataChangeList(),
+                                       /*entity_changes=*/{}),
+            std::nullopt);
+}
+
 TEST_F(SkillsSyncBridgeTest, ApplyIncrementalSyncChanges_Update) {
   const std::string kPrompt = "prompt";
   const std::string kName = "name";
   const std::string kIcon = "icon";
+  const std::string kDescription = "description";
   const base::Time kCreationTime = base::Time::Now() - base::Days(10);
   const base::Time kLastUpdateTime = kCreationTime + base::Hours(2);
 
-  syncer::EntityData entity_data = CreateSkillEntityData(kPrompt);
+  syncer::EntityData entity_data = CreateSkillEntityData(kPrompt, kDescription);
   entity_data.specifics.mutable_skill()->set_name(kName);
   entity_data.specifics.mutable_skill()->set_icon(kIcon);
   entity_data.specifics.mutable_skill()->set_creation_time_windows_epoch_micros(
@@ -374,7 +361,7 @@ TEST_F(SkillsSyncBridgeTest, ApplyIncrementalSyncChanges_Update) {
   *expected_local_data.mutable_specifics() = entity_data.specifics.skill();
 
   std::unique_ptr<Skill> stored_skill =
-      std::make_unique<Skill>(guid, kName, kIcon, kPrompt);
+      std::make_unique<Skill>(guid, kName, kIcon, kPrompt, kDescription);
   stored_skill->creation_time = kCreationTime;
   stored_skill->last_update_time = kLastUpdateTime;
 
@@ -382,8 +369,10 @@ TEST_F(SkillsSyncBridgeTest, ApplyIncrementalSyncChanges_Update) {
       .WillByDefault(Return(stored_skill.get()));
 
   EXPECT_CALL(mock_skills_service(),
-              AddOrUpdateSkillFromSync(guid, kName, kIcon, kPrompt,
-                                       kCreationTime, kLastUpdateTime))
+              AddOrUpdateSkillFromSync(guid, /*source_skill_id=*/"", kName,
+                                       kIcon, kPrompt, kDescription,
+                                       kCreationTime, kLastUpdateTime,
+                                       sync_pb::SKILL_SOURCE_USER_CREATED))
       .WillOnce(Return(stored_skill.get()));
   ASSERT_EQ(ApplySingleUpdate(syncer::EntityChange::CreateUpdate(
                 /*storage_key=*/guid, std::move(entity_data))),
@@ -397,12 +386,15 @@ TEST_F(SkillsSyncBridgeTest, ApplyIncrementalSyncChanges_Add) {
   const std::string kPrompt = "prompt";
   const std::string kName = "name";
   const std::string kIcon = "icon";
+  const std::string kDescription = "description";
+  const std::string kSourceSkillId = "source_skill_id";
   const base::Time kCreationTime = base::Time::Now() - base::Days(10);
   const base::Time kLastUpdateTime = kCreationTime + base::Hours(1);
 
-  syncer::EntityData entity_data = CreateSkillEntityData(kPrompt);
+  syncer::EntityData entity_data = CreateSkillEntityData(kPrompt, kDescription);
   entity_data.specifics.mutable_skill()->set_name(kName);
   entity_data.specifics.mutable_skill()->set_icon(kIcon);
+  entity_data.specifics.mutable_skill()->set_source_skill_id(kSourceSkillId);
   entity_data.specifics.mutable_skill()->set_creation_time_windows_epoch_micros(
       kCreationTime.ToDeltaSinceWindowsEpoch().InMicroseconds());
   entity_data.specifics.mutable_skill()
@@ -415,16 +407,19 @@ TEST_F(SkillsSyncBridgeTest, ApplyIncrementalSyncChanges_Add) {
   *expected_local_data.mutable_specifics() = entity_data.specifics.skill();
 
   std::unique_ptr<Skill> stored_skill =
-      std::make_unique<Skill>(guid, kName, kIcon, kPrompt);
+      std::make_unique<Skill>(guid, kName, kIcon, kPrompt, kDescription);
   stored_skill->creation_time = kCreationTime;
   stored_skill->last_update_time = kLastUpdateTime;
+  stored_skill->source_skill_id = kSourceSkillId;
 
   ON_CALL(mock_skills_service(), GetSkillById(guid))
       .WillByDefault(Return(nullptr));
 
-  EXPECT_CALL(mock_skills_service(),
-              AddOrUpdateSkillFromSync(guid, kName, kIcon, kPrompt,
-                                       kCreationTime, kLastUpdateTime))
+  EXPECT_CALL(
+      mock_skills_service(),
+      AddOrUpdateSkillFromSync(guid, kSourceSkillId, kName, kIcon, kPrompt,
+                               kDescription, kCreationTime, kLastUpdateTime,
+                               sync_pb::SKILL_SOURCE_USER_CREATED))
       .WillOnce(Return(stored_skill.get()));
   ASSERT_EQ(ApplySingleUpdate(syncer::EntityChange::CreateAdd(
                 /*storage_key=*/guid, std::move(entity_data))),
@@ -459,13 +454,29 @@ TEST_F(SkillsSyncBridgeTest, ApplyIncrementalSyncChanges_Delete) {
   EXPECT_THAT(GetAllLocalDataFromStore(), IsEmpty());
 }
 
+TEST_F(SkillsSyncBridgeTest, ApplyIncrementalSyncChanges_IgnoreUnknownSkill) {
+  syncer::EntityData entity_data = CreateSkillEntityData();
+
+  // Clear the `simple_skill` field to make the skill unknown to the sync
+  // bridge.
+  entity_data.specifics.mutable_skill()->clear_simple_skill();
+
+  EXPECT_CALL(mock_skills_service(), AddOrUpdateSkillFromSync).Times(0);
+  EXPECT_CALL(mock_skills_service(), DeleteSkill).Times(0);
+  ASSERT_EQ(ApplySingleUpdate(syncer::EntityChange::CreateAdd(
+                /*storage_key=*/entity_data.specifics.skill().guid(),
+                std::move(entity_data))),
+            std::nullopt);
+}
+
 TEST_F(SkillsSyncBridgeTest, ShouldPropagateUpdatesToSync) {
   const std::string kSkillId =
       base::Uuid::GenerateRandomV4().AsLowercaseString();
   const base::Time kCreationTime = base::Time::Now() - base::Days(10);
   const base::Time kLastUpdateTime = kCreationTime + base::Hours(1);
 
-  Skill skill(kSkillId, "name", "icon", "prompt");
+  Skill skill(kSkillId, "name", "icon", "prompt", "description");
+  skill.source_skill_id = "source_skill_id";
   skill.creation_time = kCreationTime;
   skill.last_update_time = kLastUpdateTime;
   ON_CALL(mock_skills_service(), GetSkillById(kSkillId))
@@ -476,6 +487,9 @@ TEST_F(SkillsSyncBridgeTest, ShouldPropagateUpdatesToSync) {
   expected_specifics.set_name("name");
   expected_specifics.set_icon("icon");
   expected_specifics.mutable_simple_skill()->set_prompt("prompt");
+  expected_specifics.mutable_simple_skill()->set_description("description");
+  expected_specifics.set_skill_source(sync_pb::SKILL_SOURCE_USER_CREATED);
+  expected_specifics.set_source_skill_id("source_skill_id");
   expected_specifics.set_creation_time_windows_epoch_micros(
       kCreationTime.ToDeltaSinceWindowsEpoch().InMicroseconds());
   expected_specifics.set_last_update_time_windows_epoch_micros(
@@ -532,6 +546,7 @@ TEST_F(SkillsSyncBridgeTest, ShouldReloadDataOnRestart) {
 
   // Create a local skill first.
   Skill skill(kSkillId, "name", "icon", "prompt");
+  skill.source_skill_id = "source_skill_id";
   ON_CALL(mock_skills_service(), GetSkillById(kSkillId))
       .WillByDefault(Return(&skill));
   bridge().OnSkillUpdated(kSkillId, SkillsService::UpdateSource::kLocal);
@@ -540,6 +555,7 @@ TEST_F(SkillsSyncBridgeTest, ShouldReloadDataOnRestart) {
   EXPECT_CALL(mock_skills_service(),
               LoadInitialSkills(UnorderedElementsAre(
                   Pointee(HasSkill(kSkillId, "name", "icon", "prompt")))));
+  EXPECT_CALL(mock_skills_service(), SyncStatusChanged);
   ResetBridgeAndWaitForInitialization();
 }
 
@@ -551,8 +567,10 @@ TEST_F(SkillsSyncBridgeTest, ShouldDeleteAllDataOnDisableSync) {
 
   // Create local skills first.
   std::vector<std::unique_ptr<Skill>> skills;
-  skills.push_back(
-      std::make_unique<Skill>(kSkillId1, "name1", "icon1", "prompt1"));
+  std::unique_ptr<Skill> skill =
+      std::make_unique<Skill>(kSkillId1, "name1", "icon1", "prompt1");
+  skill->source_skill_id = "parent1";
+  skills.push_back(std::move(skill));
   skills.push_back(
       std::make_unique<Skill>(kSkillId2, "name2", "icon2", "prompt2"));
   ON_CALL(mock_skills_service(), GetSkillById(kSkillId1))
@@ -575,6 +593,7 @@ TEST_F(SkillsSyncBridgeTest, ShouldDeleteAllDataOnDisableSync) {
           return skill->id == skill_id;
         });
       }));
+  EXPECT_CALL(mock_skills_service(), SyncStatusChanged);
   bridge().ApplyDisableSyncChanges(/*delete_metadata_change_list=*/nullptr);
 
   EXPECT_THAT(GetAllLocalDataFromStore(), IsEmpty());

@@ -99,6 +99,8 @@ chromium-metrics-reviews@google.com.
   <int value="11" label="Ended with teardown"/>
   <int value="12" label="Aborted because there was no surface"/>
   <int value="13" label="Ended on canvas reset"/>
+  <int value="14"
+      label="Aborted because of epoch mismatch (e.g. fg/bg transitions)"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/renderer/platform/graphics/canvas_hibernation_handler.h:CanvasHibernationEvent) -->
@@ -2278,8 +2280,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="1965" label="GamepadButtons"/>
   <int value="1966" label="VibrateWithoutUserGesture"/>
   <int value="1967" label="OBSOLETE_DispatchMouseEventOnDisabledFormControl"/>
-  <int value="1968" label="ElementNameDOMInvalidHTMLParserValid"/>
-  <int value="1969" label="ElementNameDOMValidHTMLParserInvalid"/>
+  <int value="1968" label="OBSOLETE_ElementNameDOMInvalidHTMLParserValid"/>
+  <int value="1969" label="OBSOLETE_ElementNameDOMValidHTMLParserInvalid"/>
   <int value="1970" label="GATTServerDisconnectedEvent"/>
   <int value="1971" label="AnchorClickDispatchForNonConnectedNode"/>
   <int value="1972" label="HTMLParseErrorNestedForm"/>
@@ -6297,7 +6299,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5673" label="SmartCardEstablishContext"/>
   <int value="5674" label="SmartCardConnect"/>
   <int value="5675" label="NavigatorCPUPerformance"/>
-  <int value="5676" label="SelectionRemoveRangeNotFoundWouldThrow"/>
+  <int value="5676" label="OBSOLETE_SelectionRemoveRangeNotFoundWouldThrow"/>
   <int value="5677" label="NestedSvgCssSizingProperties"/>
   <int value="5678" label="CryptoAlgorithmChaCha20Poly1305"/>
   <int value="5679" label="CryptoAlgorithmMlDsa44"/>
@@ -6419,6 +6421,8 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="5784" label="AnchorCaseSensitiveMatch"/>
   <int value="5785" label="AnchorCaseInsensitiveMatch"/>
   <int value="5786" label="PrerenderActivationByFormSubmission"/>
+  <int value="5787" label="LinkRelModulePreloadStyle"/>
+  <int value="5788" label="AudioContextPlaybackStats"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/web_feature.mojom:WebFeature) -->
@@ -8175,7 +8179,7 @@ Called by update_use_counter_css.py.-->
   <int value="842" label="corner-shape"/>
   <int value="843" label="scroll-target-group"/>
   <int value="844" label="row-rule-style"/>
-  <int value="845" label="gap-rule-overlap"/>
+  <int value="845" label="gap-rule-overlap (obsolete)"/>
   <int value="846" label="row-rule-width"/>
   <int value="847" label="row-rule-color"/>
   <int value="848" label="print-color-adjust"/>
@@ -8247,11 +8251,11 @@ Called by update_use_counter_css.py.-->
   <int value="914" label="rule-edge-inset"/>
   <int value="915" label="rule-interior-inset"/>
   <int value="916" label="page-margin-safety"/>
-  <int value="917" label="timeline-trigger-entry-range-start"/>
-  <int value="918" label="timeline-trigger-entry-range-end"/>
+  <int value="917" label="timeline-trigger-entry-range-start (obsolete)"/>
+  <int value="918" label="timeline-trigger-entry-range-end (obsolete)"/>
   <int value="919" label="timeline-trigger-active-range-start"/>
   <int value="920" label="timeline-trigger-active-range-end"/>
-  <int value="921" label="timeline-trigger-entry-range"/>
+  <int value="921" label="timeline-trigger-entry-range (obsolete)"/>
   <int value="922" label="timeline-trigger-active-range"/>
   <int value="923" label="grid-lanes-pack"/>
   <int value="924" label="text-fit"/>
@@ -8259,6 +8263,11 @@ Called by update_use_counter_css.py.-->
   <int value="926" label="rule-visibility-items"/>
   <int value="927" label="frame-sizing"/>
   <int value="928" label="image-animation"/>
+  <int value="929" label="margin-trim"/>
+  <int value="930" label="timeline-trigger-activation-range-start"/>
+  <int value="931" label="timeline-trigger-activation-range-end"/>
+  <int value="932" label="timeline-trigger-activation-range"/>
+  <int value="933" label="rule-overlap"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/css_property_id.mojom:CSSSampleId) -->
@@ -8816,6 +8825,7 @@ Called by update_use_counter_feature_enum.py.-->
   <int value="421" label="Proofreader"/>
   <int value="422" label="Rewriter"/>
   <int value="423" label="Writer"/>
+  <int value="424" label="DRAFT_InstallElement"/>
 </enum>
 
 <!-- LINT.ThenChange(//third_party/blink/public/mojom/use_counter/metrics/webdx_feature.mojom:WebDXFeature) -->

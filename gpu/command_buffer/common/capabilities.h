@@ -41,6 +41,7 @@ struct GPU_COMMAND_BUFFER_COMMON_EXPORT Capabilities {
   bool egl_image_external_essl3 = false;
   bool texture_format_bgra8888 = false;
   bool texture_format_etc1_npot = false;
+  bool disable_mac_swangle_rgbx = false;
   bool sync_query = false;
   bool texture_rg = false;
   bool texture_norm16 = false;
@@ -62,7 +63,7 @@ struct GPU_COMMAND_BUFFER_COMMON_EXPORT Capabilities {
 
   bool mesa_framebuffer_flip_y = false;
 
-  // Used by OOP raster.
+  // Used by GPU raster.
   bool context_supports_distance_field_text = true;
 
   bool using_vulkan_context = false;
@@ -158,9 +159,6 @@ struct GPU_COMMAND_BUFFER_COMMON_EXPORT GLCapabilities {
   int max_transform_feedback_separate_components = 0;
   int64_t max_uniform_block_size = 0;
   int max_uniform_buffer_bindings = 0;
-  int max_atomic_counter_buffer_bindings = 0;
-  int max_shader_storage_buffer_bindings = 0;
-  int shader_storage_buffer_offset_alignment = 1;
   int max_varying_components = 0;
   int max_vertex_output_components = 0;
   int max_vertex_uniform_blocks = 0;

@@ -2360,6 +2360,9 @@ chromium-metrics-reviews@google.com.
   <int value="1427" label="LoopbackNetworkAllowedForUrls"/>
   <int value="1428" label="LoopbackNetworkBlockedForUrls"/>
   <int value="1429" label="XSLTEnabled"/>
+  <int value="1430" label="LocalNetworkAccessPermissionsPolicyDefaultEnabled"/>
+  <int value="1431" label="ForceForegroundPriorityForAllTabs"/>
+  <int value="1432" label="WebRtcDiagnosticLogCollectionAllowedForOrigins"/>
 </enum>
 
 <enum name="EnterprisePoliciesSources">

@@ -233,11 +233,10 @@ OffscreenCanvasRenderingContext2D::GetOrCreateResourceProvider() {
     // using the software compositor
     base::WeakPtr<CanvasResourceDispatcher> dispatcher_weakptr =
         host->GetOrCreateResourceDispatcher()->GetWeakPtr();
-    provider =
-        CanvasResourceProvider::CreateSharedImageProviderForSoftwareCompositor(
-            host->Size(), format, alpha_type, color_space,
-            CanvasResourceProvider::ShouldInitialize::kCallClear,
-            SharedGpuContext::SharedImageInterfaceProvider(), host);
+    provider = Canvas2DResourceProviderSharedImage::CreateForSoftwareCompositor(
+        host->Size(), format, alpha_type, color_space,
+        CanvasResourceProvider::ShouldInitialize::kCallClear,
+        SharedGpuContext::SharedImageInterfaceProvider(), host);
   }
 
   if (!provider) {
@@ -302,8 +301,8 @@ OffscreenCanvasRenderingContext2D::ProduceCanvasResource(FlushReason reason) {
   }
 
   // Only CRPSI can produce CanvasResources.
-  CanvasResourceProviderSharedImage* si_provider =
-      provider->AsSharedImageProvider();
+  Canvas2DResourceProviderSharedImage* si_provider =
+      provider->As2DSharedImageProvider();
   if (!si_provider) {
     return nullptr;
   }

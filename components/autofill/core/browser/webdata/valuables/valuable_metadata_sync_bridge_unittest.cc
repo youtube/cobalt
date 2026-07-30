@@ -12,7 +12,7 @@
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "components/autofill/core/browser/data_model/autofill_ai/entity_instance.h"
-#include "components/autofill/core/browser/test_utils/autofill_test_utils.h"
+#include "components/autofill/core/browser/test_utils/entity_data_test_utils.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_sync_util.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table.h"
 #include "components/autofill/core/browser/webdata/autofill_ai/entity_table_test_api.h"
@@ -28,6 +28,7 @@
 #include "components/sync/protocol/autofill_valuable_metadata_specifics.pb.h"
 #include "components/sync/protocol/entity_data.h"
 #include "components/sync/test/mock_data_type_local_change_processor.h"
+#include "components/sync/test/unknown_field_util.h"
 #include "components/webdata/common/web_database.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -36,15 +37,20 @@ namespace autofill {
 namespace {
 
 using base::test::EqualsProto;
+using syncer::test::AddUnknownFieldToProto;
+using syncer::test::HasUnknownField;
+using test::GetPassportEntityInstance;
+using test::GetVehicleEntityInstance;
+using test::MaskEntityInstance;
 using testing::_;
 using testing::ElementsAre;
 using testing::IsEmpty;
 using testing::Pair;
 using testing::Return;
+using testing::ReturnRef;
 using testing::SizeIs;
 using testing::UnorderedElementsAre;
 
-namespace {
 syncer::EntityData SpecificsToEntity(
     const sync_pb::AutofillValuableMetadataSpecifics& metadata_specifics) {
   syncer::EntityData entity_data;
@@ -69,7 +75,7 @@ ExtractEntitiesMetadataFromDataBatch(std::unique_ptr<syncer::DataBatch> batch) {
   std::vector<EntityInstance::EntityMetadata> entities;
   while (batch->HasNext()) {
     const syncer::KeyAndData& data_pair = batch->Next();
-    entities.push_back(CreateValuableMetadataFromSpecifics(
+    entities.push_back(CreateEntityMetadataFromSpecifics(
         data_pair.second->specifics.autofill_valuable_metadata()));
   }
   return entities;
@@ -82,7 +88,6 @@ EntityInstance CreateServerVehicleEntityInstance(
   return test::GetVehicleEntityInstance(options);
 }
 
-}  // namespace
 
 class ValuableMetadataSyncBridgeTest : public testing::Test {
  public:
@@ -93,6 +98,8 @@ class ValuableMetadataSyncBridgeTest : public testing::Test {
     db_.Init(temp_dir_.GetPath().AppendASCII("SyncTestWebDatabase"),
              &encryptor_);
     ON_CALL(backend_, GetDatabase()).WillByDefault(Return(&db_));
+    ON_CALL(mock_processor_, GetPossiblyTrimmedRemoteSpecifics)
+        .WillByDefault(ReturnRef(sync_pb::EntitySpecifics::default_instance()));
 
     bridge_ = std::make_unique<ValuableMetadataSyncBridge>(
         mock_processor_.CreateForwardingProcessor(), &backend_);
@@ -179,7 +186,11 @@ TEST_F(ValuableMetadataSyncBridgeTest, MergeFullSyncData_NoLocalData) {
   const EntityInstance::EntityMetadata metadata = test_metadata();
   entity_change_list.push_back(syncer::EntityChange::CreateAdd(
       *metadata.guid,
-      SpecificsToEntity(CreateSpecificsFromEntityMetadata(metadata))));
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
 
   EXPECT_CALL(mock_processor(), Put).Times(0);
   EXPECT_CALL(backend(), CommitChanges());
@@ -206,11 +217,17 @@ TEST_F(ValuableMetadataSyncBridgeTest,
   const EntityInstance vehicle2 = CreateServerVehicleEntityInstance(
       {.guid = "00000000-0000-4000-8000-300000000000"});
   entity_change_list.push_back(syncer::EntityChange::CreateAdd(
-      *vehicle1.guid(), SpecificsToEntity(CreateSpecificsFromEntityMetadata(
-                            vehicle1.metadata()))));
+      *vehicle1.guid(),
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+          vehicle1.metadata(),
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
   entity_change_list.push_back(syncer::EntityChange::CreateAdd(
-      *vehicle2.guid(), SpecificsToEntity(CreateSpecificsFromEntityMetadata(
-                            vehicle2.metadata()))));
+      *vehicle2.guid(),
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+          vehicle2.metadata(),
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
 
   // No data is uploaded to the server.
   EXPECT_CALL(mock_processor(), Put).Times(0);
@@ -240,8 +257,11 @@ TEST_F(ValuableMetadataSyncBridgeTest,
 
   syncer::EntityChangeList entity_change_list;
   entity_change_list.push_back(syncer::EntityChange::CreateAdd(
-      *vehicle1.guid(), SpecificsToEntity(CreateSpecificsFromEntityMetadata(
-                            vehicle1.metadata()))));
+      *vehicle1.guid(),
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+          vehicle1.metadata(),
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
 
   EXPECT_CALL(mock_processor(), Put(*vehicle2.guid(), _, _));
   EXPECT_CALL(backend(), CommitChanges());
@@ -255,6 +275,25 @@ TEST_F(ValuableMetadataSyncBridgeTest,
 
   EXPECT_THAT(GetMetadataEntries(),
               UnorderedElementsAre(vehicle1.metadata(), vehicle2.metadata()));
+}
+
+// Test that MergeFullSyncData() ignores the local data without a `PassType`.
+TEST_F(ValuableMetadataSyncBridgeTest,
+       MergeFullSyncData_IgnoresLocalDataWithoutPassType) {
+  // Passports are not supported by the bridge.
+  entity_table().AddOrUpdateEntityInstance(
+      MaskEntityInstance(GetPassportEntityInstance(
+          {.record_type = EntityInstance::RecordType::kServerWallet})));
+
+  EXPECT_CALL(mock_processor(), Put).Times(0);
+  EXPECT_CALL(backend(), CommitChanges());
+  EXPECT_CALL(backend(), NotifyOnAutofillChangedBySync(
+                             syncer::AUTOFILL_VALUABLE_METADATA));
+
+  EXPECT_FALSE(bridge()
+                   .MergeFullSyncData(bridge().CreateMetadataChangeList(),
+                                      syncer::EntityChangeList())
+                   .has_value());
 }
 
 // Test that supported fields and nested messages are successfully trimmed but
@@ -288,7 +327,10 @@ TEST_F(ValuableMetadataSyncBridgeTest, ApplyIncrementalSyncChanges_Add) {
   syncer::EntityChangeList entity_change_list;
   const EntityInstance::EntityMetadata metadata = test_metadata();
   sync_pb::AutofillValuableMetadataSpecifics specifics =
-      CreateSpecificsFromEntityMetadata(metadata);
+      CreateSpecificsFromEntityMetadata(
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{});
   entity_change_list.push_back(syncer::EntityChange::CreateAdd(
       *metadata.guid, SpecificsToEntity(specifics)));
 
@@ -313,7 +355,11 @@ TEST_F(ValuableMetadataSyncBridgeTest, ApplyIncrementalSyncChanges_Update) {
   EntityInstance::EntityMetadata metadata = test_metadata();
   add_changes.push_back(syncer::EntityChange::CreateAdd(
       *metadata.guid,
-      SpecificsToEntity(CreateSpecificsFromEntityMetadata(metadata))));
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
   bridge().ApplyIncrementalSyncChanges(bridge().CreateMetadataChangeList(),
                                        std::move(add_changes));
 
@@ -324,7 +370,11 @@ TEST_F(ValuableMetadataSyncBridgeTest, ApplyIncrementalSyncChanges_Update) {
       base::Microseconds(13315000000000000u));
   update_changes.push_back(syncer::EntityChange::CreateUpdate(
       *metadata.guid,
-      SpecificsToEntity(CreateSpecificsFromEntityMetadata(metadata))));
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
 
   EXPECT_CALL(backend(), CommitChanges());
   EXPECT_CALL(backend(), NotifyOnAutofillChangedBySync(
@@ -346,7 +396,11 @@ TEST_F(ValuableMetadataSyncBridgeTest, ApplyIncrementalSyncChanges_Delete) {
   EntityInstance::EntityMetadata metadata = test_metadata();
   add_changes.push_back(syncer::EntityChange::CreateAdd(
       *metadata.guid,
-      SpecificsToEntity(CreateSpecificsFromEntityMetadata(metadata))));
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
   bridge().ApplyIncrementalSyncChanges(bridge().CreateMetadataChangeList(),
                                        std::move(add_changes));
   ASSERT_THAT(GetMetadataEntries(), SizeIs(1));
@@ -355,7 +409,11 @@ TEST_F(ValuableMetadataSyncBridgeTest, ApplyIncrementalSyncChanges_Delete) {
   syncer::EntityChangeList delete_changes;
   delete_changes.push_back(syncer::EntityChange::CreateDelete(
       *metadata.guid,
-      SpecificsToEntity(CreateSpecificsFromEntityMetadata(metadata))));
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+
+          metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
 
   EXPECT_CALL(backend(), CommitChanges());
   EXPECT_CALL(backend(), NotifyOnAutofillChangedBySync(
@@ -392,6 +450,19 @@ TEST_F(ValuableMetadataSyncBridgeTest, GetAllData) {
               UnorderedElementsAre(vehicle1.metadata(), vehicle2.metadata()));
 }
 
+// Tests that GetAllData() ignores metadata entries without a `PassType`.
+TEST_F(ValuableMetadataSyncBridgeTest,
+       GetAllData_IgnoresMetadataWithoutPassType) {
+  // Passports are not supported by the bridge.
+  entity_table().AddOrUpdateEntityInstance(
+      MaskEntityInstance(GetPassportEntityInstance(
+          {.record_type = EntityInstance::RecordType::kServerWallet})));
+
+  std::unique_ptr<syncer::DataBatch> batch = bridge().GetAllDataForDebugging();
+  ASSERT_TRUE(batch);
+  EXPECT_FALSE(batch->HasNext());
+}
+
 // Tests that GetDataForCommit() returns the specified metadata entries.
 TEST_F(ValuableMetadataSyncBridgeTest, GetDataForCommit) {
   const EntityInstance vehicle1 = CreateServerVehicleEntityInstance(
@@ -413,6 +484,30 @@ TEST_F(ValuableMetadataSyncBridgeTest, GetDataForCommit) {
   ASSERT_TRUE(batch);
   EXPECT_THAT(ExtractEntitiesMetadataFromDataBatch(std::move(batch)),
               UnorderedElementsAre(vehicle2.metadata()));
+}
+
+// Tests that GetDataForCommit() includes unknown fields from the server.
+TEST_F(ValuableMetadataSyncBridgeTest, GetDataForCommit_UnknownFields) {
+  const EntityInstance vehicle = CreateServerVehicleEntityInstance(
+      {.guid = "00000000-0000-2000-8000-300000000000"});
+  entity_table().AddOrUpdateEntityInstance(vehicle);
+
+  sync_pb::EntitySpecifics base_specifics;
+  AddUnknownFieldToProto(*base_specifics.mutable_autofill_valuable_metadata(),
+                         "unknown_field");
+
+  ON_CALL(mock_processor_, GetPossiblyTrimmedRemoteSpecifics)
+      .WillByDefault(ReturnRef(base_specifics));
+
+  std::unique_ptr<syncer::DataBatch> batch =
+      bridge().GetDataForCommit({vehicle.guid().value()});
+
+  ASSERT_TRUE(batch);
+  ASSERT_TRUE(batch->HasNext());
+  const syncer::KeyAndData& data_pair = batch->Next();
+  ASSERT_EQ(data_pair.first, vehicle.guid().value());
+  EXPECT_THAT(data_pair.second->specifics.autofill_valuable_metadata(),
+              HasUnknownField("unknown_field"));
 }
 
 // Tests that ApplyDisableSyncChanges() clears all the metadata.
@@ -448,6 +543,8 @@ TEST_F(ValuableMetadataSyncBridgeTest,
        ServerEntityInstanceMetadataChanged_AddUpdate) {
   ON_CALL(mock_processor(), IsTrackingMetadata).WillByDefault(Return(true));
   const EntityInstance vehicle = CreateServerVehicleEntityInstance();
+  entity_table().AddOrUpdateEntityInstance(vehicle);
+  ASSERT_THAT(GetMetadataEntries(), ElementsAre(vehicle.metadata()));
 
   EXPECT_CALL(mock_processor(), Put(*vehicle.guid(), _, _));
   bridge().ServerEntityInstanceMetadataChanged(EntityInstanceMetadataChange(
@@ -457,6 +554,56 @@ TEST_F(ValuableMetadataSyncBridgeTest,
   bridge().ServerEntityInstanceMetadataChanged(
       EntityInstanceMetadataChange(EntityInstanceMetadataChange::UPDATE,
                                    vehicle.guid(), vehicle.metadata()));
+}
+
+// Tests that `ServerEntityInstanceMetadataChanged()` ignores metadata entries
+// without a `PassType`.
+TEST_F(
+    ValuableMetadataSyncBridgeTest,
+    ServerEntityInstanceMetadataChanged_AddUpdate_IgnoresMetadataWithoutPassType) {
+  ON_CALL(mock_processor(), IsTrackingMetadata).WillByDefault(Return(true));
+  // Passports are not supported by the bridge.
+  const EntityInstance passport = MaskEntityInstance(GetPassportEntityInstance(
+      {.record_type = EntityInstance::RecordType::kServerWallet}));
+  entity_table().AddOrUpdateEntityInstance(passport);
+
+  EXPECT_CALL(mock_processor(), Put).Times(0);
+  bridge().ServerEntityInstanceMetadataChanged(EntityInstanceMetadataChange(
+      EntityInstanceMetadataChange::ADD, passport.guid(), passport.metadata()));
+
+  EXPECT_CALL(mock_processor(), Put).Times(0);
+  bridge().ServerEntityInstanceMetadataChanged(
+      EntityInstanceMetadataChange(EntityInstanceMetadataChange::UPDATE,
+                                   passport.guid(), passport.metadata()));
+}
+
+// Tests that `ServerEntityInstanceMetadataChanged()` includes unknown fields
+// from the server.
+TEST_F(ValuableMetadataSyncBridgeTest,
+       ServerEntityInstanceMetadataChanged_PreservesUnknownFields) {
+  ON_CALL(mock_processor(), IsTrackingMetadata).WillByDefault(Return(true));
+  const EntityInstance vehicle = CreateServerVehicleEntityInstance(
+      {.guid = "00000000-0000-2000-8000-300000000000"});
+  entity_table().AddOrUpdateEntityInstance(vehicle);
+
+  sync_pb::EntitySpecifics base_specifics;
+  AddUnknownFieldToProto(*base_specifics.mutable_autofill_valuable_metadata(),
+                         "unknown_field");
+  EXPECT_CALL(mock_processor(),
+              GetPossiblyTrimmedRemoteSpecifics(vehicle.guid().value()))
+      .WillOnce(ReturnRef(base_specifics));
+
+  EXPECT_CALL(mock_processor(), Put)
+      .WillOnce([&vehicle](const std::string& storage_key,
+                           std::unique_ptr<syncer::EntityData> entity_data,
+                           syncer::MetadataChangeList* metadata) {
+        ASSERT_EQ(storage_key, vehicle.guid().value());
+        EXPECT_THAT(entity_data->specifics.autofill_valuable_metadata(),
+                    HasUnknownField("unknown_field"));
+      });
+
+  bridge().ServerEntityInstanceMetadataChanged(EntityInstanceMetadataChange(
+      EntityInstanceMetadataChange::ADD, vehicle.guid(), vehicle.metadata()));
 }
 
 // Tests that `ServerEntityInstanceMetadataChanged()` handles a REMOVE change.
@@ -493,15 +640,23 @@ TEST_F(ValuableMetadataSyncBridgeTest, DeleteOldOrphanMetadata) {
   syncer::EntityChangeList entity_change_list;
   entity_change_list.push_back(syncer::EntityChange::CreateAdd(
       *server_vehicle1.guid(),
-      SpecificsToEntity(
-          CreateSpecificsFromEntityMetadata(server_vehicle1.metadata()))));
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+          server_vehicle1.metadata(),
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
   entity_change_list.push_back(syncer::EntityChange::CreateAdd(
       *server_vehicle2.guid(),
-      SpecificsToEntity(
-          CreateSpecificsFromEntityMetadata(server_vehicle2.metadata()))));
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+          server_vehicle2.metadata(),
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
   entity_change_list.push_back(syncer::EntityChange::CreateAdd(
       *orphan_metadata.guid,
-      SpecificsToEntity(CreateSpecificsFromEntityMetadata(orphan_metadata))));
+      SpecificsToEntity(CreateSpecificsFromEntityMetadata(
+
+          orphan_metadata,
+          sync_pb::AutofillValuableMetadataSpecifics::VEHICLE_REGISTRATION,
+          /*base_specifics=*/{}))));
 
   bridge().MergeFullSyncData(bridge().CreateMetadataChangeList(),
                              std::move(entity_change_list));

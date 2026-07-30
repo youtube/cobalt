@@ -658,9 +658,9 @@ class WrappedVulkanCompoundImageRepresentation
 bool CompoundImageBacking::IsValidSharedMemoryFormat(
     const gfx::Size& size,
     viz::SharedImageFormat format) {
-  if (format.PrefersExternalSampler() ||
-      !viz::HasEquivalentBufferFormat(format)) {
-    DVLOG(1) << "Not a valid format: " << format.ToString();
+  if (format.PrefersExternalSampler()) {
+    DVLOG(1) << "Unsupported external sampler for format: "
+             << format.ToString();
     return false;
   }
 
@@ -1427,10 +1427,6 @@ base::trace_event::MemoryAllocatorDump* CompoundImageBacking::OnMemoryDump(
       continue;
 
     auto element_client_guid = GetSubBackingGUIDForTracing(mailbox(), i + 1);
-    pmd->CreateSharedGlobalAllocatorDump(element_client_guid);
-    pmd->AddOwnershipEdge(client_guid, element_client_guid,
-                          static_cast<int>(TracingImportance::kNotOwner));
-
     std::string element_dump_name =
         base::StringPrintf("%s/element_%d", dump_name.c_str(), i);
     backing->OnMemoryDump(element_dump_name, element_client_guid, pmd,

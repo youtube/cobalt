@@ -42,6 +42,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="137466361146087520">Google Chrome Beta</translation>
 <translation id="1383876407941801731">Search</translation>
 <translation id="1399397803214730675">This computer already has a more recent version of Google Chrome. If the software is not working, please uninstall Google Chrome and try again.</translation>
+<translation id="1404026649028693342">Always show AI Mode</translation>
 <translation id="141901961143729572">Share your thoughts</translation>
 <translation id="1425903838053942728">{COUNT,plural, =0{Chrome is done updating. You can use the latest version as soon as you relaunch. Your current tabs will then reopen.}=1{Chrome is done updating. You can use the latest version as soon as you relaunch. Your current tabs will then reopen. Your incognito window won't reopen.}other{Chrome is done updating. You can use the latest version as soon as you relaunch. Your current tabs will then reopen. Your # incognito windows won't reopen.}}</translation>
 <translation id="1434626383986940139">Chrome Canary Apps</translation>
@@ -66,6 +67,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="1640672724030957280">Downloading ...</translation>
 <translation id="1651617469580841801">When you use Google Lens, the page title, URL and content, including PDFs, are sent to Google. <ph name="LEARN_MORE" /></translation>
 <translation id="1662146548738125461">About Chrome OS Flex</translation>
+<translation id="1665867022636014702">Use Google-recommended browser settings</translation>
 <translation id="1674870198290878346">Open Link in Chrome Inco&amp;gnito Window</translation>
 <translation id="1682634494516646069">Google Chrome cannot read and write to its data directory:
 
@@ -101,6 +103,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="2026377840141807639">Chrome profiles let you keep personal browsing and work apart. Add a new profile now.</translation>
 <translation id="2034233344106846793">Chrome upgrades insecure connections to HTTPS automatically when possible</translation>
 <translation id="2039417478970545937">Settings.</translation>
+<translation id="2066690553719545730">Always show AI Mode</translation>
 <translation id="2091012649849228750">To get future Google Chrome updates, you'll need Windows 10 or later. This computer is using Windows 8.</translation>
 <translation id="2094648590148273905">Chrome OS Flex terms</translation>
 <translation id="2094919256425865063">Quit Chrome anyway?</translation>
@@ -204,6 +207,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="308397506772922478">If you forgot your passphrase or want to change this setting, <ph name="BEGIN_LINK" />delete the Chrome data in your account<ph name="END_LINK" /></translation>
 <translation id="3100998948628680988">Name your Chrome profile</translation>
 <translation id="310459126943037700">Failed to end task(s).</translation>
+<translation id="3104828284009500087">Search anything on page</translation>
 <translation id="3112458742631356345">Chrome blocked this download because the file isn't commonly downloaded and it may be dangerous</translation>
 <translation id="3114643501466072395">To check if your other passwords are safe from data breaches and other security issues, <ph name="BEGIN_LINK" />sign in to Chrome<ph name="END_LINK" />.</translation>
 <translation id="3119573284443908657">Chrome blocked this download because the archive file includes other files that may hide malware</translation>
@@ -358,6 +362,7 @@ Some features may be unavailable and changes to preferences won't be saved.</tra
 <translation id="4885446229353981848">Always show Google Lens shortcut</translation>
 <translation id="4891791193823137474">Let Google Chrome run in the background</translation>
 <translation id="4895437082222824641">Open link in new Chrome &amp;tab</translation>
+<translation id="4896867431081882115">Get easy access to the features that you know, love and trust by setting Chrome as your default browser. Chrome will be pinned to your taskbar for quick access.</translation>
 <translation id="4918086044614829423">Accept</translation>
 <translation id="4918844574251943176">Image copied</translation>
 <translation id="4926882258455737990">To use a different Google Account with Gemini in Chrome, <ph name="BEGIN_LINK" />create a new profile<ph name="END_LINK" /> and sign in with the account that you want</translation>
@@ -399,7 +404,6 @@ Some features may be unavailable. Please specify a different profile directory o
 <translation id="5334309298019785904">Chrome OS could not sync your data because sync is not available for your domain.</translation>
 <translation id="5334487786912937552">Chrome needs storage access permission to download files</translation>
 <translation id="5337648990166757586">Optional: Help improve Chrome OS features and performance by automatically sending diagnostic and usage data to Google.</translation>
-<translation id="5346059693449184483">What's on your mind?</translation>
 <translation id="5346389065299425353">Deepen your search by adding multiple tabs, files and tools</translation>
 <translation id="5353252989841766347">Export Passwords From Chrome</translation>
 <translation id="5368118228313795342">Extra code: <ph name="EXTRA_CODE" />.</translation>
@@ -509,7 +513,6 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="6321592572353357376">The extension '<ph name="EXTENSION_NAME" />' wants you to sign in to Chrome</translation>
 <translation id="6326175484149238433">Remove from Chrome</translation>
 <translation id="6327105987658262776">No update is available.</translation>
-<translation id="6333195756043503664">Open Chrome when my computer starts</translation>
 <translation id="6334815226785304306">Make Google Chrome the default browser and pin to the taskbar</translation>
 <translation id="63540178978900677">Chrome is no longer your default browser. Make Chrome the default browser?</translation>
 <translation id="6360449101159168105">While this tab was inactive, memory was freed up to keep Chrome fast. You can choose to always exclude this site from being inactive.</translation>
@@ -562,6 +565,7 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="6885412569789873916">Chrome Beta apps</translation>
 <translation id="6893363893008038481">Remove account from Chrome</translation>
 <translation id="6896758677409633944">Copy</translation>
+<translation id="6908182077349113099">Keep your passwords, bookmarks and history perfectly synced across devices. Easily access the features that you know and love by updating your default browser to Chrome.</translation>
 <translation id="6930294499209825">Keeps your Google software up to date. If this service is disabled or stopped, your Google software will not be kept up to date, meaning security vulnerabilities that may arise cannot be fixed and features may not work. This service uninstalls itself when there is no Google software using it.</translation>
 <translation id="6933858244219479645">ChromeOS system</translation>
 <translation id="6938166777909186039">To get future Google Chrome updates, you'll need Windows 10 or later. This computer is using Windows 8.1.</translation>
@@ -693,7 +697,6 @@ Google Chrome is unable to recover your settings.</translation>
 <translation id="8162006532256575008">Use Chrome without an account</translation>
 <translation id="8177472873527554730">Can't find content in page</translation>
 <translation id="8221491193165283816">You usually block notifications. To let this site notify you, click here.</translation>
-<translation id="8223142476690844338">Hi <ph name="USER_NAME" />, what's on your mind?</translation>
 <translation id="8255190535488645436">Google Chrome is using your camera and microphone.</translation>
 <translation id="8267953129876836456">Chrome found some safety recommendations for your review</translation>
 <translation id="8286862437124483331">Google Chrome is trying to show passwords. Type your Windows password to allow this.</translation>

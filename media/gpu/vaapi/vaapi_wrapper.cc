@@ -475,7 +475,7 @@ bool FillVADRMPRIMESurfaceDescriptor(const gfx::NativePixmap& pixmap,
     UNSAFE_TODO(descriptor.objects[i]).size =
         base::checked_cast<uint32_t>(data_size);
     UNSAFE_TODO(descriptor.objects[i]).drm_format_modifier =
-        pixmap.GetBufferFormatModifier();
+        pixmap.GetFormatModifier();
 
     UNSAFE_TODO(descriptor.layers[0].object_index[i]) =
         base::checked_cast<uint32_t>(i);
@@ -1537,6 +1537,19 @@ void VADisplayStateSingleton::PreSandboxInitialization() {
   base::AutoLock lock(va_display_state.lock_);
 
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(
+          switches::kHardwareVideoDevicePath)) {
+    auto [drm_fd, should_skip] =
+        LoadDrmFD(base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
+            switches::kHardwareVideoDevicePath));
+    if (drm_fd.is_valid()) {
+      va_display_state.drm_fd_ = std::move(drm_fd);
+      LOG_IF(WARNING, should_skip)
+          << "Forcibly using value of --hardware-video-device-path";
+      return;
+    }
+  }
+
+  if (base::CommandLine::ForCurrentProcess()->HasSwitch(
           switches::kRenderNodeOverride)) {
     auto [drm_fd, should_skip] =
         LoadDrmFD(base::CommandLine::ForCurrentProcess()->GetSwitchValuePath(
@@ -2440,7 +2453,7 @@ std::unique_ptr<ScopedVASurface> VaapiWrapper::CreateVASurfaceForPixmap(
        GetImplementationType() == VAImplementation::kChromiumFakeDriver ||
        GetImplementationType() == VAImplementation::kMesaGallium) &&
       !protected_content &&
-      pixmap->GetBufferFormatModifier() != gfx::NativePixmapHandle::kNoModifier;
+      pixmap->GetFormatModifier() != gfx::NativePixmapHandle::kNoModifier;
 
   union {
     VADRMPRIMESurfaceDescriptor descriptor;

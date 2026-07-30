@@ -218,7 +218,7 @@ bool PathProvider(int key, base::FilePath* result) {
       // exception handler after parsing command line options, which may
       // override the location of the app's profile directory.
       // TODO(scottmg): Consider supporting --user-data-dir. See
-      // https://crbug.com/565446.
+      // https://crbug.com/40447560.
       if (!GetDefaultUserDataDirectory(&cur)) {
         return false;
       }
@@ -466,6 +466,9 @@ bool PathProvider(int key, base::FilePath* result) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       cur = base::FilePath(
           FILE_PATH_LITERAL("/Library/Google/Chrome/NativeMessagingHosts"));
+#elif BUILDFLAG(GOOGLE_CHROME_FOR_TESTING_BRANDING)
+      cur = base::FilePath(FILE_PATH_LITERAL(
+          "/Library/Google/ChromeForTesting/NativeMessagingHosts"));
 #else
       cur = base::FilePath(FILE_PATH_LITERAL(
           "/Library/Application Support/Chromium/NativeMessagingHosts"));
@@ -474,6 +477,9 @@ bool PathProvider(int key, base::FilePath* result) {
 #if BUILDFLAG(GOOGLE_CHROME_BRANDING)
       cur = base::FilePath(
           FILE_PATH_LITERAL("/etc/opt/chrome/native-messaging-hosts"));
+#elif BUILDFLAG(GOOGLE_CHROME_FOR_TESTING_BRANDING)
+      cur = base::FilePath(FILE_PATH_LITERAL(
+          "/etc/opt/chrome_for_testing/native-messaging-hosts"));
 #else
       cur = base::FilePath(
           FILE_PATH_LITERAL("/etc/chromium/native-messaging-hosts"));
@@ -516,7 +522,7 @@ bool PathProvider(int key, base::FilePath* result) {
       return false;
   }
 
-  // TODO(bauerb): http://crbug.com/259796
+  // TODO(bauerb): http://crbug.com/41025680
   base::ScopedAllowBlocking allow_blocking;
   if (create_dir && !base::PathExists(cur) && !base::CreateDirectory(cur)) {
     return false;

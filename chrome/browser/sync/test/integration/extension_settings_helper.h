@@ -5,11 +5,19 @@
 #ifndef CHROME_BROWSER_SYNC_TEST_INTEGRATION_EXTENSION_SETTINGS_HELPER_H_
 #define CHROME_BROWSER_SYNC_TEST_INTEGRATION_EXTENSION_SETTINGS_HELPER_H_
 
+#include <ostream>
 #include <string>
+#include <vector>
 
+#include "base/memory/raw_ptr.h"
 #include "base/values.h"
+#include "chrome/browser/sync/test/integration/multi_client_status_change_checker.h"
 
 class Profile;
+
+namespace syncer {
+class SyncServiceImpl;
+}  // namespace syncer
 
 namespace extension_settings_helper {
 
@@ -19,11 +27,28 @@ void SetExtensionSettings(Profile* profile,
                           const base::DictValue& settings);
 
 // Calls Set() with |settings| for all profiles the extension with ID |id|.
-void SetExtensionSettingsForAllProfiles(const std::string& id,
-                                        const base::DictValue& settings);
+void SetExtensionSettings(
+    const std::vector<raw_ptr<Profile, VectorExperimental>>& profiles,
+    const std::string& id,
+    const base::DictValue& settings);
 
-// Returns whether the extension settings are the same across all profiles.
-bool AllExtensionSettingsSameAsVerifier();
+// A checker that waits for the extension settings to be the same across all
+// profiles.
+class AllExtensionSettingsSameChecker : public MultiClientStatusChangeChecker {
+ public:
+  // TODO(crbug.com/461744384): use ExtensionRegistry observer instead of
+  // MultiClientStatusChangeChecker.
+  AllExtensionSettingsSameChecker(
+      const std::vector<raw_ptr<syncer::SyncServiceImpl, VectorExperimental>>&
+          services,
+      const std::vector<raw_ptr<Profile, VectorExperimental>>& profiles);
+  ~AllExtensionSettingsSameChecker() override;
+
+  bool IsExitConditionSatisfied(std::ostream* os) override;
+
+ private:
+  const std::vector<raw_ptr<Profile, VectorExperimental>> profiles_;
+};
 
 }  // namespace extension_settings_helper
 

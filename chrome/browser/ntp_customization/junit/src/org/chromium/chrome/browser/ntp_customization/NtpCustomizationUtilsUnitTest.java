@@ -15,35 +15,39 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.robolectric.Shadows.shadowOf;
 
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.COLOR_FROM_HEX;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.DEFAULT;
-import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType.IMAGE_FROM_DISK;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.COLOR_FROM_HEX;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.DEFAULT;
+import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType.IMAGE_FROM_DISK;
 import static org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.getBackground;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_LANDSCAPE_INFO_FOR_DAILY_REFRESH;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_PORTRAIT_INFO;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_BACKGROUND_IMAGE_PORTRAIT_INFO_FOR_DAILY_REFRESH;
-import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_INFO;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_INFO_FOR_DAILY_REFRESH;
+import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_BACKGROUND_TYPE;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR;
 import static org.chromium.chrome.browser.preferences.ChromePreferenceKeys.NTP_CUSTOMIZATION_PRIMARY_COLOR_FOR_DAILY_REFRESH;
 import static org.chromium.components.browser_ui.styles.SemanticColorUtils.getDefaultIconColor;
 
+import android.content.ContentResolver;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.content.res.Resources;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Point;
 import android.graphics.drawable.Drawable;
+import android.net.Uri;
 import android.os.Build;
 import android.view.ContextThemeWrapper;
 import android.view.View;
@@ -74,7 +78,7 @@ import org.chromium.base.test.util.Features;
 import org.chromium.base.test.util.Features.DisableFeatures;
 import org.chromium.base.test.util.Features.EnableFeatures;
 import org.chromium.chrome.browser.flags.ChromeFeatureList;
-import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundImageType;
+import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils.NtpBackgroundType;
 import org.chromium.chrome.browser.ntp_customization.policy.NtpCustomizationPolicyManager;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorFromHexInfo;
 import org.chromium.chrome.browser.ntp_customization.theme.chrome_colors.NtpThemeColorInfo;
@@ -93,7 +97,10 @@ import org.chromium.ui.util.ColorUtils;
 import org.chromium.url.GURL;
 import org.chromium.url.JUnitTestGURLs;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.IOException;
 
 /** Unit tests for {@link NtpCustomizationUtils} */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -204,44 +211,43 @@ public class NtpCustomizationUtilsUnitTest {
 
     @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
-    public void testGetAndSetNtpBackgroundImageType() {
+    public void testGetAndSetNtpBackgroundType() {
         NtpCustomizationUtils.resetSharedPreferenceForTesting();
         NtpCustomizationPolicyManager policyManager = mock(NtpCustomizationPolicyManager.class);
         NtpCustomizationPolicyManager.setInstanceForTesting(policyManager);
         when(policyManager.isNtpCustomBackgroundEnabled()).thenReturn(true);
 
-        assertEquals(
-                NtpBackgroundImageType.DEFAULT, NtpCustomizationUtils.getNtpBackgroundImageType());
+        assertEquals(NtpBackgroundType.DEFAULT, NtpCustomizationUtils.getNtpBackgroundType());
 
-        @NtpBackgroundImageType int imageType = IMAGE_FROM_DISK;
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(imageType);
+        @NtpBackgroundType int imageType = IMAGE_FROM_DISK;
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(imageType);
 
-        assertEquals(imageType, NtpCustomizationUtils.getNtpBackgroundImageType());
+        assertEquals(imageType, NtpCustomizationUtils.getNtpBackgroundType());
     }
 
     @Test
     @DisableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
-    public void testGetAndSetNtpBackgroundImageType_flagDisabled() {
+    public void testGetAndSetNtpBackgroundType_flagDisabled() {
         NtpCustomizationPolicyManager policyManager = mock(NtpCustomizationPolicyManager.class);
         NtpCustomizationPolicyManager.setInstanceForTesting(policyManager);
         when(policyManager.isNtpCustomBackgroundEnabled()).thenReturn(true);
 
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(IMAGE_FROM_DISK);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(IMAGE_FROM_DISK);
 
-        assertEquals(DEFAULT, NtpCustomizationUtils.getNtpBackgroundImageType());
+        assertEquals(DEFAULT, NtpCustomizationUtils.getNtpBackgroundType());
     }
 
     @Test
-    public void testGetAndSetNtpBackgroundImageType_diabledByPolicy() {
+    public void testGetAndSetNtpBackgroundType_diabledByPolicy() {
         NtpCustomizationUtils.resetSharedPreferenceForTesting();
         NtpCustomizationPolicyManager policyManager = mock(NtpCustomizationPolicyManager.class);
         NtpCustomizationPolicyManager.setInstanceForTesting(policyManager);
         when(policyManager.isNtpCustomBackgroundEnabled()).thenReturn(false);
 
-        @NtpBackgroundImageType int imageType = IMAGE_FROM_DISK;
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(imageType);
+        @NtpBackgroundType int imageType = IMAGE_FROM_DISK;
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(imageType);
 
-        assertEquals(DEFAULT, NtpCustomizationUtils.getNtpBackgroundImageType());
+        assertEquals(DEFAULT, NtpCustomizationUtils.getNtpBackgroundType());
     }
 
     @Test
@@ -401,12 +407,12 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     public void testResetNtpCustomBackgroundData() {
         SharedPreferencesManager sharedPreferencesManager = ChromeSharedPreferences.getInstance();
-        sharedPreferencesManager.writeInt(NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE, IMAGE_FROM_DISK);
+        sharedPreferencesManager.writeInt(NTP_CUSTOMIZATION_BACKGROUND_TYPE, IMAGE_FROM_DISK);
 
         NtpCustomizationUtils.resetNtpCustomBackgroundData();
         BaseRobolectricTestRule.runAllBackgroundAndUi();
 
-        assertFalse(sharedPreferencesManager.contains(NTP_CUSTOMIZATION_BACKGROUND_IMAGE_TYPE));
+        assertFalse(sharedPreferencesManager.contains(NTP_CUSTOMIZATION_BACKGROUND_TYPE));
     }
 
     @Test
@@ -432,8 +438,7 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testGetPrimaryColorFromCustomizedThemeColor_wrongImageType() {
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(
-                NtpBackgroundImageType.DEFAULT);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(NtpBackgroundType.DEFAULT);
         NtpCustomizationUtils.setCustomizedPrimaryColorToSharedPreference(Color.RED);
         assertNull(
                 NtpCustomizationUtils.getPrimaryColorFromCustomizedThemeColor(
@@ -443,8 +448,8 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testGetPrimaryColorFromCustomizedThemeColor_chromeColor_colorNotSet() {
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(
-                NtpBackgroundImageType.CHROME_COLOR);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(
+                NtpBackgroundType.CHROME_COLOR);
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.removeKey(NTP_CUSTOMIZATION_PRIMARY_COLOR);
 
@@ -457,8 +462,8 @@ public class NtpCustomizationUtilsUnitTest {
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testGetPrimaryColorFromCustomizedThemeColor_chromeColor_colorSet() {
         @NtpThemeColorId int colorId = NtpThemeColorId.NTP_COLORS_BLUE;
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(
-                NtpBackgroundImageType.CHROME_COLOR);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(
+                NtpBackgroundType.CHROME_COLOR);
         NtpCustomizationUtils.setNtpThemeColorIdToSharedPreference(colorId);
         @ColorInt int primaryColor = mContext.getColor(R.color.ntp_color_blue_primary);
 
@@ -475,8 +480,8 @@ public class NtpCustomizationUtilsUnitTest {
         @NtpThemeColorId int colorId = NtpThemeColorId.NTP_COLORS_BLUE;
         @NtpThemeColorId int newColorId = NtpThemeColorId.NTP_COLORS_BLUE + 1;
 
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(
-                NtpBackgroundImageType.CHROME_COLOR);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(
+                NtpBackgroundType.CHROME_COLOR);
         // Saves the old color id to the SharedPreference.
         NtpCustomizationUtils.setNtpThemeColorIdToSharedPreference(colorId);
         NtpCustomizationUtils.setIsChromeColorDailyRefreshEnabledToSharedPreference(true);
@@ -507,7 +512,7 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testGetPrimaryColorFromCustomizedThemeColor_colorSetWithImage() {
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(IMAGE_FROM_DISK);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(IMAGE_FROM_DISK);
         NtpCustomizationUtils.setCustomizedPrimaryColorToSharedPreference(Color.BLUE);
 
         assertEquals(
@@ -521,8 +526,8 @@ public class NtpCustomizationUtilsUnitTest {
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testGetPrimaryColorFromCustomizedThemeColor_themeCollection() {
         NtpThemeDailyRefreshManager.createInstanceForTesting();
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(
-                NtpBackgroundImageType.THEME_COLLECTION);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(
+                NtpBackgroundType.THEME_COLLECTION);
 
         // Test with daily refresh disabled.
         CustomBackgroundInfo infoNoRefresh =
@@ -574,8 +579,7 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testLoadColorInfoFromSharedPreference_wrongImageType() {
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(
-                NtpBackgroundImageType.DEFAULT);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(NtpBackgroundType.DEFAULT);
         NtpCustomizationUtils.setCustomizedPrimaryColorToSharedPreference(Color.RED);
         assertNull(NtpCustomizationUtils.loadColorInfoFromSharedPreference(mContext));
     }
@@ -583,8 +587,8 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testLoadColorInfoFromSharedPreference_chromeColor() {
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(
-                NtpBackgroundImageType.CHROME_COLOR);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(
+                NtpBackgroundType.CHROME_COLOR);
         SharedPreferencesManager prefsManager = ChromeSharedPreferences.getInstance();
         prefsManager.removeKey(ChromePreferenceKeys.NTP_CUSTOMIZATION_THEME_COLOR_ID);
 
@@ -601,7 +605,7 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testLoadColorInfoFromSharedPreference_colorFromHex() {
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(COLOR_FROM_HEX);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(COLOR_FROM_HEX);
         @ColorInt int primaryColor = Color.RED;
         @ColorInt int backgroundColor = Color.BLUE;
         NtpCustomizationUtils.setCustomizedPrimaryColorToSharedPreference(primaryColor);
@@ -617,13 +621,13 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testLoadColorInfoFromSharedPreference_colorSetWithImage() {
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(IMAGE_FROM_DISK);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(IMAGE_FROM_DISK);
         // Verifies that null is returned if no primary color is set.
         assertNull(NtpCustomizationUtils.loadColorInfoFromSharedPreference(mContext));
 
         @ColorInt int primaryColor = Color.RED;
         NtpCustomizationUtils.setCustomizedPrimaryColorToSharedPreference(primaryColor);
-        NtpCustomizationUtils.setNtpBackgroundImageTypeToSharedPreference(COLOR_FROM_HEX);
+        NtpCustomizationUtils.setNtpBackgroundTypeToSharedPreference(COLOR_FROM_HEX);
 
         // Verifies that the primary color from the loaded results matches.
         NtpThemeColorInfo info = NtpCustomizationUtils.loadColorInfoFromSharedPreference(mContext);
@@ -723,12 +727,12 @@ public class NtpCustomizationUtilsUnitTest {
         // Test cases in light mode:
         // Verifies that no tint color is set for the default theme in light mode.
         NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
-                mContext, mDrawable, NtpBackgroundImageType.DEFAULT, primaryColor);
+                mContext, mDrawable, NtpBackgroundType.DEFAULT, primaryColor);
         verify(mutateDrawable, never()).setTint(anyInt());
 
         // Verifies that color white is set for customized background images.
         NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
-                mContext, mDrawable, NtpBackgroundImageType.IMAGE_FROM_DISK, primaryColor);
+                mContext, mDrawable, NtpBackgroundType.IMAGE_FROM_DISK, primaryColor);
         verify(mutateDrawable).setTint(eq(Color.WHITE));
 
         // Test cases in dark mode:
@@ -737,12 +741,12 @@ public class NtpCustomizationUtilsUnitTest {
 
         // Verifies that color white is set for customized background images.
         NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
-                mContext, mDrawable, NtpBackgroundImageType.IMAGE_FROM_DISK, primaryColor);
+                mContext, mDrawable, NtpBackgroundType.IMAGE_FROM_DISK, primaryColor);
         verify(mutateDrawable).setTint(eq(Color.WHITE));
 
         // Verifies that color white is set for the default theme.
         NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
-                mContext, mDrawable, NtpBackgroundImageType.DEFAULT, primaryColor);
+                mContext, mDrawable, NtpBackgroundType.DEFAULT, primaryColor);
         verify(mutateDrawable, times(2)).setTint(eq(Color.WHITE));
     }
 
@@ -759,7 +763,7 @@ public class NtpCustomizationUtilsUnitTest {
         assertEquals(
                 mutateDrawable,
                 NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
-                        mContext, mDrawable, NtpBackgroundImageType.CHROME_COLOR, primaryColor));
+                        mContext, mDrawable, NtpBackgroundType.CHROME_COLOR, primaryColor));
         verify(mutateDrawable).setTint(eq(primaryColor));
 
         clearInvocations(mutateDrawable);
@@ -769,7 +773,7 @@ public class NtpCustomizationUtilsUnitTest {
                 NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
                         mContext,
                         mDrawable,
-                        NtpBackgroundImageType.CHROME_COLOR,
+                        NtpBackgroundType.CHROME_COLOR,
                         /* primaryColor= */ null));
         verify(mutateDrawable, never()).setTint(eq(primaryColor));
     }
@@ -786,13 +790,13 @@ public class NtpCustomizationUtilsUnitTest {
 
         // Verifies that the saved primary color is set for customized color themes.
         NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
-                mContext, mDrawable, NtpBackgroundImageType.CHROME_COLOR, primaryColor);
+                mContext, mDrawable, NtpBackgroundType.CHROME_COLOR, primaryColor);
         verify(mutateDrawable).setTint(eq(primaryColor));
 
         clearInvocations(mutateDrawable);
         // Verifies when the primary color is missing, color white is set in dark mode.
         NtpCustomizationUtils.getTintedGoogleLogoDrawableImpl(
-                mContext, mDrawable, NtpBackgroundImageType.CHROME_COLOR, /* primaryColor= */ null);
+                mContext, mDrawable, NtpBackgroundType.CHROME_COLOR, /* primaryColor= */ null);
         verify(mutateDrawable).setTint(eq(Color.WHITE));
     }
 
@@ -813,7 +817,7 @@ public class NtpCustomizationUtilsUnitTest {
         NtpCustomizationConfigManager configManager = new NtpCustomizationConfigManager();
         NtpCustomizationConfigManager.setInstanceForTesting(configManager);
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.IMAGE_FROM_DISK);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.IMAGE_FROM_DISK);
 
         assertFalse(NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox());
 
@@ -824,7 +828,7 @@ public class NtpCustomizationUtilsUnitTest {
     public void testShouldApplyWhiteBackgroundOnSearchBox_disabledByPolicy() {
         NtpCustomizationConfigManager configManager = new NtpCustomizationConfigManager();
         NtpCustomizationConfigManager.setInstanceForTesting(configManager);
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.IMAGE_FROM_DISK);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.IMAGE_FROM_DISK);
         assertTrue(NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox());
 
         NtpCustomizationPolicyManager policyManager = mock(NtpCustomizationPolicyManager.class);
@@ -840,20 +844,20 @@ public class NtpCustomizationUtilsUnitTest {
     public void testShouldApplyWhiteBackgroundOnSearchBox_withType() {
         assertFalse(
                 NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(
-                        NtpBackgroundImageType.DEFAULT));
+                        NtpBackgroundType.DEFAULT));
         assertFalse(
                 NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(
-                        NtpBackgroundImageType.CHROME_COLOR));
+                        NtpBackgroundType.CHROME_COLOR));
         assertFalse(
                 NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(
-                        NtpBackgroundImageType.COLOR_FROM_HEX));
+                        NtpBackgroundType.COLOR_FROM_HEX));
 
         assertTrue(
                 NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(
-                        NtpBackgroundImageType.IMAGE_FROM_DISK));
+                        NtpBackgroundType.IMAGE_FROM_DISK));
         assertTrue(
                 NtpCustomizationUtils.shouldApplyWhiteBackgroundOnSearchBox(
-                        NtpBackgroundImageType.THEME_COLLECTION));
+                        NtpBackgroundType.THEME_COLLECTION));
     }
 
     @Test
@@ -877,7 +881,7 @@ public class NtpCustomizationUtilsUnitTest {
         NtpCustomizationConfigManager configManager = new NtpCustomizationConfigManager();
         NtpCustomizationConfigManager.setInstanceForTesting(configManager);
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.IMAGE_FROM_DISK);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.IMAGE_FROM_DISK);
 
         assertFalse(NtpCustomizationUtils.shouldAdjustIconTintForNtp(/* isTablet= */ false));
 
@@ -890,10 +894,10 @@ public class NtpCustomizationUtilsUnitTest {
         NtpCustomizationConfigManager configManager = new NtpCustomizationConfigManager();
         NtpCustomizationConfigManager.setInstanceForTesting(configManager);
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.IMAGE_FROM_DISK);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.IMAGE_FROM_DISK);
         assertFalse(NtpCustomizationUtils.shouldAdjustIconTintForNtp(/* isTablet= */ true));
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.THEME_COLLECTION);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.THEME_COLLECTION);
         assertFalse(NtpCustomizationUtils.shouldAdjustIconTintForNtp(/* isTablet= */ true));
 
         configManager.resetForTesting();
@@ -905,19 +909,19 @@ public class NtpCustomizationUtilsUnitTest {
         NtpCustomizationConfigManager configManager = new NtpCustomizationConfigManager();
         NtpCustomizationConfigManager.setInstanceForTesting(configManager);
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.DEFAULT);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.DEFAULT);
         assertFalse(NtpCustomizationUtils.shouldAdjustIconTintForNtp(/* isTablet= */ false));
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.CHROME_COLOR);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.CHROME_COLOR);
         assertFalse(NtpCustomizationUtils.shouldAdjustIconTintForNtp(/* isTablet= */ false));
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.COLOR_FROM_HEX);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.COLOR_FROM_HEX);
         assertFalse(NtpCustomizationUtils.shouldAdjustIconTintForNtp(/* isTablet= */ false));
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.IMAGE_FROM_DISK);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.IMAGE_FROM_DISK);
         assertTrue(NtpCustomizationUtils.shouldAdjustIconTintForNtp(/* isTablet= */ false));
 
-        configManager.setBackgroundImageTypeForTesting(NtpBackgroundImageType.THEME_COLLECTION);
+        configManager.setBackgroundTypeForTesting(NtpBackgroundType.THEME_COLLECTION);
         assertTrue(NtpCustomizationUtils.shouldAdjustIconTintForNtp(/* isTablet= */ false));
 
         // Verifies that false is returned if the NTP's custom background is disabled by policy.
@@ -1002,14 +1006,14 @@ public class NtpCustomizationUtilsUnitTest {
         assertFalse(
                 NtpCustomizationUtils.getIsChromeColorDailyRefreshEnabledFromSharedPreference());
         NtpCustomizationUtils.maybeUpdateDailyRefreshTimestamp(
-                timestamp, NtpBackgroundImageType.CHROME_COLOR, /* customBackgroundInfo= */ null);
+                timestamp, NtpBackgroundType.CHROME_COLOR, /* customBackgroundInfo= */ null);
         assertFalse(prefsManager.contains(NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP));
         assertEquals(0, NtpCustomizationUtils.getDailyRefreshTimestampToSharedPreference());
 
         // Test case for daily refresh for CHROME_COLOR enabled.
         NtpCustomizationUtils.setIsChromeColorDailyRefreshEnabledToSharedPreference(true);
         NtpCustomizationUtils.maybeUpdateDailyRefreshTimestamp(
-                timestamp, NtpBackgroundImageType.CHROME_COLOR, /* customBackgroundInfo= */ null);
+                timestamp, NtpBackgroundType.CHROME_COLOR, /* customBackgroundInfo= */ null);
         assertEquals(timestamp, NtpCustomizationUtils.getDailyRefreshTimestampToSharedPreference());
     }
 
@@ -1023,13 +1027,13 @@ public class NtpCustomizationUtilsUnitTest {
         CustomBackgroundInfo customBackgroundInfo =
                 new CustomBackgroundInfo(JUnitTestGURLs.URL_1, "id", false, false);
         NtpCustomizationUtils.maybeUpdateDailyRefreshTimestamp(
-                timestamp, NtpBackgroundImageType.THEME_COLLECTION, customBackgroundInfo);
+                timestamp, NtpBackgroundType.THEME_COLLECTION, customBackgroundInfo);
         assertFalse(prefsManager.contains(NTP_CUSTOMIZATION_LAST_DAILY_REFRESH_TIMESTAMP));
 
         // Test case for daily refresh for THEME_COLLECTION is enabled.
         customBackgroundInfo = new CustomBackgroundInfo(JUnitTestGURLs.URL_1, "id", false, true);
         NtpCustomizationUtils.maybeUpdateDailyRefreshTimestamp(
-                timestamp, NtpBackgroundImageType.THEME_COLLECTION, customBackgroundInfo);
+                timestamp, NtpBackgroundType.THEME_COLLECTION, customBackgroundInfo);
         assertEquals(timestamp, NtpCustomizationUtils.getDailyRefreshTimestampToSharedPreference());
     }
 
@@ -1356,23 +1360,19 @@ public class NtpCustomizationUtilsUnitTest {
     @Test
     @DisableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testShouldUseEditIconWithGreyBackground_flagDisabled() {
-        when(mConfigManager.getBackgroundImageType()).thenReturn(NtpBackgroundImageType.DEFAULT);
+        when(mConfigManager.getBackgroundType()).thenReturn(NtpBackgroundType.DEFAULT);
         assertFalse(NtpCustomizationUtils.shouldUseEditIconWithGreyBackground());
 
-        when(mConfigManager.getBackgroundImageType())
-                .thenReturn(NtpBackgroundImageType.CHROME_COLOR);
+        when(mConfigManager.getBackgroundType()).thenReturn(NtpBackgroundType.CHROME_COLOR);
         assertFalse(NtpCustomizationUtils.shouldUseEditIconWithGreyBackground());
 
-        when(mConfigManager.getBackgroundImageType())
-                .thenReturn(NtpBackgroundImageType.COLOR_FROM_HEX);
+        when(mConfigManager.getBackgroundType()).thenReturn(NtpBackgroundType.COLOR_FROM_HEX);
         assertFalse(NtpCustomizationUtils.shouldUseEditIconWithGreyBackground());
 
-        when(mConfigManager.getBackgroundImageType())
-                .thenReturn(NtpBackgroundImageType.IMAGE_FROM_DISK);
+        when(mConfigManager.getBackgroundType()).thenReturn(NtpBackgroundType.IMAGE_FROM_DISK);
         assertFalse(NtpCustomizationUtils.shouldUseEditIconWithGreyBackground());
 
-        when(mConfigManager.getBackgroundImageType())
-                .thenReturn(NtpBackgroundImageType.THEME_COLLECTION);
+        when(mConfigManager.getBackgroundType()).thenReturn(NtpBackgroundType.THEME_COLLECTION);
         assertFalse(NtpCustomizationUtils.shouldUseEditIconWithGreyBackground());
     }
 
@@ -1380,7 +1380,7 @@ public class NtpCustomizationUtilsUnitTest {
     @SmallTest
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testCreateNtpCustomizationButton_greyBackground() {
-        when(mConfigManager.getBackgroundImageType()).thenReturn(IMAGE_FROM_DISK);
+        when(mConfigManager.getBackgroundType()).thenReturn(IMAGE_FROM_DISK);
         View.OnClickListener listener = mock(View.OnClickListener.class);
 
         ImageButton button = NtpCustomizationUtils.createNtpCustomizationButton(mContext, listener);
@@ -1409,7 +1409,7 @@ public class NtpCustomizationUtilsUnitTest {
     @SmallTest
     @EnableFeatures(ChromeFeatureList.NEW_TAB_PAGE_CUSTOMIZATION_V2)
     public void testCreateNtpCustomizationButton_defaultBackground() {
-        when(mConfigManager.getBackgroundImageType()).thenReturn(DEFAULT);
+        when(mConfigManager.getBackgroundType()).thenReturn(DEFAULT);
         View.OnClickListener listener = mock(View.OnClickListener.class);
 
         ImageButton button = NtpCustomizationUtils.createNtpCustomizationButton(mContext, listener);
@@ -1425,5 +1425,83 @@ public class NtpCustomizationUtilsUnitTest {
         assertEquals(
                 ColorStateList.valueOf(getDefaultIconColor(mContext)), button.getImageTintList());
         assertNull(ViewCompat.getBackgroundTintList(button));
+    }
+
+    @Test
+    public void testGetContentBasedSeedColor() {
+        // Test with a small bitmap.
+        Bitmap smallBitmap =
+                Bitmap.createBitmap(/* width= */ 50, /* height= */ 50, Bitmap.Config.ARGB_8888);
+        // Robolectric's shadow Bitmap defaults to transparency, so the extracted color will be null
+        // because there's no vibrant color.
+        smallBitmap.eraseColor(Color.RED);
+        assertEquals(
+                Integer.valueOf(Color.RED),
+                NtpCustomizationUtils.getContentBasedSeedColor(smallBitmap));
+
+        // Test with a large bitmap.
+        Bitmap largeBitmap =
+                Bitmap.createBitmap(/* width= */ 200, /* height= */ 200, Bitmap.Config.ARGB_8888);
+        largeBitmap.eraseColor(Color.BLUE);
+        assertEquals(
+                Integer.valueOf(Color.BLUE),
+                NtpCustomizationUtils.getContentBasedSeedColor(largeBitmap));
+    }
+
+    @Test
+    public void testGetBitmapFromUriAsync() throws IOException {
+        int width = 100;
+        int height = 100;
+        Bitmap bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, outputStream);
+        byte[] bitmapBytes = outputStream.toByteArray();
+
+        Uri uri = mock(Uri.class);
+        ContentResolver contentResolver = mock(ContentResolver.class);
+        // We need to spy or mock Context because mContext is a ContextThemeWrapper which wraps
+        // ApplicationContext.
+        Context context = spy(mContext);
+        when(context.getContentResolver()).thenReturn(contentResolver);
+        when(contentResolver.openInputStream(uri))
+                .thenAnswer(invocation -> new ByteArrayInputStream(bitmapBytes));
+
+        Callback<Bitmap> callback = mock(Callback.class);
+        NtpCustomizationUtils.getBitmapFromUriAsync(context, uri, callback);
+        BaseRobolectricTestRule.runAllBackgroundAndUi();
+
+        ArgumentCaptor<Bitmap> captor = ArgumentCaptor.forClass(Bitmap.class);
+        verify(callback).onResult(captor.capture());
+        Bitmap result = captor.getValue();
+        assertNotNull("The file reading flow should successfully load the bitmap.", result);
+        assertEquals(
+                "The file reading flow should preserve width for small images.",
+                width,
+                result.getWidth());
+        assertEquals(
+                "The file reading flow should preserve height for small images.",
+                height,
+                result.getHeight());
+    }
+
+    @Test
+    public void testCalculateInSampleSize() {
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.outWidth = 500;
+        options.outHeight = 500;
+
+        // Test no downsampling needed.
+        assertEquals(
+                1,
+                NtpCustomizationUtils.calculateInSampleSize(
+                        options, /* reqWidth= */ 500, /* reqHeight= */ 500));
+
+        // Test downsampling.
+        options.outWidth = 2000;
+        options.outHeight = 2000;
+        assertEquals(
+                4,
+                NtpCustomizationUtils.calculateInSampleSize(
+                        options, /* reqWidth= */ 500, /* reqHeight= */ 500));
     }
 }

@@ -18,6 +18,7 @@
 #import "components/autofill/core/browser/data_manager/personal_data_manager.h"
 #import "components/autofill/core/browser/data_manager/valuables/valuables_data_manager.h"
 #import "components/autofill/core/browser/foundations/autofill_client.h"
+#import "components/autofill/core/browser/integrators/autofill_ai/autofill_ai_manager.h"
 #import "components/autofill/core/browser/integrators/password_form_classification.h"
 #import "components/autofill/core/browser/metrics/form_interactions_ukm_logger.h"
 #import "components/autofill/core/browser/payments/card_unmask_delegate.h"
@@ -35,6 +36,7 @@
 #import "components/sync/service/sync_service.h"
 #import "ios/chrome/browser/autofill/model/credit_card/autofill_save_card_infobar_delegate_ios.h"
 #import "ios/chrome/browser/autofill/ui_bundled/ios_chrome_payments_autofill_client.h"
+#import "ios/chrome/browser/intelligence/proto_wrappers/page_context_wrapper.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 
 @protocol AutofillCommands;
@@ -97,11 +99,17 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   GetPasswordManagerFieldClassificationModelHandler() override;
   SingleFieldFillRouter& GetSingleFieldFillRouter() override;
   AutocompleteHistoryManager* GetAutocompleteHistoryManager() override;
+  void GetAiPageContent(GetAiPageContentCallback callback) override;
+  AutofillAiManager* GetAutofillAiManager() override;
+  AutofillAiModelCache* GetAutofillAiModelCache() override;
+  AutofillAiModelExecutor* GetAutofillAiModelExecutor() override;
+  optimization_guide::RemoteModelExecutor* GetRemoteModelExecutor() override;
   PrefService* GetPrefs() override;
   const PrefService* GetPrefs() const override;
   syncer::SyncService* GetSyncService() override;
   signin::IdentityManager* GetIdentityManager() override;
   const signin::IdentityManager* GetIdentityManager() const override;
+  const GoogleGroupsManager* GetGoogleGroupsManager() const override;
   FormDataImporter* GetFormDataImporter() override;
   payments::IOSChromePaymentsAutofillClient* GetPaymentsAutofillClient()
       override;
@@ -186,6 +194,8 @@ class ChromeAutofillClientIOS : public AutofillClientIOS {
   autofill_metrics::FormInteractionsUkmLogger form_interactions_ukm_logger_{
       this};
   const AutofillAblationStudy ablation_study_;
+  std::unique_ptr<AutofillAiManager> autofill_ai_manager_;
+  PageContextWrapper* page_context_wrapper_;
 
   // Order matters for this initialization. This initialization must happen
   // after all of the members passed into the constructor of

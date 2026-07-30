@@ -7,7 +7,7 @@
 
 #include "ui/views/layout/flex_layout_view.h"
 
-class VerticalTabStripFlatEdgeButton;
+class TabStripFlatEdgeButton;
 
 namespace tabs {
 class VerticalTabStripStateController;
@@ -17,17 +17,19 @@ namespace views {
 class ActionViewController;
 }  // namespace views
 
-// Bottom container of the vertical tab strip, manages the new tab button.
+// Bottom container of the vertical tab strip which includes the new tab button.
 class VerticalTabStripBottomContainer : public views::FlexLayoutView {
   METADATA_HEADER(VerticalTabStripBottomContainer, views::View)
  public:
   VerticalTabStripBottomContainer(
       tabs::VerticalTabStripStateController* state_controller,
-      actions::ActionItem* root_action_item);
+      actions::ActionItem* root_action_item,
+      base::RepeatingClosure record_new_tab_button_pressed);
   ~VerticalTabStripBottomContainer() override;
 
-  VerticalTabStripFlatEdgeButton* AddChildButtonFor(
-      actions::ActionId action_id);
+  TabStripFlatEdgeButton* AddChildButtonFor(actions::ActionId action_id);
+
+  bool IsPositionInWindowCaption(const gfx::Point& point);
 
   void OnCollapsedStateChanged(
       tabs::VerticalTabStripStateController* state_controller);
@@ -37,8 +39,9 @@ class VerticalTabStripBottomContainer : public views::FlexLayoutView {
       tabs::VerticalTabStripStateController* state_controller);
 
   raw_ptr<actions::ActionItem> root_action_item_ = nullptr;
-  raw_ptr<VerticalTabStripFlatEdgeButton> new_tab_button_ = nullptr;
+  raw_ptr<TabStripFlatEdgeButton> new_tab_button_ = nullptr;
   base::CallbackListSubscription collapsed_state_changed_subscription_;
+  base::CallbackListSubscription new_tab_button_pressed_subscription_;
 
   std::unique_ptr<views::ActionViewController> action_view_controller_;
 };

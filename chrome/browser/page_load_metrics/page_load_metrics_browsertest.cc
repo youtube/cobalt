@@ -1522,6 +1522,17 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, NoDocumentWrite) {
   histogram_tester_->ExpectTotalCount(internal::kHistogramFirstContentfulPaint,
                                       1);
   histogram_tester_->ExpectTotalCount(
+      internal::kHistogramActualNavigationStartToFirstContentfulPaint, 1);
+  histogram_tester_->ExpectTotalCount(
+      internal::kHistogramActualNavigationStartToNavigationCommitSent, 1);
+  histogram_tester_->ExpectTotalCount(
+      internal::kHistogramActualNavigationStartToParseStart, 1);
+  histogram_tester_->ExpectTotalCount(
+      internal::kHistogramNavigationCommitSentToParseStart, 1);
+  histogram_tester_->ExpectTotalCount(
+      internal::kHistogramParseStartToDOMContentLoaded, 1);
+
+  histogram_tester_->ExpectTotalCount(
       internal::kHistogramDocWriteBlockParseStartToFirstContentfulPaint, 0);
 }
 
@@ -2914,6 +2925,11 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest,
         "Navigation.Timeline.InteractionToNavigationFinished."
         "ExcludingBeforeUnload.MainFrameOnly.Duration",
         0);
+    // Navigation metrics for before-navigation phase.
+    histogram_tester.ExpectTotalCount(
+        internal::kHistogramInteractionToNavigationStart, 0);
+    histogram_tester.ExpectTotalCount(
+        internal::kHistogramActualNavigationStartToNavigationStart, 1);
   }
 
   {
@@ -2976,6 +2992,11 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest,
         "Navigation.Timeline.InteractionToNavigationFinished."
         "ExcludingBeforeUnload.MainFrameOnly.Duration",
         0);
+    // Navigation metrics for before-navigation phase.
+    histogram_tester.ExpectTotalCount(
+        internal::kHistogramInteractionToNavigationStart, 0);
+    histogram_tester.ExpectTotalCount(
+        internal::kHistogramActualNavigationStartToNavigationStart, 1);
   }
 
   {
@@ -3057,6 +3078,11 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest,
                   "Navigation.Timeline.InteractionToNavigationFinished."
                   "ExcludingBeforeUnload.MainFrameOnly.Duration"),
               total_duration);
+    // Navigation metrics for before-navigation phase.
+    histogram_tester.ExpectTotalCount(
+        internal::kHistogramInteractionToNavigationStart, 1);
+    histogram_tester.ExpectTotalCount(
+        internal::kHistogramActualNavigationStartToNavigationStart, 1);
   }
 }
 
@@ -3758,10 +3784,14 @@ IN_PROC_BROWSER_TEST_F(PageLoadMetricsBrowserTest, PageLCPStopsUponInput) {
 
   histogram_tester_->ExpectTotalCount(
       internal::kHistogramLargestContentfulPaint, 1);
+  histogram_tester_->ExpectTotalCount(
+      internal::kHistogramParseStartToLargestContentfulPaint, 1);
   auto all_frames_value =
       histogram_tester_
           ->GetAllSamples(internal::kHistogramLargestContentfulPaint)[0]
           .min;
+  histogram_tester_->ExpectTotalCount(
+      internal::kHistogramActualNavigationStartToLargestContentfulPaint, 1);
 
   histogram_tester_->ExpectTotalCount(
       internal::kHistogramLargestContentfulPaintMainFrame, 1);

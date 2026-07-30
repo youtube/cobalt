@@ -6,6 +6,7 @@
 
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/renderer/bindings/core/v8/script_promise_resolver.h"
+#include "third_party/blink/renderer/core/dom/abort_signal.h"
 #include "third_party/blink/renderer/core/script_tools/model_context.h"
 
 namespace blink {
@@ -13,20 +14,36 @@ namespace blink {
 namespace {
 
 String GetToolErrorMessage(WebDocument::ScriptToolError error) {
-  switch (error) {
-    case WebDocument::ScriptToolError::kInvalidToolName:
-      return "Tool was not executed due to invalid name.";
-    case WebDocument::ScriptToolError::kInvalidInputArguments:
-      return "Tool was not executed due to invalid input arguments.";
-    case WebDocument::ScriptToolError::kMissingRequiredSubmitButton:
-      return "Tool was not executed due to missing required submit button.";
-    case WebDocument::ScriptToolError::kToolInvocationFailed:
-      return "Tool was executed but the invocation failed. For example, the "
-             "script function threw an error.";
-    case WebDocument::ScriptToolError::kToolCancelled:
-      return "Tool was cancelled.";
+  if (!error.message.IsEmpty()) {
+    return error.message;
   }
-  NOTREACHED();
+  String conversion;
+  switch (error.code) {
+    case WebDocument::ScriptToolError::kInvalidToolName:
+      conversion = "Tool was not executed due to invalid name";
+      break;
+    case WebDocument::ScriptToolError::kInvalidInputArguments:
+      conversion = "Tool was not executed due to invalid input arguments";
+      break;
+    case WebDocument::ScriptToolError::kMissingRequiredSubmitButton:
+      conversion =
+          "Tool was not executed due to missing required submit button";
+      break;
+    case WebDocument::ScriptToolError::kToolInvocationFailed:
+      conversion =
+          "Tool was executed but the invocation failed. For example, the "
+          "script function threw an error";
+      break;
+    case WebDocument::ScriptToolError::kToolCancelled:
+      conversion = "Tool was cancelled";
+      break;
+    default:
+      NOTREACHED();
+  }
+  if (error.message.IsEmpty()) {
+    return conversion;
+  }
+  return conversion + ": " + String(error.message);
 }
 
 }  // namespace
@@ -50,7 +67,8 @@ HeapVector<Member<RegisteredTool>> ModelContextTesting::listTools() {
 ScriptPromise<IDLNullable<IDLString>> ModelContextTesting::executeTool(
     ScriptState* script_state,
     String tool_name,
-    String input_arguments) {
+    String input_arguments,
+    const ExecuteToolOptions* options) {
   auto* resolver =
       MakeGarbageCollected<ScriptPromiseResolver<IDLNullable<IDLString>>>(
           script_state);
@@ -75,7 +93,7 @@ ScriptPromise<IDLNullable<IDLString>> ModelContextTesting::executeTool(
       };
 
   model_context_->ExecuteTool(
-      tool_name, input_arguments,
+      tool_name, input_arguments, options->getSignalOr(nullptr),
       blink::BindOnce(callback, WrapPersistent(resolver)));
 
   return promise;

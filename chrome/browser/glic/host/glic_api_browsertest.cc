@@ -36,7 +36,6 @@
 #include "base/version_info/version_info.h"
 #include "build/build_config.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/background/glic/glic_launcher_configuration.h"
 #include "chrome/browser/browser_process.h"
@@ -77,6 +76,8 @@
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
 #include "chrome/browser/skills/skills_service_factory.h"
+#include "chrome/browser/skills/skills_ui_tab_controller.h"
+#include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/chrome_pages.h"
@@ -451,7 +452,7 @@ class GlicApiTestWithOneTabAndPreloading : public GlicApiTestWithOneTab {
     // can set the correct URL.
     GlicProfileManager::SetPrewarmingEnabledForTesting(false);
     GlicProfileManager::ForceConnectionTypeForTesting(
-        network::mojom::ConnectionType::CONNECTION_ETHERNET);
+        net::NetworkChangeNotifier::ConnectionType::CONNECTION_ETHERNET);
   }
 
   auto CreateAndWarmGlic() {
@@ -1274,6 +1275,28 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab,
       InstrumentNextTab(kPasswordManagerTab), Do([this]() { ExecuteJsTest(); }),
       WaitForWebContentsReady(kPasswordManagerTab,
                               GURL(GetGooglePasswordManagerSubPageURLStr())));
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithDaisyChain,
+                       testCanAttachPanelToFallbackEmbedder) {
+  if (!GetParam().multi_instance) {
+    GTEST_SKIP() << "Attached only supported with multi-instance.";
+  }
+
+  RunTestSequence(OpenGlic(GlicInstrumentMode::kHostAndContents),
+                  CheckTabCount(1));
+
+  // Runs the JS test until the first `advanceToNextStep()`.
+  ExecuteJsTest();
+
+  // The JS test is now paused.
+  auto* tab = browser()->tab_strip_model()->GetActiveTab();
+  ASSERT_TRUE(tab);
+  tab->Close();
+
+  // Continue the JS test to verify canAttachPanel is still true since it will
+  // now attach to the fallback embedder.
+  ContinueJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithOneTab, testGetPanelStateAttached) {
@@ -3784,6 +3807,8 @@ class GlicApiTestWithSkills : public GlicApiTest {
     service_ =
         skills::SkillsServiceFactory::GetForProfile(browser()->profile());
     ASSERT_TRUE(service_);
+    service_->SetServiceStatusForTesting(
+        skills::SkillsService::ServiceStatus::kReady);
 
     NavigateTabAndOpenGlic();
   }
@@ -3801,19 +3826,44 @@ class GlicApiTestWithSkills : public GlicApiTest {
 };
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testGetSkillSuccess) {
-  SkillsService()->AddSkill(/*name=*/"test_skill_1", /*icon=*/"test_icon_1",
+  SkillsService()->AddSkill(/*source_skill_id=*/"source_id_1",
+                            /*name=*/"test_skill_1",
+                            /*icon=*/"test_icon_1",
                             /*prompt=*/"test_prompt_1");
-  SkillsService()->AddSkill(/*name=*/"test_skill_2", /*icon=*/"test_icon_2",
+  SkillsService()->AddSkill(/*source_skill_id=*/"source_id_2",
+                            /*name=*/"test_skill_2",
+                            /*icon=*/"test_icon_2",
                             /*prompt=*/"test_prompt_2");
   ExecuteJsTest();
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testGetSkillPreviewsSuccess) {
-  SkillsService()->AddSkill(/*name=*/"test_skill_1", /*icon=*/"test_icon_1",
+  SkillsService()->AddSkill(/*source_skill_id=*/"source_id_1",
+                            /*name=*/"test_skill_1",
+                            /*icon=*/"test_icon_1",
                             /*prompt=*/"test_prompt_1");
-  SkillsService()->AddSkill(/*name=*/"test_skill_2", /*icon=*/"test_icon_2",
+  SkillsService()->AddSkill(/*source_skill_id=*/"source_id_2",
+                            /*name=*/"test_skill_2",
+                            /*icon=*/"test_icon_2",
                             /*prompt=*/"test_prompt_2");
   ExecuteJsTest();
+}
+
+IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testDisplaySkillInDialogSuccess) {
+  ExecuteJsTest();
+  ASSERT_TRUE(base::test::RunUntil([&]() {
+    tabs::TabInterface* tab =
+        InProcessBrowserTest::browser()->tab_strip_model()->GetActiveTab();
+    auto* controller = static_cast<skills::SkillsUiTabController*>(
+        skills::SkillsUiTabControllerInterface::From(tab));
+    if (controller && controller->IsShowing()) {
+      const auto& skill = controller->GetCurrentSkillForTesting();
+      return skill.has_value() && skill->id == "id" && skill->name == "name" &&
+             skill->icon == "icon" && skill->prompt == "prompt" &&
+             skill->source == sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY;
+    }
+    return false;
+  }));
 }
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testShowManageSkillsUi) {
@@ -3829,9 +3879,11 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills, testShowManageSkillsUi) {
 
 IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills,
                        testSendingContextualSkillsToGlic) {
-  SkillsService()->AddSkill(/*name=*/"user_skill_1", /*icon=*/"user_icon_1",
+  SkillsService()->AddSkill(/*source_skill_id=*/"", /*name=*/"user_skill_1",
+                            /*icon=*/"user_icon_1",
                             /*prompt=*/"test_prompt_1");
-  SkillsService()->AddSkill(/*name=*/"user_skill_2", /*icon=*/"user_icon_2",
+  SkillsService()->AddSkill(/*source_skill_id=*/"", /*name=*/"user_skill_2",
+                            /*icon=*/"user_icon_2",
                             /*prompt=*/"user_prompt_2");
 
   ExecuteJsTest();
@@ -3839,17 +3891,17 @@ IN_PROC_BROWSER_TEST_P(GlicApiTestWithSkills,
   std::vector<mojom::SkillPreviewPtr> skills_batch_1;
   skills_batch_1.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_1", "contextual_skill_1", "contextual_skill_icon_1",
-      mojom::SkillSource::kFirstParty));
+      mojom::SkillSource::kFirstParty, "contextual_skill_description_1"));
   skills_batch_1.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_2", "contextual_skill_2", "contextual_skill_icon_2",
-      mojom::SkillSource::kFirstParty));
+      mojom::SkillSource::kFirstParty, "contextual_skill_description_2"));
   GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_1));
   ContinueJsTest();
 
   std::vector<mojom::SkillPreviewPtr> skills_batch_2;
   skills_batch_2.push_back(mojom::SkillPreview::New(
       "contextual_skill_id_3", "contextual_skill_3", "contextual_skill_icon_3",
-      mojom::SkillSource::kFirstParty));
+      mojom::SkillSource::kFirstParty, "contextual_skill_description_3"));
   GetHost()->NotifyContextualSkillsChanged(std::move(skills_batch_2));
   ContinueJsTest();
 }

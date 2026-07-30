@@ -119,6 +119,10 @@
 #include "gpu/command_buffer/service/drm_modifiers_filter_dawn.h"
 #endif  // BUILDFLAG(SKIA_USE_DAWN) && BUILDFLAG(IS_CHROMEOS)
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ui/gfx/linux/drm_util_linux.h"  // nogncheck
+#endif                                    // BUILDFLAG(IS_CHROMEOS)
+
 // Local versions of the SET_GL_ERROR macros
 #define LOCAL_SET_GL_ERROR(error, function_name, msg) \
   ERRORSTATE_SET_GL_ERROR(error_state_.get(), error, function_name, msg)
@@ -1143,6 +1147,8 @@ Capabilities RasterDecoderImpl::GetCapabilities() {
   caps.mappable_formats = feature_info()->feature_flags().mappable_formats;
   caps.texture_format_bgra8888 =
       feature_info()->feature_flags().ext_texture_format_bgra8888;
+  caps.disable_mac_swangle_rgbx =
+      feature_info()->feature_flags().disable_mac_swangle_rgbx;
   caps.texture_rg = feature_info()->feature_flags().ext_texture_rg;
   caps.max_texture_size = shared_context_state_->GetMaxTextureSize();
   caps.using_vulkan_context =
@@ -1242,6 +1248,19 @@ Capabilities RasterDecoderImpl::GetCapabilities() {
 #endif  // BUILDFLAG(SKIA_USE_DAWN)
   else {
     NOTREACHED();
+  }
+#endif  // BUILDFLAG(IS_CHROMEOS)
+
+#if BUILDFLAG(IS_CHROMEOS)
+  base::EraseIf(caps.drm_formats_and_modifiers, [&](const auto& format) {
+    auto drm_format = format.first;
+    return !ui::IsValidDrmFormat(drm_format) ||
+           !caps.mappable_formats.contains(
+               ui::GetSharedImageFormatFromFourCCFormat(drm_format));
+  });
+  if (caps.drm_formats_and_modifiers.empty()) {
+    gles2::PopulateEmptyDRMCaps(caps.mappable_formats,
+                                caps.drm_formats_and_modifiers);
   }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 

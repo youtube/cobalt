@@ -44,6 +44,7 @@
 #include "third_party/blink/renderer/core/execution_context/execution_context.h"
 #include "third_party/blink/renderer/core/html/forms/html_select_element.h"
 #include "third_party/blink/renderer/core/html/html_document.h"
+#include "third_party/blink/renderer/core/html/html_install_element.h"
 #include "third_party/blink/renderer/core/html_names.h"
 #include "third_party/blink/renderer/platform/runtime_enabled_features.h"
 #include "third_party/blink/renderer/platform/wtf/hash_map.h"
@@ -406,6 +407,7 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
     case kPseudoOverscrollAreaParent:
       return kPseudoIdOverscrollAreaParent;
     case kPseudoActive:
+    case kPseudoActiveOption:
     case kPseudoActiveViewTransition:
     case kPseudoActiveViewTransitionType:
     case kPseudoAny:
@@ -606,6 +608,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"-webkit-scrollbar-track", CSSSelector::kPseudoScrollbarTrack},
     {"-webkit-scrollbar-track-piece", CSSSelector::kPseudoScrollbarTrackPiece},
     {"active", CSSSelector::kPseudoActive},
+    {"active-option", CSSSelector::kPseudoActiveOption},
     {"active-view-transition", CSSSelector::kPseudoActiveViewTransition},
     {"after", CSSSelector::kPseudoAfter},
     {"any-link", CSSSelector::kPseudoAnyLink},
@@ -795,6 +798,8 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
       !RuntimeEnabledFeatures::GeolocationElementEnabled(
           document ? document->GetExecutionContext() : nullptr) &&
       !RuntimeEnabledFeatures::UserMediaElementEnabled(
+          document ? document->GetExecutionContext() : nullptr) &&
+      !RuntimeEnabledFeatures::InstallElementEnabled(
           document ? document->GetExecutionContext() : nullptr)) {
     return CSSSelector::kPseudoUnknown;
   }
@@ -845,6 +850,11 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
 
   if (match->type == CSSSelector::kPseudoOverscrollAreaParent &&
       !RuntimeEnabledFeatures::OverscrollGesturesEnabled()) {
+    return CSSSelector::kPseudoUnknown;
+  }
+
+  if (match->type == CSSSelector::kPseudoActiveOption &&
+      !RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
     return CSSSelector::kPseudoUnknown;
   }
 
@@ -988,6 +998,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
       [[fallthrough]];
     // For pseudo-classes
     case kPseudoActive:
+    case kPseudoActiveOption:
     case kPseudoActiveViewTransition:
     case kPseudoActiveViewTransitionType:
     case kPseudoAny:
@@ -1551,7 +1562,9 @@ void CSSSelector::SetHasArgumentMatchInShadowTree() {
   data_.rare_data_->bits_.has_.argument_match_in_shadow_tree_ = true;
 }
 
-static bool ValidateSubSelector(const CSSSelector* selector) {
+namespace {
+
+bool IsSubSelectorCompound(const CSSSelector* selector) {
   switch (selector->Match()) {
     case CSSSelector::kTag:
     case CSSSelector::kUniversalTag:
@@ -1570,53 +1583,24 @@ static bool ValidateSubSelector(const CSSSelector* selector) {
       return false;
     case CSSSelector::kPagePseudoClass:
     case CSSSelector::kPseudoClass:
-      break;
+      if (const CSSSelectorList* sublist = selector->SelectorList()) {
+        for (const CSSSelector* subselector = sublist->First(); subselector;
+             subselector = CSSSelectorList::Next(*subselector)) {
+          if (!subselector->IsFullyCompound()) {
+            return false;
+          }
+        }
+      }
+      return true;
     case CSSSelector::kInvalidList:
       NOTREACHED();
   }
-
-  switch (selector->GetPseudoType()) {
-    case CSSSelector::kPseudoEmpty:
-    case CSSSelector::kPseudoLink:
-    case CSSSelector::kPseudoVisited:
-    case CSSSelector::kPseudoTarget:
-    case CSSSelector::kPseudoEnabled:
-    case CSSSelector::kPseudoDisabled:
-    case CSSSelector::kPseudoChecked:
-    case CSSSelector::kPseudoIndeterminate:
-    case CSSSelector::kPseudoNthChild:
-    case CSSSelector::kPseudoNthLastChild:
-    case CSSSelector::kPseudoNthOfType:
-    case CSSSelector::kPseudoNthLastOfType:
-    case CSSSelector::kPseudoFirstChild:
-    case CSSSelector::kPseudoLastChild:
-    case CSSSelector::kPseudoFirstOfType:
-    case CSSSelector::kPseudoLastOfType:
-    case CSSSelector::kPseudoOnlyOfType:
-    case CSSSelector::kPseudoHost:
-    case CSSSelector::kPseudoHostContext:
-    case CSSSelector::kPseudoNot:
-    case CSSSelector::kPseudoSpatialNavigationFocus:
-    case CSSSelector::kPseudoHasDatalist:
-    case CSSSelector::kPseudoIsHtml:
-    case CSSSelector::kPseudoListBox:
-    case CSSSelector::kPseudoHostHasNonAutoAppearance:
-      // TODO(https://crbug.com/1346456): Many pseudos should probably be
-      // added to this list.  The default: case below should also be removed
-      // so that those adding new pseudos know they need to choose one path or
-      // the other here.
-      //
-      // However, it's not clear why a pseudo should be in one list or the
-      // other.  It's also entirely possible that this entire switch() should
-      // be removed and all cases should return true.
-      return true;
-    default:
-      return false;
-  }
 }
 
-bool CSSSelector::IsCompound() const {
-  if (!ValidateSubSelector(this)) {
+}  // namespace
+
+bool CSSSelector::IsFullyCompound() const {
+  if (!IsSubSelectorCompound(this)) {
     return false;
   }
 
@@ -1627,7 +1611,7 @@ bool CSSSelector::IsCompound() const {
     if (prev_sub_selector->Relation() != kSubSelector) {
       return false;
     }
-    if (!ValidateSubSelector(sub_selector)) {
+    if (!IsSubSelectorCompound(sub_selector)) {
       return false;
     }
 
@@ -1811,6 +1795,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     case kPseudoAutofillSelected:
     case kPseudoWebKitAutofill:
     case kPseudoActive:
+    case kPseudoActiveOption:
     case kPseudoActiveViewTransition:
     case kPseudoActiveViewTransitionType:
     case kPseudoAnyLink:
@@ -2160,6 +2145,7 @@ CSSSelector::RelationType ConvertRelationToRelative(
 bool CSSSelector::SupportsPseudoStateChange(PseudoType type) {
   switch (type) {
     case CSSSelector::kPseudoActive:
+    case CSSSelector::kPseudoActiveOption:
     case CSSSelector::kPseudoActiveViewTransition:
     case CSSSelector::kPseudoActiveViewTransitionType:
     case CSSSelector::kPseudoAnyLink:

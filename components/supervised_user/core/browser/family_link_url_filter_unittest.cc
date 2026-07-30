@@ -216,22 +216,22 @@ TEST_P(FamilyLinkUrlFilterTest, PlainWebFilterConfigurationWontDoAsyncCheck) {
 }
 
 TEST_P(FamilyLinkUrlFilterTest, StripOnDefaultFilteringBehaviour) {
-  EXPECT_EQ(
-      GURL("http://example.com"),
-      supervised_user_test_environment_.url_filter()->GetEffectiveUrlToUnblock(
-          {.url = GURL("http://www.example.com"),
-           .behavior = FilteringBehavior::kBlock,
-           .reason = FilteringBehaviorReason::DEFAULT}));
+  EXPECT_EQ(GURL("http://example.com"),
+            supervised_user_test_environment_.family_link_url_filter()
+                ->GetEffectiveUrlToUnblock(
+                    {.url = GURL("http://www.example.com"),
+                     .behavior = FilteringBehavior::kBlock,
+                     .reason = FilteringBehaviorReason::DEFAULT}));
 }
 
 TEST_P(FamilyLinkUrlFilterTest,
        StripOnManualFilteringBehaviourWithoutConflict) {
-  EXPECT_EQ(
-      GURL("http://example.com"),
-      supervised_user_test_environment_.url_filter()->GetEffectiveUrlToUnblock(
-          {.url = GURL("http://www.example.com"),
-           .behavior = FilteringBehavior::kBlock,
-           .reason = FilteringBehaviorReason::MANUAL}));
+  EXPECT_EQ(GURL("http://example.com"),
+            supervised_user_test_environment_.family_link_url_filter()
+                ->GetEffectiveUrlToUnblock(
+                    {.url = GURL("http://www.example.com"),
+                     .behavior = FilteringBehavior::kBlock,
+                     .reason = FilteringBehaviorReason::MANUAL}));
 }
 
 TEST_P(FamilyLinkUrlFilterTest,
@@ -242,12 +242,12 @@ TEST_P(FamilyLinkUrlFilterTest,
   supervised_user_test_environment_.SetManualFilterForHost(full_url.GetHost(),
                                                            /*allowlist=*/false);
 
-  EXPECT_EQ(
-      full_url,
-      supervised_user_test_environment_.url_filter()->GetEffectiveUrlToUnblock(
-          {.url = full_url,
-           .behavior = FilteringBehavior::kBlock,
-           .reason = FilteringBehaviorReason::MANUAL}));
+  EXPECT_EQ(full_url,
+            supervised_user_test_environment_.family_link_url_filter()
+                ->GetEffectiveUrlToUnblock(
+                    {.url = full_url,
+                     .behavior = FilteringBehavior::kBlock,
+                     .reason = FilteringBehaviorReason::MANUAL}));
 }
 
 #if !BUILDFLAG(IS_CHROMEOS)
@@ -256,12 +256,12 @@ TEST_P(FamilyLinkUrlFilterTest, NormalizesUnblockingUrls) {
 
   // First the url has normalized trivial domain, username, password, query and
   // ref.
-  ASSERT_EQ(
-      GURL("http://example.com/path"),
-      supervised_user_test_environment_.url_filter()->GetEffectiveUrlToUnblock(
-          {.url = full_spec_url,
-           .behavior = FilteringBehavior::kBlock,
-           .reason = FilteringBehaviorReason::MANUAL}));
+  ASSERT_EQ(GURL("http://example.com/path"),
+            supervised_user_test_environment_.family_link_url_filter()
+                ->GetEffectiveUrlToUnblock(
+                    {.url = full_spec_url,
+                     .behavior = FilteringBehavior::kBlock,
+                     .reason = FilteringBehaviorReason::MANUAL}));
 
   // Now add it to the manual blocklist.
   supervised_user_test_environment_.SetManualFilterForHost(
@@ -270,12 +270,12 @@ TEST_P(FamilyLinkUrlFilterTest, NormalizesUnblockingUrls) {
 
   // This time the url is normalized without trivial domain prefixes because it
   // was added to the manual host blocklist.
-  EXPECT_EQ(
-      GURL("http://www.example.com/path"),
-      supervised_user_test_environment_.url_filter()->GetEffectiveUrlToUnblock(
-          {.url = full_spec_url,
-           .behavior = FilteringBehavior::kBlock,
-           .reason = FilteringBehaviorReason::MANUAL}));
+  EXPECT_EQ(GURL("http://www.example.com/path"),
+            supervised_user_test_environment_.family_link_url_filter()
+                ->GetEffectiveUrlToUnblock(
+                    {.url = full_spec_url,
+                     .behavior = FilteringBehavior::kBlock,
+                     .reason = FilteringBehaviorReason::MANUAL}));
 }
 #endif  // !BUILDFLAG(IS_CHROMEOS)
 
@@ -322,11 +322,6 @@ TEST_P(FamilyLinkUrlFilterMetricsTest,
           /*skip_manual_parent_filter=*/false, base::DoNothing(),
           WebFilterMetricsOptions{.filtering_context = GetTestCase().context});
 
-  if (GetTestCase().context == FilteringContext::kNavigationThrottle) {
-    histogram_tester_.ExpectBucketCount(
-        "ManagedUsers.TopLevelFilteringResult",
-        SupervisedUserFilterTopLevelResult::kBlockNotInAllowlist, 1);
-  }
   histogram_tester_.ExpectBucketCount(
       "ManagedUsers.TopLevelFilteringResult2",
       SupervisedUserFilterTopLevelResult::kBlockNotInAllowlist, 1);
@@ -347,11 +342,6 @@ TEST_P(FamilyLinkUrlFilterMetricsTest, RecordsTopLevelMetricsForAllow) {
           /*skip_manual_parent_filter=*/false, base::DoNothing(),
           WebFilterMetricsOptions{.filtering_context = GetTestCase().context});
 
-  if (GetTestCase().context == FilteringContext::kNavigationThrottle) {
-    histogram_tester_.ExpectBucketCount(
-        "ManagedUsers.TopLevelFilteringResult",
-        SupervisedUserFilterTopLevelResult::kAllow, 1);
-  }
   histogram_tester_.ExpectBucketCount(
       "ManagedUsers.TopLevelFilteringResult2",
       SupervisedUserFilterTopLevelResult::kAllow, 1);
@@ -372,11 +362,6 @@ TEST_P(FamilyLinkUrlFilterMetricsTest, RecordsTopLevelMetricsForBlockManual) {
           base::DoNothing(),
           WebFilterMetricsOptions{.filtering_context = GetTestCase().context});
 
-  if (GetTestCase().context == FilteringContext::kNavigationThrottle) {
-    histogram_tester_.ExpectBucketCount(
-        "ManagedUsers.TopLevelFilteringResult",
-        SupervisedUserFilterTopLevelResult::kBlockManual, 1);
-  }
   histogram_tester_.ExpectBucketCount(
       "ManagedUsers.TopLevelFilteringResult2",
       SupervisedUserFilterTopLevelResult::kBlockManual, 1);
@@ -394,11 +379,6 @@ TEST_P(FamilyLinkUrlFilterMetricsTest, RecordsTopLevelMetricsForAsyncBlock) {
   supervised_user_test_environment_.family_link_url_checker_client()
       .RunFirstCallack(safe_search_api::ClientClassification::kRestricted);
 
-  if (GetTestCase().context == FilteringContext::kNavigationThrottle) {
-    histogram_tester_.ExpectBucketCount(
-        "ManagedUsers.TopLevelFilteringResult",
-        SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
-  }
   histogram_tester_.ExpectBucketCount(
       "ManagedUsers.TopLevelFilteringResult2",
       SupervisedUserFilterTopLevelResult::kBlockSafeSites, 1);
@@ -416,11 +396,6 @@ TEST_P(FamilyLinkUrlFilterMetricsTest, RecordsTopLevelMetricsForAsyncAllow) {
   supervised_user_test_environment_.family_link_url_checker_client()
       .RunFirstCallack(safe_search_api::ClientClassification::kAllowed);
 
-  if (GetTestCase().context == FilteringContext::kNavigationThrottle) {
-    histogram_tester_.ExpectBucketCount(
-        "ManagedUsers.TopLevelFilteringResult",
-        SupervisedUserFilterTopLevelResult::kAllow, 1);
-  }
   histogram_tester_.ExpectBucketCount(
       "ManagedUsers.TopLevelFilteringResult2",
       SupervisedUserFilterTopLevelResult::kAllow, 1);

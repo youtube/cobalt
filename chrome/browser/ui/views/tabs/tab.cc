@@ -44,13 +44,13 @@
 #include "chrome/browser/ui/views/chrome_layout_provider.h"
 #include "chrome/browser/ui/views/event_utils.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
-#include "chrome/browser/ui/views/tabs/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_controller.h"
+#include "chrome/browser/ui/views/tabs/tab/alert_indicator_button.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
+#include "chrome/browser/ui/views/tabs/tab/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/tab_accessibility.h"
-#include "chrome/browser/ui/views/tabs/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab_hover_card_bubble_view.h"
-#include "chrome/browser/ui/views/tabs/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_controller.h"
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
@@ -800,7 +800,7 @@ void Tab::UpdateAccessibleName() {
 
 void Tab::OnAXNameChanged(ax::mojom::StringAttribute attribute,
                           const std::optional<std::string>& name) {
-  if (GetWidget()) {
+  if (GetWidget() && IsActive()) {
     GetWidget()->UpdateAccessibleNameForRootView();
   }
 }
@@ -852,12 +852,17 @@ void Tab::RemovedFromWidget() {
 
 void Tab::OnFocus() {
   View::OnFocus();
+
+  controller_->TabKeyboardFocusChangedTo(tab_handle_.Get());
   controller_->UpdateHoverCard(this,
                                TabSlotController::HoverCardUpdateType::kFocus);
 }
 
 void Tab::OnBlur() {
   View::OnBlur();
+
+  controller_->TabKeyboardFocusChangedTo(nullptr);
+
   if (!controller_->IsFocusInTabs()) {
     controller_->UpdateHoverCard(
         nullptr, TabSlotController::HoverCardUpdateType::kFocus);
@@ -926,6 +931,7 @@ void Tab::ActiveStateChanged() {
   UpdateForegroundColors();
   icon_->SetActiveState(IsActive());
   alert_indicator_button_->OnParentTabButtonColorChanged();
+  alert_indicator_button_->UpdateEnabledForMuteToggle();
   DeprecatedLayoutImmediately();
 }
 
@@ -1267,6 +1273,12 @@ void Tab::UpdateForegroundColors() {
 }
 
 void Tab::CloseButtonPressed(const ui::Event& event) {
+  if (IsActive()) {
+    base::RecordAction(UserMetricsAction("CloseTab_Active"));
+  } else {
+    base::RecordAction(UserMetricsAction("CloseTab_Inactive"));
+  }
+
   if (!alert_indicator_button_ || !alert_indicator_button_->GetVisible()) {
     base::RecordAction(UserMetricsAction("CloseTab_NoAlertIndicator"));
   } else if (tabs::TabAlertController::GetAlertStateToShow(data_.alert_state) ==

@@ -65,6 +65,7 @@
 #include "third_party/blink/renderer/core/fullscreen/fullscreen.h"
 #include "third_party/blink/renderer/core/html/custom/element_internals.h"
 #include "third_party/blink/renderer/core/html/forms/html_button_element.h"
+#include "third_party/blink/renderer/core/html/forms/html_data_list_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_field_set_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_element.h"
@@ -76,6 +77,7 @@
 #include "third_party/blink/renderer/core/html/html_dialog_element.h"
 #include "third_party/blink/renderer/core/html/html_document.h"
 #include "third_party/blink/renderer/core/html/html_frame_element_base.h"
+#include "third_party/blink/renderer/core/html/html_install_element.h"
 #include "third_party/blink/renderer/core/html/html_menu_bar_element.h"
 #include "third_party/blink/renderer/core/html/html_menu_item_element.h"
 #include "third_party/blink/renderer/core/html/html_menu_list_element.h"
@@ -684,6 +686,7 @@ SelectorChecker::FeaturelessMatch SelectorChecker::MatchShadowHost(
       return CheckPseudoHas(context, result) ? kFeaturelessMatches
                                              : kFeaturelessFails;
     case CSSSelector::kPseudoActive:
+    case CSSSelector::kPseudoActiveOption:
     case CSSSelector::kPseudoActiveViewTransition:
     case CSSSelector::kPseudoActiveViewTransitionType:
     case CSSSelector::kPseudoAfter:
@@ -2532,6 +2535,19 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
         return true;
       }
       return element.HasFocusWithin();
+    case CSSSelector::kPseudoActiveOption:
+      if (!RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
+        return false;
+      }
+      // This will only match for a base appearance combobox because
+      // HTMLDataListElement::ActiveOption will only return an option if the
+      // datalist is being rendered with base appearance.
+      if (auto* option = DynamicTo<HTMLOptionElement>(element)) {
+        if (HTMLDataListElement* datalist = option->OwnerDataListElement()) {
+          return datalist->ActiveOption() == option;
+        }
+      }
+      return false;
     case CSSSelector::kPseudoInterestSource:
       DCHECK(RuntimeEnabledFeatures::HTMLInterestForAttributeEnabled());
       return element.GetInterestState() != Element::InterestState::kNoInterest;
@@ -2900,6 +2916,8 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
         return select->PopupIsVisible();
       } else if (auto* input = DynamicTo<HTMLInputElement>(element)) {
         return input->IsPickerVisible();
+      } else if (auto* menuitem = DynamicTo<HTMLMenuItemElement>(element)) {
+        return menuitem->IsSubmenuOpen();
       }
       return false;
     case CSSSelector::kPseudoMenulistPopoverWithMenubarAnchor:
@@ -2935,6 +2953,8 @@ bool SelectorChecker::CheckPseudoClass(const SelectorCheckingContext& context,
             RuntimeEnabledFeatures::GeolocationElementEnabled(
                 element.GetExecutionContext()) ||
             RuntimeEnabledFeatures::UserMediaElementEnabled(
+                element.GetExecutionContext()) ||
+            RuntimeEnabledFeatures::InstallElementEnabled(
                 element.GetExecutionContext()));
       auto* permission_element = DynamicTo<HTMLPermissionElement>(element);
       return permission_element && permission_element->granted();

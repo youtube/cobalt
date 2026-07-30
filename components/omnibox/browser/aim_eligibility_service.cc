@@ -211,6 +211,39 @@ bool IsInputTypeAllowed(const omnibox::SearchboxConfig& config,
   return false;
 }
 
+// Builds a fallback `SearchboxConfig` from the legacy eligibility fields in
+// `response`.
+void BuildFallbackConfig(const omnibox::AimEligibilityResponse& response,
+                         omnibox::SearchboxConfig& fallback_config) {
+  fallback_config.Clear();
+  auto* rule_set = fallback_config.mutable_rule_set();
+
+  if (response.is_deep_search_eligible()) {
+    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+    auto* tool_config = fallback_config.add_tool_configs();
+    tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+    auto* deep_search_rule = rule_set->add_tool_rules();
+    deep_search_rule->set_tool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+    deep_search_rule->set_allow_all_input_types(false);
+  }
+  if (response.is_canvas_eligible()) {
+    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_CANVAS);
+  }
+  if (response.is_image_generation_eligible()) {
+    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
+    auto* tool_config = fallback_config.add_tool_configs();
+    tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+    auto* image_gen_rule = rule_set->add_tool_rules();
+    image_gen_rule->set_tool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+    image_gen_rule->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+  }
+  if (response.is_pdf_upload_eligible()) {
+    rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_FILE);
+  }
+}
+
 }  // namespace
 
 // static
@@ -460,27 +493,14 @@ AimEligibilityService::GetMostRecentResponseSource() const {
 
 const omnibox::SearchboxConfig* AimEligibilityService::GetSearchboxConfig()
     const {
-  if (most_recent_response_.has_searchbox_config()) {
+  // If the response has `SearchboxConfig` and the PEC API Feature is enabled,
+  // use `SearchboxConfig`.
+  if (most_recent_response_.has_searchbox_config() &&
+      base::FeatureList::IsEnabled(omnibox::kAimUsePecApi)) {
     return &most_recent_response_.searchbox_config();
   }
 
-  fallback_config_.Clear();
-  auto* rule_set = fallback_config_.mutable_rule_set();
-
-  if (most_recent_response_.is_deep_search_eligible()) {
-    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
-  }
-  if (most_recent_response_.is_canvas_eligible()) {
-    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_CANVAS);
-  }
-  if (most_recent_response_.is_image_generation_eligible()) {
-    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
-    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
-  }
-  if (most_recent_response_.is_pdf_upload_eligible()) {
-    rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_FILE);
-  }
-
+  BuildFallbackConfig(most_recent_response_, fallback_config_);
   return &fallback_config_;
 }
 

@@ -319,4 +319,53 @@ float CharactersToFloat(base::span<const UChar> data, size_t& parsed_length) {
       ToDoubleType<UChar, kAllowTrailingJunk>(data, nullptr, parsed_length));
 }
 
+std::optional<int32_t> StringToIntStrict(const StringView& input) {
+  bool ok = false;
+  constexpr NumberParsingOptions kOption = NumberParsingOptions::Strict();
+  int32_t value = input.Is8Bit()
+                      ? CharactersToInt(input.Span8(), kOption, &ok)
+                      : CharactersToInt(input.Span16(), kOption, &ok);
+  return ok ? std::optional<int32_t>(value) : std::nullopt;
+}
+
+std::optional<uint32_t> StringToUintStrict(const StringView& input) {
+  bool ok = false;
+  constexpr NumberParsingOptions kOption = NumberParsingOptions::Strict();
+  uint32_t value = input.Is8Bit()
+                       ? CharactersToUInt(input.Span8(), kOption, &ok)
+                       : CharactersToUInt(input.Span16(), kOption, &ok);
+  return ok ? std::optional<uint32_t>(value) : std::nullopt;
+}
+
+std::optional<int32_t> StringToInt(const StringView& input) {
+  bool ok = false;
+  NumberParsingOptions option = NumberParsingOptions::Loose();
+  int32_t value = input.Is8Bit() ? CharactersToInt(input.Span8(), option, &ok)
+                                 : CharactersToInt(input.Span16(), option, &ok);
+  return ok ? std::optional<int32_t>(value) : std::nullopt;
+}
+
+std::optional<uint32_t> StringToUint(const StringView& input) {
+  bool ok = false;
+  NumberParsingOptions option = NumberParsingOptions::Loose();
+  uint32_t value = input.Is8Bit()
+                       ? CharactersToUInt(input.Span8(), option, &ok)
+                       : CharactersToUInt(input.Span16(), option, &ok);
+  return ok ? std::optional<uint32_t>(value) : std::nullopt;
+}
+
+std::optional<double> StringToDouble(const StringView& input) {
+  bool ok = false;
+  double value = input.Is8Bit() ? CharactersToDouble(input.Span8(), &ok)
+                                : CharactersToDouble(input.Span16(), &ok);
+  return ok ? std::optional<double>(value) : std::nullopt;
+}
+
+std::optional<float> StringToFloat(const StringView& input) {
+  bool ok = false;
+  float value = input.Is8Bit() ? CharactersToFloat(input.Span8(), &ok)
+                               : CharactersToFloat(input.Span16(), &ok);
+  return ok ? std::optional<float>(value) : std::nullopt;
+}
+
 }  // namespace blink

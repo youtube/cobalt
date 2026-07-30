@@ -400,8 +400,7 @@ bool GetValidScheme(const std::string& text,
   canon_scheme->clear();
 
   // Locate everything up to (but not including) the first ':'
-  if (!url::ExtractScheme(text.data(), static_cast<int>(text.length()),
-                          scheme_component)) {
+  if (!url::ExtractScheme(text, scheme_component)) {
     return false;
   }
 
@@ -454,9 +453,9 @@ std::string SegmentURLInternal(std::string* text, url::Parsed* parts) {
 
   std::string scheme;
 #if BUILDFLAG(IS_WIN)
-  int trimmed_length = static_cast<int>(trimmed.length());
-  if (url::DoesBeginWindowsDriveSpec(trimmed.data(), 0, trimmed_length) ||
-      url::DoesBeginUncPath(std::string_view(trimmed), 0, true)) {
+  std::string_view trimmed_view(trimmed);
+  if (url::DoesBeginWindowsDriveSpec(trimmed_view, 0) ||
+      url::DoesBeginUncPath(trimmed_view, 0, true)) {
     scheme = url::kFileScheme;
   }
 #elif BUILDFLAG(IS_POSIX) || BUILDFLAG(IS_FUCHSIA)

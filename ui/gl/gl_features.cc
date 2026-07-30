@@ -29,6 +29,10 @@
 #include "ui/gfx/android/android_surface_control_compat.h"
 #endif
 
+#if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/ash_switches.h"
+#endif
+
 namespace features {
 namespace {
 
@@ -113,6 +117,18 @@ constexpr base::FeatureParam<base::TimeDelta> kGLCompileShaderDelay = {
     &kAddDelayToGLCompileShader, /*name=*/"interval",
     /*default_value=*/base::Microseconds(1300)};
 #endif  // !defined(PASSTHROUGH_COMMAND_DECODER_LAUNCHED)
+
+// Controls whether the GPU process falls back to software if GLES3 is not
+// supported.
+BASE_FEATURE(kFallbackToSWIfGLES3NotSupported,
+#if BUILDFLAG(IS_WIN)
+             // TODO(https://crbug.com/444049511): Currently disabled on
+             // Windows for D3D9 users that are still on ES 2. Enable once
+             // crbug.com/40874754 is fixed, deprecating D3D9 usage.
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 #if BUILDFLAG(IS_WIN)
 // If true, VsyncThreadWin will use the compositor clock
@@ -232,6 +248,18 @@ void GetANGLEFeaturesFromCommandLineAndFinch(
     SplitAndAppendANGLEFeatureList(kForcedANGLEDisabledFeaturesFP.Get(),
                                    disabled_angle_features);
   }
+}
+
+bool ShouldFallbackToSWIfGLES3NotSupported() {
+#if BUILDFLAG(IS_CHROMEOS)
+  static bool is_enabled =
+      !base::CommandLine::ForCurrentProcess()->HasSwitch(
+          ash::switches::kRevenBranding) &&
+      base::FeatureList::IsEnabled(kFallbackToSWIfGLES3NotSupported);
+  return is_enabled;
+#else   // !BUILDFLAG(IS_CHROMEOS)
+  return base::FeatureList::IsEnabled(kFallbackToSWIfGLES3NotSupported);
+#endif  // BUILDFLAG(IS_CHROMEOS)
 }
 
 #if BUILDFLAG(ENABLE_SWIFTSHADER)

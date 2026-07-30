@@ -235,6 +235,23 @@
       valid_type: "str",
     },
 
+    // - stored_on_extra_field
+    // If this property doesn't correspond directly to a field (field_template
+    // is unset), this allows you to specify that the property's data is stored
+    // somewhere within the given extra field (which must exist in
+    // computed_style_extra_fields.json5).
+    //
+    // This is useful for skipping over it during diffing.
+    //
+    // If field_template is set, then the property is assumed to have split
+    // storage between the field_group _and_ this extra field's group,
+    // i.e., a change in either could mean the property changed (and must be
+    // tested for). You do not need to do this for visited color properties,
+    // which are handled separately.
+    stored_on_extra_field: {
+      valid_type: "list",
+    },
+
     // - field_size
     // Number of bits needed to store this field.
     field_size: {
@@ -437,6 +454,12 @@
         "Image"
       ],
     },
+    // If typedom_types include "Keyword", these keywords are the ones reified
+    // and accepted as CSSKeywordValue objects when set on StylePropertyMap.
+    // Defaults to the same as 'keywords'.
+    typedom_keywords: {
+    },
+
     separator: {
       valid_values: [",", " ", "/"],
     },
@@ -1111,11 +1134,11 @@
       is_animation_affecting: true,
     },
     {
-      name: "timeline-trigger-entry-range-start",
+      name: "timeline-trigger-activation-range-start",
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal", "InitialValue"],
       style_builder_template: "animation",
       style_builder_template_args: {
-        attribute: "TimelineTriggerEntryRangeStart",
+        attribute: "TimelineTriggerActivationRangeStart",
       },
       separator: ",",
       valid_for_marker: true,
@@ -1123,11 +1146,11 @@
       is_animation_affecting: true,
     },
     {
-      name: "timeline-trigger-entry-range-end",
+      name: "timeline-trigger-activation-range-end",
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal", "InitialValue"],
       style_builder_template: "animation",
       style_builder_template_args: {
-        attribute: "TimelineTriggerEntryRangeEnd",
+        attribute: "TimelineTriggerActivationRangeEnd",
       },
       separator: ",",
       valid_for_marker: true,
@@ -1349,6 +1372,7 @@
       valid_for_page_context: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-kerning",
@@ -1368,6 +1392,7 @@
       supports_incremental_style: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-optical-sizing",
@@ -1387,6 +1412,7 @@
       supports_incremental_style: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-palette",
@@ -1405,6 +1431,7 @@
       valid_for_page_context: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-size",
@@ -1426,6 +1453,7 @@
       supports_incremental_style: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-size-adjust",
@@ -1445,6 +1473,7 @@
       valid_for_page_context: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-stretch",
@@ -1469,6 +1498,7 @@
       supports_incremental_style: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-style",
@@ -1490,6 +1520,7 @@
       supports_incremental_style: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-variant-ligatures",
@@ -1512,6 +1543,7 @@
       valid_for_marker: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-variant-caps",
@@ -1531,6 +1563,7 @@
       valid_for_marker: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-variant-east-asian",
@@ -1550,6 +1583,7 @@
       valid_for_marker: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-variant-numeric",
@@ -1570,6 +1604,7 @@
       valid_for_marker: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-variant-alternates",
@@ -1589,6 +1624,7 @@
       valid_for_marker: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-weight",
@@ -1610,6 +1646,7 @@
       supports_incremental_style: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-synthesis-weight",
@@ -1627,6 +1664,7 @@
       // See comment on font.
       supports_incremental_style: false,
       valid_for_permission_element: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-synthesis-style",
@@ -1644,6 +1682,7 @@
       // See comment on font.
       supports_incremental_style: false,
       valid_for_permission_element: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-synthesis-small-caps",
@@ -1661,6 +1700,7 @@
       // See comment on font.
       supports_incremental_style: false,
       valid_for_permission_element: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-feature-settings",
@@ -1680,6 +1720,7 @@
       // See comment on font.
       supports_incremental_style: false,
       valid_for_permission_element: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-variation-settings",
@@ -1700,6 +1741,7 @@
       computable: false,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-language-override",
@@ -1711,6 +1753,7 @@
       keywords: ["normal"],
       typedom_types: ["Keyword"],
       converter: "ConvertFontLanguageOverride",
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-variant-emoji",
@@ -1727,6 +1770,7 @@
       valid_for_first_line: true,
       valid_for_marker: true,
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "font-variant-position",
@@ -1744,6 +1788,7 @@
       valid_for_marker: true,
       // See comment on font.
       supports_incremental_style: false,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "-webkit-font-smoothing",
@@ -1755,6 +1800,7 @@
       valid_for_first_letter: true,
       valid_for_first_line: true,
       valid_for_permission_element: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "forced-color-adjust",
@@ -1790,6 +1836,7 @@
       font: true,
       style_builder_custom_functions: ["value"],
       priority: 1,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "math-depth",
@@ -1872,6 +1919,7 @@
       typedom_types: ["Keyword"],
       priority: 1,
       valid_for_permission_element: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "zoom",
@@ -2039,6 +2087,7 @@
       is_background: true,
       supports_incremental_style: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "background-blend-mode",
@@ -2059,6 +2108,7 @@
       valid_for_first_line: true,
       is_background: false,
       valid_for_page_context: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "background-clip",
@@ -2077,6 +2127,7 @@
       is_background: true,
       supports_incremental_style: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "background-color",
@@ -2127,6 +2178,7 @@
       supports_incremental_style: true,
       valid_for_page_context: true,
       includes_currentcolor: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "background-origin",
@@ -2144,6 +2196,7 @@
       is_background: true,
       supports_incremental_style: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "background-position-x",
@@ -2160,6 +2213,7 @@
       computable: false,
       supports_incremental_style: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "background-position-y",
@@ -2176,6 +2230,7 @@
       computable: false,
       supports_incremental_style: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "background-repeat",
@@ -2189,6 +2244,7 @@
       valid_for_cue: true,
       supports_incremental_style: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "background-size",
@@ -2207,6 +2263,7 @@
       is_background: true,
       supports_incremental_style: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["Background"],
     },
     {
       name: "baseline-shift",
@@ -2373,6 +2430,7 @@
       is_border: true,
       // Overlaps with -webkit-border-image.
       overlapping: true,
+      stored_on_extra_field: ["border-image"],
     },
     {
       name: "border-image-repeat",
@@ -2387,6 +2445,7 @@
       is_border: true,
       // Overlaps with -webkit-border-image.
       overlapping: true,
+      stored_on_extra_field: ["border-image"],
     },
     {
       name: "border-image-slice",
@@ -2401,6 +2460,7 @@
       is_border: true,
       // Overlaps with -webkit-border-image.
       overlapping: true,
+      stored_on_extra_field: ["border-image"],
     },
     {
       name: "border-image-source",
@@ -2414,6 +2474,7 @@
       // Overlaps with -webkit-border-image.
       overlapping: true,
       includes_currentcolor: true,
+      stored_on_extra_field: ["border-image"],
     },
     {
       name: "border-image-width",
@@ -2429,6 +2490,7 @@
       is_border: true,
       // Overlaps with -webkit-border-image.
       overlapping: true,
+      stored_on_extra_field: ["border-image"],
     },
     {
       name: "border-left-color",
@@ -3177,6 +3239,7 @@
       computable: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["CounterDirectives"],
     },
     {
       name: "counter-reset",
@@ -3190,6 +3253,7 @@
       computable: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["CounterDirectives"],
     },
     {
       name: "counter-set",
@@ -3203,6 +3267,7 @@
       computable: false,
       valid_for_permission_element: true,
       valid_for_page_context: true,
+      stored_on_extra_field: ["CounterDirectives"],
     },
     {
       name: "cursor",
@@ -3286,6 +3351,7 @@
       valid_for_permission_element: true,
       valid_for_permission_icon: true,
       invalidate: ["layout", "paint"],
+      stored_on_extra_field: ["Display"],
     },
     {
       name: "dominant-baseline",
@@ -3596,6 +3662,7 @@
       getter: "GetGridLanesDirection",
       typedom_types: ["Keyword"],
       keywords: ["normal", "row", "column", "fill-reverse", "track-reverse"],
+      typedom_keywords: ["normal"],
       invalidate: ["layout", "paint"],
       runtime_flag: "CSSGridLanesLayout",
     },
@@ -3957,6 +4024,8 @@
       valid_for_permission_element: true,
       valid_for_page_context: true,
       affected_by_zoom: true,
+      // The field isn't actually used; this is currently stored in FontDescription.
+      stored_on_extra_field: ["font"],
     },
     {
       name: "lighting-color",
@@ -4145,6 +4214,20 @@
       valid_for_page_context: true,
       invalidate: ["margin", "out-of-flow", "scroll-anchor"],
       anchor_mode: "height",
+    },
+    {
+      name: "margin-trim",
+      property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
+      field_group: "*",
+      field_size: 4,
+      field_template: "primitive",
+      name_for_methods: "MarginTrim",
+      type_name: "unsigned",
+      converter: "ConvertFlags<EMarginTrim>",
+      default_value: "kMarginTrimNone",
+      typedom_types: ["Keyword"],
+      runtime_flag: "MarginTrim",
+      invalidate: ["layout"],
     },
     {
       name: "marker-end",
@@ -4961,7 +5044,8 @@
       style_builder_custom_functions: ["value"],
       field_group: "*",
       field_template: "external",
-      keywords: ["none", "flip-block", "flip-inline", "flip-start"],
+      keywords: ["none", "flip-block", "flip-inline", "flip-start", "flip-x", "flip-y"],
+      typedom_keywords: ["none"],
       typedom_types: ["Keyword"],
       include_paths: ["third_party/blink/renderer/core/style/position_try_fallbacks.h"],
       wrapper_pointer_name: "Member",
@@ -5559,6 +5643,7 @@
       style_builder_custom_functions: ["initial", "inherit", "value"],
       computable: false,
       valid_for_page_context: true,
+      stored_on_extra_field: ["PageSize", "PageSizeType"],
     },
     {
       name: "speak",
@@ -6057,6 +6142,7 @@
       default_value: "TextSpacingTrim::kInitial",
       typedom_types: ["Keyword"],
       valid_for_permission_element: true,
+      stored_on_extra_field: ["font"],
     },
     {
       name: "text-transform",
@@ -6309,6 +6395,7 @@
       valid_for_first_line: true,
       valid_for_page_context: true,
       valid_for_permission_element: true,
+      stored_on_extra_field: ["VerticalAlign", "VerticalAlignLength"],
     },
     {
       name: "view-timeline-axis",
@@ -6526,6 +6613,7 @@
       surrogate_for: "box-decoration-break",
       property_methods: ["CSSValueFromComputedStyleInternal"],
       keywords: ["slice", "clone"],
+      stored_on_extra_field: ["crbug.com/40919412"],
     },
     {
       name: "-webkit-box-direction",
@@ -6631,7 +6719,7 @@
       invalidate: ["layout", "paint"],
     },
     {
-      name: "gap-rule-overlap",
+      name: "rule-overlap",
       property_methods: ["CSSValueFromComputedStyleInternal"],
       inherited: false,
       field_group: "*",
@@ -6971,6 +7059,7 @@
       property_methods: ["CSSValueFromComputedStyleInternal"],
       keywords: ["auto", "loose", "normal", "strict", "after-white-space"],
       surrogate_for: "line-break",
+      stored_on_extra_field: ["crbug.com/40919412"],
     },
     {
       name: "line-break",
@@ -7053,6 +7142,7 @@
       style_builder_template_args: {
         modifier_type: "Outset",
       },
+      stored_on_extra_field: ["MaskBoxImage"],
     },
     {
       name: "-webkit-mask-box-image-repeat",
@@ -7061,6 +7151,7 @@
       style_builder_template_args: {
         modifier_type: "Repeat",
       },
+      stored_on_extra_field: ["MaskBoxImage"],
     },
     {
       name: "-webkit-mask-box-image-slice",
@@ -7070,6 +7161,7 @@
       style_builder_template_args: {
         modifier_type: "Slice",
       },
+      stored_on_extra_field: ["MaskBoxImage"],
     },
     {
       name: "-webkit-mask-box-image-source",
@@ -7077,6 +7169,7 @@
       interpolable: true,
       style_builder_custom_functions: ["value"],
       includes_currentcolor: true,
+      stored_on_extra_field: ["MaskBoxImage"],
     },
     {
       name: "-webkit-mask-box-image-width",
@@ -7086,6 +7179,7 @@
       style_builder_template_args: {
         modifier_type: "Width",
       },
+      stored_on_extra_field: ["MaskBoxImage"],
     },
     {
       name: "mask-mode",
@@ -7095,6 +7189,7 @@
       style_builder_template_args: {
         fill_type: "MaskMode",
       },
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "mask-clip",
@@ -7103,6 +7198,7 @@
       style_builder_template_args: {
         fill_type: "Clip",
       },
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "-webkit-mask-clip",
@@ -7119,6 +7215,7 @@
       // {-webkit-}mask-image needs to be applied before {-webkit-}mask-composite,
       // otherwise {-webkit-}mask-composite has no effect.
       priority: -1,
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "-webkit-mask-composite",
@@ -7133,6 +7230,7 @@
         fill_type_getter: "GetImage"
       },
       includes_currentcolor: true,
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "-webkit-mask-image",
@@ -7145,6 +7243,7 @@
       style_builder_template_args: {
         fill_type: "Origin",
       },
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "-webkit-mask-origin",
@@ -7159,6 +7258,7 @@
         fill_type: "PositionX",
       },
       computable: false,
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "-webkit-mask-position-y",
@@ -7169,6 +7269,7 @@
         fill_type: "PositionY",
       },
       computable: false,
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "mask-repeat",
@@ -7177,6 +7278,7 @@
       style_builder_template_args: {
         fill_type: "Repeat",
       },
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "-webkit-mask-repeat",
@@ -7190,6 +7292,7 @@
       style_builder_template_args: {
         fill_type: "Size",
       },
+      stored_on_extra_field: ["Mask"],
     },
     {
       name: "-webkit-mask-size",
@@ -7261,6 +7364,7 @@
       computable: false,
       surrogate_for: "ruby-position",
       valid_for_permission_element: true,
+      stored_on_extra_field: ["crbug.com/40919412"],
     },
     {
       name: "ruby-position",
@@ -7294,6 +7398,7 @@
       property_methods: ["CSSValueFromComputedStyleInternal"],
       inherited: true,
       surrogate_for: "text-combine-upright",
+      stored_on_extra_field: ["crbug.com/40919412"],
     },
     {
       name: "text-emphasis-color",
@@ -7335,6 +7440,7 @@
       inherited: true,
       style_builder_custom_functions: ["initial", "inherit", "value"],
       valid_for_marker: true,
+      stored_on_extra_field: ["TextEmphasisFill", "TextEmphasisMark", "TextEmphasisCustomMark"],
     },
     {
       name: "-webkit-text-fill-color",
@@ -7607,6 +7713,8 @@
       valid_for_permission_element: true,
       valid_for_page_context: true,
       affected_by_zoom: true,
+      // The field isn't actually used; this is currently stored in FontDescription.
+      stored_on_extra_field: ["font"],
     },
     {
       name: "z-index",
@@ -7624,6 +7732,7 @@
       valid_for_permission_element: true,
       valid_for_page_context: true,
       invalidate: ["z-index"],
+      stored_on_extra_field: ["HasAutoZIndex"],
     },
 
     // CSS logical props
@@ -8198,6 +8307,8 @@
       affected_by_all: false,
       style_builder_template: "empty",
       computable: false,
+      // Don't expand transition: all into all.
+      is_animation_affecting: true,
     },
     // TODO(hjkim3323@gmail.com): Remove -internal-font-size-delta.
     // fontSizeDelta execCommand does not need separate CSS property.
@@ -8211,6 +8322,7 @@
       property_methods: ["ParseSingleValue", "CSSValueFromComputedStyleInternal"],
       inherited: true,
       style_builder_template: "empty",
+      stored_on_extra_field: ["crbug.com/40919412"],
     },
 
     // Descriptor only names
@@ -8403,6 +8515,7 @@
         "none", "top", "bottom", "center", "left", "right", "x-start", "x-end",
         "y-start", "y-end", "start", "end", "self-start", "self-end", "all"
       ],
+      typedom_keywords: ["none"],
       typedom_types: ["Keyword"],
       valid_for_position_try: true,
       valid_for_permission_element: true,
@@ -9286,7 +9399,7 @@
       name: "timeline-trigger",
       longhands: [
         "timeline-trigger-name", "timeline-trigger-source",
-        "timeline-trigger-entry-range-start", "timeline-trigger-entry-range-end",
+        "timeline-trigger-activation-range-start", "timeline-trigger-activation-range-end",
         "timeline-trigger-active-range-start", "timeline-trigger-active-range-end",
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
@@ -9295,9 +9408,9 @@
       runtime_flag: "TimelineTrigger",
     },
     {
-      name: "timeline-trigger-entry-range",
+      name: "timeline-trigger-activation-range",
       longhands: [
-        "timeline-trigger-entry-range-start", "timeline-trigger-entry-range-end",
+        "timeline-trigger-activation-range-start", "timeline-trigger-activation-range-end",
       ],
       property_methods: ["ParseShorthand", "CSSValueFromComputedStyleInternal"],
       supports_incremental_style: false,

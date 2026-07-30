@@ -177,13 +177,6 @@ CORE_EXPORT CSSPrimitiveValue* ConsumeAngle(
     const CSSParserContext&,
     CSSParserLocalContext&,
     std::optional<WebFeature> unitless_zero_feature);
-CORE_EXPORT CSSPrimitiveValue* ConsumeAngle(
-    CSSParserTokenStream&,
-    const CSSParserContext&,
-    CSSParserLocalContext&,
-    std::optional<WebFeature> unitless_zero_feature,
-    double minimum_value,
-    double maximum_value);
 CSSPrimitiveValue* ConsumeTime(CSSParserTokenStream&,
                                const CSSParserContext&,
                                CSSParserLocalContext&,
@@ -338,8 +331,8 @@ void WarnInvalidKeywordPropertyUsage(CSSPropertyID,
                                      CSSValueID);
 
 const CSSValue* ParseLonghand(CSSPropertyID unresolved_property,
-                              CSSPropertyID current_shorthand,
                               const CSSParserContext&,
+                              CSSParserLocalContext&,
                               CSSParserTokenStream&);
 
 bool ConsumeShorthandVia2Longhands(
@@ -543,7 +536,8 @@ CSSValue* ParseBorderWidthSide(CSSParserTokenStream&,
                                const CSSParserContext&,
                                CSSParserLocalContext&);
 const CSSValue* ParseBorderStyleSide(CSSParserTokenStream&,
-                                     const CSSParserContext&);
+                                     const CSSParserContext&,
+                                     CSSParserLocalContext&);
 
 CSSValue* ConsumeCornerShape(CSSParserTokenStream&,
                              const CSSParserContext&,

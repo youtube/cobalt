@@ -14,6 +14,7 @@ struct Capabilities {
   // bool egl_image_external_essl3;
   bool texture_format_bgra8888;
   bool texture_format_etc1_npot;
+  bool disable_mac_swangle_rgbx;
   bool sync_query;
   bool texture_rg;
   bool texture_norm16;
@@ -96,9 +97,6 @@ struct GLCapabilities {
   int32 max_transform_feedback_separate_components;
   int64 max_uniform_block_size;
   int32 max_uniform_buffer_bindings;
-  int32 max_atomic_counter_buffer_bindings;
-  int32 max_shader_storage_buffer_bindings;
-  int32 shader_storage_buffer_offset_alignment;
   int32 max_varying_components;
   int32 max_vertex_output_components;
   int32 max_vertex_uniform_blocks;

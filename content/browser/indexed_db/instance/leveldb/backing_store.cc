@@ -173,13 +173,6 @@ leveldb_env::Options GetLevelDBOptions() {
   // internal synchronization.
   options.block_cache = leveldb_chrome::GetSharedWebBlockCache();
 
-  // Thread-safe: calls base histogram `FactoryGet()` methods, which are
-  // thread-safe.
-  options.on_get_error = base::BindRepeating(
-      ReportLevelDBError, "WebCore.IndexedDB.LevelDBReadErrors");
-  options.on_write_error = base::BindRepeating(
-      ReportLevelDBError, "WebCore.IndexedDB.LevelDBWriteErrors");
-
   // Thread-safe: static local construction, and `BloomFilterPolicy` state is
   // read-only after construction.
   static const leveldb::FilterPolicy* g_filter_policy =
@@ -1283,7 +1276,8 @@ bool BackingStore::CanOpportunisticallyClose() const {
   return true;
 }
 
-void BackingStore::TearDown(base::WaitableEvent* signal_on_destruction) {
+void BackingStore::SignalWhenDestructionComplete(
+    base::WaitableEvent* signal_on_destruction) && {
   if (IsBlobCleanupPending()) {
     ForceRunBlobCleanup();
   }
@@ -1291,8 +1285,13 @@ void BackingStore::TearDown(base::WaitableEvent* signal_on_destruction) {
   db()->leveldb_state()->RequestDestruction(signal_on_destruction);
 }
 
-void BackingStore::InvalidateBlobReferences() {
+void BackingStore::OnForceClosing() {
+  // Invalidate blob references.
   active_blob_registry()->ForceShutdown();
+  // Don't run the preclosing tasks during ForceClose, whether or not we've
+  // started them. Compaction in particular can run long and cannot be
+  // interrupted, so it can cause shutdown hangs.
+  StopPreCloseTasks();
 }
 
 Status BackingStore::UpgradeBlobEntriesToV4(
@@ -1609,10 +1608,10 @@ BackingStore::DoOpenAndVerify(BucketContext& bucket_context,
                           bucket_context.AsWeakPtr()));
   status = backing_store->Initialize(/*clean_active_blob_journal=*/!in_memory);
   if (!status.ok()) [[unlikely]] {
-    base::WaitableEvent leveldb_destruct_event;
-    backing_store->TearDown(&leveldb_destruct_event);
+    base::WaitableEvent destruct_event;
+    std::move(*backing_store).SignalWhenDestructionComplete(&destruct_event);
     backing_store.reset();
-    leveldb_destruct_event.Wait();
+    destruct_event.Wait();
     return {nullptr, status, IndexedDBDataLossInfo(), /*is_disk_full=*/false};
   }
   backing_store->db()->scopes()->StartRecoveryAndCleanupTasks();

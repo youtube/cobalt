@@ -395,7 +395,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.BookmarkGUIDSource2" enum="BookmarkGUIDSource"
-    expires_after="2026-03-15">
+    expires_after="2027-02-04">
   <owner>rushans@google.com</owner>
   <owner>mastiz@chromium.org</owner>
   <summary>
@@ -1344,8 +1344,7 @@ chromium-metrics-reviews@google.com.
   <owner>treib@chromium.org</owner>
   <summary>
     The time between SyncServiceImpl::TryStart() being called and the encryptor
-    being received from OSCryptAsync. Only recorded when kSyncUseOsCryptAsync is
-    enabled.
+    being received from OSCryptAsync.
   </summary>
 </histogram>
 
@@ -1521,7 +1520,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Sync.InvalidationsInitializationTime" units="ms"
-    expires_after="2026-03-15">
+    expires_after="2027-02-04">
   <owner>rushans@google.com</owner>
   <owner>treib@chromium.org</owner>
   <summary>
@@ -2900,6 +2899,18 @@ chromium-metrics-reviews@google.com.
     Records the theme pref migrated from the syncing version to the non-syncing
     replacement. Recorded once per browser startup during pref migration iff the
     theme pref has not already been migrated.
+  </summary>
+</histogram>
+
+<histogram name="Theme.ThemePrefMigration.PrefRegistered" enum="Boolean"
+    expires_after="2026-07-05">
+  <owner>ankushkush@google.com</owner>
+  <owner>src/components/sync/OWNERS</owner>
+  <summary>
+    Records whether the pref, that saves whether or not the theme prefs have
+    already been migrated, is registered. This histogram has been added to
+    investigate crbug.com/476288050. Recorded once per browser startup for all
+    users.
   </summary>
 </histogram>
 

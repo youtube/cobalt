@@ -83,6 +83,9 @@ class PasskeyTabHelper : public web::WebStateObserver,
   void DeferToRenderer(IOSPasskeyClient::RequestInfo request_info,
                        PasskeyRequestParams::RequestType request_type) const;
 
+  // Utility function to reject a pending passkey.
+  void RejectPendingRequest(const std::string& request_id);
+
   // Utility function to defer a pending passkey request back to the renderer.
   void DeferPendingRequestToRenderer(const std::string& request_id);
 
@@ -137,7 +140,8 @@ class PasskeyTabHelper : public web::WebStateObserver,
   // PasskeyJavaScriptFeature.
   void CompletePasskeyCreation(RegistrationRequestParams params,
                                std::string client_data_json,
-                               const SharedKeyList& shared_key_list);
+                               const SharedKeyList& shared_key_list,
+                               NSError* error);
 
   // Callback which uses the provided passkey for assertion given the provided
   // shared keys list and params. The parameters required to resolve the
@@ -145,7 +149,8 @@ class PasskeyTabHelper : public web::WebStateObserver,
   void CompletePasskeyAssertion(AssertionRequestParams params,
                                 sync_pb::WebauthnCredentialSpecifics passkey,
                                 std::string client_data_json,
-                                const SharedKeyList& shared_key_list);
+                                const SharedKeyList& shared_key_list,
+                                NSError* error);
 
   // Starts remote validation for the given origin and RP ID. If validation
   // starts successfully, the loader is stored in `loaders_` with
@@ -174,6 +179,15 @@ class PasskeyTabHelper : public web::WebStateObserver,
   // Adds a passkey to the passkey model while enabling the passkey creation
   // infobar to be displayed if possible.
   void AddNewPasskey(sync_pb::WebauthnCredentialSpecifics& passkey);
+
+  // Returns information (Frame ID and Request Type) for a request identified by
+  // `request_id`. Returns std::nullopt if the request is not found.
+  std::optional<std::pair<std::string, PasskeyRequestParams::RequestType>>
+  ExtractRequestInfo(const std::string& request_id);
+
+  // Utility function to reject a passkey request.
+  void RejectPasskeyRequest(web::WebFrame* web_frame,
+                            const std::string& request_id);
 
   // Utility function to defer the passkey request back to the renderer.
   void DeferToRenderer(web::WebFrame* web_frame,

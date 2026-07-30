@@ -196,6 +196,14 @@ void TabStateStorageService::ApplyUpdate(UpdateOperation operation) {
   }
 }
 
+void TabStateStorageService::CountTabsForWindow(
+    std::string_view window_tag,
+    bool is_off_the_record,
+    CountTabsForWindowCallback callback) {
+  tab_backend_.CountTabsForWindow(window_tag, is_off_the_record,
+                                  std::move(callback));
+}
+
 void TabStateStorageService::LoadAllNodes(std::string_view window_tag,
                                           bool is_off_the_record,
                                           LoadDataCallback callback) {
@@ -247,6 +255,10 @@ std::vector<uint8_t> TabStateStorageService::GenerateKey(
   std::vector<uint8_t> key = GenerateKeyForOtrPayloads();
   tab_backend_.SetKey(window_tag, key);
   return key;
+}
+
+TabCanonicalizer TabStateStorageService::GetCanonicalizer() const {
+  return tab_canonicalizer_;
 }
 
 #if defined(NDEBUG)

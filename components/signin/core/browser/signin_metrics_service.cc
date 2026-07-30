@@ -191,6 +191,8 @@ void MaybeRecordWebSigninToChromeSigninTimes(
     case signin_metrics::AccessPoint::kNtpFeaturePromo:
     case signin_metrics::AccessPoint::kEnterpriseDialogAfterSigninInterception:
     case signin_metrics::AccessPoint::kCredentialExchangeImport:
+    case signin_metrics::AccessPoint::kSetSyncConsentFromSyncInternals:
+    case signin_metrics::AccessPoint::kIosChromeWebView:
       return;
   }
 

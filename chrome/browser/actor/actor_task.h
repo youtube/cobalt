@@ -20,10 +20,8 @@
 #include "base/timer/elapsed_timer.h"
 #include "base/types/pass_key.h"
 #include "build/build_config.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task_delegate.h"
 #include "chrome/browser/actor/aggregated_journal.h"
-#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/common/actor/task_id.h"
 #include "chrome/common/actor_webui.mojom-forward.h"
@@ -38,6 +36,7 @@ namespace actor {
 
 class ActionTrackerForMetrics;
 class ActorKeyedService;
+class EnterprisePolicyUrlChecker;
 class ExecutionEngine;
 
 namespace ui {
@@ -72,7 +71,7 @@ class ActorTask {
             TaskId id,
             std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
             webui::mojom::TaskOptionsPtr options,
-            const EnterprisePolicyChecker* policy_checker,
+            const EnterprisePolicyUrlChecker* policy_checker,
             base::WeakPtr<ActorTaskDelegate> delegate = nullptr);
   ~ActorTask();
 
@@ -85,7 +84,7 @@ class ActorTask {
       TaskId id,
       std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher,
       webui::mojom::TaskOptionsPtr options,
-      const EnterprisePolicyChecker* policy_checker,
+      const EnterprisePolicyUrlChecker* policy_checker,
       base::WeakPtr<ActorTaskDelegate> delegate);
 
   TaskId id() const { return id_; }
@@ -93,7 +92,7 @@ class ActorTask {
   const std::string& title() const { return title_; }
   base::WeakPtr<ActorTaskDelegate> delegate() const { return delegate_; }
 
-  const EnterprisePolicyChecker& policy_checker() const {
+  const EnterprisePolicyUrlChecker& policy_checker() const {
     return policy_checker_.get();
   }
 
@@ -350,7 +349,7 @@ class ActorTask {
   std::optional<StoppedReason> stopped_reason_;
 
   // This is owned by actor keyed service which owns this class.
-  const raw_ref<const EnterprisePolicyChecker> policy_checker_;
+  const raw_ref<const EnterprisePolicyUrlChecker> policy_checker_;
 
   // Delegate for task-related events.
   base::WeakPtr<ActorTaskDelegate> delegate_;

@@ -558,6 +558,11 @@ void HTMLTextAreaElement::SetValueCommon(const String& new_value,
   SetNeedsStyleRecalc(
       kSubtreeStyleChange,
       StyleChangeReasonForTracing::Create(style_change_reason::kControlValue));
+  if (LayoutObject* layout_object = GetLayoutObject()) {
+    layout_object
+        ->SetNeedsLayoutAndIntrinsicWidthsRecalcAndFullPaintInvalidation(
+            layout_invalidation_reason::kTextControlChanged);
+  }
   SetNeedsValidityCheck();
   if (selection == TextControlSetValueSelection::kSetSelectionToEnd) {
     // Set the caret to the end of the text value except for initialize.
@@ -839,18 +844,6 @@ void HTMLTextAreaElement::SetFocused(bool is_focused,
     SetUserHasEditedTheFieldAndBlurred();
   }
   TextControlElement::SetFocused(is_focused, focus_type);
-}
-
-std::unique_ptr<JSONObject> HTMLTextAreaElement::GetWebMCPParameterSchema()
-    const {
-  auto schema = std::make_unique<JSONObject>();
-  schema->SetString("type", "string");
-  return schema;
-}
-
-void HTMLTextAreaElement::FillWebMCPData(JSONValue& data) {
-  String selected_value = GetMCPJSONValue(data);
-  SetValue(selected_value);
 }
 
 }  // namespace blink

@@ -688,8 +688,8 @@ class UninstallCompleteWaiter final : public BrowserListObserver,
       observation_{this};
 };
 
-std::optional<ProfileState>
-GetStateForProfile(StateSnapshot* state_snapshot, Profile* profile) {
+std::optional<ProfileState> GetStateForProfile(StateSnapshot* state_snapshot,
+                                               Profile* profile) {
   CHECK(state_snapshot);
   CHECK(profile);
   auto it = state_snapshot->profiles.find(profile);
@@ -2371,8 +2371,9 @@ void WebAppIntegrationTestDriver::OpenInChrome() {
   webapps::AppId app_id = app_browser()->app_controller()->app_id();
   GURL app_url = GetCurrentTab(app_browser())->GetURL();
   ASSERT_TRUE(AppBrowserController::IsForWebApp(app_browser(), app_id));
+  ui_test_utils::BrowserDestroyedObserver observer(app_browser());
   CHECK(chrome::ExecuteCommand(app_browser_, IDC_OPEN_IN_CHROME));
-  ui_test_utils::WaitForBrowserToClose(app_browser());
+  observer.Wait();
   ASSERT_FALSE(IsBrowserOpen(app_browser())) << "App browser should be closed.";
   app_browser_ = nullptr;
   EXPECT_EQ(GetCurrentTab(browser())->GetURL(), app_url);
@@ -4140,8 +4141,9 @@ webapps::AppId GetAppIdForIsolatedSite(Site site) {
     // isolated-app:// origin based on the signing key of the app.
     GURL parent_app_origin = url_info.origin().GetURL();
     GURL start_url = parent_app_origin.Resolve(GetRelativeSubAppPath(site));
-    return GenerateAppId(/*manifest_id_path=*/std::nullopt, start_url,
-                         /*parent_manifest_id=*/parent_app_origin);
+    return GenerateAppId(
+        /*manifest_id_path=*/std::nullopt, start_url,
+        /*parent_manifest_id=*/webapps::ManifestId(parent_app_origin));
   }
 
   return url_info.app_id();
@@ -4162,7 +4164,8 @@ webapps::AppId WebAppIntegrationTestDriver::GetAppIdBySiteMode(Site site) {
     auto parent_site = GetSiteConfiguration(site_config.parent_site.value());
     return GenerateAppId(
         manifest_id, start_url,
-        GetTestServerForSiteMode(site).GetURL(parent_site.relative_url));
+        webapps::ManifestId(
+            GetTestServerForSiteMode(site).GetURL(parent_site.relative_url)));
   } else {
     return GenerateAppId(manifest_id, start_url);
   }
@@ -4815,7 +4818,7 @@ WebAppIntegrationTestDriver::GetTestAppHomePageHandler(
 
 WebAppIntegrationTest::WebAppIntegrationTest() : helper_(this) {
   std::vector<base::test::FeatureRef> enabled_features;
-  enabled_features.push_back(blink::features::kDesktopPWAsSubApps);
+  enabled_features.push_back(blink::features::kSubApps);
   enabled_features.push_back(blink::features::kDesktopPWAsTabStrip);
   enabled_features.push_back(features::kDesktopPWAsTabStripSettings);
   enabled_features.push_back(features::kIsolatedWebAppDevMode);

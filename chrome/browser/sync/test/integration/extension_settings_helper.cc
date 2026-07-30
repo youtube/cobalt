@@ -12,7 +12,6 @@
 #include "base/values.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/sync/test/integration/extensions_helper.h"
-#include "chrome/browser/sync/test/integration/sync_datatype_helper.h"
 #include "chrome/browser/sync/test/integration/sync_extension_helper.h"
 #include "components/value_store/value_store.h"
 #include "extensions/browser/api/storage/backend_task_runner.h"
@@ -22,7 +21,6 @@
 #include "extensions/common/extension_set.h"
 
 using extensions::ExtensionRegistry;
-using sync_datatype_helper::test;
 
 namespace extension_settings_helper {
 
@@ -55,12 +53,13 @@ base::DictValue GetAllSettings(Profile* profile, const std::string& id) {
   return settings;
 }
 
-bool AreSettingsSame(Profile* expected_profile, Profile* actual_profile) {
+bool AreSettingsSame(Profile* expected_profile,
+                     Profile* actual_profile,
+                     std::ostream* os) {
   const extensions::ExtensionSet& extensions =
       ExtensionRegistry::Get(expected_profile)->enabled_extensions();
   if (extensions.size() !=
       ExtensionRegistry::Get(actual_profile)->enabled_extensions().size()) {
-    ADD_FAILURE();
     return false;
   }
 
@@ -71,8 +70,7 @@ bool AreSettingsSame(Profile* expected_profile, Profile* actual_profile) {
     base::DictValue expected(GetAllSettings(expected_profile, id));
     base::DictValue actual(GetAllSettings(actual_profile, id));
     if (expected != actual) {
-      ADD_FAILURE() << "Expected " << ToJson(expected) << " got "
-                    << ToJson(actual);
+      *os << "Expected " << ToJson(expected) << " got " << ToJson(actual);
       same = false;
     }
   }
@@ -85,6 +83,19 @@ void SetSettingsOnBackendSequence(const base::DictValue* settings,
   EXPECT_TRUE(extensions::GetBackendTaskRunner()->RunsTasksInCurrentSequence());
   storage->Set(value_store::ValueStore::DEFAULTS, *settings);
   signal->Signal();
+}
+
+bool AllExtensionSettingsSame(
+    const std::vector<raw_ptr<Profile, VectorExperimental>>& profiles,
+    std::ostream* os) {
+  CHECK_GT(profiles.size(), 1u) << "At least two profiles are required.";
+
+  bool all_profiles_same = true;
+  for (size_t i = 1; i < profiles.size(); ++i) {
+    // &= so that all profiles are tested; analogous to EXPECT over ASSERT.
+    all_profiles_same &= AreSettingsSame(profiles[0], profiles[i], os);
+  }
+  return all_profiles_same;
 }
 
 }  // namespace
@@ -101,22 +112,26 @@ void SetExtensionSettings(Profile* profile,
   signal.Wait();
 }
 
-void SetExtensionSettingsForAllProfiles(const std::string& id,
-                                        const base::DictValue& settings) {
-  for (int i = 0; i < test()->num_clients(); ++i) {
-    SetExtensionSettings(test()->GetProfile(i), id, settings);
+void SetExtensionSettings(
+    const std::vector<raw_ptr<Profile, VectorExperimental>>& profiles,
+    const std::string& id,
+    const base::DictValue& settings) {
+  for (Profile* profile : profiles) {
+    SetExtensionSettings(profile, id, settings);
   }
-  SetExtensionSettings(test()->verifier(), id, settings);
 }
 
-bool AllExtensionSettingsSameAsVerifier() {
-  bool all_profiles_same = true;
-  for (int i = 0; i < test()->num_clients(); ++i) {
-    // &= so that all profiles are tested; analogous to EXPECT over ASSERT.
-    all_profiles_same &=
-        AreSettingsSame(test()->verifier(), test()->GetProfile(i));
-  }
-  return all_profiles_same;
+AllExtensionSettingsSameChecker::AllExtensionSettingsSameChecker(
+    const std::vector<raw_ptr<syncer::SyncServiceImpl, VectorExperimental>>&
+        services,
+    const std::vector<raw_ptr<Profile, VectorExperimental>>& profiles)
+    : MultiClientStatusChangeChecker(services), profiles_(profiles) {}
+
+AllExtensionSettingsSameChecker::~AllExtensionSettingsSameChecker() = default;
+
+bool AllExtensionSettingsSameChecker::IsExitConditionSatisfied(
+    std::ostream* os) {
+  return AllExtensionSettingsSame(profiles_, os);
 }
 
 }  // namespace extension_settings_helper

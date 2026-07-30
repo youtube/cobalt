@@ -66,6 +66,10 @@ extern const base::FeatureParam<int> kCsdClipboardCopyApiMaxLength;
 extern const base::FeatureParam<int> kCsdClipboardCopyApiMinLength;
 extern const base::FeatureParam<double> kCsdClipboardCopyApiSampleRate;
 extern const base::FeatureParam<bool> kCSDClipboardCopyApiProcessPayload;
+extern const base::FeatureParam<std::string> kCsdClipboardCopyApiLoaders;
+extern const base::FeatureParam<std::string> kCsdClipboardCopyApiRunners;
+extern const base::FeatureParam<std::string> kCsdClipboardCopyApiRemoteRunners;
+extern const base::FeatureParam<std::string> kCsdClipboardCopyApiDecoders;
 
 // Enables sending a CSD ping on the detection of a credit card form.
 BASE_DECLARE_FEATURE(kClientSideDetectionCreditCardForm);
@@ -114,6 +118,11 @@ BASE_DECLARE_FEATURE(kClientSideDetectionKillswitch);
 // RTLookupResponse asks to scan the page.
 BASE_DECLARE_FEATURE(
     kClientSideDetectionLlamaForcedTriggerInfoForScamDetection);
+
+#if BUILDFLAG(IS_ANDROID)
+// Instead of starting model download on startup, do it lazily during inference.
+BASE_DECLARE_FEATURE(kClientSideDetectionOnDeviceModelLazyDownloadAndroid);
+#endif
 
 // Killswitch for force request redirect chain check.
 BASE_DECLARE_FEATURE(kClientSideDetectionRedirectChainKillswitch);

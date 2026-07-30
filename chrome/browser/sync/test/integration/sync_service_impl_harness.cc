@@ -593,19 +593,6 @@ bool SyncServiceImplHarness::EnableSelectableOsType(
 }
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
-bool SyncServiceImplHarness::EnableSyncForRegisteredDatatypes() {
-  DVLOG(1) << GetClientInfoString("EnableSyncForRegisteredDatatypes");
-
-  if (!IsSyncEnabledByUser()) {
-    bool result = SetupSync();
-    // If SetupSync() succeeded, then Sync must now be enabled.
-    DCHECK(!result || IsSyncEnabledByUser());
-    return result;
-  }
-
-  return EnableAllSelectableTypes();
-}
-
 bool SyncServiceImplHarness::EnableAllSelectableTypes() {
   if (service() == nullptr) {
     LOG(ERROR) << "EnableAllSelectableTypes(): service() is null.";
@@ -622,10 +609,6 @@ bool SyncServiceImplHarness::EnableAllSelectableTypes() {
 
   DVLOG(0) << GetClientInfoString("EnableAllSelectableTypes() failed.");
   return false;
-}
-
-bool SyncServiceImplHarness::DisableSyncForAllDatatypes() {
-  return DisableAllSelectableTypes();
 }
 
 bool SyncServiceImplHarness::DisableAllSelectableTypes() {

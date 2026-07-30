@@ -132,6 +132,7 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
                 Features.BACK_FORWARD_CACHE_SETTINGS_V3,
                 Features.PAGE_GET_URL,
                 Features.JS_INJECTION_IN_FRAME_AND_WORLD + Features.DEV_SUFFIX,
+                Features.NAVIGATION_GET_WEB_RESOURCE_ERROR + Features.DEV_SUFFIX,
                 // Add new features above. New features must include `+ Features.DEV_SUFFIX`
                 // when they're initially added (this can be removed in a future CL). The final
                 // feature should have a trailing comma for cleaner diffs.
@@ -313,6 +314,12 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
         ApiCall.ADD_QUIC_HINTS,
         ApiCall.PAGE_GET_URL,
         ApiCall.JS_REPLY_EXECUTE_JS,
+        ApiCall.NAVIGATION_GET_WEB_RESOURCE_ERROR,
+        ApiCall.ADD_JAVA_SCRIPT_ON_EVENT,
+        ApiCall.REMOVE_JAVA_SCRIPT_ON_EVENT,
+        ApiCall.ADD_WEB_MESSAGE_LISTENER_WITH_WORLD,
+        ApiCall.REMOVE_WEB_MESSAGE_LISTENER_WITH_WORLD,
+        ApiCall.GET_JAVA_SCRIPT_WORLD,
         // Add new constants above. The final constant should have a trailing comma for cleaner
         // diffs.
         ApiCall.COUNT, // Added to suppress WrongConstant in #recordApiCall
@@ -494,8 +501,14 @@ public class SupportLibWebViewChromiumFactory implements WebViewProviderFactoryB
         int ADD_QUIC_HINTS = 170;
         int PAGE_GET_URL = 171;
         int JS_REPLY_EXECUTE_JS = 172;
+        int NAVIGATION_GET_WEB_RESOURCE_ERROR = 173;
+        int ADD_JAVA_SCRIPT_ON_EVENT = 174;
+        int REMOVE_JAVA_SCRIPT_ON_EVENT = 175;
+        int ADD_WEB_MESSAGE_LISTENER_WITH_WORLD = 176;
+        int REMOVE_WEB_MESSAGE_LISTENER_WITH_WORLD = 177;
+        int GET_JAVA_SCRIPT_WORLD = 178;
         // Remember to update AndroidXWebkitApiCall in enums.xml when adding new values here
-        int COUNT = 173;
+        int COUNT = 179;
     }
 
     // LINT.ThenChange(/tools/metrics/histograms/metadata/android/enums.xml:AndroidXWebkitApiCall)

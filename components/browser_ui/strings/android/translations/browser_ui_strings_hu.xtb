@@ -20,6 +20,7 @@
 <translation id="1242008676835033345">Beágyazva itt: <ph name="WEBSITE_URL" /></translation>
 <translation id="1263609676484797429">Koppintson az Alkalmazások  &gt; Alapértelmezett alkalmazások elemre</translation>
 <translation id="1272079795634619415">Leállítás</translation>
+<translation id="1275718070701477396">Kijelölve</translation>
 <translation id="1289742167380433257">Az adatforgalom csökkentése érdekében a Google optimalizálta az oldalon lévő képeket.</translation>
 <translation id="129382876167171263">A webhelyek által elmentett fájlok itt jelennek meg</translation>
 <translation id="131112695174432497">A hirdetések személyre szabását befolyásoló adatok törlődnek</translation>
@@ -495,6 +496,7 @@ A Speciális védelem a következő Chrome-beállításokat vezérli:
 <translation id="6085954183010297841">Visszavonja a fájlszerkesztési engedélyt? <ph name="FILE" /></translation>
 <translation id="6104860901391833523">Amikor be van kapcsolva, a webhelyek automatikusan bekapcsolhatják a kép a képben funkciót. Amikor ki van kapcsolva, a webhelyek nem indíthatják el automatikusan a kép a képben funkciót.</translation>
 <translation id="6120483543004435978">Ha be van kapcsolva, a webhelyek lekérdezhetik, hogy Ön mikor használja aktívan az eszközét. Ha ki van kapcsolva, a webhelyek nem tudhatják, hogy Ön mikor használja aktívan az eszközt.</translation>
+<translation id="6132075343662013154">A Chrome felkínálja a jelszó mentését.</translation>
 <translation id="615886654739818377">A webhelyek nem kezelhetnek ablakokat egyik kijelzőn sem</translation>
 <translation id="6165508094623778733">További információ</translation>
 <translation id="6171020522141473435">Ha be van kapcsolva, a webhelyek engedélyt kérhetnek Bluetooth-eszközök használatára. Ha ki van kapcsolva, a webhelyek nem használhatnak Bluetooth-eszközöket.</translation>

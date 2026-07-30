@@ -204,7 +204,7 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
   bool target_fullscreen_state() const {
     return fullscreen_controller_.GetTargetFullscreenState();
   }
-  bool window_visible() const;
+  bool window_visible() const { return window_visible_; }
   bool wants_to_be_visible() const { return wants_to_be_visible_; }
   bool in_fullscreen_transition() const {
     return fullscreen_controller_.IsInFullscreenTransition();
@@ -323,6 +323,8 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
                           mojo::PendingReceiver<mojom::Menu> receiver) override;
   void SetAllowScreenshots(bool allow) override;
   void SetColorMode(ui::ColorProviderKey::ColorMode color_mode) override;
+  void BeginFileDrag(mojom::FileDragDataPtr file_drag_data,
+                     const gfx::PointF& mouse_location) override;
 
   // Return true if [NSApp updateWindows] needs to be called after updating the
   // TextInputClient.
@@ -472,17 +474,6 @@ class REMOTE_COCOA_APP_SHIM_EXPORT NativeWidgetNSWindowBridge
 
   // Manages immersive mode when in fullscreen.
   std::unique_ptr<ImmersiveModeControllerCocoa> immersive_mode_controller_;
-
-  // This tracks headless window visibility and fullscreen states.
-  // In headless mode the platform window is never made visible or change its
-  // state, so this structure holds the requested state for reporting.
-  struct HeadlessModeWindow {
-    bool visibility_state = false;
-    bool fullscreen_state = false;
-  };
-
-  // This is present iff the window has been created in headless mode.
-  std::optional<HeadlessModeWindow> headless_mode_window_;
 
   // This tracks whether current window can go back or go forward.
   bool can_go_back_ = false;

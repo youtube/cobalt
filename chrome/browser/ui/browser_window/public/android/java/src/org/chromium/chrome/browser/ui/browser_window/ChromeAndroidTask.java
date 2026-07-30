@@ -242,10 +242,30 @@ public interface ChromeAndroidTask {
      */
     long getOrCreateNativeBrowserWindowPtr(Profile profile);
 
-    // TODO(crbug.com/475200706): Remove once all callers are migrated to the profile-specific
-    // method.
-    @Deprecated
-    long getOrCreateNativeBrowserWindowPtr();
+    /**
+     * Returns an array of the all native {@code BrowserWindowInterface} addresses.
+     *
+     * <p>If the native object hasn't been created, this method will create it before returning its
+     * address.
+     */
+    List<Long> getAllNativeBrowserWindowPtrs();
+
+    /**
+     * Adds an {@link AndroidBrowserWindowObserver} for future {@code AndroidBrowserWindow} events.
+     *
+     * @param observer The observer to add.
+     */
+    void addAndroidBrowserWindowObserver(AndroidBrowserWindowObserver observer);
+
+    /**
+     * Removes an {@link AndroidBrowserWindowObserver}.
+     *
+     * @param observer The observer to remove.
+     */
+    void removeAndroidBrowserWindowObserver(AndroidBrowserWindowObserver observer);
+
+    /** Returns whether observer is registered for {@code AndroidBrowserWindow} events. */
+    boolean hasAndroidBrowserWindowObserver(AndroidBrowserWindowObserver observer);
 
     /**
      * Destroys all objects owned by this {@link ChromeAndroidTask}, including all {@link
@@ -340,9 +360,4 @@ public interface ChromeAndroidTask {
      * Returns the {@code SessionID} as returned by {@code BrowserWindowInterface::GetSessionID()}.
      */
     @Nullable Integer getSessionIdForTesting(Profile profile);
-
-    // TODO(crbug.com/475200706): Remove once all callers are migrated to the profile-specific
-    // method.
-    @Deprecated
-    @Nullable Integer getSessionIdForTesting();
 }

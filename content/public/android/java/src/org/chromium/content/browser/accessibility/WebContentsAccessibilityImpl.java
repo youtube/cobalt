@@ -569,6 +569,15 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 .getChildIdsForTesting(mNativeObj, virtualViewId);
     }
 
+    public int getParentIdForTesting(int virtualViewId) {
+        if (!isNativeInitialized()) return View.NO_ID;
+        assert isRootManagerConnected()
+                : "Accessibility root manager should be connected when the native object is"
+                        + " initialized.";
+        return WebContentsAccessibilityImplJni.get()
+                .getParentIdForTesting(mNativeObj, virtualViewId); // IN-TEST
+    }
+
     public int @Nullable [] getLabeledByNodeIdsForTesting(int virtualViewId) {
         if (!isNativeInitialized()) return null;
         assert isRootManagerConnected()
@@ -975,7 +984,7 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         mAccessibilityEnabledOverride = true;
         String returnString =
                 AccessibilityNodeInfoUtils.toString(
-                        createAccessibilityNodeInfo(virtualViewId), true);
+                        this, createAccessibilityNodeInfo(virtualViewId), true);
         mAccessibilityEnabledOverride = false;
         return returnString;
     }
@@ -1694,6 +1703,14 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
                 mCursorIndex =
                         WebContentsAccessibilityImplJni.get()
                                 .getEditableTextSelectionEnd(mNativeObj, mAccessibilityFocusId);
+            }
+        } else {
+            // `mSelectionStart gets "unassigned" when focus changes and should be initialized for
+            // the first user swipe. For a non-editable node, put selection start on the beginning
+            // of the node. Note that `mCursorIndex` is already set to the end of the node text
+            // when accessibility focus is updated.
+            if (mSelectionStart == -1) {
+                mSelectionStart = 0;
             }
         }
     }
@@ -2663,6 +2680,9 @@ public class WebContentsAccessibilityImpl extends AccessibilityNodeProviderCompa
         int[] getChildIdsForTesting(long nativeWebContentsAccessibilityAndroid, int virtualViewId);
 
         int[] getLabeledByNodeIdsForTesting( // IN-TEST
+                long nativeWebContentsAccessibilityAndroid, int virtualViewId);
+
+        int getParentIdForTesting( // IN-TEST
                 long nativeWebContentsAccessibilityAndroid, int virtualViewId);
 
         int getTextLength(long nativeWebContentsAccessibilityAndroid, int id);

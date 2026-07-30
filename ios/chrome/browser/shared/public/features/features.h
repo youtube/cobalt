@@ -46,6 +46,16 @@ BASE_DECLARE_FEATURE(kIOSBrowserEditMenuMetrics);
 BASE_DECLARE_FEATURE(kIOSCustomFileUploadMenu);
 
 // Docking Promo experiment variations.
+extern const char kIOSDockingPromoV2VariationParam[];
+extern const char kIOSDockingPromoV2VariationHeader1[];
+extern const char kIOSDockingPromoV2VariationHeader2[];
+extern const char kIOSDockingPromoV2VariationHeader3[];
+
+// Feature flag to enable the Docking Promo V2.
+BASE_DECLARE_FEATURE(kIOSDockingPromoV2);
+
+// Helper function to check if `kIOSDockingPromoV2` is enabled.
+bool IsDockingPromoV2Enabled();
 
 // A parameter representing the experimental arm for when the Docking Promo is
 // displayed: during the FRE, or after the FRE.
@@ -269,6 +279,9 @@ BASE_DECLARE_FEATURE(kIOSDownloadNoUIUpdateInBackground);
 
 // Feature flag enabling the client folder implementation of Save to Drive.
 BASE_DECLARE_FEATURE(kIOSSaveToDriveClientFolder);
+
+// Feature flag enabling the save to drive feature for signed out users.
+BASE_DECLARE_FEATURE(kIOSSaveToDriveSignedOut);
 
 // Feature flag to enable feed background refresh.
 // Use IsFeedBackgroundRefreshEnabled() instead of this constant directly.
@@ -916,10 +929,24 @@ bool IsEnableNewStartupFlowEnabled();
 // Updates EnableNewStartupFlow NSUserDefaults key if the value was changed.
 void SaveEnableNewStartupFlowForNextStart();
 
+// Resets the cached value for IsEnableNewStartupFlowEnabled, needed for tests.
+void ResetEnableNewStartupFlowEnabledForTesting();
+
 // Flags for Share Ablation study.
 BASE_DECLARE_FEATURE(kDisableShareButton);
 BASE_DECLARE_FEATURE(kShareInOmniboxLongPress);
 BASE_DECLARE_FEATURE(kShareInOverflowMenu);
 BASE_DECLARE_FEATURE(kShareInVerbatimMatch);
+
+BASE_DECLARE_FEATURE(kUseSceneViewController);
+
+// Returns true if the UseSceneViewController feature is enabled.
+bool IsUseSceneViewControllerEnabled();
+
+// Enables the DisableComposeboxFromAIMNTP feature.
+BASE_DECLARE_FEATURE(kDisableComposeboxFromAIMNTP);
+
+// Returns true if the DisableComposeboxFromAIMNTP feature is enabled.
+bool IsDisableComposeboxFromAIMNTPEnabled();
 
 #endif  // IOS_CHROME_BROWSER_SHARED_PUBLIC_FEATURES_FEATURES_H_

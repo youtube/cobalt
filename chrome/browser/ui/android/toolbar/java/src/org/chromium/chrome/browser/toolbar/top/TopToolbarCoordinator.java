@@ -45,7 +45,6 @@ import org.chromium.chrome.browser.layouts.LayoutManager;
 import org.chromium.chrome.browser.layouts.LayoutStateProvider;
 import org.chromium.chrome.browser.layouts.LayoutType;
 import org.chromium.chrome.browser.omnibox.LocationBar;
-import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabObscuringHandler;
@@ -75,7 +74,6 @@ import org.chromium.chrome.browser.user_education.UserEducationHelper;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
 import org.chromium.components.browser_ui.widget.ClipDrawableProgressBar.DrawingInfo;
 import org.chromium.components.feature_engagement.Tracker;
-import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.signin.SigninFeatureMap;
 import org.chromium.ui.resources.ResourceManager;
 import org.chromium.ui.util.TokenHolder;
@@ -263,12 +261,7 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
                             ignoreCache -> {
                                 var omniboxStub = getLocationBar().getOmniboxStub();
                                 if (omniboxStub != null) {
-                                    omniboxStub.setUrlBarFocus(
-                                            /* shouldBeFocused= */ false,
-                                            null,
-                                            /* selectText= */ false,
-                                            OmniboxFocusReason.UNFOCUS,
-                                            AutocompleteRequestType.SEARCH);
+                                    omniboxStub.setUrlBarFocus(null);
                                 }
                                 tabController.stopOrReloadCurrentTab(ignoreCache);
                             },
@@ -1038,7 +1031,8 @@ public class TopToolbarCoordinator implements Toolbar, TopControlLayer {
         // is fully scrolled off.
         // TODO(crbug.com/448641122): Let hairline layer owns the adjustment logic.
         int hairlineAdjustment = 0;
-        if (mBrowserControls.isVisibilityForced() && mIsHairlineVisible) {
+        if (mBrowserControls.getBrowserVisibilityDelegate().get() == BrowserControlsState.HIDDEN
+                && mIsHairlineVisible) {
             hairlineAdjustment = -mControlContainer.getToolbarHairlineHeight();
         }
 

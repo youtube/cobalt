@@ -846,15 +846,15 @@ StatusOr<std::unique_ptr<DatabaseConnection>> DatabaseConnection::Open(
       loss.status = blink::mojom::IDBDataLoss::Total;
       loss.message = s.ToString();
     }
-    // If opening fails, recover or destroy the DB and try once more. This is
-    // accomplished by destroying `connection`, since the destructor handles
-    // errors.
+    // If opening fails, recover or destroy the DB and try once more.
+    std::move(*connection).DestroySoon(/*force_closing=*/false).Run();
     connection = base::WrapUnique(new DatabaseConnection(path, backing_store));
     s = connection->Init(name);
     connection->data_loss_info_ = std::move(loss);
     s.Log("IndexedDB.SQLite.OpenRetryResult");
   }
   if (!s.ok()) {
+    std::move(*connection).DestroySoon(/*force_closing=*/false).Run();
     return base::unexpected(s);
   }
   return connection;
@@ -876,33 +876,93 @@ void DatabaseConnection::Release(base::WeakPtr<DatabaseConnection> db) {
   }
 }
 
+// static
+void DatabaseConnection::CloseDatabase(
+    std::unique_ptr<sql::Database> db,
+    const base::FilePath& db_path,
+    const base::FilePath& legacy_blob_directory,
+    bool should_delete,
+    bool should_attempt_recovery,
+    std::optional<std::set<int64_t>> known_legacy_blob_ids) {
+  if (should_delete) {
+    db.reset();
+    sql::Database::Delete(db_path);
+    if (!base::DeletePathRecursively(legacy_blob_directory)) {
+      base::UmaHistogramEnumeration(
+          "IndexedDB.SQLite.SpecificEvent.OnDisk",
+          DatabaseConnection::SpecificEvent::kLegacyBlobFileDeletionFailed);
+    }
+    return;
+  }
+
+  if (should_attempt_recovery) {
+    // `RecoverIfPossible` will no-op for several reasons including if the error
+    // is thought to be transient.
+    std::ignore = sql::Recovery::RecoverIfPossible(
+        db.get(), db->GetErrorCode(),
+        sql::Recovery::Strategy::kRecoverWithMetaVersionOrRaze);
+    return;
+  }
+
+  if (known_legacy_blob_ids) {
+    // Delete any leftover legacy blobs which may have been left behind due to
+    // a past failed recovery or other errors. `known_legacy_blob_ids` are the
+    // ones still referenced by the DB, so keep those.
+    base::FileEnumerator(legacy_blob_directory, /*recursive=*/false,
+                         base::FileEnumerator::FILES)
+        .ForEach([&](const base::FilePath& blob_path) {
+          std::optional<int64_t> blob_number =
+              GetBlobIdFromLegacyFilePath(blob_path);
+          if (blob_number && !known_legacy_blob_ids->contains(*blob_number)) {
+            if (!base::DeleteFile(blob_path)) {
+              base::UmaHistogramEnumeration(
+                  "IndexedDB.SQLite.SpecificEvent.OnDisk",
+                  DatabaseConnection::SpecificEvent::
+                      kLegacyBlobFileDeletionFailed);
+            }
+          }
+        });
+  }
+}
+
 DatabaseConnection::DatabaseConnection(base::FilePath path,
                                        BackingStoreImpl& backing_store)
     : path_(path), backing_store_(backing_store) {}
 
 DatabaseConnection::~DatabaseConnection() {
-  // Although generally active blobs will keep `this` alive, in some cases such
-  // as when the backing store is being force-closed, blobs may still be active.
-  active_blobs_.clear();
+  // Closing a `sql::Database` can be an expensive operation since it performs a
+  // checkpoint. Hence, ensure that closing happens intentionally (in the task
+  // returned by `DestroySoon()`).
+  CHECK(!db_) << "DestroySoon() must be called before destruction";
+}
 
-  if (!db_ || in_memory()) {
-    return;
+base::OnceClosure DatabaseConnection::DestroySoon(bool force_closing) && {
+  CHECK(db_);
+
+  // Although generally active blobs will keep `this` alive, when the backing
+  // store is being force-closed, blobs may still be active.
+  if (force_closing) {
+    active_blobs_.clear();
+  } else {
+    CHECK(active_blobs_.empty());
   }
 
   bool had_sql_error =
       !sql::IsSqliteSuccessCode(sql::ToSqliteResultCode(db_->GetErrorCode()));
-
-  // When the database never finished initializing, it will be zygotic. This
-  // could happen if version change transaction was aborted/rolled back. In
-  // this case the newly created database should be deleted.
-  if (marked_for_permanent_deletion_ || (IsZygotic() && !had_sql_error)) {
-    db_.reset();
-    sql::Database::Delete(path_);
-    if (!base::DeletePathRecursively(GetLegacyBlobDirectory())) {
-      LogEvent(SpecificEvent::kLegacyBlobFileDeletionFailed);
-    }
-  } else if (had_sql_error) {
+  if (had_sql_error) {
     LogEvent(SpecificEvent::kDatabaseHadSqlError);
+  }
+
+  bool should_delete_db = false;
+  bool should_attempt_recovery = false;
+  bool should_delete_legacy_blobs = false;
+
+  if (!in_memory()) {
+    // When the database never finished initializing, it will be zygotic. This
+    // could happen if version change transaction was aborted/rolled back. In
+    // this case the newly created database should be deleted.
+    should_delete_db =
+        marked_for_permanent_deletion_ || (IsZygotic() && !had_sql_error);
 
     // Note that `DatabaseConnection` does not set an error callback on
     // sql::Database. Instead, errors are returned for individual operations,
@@ -912,45 +972,31 @@ DatabaseConnection::~DatabaseConnection() {
     // point recovery will be attempted if appropriate.
 #if BUILDFLAG(IS_FUCHSIA)
     // Recovery is not supported with WAL mode DBs in Fuchsia.
-    if (db_->is_open() && sql::IsErrorCatastrophic(db_->GetErrorCode())) {
-      db_.reset();
-      sql::Database::Delete(path_);
-      if (!base::DeletePathRecursively(GetLegacyBlobDirectory())) {
-        LogEvent(SpecificEvent::kLegacyBlobFileDeletionFailed);
-      }
+    if (had_sql_error && db_->is_open() &&
+        sql::IsErrorCatastrophic(db_->GetErrorCode())) {
+      should_delete_db = true;
     }
 #else
-    // `RecoverIfPossible` will no-op for several reasons including if the error
-    // is thought to be transient.
-    std::ignore = sql::Recovery::RecoverIfPossible(
-        db_.get(), db_->GetErrorCode(),
-        sql::Recovery::Strategy::kRecoverWithMetaVersionOrRaze);
+    // Don't attempt recovery if we're force closing. Note that this should be
+    // rare since a database error should lead to only this database being
+    // closed, not the whole backing store.
+    should_attempt_recovery = !force_closing && had_sql_error;
 #endif
-  } else if (legacy_blob_files_ && legacy_blob_files_to_move_.empty()) {
-    // Delete any leftover legacy blobs which may have been left behind due to
-    // a past failed recovery or other errors. `legacy_blob_files_` are the
-    // ones still referenced by the DB, so keep those.
-    //
-    // We skip this step if `legacy_blob_files_to_move_` is non-empty, which
-    // would indicate that there was a migration executed by this instance of
+
+    // Don't clean up legacy blobs if force closing.
+    // Also skip if `legacy_blob_files_to_move_` is non-empty, which would
+    // indicate that there was a migration executed by this instance of
     // `DatabaseConnection`.
-    //
-    // TODO(crbug.com/419264073): since this requires reading from disk to
-    // enumerate directory contents, consider combining it with other
-    // potentially slow cleanup steps such as vacuuming, and/or skipping
-    // altogether for non-migrated DBs.
-    base::FileEnumerator(GetLegacyBlobDirectory(), /*recursive=*/false,
-                         base::FileEnumerator::FILES)
-        .ForEach([&](const base::FilePath& blob_path) {
-          std::optional<int64_t> blob_number =
-              GetBlobIdFromLegacyFilePath(blob_path);
-          if (blob_number && !legacy_blob_files_->contains(*blob_number)) {
-            if (!base::DeleteFile(blob_path)) {
-              LogEvent(SpecificEvent::kLegacyBlobFileDeletionFailed);
-            }
-          }
-        });
+    should_delete_legacy_blobs = !force_closing && legacy_blob_files_ &&
+                                 legacy_blob_files_to_move_.empty();
   }
+
+  db_->DetachFromSequence();
+  return base::BindOnce(
+      &DatabaseConnection::CloseDatabase, std::move(db_), path_,
+      GetLegacyBlobDirectory(), should_delete_db, should_attempt_recovery,
+      should_delete_legacy_blobs ? std::move(legacy_blob_files_)
+                                 : std::nullopt);
 }
 
 Status DatabaseConnection::Init(std::optional<std::u16string_view> name) {
@@ -1288,31 +1334,6 @@ Status DatabaseConnection::CommitTransactionPhaseTwo(
     metadata_snapshot_.reset();
   }
 
-  // Migration case.
-  if (!legacy_blob_files_to_move_.empty() &&
-      !base::CreateDirectory(GetLegacyBlobDirectory())) {
-    return Status::IOError("Unable to create blob directory");
-  }
-  // First make a pass that verifies the blob files are all there. This occurs
-  // before the second loop to avoid moving *some* of them before running into
-  // errors, thus leaving both DBs in a broken state.
-  for (const auto& [_, file_path] : legacy_blob_files_to_move_) {
-    if (!base::PathExists(file_path)) {
-      return Status::IOError("Migration failed due to missing blob");
-    }
-  }
-  for (const auto& [blob_row_id, file_path] : legacy_blob_files_to_move_) {
-    base::File::Error error;
-    // Note that an error here probably leaves both stores (the one being
-    // migrated from and this one) in a broken state. The most likely reason for
-    // this failure would be that the file is missing from the source store, so
-    // it was already in a broken state.
-    // TODO(crbug.com/419264073): consider handling this more gracefully.
-    if (!base::ReplaceFile(file_path, GetBlobFilePath(blob_row_id), &error)) {
-      return Status::IOError(base::File::ErrorToString(error));
-    }
-  }
-
   return Status::OK();
 }
 
@@ -1350,6 +1371,7 @@ void DatabaseConnection::EndTransaction(
   // there were no statements executed anyway.
   CHECK(active_rw_transaction_);
   active_rw_transaction_.reset();
+  CHECK(blobs_staged_for_commit_.empty());
 
   // If the transaction is rolled back, recent changes to the blob_references
   // table may be lost. Make sure that table is up to date with memory state.
@@ -1827,11 +1849,21 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
                           &compressed_length);
       compression_type = CompressionType::kSnappy;
 #endif
+      base::UmaHistogramPercentage(
+          "IndexedDB.SQLite.PutRecord.CompressionRatio",
+          static_cast<int>(100.0 * compressed_length / bits_span.size()));
+
       if (compressed_length <= bits_span.size() * kMinimumCompressionRatio) {
+        base::UmaHistogramCounts10M(
+            "IndexedDB.SQLite.PutRecord.PrecompressionValueSize.Compressed",
+            bits_span.size());
         compressed_bits.resize(compressed_length);
         bits_copy = std::move(compressed_bits);
         bits_span = base::span(bits_copy);
       } else {
+        base::UmaHistogramCounts10M(
+            "IndexedDB.SQLite.PutRecord.PrecompressionValueSize.Uncompressed",
+            bits_span.size());
         compression_type = CompressionType::kUncompressed;
       }
     }
@@ -1851,15 +1883,26 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
   // Insert external objects into relevant tables.
   for (auto& external_object : value.external_objects) {
     int64_t blob_row_id = -1;
+    bool can_insert_inline = false;
     if (external_object.object_type() ==
         IndexedDBExternalObject::ObjectType::kFileSystemAccessHandle) {
       // Write metadata. Blob bytes will be written later in one go, after
-      // serializing the handle.
+      // serializing the handle (except in the migration case, where we can just
+      // write now).
       sql::Statement statement(db_->GetCachedStatement(SQL_FROM_HERE,
                                                        "INSERT INTO blobs "
-                                                       "(object_type) "
-                                                       "VALUES (?)"));
+                                                       "(object_type, bytes) "
+                                                       "VALUES (?, ?)"));
       statement.BindInt(0, static_cast<int>(external_object.object_type()));
+      can_insert_inline =
+          !external_object.serialized_file_system_access_handle().empty();
+      if (can_insert_inline) {
+        // Migration case.
+        statement.BindBlob(
+            1, external_object.serialized_file_system_access_handle());
+      } else {
+        statement.BindNull(1);
+      }
       RUN_STATEMENT_RETURN_ON_ERROR(statement);
       blob_row_id = db_->GetLastInsertRowId();
     } else {
@@ -1870,6 +1913,9 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
                    base::checked_cast<int64_t>(GetMaxBlobSize().InBytes())));
       const bool being_migrated_from_leveldb =
           !external_object.indexed_db_file_path().empty();
+      // Empty blob.
+      bool is_empty_blob = external_object.size() == 0;
+      can_insert_inline = is_empty_blob || being_migrated_from_leveldb;
       {
         sql::Statement statement(
             db_->GetCachedStatement(SQL_FROM_HERE,
@@ -1880,7 +1926,11 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
         statement.BindInt(0, static_cast<int>(external_object.object_type()));
         statement.BindString16(1, external_object.type());
         statement.BindInt64(2, external_object.size());
-        if (being_migrated_from_leveldb) {
+        if (is_empty_blob) {
+          // An empty blob, regardless of whether it's being added by script or
+          // migrated from another store, can be added synchronously.
+          statement.BindBlob(3, base::span<const uint8_t>());
+        } else if (being_migrated_from_leveldb) {
           statement.BindNull(3);
         } else {
           statement.BindBlobForStreaming(3, main_chunk_size);
@@ -1900,10 +1950,13 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
 
       blob_row_id = db_->GetLastInsertRowId();
 
-      if (being_migrated_from_leveldb) {
+      if (is_empty_blob) {
+        // No-op.
+      } else if (being_migrated_from_leveldb) {
         // The migration case --- move the old file to a new location.
-        legacy_blob_files_to_move_[blob_row_id] =
-            external_object.indexed_db_file_path();
+        legacy_blob_files_to_move_.emplace_back(
+            external_object.indexed_db_file_path(),
+            GetBlobFilePath(blob_row_id));
       } else {
         // Reserve space for overflow chunks, if any.
         int chunk_index = 1;
@@ -1940,12 +1993,14 @@ StatusOr<BackingStore::RecordIdentifier> DatabaseConnection::PutRecord(
       RUN_STATEMENT_RETURN_ON_ERROR(statement);
     }
 
-    auto rv =
-        blobs_staged_for_commit_.emplace(blob_row_id,
-                                         // TODO(crbug.com/419208485): this type
-                                         // is copy only at the moment.
-                                         std::move(external_object));
-    CHECK(rv.second);
+    if (!can_insert_inline) {
+      auto rv =
+          blobs_staged_for_commit_.emplace(blob_row_id,
+                                           // TODO(crbug.com/419208485): this
+                                           // type is copy only at the moment.
+                                           std::move(external_object));
+      CHECK(rv.second);
+    }
   }
   OnRecordsModified(object_store_id);
   return BackingStore::RecordIdentifier{record_row_id, std::move(encoded_key)};
@@ -2154,7 +2209,8 @@ DatabaseConnection::CreateAllExternalObjects(
 }
 
 void DatabaseConnection::DeleteIdbDatabase(
-    base::PassKey<BackingStoreDatabaseImpl>) {
+    base::PassKey<BackingStoreDatabaseImpl>,
+    std::vector<PartitionedLock> locks) {
   marked_for_permanent_deletion_ = true;
   metadata_ = blink::IndexedDBDatabaseMetadata(metadata_.name);
   interface_wrapper_weak_factory_.InvalidateWeakPtrs();
@@ -2163,7 +2219,7 @@ void DatabaseConnection::DeleteIdbDatabase(
   if (CanSelfDestruct()) {
     // Fast path: skip explicitly deleting data as the whole database will be
     // dropped.
-    backing_store_->DestroyConnection(metadata_.name);
+    backing_store_->DestroyConnection(metadata_.name, std::move(locks));
     // `this` is deleted.
     return;
   }
@@ -2188,7 +2244,7 @@ void DatabaseConnection::DeleteIdbDatabase(
   // If there are any errors in the above, then blobs will probably error out
   // too, so go ahead and destroy `this`.
   if (!success) {
-    backing_store_->DestroyConnection(metadata_.name);
+    backing_store_->DestroyConnection(metadata_.name, std::move(locks));
     // `this` is deleted.
   }
 }

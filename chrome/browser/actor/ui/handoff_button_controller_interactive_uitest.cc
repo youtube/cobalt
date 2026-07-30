@@ -5,7 +5,6 @@
 #include "base/test/run_until.h"
 #include "base/test/test_future.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
-#include "chrome/browser/actor/actor_policy_checker.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/resources/grit/actor_browser_resources.h"
@@ -61,8 +60,6 @@ class ActorUiHandoffButtonControllerInteractiveUiTest
             {features::kGlicURLConfig,
              { {features::kGlicGuestURL.name, "about:blank"} }},
 #endif
-            {features::kGlicActor,
-             {{features::kGlicActorPolicyControlExemption.name, "true"}}},
             {features::kGlicHandoffButtonShowInImmersiveMode, {}},
             {features::kGlicHandoffButtonHideWhenOmniboxPopupOpened, {}},
             {features::kGlicActorUi,
@@ -209,7 +206,7 @@ IN_PROC_BROWSER_TEST_F(ActorUiHandoffButtonControllerInteractiveUiTest,
 #endif  // BUILDFLAG(IS_MAC)
 
 // TODO(crbug.com/465113623) Test flaky on Wayland.
-#if BUILDFLAG(IS_OZONE_WAYLAND)
+#if BUILDFLAG(SUPPORTS_OZONE_WAYLAND)
 #define MAYBE_ButtonHidesWhenOmniboxIsFocused \
   DISABLED_ButtonHidesWhenOmniboxIsFocused
 #else
@@ -267,8 +264,6 @@ class ActorUiHandoffButtonSplitViewTest
          { {features::kGlicGuestURL.name, "about:blank"} }},
         {features::kGlic, {}},
 #endif
-        {features::kGlicActor,
-         {{features::kGlicActorPolicyControlExemption.name, "true"}}},
         {features::kGlicActorUi,
          {{features::kGlicActorUiHandoffButtonName, "true"}}}};
   }
@@ -377,7 +372,7 @@ class ActorUiHandoffButtonSplitViewTest
     tabs::TabInterface* tab = tabs::TabInterface::GetFromContents(wc);
     ASSERT_NE(tab, nullptr);
 
-    task_id = actor_keyed_service()->CreateTask();
+    task_id = actor_keyed_service()->CreateTask(NoEnterprisePolicyChecker());
     TestFuture<actor::mojom::ActionResultPtr> future;
     actor_keyed_service()->GetTask(task_id)->AddTab(tab->GetHandle(),
                                                     future.GetCallback());

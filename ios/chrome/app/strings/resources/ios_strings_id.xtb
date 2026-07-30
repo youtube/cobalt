@@ -63,6 +63,7 @@
 <translation id="1223498995510244364">Ringkasan</translation>
 <translation id="1227113644794103810">Tab tidak aktif</translation>
 <translation id="1231733316453485619">Aktifkan sinkronisasi?</translation>
+<translation id="1238794841176717085">Bagikan Halaman Ini</translation>
 <translation id="1253032109800629289">Sembunyikan "Dapatkan Notifikasi Pemantauan Harga"</translation>
 <translation id="1254424942107648268">Temukan Sebelumnya</translation>
 <translation id="1258491128795710625">Yang Baru</translation>
@@ -197,6 +198,7 @@
 <translation id="169048873465870056">Hapus tab dan grup?</translation>
 <translation id="1698090540708020240">Impor sandi…</translation>
 <translation id="1700629756560807968"><ph name="NUMBER_OF_SELECTED_BOOKMARKS" /> dipilih</translation>
+<translation id="1702583479431863204">Pin situs dilepas</translation>
 <translation id="1709916727352927457">Hapus kunci sandi</translation>
 <translation id="1715515772563243997">Jika Anda memercayai <ph name="SITE" />, Anda dapat menggunakan sandi tersimpan untuk login.</translation>
 <translation id="1718835860248848330">Sejam terakhir</translation>
@@ -247,6 +249,7 @@
 <translation id="1872096359983322073">Senter</translation>
 <translation id="1875733418125333939"><ph name="FILENAME" />.</translation>
 <translation id="1881621406744213161">Undang anggota keluarga</translation>
+<translation id="188177382966899059">Deep Search</translation>
 <translation id="188237709236611317">Panel menu urutkan pintar</translation>
 <translation id="1883255238294161206">Ciutkan daftar</translation>
 <translation id="1888854257756214946">Pilih sandi…</translation>
@@ -347,6 +350,7 @@
 <translation id="2225701818156393674">Produk ditambahkan ke daftar produk yang dipantau.</translation>
 <translation id="2230173723195178503">Halaman web dimuat</translation>
 <translation id="2236949375853147973">Aktivitas Saya</translation>
+<translation id="2237869114829007407">Dapatkan ringkasan dan insight utama untuk halaman atau topik apa pun</translation>
 <translation id="2240256190924001613">Profil konfigurasi tersedia</translation>
 <translation id="2244080985779413662">Situs ini ingin mendownload file dan membukanya di Wallet Anda.</translation>
 <translation id="2245007488813216650">Menerjemahkan…</translation>
@@ -581,6 +585,7 @@
 <translation id="3140825265190223781">Sandi &amp; kunci sandi tersimpan</translation>
 <translation id="3143515551205905069">Batalkan sinkronisasi</translation>
 <translation id="3144126448740580210">SELESAI</translation>
+<translation id="3147521114983561406">Kunci sandi disimpan ke pengelola sandi Anda. Kunci sandi dapat diakses di tab Samaran dan tab biasa.</translation>
 <translation id="3148052723910099040">Petak Tab Biasa</translation>
 <translation id="3148237711805373460">Arahkan ke sana</translation>
 <translation id="3157387275655328056">Tambahkan ke Daftar Bacaan</translation>
@@ -621,6 +626,7 @@
 <translation id="3305294846493618482">lainnya</translation>
 <translation id="3311748811247479259">Nonaktif</translation>
 <translation id="3312300514034250578">Safe Browsing yang Disempurnakan</translation>
+<translation id="3315786055700307152">Item Anda kini diskon 15%</translation>
 <translation id="3324193307694657476">Alamat 2</translation>
 <translation id="3328801116991980348">Informasi situs</translation>
 <translation id="333229797575847124">Cara mengaktifkan fitur ini</translation>
@@ -636,6 +642,7 @@
 <translation id="3378214228000661758">Buat kunci sandi untuk</translation>
 <translation id="3380352560400387991">Situs ini mencoba membuka aplikasi. Tindakan ini akan membuat Anda keluar dari mode Samaran.</translation>
 <translation id="3385742921291399323">Dapatkan sandi, tab, bookmark, dan info tersimpan Anda lainnya.</translation>
+<translation id="3391765987934722383">Jangan lewatkan penurunan harga</translation>
 <translation id="3392923070107623576">Tetap teratur dengan membuat grup tab</translation>
 <translation id="3404232721752787413">Simpan di Google Foto</translation>
 <translation id="3406506285180498376">Bagikan halaman…</translation>
@@ -784,6 +791,7 @@
 <translation id="3950820424414687140">Login</translation>
 <translation id="3955740319737378355">Selesai</translation>
 <translation id="3955822496205734389">Anda memiliki sandi lemah.</translation>
+<translation id="3957016963627617921">Lakukan lebih banyak hal dengan Gemini di Chrome</translation>
 <translation id="3958312024468322930">Tarik ikon aplikasi ke dock di bagian bawah Layar Utama</translation>
 <translation id="3962326069546168954">Simpan</translation>
 <translation id="3967327056943561740">Bookmark</translation>
@@ -1322,7 +1330,6 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="5868644772996939262">Isi otomatis sandi dan kunci sandi</translation>
 <translation id="5869522115854928033">Sandi tersimpan</translation>
 <translation id="5873179562631407582">Sentuh lama tab yang terbuka</translation>
-<translation id="5878899964490256268"><ph name="EMAIL" />. Dikelola oleh organisasi Anda.</translation>
 <translation id="5887400589839399685">Kartu disimpan</translation>
 <translation id="5888889603768021126">Login dengan</translation>
 <translation id="5889333064153755823">Hapus Data Penjelajahan</translation>
@@ -1376,7 +1383,6 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="607620096698446287"><ph name="FILENAME" /> (<ph name="FILESIZE" />) tidak dapat diupload</translation>
 <translation id="6076618233738284461">Sematkan situs</translation>
 <translation id="6077126322656614846">Akses Kamera diizinkan</translation>
-<translation id="607730456154980869">Dapatkan jawaban lebih cepat dengan Gemini di Chrome</translation>
 <translation id="6078236141387574983">Sesuaikan kembali tinggi sheet</translation>
 <translation id="6084848228346514841">Pilih Tab</translation>
 <translation id="6089212833343035912">PIN Pengelola Sandi Google</translation>
@@ -1660,6 +1666,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <ph name="BEGIN_LINK" />Pelajari lebih lanjut<ph name="END_LINK" /></translation>
 <translation id="7005768247344091502">Jadikan default di Setelan…</translation>
 <translation id="7007970306646738803">Pilih tindakan yang akan dilakukan pada data penjelajahan yang ada di perangkat ini, seperti tab, histori, dan sandi.</translation>
+<translation id="7012978439516925343">Verifikasi diri Anda untuk membuat kunci sandi</translation>
 <translation id="7015418667643980944">Tampilan terpisah</translation>
 <translation id="7016070607649558507">Anda memiliki 1 sandi lemah. Perbaiki sekarang agar tetap terlindungi.</translation>
 <translation id="7016958933495968912">Opsi untuk Discover</translation>
@@ -1945,7 +1952,6 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8059533439631660104">Ciutkan bagian.</translation>
 <translation id="8061584726507121204">Histori</translation>
 <translation id="8064946459644399612">Preferensi halaman Tab Baru diterapkan</translation>
-<translation id="8069168488983557089">Dapatkan insight poin-poin penting yang membantu Anda memahami topik apa pun</translation>
 <translation id="8069394452933076548">Pilih kapan tab yang tidak digunakan baru-baru ini dipindahkan ke bagian tab tidak aktif.</translation>
 <translation id="8073670137947914548">Download selesai</translation>
 <translation id="8076492880354921740">Tab</translation>
@@ -2042,6 +2048,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8407831512155324054">Sandi Anda tampak kuat</translation>
 <translation id="8414030140103493759">Ambil Foto atau Video</translation>
 <translation id="8414283596511250978">Jangan pernah melupakan sandi Anda</translation>
+<translation id="8415120635186642416">Riset apa saja</translation>
 <translation id="842523302461531262">Jadikan default di setelan…</translation>
 <translation id="8428045167754449968">Kota</translation>
 <translation id="8428213095426709021">Setelan</translation>
@@ -2091,6 +2098,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8587001564479545614">Buat PIN pemulihan</translation>
 <translation id="8588404856427128947">Nonaktif</translation>
 <translation id="8590286732816598906">Grup tab, <ph name="GROUP_TITLE" />, Menu.</translation>
+<translation id="8593317261815647019">Buat kunci sandi di luar mode Samaran?</translation>
 <translation id="8600272508328041907">Beralih ke terjemahan Halaman penuh</translation>
 <translation id="860043288473659153">Nama pemegang kartu</translation>
 <translation id="8601611099293226919">Telusuri layar Anda dengan Google Lens</translation>
@@ -2161,6 +2169,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8803639129939845298">Aman</translation>
 <translation id="8813277370772331957">Ingatkan saya nanti</translation>
 <translation id="8814719628147284151">Lanjutkan</translation>
+<translation id="8817524703470045896">Pantau harga dan dapatkan notifikasi saat ada penurunan harga di situs mana pun</translation>
 <translation id="8819155700324279105">Berikan lapisan perlindungan tambahan terhadap ancaman online</translation>
 <translation id="8820817407110198400">Bookmark</translation>
 <translation id="8822421075653507124">Untuk memastikan perangkat ini dapat digunakan dengan aman, organisasi Anda mungkin perlu melihat informasi tentang sistem operasi, browser, setelan, dan software apa yang diinstal di perangkat.</translation>
@@ -2168,6 +2177,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8829809207373502270">Kunci sandi ini tidak berfungsi lagi. Kunci sandi ini telah dihapus dari <ph name="WEBSITE" /> dan akan segera dihapus dari sini. <ph name="BEGIN_LINK" />Tentang kunci sandi<ph name="END_LINK" /></translation>
 <translation id="8831208860914609320">Tutup semua tab tidak aktif</translation>
 <translation id="8837654851594567190">Urutkan menurut penayang</translation>
+<translation id="8844136307393039959">Penurunan harga produk yang Anda pantau</translation>
 <translation id="8848286253339013170">Menyimpan gambar di Google Foto untuk <ph name="USER_EMAIL" />…</translation>
 <translation id="8849001918648564819">Tersembunyi</translation>
 <translation id="8855242995793521265">Tidak memperlambat browser atau perangkat Anda.</translation>
@@ -2211,6 +2221,7 @@ Handoff juga harus diaktifkan pada bagian General di Settings, dan perangkat And
 <translation id="8976382372951310360">Bantuan</translation>
 <translation id="8976414606286374109">Kartu disimpan ke Akun Google Anda.</translation>
 <translation id="8981454092730389528">Kontrol Aktivitas Google</translation>
+<translation id="8988107725234939347"><ph name="WEBSITE_TITLE" />, situs yang disematkan</translation>
 <translation id="8998289560386111590">Tidak tersedia di perangkat Anda</translation>
 <translation id="9000532564152265066">Semua Tab</translation>
 <translation id="9003677638446136377">Periksa lagi</translation>

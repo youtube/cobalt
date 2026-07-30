@@ -11,6 +11,7 @@
 #include "base/memory_coordinator/traits.h"
 #include "content/browser/memory_coordinator/child_memory_consumer_registry_host.h"
 #include "content/common/content_export.h"
+#include "content/common/memory_coordinator/memory_consumer_group_controller.h"
 #include "content/public/common/child_process_id.h"
 #include "content/public/common/process_type.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
@@ -26,7 +27,8 @@ class CONTENT_EXPORT BrowserMemoryConsumerRegistry
     : public base::MemoryConsumerRegistry,
       public ChildMemoryConsumerRegistryHost::Delegate {
  public:
-  BrowserMemoryConsumerRegistry();
+  explicit BrowserMemoryConsumerRegistry(
+      MemoryConsumerGroupController& controller);
   ~BrowserMemoryConsumerRegistry() override;
 
   // ChildMemoryConsumerRegistryHost::Delegate:
@@ -41,39 +43,8 @@ class CONTENT_EXPORT BrowserMemoryConsumerRegistry
       ChildProcessId child_process_id,
       base::MemoryConsumer* consumer) override;
 
-  // Details about a group of consumers of the same type.
-  struct ConsumerInfo {
-    ConsumerInfo(std::string consumer_id,
-                 base::MemoryConsumerTraits traits,
-                 ProcessType process_type,
-                 ChildProcessId child_process_id,
-                 base::RegisteredMemoryConsumer consumer);
-
-    ConsumerInfo(ConsumerInfo&&);
-    ConsumerInfo& operator=(ConsumerInfo&&);
-
-    // An ID that uniquely identify the group.
-    std::string consumer_id;
-    // The traits of the consumer group. See "base/memory_coordinator/traits.h"
-    // for a description of all possible traits.
-    base::MemoryConsumerTraits traits;
-    // The type of the process hosting the consumers of the group.
-    ProcessType process_type;
-    // The ID of the process hosting the consumers of the group.
-    ChildProcessId child_process_id;
-    // The interface to notify this consumer group.
-    base::RegisteredMemoryConsumer consumer;
-  };
-  using value_type = ConsumerInfo;
-
-  using iterator = std::vector<ConsumerInfo>::iterator;
-  using const_iterator = std::vector<ConsumerInfo>::const_iterator;
-
-  iterator begin() { return consumer_infos_.begin(); }
-  iterator end() { return consumer_infos_.end(); }
-  const_iterator begin() const { return consumer_infos_.begin(); }
-  const_iterator end() const { return consumer_infos_.end(); }
-  size_t size() const { return consumer_infos_.size(); }
+  static void NotifyReleaseMemoryForTesting();
+  static void NotifyUpdateMemoryLimitForTesting(int percentage);
 
  private:
   // An implementation of MemoryConsumer that groups all consumers with the same
@@ -130,17 +101,8 @@ class CONTENT_EXPORT BrowserMemoryConsumerRegistry
   absl::flat_hash_map<ConsumerGroupKey, std::unique_ptr<ConsumerGroup>>
       consumer_groups_;
 
-  // For each ConsumerGroup, this holds a corresponding ConsumerInfo entry. This
-  // exists to facilitate iteration over existing MemoryConsumers.
-  std::vector<ConsumerInfo> consumer_infos_;
+  const raw_ref<MemoryConsumerGroupController> controller_;
 };
-
-namespace test {
-
-void CONTENT_EXPORT NotifyReleaseMemoryForTesting();
-void CONTENT_EXPORT NotifyUpdateMemoryLimitForTesting(int percentage);
-
-}  // namespace test
 
 }  // namespace content
 

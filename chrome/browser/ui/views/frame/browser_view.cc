@@ -88,6 +88,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window_state.h"
 #include "chrome/browser/ui/color/chrome_color_id.h"
+#include "chrome/browser/ui/context_highlight/context_highlight_window_feature.h"
 #include "chrome/browser/ui/dialogs/browser_dialogs.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_context.h"
 #include "chrome/browser/ui/exclusive_access/exclusive_access_manager.h"
@@ -201,11 +202,11 @@
 #include "chrome/browser/ui/views/tabs/browser_tab_strip_controller.h"
 #include "chrome/browser/ui/views/tabs/new_tab_button.h"
 #include "chrome/browser/ui/views/tabs/projects/projects_panel_view.h"
+#include "chrome/browser/ui/views/tabs/shared/tab_strip_flat_edge_button.h"
 #include "chrome/browser/ui/views/tabs/tab.h"
 #include "chrome/browser/ui/views/tabs/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_search_button.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
-#include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_flat_edge_button.h"
 #include "chrome/browser/ui/views/tabs/vertical/vertical_tab_strip_top_container.h"
 #include "chrome/browser/ui/views/theme_copying_widget.h"
 #include "chrome/browser/ui/views/toolbar/browser_app_menu_button.h"
@@ -306,6 +307,7 @@
 #include "ui/base/ui_base_features.h"
 #include "ui/base/window_open_disposition.h"
 #include "ui/base/window_open_disposition_utils.h"
+#include "ui/color/color_id.h"
 #include "ui/compositor/layer.h"
 #include "ui/compositor/paint_recorder.h"
 #include "ui/content_accelerators/accelerator_util.h"
@@ -389,7 +391,7 @@
 #endif
 
 #if BUILDFLAG(ENABLE_GLIC)
-#include "chrome/browser/ui/views/tabs/glic/glic_button.h"
+#include "chrome/browser/ui/views/glic/glic_button_interface.h"
 #endif  // BUILDFLAG(ENABLE_GLIC)
 
 #if BUILDFLAG(ENABLE_WEBUI_TAB_STRIP)
@@ -658,6 +660,9 @@ class BrowserView::ExclusiveAccessContextImpl
 
   void UpdateUIForTabFullscreen() override {
     browser_view_->GetFrameView()->UpdateFullscreenTopUI();
+    // Layout can change in vertical tabstrip mode when going from fullscreen
+    // to tab fullscreen and vice-versa.
+    browser_view_->InvalidateLayout();
   }
 
   WebContents* GetWebContentsForExclusiveAccess() override {
@@ -931,8 +936,19 @@ BrowserView::BrowserView(Browser* browser)
   lens_overlay_view_ =
       contents_container->AddChildView(std::move(lens_overlay_view));
 
+  // Create the view that will house the AI highlight overlay.
+  auto context_highlight_view = std::make_unique<views::View>();
+  context_highlight_view->SetProperty(
+      views::kElementIdentifierKey,
+      ContextHighlightWindowFeature::kContextHighlightViewElementId);
+  context_highlight_view->SetVisible(false);
+  context_highlight_view->SetLayoutManager(
+      std::make_unique<views::FillLayout>());
+  context_highlight_view_ =
+      contents_container->AddChildView(std::move(context_highlight_view));
+
   contents_container->SetLayoutManager(std::make_unique<ContentsLayoutManager>(
-      contents_view, lens_overlay_view_));
+      contents_view, lens_overlay_view_, context_highlight_view_));
 
   toolbar_ = top_container_->AddChildView(
       std::make_unique<ToolbarView>(browser_.get(), this));
@@ -987,19 +1003,21 @@ BrowserView::BrowserView(Browser* browser)
         AddChildView(std::make_unique<CustomFloatingCorner>(
             *this, CustomFloatingCorner::CornerOrientation::kTopLeading,
             views::ShapeContextTokens::kContentSeparatorRadius,
-            CustomFloatingCorner::FrameColor()));
+            CustomFloatingCorner::FrameTheme(), kColorVerticalTabStripShadow,
+            /*is_vertical_window_edge=*/true));
     vertical_tab_strip_bottom_corner_ =
         AddChildView(std::make_unique<CustomFloatingCorner>(
             *this, CustomFloatingCorner::CornerOrientation::kBottomLeading,
             views::ShapeContextTokens::kContentSeparatorRadius,
-            CustomFloatingCorner::FrameColor()));
+            CustomFloatingCorner::FrameTheme(), kColorVerticalTabStripShadow,
+            /*is_vertical_window_edge=*/true));
   } else {
     horizontal_tab_strip_region_view_->InitializeTabStrip();
   }
 
   if (tabs::IsProjectsPanelFeatureEnabled()) {
     auto projects_panel_container = std::make_unique<ProjectsPanelView>(
-        browser_->GetActions()->root_action_item(), browser_->profile());
+        browser_.get(), browser_->GetActions()->root_action_item());
 
     projects_panel_container_ =
         AddChildView(std::move(projects_panel_container));
@@ -1106,6 +1124,7 @@ BrowserView::~BrowserView() {
   multi_contents_view_ = nullptr;
   main_shadow_overlay_ = nullptr;
   lens_overlay_view_ = nullptr;
+  context_highlight_view_ = nullptr;
   window_scrim_view_ = nullptr;
   contents_container_ = nullptr;
   vertical_tab_strip_region_view_ = nullptr;
@@ -1275,7 +1294,7 @@ TabStripRegionView* BrowserView::tab_strip_view() const {
 }
 
 #if BUILDFLAG(ENABLE_GLIC)
-glic::GlicButton* BrowserView::GetGlicButton() {
+views::LabelButton* BrowserView::GetGlicButton() {
   auto* controller = tabs::VerticalTabStripStateController::From(browser_);
   if (vertical_tab_strip_region_view_ && controller &&
       controller->ShouldDisplayVerticalTabs()) {
@@ -1523,9 +1542,12 @@ void BrowserView::OnProjectsPanelStateChanged(
 // BrowserView, BrowserWindow implementation:
 
 void BrowserView::Show() {
-  if (InitialWebUIManager::From(browser()) &&
-      InitialWebUIManager::From(browser())->ShouldDeferShow()) {
-    return;
+  if (auto* manager = InitialWebUIManager::From(browser())) {
+    if (manager->ShouldDeferShow()) {
+      manager->SetWebUIReadyCallback(base::BindOnce(
+          &BrowserView::OnInitialWebUIReady, weak_ptr_factory_.GetWeakPtr()));
+      return;
+    }
   }
 
 #if !BUILDFLAG(IS_WIN) && !BUILDFLAG(IS_CHROMEOS)
@@ -1891,10 +1913,6 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
 
   WebContentsObserver::Observe(new_contents);
 
-  // TODO(laurila, crbug.com/1493617): Support multi-tab apps.
-  // window.setResizable API should never be called from multi-tab browser.
-  CHECK(!GetWebApiWindowResizable());
-
   // If |contents_container_| already has the correct WebContents, we can save
   // some work.  This also prevents extra events from being reported by the
   // Visibility API under Windows, as ChangeWebContents will briefly hide
@@ -1956,7 +1974,10 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
     ObserveAppBannerManager(app_banner_manager);
   }
 
-  UpdateUIForContents(new_contents);
+  // When switching tabs within a split, we want to layout to be done
+  // asynchronously in order to ensure the input events are triggered at the
+  // expected position.
+  UpdateUIForContents(new_contents, !tab_change_in_split_view);
 
   if (!IsFullscreen() || !tab_change_in_split_view) {
     RevealTabStripIfNeeded();
@@ -2006,13 +2027,11 @@ void BrowserView::OnActiveTabChanged(content::WebContents* old_contents,
 
     // Temporarily disable fast resize for to ensure that the new active tab
     // updates its layout.
-    views::WebView* contents_view_to_layout =
-        multi_contents_view_->GetActiveContentsView();
-    CHECK(contents_view_to_layout);
-    const bool original_fast_resize = contents_view_to_layout->GetFastResize();
-    contents_view_to_layout->SetFastResize(false);
+    const bool original_fast_resize =
+        multi_contents_view_->GetActiveContentsView()->GetFastResize();
+    UpdateFastResizeForContentViews(false);
     contents_container_->DeprecatedLayoutImmediately();
-    contents_view_to_layout->SetFastResize(original_fast_resize);
+    UpdateFastResizeForContentViews(original_fast_resize);
   } else if (tab_change_in_split_view) {
     UpdateActiveTabInSplitView();
   }
@@ -2377,13 +2396,8 @@ void BrowserView::ToolbarSizeChanged(bool is_animating) {
     return;
   }
 
-  std::vector<ContentsWebView*> contents_web_views =
-      GetAllVisibleContentsWebViews();
-
   if (is_animating) {
-    for (auto* contents_web_view : contents_web_views) {
-      contents_web_view->SetFastResize(true);
-    }
+    UpdateFastResizeForContentViews(true);
   }
   UpdateUIForContents(GetActiveWebContents());
 
@@ -2395,9 +2409,7 @@ void BrowserView::ToolbarSizeChanged(bool is_animating) {
   }
 
   if (is_animating) {
-    for (auto* contents_web_view : contents_web_views) {
-      contents_web_view->SetFastResize(false);
-    }
+    UpdateFastResizeForContentViews(false);
   }
 
   // When transitioning from animating to not animating we need to make sure the
@@ -2405,7 +2417,7 @@ void BrowserView::ToolbarSizeChanged(bool is_animating) {
   // haven't changed contents_container_ won't get a Layout and we'll end up
   // with a gray rect because the clip wasn't updated.
   if (!is_animating) {
-    for (auto* contents_web_view : contents_web_views) {
+    for (auto* contents_web_view : GetAllVisibleContentsWebViews()) {
       contents_web_view->InvalidateLayout();
     }
     contents_container_->DeprecatedLayoutImmediately();
@@ -2426,18 +2438,13 @@ void BrowserView::ToolbarSizeChanged(bool is_animating) {
 
 void BrowserView::TabDraggingStatusChanged(bool is_dragging) {
 #if !BUILDFLAG(IS_LINUX)
-  std::vector<ContentsWebView*> contents_web_views =
-      GetAllVisibleContentsWebViews();
-
-  for (auto* contents_web_view : contents_web_views) {
-    contents_web_view->SetFastResize(is_dragging);
-  }
+  UpdateFastResizeForContentViews(is_dragging);
 
   if (!is_dragging) {
     // When tab dragging is ended, we need to make sure the web contents get
     // re-layed out. Otherwise we may see web contents get clipped to the window
     // size that was used during dragging.
-    for (ContentsWebView* contents_web_view : contents_web_views) {
+    for (auto* contents_web_view : GetAllVisibleContentsWebViews()) {
       contents_web_view->InvalidateLayout();
     }
     contents_container_->DeprecatedLayoutImmediately();
@@ -2887,21 +2894,7 @@ void BrowserView::OnWidgetVisibilityChanged(views::Widget* widget,
 }
 
 std::optional<bool> BrowserView::GetWebApiWindowResizable() const {
-  // TODO(laurila, crbug.com/1493617): Support multi-tab apps.
-  if (browser()->tab_strip_model()->count() > 1) {
-    return std::nullopt;
-  }
-
-  // The value can only be set in web apps, where there currently can only be 1
-  // WebContents, the return value can be determined only by looking at the
-  // value set by the active WebContents' primary page.
-  content::WebContents* web_contents =
-      const_cast<BrowserView*>(this)->GetActiveWebContents();
-  if (!web_contents || !web_contents->GetPrimaryMainFrame()) {
-    return std::nullopt;
-  }
-
-  return web_contents->GetPrimaryPage().GetResizable();
+  return resizable_from_web_api_;
 }
 
 bool BrowserView::GetCanResize() {
@@ -2922,33 +2915,13 @@ ui::mojom::WindowShowState BrowserView::GetWindowShowState() const {
   }
 }
 
-void BrowserView::OnWebApiWindowResizableChanged() {
-  // TODO(laurila, crbug.com/1493617): Support multi-tab apps.
-  // The value can only be set in web apps, where there currently can only be 1
-  // WebContents, the return value can be determined only by looking at the
-  // value set by the active WebContents' primary page.
-  content::WebContents* web_contents = GetActiveWebContents();
-  if (!web_contents || !web_contents->GetPrimaryMainFrame() || !GetWidget()) {
+void BrowserView::SetResizableFromWebApi(std::optional<bool> resizable) {
+  // The API is allowed only for PWAs and IWAs
+  CHECK_EQ(browser()->GetType(), BrowserWindowInterface::TYPE_APP);
+  if (resizable == resizable_from_web_api_) {
     return;
   }
-
-  auto can_resize = web_contents->GetPrimaryPage().GetResizable();
-  if (cached_can_resize_from_web_api_ == can_resize) {
-    return;
-  }
-
-  // Setting it to std::nullopt should never be blocked.
-  if (can_resize.has_value() && browser()->tab_strip_model()->count() > 1) {
-    // This adds a warning to the active tab, even when another tab makes the
-    // call, which also needs to be fixed as part of the multi-apps support.
-    web_contents->GetPrimaryMainFrame()->AddMessageToConsole(
-        blink::mojom::ConsoleMessageLevel::kWarning,
-        base::StringPrintf("window.setResizable blocked due to being called "
-                           "from a multi-tab browser."));
-    return;
-  }
-
-  cached_can_resize_from_web_api_ = can_resize;
+  resizable_from_web_api_ = resizable;
   NotifyWidgetSizeConstraintsChanged();
   InvalidateLayout();  // To show/hide the maximize button.
 }
@@ -2995,19 +2968,6 @@ void BrowserView::OnWidgetWindowModalVisibilityChanged(views::Widget* widget,
   // (-[NSWindow beginSheet:]), which natively draw a scrim.
   window_scrim_view_->SetVisible(visible);
 #endif
-}
-
-void BrowserView::DidFirstVisuallyNonEmptyPaint() {
-  auto can_resize = GetWebApiWindowResizable();
-  if (cached_can_resize_from_web_api_ == can_resize) {
-    return;
-  }
-  cached_can_resize_from_web_api_ = can_resize;
-
-  // Observers must be notified when there's new `Page` with a differing
-  // `can_resize` value to make sure that they know that `Widget`'s
-  // resizability has changed.
-  NotifyWidgetSizeConstraintsChanged();
 }
 
 void BrowserView::TitleWasSet(content::NavigationEntry* entry) {
@@ -4349,11 +4309,6 @@ void BrowserView::OnWidgetMove() {
     return;
   }
 
-  // Cancel any tabstrip animations, some of them may be invalidated by the
-  // window being repositioned.
-  // Comment out for one cycle to see if this fixes dist tests.
-  // tabstrip_->DestroyDragController();
-
   // There may be no status bubbles if this is invoked during construction.
   std::vector<StatusBubble*> status_bubbles = GetStatusBubbles();
   for (StatusBubble* status_bubble : status_bubbles) {
@@ -5585,7 +5540,8 @@ bool BrowserView::MaybeUpdateDevtools(content::WebContents* contents) {
   return devtools_layout_updated;
 }
 
-void BrowserView::UpdateUIForContents(WebContents* contents) {
+void BrowserView::UpdateUIForContents(WebContents* contents,
+                                      bool should_layout_immediately) {
   TRACE_EVENT0("ui", "BrowserView::UpdateUIForContents");
   bool needs_layout = MaybeShowBookmarkBar(contents);
 
@@ -5598,7 +5554,17 @@ void BrowserView::UpdateUIForContents(WebContents* contents) {
   needs_layout |= MaybeUpdateDevtools(contents);
 
   if (needs_layout) {
-    DeprecatedLayoutImmediately();
+    if (should_layout_immediately) {
+      DeprecatedLayoutImmediately();
+    } else {
+      InvalidateLayout();
+    }
+  }
+}
+
+void BrowserView::UpdateFastResizeForContentViews(bool fast_resize) {
+  for (auto* contents_web_view : GetAllVisibleContentsWebViews()) {
+    contents_web_view->SetFastResize(fast_resize);
   }
 }
 
@@ -6216,6 +6182,10 @@ void BrowserView::OnFirstPresentation(
     manager->OnBrowserWindowFirstPresentation(
         frame_timing_details.presentation_feedback.timestamp);
   }
+}
+
+void BrowserView::OnInitialWebUIReady() {
+  Show();
 }
 
 #if BUILDFLAG(ENTERPRISE_SCREENSHOT_PROTECTION)

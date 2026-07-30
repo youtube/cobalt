@@ -541,6 +541,17 @@ PromptInTab に設定した場合は、ユーザーの認証が期限切れに�
 このポリシーは、更新の延長が自動的に行われない古い機種にのみ該当します。
 
 詳しくは、https://support.google.com/chrome/a/?p=extended_updates_support をご覧ください。</translation>
+<translation id="1432008122934973720">デフォルトでは、ローカル ネットワーク アクセス（LNA）の権限は、明示的に委任されている場合にのみ、クロスオリジンのサブフレームでリクエストできます。このポリシーを使用すると、デフォルトの動作をオーバーライドして、権限ポリシーで明示的に拒否されていない限り、デフォルトで LNA 権限をサブフレームに継承します。
+
+このポリシーを有効に設定した場合、デフォルトですべての LNA 権限ポリシー機能がサブフレームに委任され、ローカル ネットワーク リクエストが許可されます（権限プロンプトがトリガーされます）。
+
+このポリシーを無効に設定するか未設定のままにした場合は、権限ポリシー機能がサブフレームに明示的に委任されているときに限り、ローカル ネットワーク リクエストが許可され、権限プロンプトがトリガーされます。
+
+このポリシーは、権限ポリシー機能の <ph name="LOCAL_NETWORK_ACCESS_FEATURE_NAME" />、<ph name="LOOPBACK_NETWORK_FEATURE_NAME" />、<ph name="LOCAL_NETWORK_FEATURE_NAME" /> に適用されます。
+
+ローカル ネットワーク アクセスについて詳しくは、https://wicg.github.io/local-network-access/ および https://developer.chrome.com/blog/local-network-access をご覧ください。
+
+権限ポリシーの詳細については、https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/Permissions_Policy をご覧ください。</translation>
 <translation id="1432834104376790711">このポリシーでは、バッテリー セーバー モードの設定を有効または無効にできます。
       Chrome では、この設定によりフレームレートを抑制して消費電力を低減できます。このポリシーを未設定のままにした場合、エンドユーザーは chrome://settings/performance でこの設定を管理できます。
       ChromeOS では、この設定によりフレームレートと CPU 周波数を抑制し、バックライトを暗くして、Android をバッテリー セーバー モードにできます。複数の CPU を搭載したデバイスでは、一部の CPU がオフになります。
@@ -1200,6 +1211,7 @@ Manifest V2 を使用した拡張機能はサポートの終了が予定され�
 
           このポリシーは「DefaultSearchProviderEnabled」ポリシーが有効な場合にのみ適用されます。</translation>
 <translation id="1850439894606905202">デフォルトで、ドキュメントをサイトキー エージェント クラスタに割り当てる（document.domain は引き続き設定可能）。</translation>
+<translation id="1851025124923805399">ローカル デバイスとローカル ネットワーク エンドポイントへのネットワーク リクエストを許可するサイトを指定する</translation>
 <translation id="1851034156561932736">充電時のサウンドを有効にする</translation>
 <translation id="1851282952069386119">Chrome クリーンアップによるクリーンアップ結果を Google と共有するかをユーザーが選択できるようにする</translation>
 <translation id="1852294065645015766">メディアの自動再生を許可する</translation>
@@ -1521,6 +1533,7 @@ accounts.google.com など一部の URL は認証に必要です。オンライ�
 <translation id="2090939118981888335">このポリシーを有効に設定した場合、データ圧縮プロキシが許可されます。このポリシーを無効に設定した場合、プロキシは許可されません。
 
       このポリシーを設定した場合、ユーザーはこの設定を変更できません。未設定の場合、ユーザーはこの機能の使用を選択できます。</translation>
+<translation id="2091689441590064807">明示的な委任なしでサブフレームからの LNA リクエストを許可しない</translation>
 <translation id="2093552723795057221">音声の状態を報告しない</translation>
 <translation id="209388704279338003">このポリシーは非推奨で、サポートされていません。代わりに <ph name="DEVICE_PRINTERS_ACCESS_MODE_POLICY_NAME" /> を使用してください。</translation>
 <translation id="2093951844062548778">このポリシーでは、クイック アンサーで定義の結果を取得する際に、選択したコンテンツへのアクセスとサーバーへの情報送信を許可します。
@@ -1733,6 +1746,7 @@ URI テンプレートに <ph name="HTTP_VARIABLE_DNS" /> 変数が含まれて�
 <translation id="2200698565850397198">ネイティブ メッセージングの拒否リストを設定する</translation>
 <translation id="220157212534775145">File System Access API において推奨されていない <ph name="FILE_SYSTEM_SYNC_ACCESS_HANDLE" /> の非同期インターフェースを再度有効にする</translation>
 <translation id="2202787915587511214">NTLMv2 を有効にする</translation>
+<translation id="2202789864457330375">ローカル デバイスへのネットワーク リクエストをブロックするサイトを指定する</translation>
 <translation id="2204379573346866896">現在時刻での経過時間（分）です。</translation>
 <translation id="2204753382813641270">シェルフの自動非表示を指定する</translation>
 <translation id="2208092773610663977">このポリシーを有効に設定した場合、ユーザーは <ph name="PRODUCT_NAME" /> で入力したユーザー名とパスワードが漏洩していないかどうかを確認できます。
@@ -3062,6 +3076,22 @@ ClearCrossSiteCrossBrowsingContextGroupWindowName バリエーションでは、
 <translation id="3181114468897395940">PageUp / PageDown の設定で Alt 修飾キーを含むショートカットを使用する</translation>
 <translation id="3182503302060513467">中央スロットのお知らせが使用可能であれば、新しいタブページに表示する</translation>
 <translation id="3184161739683646075">DNS-over-HTTPS モードを管理する</translation>
+<translation id="3184247679989063353">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトで発行されたネットワーク リクエストに対して、<ph name="LOCAL_NETWORK_ACCESS" /> のチェックを行いません。
+
+ここで指定したパターンに含まれていないオリジンについては、ユーザーの個人設定が適用されます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
+
+ローカル デバイスとローカル ネットワーク エンドポイントへのリクエストを許可またはブロックするオリジンを指定するポリシーは複数あります。オリジンが以下の複数のポリシーと一致する場合、ポリシーは次の優先順位で適用されます。
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LoopbackNetworkAccessBlockedForUrls
+  - LoopbackNetworkAccessAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="3184638144755436350">Chrome はサンドボックス化された iframe 内で外部プロトコルへの移動をブロックします。https://chromestatus.com/features/5680742077038592 をご覧ください。True の場合は、該当する移動を Chrome がブロックできるようになります。False の場合は、該当する移動を Chrome がブロックするのを防ぎます。このデフォルトは True で、セキュリティ機能が有効になっています。このポリシーは、新しい制限の影響を受ける社内ウェブサイトの更新に時間がかかる場合に使用できます。このエンタープライズ ポリシーは一時的なものであり、<ph name="PRODUCT_NAME" /> バージョン 117 以降で削除される予定です。
       </translation>
 <translation id="3185009703220253572">バージョン <ph name="SINCE_VERSION" /> 以降</translation>
@@ -4714,6 +4744,20 @@ URL パターンは、<ph name="DIRECT_SOCKETS_ALLOWED_FOR_URLS_POLICY_NAME" /> 
 このポリシーを無効にした場合、非推奨の古い構文は無効になります。
 
 このポリシーを未設定のままにした場合、非推奨の古い構文は無効になります。</translation>
+<translation id="4400152722459197056">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトで発行されたローカル ネットワーク エンドポイントへのネットワーク リクエストに対して、<ph name="LOCAL_NETWORK_ACCESS" /> のチェックを行いません。
+
+ここで指定したパターンに含まれていないオリジンについては、ユーザーの個人設定が適用されます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
+
+ローカル ネットワーク エンドポイントへのリクエストを許可またはブロックするオリジンを指定するポリシーは複数あります。オリジンが以下の複数のポリシーと一致する場合、ポリシーは次の優先順位で適用されます。
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="4401196752827224189">セキュアでないコンテキストの WebSQL は、M110 以降削除される予定です。このポリシーにより、この API は再度有効になります。
           このポリシーを true に設定すると、セキュアでないコンテキストの WebSQL が使用可能になります。
           このポリシーを false に設定するか未設定のままにすると、セキュアでないコンテキストの WebSQL は M109 まで使用可能ですが、M110 以降は使用できなくなります。
@@ -4774,17 +4818,6 @@ WebSQL は M112 で削除されました。</translation>
 <translation id="4426986640594727372">システムの位置情報へのアクセスを許可する</translation>
 <translation id="4427173305799125784">PDF ビューアで PDF に注釈を追加できない</translation>
 <translation id="4432762137771104529">セーフ ブラウジングの詳細レポートを有効にする</translation>
-<translation id="4432772502174730966">このポリシーでは、対象となるすべての生成 AI 機能のデフォルト設定を定義します。たとえば、このポリシーを値 1 に設定した場合、対象となるすべての生成 AI 機能のデフォルト設定は 1 になります。この設定は、手動で設定したポリシー値には影響しません。この設定は、Chrome で対象となる生成 AI 機能でデフォルトとして定義されます。対象となる機能の一覧については、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。
-
-0 = この機能の使用と、Google が AI モデルを改善する目的で関連データを使用することを許可します。関連データには、機能に応じてプロンプト、入力内容、出力内容、ソース資料、フィードバックの文面などが含まれます。AI モデルを改善するため、人間のレビュアーが確認する場合もあります。以下に記載している場合を除き、0 がデフォルト値です。
-
-1 = この機能の使用を許可しますが、Google がモデルを改善する目的でユーザーのコンテンツ（プロンプト、入力内容、出力内容、ソース資料、フィードバックの文面など）を使用することは許可しません。1 は、<ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> で管理されている企業ユーザーと、<ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> で管理されている教育機関向けアカウントのデフォルト値です。
-
-2 = この機能を許可しません。
-
-対象となる Chrome の機能に同等のポリシー値がない場合は、次に大きい値が使用されます。一部のポリシー（<ph name="GEMINI_SETTINGS_POLICY_NAME" /> など）では、「許可する」と「許可しない」の状態のみがサポートされます。<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーを 0 または 1 に設定した場合、この機能は許可されます。ポリシーを 2 に設定した場合、この機能は許可されません。このポリシーの値で各機能がどのように動作するかについては、該当の機能のドキュメントをご覧ください。
-
-生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="443454694385851356">以前の暗号化タイプ（安全ではありません）</translation>
 <translation id="4435032708588431506">QUIC を許可する</translation>
 <translation id="443665821428652897">ブラウザのシャットダウンでサイトのデータを削除する（サポート終了予定）</translation>
@@ -5368,6 +5401,23 @@ JavaScript の最適化ポリシーの例外は、サイトの詳細レベル（
       有効に設定した場合、Gemini の紹介画面が表示されます。
 
       未設定の場合、Gemini の紹介画面は企業の管理対象ユーザーに対してはスキップされ、管理対象外ユーザーには表示されます。</translation>
+<translation id="4781685421378746692">このポリシーでは、<ph name="PRODUCT_NAME" /> のサイドパネルやタブでページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> や <ph name="GOOGLE_LENS_PRODUCT_NAME" /> と共有できるようにするかどうかを制御します。
+
+なお、このポリシーはウェブ上の <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> には影響しません。このポリシーは、ユーザーが <ph name="PRODUCT_NAME" /> の使用時に情報を共有するかどうかのみを制御します。
+
+0 / 未設定 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できます。
+
+1 = ユーザーはページやファイルのコンテンツを <ph name="GOOGLE_AI_MODE_PRODUCT_NAME" /> と共有できません。コンテキストを共有するためのエントリ ポイントとサイドパネルは無効になるか、非表示になります。
+
+<ph name="GOOGLE_SEARCH_PRODUCT_NAME" /> がユーザーのデフォルトの検索エンジンでない場合、この機能は無効になっているため、このポリシーは無視されます。
+
+このポリシーは、<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーとは関係なく動作します。<ph name="AI_MODE_SETTINGS_POLICY_NAME" /> ポリシーはアドレスバーまたは新しいタブページの検索ボックスのエントリ ポイントのみを制御し、このポリシーはサイドパネルやタブでのコンテキストの共有を制御します。
+
+また、このポリシーは、<ph name="GEMINI_SETTINGS_POLICY_NAME" /> を使用して無効にできる組み込みの <ph name="GOOGLE_GEMINI_PRODUCT_NAME" /> にも影響しません。
+
+このポリシーを未設定のままにした場合、動作は <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> ポリシーによって決まります。
+
+生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="4783415902268741066">ブラウザのサイドパネルにデフォルトの検索エンジンの最新の検索結果ページを表示することを許可します</translation>
 <translation id="4786784434769279324">パソコンがアイドル状態になったときに行う動作</translation>
 <translation id="4787763197941188108">デフォルトの印刷ページサイズをオーバーライドします。
@@ -6269,6 +6319,20 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 <translation id="5395778184390568113">Home / End「6 個セット」キーのトリガーに使用するショートカットを制御する</translation>
 <translation id="5396322417222266779">ユーザーにシステム ショートカットのカスタマイズを許可する</translation>
 <translation id="5398387276166014955">サードパーティのコードを Chrome に設定できるようにする</translation>
+<translation id="5399022269499105814">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトに対して、ローカル デバイスへの <ph name="LOCAL_NETWORK_ACCESS" /> のネットワーク リクエストの発行をブロックします。
+
+ここで指定したパターンに含まれていないオリジンについては、ユーザーの個人設定が適用されます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
+
+ローカル デバイスへのリクエストを許可またはブロックするオリジンを指定するポリシーは複数あります。オリジンが以下の複数のポリシーと一致する場合、ポリシーは次の優先順位で適用されます。
+
+  - LoopbackNetworkBlockedForUrls
+  - LoopbackNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="5401574762248900530"><ph name="CLASS_TOOLS_NAME" /> の画面表示機能の設定</translation>
 <translation id="5401696449591951427"><ph name="CHROME_DEVICES_LINK" /> を有効にする</translation>
 <translation id="5404749470367600971">ユーザー補助パフォーマンス フィルタを許可する。</translation>
@@ -6815,13 +6879,6 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="5746149754419996562"><ph name="PRODUCT_OS_NAME" /> で Glanceable ウィジェットの表示を有効にします。具体的には、シェルフの日付チップからアクセスできるウィジェットです。
 このポリシーを有効にすると、Glanceables は <ph name="PRODUCT_OS_NAME" /> で有効になります。
 このポリシーを無効にするか未設定のままにした場合、Glanceables は <ph name="PRODUCT_OS_NAME" /> で有効になりません。</translation>
-<translation id="5747628966013559697"><ph name="PRODUCT_NAME" /> で基本的な生成 AI モデルをダウンロードしローカルの推論に使用する方法を設定します。
-
-このポリシーを「許可」（0）に設定するか未設定のままにした場合、モデルは自動的にダウンロードされ推論に使用されます。
-
-このポリシーを無効（1）に設定した場合、モデルはダウンロードされません。
-
-パソコンのプラットフォームでは、モデルのダウンロードは <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" /> によって無効にすることもできます。</translation>
 <translation id="5749396052108288586">このポリシーはサポートを終了しました。代わりに <ph name="REMOTE_ACCESS_HOST_CLIENT_DOMAIN_LIST_POLICY_NAME" /> を使用してください。</translation>
 <translation id="574983287620584622">ログイン画面でユーザー補助機能のショートカットを有効にする</translation>
 <translation id="5755002458331714762"> Web Components v0 API（Shadow DOM v0、Custom Elements v0、HTML Imports）は 2018 年にサポートが終了し、M80 以降ではデフォルトで無効となっていますが、このポリシーにより M84 までこれらの機能を再度有効にできるようにしました。
@@ -6841,6 +6898,7 @@ https://wiki.samba.org/index.php/Samba_4.6_Features_added/changed#Kerberos_clien
 <translation id="5766438888216077649"><ph name="BLANK_PAGE_NAME" /> をターゲットとするリンクで <ph name="WINDOW_OPENER_PROPERTY" /> を設定しない</translation>
 <translation id="5767776869128458023">代替エラーページを無効にする</translation>
 <translation id="5770738360657678870">Dev チャンネル（不安定な場合があります）</translation>
+<translation id="5772841828612966342">有効: XSLT の使用を明示的に許可する。</translation>
 <translation id="5774345930803672932">このポリシーを True に設定するか未設定のままにした場合、イベント、テレメトリー、情報を
       暗号化されたレポート パイプラインに報告できます。このポリシーを False に設定した場合、暗号化されたレポート パイプラインは無効になります。</translation>
 <translation id="5774856474228476867">デフォルトの検索プロバイダの検索 URL</translation>
@@ -7282,6 +7340,7 @@ false に設定した場合、教師はこの機能にアクセスできませ�
 注: ブラウザの実行中にこのポリシーを変更した場合は、新たに開始したレンダラ プロセスにのみ変更が反映されます。</translation>
 <translation id="6083281887050888160">「Just Works」Bluetooth ペア設定を有効にする</translation>
 <translation id="6083631234867522991">Windows（Windows クライアント）:</translation>
+<translation id="6085580138417523410">明示的な委任なしでサブフレームからのローカル ネットワーク アクセス（LNA）リクエストを許可する</translation>
 <translation id="6087413944876892918"><ph name="HAPPY_EYEBALLS_V3" /> アルゴリズムを使用する</translation>
 <translation id="608788685013546076">電力ピークシフトのバッテリーのしきい値をパーセントで設定する</translation>
 <translation id="6089679180657323464">Wilco の診断およびテレメトリー用コントローラの設定を制御します。</translation>
@@ -9347,6 +9406,11 @@ URL パターンは、<ph name="WEB_PRINTING_ALLOWED_FOR_URLS_POLICY_NAME" /> �
 <translation id="7410074797376205571"><ph name="CHROME_REMOTE_DESKTOP_PRODUCT_NAME" /> にリモートホストからプロキシ送信される　WebAuthn API リクエストの実行を許可します。</translation>
 <translation id="7412456346709338637">Thunderbolt/USB4 周辺機器のデータアクセスを有効にします</translation>
 <translation id="7414890119082492552">設定なし。</translation>
+<translation id="7416222110012824615">このポリシーでは、XSLT 機能（XSLTProcessor JavaScript API と XSL 処理命令）を使用できるかどうかを制御します。
+このポリシーを有効に設定した場合、ブラウザでの XSLT 機能のデフォルトの状態に関係なく、この機能を使用できます。
+このポリシーを無効に設定した場合、ブラウザでの XSLT 機能のデフォルトの状態に関係なく、この機能は使用できません。
+このポリシーを未設定のままにした場合、XSLT を使用できるかどうかはブラウザのデフォルト設定とフィールド トライアルによって決まります。
+このポリシーは一時的なもので、M164 で削除される予定です。</translation>
 <translation id="7417438464912687020">このパソコンへのリモート アクセス接続を許可する</translation>
 <translation id="7417972229667085380">プレゼンテーション モードでのアイドル時間に掛ける倍率（サポート終了）</translation>
 <translation id="7421230730436851224">音声処理をサンドボックス化しない</translation>
@@ -9384,6 +9448,7 @@ Kyber の提供には下位互換性があります。既存の TLS サーバー
 このポリシーを未設定のままにした場合、通常のユーザーに対しては「<ph name="ALLOWED_NAME" />」に設定した場合と同等の機能が提供されます。エンタープライズ ユーザーに対しては、このポリシーを未設定のままにするとデフォルトで「<ph name="DISALLOWED_NAME" />」となります。</translation>
 <translation id="7438982301540282785"><ph name="MICROSOFT_ONE_DRIVE_NAME" /> を自動で設定する</translation>
 <translation id="7443356543619955157">このポリシーでは、<ph name="PRODUCT_OS_NAME" /> デバイスのすべてのユーザーにプッシュ型ネットワーク設定を許可します。ネットワーク設定は、Open Network Configuration 形式で定義された JSON 形式の文字列です。</translation>
+<translation id="744349502210151344">デフォルト: ブラウザのデフォルト設定とフィールド トライアルに基づいて、XSLT を使用できるかどうかを決定する。</translation>
 <translation id="7446978687387327623">セーフ ブラウジングのプロキシ リアルタイム チェックを許可する</translation>
 <translation id="7448430478749155471">ログイン画面で「選択して読み上げ」を有効にする</translation>
 <translation id="7455912144588577399">このポリシーを true に設定した場合、ユーザーはテキスト読み上げを使用して対象のウェブページを読み上げることができます。これは、サーバー側のコンテンツ抽出と音声合成によって行われます。false に設定した場合、この機能は無効になります。このポリシーをデフォルトに設定するか未設定のままにした場合、読み上げが有効になります。</translation>
@@ -9584,6 +9649,20 @@ URL パターンは、<ph name="DIRECT_SOCKETS_PRIVATE_NETWORK_ACCESS_BLOCKED_FO
           このポリシーを false に設定するか未設定のままにした場合、ユーザーはロック画面とログイン画面で PIN を自動送信できません。
 
           このポリシーを設定した場合、ユーザーはこの機能を有効にできません。</translation>
+<translation id="7609566862616914296">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトに対して、ローカル ネットワーク エンドポイントへの <ph name="LOCAL_NETWORK_ACCESS" /> のネットワーク リクエストの発行をブロックします。
+
+ここで指定したパターンに含まれていないオリジンについては、ユーザーの個人設定が適用されます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
+
+ローカル ネットワーク エンドポイントへのリクエストを許可またはブロックするオリジンを指定するポリシーは複数あります。オリジンが以下の複数のポリシーと一致する場合、ポリシーは次の優先順位で適用されます。
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="7612030083959326401"><ph name="PASSWORD_MANAGER_NAME" />（保存と入力）を無効にするドメインのリストを設定する</translation>
 <translation id="7612059745454194563">認証情報プロバイダ拡張機能のプロモーションの表示を許可しない</translation>
 <translation id="7612157962821894603"><ph name="PRODUCT_NAME" /> 起動時にシステム全体のフラグを適用</translation>
@@ -9663,6 +9742,7 @@ URL パターンは、<ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> �
 <translation id="7669630878711068277">このポリシーを有効に設定するか未設定のままにした場合、ユーザーは <ph name="PRODUCT_NAME" /> で印刷することができます。ユーザーはこの設定を変更できません。
 
       このポリシーを無効に設定した場合、ユーザーは <ph name="PRODUCT_NAME" /> から印刷できません。印刷は、その他メニュー、拡張機能、JavaScript アプリケーションで無効になります。</translation>
+<translation id="7672510074688643558">明示的な委任なしでサブフレームからの LNA リクエストを許可する</translation>
 <translation id="7673194325208122247">期間（ミリ秒）</translation>
 <translation id="7677220829878081413">
       このポリシーを「ArcSession」に設定すると、ユーザーのログアウト時に Android が起動していた場合に、デバイスの再起動が行われます。
@@ -9761,6 +9841,7 @@ URL パターンは、<ph name="WEB_PRINTING_BLOCKED_FOR_URLS_POLICY_NAME" /> �
 <translation id="7719808201797990069">タブ破棄の例外 URL パターン</translation>
 <translation id="7721944091689270995"><ph name="PLUGIN_VM_NAME" /> ユーザー ID</translation>
 <translation id="7728486978686128364">DELETE、GET、HEAD、OPTIONS、POST、PUT 以外のリクエスト メソッドを大文字にしない</translation>
+<translation id="7729564356092798350">ローカル ネットワーク エンドポイントへのネットワーク リクエストをブロックするサイトを指定する</translation>
 <translation id="7731026922044991970">すべてのサイトの Cookie を以前の <ph name="ATTRIBUTE_SAMESITE_NAME" /> 動作に戻す</translation>
 <translation id="7732907212083471072">削除済みのポリシー</translation>
 <translation id="7734212505800048991">
@@ -10230,6 +10311,20 @@ Internet Explorer の <ph name="IEEM_SITELIST_POLICY" /> ポリシーについ�
 <translation id="8056273037819805106"><ph name="PRODUCT_OS_NAME" /> のログイン認証情報を管理対象プロキシのネットワーク認証に使用する。</translation>
 <translation id="8056800559672904373">管理対象アカウントを予備のアカウントのないメイン アカウントのみとする（プロフィールの作成時に既存の閲覧データをインポートできる）</translation>
 <translation id="8059164285174960932">リモート アクセス クライアントが認証トークンを取得する URL</translation>
+<translation id="8059262352692096329">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトで発行されたローカル デバイスへのネットワーク リクエストに対して、<ph name="LOCAL_NETWORK_ACCESS" /> のチェックを行いません。
+
+ここで指定したパターンに含まれていないオリジンについては、ユーザーの個人設定が適用されます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
+
+ローカル デバイスへのリクエストを許可またはブロックするオリジンを指定するポリシーは複数あります。オリジンが以下の複数のポリシーと一致する場合、ポリシーは次の優先順位で適用されます。
+
+  - LoopbackNetworkBlockedForUrls
+  - LoopbackNetworkAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="8059352177830050556">デバイスのバックライト情報レポートを有効にする</translation>
 <translation id="8062485064082966327">匿名の Google サービスを使用して、ラベル付けがない画像の説明を自動的に取得する</translation>
 <translation id="8066428282805800713">ChromeOS Flex で追加のハードウェア データを送信する</translation>
@@ -10505,6 +10600,22 @@ false に設定した場合、管理対象のネットワークに接続され�
 
 レガシー テクノロジーについて詳しくは、https://chromestatus.com/features をご覧ください。</translation>
 <translation id="8273183018575414926">プログレッシブ ウェブアプリ</translation>
+<translation id="8274053052968966211">URL パターンのリストを指定します。このリストのパターンと一致するオリジンのウェブサイトに対して、<ph name="LOCAL_NETWORK_ACCESS" /> のネットワーク リクエストの発行をブロックします。
+
+ここで指定したパターンに含まれていないオリジンについては、ユーザーの個人設定が適用されます。
+
+有効な URL パターンについて詳しくは、https://chromeenterprise.google/policies/url-patterns/ をご覧ください。
+
+<ph name="LOCAL_NETWORK_ACCESS" /> の制限については、https://wicg.github.io/local-network-access/ をご覧ください。
+
+ローカル デバイスとローカル ネットワーク エンドポイントへのリクエストを許可またはブロックするオリジンを指定するポリシーは複数あります。オリジンが以下の複数のポリシーと一致する場合、ポリシーは次の優先順位で適用されます。
+
+  - LocalNetworkBlockedForUrls
+  - LocalNetworkAllowedForUrls
+  - LoopbackNetworkAccessBlockedForUrls
+  - LoopbackNetworkAccessAllowedForUrls
+  - LocalNetworkAccessBlockedForUrls
+  - LocalNetworkAccessAllowedForUrls</translation>
 <translation id="8274603902181597201">ユーザーの ecryptfs ホーム ディレクトリのデータをワイプして、ext4 で暗号化された新規のホーム ディレクトリから開始する。</translation>
 <translation id="8274926413890711289">詳細なレポート コントロールを有効にする</translation>
 <translation id="8275103737670730746">事前のユーザー操作なしでファイルまたはディレクトリ選択 API の呼び出しを許可する</translation>
@@ -10541,6 +10652,7 @@ false に設定した場合、管理対象のネットワークに接続され�
           このポリシーに設定した値が最短～最長の範囲内にない場合、ホストが開始されない可能性があります。
 
           なお、クリップボードの実際の上限サイズは、このポリシーで制御されない WebRTC データ チャンネル メッセージの上限サイズに基づいて決まります。</translation>
+<translation id="8294127013911518331">XSLT 機能を使用できるかどうかを制御する</translation>
 <translation id="8294750666104911727">通常、X-UA-Compatible が chrome=1 に設定されているページは、ChromeFrameRendererSettings ポリシーに関係なく <ph name="PRODUCT_FRAME_NAME" /> にレンダリングされます。
           この設定を有効にすると、ページのメタ タグはスキャンされません。
 
@@ -10783,6 +10895,7 @@ false に設定した場合、管理対象のネットワークに接続され�
 <translation id="8477885780684655676">TLS 1.0</translation>
 <translation id="8479032202539686055">WebRTC は最適なパスを検索する際、すべての利用可能なインターフェースを使用できる。</translation>
 <translation id="8479496880635054740">ログイン画面でユーザー補助仮想キーボードを無効にする</translation>
+<translation id="8482513475154035196">ローカル ネットワーク エンドポイントへのネットワーク リクエストを許可するサイトを指定する</translation>
 <translation id="8482518340010585741">ログイン時のアプリの復元を設定する</translation>
 <translation id="8483004350080020634">プロキシ解決の際、<ph name="PRODUCT_NAME" /> によって使用されるプロキシ自動設定スクリプトに https:// から始まる URL を渡す前に、URL からプライバシーやセキュリティに関連する機密情報を削除します。
 
@@ -10910,6 +11023,7 @@ false に設定した場合、管理対象のネットワークに接続され�
 
 生成 AI 機能のデータ処理について詳しくは、https://support.google.com/chrome/a?p=generative_ai_settings をご覧ください。</translation>
 <translation id="8533145294731270627">不正なファイルのダウンロードと危険なファイル形式をブロックします。</translation>
+<translation id="8540083431549244064">ローカル デバイスとローカル ネットワーク エンドポイントへのネットワーク リクエストをブロックするサイトを指定する</translation>
 <translation id="8543108307976719751">このパソコンへのリモート アクセス接続を許可しない</translation>
 <translation id="8543639085146778837">Google サービスからの WebRTC テキストログの収集を許可する</translation>
 <translation id="8543975123557636331">オーディオ出力を有効にする</translation>
@@ -11275,6 +11389,7 @@ M119 よりデフォルトで無効になります）。
 <translation id="8807313206348471682">ログアウト確認ダイアログを表示する</translation>
 <translation id="8807728576820212213">レンズの統合を有効にする</translation>
 <translation id="8809082103104823938">絵文字選択ツールでの GIF サポート</translation>
+<translation id="8809276335775270751">無効: XSLT の使用を明示的に許可しない。</translation>
 <translation id="8812091410765157924">ポップアップの表示元ページで操作が明示的に許可されている場合に限り、<ph name="BLANK_PAGE_NAME" /> をターゲットとして開いたポップアップにその表示元ページの操作を許可する</translation>
 <translation id="8812631362927615118">ユーザーのセキュリティ シグナルを報告する際のファーストパーティ認証を有効にする</translation>
 <translation id="8816370949847593408">サポート終了の段階に応じて、一部の Chrome アプリの実行を許可しない。</translation>
@@ -11845,6 +11960,7 @@ M119 よりデフォルトで無効になります）。
 <translation id="9200828125069750521">POST を使用する画像 URL のパラメータ</translation>
 <translation id="9204520300236345497">サイトでの保護されたコンテンツ識別子の使用を許可します。これにより、保護されたコンテンツの再生品質を向上させることができます。</translation>
 <translation id="9204863016826119209">このポリシーで指定されているインストール済みの Android アプリは企業キーを使用できます。</translation>
+<translation id="9206364386317031168">ローカル デバイスへのネットワーク リクエストを許可するサイトを指定する</translation>
 <translation id="9206472508136116830">NetBIOS 共有の検出を許可しない</translation>
 <translation id="9207596996305971030">ログイン / ログアウト イベントを報告しない</translation>
 <translation id="9210647066889383361">Smart Lock を使用したデバイスへのログインをユーザーに許可する</translation>
