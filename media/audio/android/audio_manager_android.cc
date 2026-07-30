@@ -212,6 +212,7 @@ void AddDefaultDevice(AudioDeviceNames* device_names) {
   device_names->push_front(AudioDeviceName::CreateDefault());
 }
 
+#if !BUILDFLAG(USE_STARBOARD_MEDIA)
 std::string GetFallbackDeviceNameForType(AudioDeviceType type) {
   switch (type) {
     case AudioDeviceType::kBuiltinEarpiece:
@@ -258,6 +259,7 @@ std::string GetFallbackDeviceNameForType(AudioDeviceType type) {
       return GetLocalizedStringUTF8(MessageId::GENERIC_AUDIO_DEVICE_NAME);
   }
 }
+#endif  // !BUILDFLAG(USE_STARBOARD_MEDIA)
 
 bool UseAAudioOutput() {
   if (!__builtin_available(android AAUDIO_MIN_API, *)) {
