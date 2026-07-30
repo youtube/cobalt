@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "base/command_line.h"
 #include "base/run_loop.h"
 #include "base/test/metrics/histogram_tester.h"
 #include "base/test/run_until.h"
@@ -38,6 +39,7 @@
 #include "components/prefs/pref_value_map.h"
 #include "components/tabs/public/tab_interface.h"
 #include "components/translate/core/browser/translate_manager.h"
+#include "content/public/common/content_switches.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/content_browser_test_utils.h"
 #include "content/public/test/test_web_ui.h"
@@ -103,7 +105,8 @@ class MockPage : public read_anything::mojom::UntrustedPage {
                base::DictValue voices,
                base::ListValue languages_enabled_in_pref,
                read_anything::mojom::HighlightGranularity granularity,
-               read_anything::mojom::LineFocus line_focus));
+               read_anything::mojom::LineFocus last_non_disabled_line_focus,
+               bool line_focus_enabled));
   MOCK_METHOD(void,
               OnImageDataDownloaded,
               (const ui::AXTreeID&, int, const SkBitmap&));
@@ -253,7 +256,7 @@ class ReadAnythingUntrustedPageHandlerTest
  public:
   ReadAnythingUntrustedPageHandlerTest() {
     std::vector<base::test::FeatureRef> enabled_features = {
-        features::kReadAnythingReadAloud, features::kReadAnythingLineFocus};
+        features::kReadAnythingLineFocus};
     std::vector<base::test::FeatureRef> disabled_features;
     if (IsImmersiveEnabled()) {
       enabled_features.push_back(features::kImmersiveReadAnything);
@@ -535,6 +538,7 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
   read_anything::mojom::HighlightGranularity expected_highlight_granularity =
       read_anything::mojom::HighlightGranularity::kDefaultValue;
   auto expected_line_focus = read_anything::mojom::LineFocus::kDefaultValue;
+  bool expected_line_focus_enabled = false;
   PrefService* prefs = browser()->profile()->GetPrefs();
   prefs->SetInteger(prefs::kAccessibilityReadAnythingLineSpacing, 3);
   prefs->SetInteger(prefs::kAccessibilityReadAnythingLetterSpacing, 2);
@@ -548,13 +552,14 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
                     expected_images_enabled);
   prefs->SetInteger(prefs::kAccessibilityReadAnythingColorInfo, 4);
 
-  EXPECT_CALL(page_, OnSettingsRestoredFromPrefs(
-                         expected_line_spacing, expected_letter_spacing,
-                         expected_font_name, expected_font_scale,
-                         expected_links_enabled, expected_images_enabled,
-                         expected_color, expected_speech_rate,
-                         testing::IsEmpty(), testing::IsEmpty(),
-                         expected_highlight_granularity, expected_line_focus))
+  EXPECT_CALL(
+      page_,
+      OnSettingsRestoredFromPrefs(
+          expected_line_spacing, expected_letter_spacing, expected_font_name,
+          expected_font_scale, expected_links_enabled, expected_images_enabled,
+          expected_color, expected_speech_rate, testing::IsEmpty(),
+          testing::IsEmpty(), expected_highlight_granularity,
+          expected_line_focus, expected_line_focus_enabled))
       .Times(1);
 
   handler_ = CreateHandler();
@@ -669,6 +674,26 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
   const int LineFocus2 = browser()->profile()->GetPrefs()->GetInteger(
       prefs::kAccessibilityReadAnythingLineFocus);
   ASSERT_EQ(LineFocus2, static_cast<int>(kLineFocus2));
+}
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest,
+                       OnLineFocusChanged_UpdatesEnabledMode) {
+  const read_anything::mojom::LineFocus kLineFocus1 =
+      read_anything::mojom::LineFocus::kSmallCursorWindow;
+  const read_anything::mojom::LineFocus kLineFocus2 =
+      read_anything::mojom::LineFocus::kOff;
+  handler_ = CreateHandler();
+
+  handler_->OnLineFocusChanged(kLineFocus1);
+  const int LineFocus1 = browser()->profile()->GetPrefs()->GetInteger(
+      prefs::kAccessibilityReadAnythingLastNonDisabledLineFocus);
+  ASSERT_EQ(LineFocus1, static_cast<int>(kLineFocus1));
+
+  // When line focus changes to off, enabled mode should not change
+  handler_->OnLineFocusChanged(kLineFocus2);
+  const int LineFocus2 = browser()->profile()->GetPrefs()->GetInteger(
+      prefs::kAccessibilityReadAnythingLastNonDisabledLineFocus);
+  ASSERT_EQ(LineFocus2, static_cast<int>(kLineFocus1));
 }
 
 IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerTest, OnFontChange) {
@@ -901,7 +926,7 @@ IN_PROC_BROWSER_TEST_P(
   // Verify the values passed to the page are correct.
   EXPECT_CALL(page_, OnSettingsRestoredFromPrefs(
                          _, _, _, _, _, _, _, expected_speech_rate, _, _,
-                         expected_highlight_granularity, _))
+                         expected_highlight_granularity, _, _))
       .Times(1)
       .WillOnce(testing::WithArgs<8, 9>([&](base::DictValue voices,
                                             base::ListValue langs) {
@@ -2038,12 +2063,57 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerDistillerTest,
   histogram_tester.ExpectTotalCount(histogram, 6);
 }
 
-}  // namespace
+// In order to test that Readability isn't used in automated tests,
+// an embedded_test_server needs to be set up in SetUpOnMainThread.
+// Since this isn't needed for the rest of the tests, this is handled
+// in a separate test subclass.
+class ReadAnythingUntrustedPageHandlerAutomationTest
+    : public ReadAnythingUntrustedPageHandlerDistillerTest {
+  void SetUpCommandLine(base::CommandLine* command_line) override {
+    command_line->AppendSwitch(switches::kEnableAutomation);
+  }
 
+  void SetUpOnMainThread() override {
+    ReadAnythingUntrustedPageHandlerDistillerTest::SetUpOnMainThread();
+    embedded_test_server()->ServeFilesFromSourceDirectory(
+        "components/test/data");
+    ASSERT_TRUE(embedded_test_server()->Start());
+  }
+};
+
+IN_PROC_BROWSER_TEST_P(ReadAnythingUntrustedPageHandlerAutomationTest,
+                       AutomationFlag_SkipsDistillation) {
+  ui_test_utils::NavigateToURLWithDisposition(
+      browser(),
+      GURL(
+          embedded_test_server()->GetURL("/dom_distiller/simple_article.html")),
+      WindowOpenDisposition::CURRENT_TAB,
+      ui_test_utils::BROWSER_TEST_WAIT_FOR_LOAD_STOP);
+
+  EXPECT_CALL(page_, OnReadabilityDistillationStateChanged(
+                         read_anything::mojom::ReadAnythingDistillationState::
+                             kDistillationEmpty));
+  EXPECT_CALL(page_, UpdateContent("", ""));
+
+  handler_ = CreateHandler();
+
+  // The call happens inside CreateHandler. Let's make sure it's processed.
+  base::RunLoop().RunUntilIdle();
+
+  // Ensure that no distillation occurs.
+  EXPECT_FALSE(handler_->dom_distiller_title().has_value());
+  EXPECT_FALSE(handler_->dom_distiller_content().has_value());
+}
+
+}  // namespace
 INSTANTIATE_TEST_SUITE_P(All,
                          ReadAnythingUntrustedPageHandlerTest,
                          testing::Bool());
 
 INSTANTIATE_TEST_SUITE_P(All,
                          ReadAnythingUntrustedPageHandlerDistillerTest,
+                         testing::Bool());
+
+INSTANTIATE_TEST_SUITE_P(All,
+                         ReadAnythingUntrustedPageHandlerAutomationTest,
                          testing::Bool());

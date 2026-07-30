@@ -42,6 +42,7 @@
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.h"
 #include "chrome/browser/ui/webui/new_tab_page/composebox/variations/composebox_fieldtrial.h"
+#include "chrome/browser/ui/webui/sanitized_image_source.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/grit/branded_strings.h"
@@ -132,6 +133,10 @@ std::string GetEncodedHandshakeMessage() {
           contextual_tasks::kEnableNotifyZeroStateRenderedCapability)) {
     ping->add_capabilities(lens::FeatureCapability::NOTIFY_ZERO_STATE_RENDERED);
   }
+  if (contextual_tasks::ShouldEnableLockAndUnlockInputCapability()) {
+    ping->add_capabilities(lens::FeatureCapability::UNLOCK_INPUT);
+    ping->add_capabilities(lens::FeatureCapability::LOCK_INPUT);
+  }
 
   const size_t size = message.ByteSizeLong();
   std::vector<uint8_t> serialized_message(size);
@@ -188,11 +193,12 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
           contextual_tasks::ContextualTasksServiceFactory::GetForProfile(
               Profile::FromBrowserContext(
                   web_ui->GetWebContents()->GetBrowserContext()))) {
+  Profile* profile = Profile::FromWebUI(web_ui);
   if (contextual_tasks::ShouldEnableCookieSync()) {
     cookie_synchronizer_ =
         std::make_unique<contextual_tasks::ContextualTasksCookieSynchronizer>(
             web_ui->GetWebContents()->GetBrowserContext(),
-            IdentityManagerFactory::GetForProfile(Profile::FromWebUI(web_ui)));
+            IdentityManagerFactory::GetForProfile(profile));
   }
   inner_web_contents_creation_observer_ =
       std::make_unique<InnerFrameCreationObvserver>(
@@ -201,6 +207,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
                               weak_ptr_factory_.GetWeakPtr()),
           base::BindRepeating(&ContextualTasksUI::ResetEmbeddedPage,
                               weak_ptr_factory_.GetWeakPtr()));
+  // Add a means of loading images fromexternal sources.
+  content::URLDataSource::Add(profile,
+                              std::make_unique<SanitizedImageSource>(profile));
   content::WebUIDataSource* source = content::WebUIDataSource::CreateAndAdd(
       web_ui->GetWebContents()->GetBrowserContext(),
       chrome::kChromeUIContextualTasksHost);
@@ -213,7 +222,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "child-src 'self' https://*.google.com;");
 
   // Add required resources for the searchbox.
-  SearchboxHandler::SetupWebUIDataSource(source, Profile::FromWebUI(web_ui),
+  SearchboxHandler::SetupWebUIDataSource(source, profile,
                                          /*enable_voice_search=*/true,
                                          /*enable_lens_search=*/false);
   // Add strings.js
@@ -222,6 +231,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   static constexpr webui::LocalizedString kLocalizedStrings[] = {
       {"closeTooltip", IDS_CONTEXTUAL_TASKS_SIDE_PANEL_CLOSE_TOOL_TIP},
       {"contextTooltip", IDS_CONTEXTUAL_TASKS_SIDE_PANEL_CONTEXT_TOOL_TIP},
+      {"feedback", IDS_LENS_SEND_FEEDBACK},
       {"help", IDS_CONTEXTUAL_TASKS_MENU_HELP},
       {"moreOptionsTooltip",
        IDS_CONTEXTUAL_TASKS_SIDE_PANEL_MORE_OPTIONS_TOOL_TIP},
@@ -299,7 +309,7 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       contextual_tasks::GetContextualTasksOnboardingTooltipImpressionDelay());
   source->AddBoolean(
       "isOnboardingTooltipDismissCountBelowCap",
-      Profile::FromWebUI(web_ui)->GetPrefs()->GetInteger(
+      profile->GetPrefs()->GetInteger(
           contextual_tasks::kContextualTasksOnboardingTooltipDismissedCount) <
           contextual_tasks::GetContextualTasksOnboardingTooltipDismissedCap());
   source->AddBoolean("isLensSearchbox", true);
@@ -319,8 +329,12 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
                      contextual_tasks::GetEnableContextualTasksSmartCompose());
   source->AddBoolean("enableNativeZeroStateSuggestions",
                      contextual_tasks::GetEnableNativeZeroStateSuggestions());
+  // Contextual tasks needs finer control over when to query zps based on its
+  // current state. Most other composebox's blindly query autocomplete as soon
+  // as it is rendered.
+  source->AddBoolean("queryZpsOnLoad", false);
 
-  AddContextMenuItemEligibilityLoadTimeData(source, Profile::FromWebUI(web_ui));
+  AddContextMenuItemEligibilityLoadTimeData(source, profile);
   source->AddBoolean("composeboxShowLensSearchChip", false);
   source->AddBoolean("composeboxShowRecentTabChip", false);
   source->AddBoolean("composeboxShowSubmit", true);
@@ -334,8 +348,8 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
   source->AddBoolean("composeboxShowContextMenuTabPreviews", false);
   source->AddBoolean("composeboxContextMenuEnableMultiTabSelection", true);
   source->AddBoolean(
-      "darkMode", ThemeServiceFactory::GetForProfile(Profile::FromWebUI(web_ui))
-                      ->BrowserUsesDarkColors());
+      "darkMode",
+      ThemeServiceFactory::GetForProfile(profile)->BrowserUsesDarkColors());
   source->AddBoolean("clearAllInputsWhenSubmittingQuery", true);
   source->AddBoolean("autoSubmitVoiceSearchQuery",
                      contextual_tasks::GetAutoSubmitVoiceSearchQuery());
@@ -346,6 +360,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       contextual_tasks::ShouldForceBasicModeIfOpeningThreadHistory());
   source->AddBoolean("enableBasicModeZOrder",
                      contextual_tasks::ShouldEnableBasicModeZOrder());
+  source->AddBoolean(
+      "enableLockAndUnlockInputCapability",
+      contextual_tasks::ShouldEnableLockAndUnlockInputCapability());
 
   source->AddString(
       "composeboxSource",
@@ -387,7 +404,6 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
       "internals/",
       IDR_CONTEXTUAL_TASKS_INTERNALS_CONTEXTUAL_TASKS_INTERNALS_HTML);
 
-  Profile* profile = Profile::FromWebUI(web_ui);
   AddZeroStateStrings(source, profile);
   contextual_tasks_service_observation_.Observe(contextual_tasks_service_);
 }
@@ -433,6 +449,17 @@ void ContextualTasksUI::OnTaskUpdated(
   }
 }
 
+GURL ContextualTasksUI::GetAimUrl() {
+  std::string aim_url_str;
+  if (net::GetValueForKeyInQuery(
+          web_ui()->GetWebContents()->GetLastCommittedURL(), "aim_url",
+          &aim_url_str)) {
+    return GURL(aim_url_str);
+  } else {
+    return GURL();
+  }
+}
+
 const std::optional<base::Uuid>& ContextualTasksUI::GetTaskId() {
   return task_id_;
 }
@@ -464,6 +491,12 @@ void ContextualTasksUI::SetThreadTitle(std::optional<std::string> title) {
   thread_title_ = title;
   if (page_) {
     page_->SetThreadTitle(thread_title_.value_or(std::string()));
+  }
+}
+
+void ContextualTasksUI::SetAimUrl(const GURL& url) {
+  if (page_) {
+    page_->SetAimUrl(url);
   }
 }
 
@@ -531,9 +564,7 @@ bool ContextualTasksUIConfig::IsWebUIEnabled(
     content::BrowserContext* browser_context) {
   // Check if the user should have landed on the WebUI via an entry point. If
   // not, refuse to load the WebUI to prevent a broken experience.
-  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks) &&
-         contextual_tasks::EntryPointEligibilityManager::IsEligible(
-             Profile::FromBrowserContext(browser_context));
+  return base::FeatureList::IsEnabled(contextual_tasks::kContextualTasks);
 }
 
 std::unique_ptr<content::WebUIController>
@@ -738,35 +769,48 @@ bool ContextualTasksUI::IsLensOverlayShowing() const {
   return is_lens_overlay_showing_;
 }
 
-void ContextualTasksUI::OnActiveTabContextStatusChanged() {
+bool ContextualTasksUI::CanUpdateSuggestedTabContext(
+    tabs::TabInterface* tab,
+    const GURL& last_committed_url) {
   if (!GetBrowser()) {
-    return;
+    return false;
   }
 
   if (!composebox_handler_) {
-    return;
+    return false;
   }
 
+  if (!tab) {
+    return false;
+  }
+
+  if (!last_committed_url.is_valid() ||
+      !last_committed_url.SchemeIsHTTPOrHTTPS()) {
+    return false;
+  }
+
+  if (!GetOrCreateContextualSessionHandle()) {
+    return false;
+  }
+
+  return true;
+}
+
+void ContextualTasksUI::OnActiveTabContextStatusChanged() {
   if (contextual_tasks::GetIsProtectedPageErrorEnabled() && page_) {
     page_->HideErrorPage();
   }
 
-  tabs::TabInterface* tab = GetBrowser()->GetActiveTabInterface();
-  if (!tab) {
-    composebox_handler_->UpdateSuggestedTabContext(nullptr);
-    return;
-  }
+  tabs::TabInterface* tab =
+      GetBrowser() ? GetBrowser()->GetActiveTabInterface() : nullptr;
+  GURL last_committed_url =
+      tab ? tab->GetContents()->GetLastCommittedURL() : GURL::EmptyGURL();
 
-  content::WebContents* web_contents = tab->GetContents();
-  GURL last_committed_url = web_contents->GetLastCommittedURL();
-
-  if (!last_committed_url.is_valid() ||
-      !last_committed_url.SchemeIsHTTPOrHTTPS()) {
-    composebox_handler_->UpdateSuggestedTabContext(nullptr);
-    return;
-  }
-
-  if (!GetOrCreateContextualSessionHandle()) {
+  if (!CanUpdateSuggestedTabContext(tab, last_committed_url)) {
+    if (composebox_handler_) {
+      // Inform the handler that the current tab cannot be added as an autochip.
+      composebox_handler_->UpdateSuggestedTabContext(nullptr);
+    }
     return;
   }
 
@@ -1003,6 +1047,8 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
       contextual_tasks::ThreadType::kAiMode, url_thread_id, mstk,
       task_info_delegate_->GetThreadTitle());
   task_info_delegate_->SetThreadTurnId(mstk);
+
+  task_info_delegate_->SetAimUrl(url);
 
   if (task_changed) {
     OMNIBOX_LOG("embedded_page_nav")

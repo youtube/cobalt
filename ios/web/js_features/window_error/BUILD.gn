@@ -8,10 +8,11 @@ import("//ios/web/public/js_messaging/optimize_ts.gni")
 source_set("window_error") {
   deps = [
     ":error_js",
+    ":error_reporting",
     ":script_error_details",
-    ":script_error_stack_util",
     "//base",
     "//ios/web/common:features",
+    "//ios/web/public",
     "//ios/web/public/js_messaging",
     "//net",
     "//url",
@@ -43,11 +44,31 @@ source_set("script_error_stack_util") {
   ]
 }
 
+source_set("error_reporting") {
+  sources = [
+    "ios_javascript_error_report.h",
+    "ios_javascript_error_report.mm",
+    "web_js_error_report_processor.h",
+    "web_js_error_report_processor.mm",
+  ]
+  deps = [
+    ":script_error_details",
+    "//base",
+    "//build:branding_buildflags",
+    "//components/variations",
+    "//ios/web/public",
+    "//services/network/public/cpp",
+  ]
+}
+
 optimize_ts("error_js") {
   visibility = [ ":window_error" ]
 
   sources = [ "resources/error.ts" ]
-  deps = [ "//ios/web/public/js_messaging:util_scripts" ]
+  deps = [
+    "//ios/web/public/js_messaging:gcrweb_error",
+    "//ios/web/public/js_messaging:util_scripts",
+  ]
 }
 
 source_set("unittests") {

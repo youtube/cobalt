@@ -267,6 +267,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void DidAnimateScrollOffset();
   void SetFullViewportDamage();
   void SetViewportDamage(const gfx::Rect& damage_rect);
+  void SetRootLayerDamageRect(const gfx::Rect& damage_rect);
 
   // Interface for InputHandler
   void BindToInputHandler(
@@ -917,14 +918,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
     is_handling_interaction_from_client_ = is_handling_interaction;
   }
 
-  // Returns a bitfield of debug information that indicates why HasDamage() is
-  // true.
-  uint32_t LastFrameHasDamageData() const {
-    return last_frame_has_damage_data_;
-  }
-
-  void AddDamageDataCrashKeys(uint32_t damage_data, bool is_viz);
-
  protected:
   LayerTreeHostImpl(
       const LayerTreeSettings& settings,
@@ -1112,8 +1105,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   void MaybeFlashEnteredViewportScrollbars(ElementId element_id,
                                            const gfx::Vector2dF& scroll_delta);
 
-  uint32_t GetHasDamageData() const;
-
   // Once bound, this instance owns the InputHandler. However, an InputHandler
   // need not be bound so this should be null-checked before dereferencing.
   std::unique_ptr<InputDelegateForCompositor> input_delegate_;
@@ -1232,6 +1223,7 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool resourceless_software_draw_ = false;
 
   gfx::Rect viewport_damage_rect_;
+  gfx::Rect root_layer_damage_rect_;
   std::optional<base::CheckedNumeric<uint32_t>> total_invalidated_area_ = 0;
 
   std::unique_ptr<MutatorHost> mutator_host_;
@@ -1440,7 +1432,6 @@ class CC_EXPORT LayerTreeHostImpl : public TileManagerClient,
   bool dump_compositor_frame_ = false;
   uint32_t dump_compositor_frame_begin_ = 0;
   uint32_t dump_compositor_frame_end_ = 0;
-  uint32_t last_frame_has_damage_data_ = 0;
 
   // Must be the last member to ensure this is destroyed first in the
   // destruction order and invalidates all weak pointers.

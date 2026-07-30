@@ -168,7 +168,7 @@ String TruncateDialogMessage(const String& message) {
 
 bool DisplayModeIsBorderless(LocalFrame& frame) {
   FrameWidget* widget = frame.GetWidgetForLocalRoot();
-  return widget->DisplayMode() == mojom::blink::DisplayMode::kBorderless;
+  return widget->DisplayMode() == mojom::blink::DisplayMode::kUnframed;
 }
 
 gfx::Rect AdjustWindowRectForMinimum(const gfx::Rect& pending_rect,
@@ -596,7 +596,6 @@ gfx::Rect ChromeClientImpl::LocalRootToScreenDIPs(
 
 float ChromeClientImpl::WindowToViewportScalar(LocalFrame* frame,
                                                const float scalar_value) const {
-
   // TODO(darin): Clean up callers to not pass null. E.g., VisualViewport::
   // ScrollbarThickness() is one such caller. See https://pastebin.com/axgctw0N
   // for a sample call stack.

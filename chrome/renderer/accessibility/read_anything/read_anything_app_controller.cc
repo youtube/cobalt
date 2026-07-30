@@ -25,6 +25,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
+#include "chrome/common/read_anything/read_anything.mojom-shared.h"
 #include "chrome/common/read_anything/read_anything_util.h"
 #include "chrome/renderer/accessibility/ax_tree_distiller.h"
 #include "chrome/renderer/accessibility/phrase_segmentation/dependency_parser_model.h"
@@ -466,26 +467,12 @@ void ReadAnythingAppController::OnDestruct() {
   self_.Clear();
 }
 
-void ReadAnythingAppController::OnNodeDataChanged(
-    ui::AXTree* tree,
-    const ui::AXNodeData& old_node_data,
-    const ui::AXNodeData& new_node_data) {
-  if (!IsReadAloudEnabled() && tree->GetAXTreeID() == model_.active_tree_id()) {
-    if (old_node_data.HasState(ax::mojom::State::kExpanded) !=
-            new_node_data.HasState(ax::mojom::State::kExpanded) ||
-        old_node_data.HasState(ax::mojom::State::kCollapsed) !=
-            new_node_data.HasState(ax::mojom::State::kCollapsed)) {
-      model_.set_last_expanded_node_id(new_node_data.id);
-    }
-  }
-}
-
 void ReadAnythingAppController::OnNodeWillBeDeleted(ui::AXTree* tree,
                                                     ui::AXNode* node) {
   ui::AXNodeID node_id = CHECK_DEREF(node).id();
   if (model_.GetCurrentlyVisibleNodes()->contains(node_id)) {
     displayed_nodes_pending_deletion_.insert(node_id);
-    if (IsReadAloudEnabled() && !read_aloud_model_.speech_playing()) {
+    if (!read_aloud_model_.speech_playing()) {
       ExecuteJavaScript("chrome.readingMode.onNodeWillBeDeleted(" +
                         base::ToString(node_id) + ")");
     }
@@ -512,12 +499,8 @@ void ReadAnythingAppController::OnNodeDeleted(ui::AXTree* tree,
     return;
   }
 
-  // Instead of redrawing everything when Read aloud is enabled, we inform
-  // the webui that the node is being deleted and it will adjust on that
-  // side. See OnNodeWillBeDeleted.
-  if (!IsReadAloudEnabled()) {
-    Draw(false);
-  }
+  // Instead of redrawing everything, inform the webui that the node is being
+  // deleted and it will adjust on that side. See OnNodeWillBeDeleted.
   if (model_.has_selection()) {
     DrawSelection();
   }
@@ -737,7 +720,7 @@ void ReadAnythingAppController::OnActiveAXTreeIDChanged(
   model_.SetUkmSourceIdForTree(tree_id, ukm_source_id);
   model_.set_is_pdf(is_pdf);
 
-  if (IsReadAloudEnabled() && read_aloud_model_.speech_playing()) {
+  if (read_aloud_model_.speech_playing()) {
     model_.SetUrlInformationCallback(
         base::BindOnce(&ReadAnythingAppController::OnUrlInformationSet,
                        weak_ptr_factory_.GetWeakPtr()));
@@ -837,12 +820,9 @@ void ReadAnythingAppController::RecordEstimatedWordsSeen() {
 }
 
 void ReadAnythingAppController::RecordEstimatedWordsHeard() {
-  if (IsReadAloudEnabled()) {
-    VLOG(1) << "Words heard: " << model_.words_heard();
-    base::UmaHistogramCustomCounts(kWordsHeardHistogramName,
-                                   model_.words_heard(), 1, kMaxWordsConsumed,
-                                   kWordsConsumedBuckets);
-  }
+  VLOG(1) << "Words heard: " << model_.words_heard();
+  base::UmaHistogramCustomCounts(kWordsHeardHistogramName, model_.words_heard(),
+                                 1, kMaxWordsConsumed, kWordsConsumedBuckets);
   model_.set_words_heard(0);
 }
 
@@ -928,8 +908,8 @@ void ReadAnythingAppController::OnAXTreeDistilled(
   // happen after a long time of inactivity. In this case, we shouldn't reset
   // the model since the last state is still the correct state and clearing the
   // model causes issues for read aloud.
-  if (IsReadAloudEnabled() && !model_.distillation_in_progress() &&
-      tree_id == ui::AXTreeIDUnknown() && content_node_ids.empty()) {
+  if (!model_.distillation_in_progress() && tree_id == ui::AXTreeIDUnknown() &&
+      content_node_ids.empty()) {
     VLOG(1) << "Distillation terminated after the main content extractor "
                "disconnected";
     return;
@@ -1108,9 +1088,7 @@ void ReadAnythingAppController::Draw(bool recompute_display_nodes) {
     // If we need to recompute which nodes are displayed, reset read aloud as
     // we previously preprocessed the previous nodes and should re-process the
     // new ones.
-    if (IsReadAloudEnabled()) {
-      read_aloud_model_.ResetReadAloudState();
-    }
+    read_aloud_model_.ResetReadAloudState();
   } else {
     VLOG(1) << "Not recomputing display nodes, content node size: "
             << model_.content_node_ids().size();
@@ -1124,7 +1102,7 @@ void ReadAnythingAppController::DrawSelection() {
   // Reset read aloud state if a selection has been made in case the selected
   // nodes weren't previously distilled. Resetting isn't necessary if the
   // selection nodes were included in the distilled content.
-  if (IsReadAloudEnabled() && !model_.selection_node_ids().empty() &&
+  if (!model_.selection_node_ids().empty() &&
       !model_.SelectionNodesContainedInDistilledContent()) {
     read_aloud_model_.ResetReadAloudState();
   }
@@ -1155,13 +1133,14 @@ void ReadAnythingAppController::OnSettingsRestoredFromPrefs(
     base::DictValue voices,
     base::ListValue languages_enabled_in_pref,
     read_anything::mojom::HighlightGranularity granularity,
-    read_anything::mojom::LineFocus line_focus) {
+    read_anything::mojom::LineFocus last_non_disabled_line_focus,
+    bool line_focus_enabled) {
   read_aloud_model_.OnSettingsRestoredFromPrefs(
       speech_rate, &languages_enabled_in_pref, &voices, granularity);
   bool needs_redraw_for_links = model_.links_enabled() != links_enabled;
-  model_.OnSettingsRestoredFromPrefs(line_spacing, letter_spacing, font,
-                                     font_size, links_enabled, images_enabled,
-                                     color, line_focus);
+  model_.OnSettingsRestoredFromPrefs(
+      line_spacing, letter_spacing, font, font_size, links_enabled,
+      images_enabled, color, last_non_disabled_line_focus, line_focus_enabled);
   ExecuteJavaScript("chrome.readingMode.restoreSettingsFromPrefs();");
   // Only redraw if there is an active tree.
   if (needs_redraw_for_links &&
@@ -1217,7 +1196,9 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetProperty("colorTheme", &ReadAnythingAppController::ColorTheme)
       .SetProperty("highlightGranularity",
                    &ReadAnythingAppController::HighlightGranularity)
-      .SetProperty("lineFocus", &ReadAnythingAppController::LineFocus)
+      .SetProperty("lastNonDisabledLineFocus",
+                   &ReadAnythingAppController::LastNonDisabledLineFocus)
+      .SetProperty("isLineFocusOn", &ReadAnythingAppController::IsLineFocusOn)
       .SetProperty("defaultTheme", &ReadAnythingAppController::DefaultTheme)
       .SetProperty("lightTheme", &ReadAnythingAppController::LightTheme)
       .SetProperty("darkTheme", &ReadAnythingAppController::DarkTheme)
@@ -1272,6 +1253,8 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
       .SetProperty("lineFocusCursorLine",
                    &ReadAnythingAppController::LineFocusCursorLine)
       .SetProperty("maxLineWidth", &ReadAnythingAppController::MaxLineWidth)
+      .SetProperty("inHiddenPresentationState",
+                   &ReadAnythingAppController::InHiddenPresentationState)
       .SetProperty("inSidePanelPresentationState",
                    &ReadAnythingAppController::InSidePanelPresentationState)
       .SetProperty(
@@ -1279,8 +1262,6 @@ gin::ObjectTemplateBuilder ReadAnythingAppController::GetObjectTemplateBuilder(
           &ReadAnythingAppController::InImmersiveOverlayPresentationState)
       .SetProperty("speechRate", &ReadAnythingAppController::SpeechRate)
       .SetProperty("isGoogleDocs", &ReadAnythingAppController::IsGoogleDocs)
-      .SetProperty("isReadAloudEnabled",
-                   &ReadAnythingAppController::IsReadAloudEnabled)
       .SetProperty("isImmersiveEnabled",
                    &ReadAnythingAppController::IsImmersiveEnabled)
       .SetProperty("isTsTextSegmentationEnabled",
@@ -1528,10 +1509,14 @@ int ReadAnythingAppController::HighlightGranularity() const {
   return read_aloud_model_.highlight_granularity();
 }
 
-int ReadAnythingAppController::LineFocus() const {
+int ReadAnythingAppController::LastNonDisabledLineFocus() const {
   return IsLineFocusEnabled()
-             ? std::to_underlying(model_.line_focus())
+             ? std::to_underlying(model_.last_non_disabled_line_focus())
              : std::to_underlying(read_anything::mojom::LineFocus::kOff);
+}
+
+bool ReadAnythingAppController::IsLineFocusOn() const {
+  return IsLineFocusEnabled() && model_.line_focus_enabled();
 }
 
 int ReadAnythingAppController::StandardLineSpacing() const {
@@ -1692,6 +1677,11 @@ int ReadAnythingAppController::LineFocusCursorLine() const {
 
 int ReadAnythingAppController::MaxLineWidth() const {
   return a11y::kMaxLineWidth;
+}
+
+int ReadAnythingAppController::InHiddenPresentationState() const {
+  return std::to_underlying(
+      read_anything::mojom::ReadAnythingPresentationState::kInactive);
 }
 
 int ReadAnythingAppController::InSidePanelPresentationState() const {
@@ -1888,10 +1878,6 @@ bool ReadAnythingAppController::IsLeafNode(ui::AXNodeID ax_node_id) const {
     return false;
   }
   return ax_node->IsLeaf();
-}
-
-bool ReadAnythingAppController::IsReadAloudEnabled() const {
-  return features::IsReadAnythingReadAloudEnabled();
 }
 
 bool ReadAnythingAppController::IsImmersiveEnabled() const {
@@ -2233,7 +2219,12 @@ void ReadAnythingAppController::OnLineFocusChanged(int line_focus) {
   if (const auto maybe_enum =
           ToEnum<read_anything::mojom::LineFocus>(line_focus)) {
     page_handler_->OnLineFocusChanged(maybe_enum.value());
-    model_.set_line_focus(maybe_enum.value());
+    bool line_focus_on =
+        maybe_enum.value() != read_anything::mojom::LineFocus::kOff;
+    model_.set_line_focus_enabled(line_focus_on);
+    if (line_focus_on) {
+      model_.set_last_non_disabled_line_focus(maybe_enum.value());
+    }
   }
 }
 
@@ -2615,10 +2606,6 @@ void ReadAnythingAppController::IncrementMetricCount(
 }
 
 void ReadAnythingAppController::LogSpeechStop(int source) {
-  if (!IsReadAloudEnabled()) {
-    return;
-  }
-
   // Don't log speech stopping if the reading mode panel is going to hide. That
   // case is logged separately.
   if (model_.will_hide()) {

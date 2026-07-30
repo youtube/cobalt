@@ -343,14 +343,6 @@
       name: "AIPageContentPaidContentAnnotation",
       status: "stable"
     },
-    // In AIPageContentAgent::ComputeHitTestableNodesInViewport, the hit test
-    // may hit the same node multiple times, which causes issues with computing
-    // the final z-order of page elements. This flag will filter those
-    // duplicate results first before doing any further processing.
-    {
-      name: "AIPageContentZOrderEarlyFiltering",
-      status: "stable"
-    },
     {
       name: "AIPromptAPI",
       public: true,
@@ -648,7 +640,7 @@
     {
       // AudioContext.playbackStats interface.
       name: "AudioContextPlaybackStats",
-      status: "experimental",
+      status: "stable",
     },
     {
       // AudioContext.playoutStats interface.
@@ -1238,6 +1230,7 @@
     },
     {
       name: "ContainerTiming",
+      origin_trial_feature_name: "ContainerTiming",
       status: "experimental",
     },
     {
@@ -1578,6 +1571,11 @@
       status: "stable",
     },
     {
+      // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
+      name: "CSSOMGetComputedStylePseudoElementRequiresColon",
+      status: "experimental",
+    },
+    {
       name: "CSSPaintAPIArguments",
       status: "experimental",
     },
@@ -1785,8 +1783,19 @@
       status: "test",
     },
     {
+      // https://crbug.com/40928177: Support of `text-transform: full-size-kana`
+      name: "CSSTextTransformFullSizeKana",
+      status: "experimental",
+    },
+    {
       // https://issues.chromium.org/41297237: CSS `text-transform: full-width` value
       name: "CSSTextTransformFullWidth",
+      status: "experimental",
+    },
+    {
+      // crbug.com/41297237: Support multi-keyword values in CSS `text-transform`.
+      name: "CSSTextTransformMultiKeyword",
+      depends_on: ["CSSTextTransformFullWidth", "CSSTextTransformFullSizeKana"],
       status: "experimental",
     },
     {
@@ -1857,25 +1866,21 @@
       status: "experimental",
     },
     {
-      // https://crbug.com/393631108
+      // https://chromestatus.com/feature/5133099851317248
       name: "DecoupleComputedBorderWidthFromStyle",
       public: true,
-      status: "experimental",
+      status: "stable",
     },
     {
-      // https://crbug.com/393631108
+      // https://chromestatus.com/feature/5133099851317248
       name: "DecoupleResolvedColumnRuleWidthFromStyle",
       public: true,
-      status: "experimental",
+      status: "stable",
     },
     {
       // Killswitch for https://crbug.com/400317114 fix.
       // This lands in M142, and the flag can be removed in M144.
       name: "DelegatesFocusTextControlInputFix",
-      status: "stable",
-    },
-    {
-      name: "DeprecateCursorMovementIterator",
       status: "stable",
     },
     // This allows pages to opt out of the unload deprecation. Enabling this
@@ -2105,6 +2110,7 @@
       status: {
         "default": "test",
       },
+      depends_on: ["HTMLProcessingInstruction"],
     },
     {
       name: "DocumentPictureInPictureAPI",
@@ -2200,6 +2206,11 @@
       status: "stable",
     },
     {
+      // See https://crbug.com/443612843
+      name: "EditContextAssignmentAsPerSpec",
+      status: "test"
+    },
+    {
       // See https://crbug.com/379170477
       name: "EditContextHandleTextOrSelectionUpdateDuringComposition",
       status: "test",
@@ -2209,10 +2220,6 @@
       // Enables proper backspace handling for emoji tag sequences
       // (e.g., subdivision flags like 🏴󠁧󠁢󠁥󠁮󠁧󠁿) per UTS #51 ED-14a.
       name: "EditEmojiTagSequence",
-      status: "stable",
-    },
-    {
-      name: "EditEmojiUnicode11",
       status: "stable",
     },
     {
@@ -2239,11 +2246,6 @@
       public: true,
       status: "test",
       base_feature: "none",
-    },
-    {
-      // crbug.com/447267214
-      name: "EmojiJustification",
-      status: "stable",
     },
     {
       // crbug.com/420857717
@@ -2829,7 +2831,6 @@
     {
       name: "GamepadRawInputChangeEvent",
       status: "experimental",
-      public: true,
     },
     {
       name: "GamepadWindowEventHandlers",
@@ -2847,6 +2848,19 @@
       // https://issues.chromium.org/issues/441128445
       name: "GeometryMapperSingularTransformFix",
       status: "stable",
+    },
+    {
+      // GeometryUtils mixin.
+      // https://drafts.csswg.org/cssom-view/#the-geometryutils-interface
+      name: "GeometryUtils",
+      status: "experimental",
+    },
+    {
+      // GeometryUtils for CSSPseudoElement interface.
+      // https://www.w3.org/TR/cssom-view-1/#the-geometryutils-interface
+      name: "GeometryUtilsForCSSPseudoElement",
+      depends_on: ["CSSPseudoElementInterface"],
+      status: "experimental",
     },
     {
       name: "GetAllScreensMedia",
@@ -2939,10 +2953,6 @@
     {
       name: "HeadingOffset",
       status: "experimental",
-    },
-    {
-      name: "HighlightByLayoutObject",
-      status: "stable",
     },
     {
       name: "HighlightPointerEvents",
@@ -3046,6 +3056,11 @@
       status: "stable",
     },
     {
+      // Parse processing instructions in HTML.
+      name: "HTMLProcessingInstruction",
+      status: "test",
+    },
+    {
       name: "ICUCapitalization",
       status: "experimental",
     },
@@ -3081,10 +3096,6 @@
       origin_trial_feature_name: "IncomingCallNotifications",
       origin_trial_os: [ "win" ],
       base_feature: "IncomingCallNotifications",
-    },
-    {
-      name: "IndexedDbGetAllRecords",
-      status: "stable",
     },
     {
       name: "InertElementNonEditable",
@@ -3142,11 +3153,6 @@
     // https://crbug.com/327665597
     {
       name: "InsertBlockquoteBeforeOuterBlock",
-      status: "stable",
-    },
-    {
-      // crbug.com/1420675
-      name: "InsertLineBreakIfPhrasingContent",
       status: "stable",
     },
     {
@@ -3248,6 +3254,10 @@
     },
     {
       name: "LanguageDetectionAPIForWorkers",
+      public: true,
+    },
+    {
+      name: "LanguageModelLegacyParamsAndAttributes",
       public: true,
     },
     {
@@ -3414,6 +3424,7 @@
     {
       name: "MachineLearningNeuralNetwork",
       origin_trial_feature_name: "WebMachineLearningNeuralNetwork",
+      origin_trial_os: ["win", "mac", "linux", "chromeos"],
       // Enabled by webnn::mojom::features::kWebMachineLearningNeuralNetwork.
       base_feature: "none",
     },
@@ -4078,16 +4089,6 @@
       base_feature: "none",
     },
     {
-      // Tracking bug for the implementation: https://crbug.com/1462930
-      name: "PermissionElement",
-      origin_trial_feature_name: "PermissionElement",
-      origin_trial_os: ["win", "mac", "linux", "fuchsia", "chromeos", "android"],
-      status: "experimental",
-      public: true,
-      base_feature_status: "enabled",
-      copied_from_base_feature_if: "overridden",
-    },
-    {
       name: "Permissions",
       public: true,
       status: "stable",
@@ -4721,7 +4722,7 @@
     {
       // https://github.com/w3c/csswg-drafts/issues/9367#issuecomment-1854280461
       name: "ScrollTimelineNamedRangeScroll",
-      status: "experimental",
+      status: "stable",
     },
     // Implements documentElement.scrollTop/Left and bodyElement.scrollTop/Left
     // as per the spec, matching other Web engines.
@@ -4775,6 +4776,14 @@
       },
     },
     {
+      name: "SecurePaymentConfirmationCapabilities",
+      status: {
+        "Android": "test",
+        "Mac": "test",
+        "Win": "test",
+      },
+    },
+    {
       name: "SecurePaymentConfirmationDebug",
       base_feature: "none",
       public: true,
@@ -4824,6 +4833,12 @@
       // https://github.com/openui/open-ui/issues/1063
       name: "SelectedcontentelementAttribute",
       status: "test",
+    },
+    {
+      // Aligns the implementation of the <selectedcontent> element with the
+      // HTML spec. https://issues.chromium.org/issues/458113204
+      name: "SelectedcontentSpec",
+      status: "experimental",
     },
     {
       // See https://crbug.com/40664519
@@ -5055,6 +5070,12 @@
       status: "stable",
     },
     {
+      // Improves performance of event dispatching by skipping the capture
+      // phase if there are no capture listeners registered on the page.
+      name: "SkipEventCapture",
+      status: "stable",
+    },
+    {
       // When enabled, cursor movement (arrow keys) will skip over non-editable
       // atomic or empty inline elements within editable content, instead of
       // getting stuck or moving into the non-editable content.
@@ -5203,6 +5224,14 @@
       name: "SubApps",
       status: "test",
     },
+    // 'pointercancel' and boundary leave ('pointerout' and 'pointerleave')
+    // events would now fire after a mouse drag start, matching the spec's
+    // definition of "pointer stream suppression". See:
+    // https://github.com/w3c/pointerevents/issues/555
+    {
+      name: "SuppressPointerStreamAfterDrag",
+      status: "experimental",
+    },
     {
       name: "Svg2Cascade",
       status: "stable",
@@ -5255,7 +5284,7 @@
     },
     {
       name: "SvgPartitionSVGDocumentResourcesInMemoryCache",
-      status: "experimental",
+      status: "stable",
     },
     {
       name: "SvgScriptElementAsyncAttribute",
@@ -5271,7 +5300,7 @@
     },
     {
       name: "SvgTextPathPathAttribute",
-      status: "experimental"
+      status: "stable",
     },
     {
       name: "SvgTransformOnNestedSvgElement",
@@ -5750,11 +5779,6 @@
     {
       name: "UseShadowHostStyleCheckEditable",
       status: "stable",
-    },
-    {
-      // Fix for https://crbug.com/354497121
-      name: "UseSpecValuesInTextFormatUpdateEventStyles",
-      status: "stable"
     },
     {
       name: "UseUndoStepElementDispatchBeforeInput",

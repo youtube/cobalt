@@ -485,6 +485,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".vm"/>
   <variant name=".watermark"/>
   <variant name=".web-app-internals"/>
+  <variant name=".webnn-internals"/>
   <variant name=".webrtc-internals"/>
   <variant name=".webui-browser"/>
   <variant name=".webui-toolbar.top-chrome"/>
@@ -504,6 +505,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".Emoji"/>
   <variant name=".ExtensionsWebStoreZeroStatePromo"/>
   <variant name=".Feed"/>
+  <variant name=".Feedback"/>
   <variant name=".HistoryClustersSidePanel"/>
   <variant name=".HistorySidePanel"/>
   <variant name=".LensOverlayUntrusted"/>
@@ -537,6 +539,16 @@ chromium-metrics-reviews@google.com.
     action the first time it becomes visible on a given page. Tab switches will
     only trigger logging for any page actions that have not already been logged
     as visible on this page.
+  </summary>
+</histogram>
+
+<histogram name="PageActionController.ActiveSuggestionChips" units="chips"
+    expires_after="2026-12-01">
+  <owner>yeroshkin@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    The number of Page Action Suggestion Chips currently active. Measured each
+    time a new suggestion chip is shown.
   </summary>
 </histogram>
 
@@ -1654,7 +1666,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.NavigationTiming.ConnectedCallbackDelay2"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>hayato@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -1668,7 +1680,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.GoogleSearch.NavigationTiming.CreateStreamDelay2"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>hayato@chromium.org</owner>
   <owner>chrome-loading@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -2648,7 +2660,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.PerformanceManager.LCPToLoadedIdle{LoadedIdleVisibility}"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>joenotcharles@google.com</owner>
   <owner>catan-team@chromium.org</owner>
   <summary>
@@ -2902,7 +2914,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.ServiceWorker2.PaintTiming.{Timing}.RaceNetworkRequestEligible"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -2921,7 +2933,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.ServiceWorker2.PaintTiming.{Timing}.SyntheticResponse"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -2963,7 +2975,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="PageLoad.Clients.ServiceWorker2.ParseTiming.NavigationToParseStart{SyntheticResponseSuffix}"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>sisidovski@chromium.org</owner>
   <owner>chrome-worker@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -3425,7 +3437,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.DocumentTiming.NavigationToLoadEventFired" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>bmcquade@chromium.org</owner>
   <owner>csharrison@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -3688,7 +3700,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.Experimental.TotalForegroundDuration" units="ms"
-    expires_after="2026-08-02">
+    expires_after="2026-08-09">
   <owner>npm@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
@@ -3949,27 +3961,6 @@ chromium-metrics-reviews@google.com.
   <owner>bmcquade@chromium.org</owner>
   <summary>
     Counts of various internal error conditions in the page_load_metrics system.
-  </summary>
-</histogram>
-
-<histogram name="PageLoad.Internal.EventTiming.ClickInteractionEvents"
-    enum="EventTimingClickInteractionEvents" expires_after="2025-12-28">
-  <owner>zuoaoyuan@chromium.org</owner>
-  <owner>speed-metrics-dev@chromium.org</owner>
-  <summary>
-    Records eight properties of click events in Event Timing. They are: total
-    number of clicks, number of clicks that are triggered by a keyboard
-    interaction, number of pointer clicks (that are triggered by a pointer
-    device) that are accompanied by both pointerdown and pointerup, number of
-    pointer clicks that only have their pointerdown missing, number of pointer
-    clicks that only have their pointerup missing, number of pointer clicks that
-    have both their pointerdown and pointerup missing, number of clicks that
-    have a pointer_id different from last_pointer_id but exist in the map,
-    number of clicks that have a pointer_id different from last_pointer_id and
-    also not exist in the map. This is recorded at most three times for each JS
-    trusted Click event dispatch. Once for total number of clicks; potentially
-    once if the pointer_id of the click is different from last_pointer_id; and
-    potentially once for all other types.
   </summary>
 </histogram>
 
@@ -4631,7 +4622,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.PaintTiming.NavigationToFirstPaint" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>sullivan@chromium.org</owner>
   <owner>speed-metrics-dev@chromium.org</owner>
   <summary>
@@ -4922,7 +4913,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="PageLoad.ParseTiming.NavigationToParseStart" units="ms"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>bmcquade@chromium.org</owner>
   <owner>csharrison@chromium.org</owner>
   <improvement direction="LOWER_IS_BETTER"/>

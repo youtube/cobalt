@@ -54,6 +54,13 @@ bool CanShowHostAccessRequests(
          ExtensionsMenuViewModel::OptionalSection::kHostAccessRequests;
 }
 
+// Returns the size of the extension icon displayed in the menu.
+gfx::Size GetMenuExtensionIconSize() {
+  const int icon_size = ChromeLayoutProvider::Get()->GetDistanceMetric(
+      DISTANCE_EXTENSIONS_MENU_EXTENSION_ICON_SIZE);
+  return gfx::Size(icon_size, icon_size);
+}
+
 // Returns the host access request info for `extension_id`.
 ExtensionsMenuViewModel::HostAccessRequest GetHostAccessRequest(
     ExtensionsMenuViewModel& menu_model,
@@ -298,6 +305,40 @@ void ExtensionsMenuDelegateDesktop::OnActionUpdated(
   }
 }
 
+void ExtensionsMenuDelegateDesktop::OnActionIconUpdated(
+    const ToolbarActionsModel::ActionId& action_id) {
+  CHECK(current_page_);
+
+  // Update the icon for the extension entry in the main page.
+  auto* main_page = GetMainPage(current_page_.view());
+  if (main_page) {
+    const auto& menu_entries = main_page->GetMenuEntries();
+    auto it = std::find_if(menu_entries.begin(), menu_entries.end(),
+                           [&action_id](auto* entry) {
+                             return entry->extension_id() == action_id;
+                           });
+
+    if (it != menu_entries.end()) {
+      (*it)->UpdateActionButton(menu_model_->GetActionButtonState(
+          action_id, GetMenuExtensionIconSize()));
+    }
+    return;
+  }
+
+  // Do nothing when the site permissions page is opened for a different
+  // extension.
+  auto* site_permissions_page = GetSitePermissionsPage(current_page_.view());
+  CHECK(site_permissions_page);
+  if (site_permissions_page->extension_id() != action_id) {
+    return;
+  }
+
+  // Update the icon for the extension's site permission page
+  // TODO(crbug.com/431902556): consider updating only the icon and not the
+  // whole site permissions page.
+  UpdateSitePermissionsPage(site_permissions_page);
+}
+
 void ExtensionsMenuDelegateDesktop::OnActionsInitialized() {
   CHECK(current_page_);
 
@@ -392,6 +433,11 @@ void ExtensionsMenuDelegateDesktop::OnSiteAccessSelected(
   menu_model_->UpdateSiteAccess(extension_id, site_access);
 }
 
+void ExtensionsMenuDelegateDesktop::OnActionButtonClicked(
+    const extensions::ExtensionId& extension_id) {
+  menu_model_->ExecuteAction(extension_id);
+}
+
 void ExtensionsMenuDelegateDesktop::OnSiteSettingsToggleButtonPressed(
     bool is_on) {
   PermissionsManager::UserSiteSetting site_setting =
@@ -463,9 +509,10 @@ void ExtensionsMenuDelegateDesktop::UpdateMainPage(
   // their names can change.
   std::vector<ExtensionsMenuEntryView*> menu_entries =
       main_page->GetMenuEntries();
+  gfx::Size icon_size = GetMenuExtensionIconSize();
   for (auto* menu_entry : menu_entries) {
     ExtensionsMenuViewModel::MenuEntryState entry_state =
-        menu_model_->GetMenuEntryState(menu_entry->extension_id());
+        menu_model_->GetMenuEntryState(menu_entry->extension_id(), icon_size);
     menu_entry->Update(entry_state);
   }
 }
@@ -473,12 +520,11 @@ void ExtensionsMenuDelegateDesktop::UpdateMainPage(
 void ExtensionsMenuDelegateDesktop::UpdateSitePermissionsPage(
     ExtensionsMenuSitePermissionsPageView* site_permissions_page) {
   extensions::ExtensionId extension_id = site_permissions_page->extension_id();
-  const int icon_size = ChromeLayoutProvider::Get()->GetDistanceMetric(
-      DISTANCE_EXTENSIONS_MENU_EXTENSION_ICON_SIZE);
+  gfx::Size icon_size = GetMenuExtensionIconSize();
 
   ExtensionsMenuViewModel::ExtensionSitePermissionsState
       site_permissions_state = menu_model_->GetExtensionSitePermissionsState(
-          extension_id, gfx::Size(icon_size, icon_size));
+          extension_id, icon_size);
   site_permissions_page->Update(site_permissions_state);
 }
 
@@ -516,7 +562,8 @@ void ExtensionsMenuDelegateDesktop::InsertMenuEntry(
     ExtensionsMenuMainPageView* main_page,
     ExtensionActionViewModel* action_model,
     int index) {
+  gfx::Size icon_size = GetMenuExtensionIconSize();
   ExtensionsMenuViewModel::MenuEntryState entry_state =
-      menu_model_->GetMenuEntryState(action_model->GetId());
+      menu_model_->GetMenuEntryState(action_model->GetId(), icon_size);
   main_page->CreateAndInsertMenuEntry(action_model, entry_state, index);
 }

@@ -776,13 +776,13 @@ void LocalFrameView::PerformLayout() {
           container->SetShouldCheckForPaintInvalidation();
       }
       layout_subtree_root_list_.Clear();
-#if DCHECK_IS_ON()
+#if EXPENSIVE_DCHECKS_ARE_ON()
       // Ensure fragment-tree consistency after a subtree layout.
       for (const auto& p : fragment_tree_spines) {
         p.key->AssertFragmentTree();
         DCHECK_EQ(p.value, 0u);
       }
-#endif
+#endif  // EXPENSIVE_DCHECKS_ARE_ON()
       fragment_tree_spines.clear();
     } else {
       GetLayoutView()->LayoutRoot();
@@ -1090,17 +1090,20 @@ LocalFrameView::NaturalSizeLayoutScope::NaturalSizeLayoutScope(
   view_ = view;
   is_fixed_to_frame_size_ = view->LayoutSizeFixedToFrameSize();
   saved_layout_size_ = layout_size;
-  view->SetLayoutSizeFixedToFrameSize(false);
-  view->SetLayoutSizeInternal(*view->layout_size_for_natural_size_);
+  view->SetLayoutSizeFixedToFrameSize(false, {.should_suppress_events = true});
+  view->SetLayoutSizeInternal(*view->layout_size_for_natural_size_,
+                              {.should_suppress_events = true});
 }
 
 LocalFrameView::NaturalSizeLayoutScope::~NaturalSizeLayoutScope() {
   if (!view_) {
     return;
   }
-  view_->SetLayoutSizeFixedToFrameSize(is_fixed_to_frame_size_);
+  view_->SetLayoutSizeFixedToFrameSize(is_fixed_to_frame_size_,
+                                       {.should_suppress_events = true});
   if (!is_fixed_to_frame_size_) {
-    view_->SetLayoutSizeInternal(saved_layout_size_);
+    view_->SetLayoutSizeInternal(saved_layout_size_,
+                                 {.should_suppress_events = true});
   }
 }
 
@@ -1129,12 +1132,7 @@ bool LocalFrameView::HasRunningAnchorTransformAnimation() const {
   for (Frame* child = frame_->Tree().FirstChild(); child;
        child = child->Tree().NextSibling()) {
     const auto* child_view = DynamicTo<LocalFrameView>(child->View());
-    if (!child_view) {
-      // If this is not a local frame (in other words, it's typically a remote
-      // frame), there's no way of answering this. Err on the safe side.
-      return true;
-    }
-    if (child_view->HasRunningAnchorTransformAnimation()) {
+    if (child_view && child_view->HasRunningAnchorTransformAnimation()) {
       return true;
     }
   }
@@ -1407,13 +1405,15 @@ void LocalFrameView::SetLayoutSize(const gfx::Size& size) {
   SetLayoutSizeInternal(size);
 }
 
-void LocalFrameView::SetLayoutSizeFixedToFrameSize(bool is_fixed) {
+void LocalFrameView::SetLayoutSizeFixedToFrameSize(
+    bool is_fixed,
+    const DocumentResizeOptions options) {
   if (layout_size_fixed_to_frame_size_ == is_fixed)
     return;
 
   layout_size_fixed_to_frame_size_ = is_fixed;
   if (is_fixed)
-    SetLayoutSizeInternal(Size());
+    SetLayoutSizeInternal(Size(), options);
 }
 
 ChromeClient* LocalFrameView::GetChromeClient() const {
@@ -3274,7 +3274,9 @@ void LocalFrameView::UpdateStyleAndLayoutIfNeededRecursive() {
   CheckDoesNotNeedLayout();
 #if DCHECK_IS_ON()
   frame_->GetDocument()->GetLayoutView()->AssertLaidOut();
+#if EXPENSIVE_DCHECKS_ARE_ON()
   frame_->GetDocument()->GetLayoutView()->AssertFragmentTree();
+#endif  // EXPENSIVE_DCHECKS_ARE_ON()
 #endif
 
   if (Lifecycle().GetState() < DocumentLifecycle::kLayoutClean)
@@ -3901,7 +3903,8 @@ void LocalFrameView::ZoomFactorChanged(float zoom_factor) {
   GetFrame().SetLayoutZoomFactor(zoom_factor);
 }
 
-void LocalFrameView::SetLayoutSizeInternal(const gfx::Size& size) {
+void LocalFrameView::SetLayoutSizeInternal(const gfx::Size& size,
+                                           DocumentResizeOptions options) {
   if (layout_size_ == size)
     return;
   layout_size_ = size;
@@ -3909,7 +3912,7 @@ void LocalFrameView::SetLayoutSizeInternal(const gfx::Size& size) {
   Document* document = GetFrame().GetDocument();
   if (!document || !document->IsActive())
     return;
-  document->LayoutViewportWasResized();
+  document->LayoutViewportWasResized(options);
   if (frame_->IsMainFrame())
     TextAutosizer::UpdatePageInfoInAllFrames(frame_);
 }

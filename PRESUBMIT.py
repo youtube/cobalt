@@ -282,16 +282,17 @@ _BANNED_JAVA_FUNCTIONS: Sequence[BanRule] = (
          ),
         explanation=
         ('Usage of IS_DESKTOP_ANDROID build flag or DeviceInfo.isDesktop() '
-         'is discouraged. Use system affordances to determine feature '
-         'availablility. Refer to https://chromium.googlesource.com/chromium/src/+/HEAD/docs/ui/android/device_form_factor.md for guidelines. '
+         'is discouraged. Use system affordances (see guidelines link below) to determine feature '
+         'availablility. '
          'To request an exception, file a bug at '
          'https://b.corp.google.com/issues/new?component=1753515&template=2172655'
-         'Once approved, use centralized util DeviceInfo.isDesktop() '
+         ' . Once approved, use centralized util DeviceInfo.isDesktop() '
          'instead of direct build flag or PackageManager.FEATURE_PC checks. '
          'Allowances may be granted to only the directories below: '
          '[build/, chrome/, components/, extensions/, infra/, tools/] '
          'Note: in particular we need to avoid components shared with '
-         'WebView.', ),
+         'WebView. Refer to https://chromium.googlesource.com/chromium/src/+/HEAD/docs/ui/android/device_form_factor.md for guidelines. ',
+         ),
         treat_as_error=False,
         surface_as_gerrit_lint=True,
     ),
@@ -2277,7 +2278,7 @@ _BANNED_CPP_FUNCTIONS: Sequence[BanRule] = (
         pattern='PageActionIconView',
         explanation=
         ('PageActionIconView will soon be removed. Use PageActionView instead. '
-         'See chrome/browser/ui/views/page_action/README.md for details.'),
+         'See chrome/browser/ui/views/page_action/README.md for details.', ),
         treat_as_error=False,
     ),
     BanRule(
@@ -7639,6 +7640,8 @@ def CheckAndroidTestAnnotations(input_api, output_api):
             files_to_check=[r'.*Test\.java$'])
 
     for f in input_api.AffectedSourceFiles(_FilterFile):
+        if f.Action() != 'A':
+            continue
         batch_matched = None
         do_not_batch_matched = None
         is_instrumentation_test = True
@@ -7682,12 +7685,10 @@ def CheckAndroidTestAnnotations(input_api, output_api):
 
     if missing_annotation_errors:
         results.append(
-            output_api.PresubmitPromptWarning(
+            output_api.PresubmitError(
                 """
-A change was made to an on-device test that has neither been annotated with
-@Batch nor @DoNotBatch. If this is a new test, please add the annotation. If
-this is an existing test, please consider adding it if you are sufficiently
-familiar with the test (but do so as a separate change).
+An on-device test has been added that has neither been annotated with @Batch
+nor @DoNotBatch. Please add the annotation.
 
 See https://source.chromium.org/chromium/chromium/src/+/main:docs/testing/batching_instrumentation_tests.md
 """, missing_annotation_errors))
@@ -8305,3 +8306,7 @@ def CheckSettingsChanges(input_api, output_api):
             '  //components/browser_ui/settings/android/java/src/org/chromium/components/browser_ui/settings/search/SearchIndexProvider.java',
             problems)
     ]
+
+
+def CheckAyeAye(input_api, output_api):
+    return input_api.canned_checks.CheckAyeAye(input_api, output_api)

@@ -5,19 +5,24 @@
 #include "chrome/browser/extensions/extension_browser_window_helper.h"
 
 #include "base/check_deref.h"
-#include "chrome/browser/extensions/app_tab_helper.h"
 #include "chrome/browser/profiles/profile.h"
-#include "chrome/browser/ui/browser_command_controller.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
-#include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/url_constants.h"
 #include "content/public/browser/navigation_controller.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/url_constants.h"
 #include "extensions/browser/unloaded_extension_reason.h"
+#include "extensions/buildflags/buildflags.h"
 #include "extensions/common/constants.h"
 #include "url/origin.h"
+
+#if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/extensions/app_tab_helper.h"
+#endif  // !BUILDFLAG(IS_ANDROID)
+
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
 
 namespace extensions {
 
@@ -45,6 +50,8 @@ bool ShouldCloseTabOnExtensionUnload(const Extension* extension,
     }
   }
 
+  // NOTE: Android does not support hosted apps.
+#if !BUILDFLAG(IS_ANDROID)
   // Case 2: Check if the page is a page associated with a hosted app, which
   // can have non-extension schemes. For example, the Gmail hosted app would
   // have a URL of https://mail.google.com.
@@ -52,6 +59,7 @@ bool ShouldCloseTabOnExtensionUnload(const Extension* extension,
       extension->id()) {
     return true;
   }
+#endif  // !BUILDFLAG(IS_ANDROID)
 
   return false;
 }
@@ -72,28 +80,18 @@ void UnmuteIfMutedByExtension(content::WebContents* contents,
 }  // namespace
 
 ExtensionBrowserWindowHelper::ExtensionBrowserWindowHelper(
-    chrome::BrowserCommandController* command_controller,
-    TabStripModel* tab_strip_model,
+    BrowserWindowInterface* browser,
     Profile* profile)
-    : command_controller_(CHECK_DEREF(command_controller)),
-      tab_strip_model_(CHECK_DEREF(tab_strip_model)) {
+    : browser_(CHECK_DEREF(browser)) {
   registry_observation_.Observe(ExtensionRegistry::Get(profile));
 }
 
 ExtensionBrowserWindowHelper::~ExtensionBrowserWindowHelper() = default;
 
-void ExtensionBrowserWindowHelper::OnExtensionLoaded(
-    content::BrowserContext* browser_context,
-    const Extension* extension) {
-  command_controller_->ExtensionStateChanged();
-}
-
 void ExtensionBrowserWindowHelper::OnExtensionUnloaded(
     content::BrowserContext* browser_context,
     const Extension* extension,
     UnloadedExtensionReason reason) {
-  command_controller_->ExtensionStateChanged();
-
   // Clean up any tabs from |extension|, unless it was terminated. In the
   // terminated case (as when the extension crashed), we let the sad tabs stay.
   if (reason != extensions::UnloadedExtensionReason::TERMINATE)
@@ -102,13 +100,17 @@ void ExtensionBrowserWindowHelper::OnExtensionUnloaded(
 
 void ExtensionBrowserWindowHelper::CleanUpTabsOnUnload(
     const Extension* extension) {
+  TabListInterface* tab_list = TabListInterface::From(&browser_.get());
+  if (!tab_list) {
+    return;
+  }
   // Iterate backwards as we may remove items while iterating.
-  for (int i = tab_strip_model_->count() - 1; i >= 0; --i) {
-    content::WebContents* web_contents = tab_strip_model_->GetWebContentsAt(i);
+  for (int i = tab_list->GetTabCount() - 1; i >= 0; --i) {
+    content::WebContents* web_contents = tab_list->GetTab(i)->GetContents();
     if (ShouldCloseTabOnExtensionUnload(extension, web_contents)) {
       // Do not close the last tab if it belongs to the extension. Instead
       // replace it with the default NTP.
-      if (tab_strip_model_->count() == 1) {
+      if (tab_list->GetTabCount() == 1) {
         const GURL new_tab_url(chrome::kChromeUINewTabURL);
         // Replace the extension page with default NTP. This behavior is similar
         // to how Chrome URL overrides (such as NTP overrides) are handled by
@@ -117,7 +119,7 @@ void ExtensionBrowserWindowHelper::CleanUpTabsOnUnload(
                                               ui::PAGE_TRANSITION_RELOAD,
                                               std::string());
       } else {
-        tab_strip_model_->CloseWebContentsAt(i, TabCloseTypes::CLOSE_NONE);
+        tab_list->CloseTab(tab_list->GetTab(i)->GetHandle());
       }
     } else {
       UnmuteIfMutedByExtension(web_contents, extension->id());

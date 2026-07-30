@@ -30,12 +30,16 @@
 #include "build/branding_buildflags.h"
 #include "build/build_config.h"
 #include "chrome/app/vector_icons/vector_icons.h"
+#include "chrome/browser/ui/hats/hats_service.h"
+#include "chrome/browser/ui/hats/hats_service_factory.h"
+#include "chrome/browser/ui/omnibox/chrome_omnibox_client.h"
 #include "chrome/browser/ui/omnibox/omnibox_controller.h"
 #include "chrome/browser/ui/omnibox/omnibox_next_features.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_state_manager.h"
 #include "chrome/browser/ui/omnibox/omnibox_popup_view.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_closer.h"
+#include "chrome/common/chrome_features.h"
 #include "components/bookmarks/browser/bookmark_model.h"
 #include "components/dom_distiller/core/url_constants.h"
 #include "components/dom_distiller/core/url_utils.h"
@@ -82,6 +86,7 @@
 #include "components/search_engines/template_url_starter_pack_data.h"
 #include "components/search_engines/util.h"
 #include "components/strings/grit/components_strings.h"
+#include "extensions/common/extension_features.h"
 #include "net/cookies/cookie_util.h"
 #include "third_party/icu/source/common/unicode/ubidi.h"
 #include "third_party/metrics_proto/omnibox_event.pb.h"
@@ -1832,6 +1837,9 @@ std::u16string OmniboxEditModel::GetSuggestionGroupHeaderText(
     // is currently active.
     if (suggestion_group_id.value() == omnibox::GROUP_CONTEXTUAL_SEARCH &&
         (has_toolbelt_lens_action || has_lens_search_chip)) {
+      if (base::FeatureList::IsEnabled(omnibox::kHideContextualGroupHeaders)) {
+        return u"";
+      }
       // TODO(khalidpeer): Make direct use of `header_text` once we start
       //     receiving a non-empty contextual search header from the server.
       return header_text.empty()
@@ -2093,7 +2101,7 @@ std::u16string OmniboxEditModel::GetPopupAccessibilityLabelForCurrentSelection(
           match.associated_keyword, "");
       std::u16string replacement_string =
           turl ? turl->short_name() : match.contents;
-      bool ask_keyword = turl && turl->is_ask_starter_pack();
+      bool ask_keyword = turl && turl->is_ask_type();
       // For featured search engines, we also want to add the shortcut name.
       if (AutocompleteMatch::IsFeaturedSearchType(match.type)) {
         int message_id = ask_keyword ? IDS_ACC_ASK_KEYWORD_MODE_WITH_SHORTCUT
@@ -2471,12 +2479,87 @@ void OmniboxEditModel::AcceptInput(WindowOpenDisposition disposition,
   }
 }
 
+void OmniboxEditModel::OnDefaultSearchExtensionDialogDone(
+    OmniboxPopupSelection selection,
+    AutocompleteMatch match,
+    WindowOpenDisposition disposition,
+    const GURL& alternate_nav_url,
+    const std::u16string& pasted_text,
+    base::TimeTicks match_selection_timestamp,
+    bool proceed) {
+  // Reaching here mean that the default search engine was initially overridden
+  // by an extension and that user either accepted or rejected the change.
+  //
+  // When `proceed` is true, it means that the user accepted the change the
+  // search will continue as normal.
+  //
+  // When `proceed` is false, it means that the user rejected the change.
+  // Therefore, It is necessary to re-classify the input text using the current
+  // (restored) settings and build the new navigation url.
+  if (proceed) {
+    OpenMatch(selection, match, disposition, alternate_nav_url, pasted_text,
+              match_selection_timestamp);
+  } else {
+    std::u16string input_text =
+        pasted_text.empty()
+            ? (user_input_in_progress_ ? user_text_ : url_for_editing_)
+            : pasted_text;
+
+    AutocompleteMatch new_match;
+    GURL new_alternate_nav_url;
+
+    // Re-classify using the current (restored) settings.
+    ClassifyString(input_text, &new_match, &new_alternate_nav_url);
+
+    OpenMatch(selection, new_match, disposition, new_alternate_nav_url,
+              pasted_text, match_selection_timestamp);
+
+    // The omnibox is focused during the string classification, so we need to
+    // focus the web contents after the string classification.
+    controller_->client()->FocusWebContents();
+  }
+
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC)
+  if (base::FeatureList::IsEnabled(
+          features::kHappinessTrackingSurveysForDesktopSEHijacking) &&
+      base::FeatureList::IsEnabled(
+          extensions_features::kSearchEngineExplicitChoiceDialog)) {
+    HatsService* hats_service = HatsServiceFactory::GetForProfile(
+        static_cast<ChromeOmniboxClient*>(controller_->client())->profile(),
+        /*create_if_necessary=*/true);
+    if (hats_service) {
+      hats_service->LaunchDelayedSurvey(kHatsSurveyTriggerSEHijacking, 5000);
+    }
+  }
+#endif
+}
+
 void OmniboxEditModel::OpenMatch(OmniboxPopupSelection selection,
                                  AutocompleteMatch match,
                                  WindowOpenDisposition disposition,
                                  const GURL& alternate_nav_url,
                                  const std::u16string& pasted_text,
                                  base::TimeTicks match_selection_timestamp) {
+  // When `ShowConfirmationDialogIfDefaultSearchExtensionControlled` is called
+  // for the first time and that the Dialog is shown, it early returns and
+  // asynchronously waits until the Dialog is resolved. Once the Dialog is
+  // resolved, the next call to
+  // `ShowConfirmationDialogIfDefaultSearchExtensionControlled` return false and
+  // the normal flow continues using the correct search engine.
+  if (base::FeatureList::IsEnabled(
+          extensions_features::kSearchEngineExplicitChoiceDialog) &&
+      AutocompleteMatch::IsSearchType(match.type) && !match.keyword.empty() &&
+      match.destination_url.is_valid() &&
+      controller_->client()
+          ->ShowConfirmationDialogIfDefaultSearchExtensionControlled(
+              match.destination_url,
+              base::BindOnce(
+                  &OmniboxEditModel::OnDefaultSearchExtensionDialogDone,
+                  weak_factory_.GetWeakPtr(), selection, match, disposition,
+                  alternate_nav_url, pasted_text, match_selection_timestamp))) {
+    return;
+  }
+
   // If the user is executing an action, this will be non-null and some match
   // opening and metrics behavior will be adjusted accordingly.
   OmniboxAction* action = nullptr;

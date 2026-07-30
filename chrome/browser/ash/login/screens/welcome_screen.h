@@ -12,12 +12,16 @@
 #include "ash/system/tray/system_tray_observer.h"
 #include "base/callback_list.h"
 #include "base/functional/callback.h"
+#include "base/memory/raw_ref.h"
 #include "base/memory/weak_ptr.h"
 #include "base/observer_list.h"
 #include "chrome/browser/ash/login/screens/base_screen.h"
 #include "chrome/browser/ash/login/screens/chromevox_hint/chromevox_hint_detector.h"
 #include "chrome/browser/ash/login/wizard_context.h"
 #include "ui/base/ime/ash/input_method_manager.h"
+
+class ApplicationLocaleStorage;
+class PrefService;
 
 namespace ash {
 
@@ -76,7 +80,11 @@ class WelcomeScreen : public BaseScreen,
 
   using ScreenExitCallback = base::RepeatingCallback<void(Result result)>;
 
-  WelcomeScreen(base::WeakPtr<WelcomeView> view,
+  // `local_state` and `application_locale_storage` must be non-null and must
+  // outlive `this`.
+  WelcomeScreen(PrefService* local_state,
+                ApplicationLocaleStorage* application_locale_storage,
+                base::WeakPtr<WelcomeView> view,
                 const ScreenExitCallback& exit_callback);
 
   WelcomeScreen(const WelcomeScreen&) = delete;
@@ -183,6 +191,9 @@ class WelcomeScreen : public BaseScreen,
   // Adds data to the OOBE.WelcomeScreen.UserChangedLocale metric and calls
   // exit_callback with given Result
   void Exit(Result result) const;
+
+  const raw_ref<PrefService> local_state_;
+  const raw_ref<ApplicationLocaleStorage> application_locale_storage_;
 
   base::WeakPtr<WelcomeView> view_;
   ScreenExitCallback exit_callback_;

@@ -172,6 +172,7 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHiOSReplaceSyncPromosWithSignInPromos,
     &kIPHiOSTabGridSwipeRightForIncognito,
     &kIPHiOSDockingPromoFeature,
+    &kIPHiOSDockingPromoEligibilityFeature,
     &kIPHiOSDockingPromoRemindMeLaterFeature,
     &kIPHiOSPromoAllTabsFeature,
     &kIPHiOSPromoMadeForIOSFeature,
@@ -328,6 +329,8 @@ const base::Feature* const kAllFeatures[] = {
     &kIPHiOSPaymentPromoDesktopFeature,
     &kIPHiOSLensPromoDesktopFeature,
     &kIPHiOSEnhancedBrowsingDesktopFeature,
+    &kIPHiOSTabGroupsDesktopFeature,
+    &kIPHiOSPriceTrackingDesktopFeature,
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if !BUILDFLAG(IS_IOS)

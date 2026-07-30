@@ -43,7 +43,7 @@ namespace {
 const char kUserScriptHead[] = "(function (unsafeWindow) {\n";
 const char kUserScriptTail[] = "\n})(window);";
 // Maximum number of total content scripts we allow (across all extensions).
-// The limit exists to diagnose https://crbug.com/723381. The number is
+// The limit exists to diagnose https://crbug.com/40521087. The number is
 // arbitrarily chosen.
 // TODO(lazyboy): Remove when the bug is fixed.
 const uint32_t kNumScriptsArbitraryMax = 100000u;
@@ -182,7 +182,7 @@ bool UserScriptSet::UpdateUserScripts(
   CHECK(iter.ReadUInt32(&num_scripts));
 
   // Sometimes the shared memory contents seem to be corrupted
-  // (https://crbug.com/723381). Set an arbitrary max limit to the number of
+  // (https://crbug.com/40521087). Set an arbitrary max limit to the number of
   // scripts so that we don't add OOM noise to crash reports.
   CHECK_LT(num_scripts, kNumScriptsArbitraryMax);
 
@@ -197,16 +197,14 @@ bool UserScriptSet::UpdateUserScripts(
     // gets cleared up when the last renderer or browser process drops their
     // reference to the shared memory.
     for (const auto& js_script : script->js_scripts()) {
-      const char* body = nullptr;
-      size_t body_length = 0;
-      CHECK(iter.ReadData(&body, &body_length));
-      js_script->set_external_content(std::string_view(body, body_length));
+      std::string_view body;
+      CHECK(iter.ReadStringPiece(&body));
+      js_script->set_external_content(body);
     }
     for (const auto& css_script : script->css_scripts()) {
-      const char* body = nullptr;
-      size_t body_length = 0;
-      CHECK(iter.ReadData(&body, &body_length));
-      css_script->set_external_content(std::string_view(body, body_length));
+      std::string_view body;
+      CHECK(iter.ReadStringPiece(&body));
+      css_script->set_external_content(body);
     }
 
     if (only_inject_incognito && !script->is_incognito_enabled())

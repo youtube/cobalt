@@ -56,10 +56,6 @@ bool IsPrefetchServiceWorkerEnabled(content::BrowserContext* browser_context) {
              ->IsPrefetchWithServiceWorkerAllowed(browser_context);
 }
 
-BASE_FEATURE(kPrefetchScheduler, base::FEATURE_ENABLED_BY_DEFAULT);
-const base::FeatureParam<bool> kPrefetchSchedulerProgressSyncBestEffort{
-    &kPrefetchScheduler, "kPrefetchSchedulerProgressSyncBestEffort", true};
-
 BASE_FEATURE(kPrefetchSchedulerTesting, base::FEATURE_DISABLED_BY_DEFAULT);
 const base::FeatureParam<size_t>
     kPrefetchSchedulerTestingActiveSetSizeLimitForBase{
@@ -80,11 +76,6 @@ const base::FeatureParam<size_t>
         "prefetch_multiple_active_set_size_limit_for_base_value", 2};
 
 BASE_FEATURE(kPreloadServingMetrics, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPrefetchGracefulNotification, base::FEATURE_ENABLED_BY_DEFAULT);
-
-BASE_FEATURE(kPrefetchAsyncCancelOnCookiesChange,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kPrefetchFixHeaderUpdatesOnRedirect,
              base::FEATURE_ENABLED_BY_DEFAULT);

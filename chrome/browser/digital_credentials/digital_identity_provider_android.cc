@@ -117,24 +117,40 @@ void DigitalIdentityProviderAndroid::Create(content::WebContents* web_contents,
       origin.Serialize(), *request_str);
 }
 
-void DigitalIdentityProviderAndroid::OnReceive(
-    JNIEnv* env,
-    std::optional<std::string> protocol,
-    std::string result,
-    int32_t j_status_for_metrics) {
+void DigitalIdentityProviderAndroid::OnReceive(JNIEnv* env,
+                                               std::string protocol,
+                                               std::string result,
+                                               int32_t j_status_for_metrics) {
   if (!callback_) {
     return;
   }
+
+  auto expected_value = ParseResult(result, j_status_for_metrics);
+  if (expected_value.has_value()) {
+    std::move(callback_).Run(DigitalCredential(
+        std::move(protocol), std::move(expected_value.value())));
+  } else {
+    std::move(callback_).Run(base::unexpected(expected_value.error()));
+  }
+}
+
+// static
+base::expected<base::Value,
+               DigitalIdentityProviderAndroid::RequestStatusForMetrics>
+DigitalIdentityProviderAndroid::ParseResult(std::string result,
+                                            int32_t j_status_for_metrics) {
   auto status_for_metrics =
       static_cast<RequestStatusForMetrics>(j_status_for_metrics);
-  std::move(callback_).Run(
-      (status_for_metrics == RequestStatusForMetrics::kSuccess)
-          ? base::expected<DigitalCredential, RequestStatusForMetrics>(
-                DigitalCredential(
-                    std::move(protocol),
-                    base::JSONReader::Read(
-                        result, base::JSON_PARSE_CHROMIUM_EXTENSIONS)))
-          : base::unexpected(status_for_metrics));
+
+  if (status_for_metrics != RequestStatusForMetrics::kSuccess) {
+    return base::unexpected(status_for_metrics);
+  }
+
+  auto data = base::JSONReader::Read(result, base::JSON_PARSE_RFC);
+  if (data) {
+    return std::move(*data);
+  }
+  return base::unexpected(RequestStatusForMetrics::kErrorInvalidJson);
 }
 
 DEFINE_JNI(DigitalIdentityProvider)

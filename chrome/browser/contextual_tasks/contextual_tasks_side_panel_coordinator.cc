@@ -24,8 +24,10 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
+#include "chrome/browser/contextual_tasks/entry_point_eligibility_manager.h"
 #include "chrome/browser/media/webrtc/media_capture_devices_dispatcher.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
@@ -34,7 +36,6 @@
 #include "chrome/browser/ui/hats/survey_config.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/tabs/glic_nudge_controller.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/views/interaction/browser_elements_views.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry.h"
 #include "chrome/browser/ui/views/side_panel/side_panel_entry_scope.h"
@@ -257,16 +258,20 @@ class ContextualTasksWebView
 };
 
 ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
-    BrowserWindowInterface* browser_window)
+    BrowserWindowInterface* browser_window,
+    ActiveTaskContextProvider* active_task_context_provider,
+    EntryPointEligibilityManager* eligibility_manager)
     : ContextualTasksSidePanelCoordinator(
           browser_window,
           browser_window->GetFeatures().side_panel_ui(),
-          ActiveTaskContextProvider::From(browser_window)) {}
+          active_task_context_provider,
+          eligibility_manager) {}
 
 ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
     BrowserWindowInterface* browser_window,
     SidePanelUI* side_panel_ui,
-    ActiveTaskContextProvider* active_task_context_provider)
+    ActiveTaskContextProvider* active_task_context_provider,
+    EntryPointEligibilityManager* eligibility_manager)
     : browser_window_(browser_window),
       contextual_tasks_service_(ContextualTasksServiceFactory::GetForProfile(
           browser_window->GetProfile())),
@@ -280,20 +285,23 @@ ContextualTasksSidePanelCoordinator::ContextualTasksSidePanelCoordinator(
       scoped_unowned_user_data_(browser_window->GetUnownedUserDataHost(),
                                 *this) {
   CreateAndRegisterEntry(SidePanelRegistry::From(browser_window_));
-  active_task_context_provider_->SetSessionHandleGetter(
-      base::BindRepeating(&ContextualTasksSidePanelCoordinator::
-                              GetSessionHandleForActiveTabOrSidePanel,
-                          base::Unretained(this)));
-  if (base::FeatureList::IsEnabled(kContextualTasksTabListInterfaceObserver)) {
-    TabListInterface::From(browser_window_)->AddTabListInterfaceObserver(this);
-  } else {
-    browser_window_->GetTabStripModel()->AddObserver(this);
+  active_task_context_provider_->SetContextualTasksPanelController(this);
+  TabListInterface::From(browser_window_)->AddTabListInterfaceObserver(this);
+
+  if (eligibility_manager) {
+    eligibility_change_subscription_ =
+        eligibility_manager->RegisterOnEntryPointEligibilityChanged(
+            base::BindRepeating(
+                &ContextualTasksSidePanelCoordinator::OnEligibilityChange,
+                weak_ptr_factory_.GetWeakPtr()));
   }
 }
 
 ContextualTasksSidePanelCoordinator::~ContextualTasksSidePanelCoordinator() {
-  browser_window_->GetTabStripModel()->RemoveObserver(this);
+  active_task_context_provider_->SetContextualTasksPanelController(nullptr);
   TabListInterface::From(browser_window_)->RemoveTabListInterfaceObserver(this);
+
+  RecordSessionEndMetrics();
 
   SidePanelRegistry* global_registry = SidePanelRegistry::From(browser_window_);
   if (global_registry) {
@@ -412,6 +420,8 @@ void ContextualTasksSidePanelCoordinator::Close() {
   Observe(nullptr);
 
   NotifyActiveTaskContextProvider();
+
+  RecordSessionEndMetrics();
 }
 
 bool ContextualTasksSidePanelCoordinator::IsSidePanelOpen() {
@@ -445,6 +455,23 @@ void ContextualTasksSidePanelCoordinator::TransferWebContentsFromTab(
   }
   UpdateOpenState(/*is_open=*/true);
   UpdateWebContentsForActiveTab();
+}
+
+void ContextualTasksSidePanelCoordinator::DidStartNavigation(
+    content::NavigationHandle* navigation_handle) {
+  // Check if the navigation is a back/forward navigation with the resulting URL
+  // being a contextual tasks URL. If the panel is open, this indicates that the
+  // user is navigating back to the full tab contextual tasks page.
+  if (navigation_handle->GetNavigationEntry() &&
+      (navigation_handle->GetNavigationEntry()->GetTransitionType() &
+       ui::PageTransition::PAGE_TRANSITION_FORWARD_BACK) &&
+      !navigation_handle->IsRendererInitiated() &&
+      IsPanelOpenForContextualTask() &&
+      ui_service_->IsContextualTasksUrl(navigation_handle->GetURL())) {
+    RecordUserActionAndHistogram(
+        "ContextualTasks.BackButton.UserAction."
+        "NavigatedFromSidePanelToFullTab");
+  }
 }
 
 void ContextualTasksSidePanelCoordinator::DidFinishNavigation(
@@ -542,6 +569,10 @@ void ContextualTasksSidePanelCoordinator::OnTaskChanged(
   UpdateContextualSearchWebContentsHelperForTask(
       contextual_search_service_, browser_window_, contextual_tasks_service_,
       this, web_contents, new_task_id);
+}
+
+void ContextualTasksSidePanelCoordinator::OnAiInteraction() {
+  in_cobrowsing_session_ = true;
 }
 
 contextual_search::ContextualSearchSessionHandle*
@@ -767,62 +798,6 @@ void ContextualTasksSidePanelCoordinator::OnActiveTabChanged(
   NotifyActiveTaskContextProvider();
 
   CleanUpUnusedWebContents();
-}
-
-void ContextualTasksSidePanelCoordinator::OnTabStripModelChanged(
-    TabStripModel* tab_strip_model,
-    const TabStripModelChange& change,
-    const TabStripSelectionChange& selection) {
-  if (change.type() == TabStripModelChange::kInserted) {
-    for (const auto& content : change.GetInsert()->contents) {
-      // If the new tab is already associated with a task, do nothing.
-      if (contextual_tasks_service_->GetContextualTaskForTab(
-              sessions::SessionTabHelper::IdForTab(content.contents))) {
-        continue;
-      }
-
-      // If the new tab has an opener and it's associated to a task, associate
-      // the new tab to the same task.
-      tabs::TabInterface* opener =
-          tab_strip_model->GetOpenerOfTabAt(content.index);
-      if (!opener) {
-        continue;
-      }
-      // Check if the new tab is opened through a link click
-      content::NavigationController& controller =
-          content.contents->GetController();
-      if (!controller.GetActiveEntry() ||
-          !ui::PageTransitionCoreTypeIs(
-              controller.GetActiveEntry()->GetTransitionType(),
-              ui::PAGE_TRANSITION_LINK)) {
-        continue;
-      }
-      std::optional<ContextualTask> task =
-          contextual_tasks_service_->GetContextualTaskForTab(
-              sessions::SessionTabHelper::IdForTab(opener->GetContents()));
-      if (task) {
-        ui_service_->AssociateWebContentsToTask(content.contents,
-                                                task->GetTaskId());
-      }
-    }
-  } else if (change.type() == TabStripModelChange::kRemoved) {
-    for (const auto& content : change.GetRemove()->contents) {
-      // Do not disassociate the tab from the task if insert into side panel or
-      // another tab strip.
-      if (content.remove_reason != TabRemovedReason::kInsertedIntoSidePanel &&
-          content.remove_reason !=
-              TabRemovedReason::kInsertedIntoOtherTabStrip) {
-        DisassociateTabFromTask(content.contents);
-      }
-    }
-
-  } else if (change.type() == TabStripModelChange::kReplaced) {
-    DisassociateTabFromTask(change.GetReplace()->old_contents);
-  }
-
-  if (selection.active_tab_changed() && !tab_strip_model->empty()) {
-    OnActiveTabChanged(tab_strip_model->GetActiveTab());
-  }
 }
 
 std::unique_ptr<views::View>
@@ -1084,6 +1059,10 @@ ContextualTasksSidePanelCoordinator::GetSessionHandleForActiveTabOrSidePanel() {
         browser_window_->GetActiveTabInterface();
     if (active_tab_interface) {
       web_contents = active_tab_interface->GetContents();
+      if (web_contents &&
+          !ui_service_->IsContextualTasksUrl(web_contents->GetURL())) {
+        web_contents = nullptr;
+      }
     }
   }
 
@@ -1131,6 +1110,23 @@ void ContextualTasksSidePanelCoordinator::OnEntryShown(SidePanelEntry* entry) {
 
 void ContextualTasksSidePanelCoordinator::OnEntryHidden(SidePanelEntry* entry) {
   NotifyActiveTaskContextProvider();
+}
+
+void ContextualTasksSidePanelCoordinator::RecordSessionEndMetrics() {
+  if (in_cobrowsing_session_) {
+    base::UmaHistogramBoolean("ContextualTasks.Session.Completed", true);
+  }
+  in_cobrowsing_session_ = false;
+}
+
+void ContextualTasksSidePanelCoordinator::OnEligibilityChange(
+    bool is_eligible) {
+  if (!is_eligible) {
+    if (IsPanelOpenForContextualTask()) {
+      Close();
+    }
+    task_id_to_web_contents_cache_.clear();
+  }
 }
 
 }  // namespace contextual_tasks

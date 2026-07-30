@@ -20,6 +20,7 @@ import static org.mockito.Mockito.when;
 import static org.chromium.chrome.browser.flags.ChromeFeatureList.SUBMENUS_TAB_CONTEXT_MENU_LFF_TAB_STRIP;
 import static org.chromium.chrome.browser.multiwindow.InstanceInfo.Type.CURRENT;
 import static org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType.ACTIVE;
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
 import static org.chromium.ui.listmenu.ListMenuItemProperties.TITLE;
 import static org.chromium.ui.listmenu.ListMenuSubmenuItemProperties.SUBMENU_ITEMS;
 
@@ -616,12 +617,11 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         StripLayoutContextMenuCoordinatorTestUtils.clickMoveToWindowRow(
                 modelList, 4, WINDOW_TITLE_2, mMenuView);
 
-        verify(mMultiInstanceManager, times(1))
-                .moveTabGroupToWindow(
-                        eq(INSTANCE_INFO_2),
+        verify(mMultiInstanceManager)
+                .moveTabGroupToWindowByIdChecked(
+                        eq(INSTANCE_ID_2),
                         any(TabGroupMetadata.class),
-                        eq(TabList.INVALID_TAB_INDEX),
-                        eq(NewWindowAppSource.MENU));
+                        eq(TabList.INVALID_TAB_INDEX));
     }
 
     private List<Tab> setUpTabGroupModelFilter() {
@@ -631,6 +631,7 @@ public class TabGroupContextMenuCoordinatorUnitTest {
         when(mTabGroupModelFilter.getTabUngrouper()).thenReturn(mTabUngrouper);
         when(mTabGroupModelFilter.isTabInTabGroup(tab)).thenReturn(true);
         when(mTabGroupModelFilter.tabGroupExists(TAB_GROUP_ID)).thenReturn(true);
+        when(mTabGroupModelFilter.getTabGroupTitle(TAB_GROUP_ID)).thenReturn(UNSET_TAB_GROUP_TITLE);
         when(mTabGroupModelFilter.getGroupLastShownTabId(TAB_GROUP_ID)).thenReturn(TAB_ID);
         when(mTabGroupModelFilter.getTabCountForGroup(eq(TAB_GROUP_ID))).thenReturn(1);
         List<Tab> tabsInGroup = Arrays.asList(tab);

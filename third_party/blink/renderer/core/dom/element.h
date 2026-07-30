@@ -1039,7 +1039,8 @@ class CORE_EXPORT Element : public ContainerNode {
                                    bool clonable,
                                    const AtomicString& adopted_stylesheets,
                                    const AtomicString& reference_target,
-                                   const bool waiting_for_scoped_registry);
+                                   const bool waiting_for_scoped_registry,
+                                   const Vector<AtomicString>& markers);
 
   ShadowRoot& CreateUserAgentShadowRoot(
       SlotAssignmentMode = SlotAssignmentMode::kNamed);
@@ -1049,7 +1050,8 @@ class CORE_EXPORT Element : public ContainerNode {
                                        CustomElementRegistry*,
                                        bool serializable,
                                        bool clonable,
-                                       const AtomicString& reference_target);
+                                       const AtomicString& reference_target,
+                                       const Vector<AtomicString>& markers);
   // This version is for testing only, and allows easy attachment of a shadow
   // root, specifying only the type and none of the other arguments.
   ShadowRoot& AttachShadowRootForTesting(ShadowRootMode type);
@@ -1260,7 +1262,7 @@ class CORE_EXPORT Element : public ContainerNode {
       Element* new_focused_element,
       InputDeviceCapabilities* source_capabilities = nullptr);
 
-  static bool IsScrollCommand(CommandEventType command) {
+  static bool IsScrollByPageCommand(CommandEventType command) {
     return command == CommandEventType::kPageUp ||
            command == CommandEventType::kPageDown ||
            command == CommandEventType::kPageLeft ||
@@ -1287,15 +1289,15 @@ class CORE_EXPORT Element : public ContainerNode {
           command != CommandEventType::kNone);
 
     // Handle scroll commands
-    if (IsScrollCommand(command)) {
-      return HandleScrollCommand(command);
+    if (IsScrollByPageCommand(command)) {
+      return HandleScrollByPageCommand(command);
     }
 
     return false;
   }
 
   // Helper method to handle scroll commands
-  bool HandleScrollCommand(CommandEventType command);
+  bool HandleScrollByPageCommand(CommandEventType command);
 
   // These are slightly different than e.g. checking popover->popoverOpen(),
   // because they also catch the case where the element *was* open as a popover
@@ -1652,6 +1654,12 @@ class CORE_EXPORT Element : public ContainerNode {
   // IDL method.
   // Returns the list of part names, creating it if it doesn't exist.
   DOMTokenList& part();
+
+  // Returns the list of marker names if it has ever been created.
+  DOMTokenList* GetMarker() const;
+  // IDL method.
+  // Returns the list of marker names, creating it if it doesn't exist.
+  DOMTokenList& marker();
 
   bool HasPartNamesMap() const;
   const NamesMap* PartNamesMap() const;
@@ -2408,7 +2416,8 @@ class CORE_EXPORT Element : public ContainerNode {
 
   ShadowRoot& CreateAndAttachShadowRoot(
       ShadowRootMode,
-      SlotAssignmentMode = SlotAssignmentMode::kNamed);
+      SlotAssignmentMode = SlotAssignmentMode::kNamed,
+      const Vector<AtomicString>& markers = Vector<AtomicString>());
 
   virtual void DidAddUserAgentShadowRoot(ShadowRoot&) {}
   virtual bool AlwaysCreateUserAgentShadowRoot() const { return false; }

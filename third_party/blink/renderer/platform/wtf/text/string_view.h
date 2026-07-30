@@ -293,6 +293,8 @@ class WTF_EXPORT StringView {
   // Find characters. Returns the index of the match, or `kNotFound`.
   wtf_size_t Find(CharacterMatchFunctionPtr match_function,
                   wtf_size_t start = 0) const;
+  // Find a substring. Returns the index of the match, or `kNotFound`.
+  wtf_size_t find(const StringView& value, wtf_size_t start = 0) const;
 
   // Find the last occurrence of a character. Returns the index of the match, or
   // `kNotFound`.
@@ -370,8 +372,8 @@ class WTF_EXPORT StringView {
   // Returns a list of substrings of `this`, separated by `separator`.
   // This doesn't produce empty substrings.
   //
-  // `StringView(" a  b").Split(' ')` produces ["a", "b"], and
-  // `StringView("").Split(',')` produces an empty list.
+  // `StringView(" a  b").SplitSkippingEmpty(' ')` produces ["a", "b"], and
+  // `StringView("").SplitSkippingEmpty(',')` produces an empty list.
   Vector<StringView> SplitSkippingEmpty(UChar separator) const;
 
  private:

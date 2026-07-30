@@ -66,7 +66,6 @@ class TabStripPageHandler : public tab_strip::mojom::PageHandler,
                       int index,
                       TabChangeType change_type) override;
   void OnTabPinnedStateChanged(tabs::TabInterface* tab, int index) override;
-  void OnTabBlockedStateChanged(tabs::TabInterface* tab, int index) override;
 
   // content::WebContentsDelegate:
   bool PreHandleGestureEvent(content::WebContents* source,
@@ -104,9 +103,6 @@ class TabStripPageHandler : public tab_strip::mojom::PageHandler,
   void HandleThumbnailUpdate(content::WebContents* tab,
                              ThumbnailTracker::CompressedThumbnailData image);
   void HandleTabCloseCancelled(content::WebContents* tab);
-  void ReportTabDurationHistogram(const char* histogram_fragment,
-                                  int tab_count,
-                                  base::TimeDelta duration);
   gfx::ImageSkia ThemeFavicon(const gfx::ImageSkia& source,
                               bool active_tab_icon);
 
@@ -137,11 +133,6 @@ class TabStripPageHandler : public tab_strip::mojom::PageHandler,
   void MoveGroup(const std::string& group_id, int32_t to_index) override;
   void MoveTab(int32_t tab_id, int32_t to_index) override;
   void SetThumbnailTracked(int32_t tab_id, bool thumbnail_tracked) override;
-  void ReportTabActivationDuration(uint32_t duration_ms) override;
-  void ReportTabDataReceivedDuration(uint32_t tab_count,
-                                     uint32_t duration_ms) override;
-  void ReportTabCreationDuration(uint32_t tab_count,
-                                 uint32_t duration_ms) override;
   void ActivateTab(int32_t tab_id) override;
 
   mojo::Receiver<tab_strip::mojom::PageHandler> receiver_;

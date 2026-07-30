@@ -53,6 +53,7 @@
 #include "components/lens/lens_overlay_mime_type.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/searchbox.mojom.h"
+#include "components/omnibox/common/omnibox_features.h"
 #include "components/omnibox/composebox/composebox_query.mojom.h"
 #include "components/strings/grit/components_strings.h"
 #include "content/public/browser/web_contents.h"
@@ -63,13 +64,12 @@
 #include "third_party/omnibox_proto/section_config.pb.h"
 #include "third_party/omnibox_proto/tool_config.pb.h"
 #include "third_party/omnibox_proto/tool_mode.pb.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "ui/base/models/image_model.h"
 #include "ui/base/models/menu_model.h"
 #include "ui/gfx/image/image.h"
 
 namespace {
-// TODO(crbug.com/457815342): Add this to config when available.
-constexpr int kMaxRecentTabs = 5;
 constexpr int kMinOmniboxContextMenuRecentTabsCommandId = 33000;
 
 bool IsValidTab(GURL url) {
@@ -110,12 +110,14 @@ OmniboxContextMenuController::ContextType CommandIdToEnum(int command_id) {
       return OmniboxContextMenuController::ContextType::kThinkingModel;
     case IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR:
       return OmniboxContextMenuController::ContextType::kRegularModel;
+    case IDC_OMNIBOX_CONTEXT_SET_MODEL_PRO_NO_GEN_UI:
+      return OmniboxContextMenuController::ContextType::kProNoGenUiModel;
     default:
       // There is no command id for tabs due to there being multiple
       // tabs that would have the same command id.
       CHECK_GE(command_id, kMinOmniboxContextMenuRecentTabsCommandId);
-      CHECK_LT(command_id,
-               kMinOmniboxContextMenuRecentTabsCommandId + kMaxRecentTabs);
+      CHECK_LT(command_id, kMinOmniboxContextMenuRecentTabsCommandId +
+                               omnibox::kContextMenuMaxTabSuggestions.Get());
       return OmniboxContextMenuController::ContextType::kTab;
   }
 }
@@ -193,7 +195,7 @@ void OmniboxContextMenuController::AddRecentTabItems() {
   }
 
   if (omnibox::kShowContextMenuHeaders.Get()) {
-    AddTitleWithStringId(IDS_NTP_COMPOSE_MOST_RECENT_TABS);
+    AddTitleWithStringId(IDS_NTP_COMPOSEBOX_TAB_PICKER_ADD_TABS_TITLE);
   }
   std::vector<OmniboxContextMenuController::TabInfo> tabs = GetRecentTabs();
 
@@ -220,13 +222,37 @@ void OmniboxContextMenuController::AddContextualInputItems() {
   auto add_image_icon =
       ui::ImageModel::FromVectorIcon(kAddPhotoAlternateIcon, ui::kColorMenuIcon,
                                      ui::SimpleMenuModel::kDefaultIconSize);
-  AddItemWithStringIdAndIcon(IDC_OMNIBOX_CONTEXT_ADD_IMAGE,
-                             IDS_NTP_COMPOSE_ADD_IMAGE, add_image_icon);
   auto add_file_icon =
       ui::ImageModel::FromVectorIcon(kAttachFileIcon, ui::kColorMenuIcon,
                                      ui::SimpleMenuModel::kDefaultIconSize);
-  AddItemWithStringIdAndIcon(IDC_OMNIBOX_CONTEXT_ADD_FILE,
-                             IDS_NTP_COMPOSE_ADD_FILE, add_file_icon);
+
+  if (base::FeatureList::IsEnabled(omnibox::kAimUsePecApi)) {
+    auto* add_image_config =
+        GetInputTypeConfig(omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+    auto add_image_label =
+        add_image_config && add_image_config->has_menu_label() &&
+                !add_image_config->menu_label().empty()
+            ? base::UTF8ToUTF16(add_image_config->menu_label())
+            : l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_ADD_IMAGE);
+    AddItemWithIcon(IDC_OMNIBOX_CONTEXT_ADD_IMAGE, add_image_label,
+                    add_image_icon);
+
+    auto* add_file_config =
+        GetInputTypeConfig(omnibox::InputType::INPUT_TYPE_LENS_FILE);
+    auto add_file_label =
+        add_file_config && add_file_config->has_menu_label() &&
+                !add_file_config->menu_label().empty()
+            ? base::UTF8ToUTF16(add_file_config->menu_label())
+            : l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_ADD_FILE);
+    AddItemWithIcon(IDC_OMNIBOX_CONTEXT_ADD_FILE, add_file_label,
+                    add_file_icon);
+  } else {
+    AddItemWithStringIdAndIcon(IDC_OMNIBOX_CONTEXT_ADD_IMAGE,
+                               IDS_NTP_COMPOSE_ADD_IMAGE, add_image_icon);
+
+    AddItemWithStringIdAndIcon(IDC_OMNIBOX_CONTEXT_ADD_FILE,
+                               IDS_NTP_COMPOSE_ADD_FILE, add_file_icon);
+  }
 }
 
 void OmniboxContextMenuController::AddToolItems() {
@@ -240,11 +266,11 @@ void OmniboxContextMenuController::AddToolItems() {
     AddSeparator();
   }
 
+  auto create_images_icon = ui::ImageModel::FromResourceId(
+      IDR_OMNIBOX_POPUP_IMAGES_CREATE_IMAGES_PNG);
   auto deep_search_icon =
       ui::ImageModel::FromVectorIcon(kTravelExploreIcon, ui::kColorMenuIcon,
                                      ui::SimpleMenuModel::kDefaultIconSize);
-  auto create_images_icon = ui::ImageModel::FromResourceId(
-      IDR_OMNIBOX_POPUP_IMAGES_CREATE_IMAGES_PNG);
 
   if (use_pec_api) {
     auto tool_section_config = GetToolSectionConfig();
@@ -253,66 +279,127 @@ void OmniboxContextMenuController::AddToolItems() {
       menu_model_->AddTitle(base::UTF8ToUTF16(tool_section_config->header()));
     }
 
-    auto* deep_search_config =
-        GetToolConfig(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
-    AddItemWithIcon(
-        IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH,
-        base::UTF8ToUTF16(deep_search_config ? deep_search_config->menu_label()
-                                             : ""),
-        deep_search_icon);
-
     auto* image_gen_config =
         GetToolConfig(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
-    AddItemWithIcon(IDC_OMNIBOX_CONTEXT_CREATE_IMAGES,
-                    base::UTF8ToUTF16(
-                        image_gen_config ? image_gen_config->menu_label() : ""),
+    auto image_gen_label =
+        image_gen_config && !image_gen_config->menu_label().empty()
+            ? base::UTF8ToUTF16(image_gen_config->menu_label())
+            : l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_CREATE_IMAGES);
+    AddItemWithIcon(IDC_OMNIBOX_CONTEXT_CREATE_IMAGES, image_gen_label,
                     create_images_icon);
+
+    auto* deep_search_config =
+        GetToolConfig(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+    auto deep_search_label =
+        deep_search_config && !deep_search_config->menu_label().empty()
+            ? base::UTF8ToUTF16(deep_search_config->menu_label())
+            : l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_DEEP_SEARCH);
+    AddItemWithIcon(IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH, deep_search_label,
+                    deep_search_icon);
 
     auto canvas_icon =
         ui::ImageModel::FromVectorIcon(kDraftSparkIcon, ui::kColorMenuIcon,
                                        ui::SimpleMenuModel::kDefaultIconSize);
     auto* canvas_config = GetToolConfig(omnibox::ToolMode::TOOL_MODE_CANVAS);
-    AddItemWithIcon(
-        IDC_OMNIBOX_CONTEXT_CANVAS,
-        base::UTF8ToUTF16(canvas_config ? canvas_config->menu_label() : ""),
-        canvas_icon);
+    auto canvas_label = canvas_config && !canvas_config->menu_label().empty()
+                            ? base::UTF8ToUTF16(canvas_config->menu_label())
+                            : l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_CANVAS);
+    AddItemWithIcon(IDC_OMNIBOX_CONTEXT_CANVAS, canvas_label, canvas_icon);
   } else {
-    AddItemWithStringIdAndIcon(IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH,
-                               IDS_NTP_COMPOSE_DEEP_SEARCH, deep_search_icon);
-
     AddItemWithStringIdAndIcon(IDC_OMNIBOX_CONTEXT_CREATE_IMAGES,
                                IDS_NTP_COMPOSE_CREATE_IMAGES,
                                create_images_icon);
+
+    AddItemWithStringIdAndIcon(IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH,
+                               IDS_NTP_COMPOSE_DEEP_SEARCH, deep_search_icon);
   }
 }
 
 void OmniboxContextMenuController::AddModelPickerItems() {
+  bool is_aim_popup_open =
+      GetOmniboxController() &&
+      GetOmniboxController()->popup_state_manager()->popup_state() ==
+          OmniboxPopupState::kAim;
+
   auto model_section_config = GetModelSectionConfig();
   if (omnibox::kShowContextMenuHeaders.Get() && model_section_config &&
       !model_section_config->header().empty()) {
     menu_model_->AddTitle(base::UTF8ToUTF16(model_section_config->header()));
   }
 
+  auto check_icon = ui::ImageModel::FromVectorIcon(
+      kCheckIcon, ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize);
+
+  auto auto_model_icon =
+      ui::ImageModel::FromVectorIcon(kAutorenewIcon, ui::kColorMenuIcon,
+                                     ui::SimpleMenuModel::kDefaultIconSize);
   auto* auto_model_config =
       GetModelConfig(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE);
-  menu_model_->AddCheckItem(
-      IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO,
-      base::UTF8ToUTF16(auto_model_config ? auto_model_config->menu_label()
-                                          : ""));
+  auto auto_model_label =
+      auto_model_config && !auto_model_config->menu_label().empty()
+          ? base::UTF8ToUTF16(auto_model_config->menu_label())
+          : l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_AUTO_MODEL);
+  AddItemWithIcon(
+      IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO, auto_model_label,
+      is_aim_popup_open &&
+              input_state_.active_model ==
+                  omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE
+          ? check_icon
+          : auto_model_icon);
 
+  auto regular_model_icon = ui::ImageModel::FromVectorIcon(
+      kBoltIcon, ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize);
   auto* regular_model_config =
       GetModelConfig(omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
-  menu_model_->AddCheckItem(
-      IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR,
-      base::UTF8ToUTF16(
-          regular_model_config ? regular_model_config->menu_label() : ""));
+  auto regular_model_label =
+      regular_model_config && !regular_model_config->menu_label().empty()
+          ? base::UTF8ToUTF16(regular_model_config->menu_label())
+          : u"";
+  AddItemWithIcon(
+      IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR, regular_model_label,
+      is_aim_popup_open && input_state_.active_model ==
+                               omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR
+          ? check_icon
+          : regular_model_icon);
 
+  const bool thinking_icon_update_enabled =
+      base::FeatureList::IsEnabled(omnibox::kThinkingModelIconUpdate);
+  const bool has_thinking_model =
+      IsModelVisible(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+  const bool has_pro_no_gen_ui_model =
+      IsModelVisible(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI);
+  const bool use_new_thinking_icon = thinking_icon_update_enabled &&
+                                     has_thinking_model &&
+                                     has_pro_no_gen_ui_model;
+
+  auto thinking_model_icon = ui::ImageModel::FromVectorIcon(
+      use_new_thinking_icon ? kAstrophotographyModeIcon : kTimerIcon,
+      ui::kColorMenuIcon, ui::SimpleMenuModel::kDefaultIconSize);
   auto* thinking_model_config =
       GetModelConfig(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
-  menu_model_->AddCheckItem(
-      IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING,
-      base::UTF8ToUTF16(
-          thinking_model_config ? thinking_model_config->menu_label() : ""));
+  auto thinking_model_label =
+      thinking_model_config && !thinking_model_config->menu_label().empty()
+          ? base::UTF8ToUTF16(thinking_model_config->menu_label())
+          : l10n_util::GetStringUTF16(IDS_NTP_COMPOSE_THINKING_3_PRO);
+  AddItemWithIcon(
+      IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING, thinking_model_label,
+      is_aim_popup_open && input_state_.active_model ==
+                               omnibox::ModelMode::MODEL_MODE_GEMINI_PRO
+          ? check_icon
+          : thinking_model_icon);
+
+  auto* pro_no_gen_ui_model_config =
+      GetModelConfig(omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI);
+  auto pro_no_gen_ui_model_label = base::UTF8ToUTF16(
+      pro_no_gen_ui_model_config ? pro_no_gen_ui_model_config->menu_label()
+                                 : "");
+  AddItemWithIcon(
+      IDC_OMNIBOX_CONTEXT_SET_MODEL_PRO_NO_GEN_UI, pro_no_gen_ui_model_label,
+      is_aim_popup_open &&
+              input_state_.active_model ==
+                  omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI
+          ? check_icon
+          : thinking_model_icon);
 }
 
 std::vector<OmniboxContextMenuController::TabInfo>
@@ -357,7 +444,8 @@ OmniboxContextMenuController::GetRecentTabs() {
 
   // Sort tabs by most recently active.
   int max_tab_suggestions =
-      std::min(static_cast<int>(tabs.size()), kMaxRecentTabs);
+      std::min(static_cast<int>(tabs.size()),
+               omnibox::kContextMenuMaxTabSuggestions.Get());
   std::partial_sort(tabs.begin(), tabs.begin() + max_tab_suggestions,
                     tabs.end(),
                     [](const OmniboxContextMenuController::TabInfo& a,
@@ -508,6 +596,17 @@ omnibox::InputType OmniboxContextMenuController::GetInputTypeForCommandId(
   }
 }
 
+const omnibox::InputTypeConfig*
+OmniboxContextMenuController::GetInputTypeConfig(
+    omnibox::InputType input_type) const {
+  auto it = std::find_if(input_state_.input_type_configs.begin(),
+                         input_state_.input_type_configs.end(),
+                         [&](const omnibox::InputTypeConfig config) {
+                           return config.input_type() == input_type;
+                         });
+  return (it != input_state_.input_type_configs.end()) ? &(*it) : nullptr;
+}
+
 bool OmniboxContextMenuController::IsInputTypeVisible(
     omnibox::InputType input_type) const {
   return std::any_of(input_state_.allowed_input_types.begin(),
@@ -574,6 +673,8 @@ omnibox::ModelMode OmniboxContextMenuController::GetModelModeForCommandId(
       return omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR;
     case IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING:
       return omnibox::ModelMode::MODEL_MODE_GEMINI_PRO;
+    case IDC_OMNIBOX_CONTEXT_SET_MODEL_PRO_NO_GEN_UI:
+      return omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI;
     default:
       NOTREACHED();
   }
@@ -686,10 +787,6 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
             /*was_ai_mode_open=*/is_aim_popup_open);
         break;
       case IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH:
-        if (use_input_state_model) {
-          composebox_handler->SetActiveToolMode(
-              omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
-        }
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
             /*tool_mode=*/searchbox::mojom::ToolMode::kDeepSearch);
@@ -698,10 +795,6 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         break;
       case IDC_OMNIBOX_CONTEXT_CREATE_IMAGES:
-        if (use_input_state_model) {
-          composebox_handler->SetActiveToolMode(
-              omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
-        }
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
             /*tool_mode=*/searchbox::mojom::ToolMode::kCreateImage);
@@ -710,10 +803,6 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         break;
       case IDC_OMNIBOX_CONTEXT_CANVAS:
-        if (use_input_state_model) {
-          composebox_handler->SetActiveToolMode(
-              omnibox::ToolMode::TOOL_MODE_CANVAS);
-        }
         UpdateSearchboxContext(
             /*tab_info=*/std::nullopt,
             /*tool_mode=*/searchbox::mojom::ToolMode::kCanvas);
@@ -728,6 +817,7 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         }
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
+        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         break;
       case IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR:
         if (use_input_state_model) {
@@ -736,6 +826,7 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         }
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
+        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         break;
       case IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING:
         if (use_input_state_model) {
@@ -744,6 +835,16 @@ void OmniboxContextMenuController::ExecuteCommand(int id, int event_flags) {
         }
         GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
                                    /*via_context_menu=*/true);
+        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
+        break;
+      case IDC_OMNIBOX_CONTEXT_SET_MODEL_PRO_NO_GEN_UI:
+        if (use_input_state_model) {
+          composebox_handler->SetActiveModelMode(
+              omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_NO_GEN_UI);
+        }
+        GetEditModel()->OpenAiMode(/*via_keyboard=*/false,
+                                   /*via_context_menu=*/true);
+        base::UmaHistogramEnumeration(sliced_prefix, CommandIdToEnum(id));
         break;
       default:
         NOTREACHED();
@@ -804,7 +905,19 @@ bool OmniboxContextMenuController::IsCommandIdEnabled(int command_id) const {
     return false;
   }
 
+  auto omnibox_controller = GetOmniboxController();
+  if (!omnibox_controller) {
+    return false;
+  }
+
+  const OmniboxPopupState page_type =
+      omnibox_controller->popup_state_manager()->popup_state();
   if (base::FeatureList::IsEnabled(omnibox::kAimUsePecApi)) {
+    const std::string prefix = page_type == OmniboxPopupState::kClassic
+                                   ? kClassicContextTypeHistogramPrefix
+                                   : kAimContextTypeHistogramPrefix;
+    const std::string sliced_prefix = base::StrCat({prefix, ".Shown"});
+
     // Command ID corresponds to "Most recent tabs" menu item.
     if (command_id >= kMinOmniboxContextMenuRecentTabsCommandId &&
         command_id < next_command_id_) {
@@ -813,17 +926,41 @@ bool OmniboxContextMenuController::IsCommandIdEnabled(int command_id) const {
 
     switch (command_id) {
       case IDC_OMNIBOX_CONTEXT_ADD_IMAGE:
-      case IDC_OMNIBOX_CONTEXT_ADD_FILE:
-        return IsInputTypeEnabled(GetInputTypeForCommandId(command_id));
+      case IDC_OMNIBOX_CONTEXT_ADD_FILE: {
+        const bool input_type_enabled =
+            IsInputTypeEnabled(GetInputTypeForCommandId(command_id));
+        if (input_type_enabled) {
+          base::UmaHistogramEnumeration(sliced_prefix,
+                                        CommandIdToEnum(command_id));
+        }
+        return input_type_enabled;
+      }
       case IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH:
       case IDC_OMNIBOX_CONTEXT_CREATE_IMAGES:
-      case IDC_OMNIBOX_CONTEXT_CANVAS:
-        return IsToolEnabled(GetToolModeForCommandId(command_id));
+      case IDC_OMNIBOX_CONTEXT_CANVAS: {
+        const bool tool_enabled =
+            IsToolEnabled(GetToolModeForCommandId(command_id));
+        if (tool_enabled) {
+          base::UmaHistogramEnumeration(sliced_prefix,
+                                        CommandIdToEnum(command_id));
+        }
+        return tool_enabled;
+      }
       case IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO:
       case IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR:
       case IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING:
-        return IsModelEnabled(GetModelModeForCommandId(command_id));
+      case IDC_OMNIBOX_CONTEXT_SET_MODEL_PRO_NO_GEN_UI: {
+        const bool model_enabled =
+            IsModelEnabled(GetModelModeForCommandId(command_id));
+        if (model_enabled) {
+          base::UmaHistogramEnumeration(sliced_prefix,
+                                        CommandIdToEnum(command_id));
+        }
+        return model_enabled;
+      }
       default:
+        base::UmaHistogramEnumeration(sliced_prefix,
+                                      CommandIdToEnum(command_id));
         return true;
     }
   }
@@ -850,14 +987,8 @@ bool OmniboxContextMenuController::IsCommandIdEnabled(int command_id) const {
   auto max_num_files =
       omnibox::FeatureConfig::Get().config.composebox().max_num_files();
 
-  auto omnibox_controller = GetOmniboxController();
-  if (!omnibox_controller) {
-    return false;
-  }
-
-  return IsCommandIdEnabledHelper(
-      command_id, aim_tool_mode, file_infos, max_num_files,
-      omnibox_controller->popup_state_manager()->popup_state());
+  return IsCommandIdEnabledHelper(command_id, aim_tool_mode, file_infos,
+                                  max_num_files, page_type);
 }
 
 bool OmniboxContextMenuController::IsCommandIdVisible(int command_id) const {
@@ -876,7 +1007,8 @@ bool OmniboxContextMenuController::IsCommandIdVisible(int command_id) const {
       command_id == IDC_OMNIBOX_CONTEXT_CANVAS ||
       command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO ||
       command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR ||
-      command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING) {
+      command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING ||
+      command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_PRO_NO_GEN_UI) {
     auto* browser_window_interface =
         webui::GetBrowserWindowInterface(web_contents_.get());
     if (!browser_window_interface) {
@@ -904,24 +1036,11 @@ bool OmniboxContextMenuController::IsCommandIdVisible(int command_id) const {
       return IsToolVisible(GetToolModeForCommandId(command_id));
     } else if (command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO ||
                command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR ||
-               command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING) {
+               command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING ||
+               command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_PRO_NO_GEN_UI) {
       return IsModelVisible(GetModelModeForCommandId(command_id));
     }
   }
 
   return true;
-}
-
-bool OmniboxContextMenuController::IsCommandIdChecked(int command_id) const {
-  if (command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO) {
-    return input_state_.active_model ==
-               omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE;
-  } else if (command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_REGULAR) {
-    return input_state_.active_model ==
-           omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR;
-  } else if (command_id == IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING) {
-    return input_state_.active_model ==
-           omnibox::ModelMode::MODEL_MODE_GEMINI_PRO;
-  }
-  return false;
 }

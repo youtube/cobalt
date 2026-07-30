@@ -15,6 +15,7 @@ export interface LineFocusListener {
   onLineFocusMove(): void;
   onNeedScrollForLineFocus(scrollDiff: number): void;
   onNeedScrollToTop(): void;
+  onLineFocusToggled(): void;
 }
 
 // Used to prevent microadjustments of the line focus window when adjusting to
@@ -48,6 +49,10 @@ export class LineFocusController {
     return this.model_.getCurrentLineFocusStyle();
   }
 
+  getCurrentLineFocusMovement(): LineFocusMovement {
+    return this.model_.getCurrentLineFocusMovement();
+  }
+
   // Whether the current line focus mode is static.
   isStatic(): boolean {
     return this.model_.getCurrentLineFocusMovement() ===
@@ -73,6 +78,8 @@ export class LineFocusController {
     const newStyle = this.isEnabled() ? LineFocusStyle.OFF : lastStyle;
     this.setStyleAndMovement_(
         newStyle, this.model_.getCurrentLineFocusMovement(), container, height);
+    this.logger_.logLineFocusToggled(this.isEnabled());
+    this.listeners_.forEach(l => l.onLineFocusToggled());
   }
 
   onScrollEnd(newScrollTop: number) {
@@ -194,12 +201,15 @@ export class LineFocusController {
     }
   }
 
-  restoreFromPrefs(value: number, container: HTMLElement, height: number) {
+  restoreFromPrefs(
+      lastEnabledValue: number, isOn: boolean, container: HTMLElement,
+      height: number) {
     const lineFocusValues = getLineFocusValues();
-    const lineFocus = lineFocusValues[value];
-    if (lineFocus) {
-      this.setStyleAndMovement_(
-          lineFocus.style, lineFocus.movement, container, height);
+    const lastEnabled = lineFocusValues[lastEnabledValue];
+    if (lastEnabled) {
+      this.model_.setLastEnabledLineFocusStyle(lastEnabled.style);
+      const style = isOn ? lastEnabled.style : LineFocusStyle.OFF;
+      this.setStyleAndMovement_(style, lastEnabled.movement, container, height);
     }
   }
 

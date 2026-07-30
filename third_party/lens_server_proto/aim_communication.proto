@@ -31,6 +31,15 @@ enum FeatureCapability {
 
   // notifyZeroStateRendered() method
   NOTIFY_ZERO_STATE_RENDERED = 20;
+
+  // SetChromeDesktopInputPlateConfiguration() method
+  SET_CHROME_DESKTOP_INPUT_PLATE_CONFIGURATION = 24;
+
+  // unlockInput() method
+  UNLOCK_INPUT = 25;
+
+  // lockInput() method
+  LOCK_INPUT = 26;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -106,8 +115,17 @@ message AimToClientMessage {
     ExitBasicMode exit_basic_mode = 5;
     UpdateThreadContextLibrary update_thread_context_library = 7;
     NotifyZeroStateRendered notify_zero_state_rendered = 8;
+    InputPlateParametersRequest set_chrome_desktop_input_plate_configuration = 9;
+    UnlockInput unlock_input = 12;
+    LockInput lock_input = 13;
   }
 }
+
+// Message AIM sends to clients to unlock the input plate.
+message UnlockInput {}
+
+// Message AIM sends to clients to lock the input plate.
+message LockInput {}
 
 // Message AIM sends to clients to hide the input plate.
 message HideInput {}
@@ -156,4 +174,11 @@ message Pdf {
 message Webpage {
   string title = 1;
   string url = 2;
+}
+
+message InputPlateParametersRequest {
+  int32 max_width = 1;
+  int32 max_height = 2;
+  int32 margin_bottom = 3;
+  int32 margin_left = 4;
 }

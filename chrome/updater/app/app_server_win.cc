@@ -260,14 +260,17 @@ void AppServerWin::PostOnTaskRunner(
 }
 
 void AppServerWin::Stop() {
+  VLOG(2) << __func__ << ": COM server is shutting down.";
   if (IsSystemInstall(updater_scope())) {
     // Call `on_service_stopping_` to allow for incoming COM activation requests
     // received while the service is shutting down to be handled by a new
     // service process.
-    std::move(on_service_stopping_).Run();
+    // It is possible for `Stop` to be called multiple times, so check for a
+    // valid `on_service_stopping_` callback before calling `Run`.
+    if (on_service_stopping_) {
+      std::move(on_service_stopping_).Run();
+    }
   }
-
-  VLOG(2) << __func__ << ": COM server is shutting down.";
   UnregisterClassObjects();
   main_task_runner_->PostTask(FROM_HERE, base::BindOnce([] {
                                 scoped_refptr<AppServerWin> this_server =

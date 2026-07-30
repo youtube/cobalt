@@ -266,11 +266,6 @@ BASE_FEATURE(kBocaScreenSharingTeacher, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables or disables sharing student's screen in the Boca app.
 BASE_FEATURE(kBocaScreenSharingStudent, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Enables or disables setting audio params when sharing from a student device
-// to a remote kiosk receiver.
-BASE_FEATURE(kBocaRedirectStudentAudioToKiosk,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables or disables Boca receiver custom polling.
 BASE_FEATURE(kBocaReceiverCustomPolling, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -437,7 +432,7 @@ BASE_FEATURE(kCrosSafetyService, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kCryptauthAttestationSyncing, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables experimental containerless Crostini VMs.
-BASE_FEATURE(kCrostiniContainerless, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kCrostiniContainerless, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables or disables Crostini GPU support.
 // Note that this feature can be overridden by login_manager based on
@@ -771,7 +766,7 @@ BASE_FEATURE(kFilesTrashDrive, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kFirmwareUpdateUIV2, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Controls if the Fjord variant of OOBE is shown.
-BASE_FEATURE(kFjordOobe, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kFjordOobe, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Force flag for the Fjord variant of OOBE. This is to make testing easier
 // because the Fjord OOBE variant is buildflag dependent.
@@ -1030,9 +1025,6 @@ BASE_FEATURE(kHideShelfControlsInTabletMode, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, add Hindi Inscript keyboard layout.
 BASE_FEATURE(kHindiInscriptLayout, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Helpful notifications for devices with Hybrid Chargers.
-BASE_FEATURE(kHybridChargerNotifications, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If enabled, allows the user to cycle between windows of an app using Alt + `.
 BASE_FEATURE(kSameAppWindowCycle, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1792,10 +1784,6 @@ BASE_FEATURE(kShimlessRMAFlexibleSerialNumberName,
 // page.
 BASE_FEATURE(kShimlessRMAHideGoogleSKU, base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled, system shortcuts will utilize state machiens instead of
-// keeping track of entire history of keys pressed.
-BASE_FEATURE(kShortcutStateMachines, base::FEATURE_ENABLED_BY_DEFAULT);
-
 // Enables or disables a toggle to enable Bluetooth debug logs.
 BASE_FEATURE(kShowBluetoothDebugLogToggle, base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1995,9 +1983,6 @@ BASE_FEATURE(kVcPortraitRelight, base::FEATURE_ENABLED_BY_DEFAULT);
 // Enables or disables alternative inference backends for running ChromeOS video
 // conferencing portrait relighing models.
 BASE_FEATURE(kVcRelightingInferenceBackend, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// This is only used as a way to disable stopAllScreenShare.
-BASE_FEATURE(kVcStopAllScreenShare, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enable or disable the fake effects for ChromeOS video conferencing controls
 // UI. Only meaningful in the emulator.
@@ -2353,10 +2338,6 @@ bool IsBocaScreenSharingTeacherEnabled() {
 
 bool IsBocaScreenSharingStudentEnabled() {
   return base::FeatureList::IsEnabled(kBocaScreenSharingStudent);
-}
-
-bool IsBocaRedirectStudentAudioToKioskEnabled() {
-  return base::FeatureList::IsEnabled(kBocaRedirectStudentAudioToKiosk);
 }
 
 bool IsBocaReceiverCustomPollingEnabled() {
@@ -2745,10 +2726,6 @@ bool IsHeliumArcvmKioskDevModeEnabled() {
 
 bool IsHideShelfControlsInTabletModeEnabled() {
   return base::FeatureList::IsEnabled(kHideShelfControlsInTabletMode);
-}
-
-bool IsHybridChargerNotificationsEnabled() {
-  return base::FeatureList::IsEnabled(kHybridChargerNotifications);
 }
 
 bool IsSnoopingProtectionEnabled() {
@@ -3303,11 +3280,6 @@ bool IsVideoConferenceEnabled() {
 
 bool IsBirchVideoConferenceSuggestionsEnabled() {
   return base::FeatureList::IsEnabled(kBirchVideoConferenceSuggestions);
-}
-
-bool IsStopAllScreenShareEnabled() {
-  return base::FeatureList::IsEnabled(kVcStopAllScreenShare) &&
-         IsVideoConferenceEnabled();
 }
 
 bool IsVcBackgroundReplaceEnabled() {

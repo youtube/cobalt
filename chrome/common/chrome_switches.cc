@@ -949,6 +949,15 @@ const char kUninstall[] = "uninstall";
 // Specifies that the WebApp with the specified id should be uninstalled.
 const char kUninstallAppId[] = "uninstall-app-id";
 
+// Specifies that the browser is running isolated and should not attempt to
+// start a second isolated browser.
+const char kIsolated[] = "isolated";
+
+// Specifies that the browser should attempt to launch an isolated browser.
+// TODO(crbug.com/433545123): This is a temporary switch - replace this with a
+// configurable toggle in a future CL.
+const char kLaunchIsolated[] = "launch-isolated";
+
 // Specifies the version of the Progressive-Web-App launcher that launched
 // Chrome, used to determine whether to update all launchers.
 // NOTE: changing this switch requires adding legacy handling for the previous
@@ -1012,6 +1021,7 @@ const char kGlicForceG1StatusForMultiInstance[] = "glic-force-g1-for-mi";
 // state prefs and can be selected to override the default glic guest URL
 // through corresponding entries in chrome://flags.
 const char kGlicGuestUrlPresetAutopush[] = "glic-guest-url-preset-autopush";
+const char kGlicGuestUrlPresetStaging[] = "glic-guest-url-preset-staging";
 const char kGlicGuestUrlPresetPreprod[] = "glic-guest-url-preset-preprod";
 const char kGlicGuestUrlPresetProd[] = "glic-guest-url-preset-prod";
 #endif

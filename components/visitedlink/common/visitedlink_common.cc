@@ -11,7 +11,6 @@
 
 #include "base/bit_cast.h"
 #include "base/check.h"
-#include "base/compiler_specific.h"
 #include "base/notreached.h"
 #include "base/numerics/byte_conversions.h"
 #include "components/visitedlink/core/visited_link.h"
@@ -33,9 +32,6 @@ namespace visitedlink {
 crypto::obsolete::Md5 MakeMd5HasherForVisitedLink() {
   return {};
 }
-
-const VisitedLinkCommon::Fingerprint VisitedLinkCommon::null_fingerprint_ = 0;
-const VisitedLinkCommon::Hash VisitedLinkCommon::null_hash_ = -1;
 
 VisitedLinkCommon::VisitedLinkCommon() = default;
 
@@ -83,8 +79,9 @@ bool VisitedLinkCommon::IsVisited(Fingerprint fingerprint) const {
   Hash cur_hash = first_hash;
   while (true) {
     Fingerprint cur_fingerprint = FingerprintAt(cur_hash);
-    if (cur_fingerprint == null_fingerprint_)
+    if (cur_fingerprint == kNullFingerprint) {
       return false;  // End of probe sequence found.
+    }
     if (cur_fingerprint == fingerprint)
       return true;  // Found a match.
 
@@ -107,15 +104,11 @@ bool VisitedLinkCommon::IsVisited(Fingerprint fingerprint) const {
 // static
 VisitedLinkCommon::Fingerprint VisitedLinkCommon::ComputeURLFingerprint(
     std::string_view canonical_url,
-    const uint8_t salt[LINK_SALT_LENGTH]) {
+    LinkSalt salt) {
   DCHECK(canonical_url.size() > 0) << "Canonical URLs should not be empty";
 
   auto md5 = MakeMd5HasherForVisitedLink();
-  UNSAFE_BUFFERS(
-      // SAFETY: salt is a reference to a local array which we know is the right
-      // size.
-      md5.Update(base::span<const uint8_t>(
-          salt, base::checked_cast<size_t>(LINK_SALT_LENGTH)));)
+  md5.Update(salt);
   md5.Update(canonical_url);
   return ConvertDigestToFingerprint(md5.Finish());
 }

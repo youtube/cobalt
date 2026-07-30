@@ -157,6 +157,12 @@ public interface TabPersistentStore {
      */
     void clearState();
 
+    /**
+     * Clear the persisted data for the window this store represents. Should only be implemented if
+     * a store does us an associated {@link TabPersistencePolicy} for cleaning.
+     */
+    default void clearCurrentWindow() {}
+
     /** Cleans up any resources used by the TabPersistentStore. */
     void destroy();
 
@@ -187,12 +193,6 @@ public interface TabPersistentStore {
      * @param windowId The window ID of the corresponding window to delete the state file for.
      */
     void cleanupStateFile(int windowId);
-
-    /**
-     * Clear the persisted data for the window this store represents. Should only be implemented if
-     * a store does us an associated {@link TabPersistencePolicy} for cleaning.
-     */
-    default void clearCurrentWindow() {}
 
     /**
      * Adds a {@link TabPersistentStoreObserver}.

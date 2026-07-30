@@ -323,7 +323,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.Android.HasEGLDupNativeFenceFunction" enum="Boolean"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>boliu@chromium.org</owner>
   <owner>vasilyt@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@google.com</owner>
@@ -401,7 +401,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.ANGLE.D3DShaderCompilationTimeUs" units="microseconds"
-    expires_after="2026-06-05">
+    expires_after="2026-08-09">
   <owner>geofflang@chromium.org</owner>
   <owner>angle-team@google.com</owner>
   <summary>
@@ -503,6 +503,120 @@ chromium-metrics-reviews@google.com.
     five minutes. This is the default compositing mode that most windows will
     use. There are some window types (eg. menus on some platforms) that always
     use software compositing and ignore the default.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.ContentSync.DestBackingType"
+    enum="SharedImageBackingType" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the SharedImageBackingType to which data is copied during content
+    synchronization within CompoundImageBacking. This helps identify the
+    destination of data in copy operations.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.ContentSync.InitialSharedImageUsage"
+    units="SharedImageUsage" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the initial SharedImageUsage of the CompoundImageBacking when a
+    content synchronization (copy) occurs. This helps identify if specific
+    initial usage configurations are prone to excessive copying. Recorded as a
+    sparse histogram of the usage bitmask.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.ContentSync.Reason"
+    enum="ContentSyncReason" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the reason a content synchronization (copy) operation occurred
+    within CompoundImageBacking. This distinguishes between copies triggered by
+    stale data reads and those for synchronization before a write operation.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.ContentSync.SourceBackingType"
+    enum="SharedImageBackingType" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the SharedImageBackingType from which data is copied during content
+    synchronization within CompoundImageBacking. This helps identify the source
+    of data in copy operations.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.ContentSync.Success"
+    enum="BooleanSuccess" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Success rate of content synchronization (copy) operations within
+    CompoundImageBacking. This metric indicates whether data transfer between
+    different backing types completed without errors.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.ContentSync.TriggeringAccessStream"
+    enum="SharedImageAccessStream" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the SharedImageAccessStream that triggered a content synchronization
+    (copy) operation within CompoundImageBacking. This provides insight into
+    which access patterns necessitate data copies.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.DynamicAllocation.AccessStream"
+    enum="SharedImageAccessStream" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the SharedImageAccessStream that triggered a dynamic allocation of a
+    new backing within a CompoundImageBacking. This provides insight into which
+    types of access patterns are causing dynamic allocations.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.DynamicAllocation.BackingType"
+    enum="SharedImageBackingType" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the type of the new SharedImageBacking that was dynamically
+    allocated. This helps understand the type of backings being allocated at
+    runtime.
+  </summary>
+</histogram>
+
+<histogram
+    name="GPU.CompoundImageBacking.DynamicAllocation.InitialSharedImageUsage"
+    units="SharedImageUsage" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the initial SharedImageUsage of the CompoundImageBacking when a
+    dynamic allocation occurs. This helps identify which initial usage
+    configurations are most likely to require additional backings later.
+    Recorded as a sparse histogram of the usage bitmask.
+  </summary>
+</histogram>
+
+<histogram name="GPU.CompoundImageBacking.TotalElementsAllocated"
+    units="elements" expires_after="2027-02-09">
+  <owner>vikassoni@chromium.org</owner>
+  <owner>chrome-gpu-metric-alerts@chromium.org</owner>
+  <summary>
+    Records the maximum number of SharedImageBacking elements allocated within a
+    CompoundImageBacking instance during its lifetime. This metric is recorded
+    once in the destructor. It helps to track and fine tune peak memory
+    consumption by this backing.
   </summary>
 </histogram>
 
@@ -643,7 +757,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.DirectComposition.DCLayer.YUVOverlayCount"
-    units="overlays" expires_after="2026-06-07">
+    units="overlays" expires_after="2026-08-09">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <summary>
@@ -1112,7 +1226,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.HardwareSupportsVulkan" enum="Boolean"
-    expires_after="2026-05-10">
+    expires_after="2026-08-09">
   <owner>kylechar@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1515,7 +1629,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.SharedImage.SharedImageFormat" enum="SharedImageFormatUMA"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>hitawala@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -1887,7 +2001,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="GPU.{GraphiteDawnOrWebGPU}.{ShaderTiming}"
-    units="microseconds" expires_after="2026-06-09">
+    units="microseconds" expires_after="2026-08-09">
   <owner>petermcneeley@google.com</owner>
   <owner>mdb.webgpu-dev-team@google.com</owner>
   <summary>
@@ -2164,7 +2278,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.DisplayCompositor.RootDamageRect.Overlay"
-    enum="BooleanOverlayDamageRect" expires_after="2026-04-05">
+    enum="BooleanOverlayDamageRect" expires_after="2026-08-09">
   <owner>magchen@chromium.org</owner>
   <owner>zmo@chromium.org</owner>
   <summary>
@@ -2220,7 +2334,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.FileDescriptorTracking.TimeToCompute" units="microseconds"
-    expires_after="2026-06-09">
+    expires_after="2026-08-09">
   <owner>petermcneeley@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>
@@ -2234,7 +2348,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Viz.FileDescriptorTracking.{FdStat}" units="units"
-    expires_after="2026-06-09">
+    expires_after="2026-08-09">
   <owner>petermcneeley@chromium.org</owner>
   <owner>chrome-gpu-metric-alerts@chromium.org</owner>
   <summary>

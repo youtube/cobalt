@@ -24,7 +24,6 @@ import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.CustomTabsIntent.CloseButtonPosition;
 import androidx.browser.customtabs.CustomTabsIntent.OpenInBrowserState;
 import androidx.browser.customtabs.ExperimentalCustomContentAction;
-import androidx.browser.customtabs.ExperimentalOpenInBrowser;
 import androidx.browser.trusted.FileHandlingData;
 import androidx.browser.trusted.LaunchHandlerClientMode;
 import androidx.browser.trusted.TrustedWebActivityDisplayMode;
@@ -70,7 +69,7 @@ public abstract class BrowserServicesIntentDataProvider {
         int READER_MODE = 3;
         int MINIMAL_UI_WEBAPP = 4;
         int OFFLINE_PAGE = 5;
-        int READ_LATER = 6;
+        // int READ_LATER = 6; // Unused.
         int AUTH_TAB = 7;
         int NETWORK_BOUND_TAB = 8;
         int POPUP = 9;
@@ -818,7 +817,6 @@ public abstract class BrowserServicesIntentDataProvider {
      *
      * @return {@link OpenInBrowserState} the desired settings for the Open in Browser button.
      */
-    @ExperimentalOpenInBrowser
     public @OpenInBrowserState int getOpenInBrowserButtonState() {
         return OPEN_IN_BROWSER_STATE_OFF;
     }

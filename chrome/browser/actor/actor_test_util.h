@@ -12,10 +12,13 @@
 #include <vector>
 
 #include "base/base64.h"
+#include "base/callback_list.h"
 #include "base/strings/strcat.h"
 #include "base/test/test_future.h"
 #include "base/time/time.h"
 #include "base/types/expected.h"
+#include "chrome/browser/actor/actor_tab_data.h"
+#include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/enterprise_policy_url_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/shared_types.h"
@@ -27,6 +30,7 @@
 #include "chrome/common/actor/task_id.h"
 #include "components/optimization_guide/proto/features/actions_data.pb.h"
 #include "components/sessions/core/session_id.h"
+#include "components/tabs/public/mock_tab_interface.h"
 #include "components/tabs/public/tab_interface.h"
 #include "third_party/protobuf/src/google/protobuf/descriptor.h"
 #include "ui/gfx/geometry/point.h"
@@ -221,7 +225,6 @@ void ExpectErrorResult(ActResultFuture& future,
 void ExpectOkResult(PerformActionsFuture& future);
 void ExpectErrorResult(PerformActionsFuture& future,
                        mojom::ActionResultCode expected_code);
-void PrintTo(const mojom::ActionResultCode& code, std::ostream* os);
 
 // Sets up GLIC_ACTION_PAGE_BLOCK to block the given host via component updater.
 bool SetUpOptimizationGuideComponentBlocklist(const base::FilePath& path,
@@ -233,6 +236,10 @@ void SetUpBlocklist(base::CommandLine* command_line,
 
 // For tests with link pages whose destination is encoded in URL parameters.
 std::string EncodeURI(const std::string& component);
+
+// Waits until a posted task is invoked. Used to ensures any prior posted tasks
+// are run (assuming a sequenced task runner).
+void WaitForPostedTask();
 
 // Helper to parse a Base64 string into a protobuf of type `ProtoType`.
 template <typename ProtoType>
@@ -269,6 +276,23 @@ class ExecutionEngineStateWaiter : public ExecutionEngine::StateObserver {
   ExecutionEngine::State target_state_;
 };
 
+class ActorTaskStateWaiter {
+ public:
+  ActorTaskStateWaiter(base::OnceClosure callback,
+                       ActorKeyedService& service,
+                       ActorTask& task,
+                       ActorTask::State target_state);
+  ~ActorTaskStateWaiter();
+
+ private:
+  void StateChanged(TaskId task_id, ActorTask::State state);
+
+  base::OnceClosure callback_;
+  TaskId task_id_;
+  ActorTask::State target_state_;
+  base::CallbackListSubscription subscription_;
+};
+
 // Use this RAII helper to provide a factory function for constructing
 // ExecutionEngine. This allows tests to provide a mock ExecutionEngine or one
 // constructed specially to be instrumented for testing.
@@ -292,6 +316,22 @@ class MockPolicyChecker : public EnterprisePolicyUrlChecker {
 // Returns a passthrough EnterprisePolicyUrlChecker tests can use to avoid
 // policy checks.
 const EnterprisePolicyUrlChecker* NoEnterprisePolicyChecker();
+
+// Helper struct for unit tests that require a mock TabInterface and its
+// associated ActorTabData.
+struct TestTabState {
+  explicit TestTabState(content::WebContents* web_contents = nullptr);
+  ~TestTabState();
+
+  using WillDetachCallbackList =
+      base::RepeatingCallbackList<void(tabs::TabInterface*,
+                                       tabs::TabInterface::DetachReason)>;
+  WillDetachCallbackList will_detach_callback_list_;
+
+  tabs::MockTabInterface tab;
+  ::ui::UnownedUserDataHost user_data_host;
+  std::unique_ptr<ActorTabData> tab_data;
+};
 
 }  // namespace actor
 

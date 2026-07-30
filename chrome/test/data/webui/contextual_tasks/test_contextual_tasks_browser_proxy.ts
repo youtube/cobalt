@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import {PageCallbackRouter} from 'chrome://contextual-tasks/contextual_tasks.mojom-webui.js';
-import type {ContextInfo, PageHandlerInterface, PageInterface, PageRemote} from 'chrome://contextual-tasks/contextual_tasks.mojom-webui.js';
+import type {ComposeboxPosition, ContextInfo, PageHandlerInterface, PageInterface, PageRemote} from 'chrome://contextual-tasks/contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from 'chrome://contextual-tasks/contextual_tasks_browser_proxy.js';
 import type {PostMessageHandler} from 'chrome://contextual-tasks/post_message_handler.js';
 import type {PageHandler as ComposeboxPageHandler, PageHandlerFactory as ComposeboxPageHandlerFactory} from 'chrome://resources/cr_components/composebox/composebox.mojom-webui.js';
@@ -32,6 +32,8 @@ class MockPage extends TestBrowserProxy implements PageInterface {
       'setTaskDetails',
       'setThreadTitle',
       'showOauthErrorDialog',
+      'lockInput',
+      'unlockInput',
     ]);
   }
 
@@ -94,6 +96,10 @@ class MockPage extends TestBrowserProxy implements PageInterface {
     this.methodCalled('setTaskDetails', taskId, threadId, turnId);
   }
 
+  setAimUrl(url: Url) {
+    this.methodCalled('setAimUrl', url);
+  }
+
   showErrorPage() {
     this.methodCalled('showErrorPage');
   }
@@ -104,6 +110,18 @@ class MockPage extends TestBrowserProxy implements PageInterface {
 
   showOauthErrorDialog() {
     this.methodCalled('showOauthErrorDialog');
+  }
+
+  updateComposeboxPosition(position: ComposeboxPosition) {
+    this.methodCalled('updateComposeboxPosition', position);
+  }
+
+  lockInput() {
+    this.methodCalled('lockInput');
+  }
+
+  unlockInput() {
+    this.methodCalled('unlockInput');
   }
 }
 

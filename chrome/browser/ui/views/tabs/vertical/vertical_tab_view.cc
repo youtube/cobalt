@@ -25,6 +25,7 @@
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/tab/glow_hover_controller.h"
@@ -129,7 +130,8 @@ TabStripUserGestureDetails GetGestureDetail(const ui::Event& event) {
 }  // namespace
 
 VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
-    : collection_node_(collection_node),
+    : HoverCardAnchorTarget(this),
+      collection_node_(collection_node),
       tab_style_(TabStyle::Get()),
       icon_(AddChildView(std::make_unique<TabIcon>())),
       title_(AddChildView(std::make_unique<VerticalTabTitle>())),
@@ -214,6 +216,15 @@ VerticalTabView::VerticalTabView(TabCollectionNode* collection_node)
       collection_node_->RegisterDataChangedCallback(base::BindRepeating(
           &VerticalTabView::OnDataChanged, base::Unretained(this)));
 
+  CHECK(collection_node_->GetController());
+  auto* state_controller =
+      collection_node_->GetController()->GetStateController();
+  CHECK(state_controller);
+  collapsed_state_changed_subscription_ =
+      state_controller->RegisterOnCollapseChanged(base::BindRepeating(
+          &VerticalTabView::OnCollapsedStateChanged, base::Unretained(this)));
+  collapsed_ = state_controller->IsCollapsed();
+
   set_context_menu_controller(this);
 }
 
@@ -291,6 +302,7 @@ bool VerticalTabView::OnMousePressed(const ui::MouseEvent& event) {
   auto* controller = collection_node_->GetController();
   shift_pressed_on_mouse_down_ = event.IsShiftDown();
   RecordMousePressedInTab();
+  UpdateHoverCard(nullptr, TabSlotController::HoverCardUpdateType::kEvent);
 
   if (event.IsOnlyLeftMouseButton() ||
       (event.IsOnlyRightMouseButton() && event.flags() & ui::EF_FROM_TOUCH)) {
@@ -350,6 +362,8 @@ void VerticalTabView::OnMouseMoved(const ui::MouseEvent& event) {
 }
 
 void VerticalTabView::OnMouseEntered(const ui::MouseEvent& event) {
+  UpdateHoverCard(this, TabSlotController::HoverCardUpdateType::kHover);
+
   // Hover state is handled by the parent if it is split.
   if (split_) {
     return;
@@ -359,6 +373,8 @@ void VerticalTabView::OnMouseEntered(const ui::MouseEvent& event) {
 }
 
 void VerticalTabView::OnMouseExited(const ui::MouseEvent& event) {
+  UpdateHoverCard(nullptr, TabSlotController::HoverCardUpdateType::kHover);
+
   // Hover state is handled by the parent if it is split.
   if (split_) {
     return;
@@ -449,8 +465,6 @@ void VerticalTabView::OnBlur() {
 }
 
 void VerticalTabView::OnBoundsChanged(const gfx::Rect& previous_bounds) {
-  collapsed_ = width() < VerticalTabStripRegionView::kCollapsedWidth;
-
   SetClipPath(GetPath());
 }
 
@@ -612,7 +626,34 @@ void VerticalTabView::ShowContextMenuForViewImpl(
   }
 }
 
+bool VerticalTabView::IsActive() const {
+  return active_;
+}
+
+bool VerticalTabView::IsValid() const {
+  return collection_node_ && !IsDragging();
+}
+
+const TabRendererData& VerticalTabView::data() const {
+  return tab_data_;
+}
+
+views::BubbleBorder::Arrow VerticalTabView::GetAnchorPosition() const {
+  if (pinned_ && !collapsed_) {
+    return views::BubbleBorder::Arrow::TOP_LEFT;
+  }
+  return views::BubbleBorder::Arrow::LEFT_TOP;
+}
+
 void VerticalTabView::ResetCollectionNode() {
+  CHECK(collection_node_);
+  TabHoverCardController* hover_card_controller =
+      collection_node_->GetController()->GetHoverCardController();
+  if (hover_card_controller &&
+      hover_card_controller->IsHoverCardShowingForTab(this)) {
+    hover_card_controller->UpdateHoverCard(
+        nullptr, TabSlotController::HoverCardUpdateType::kTabRemoved);
+  }
   collection_node_ = nullptr;
 }
 
@@ -632,6 +673,11 @@ void VerticalTabView::OnAXNameChanged(ax::mojom::StringAttribute attribute,
   if (GetWidget() && active_) {
     GetWidget()->UpdateAccessibleNameForRootView();
   }
+}
+
+void VerticalTabView::OnCollapsedStateChanged(
+    tabs::VerticalTabStripStateController* controller) {
+  collapsed_ = controller->IsCollapsed();
 }
 
 void VerticalTabView::OnDataChanged() {
@@ -839,8 +885,28 @@ TabStyle::TabSelectionState VerticalTabView::GetSelectionState() const {
                               : TabStyle::TabSelectionState::kInactive);
 }
 
+bool VerticalTabView::IsDragging() const {
+  return collection_node_ && collection_node_->GetController() &&
+         collection_node_->GetController()->GetDragHandler().IsViewDragging(
+             *this);
+}
+
 const tabs::TabInterface* VerticalTabView::GetTabInterface() const {
   return std::get<const tabs::TabInterface*>(collection_node_->GetNodeData());
+}
+
+void VerticalTabView::UpdateHoverCard(HoverCardAnchorTarget* target,
+                                      int hover_card_update_type) {
+  if (!collection_node_) {
+    return;
+  }
+
+  if (TabHoverCardController* hover_card_controller =
+          collection_node_->GetController()->GetHoverCardController()) {
+    hover_card_controller->UpdateHoverCard(
+        target, static_cast<TabSlotController::HoverCardUpdateType>(
+                    hover_card_update_type));
+  }
 }
 
 BEGIN_METADATA(VerticalTabView)

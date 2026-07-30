@@ -1116,14 +1116,6 @@ void ProfileImpl::OnLocaleReady(CreateMode create_mode) {
   arc::ArcServiceLauncher::Get()->MaybeSetProfile(this);
 #endif
 
-#if BUILDFLAG(ENABLE_DICE_SUPPORT)
-  // Revert the DICe migration as early as possible to avoid user-visible theme
-  // changes upon startup.
-  if (base::FeatureList::IsEnabled(switches::kRollbackDiceMigration)) {
-    DiceMigrationService::RevertDiceMigration(GetPrefs());
-  }
-#endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
-
   SimpleDependencyManager::GetInstance()->CreateServices(GetProfileKey());
 
   // Check that the IdentityManager was not created before the browser context
@@ -1150,7 +1142,7 @@ void ProfileImpl::OnPrefsLoaded(CreateMode create_mode, bool success) {
 
   // Fail fast if the browser is shutting down. We want to avoid launching new
   // UI, finalising profile creation, etc. which would trigger a crash down the
-  // the line. See crbug.com/625646
+  // the line. See crbug.com/40475418
   if (g_browser_process->IsShuttingDown()) {
     if (delegate_)
       delegate_->OnProfileCreationFinished(this, create_mode, false, false);
@@ -1558,7 +1550,7 @@ bool ProfileImpl::IsNewProfile() const {
 #if !BUILDFLAG(IS_ANDROID)
   // The profile is new if the preference files has just been created, except on
   // first run, because the installer may create a preference file. See
-  // https://crbug.com/728402
+  // https://crbug.com/40523550
   if (first_run::IsChromeFirstRun())
     return true;
 #endif

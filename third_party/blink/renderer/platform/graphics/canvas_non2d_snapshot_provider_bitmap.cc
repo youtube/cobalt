@@ -11,22 +11,9 @@
 namespace blink {
 
 CanvasNon2DSnapshotProviderBitmap::ImageProviderImpl::ImageProviderImpl(
-    CanvasSnapshotProvider::Info info) {
-  cc::TargetColorParams target_color_params;
-  target_color_params.color_space = info.color_space;
-
-  playback_image_provider_n32_ = std::make_unique<cc::PlaybackImageProvider>(
-      &Image::SharedCCDecodeCache(kN32_SkColorType), target_color_params,
-      cc::PlaybackImageProvider::Settings());
-
-  // If the image provider may require to decode to half float instead of
-  // uint8, create a f16 PlaybackImageProvider.
-  if (info.format == viz::SinglePlaneFormat::kRGBA_F16) {
-    playback_image_provider_f16_.emplace(
-        &Image::SharedCCDecodeCache(kRGBA_F16_SkColorType), target_color_params,
-        cc::PlaybackImageProvider::Settings());
-  }
-}
+    bool is_f16,
+    const gfx::ColorSpace& color_space)
+    : is_f16_(is_f16), color_space_(color_space) {}
 
 cc::ImageProvider::ScopedResult
 CanvasNon2DSnapshotProviderBitmap::ImageProviderImpl::GetRasterContent(
@@ -41,21 +28,19 @@ CanvasNon2DSnapshotProviderBitmap::ImageProviderImpl::GetRasterContent(
         canvas_deferred_paint_record->GetPaintRecord());
   }
 
-  // TODO(xidachen): Ensure this function works for paint worklet generated
-  // images.
-  // If we like to decode high bit depth image source to half float backed
-  // image, we need to sniff the image bit depth here to avoid double
-  // decoding.
-  ImageProvider::ScopedResult scoped_decoded_image;
-  if (playback_image_provider_f16_ &&
-      draw_image.paint_image().is_high_bit_depth()) {
-    scoped_decoded_image =
-        playback_image_provider_f16_->GetRasterContent(draw_image);
-  } else {
-    scoped_decoded_image =
-        playback_image_provider_n32_->GetRasterContent(draw_image);
-  }
-  return scoped_decoded_image;
+  // To decode high bit depth image source to half float backed image, we need
+  // to sniff the image bit depth here to avoid double decoding.
+  auto target_color_type =
+      (is_f16_ && draw_image.paint_image().is_high_bit_depth())
+          ? kRGBA_F16_SkColorType
+          : kN32_SkColorType;
+  cc::TargetColorParams target_color_params;
+  target_color_params.color_space = color_space_;
+
+  return cc::PlaybackImageProvider(
+             &Image::SharedCCDecodeCache(target_color_type),
+             target_color_params, cc::PlaybackImageProvider::Settings())
+      .GetRasterContent(draw_image);
 }
 
 std::unique_ptr<CanvasNon2DSnapshotProviderBitmap>
@@ -67,11 +52,7 @@ CanvasNon2DSnapshotProviderBitmap::Create(
 
 CanvasNon2DSnapshotProviderBitmap::CanvasNon2DSnapshotProviderBitmap(
     const CanvasSnapshotProvider::Info& info)
-    : info_(info),
-      snapshot_paint_image_id_(cc::PaintImage::GetNextId()),
-      recorder_(
-          std::make_unique<MemoryManagedPaintRecorder>(Size(),
-                                                       /*client=*/nullptr)) {}
+    : info_(info) {}
 
 CanvasNon2DSnapshotProviderBitmap::~CanvasNon2DSnapshotProviderBitmap() =
     default;
@@ -87,56 +68,37 @@ bool CanvasNon2DSnapshotProviderBitmap::IsValid() const {
   return true;
 }
 
+// static
 scoped_refptr<StaticBitmapImage>
 CanvasNon2DSnapshotProviderBitmap::DoExternalDrawAndSnapshot(
-    base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
-    ImageOrientation orientation /*= ImageOrientationEnum::kDefault*/) {
-  if (!surface_) {
-    const bool can_use_lcd_text = info_.alpha_type == kOpaque_SkAlphaType;
-    const auto props =
-        skia::LegacyDisplayGlobals::ComputeSurfaceProps(can_use_lcd_text);
-    surface_ = SkSurfaces::Raster(
-        SkImageInfo::Make(info_.size.width(), info_.size.height(),
-                          viz::ToClosestSkColorType(info_.format),
-                          kPremul_SkAlphaType,
-                          info_.color_space.ToSkColorSpace()),
-        &props);
-    if (!surface_) {
-      return nullptr;
-    }
+    const CanvasSnapshotProvider::Info& info,
+    base::FunctionRef<void(cc::PaintCanvas&)> draw_callback,
+    ImageOrientation orientation) {
+  const bool can_use_lcd_text = info.alpha_type == kOpaque_SkAlphaType;
+  const auto props =
+      skia::LegacyDisplayGlobals::ComputeSurfaceProps(can_use_lcd_text);
+  sk_sp<SkSurface> surface = SkSurfaces::Raster(
+      SkImageInfo::Make(info.size.width(), info.size.height(),
+                        viz::ToClosestSkColorType(info.format),
+                        kPremul_SkAlphaType, info.color_space.ToSkColorSpace()),
+      &props);
+  if (!surface) {
+    return nullptr;
   }
 
-  draw_callback(recorder_->getRecordingCanvas());
-
-  if (recorder_->HasReleasableDrawOps()) {
-    if (!image_provider_impl_) {
-      image_provider_impl_.emplace(info_);
-    }
-
-    cc::PlaybackParams params(&image_provider_impl_.value(),
-                              surface_->getCanvas()->getLocalToDevice());
-    recorder_->ReleaseMainRecording().Playback(surface_->getCanvas(), params);
-  }
+  ImageProviderImpl image_provider(
+      info.format == viz::SinglePlaneFormat::kRGBA_F16, info.color_space);
+  cc::SkiaPaintCanvas canvas(surface->getCanvas(), &image_provider);
+  draw_callback(canvas);
 
   cc::PaintImage paint_image;
 
-  auto sk_image = surface_->makeImageSnapshot();
+  auto sk_image = surface->makeImageSnapshot();
   if (sk_image) {
-    auto last_snapshot_sk_image_id = snapshot_sk_image_id_;
-    snapshot_sk_image_id_ = sk_image->uniqueID();
-
-    // Ensure that a new PaintImage::ContentId is used only when the underlying
-    // SkImage changes. This is necessary to ensure that the same image results
-    // in a cache hit in cc's ImageDecodeCache.
-    if (snapshot_paint_image_content_id_ == PaintImage::kInvalidContentId ||
-        last_snapshot_sk_image_id != snapshot_sk_image_id_) {
-      snapshot_paint_image_content_id_ = PaintImage::GetNextContentId();
-    }
-
     paint_image =
         PaintImageBuilder::WithDefault()
-            .set_id(snapshot_paint_image_id_)
-            .set_image(std::move(sk_image), snapshot_paint_image_content_id_)
+            .set_id(cc::PaintImage::GetNextId())
+            .set_image(std::move(sk_image), PaintImage::GetNextContentId())
             .TakePaintImage();
   }
 

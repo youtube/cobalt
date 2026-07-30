@@ -314,7 +314,8 @@ PrimaryAccountError SetPrimaryAccountWithInvalidToken(
 
   auto set_primary_account_result =
       identity_manager->GetPrimaryAccountMutator()->SetPrimaryAccount(
-          account_id, signin::ConsentLevel::kSignin);
+          account_id, signin::ConsentLevel::kSignin,
+          signin_metrics::AccessPoint::kUnknown);
   DVLOG(1) << "Operation of setting account id <" << account_id.ToString()
            << "> received the following result: "
            << static_cast<int>(set_primary_account_result);
@@ -603,16 +604,14 @@ bool ShouldShowAvatarSyncPromo(Profile* profile) {
     return false;
   }
 
-  // For non-dice users, do not show the promo for users that have been signed
-  // for a short period of time.
-  if (pref_service->GetBoolean(prefs::kExplicitBrowserSignin)) {
-    const base::Time last_changed = base::Time::FromSecondsSinceUnixEpoch(
-        pref_service->GetDouble(prefs::kGaiaCookieChangedTime));
-    if (last_changed.is_null() ||
-        (base::Time::Now() - last_changed <
-         switches::GetAvatarSyncPromoFeatureMinimumCookeAgeParam())) {
-      return false;
-    }
+  // Do not show the promo for users that have been signed for a short period of
+  // time.
+  const base::Time last_changed = base::Time::FromSecondsSinceUnixEpoch(
+      pref_service->GetDouble(prefs::kGaiaCookieChangedTime));
+  if (last_changed.is_null() ||
+      (base::Time::Now() - last_changed <
+       switches::GetAvatarSyncPromoFeatureMinimumCookeAgeParam())) {
+    return false;
   }
 
   return true;

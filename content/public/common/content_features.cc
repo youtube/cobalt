@@ -36,6 +36,10 @@ BASE_FEATURE(kAndroidCaretBrowsing, base::FEATURE_DISABLED_BY_DEFAULT);
 // DevTools frontend for Android.
 BASE_FEATURE(kAndroidDevToolsFrontend, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables media capturing to continue in the background.
+BASE_FEATURE(kAndroidEnableBackgroundMediaCapturing,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables media to continue playing in the background.
 BASE_FEATURE(kAndroidEnableBackgroundMediaLargeFormFactors,
              base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1328,7 +1332,7 @@ BASE_FEATURE(kAndroidWebAppLaunchHandler, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kSmartZoom, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables setting the importance for subframes in WebContents.
-BASE_FEATURE(kSubframeImportance, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSubframeImportance, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Skips clearing objects on main document ready. Only has an impact
 // when gin java bridge is enabled.

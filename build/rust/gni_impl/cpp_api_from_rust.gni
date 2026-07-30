@@ -22,12 +22,22 @@ import("//build/toolchain/kythe.gni")
 #     of `rustc`.  (`cpp_api_from_rust` needs to be invoked with the same
 #     arguments, target platform, etc. as `rust_target`.)
 #
+#   crate_name
+#     Name (potentially mangled/auto-generated) of the crate that `rust_target`
+#     is built into.
+#
+#   original_attributes
+#     The original `cc_bindings_from_rs = { ... }` dictionary (the value of
+#     the `cc_bindings_from_rs` attribute of a target like
+#     `rust_static_library`).
+#
 #   sources
 #   deps
 #     Dependencies for compiling `rust_target`.
 #
 #
 template("cpp_api_from_rust") {
+  _rspgen_target_name = "${target_name}_crubit_rspgen"
   _action_target_name = "${target_name}_crubit_action"
   _rust_impl_target_name = "${target_name}_crubit_impl"
   _h_target_name = target_name
@@ -36,15 +46,20 @@ template("cpp_api_from_rust") {
   assert(defined(invoker.sources))
   assert(defined(invoker.rustc_env_and_flags))
   assert(defined(invoker.rust_target))
+  assert(defined(invoker.original_attributes))
+  assert(defined(invoker.crate_name))
+  _crate_name = invoker.crate_name
   _rust_target = invoker.rust_target
   _rust_target_name = get_label_info(_rust_target, "name")
+  _h_out = "${target_gen_dir}/${_rust_target_name}.h"
+  _rs_out = "${_h_out}.impl.rs"
 
-  _rust_target_gen_dir = get_label_info(_rust_target, "target_gen_dir")
-  _rust_target_gen_base = "${_rust_target_gen_dir}/${_rust_target_name}"
-  _h_out = "${_rust_target_gen_base}.h"
-  _rs_out = "${_rust_target_gen_base}.impl.rs"
+  _original_attributes = invoker.original_attributes
+  assert(defined(_original_attributes.cpp_namespace))
+  _cpp_namespace = _original_attributes.cpp_namespace
 
-  _crubit_support_path_format = "\"fixme/crubit/support/{header}\""
+  _crubit_support_path_format =
+      "\"third_party/rust-toolchain/lib/crubit/support/{header}\""
   _cpp_api_from_rust_exe_path =
       "//third_party/rust-toolchain/bin/cc_bindings_from_rs"
   _rustfmt_exe_path = "//third_party/rust-toolchain/bin/rustfmt"
@@ -63,6 +78,19 @@ template("cpp_api_from_rust") {
     _clang_format_exe_path = "//buildtools/win-format/clang-format.exe"
   }
 
+  _action_rsp_path = "$target_out_dir/$_action_target_name.rsp"
+  generated_file(_rspgen_target_name) {
+    forward_variables_from(invoker, [ "testonly" ])
+    forward_variables_from(_original_attributes, [ "deps" ])
+    outputs = [ _action_rsp_path ]
+    data_keys = [
+      "crate_header",
+      "crate_namespace",
+    ]
+    walk_keys = []  # Only metadata of direct, non-transitive `deps`.
+    visibility = [ ":${_action_target_name}" ]
+  }
+
   action(_action_target_name) {
     forward_variables_from(invoker,
                            [
@@ -70,6 +98,8 @@ template("cpp_api_from_rust") {
                              "deps",
                              "testonly",
                            ])
+    deps += [ ":${_rspgen_target_name}" ]
+
     visibility = [
       ":$_h_target_name",
       ":$_rust_impl_target_name",
@@ -97,6 +127,7 @@ template("cpp_api_from_rust") {
 
       "--rustc-env-and-flags",
       rebase_path(invoker.rustc_env_and_flags, root_build_dir),
+      "@" + rebase_path(_action_rsp_path, root_build_dir),
     ]
 
     # `cpp_api_from_rust` flags:
@@ -118,9 +149,8 @@ template("cpp_api_from_rust") {
       "--rustfmt-config-path",
       rebase_path(_rustfmt_config_path, root_build_dir),
 
-      # TODO(crbug.com/470466915): Start using `--crate-namespace...` to stop
-      # leaking mangled crate name via namespace of the generated bindings.
-      # This may be blocked by b/473633643.
+      "--crate-namespace",
+      "self=${_cpp_namespace}",
     ]
     if (defined(_clang_format_exe_path)) {
       inputs += [ _clang_format_exe_path ]
@@ -143,14 +173,20 @@ template("cpp_api_from_rust") {
   # `cpp_api_from_rust.gni` from `rust_target.gni` would lead to
   # a cycle).
   rust_library(_rust_impl_target_name) {
-    if (defined(invoker.testonly)) {
-      testonly = invoker.testonly
+    forward_variables_from(invoker,
+                           [
+                             "deps",
+                             "testonly",
+                           ])
+    if (!defined(deps)) {
+      deps = []
     }
-    visibility = [ ":$_h_target_name" ]
-    deps = [
+    deps += [
       ":$_action_target_name",
+      "//build/rust/crubit:cpp_api_from_rust_bindings_rs_deps",
       _rust_target,
     ]
+    visibility = [ ":$_h_target_name" ]
 
     # Without going through `rust_static_library` / `rust_target` we have to
     # implement our own little mangling scheme.  Thankfully, the only user
@@ -170,10 +206,24 @@ template("cpp_api_from_rust") {
 
   source_set(_h_target_name) {
     forward_variables_from(invoker, TESTONLY_AND_VISIBILITY)
-    deps = [
+
+    forward_variables_from(_original_attributes, [ "deps" ])
+    if (!defined(deps)) {
+      deps = []
+    }
+    deps += [
       ":$_action_target_name",
       ":$_rust_impl_target_name",
+      "//build/rust/crubit:cpp_api_from_rust_bindings_cpp_deps",
     ]
+
+    _gen_dir_relative_h_out = rebase_path(_h_out, root_gen_dir)
+    metadata = {
+      crate_header =
+          [ "--crate-header=${_crate_name}=${_gen_dir_relative_h_out}" ]
+      crate_namespace = [ "--crate-namespace=${_crate_name}=${_cpp_namespace}" ]
+    }
+
     public = [ _h_out ]
   }
 }

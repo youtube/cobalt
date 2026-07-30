@@ -139,11 +139,6 @@ BASE_FEATURE(kPartialLowEndModeOnMidRangeDevices,
 // Enable not perceptible binding without cpu priority boosting.
 BASE_FEATURE(kBackgroundNotPerceptibleBinding, FEATURE_ENABLED_BY_DEFAULT);
 
-// Whether to use effective binding state to manage child process bindings.
-// ChildProcessConnection will binds at most 2 service connections only,
-// the connection for the effective binding state and waived binding.
-BASE_FEATURE(kEffectiveBindingState, FEATURE_ENABLED_BY_DEFAULT);
-
 // If enabled, post registering PowerMonitor broadcast receiver to a background
 // thread,
 BASE_FEATURE(kPostPowerMonitorBroadcastReceiverInitToBackground,
@@ -158,10 +153,6 @@ BASE_FEATURE(kRebindingChildServiceConnectionController,
 
 // Use a batch API to rebind service connections.
 BASE_FEATURE(kRebindServiceBatchApi, FEATURE_DISABLED_BY_DEFAULT);
-
-// Use ChildServiceConnectionController.isUnbound() instead of isConnected() to
-// check the connection state in ChildProcessConnection.
-BASE_FEATURE(kUseIsUnboundCheck, FEATURE_ENABLED_BY_DEFAULT);
 
 // Use shared service connection to rebind a service binding to update the LRU
 // in the ProcessList of OomAdjuster.
@@ -192,6 +183,12 @@ BASE_FEATURE_PARAM(bool,
 // TERMINATION_STATUS_EVICTED_FOR_MEMORY for processes terminated due to commit
 // failures. Otherwise, it returns TERMINATION_STATUS_OOM.
 BASE_FEATURE(kUseTerminationStatusMemoryExhaustion, FEATURE_ENABLED_BY_DEFAULT);
+
+#if BUILDFLAG(IS_WIN)
+// When enabled, use ABOVE_NORMAL_PRIORITY_CLASS for Priority::kUserBlocking on
+// Windows.
+BASE_FEATURE(kUserBlockingAboveNormalPriority, FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN)
 
 bool IsReducePPMsEnabled() {
   return g_is_reduce_ppms_enabled.load(std::memory_order_relaxed);

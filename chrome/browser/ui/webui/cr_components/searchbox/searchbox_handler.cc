@@ -12,6 +12,7 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/time/time.h"
 #include "build/branding_buildflags.h"
+#include "chrome/browser/autocomplete/aim_eligibility_service_factory.h"
 #include "chrome/browser/autocomplete/chrome_autocomplete_scheme_classifier.h"
 #include "chrome/browser/bookmarks/bookmark_model_factory.h"
 #include "chrome/browser/browser_process.h"
@@ -34,6 +35,7 @@
 #include "chrome/grit/branded_strings.h"
 #include "chrome/grit/generated_resources.h"
 #include "components/bookmarks/browser/bookmark_model.h"
+#include "components/omnibox/browser/aim_eligibility_service.h"
 #include "components/omnibox/browser/aim_eligibility_service_features.h"
 #include "components/omnibox/browser/autocomplete_match.h"
 #include "components/omnibox/browser/autocomplete_result.h"
@@ -52,7 +54,10 @@
 #include "third_party/omnibox_proto/answer_data.pb.h"
 #include "third_party/omnibox_proto/answer_type.pb.h"
 #include "third_party/omnibox_proto/groups.pb.h"
+#include "third_party/omnibox_proto/input_type.pb.h"
 #include "third_party/omnibox_proto/rich_answer_template.pb.h"
+#include "third_party/omnibox_proto/rule_set.pb.h"
+#include "third_party/omnibox_proto/searchbox_config.pb.h"
 #include "third_party/skia/include/core/SkBitmap.h"
 #include "ui/base/l10n/l10n_util.h"
 #include "ui/base/window_open_disposition_utils.h"
@@ -330,7 +335,7 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
       {"addContext", IDS_NTP_COMPOSE_ADD_CONTEXTS},
       {"addContextTitle", IDS_NTP_COMPOSE_ADD_CONTEXT_TITLE},
       {"addImage", IDS_NTP_COMPOSE_ADD_IMAGE},
-      {"addTab", IDS_NTP_COMPOSE_MOST_RECENT_TABS},
+      {"addTab", IDS_NTP_COMPOSEBOX_TAB_PICKER_ADD_TABS_TITLE},
       {"dismissButton", IDS_NTP_DISMISS},
       // TODO(b/467036804): Update the value of `lensSearchAriaLabel`.
       {"lensSearchAriaLabel", IDS_CONTENT_CONTEXT_LENS_OVERLAY},
@@ -431,6 +436,36 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                     l10n_util::GetPluralStringFUTF16(
                         IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
                         composebox_config.composebox().max_num_files()));
+  int max_images = 0;
+  int max_pdfs = 0;
+  AimEligibilityService* service =
+      AimEligibilityServiceFactory::GetForProfile(profile);
+  const omnibox::SearchboxConfig* config =
+      service ? service->GetSearchboxConfig() : nullptr;
+
+  if (config && config->has_rule_set()) {
+    for (const auto& rule : config->rule_set().input_type_rules()) {
+      if (rule.input_type() == omnibox::INPUT_TYPE_LENS_IMAGE) {
+        max_images = rule.max_instance();
+      } else if (rule.input_type() == omnibox::INPUT_TYPE_LENS_FILE) {
+        max_pdfs = rule.max_instance();
+      }
+    }
+  }
+  // TODO(crbug.com/483852166): Update the error messages to be more specific to
+  // the input type.
+  source->AddString(
+      "maxImagesReachedError",
+      l10n_util::GetPluralStringFUTF16(
+          IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
+          max_images > 0 ? max_images
+                         : composebox_config.composebox().max_num_files()));
+  source->AddString(
+      "maxPdfsReachedError",
+      l10n_util::GetPluralStringFUTF16(
+          IDS_NTP_COMPOSE_MAX_FILES_REACHED_ERROR,
+          max_pdfs > 0 ? max_pdfs
+                       : composebox_config.composebox().max_num_files()));
   source->AddBoolean(
       "searchboxShowComposeAnimation",
       profile->GetPrefs()->GetInteger(
@@ -440,6 +475,9 @@ void SearchboxHandler::SetupWebUIDataSource(content::WebUIDataSource* source,
                      base::FeatureList::IsEnabled(omnibox::kAimUsePecApi));
   source->AddBoolean("ShowContextMenuHeaders",
                      ntp_composebox::kShowContextMenuHeaders.Get());
+  source->AddBoolean(
+      "thinkingModelIconUpdate",
+      base::FeatureList::IsEnabled(omnibox::kThinkingModelIconUpdate));
 }
 
 std::string SearchboxHandler::AutocompleteIconToResourceName(
@@ -892,10 +930,10 @@ void SearchboxHandler::QueryAutocomplete(const std::u16string& input,
   // Set the lens overlay suggest inputs, if available.
   if (std::optional<lens::proto::LensOverlaySuggestInputs> suggest_inputs =
           controller_->client()->GetLensOverlaySuggestInputs()) {
-    // Don't set lens params if in "Create Image" mode. This prevents the
-    // contextual client from being used in this tool mode.
-    if (GetInputState().active_tool !=
-        omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD) {
+    // Don't set lens params if in "Create Image" or "Canvas" mode. This
+    // prevents the contextual client from being used in this tool mode.
+    if (!GetInputState().image_gen_upload_active ||
+        GetInputState().active_tool != omnibox::ToolMode::TOOL_MODE_CANVAS) {
       autocomplete_input.set_lens_overlay_suggest_inputs(*suggest_inputs);
     }
   }

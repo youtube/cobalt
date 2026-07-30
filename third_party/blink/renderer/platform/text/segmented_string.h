@@ -80,14 +80,12 @@ class PLATFORM_EXPORT SegmentedSubstring {
   int NumberOfCharactersConsumed() const { return offset(); }
 
   void AppendTo(StringBuilder& builder) const {
-    int off = offset();
     int len = length();
-
-    if (!off) {
+    if (offset() == 0) {
       if (len)
         builder.Append(string_);
     } else {
-      builder.Append(string_.Substring(off, len));
+      builder.Append(CurrentSubString(len));
     }
   }
 
@@ -101,17 +99,17 @@ class PLATFORM_EXPORT SegmentedSubstring {
     // into the string data and is safe to index one before it.
 
     if (is_8bit_) {
-      if (*(UNSAFE_BUFFERS(data_.string8_ptr - 1)) != c) {
+      const LChar* prev_ptr = UNSAFE_BUFFERS(data_.string8_ptr - 1);
+      if (*prev_ptr != c) {
         return false;
       }
-
-      UNSAFE_BUFFERS(--data_.string8_ptr);
+      data_.string8_ptr = prev_ptr;
     } else {
-      if (*(UNSAFE_BUFFERS(data_.string16_ptr - 1)) != c) {
+      const UChar* prev_ptr = UNSAFE_BUFFERS(data_.string16_ptr - 1);
+      if (*prev_ptr != c) {
         return false;
       }
-
-      UNSAFE_BUFFERS(--data_.string16_ptr);
+      data_.string16_ptr = prev_ptr;
     }
 
     return true;

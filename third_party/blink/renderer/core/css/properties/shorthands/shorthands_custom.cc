@@ -676,7 +676,7 @@ bool BorderBottom::ParseShorthand(
     CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderBottomShorthand(), important, context, stream, properties);
+      borderBottomShorthand(), important, context, stream, properties, true);
 }
 
 const CSSValue* BorderBottom::CSSValueFromComputedStyleInternal(
@@ -942,7 +942,7 @@ bool BorderLeft::ParseShorthand(
     CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderLeftShorthand(), important, context, stream, properties);
+      borderLeftShorthand(), important, context, stream, properties, true);
 }
 
 const CSSValue* BorderLeft::CSSValueFromComputedStyleInternal(
@@ -1015,7 +1015,7 @@ bool BorderRight::ParseShorthand(
     CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderRightShorthand(), important, context, stream, properties);
+      borderRightShorthand(), important, context, stream, properties, true);
 }
 
 const CSSValue* BorderRight::CSSValueFromComputedStyleInternal(
@@ -1099,7 +1099,7 @@ bool BorderTop::ParseShorthand(
     CSSParserLocalContext&,
     HeapVector<CSSPropertyValue, 64>& properties) const {
   return css_parsing_utils::ConsumeShorthandGreedilyViaLonghands(
-      borderTopShorthand(), important, context, stream, properties);
+      borderTopShorthand(), important, context, stream, properties, true);
 }
 
 const CSSValue* BorderTop::CSSValueFromComputedStyleInternal(
@@ -2164,6 +2164,8 @@ bool Flex::ParseShorthand(bool important,
         }
 
         if (!flex_basis) {
+          local_context.SetUnresolvedProperty(
+              CSSPropertyName(CSSPropertyID::kFlexBasis));
           flex_basis = css_parsing_utils::ConsumeLengthOrPercent(
               stream, context, local_context,
               CSSPrimitiveValue::ValueRange::kNonNegative);
@@ -2755,8 +2757,11 @@ bool Gap::ParseShorthand(bool important,
                          CSSParserLocalContext& local_context,
                          HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(shorthandForProperty(CSSPropertyID::kGap).length(), 2u);
+  local_context.SetUnresolvedProperty(CSSPropertyName(CSSPropertyID::kRowGap));
   CSSValue* row_gap =
       css_parsing_utils::ConsumeGapLength(stream, context, local_context);
+  local_context.SetUnresolvedProperty(
+      CSSPropertyName(CSSPropertyID::kColumnGap));
   CSSValue* column_gap =
       css_parsing_utils::ConsumeGapLength(stream, context, local_context);
   if (!row_gap) {
@@ -5356,7 +5361,8 @@ bool RuleVisibilityItems::ParseShorthand(
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(ruleVisibilityItemsShorthand().length(), 2u);
   CSSValue* rule_visibility_items =
-      css_parsing_utils::ConsumeIdent<CSSValueID::kAll, CSSValueID::kAround,
+      css_parsing_utils::ConsumeIdent<CSSValueID::kAuto, CSSValueID::kAll,
+                                      CSSValueID::kAround,
                                       CSSValueID::kBetween>(stream);
 
   if (!rule_visibility_items) {

@@ -85,12 +85,13 @@ chromium-metrics-reviews@google.com.
   <variant name=".File" summary=""/>
   <variant name=".Image" summary=""/>
   <variant name=".ImageGen" summary=""/>
+  <variant name=".ProNoGenUiModel" summary=""/>
   <variant name=".RegularModel" summary=""/>
   <variant name=".Tab" summary=""/>
   <variant name=".ThinkingModel" summary=""/>
 </variants>
 
-<!-- LINT.ThenChange(chrome/browser/ui/omnibox/omnibox_context_menu_controller.h:ContextType) -->
+<!-- LINT.ThenChange(//chrome/browser/ui/omnibox/omnibox_context_menu_controller.h:ContextType) -->
 
 <variants name="DsePreloadTriggerType">
   <variant name=".OnPress" summary="on-press trigger"/>
@@ -817,7 +818,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.AimEntrypoint.Shown.ByPageContext.{OmniboxPageContext}"
-    enum="Boolean" expires_after="2026-06-07">
+    enum="Boolean" expires_after="2026-08-09">
   <owner>khalidpeer@chromium.org</owner>
   <owner>jdonnelly@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -1606,7 +1607,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram name="Omnibox.DsePreload.Prefetch.NoVarySearchDataCacheUpdate"
     enum="SearchPreloadServiceNoVarySearchDataCacheUpdate"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>kenoss@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -2827,7 +2828,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.OnPopupOpen.PaywallSignal" enum="PaywallSignal"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>juanmojica@google.com</owner>
   <owner>mercerd@google.com</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -3351,7 +3352,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 
 <histogram
     name="Omnibox.SearchPrefetch.TakePrefetchResponseFromMemoryCache.ResourceResponseReceived"
-    enum="Boolean" expires_after="2026-06-07">
+    enum="Boolean" expires_after="2026-08-09">
   <owner>gjc@google.com</owner>
   <owner>chrome-prerendering@google.com</owner>
   <summary>
@@ -3363,7 +3364,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchPrefetch.Within1sDuplicateSearchTermsAge"
-    units="ms" expires_after="2026-06-07">
+    units="ms" expires_after="2026-08-09">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>

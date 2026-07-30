@@ -29,6 +29,7 @@ FirstPartySkillsMap Translate1PSkillsMap(
     translated_skill.name = skill.name();
     translated_skill.icon = skill.icon();
     translated_skill.prompt = skill.prompt();
+    translated_skill.description = skill.description();
     translated_skill.source = sync_pb::SkillSource::SKILL_SOURCE_FIRST_PARTY;
     translated_map[skill.category()].push_back(std::move(translated_skill));
   }
@@ -160,9 +161,6 @@ void SkillsPageHandler::GetInitial1PSkills(
       std::move(callback), FirstPartySkillsMap());
   auto* service =
       SkillsServiceFactory::GetForProfile(base::to_address(profile_));
-  if (!isServiceReady(service)) {
-    return;
-  }
   std::move(scoped_callback).Run(Translate1PSkillsMap(service->Get1PSkills()));
 }
 

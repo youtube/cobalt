@@ -1673,6 +1673,7 @@ Wenn diese Richtlinie nicht konfiguriert ist, werden für verwaltete Geräte kei
 <translation id="2158741059065130266">Wenn die Richtlinie auf „True“ gesetzt ist, können Nutzer der <ph name="PRODUCT_OS_NAME" />-App „Dateien“ einen Papierkorb sehen und Dateien unter „Meine Dateien“ und „Downloads“ (einschließlich der vom Nutzer erstellten Nachfolgerelemente) beim Löschen dorthin verschieben.
 
       Wenn die Richtlinie auf „False“ gesetzt ist, sind die Dateien, die sich bereits im Papierkorb befanden, weiterhin verfügbar: Zuvor verborgene Dateien werden angezeigt und das Verzeichnis „Papierkorb“ ist unter „Meine Dateien“ oder „Downloads“ einsehbar.</translation>
+<translation id="215891883000260452">Erhebung von WebRTC-Diagnoseprotokollen für bestimmte Ursprünge aktivieren</translation>
 <translation id="2159092270572925582">Mit dieser Richtlinie kannst du eine Liste mit URL-Mustern festlegen, durch die angegeben wird, welche Websites blockierbare (aktive) gemischte Inhalte (HTTP-Inhalte auf HTTPS-Websites) anzeigen dürfen und auf denen HTTPS-Upgrades für optional blockierbare gemischte Inhalte deaktiviert werden.
 
           Ist diese Richtlinie nicht konfiguriert, werden blockierbare gemischte Inhalte gesperrt und optional blockierbare gemischte Inhalte auf HTTPS umgestellt. Nutzer können Ausnahmen für bestimmte Websites festlegen.
@@ -1962,6 +1963,7 @@ Unter <ph name="MAC_OS_NAME" /> steht diese Richtlinie nur bei Instanzen zur Ver
       Diese Richtlinie überschreibt <ph name="DEFAULT_WEB_USB_GUARD_SETTING_POLICY_NAME" />, <ph name="WEB_USB_ASK_FOR_URLS_POLICY_NAME" />, <ph name="WEB_USB_BLOCKED_FOR_URLS_POLICY_NAME" /> und die Nutzereinstellungen.
 
       Sie wirkt sich nur auf den Zugriff auf USB-Geräte über die WebUSB API aus. Für die Gewährung des Zugriffs auf USB-Geräte über die Web Serial API siehe Richtlinie <ph name="SERIAL_ALLOW_USB_DEVICES_FOR_URLS_POLICY_NAME" />.</translation>
+<translation id="2318353380372431186">Installation von isolierten Web-Apps (IWAs) für Nutzer aktivieren</translation>
 <translation id="2318583605563438459">Eltern dürfen gemeinsam verwaltete Konten hinzufügen</translation>
 <translation id="2326031114717677574">Häufigkeit, mit der Audiodaten analysiert und erhoben werden. Die geringste zulässige Häufigkeit beträgt 1 Minute.
 
@@ -2140,6 +2142,17 @@ Wird diese Richtlinie nicht konfiguriert oder auf „False“ festgelegt, wird d
 <translation id="2466131534462628618">Captive-Portal-Authentifizierung ignoriert Proxy</translation>
 <translation id="2467181864598429837">Standardverhalten des Browsers</translation>
 <translation id="2467896267442150508">Zeitintervall, das maximal eine Woche abdeckt. Wenn die angegebene Startzeit nach der Endzeit liegt, läuft das Intervall über die natürliche Intervallgrenze hinaus.</translation>
+<translation id="2475594733565572760">Diese Richtlinie definiert die Standardeinstellung für alle abgedeckten Funktionen, die auf generativer KI basieren. Wenn diese Richtlinie beispielsweise auf den Wert „1“ gesetzt ist, ist dies die Standardeinstellung für alle abgedeckten Funktionen, die auf generativer KI basieren. Manuell festgelegte Richtlinienwerte sind davon nicht betroffen. Mit dieser Einstellung werden die Standardeinstellungen für die abgedeckten Funktionen in Chrome definiert, die auf generativer KI basieren. Unter https://support.google.com/chrome/a?p=generative_ai_settings findest du eine Liste der abgedeckten Funktionen.
+
+Einige Richtlinien, z. B. „<ph name="GEMINI_SETTINGS_POLICY_NAME" />“, unterstützen nur die Status „Zugelassen“ und „Nicht zulassen“. Wenn die Richtlinie „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ auf „0“ oder „1“ gesetzt ist, wird diese Funktion aktiviert. Wenn „<ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" />“ auf „2“ gesetzt ist, wird diese Funktion deaktiviert. Die Dokumentation für jede Funktion enthält weitere Informationen dazu, wie sie mit Werten in dieser Richtlinie interagiert (z. B. Gemini in Chrome: https://support.google.com/chrome/a/?p=gemini_in_chrome). Dies gilt für die folgenden Funktionen: Gemini in Chrome, Google Lens und den KI-Modus, da sie eigenen Garantien und/oder Nutzungsbedingungen unterliegen (https://support.google.com/chrome/a/?p=genai_features_chrome).
+
+„0“ = Die Funktion darf verwendet werden und Google darf relevante Daten nutzen, um seine KI-Modelle zu verbessern. Relevante Daten können je nach Funktion Prompts, Eingaben, Ausgaben, Quellmaterialien und schriftliches Feedback sein. Sie werden möglicherweise auch manuell überprüft, um KI-Modelle zu verbessern. „0“ ist der Standardwert, sofern unten nicht anders angegeben.
+
+„1“ = Die Funktion darf verwendet werden, Google darf aber keine Modelle mithilfe von Nutzerinhalten (einschließlich Prompts, Eingaben, Ausgaben, Quellmaterialien und schriftlichen Feedbacks) verbessern. „1“ ist der Standardwert für Unternehmensnutzer, die über die <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> verwaltet werden, sowie für Konten von Bildungseinrichtungen, die über <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> verwaltet werden.
+
+„2“ = Die Funktion darf nicht verwendet werden.
+
+Weitere Informationen zur Datenverarbeitung bei auf generativer KI basierenden Funktionen findest du unter https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="2476249479201711962">Zugriff auf das Kontextmenü des Standardsuchanbieters erlauben</translation>
 <translation id="2478756867046106663">Zulassen, dass Websites mit irreführenden Inhalten neue Fenster oder Tabs öffnen</translation>
 <translation id="2479760962196319822">Mit dieser Richtlinie wird festgelegt, ob <ph name="PRODUCT_OS_NAME" />-Nutzer Daten lokal speichern können.
@@ -2485,6 +2498,13 @@ Das System fragt AAAA-Einträge nur dann ab, wenn es für einen globalen IPv6-Ho
       Hinweis: Seit Version M114 dürfen bestimmte Kiosk-Apps das Verhalten dieser Richtlinie für bestimmte Anwendungsfälle überschreiben, z. B. für Schulprüfungen.</translation>
 <translation id="2667894101494585925">Abruf von Daten zur Optimierung aktivieren</translation>
 <translation id="2669157090883237118">Dadurch wird die empfohlene Konfiguration von <ph name="PRODUCT_OS_NAME" /> nicht geändert.</translation>
+<translation id="2669314653349044073">Mit dieser Richtlinie kannst du die Erhebung von WebRTC-Diagnoseprotokollen für bestimmte Ursprünge aktivieren.
+
+Ausführliche Informationen zu gültigen Eingabemustern findest du unter https://chromeenterprise.google/policies/url-patterns. Der Platzhalter „<ph name="WILDCARD_VALUE" />“ ist kein akzeptierter Wert für diese Richtlinie. Diese Richtlinie gleicht nur anhand des Ursprungs ab, daher werden alle Pfade des URL-Musters ignoriert. Schema und Subdomains werden unterstützt.
+
+Wenn die Richtlinie konfiguriert ist, wird die Erhebung von Diagnoseprotokollen für die Ursprünge aktiviert, die mit den Mustern in der Liste übereinstimmen.
+
+Ist die Richtlinie nicht konfiguriert, ist die Erhebung von Diagnoseprotokollen standardmäßig deaktiviert.</translation>
 <translation id="2672012807430078509">Steuerung, durch die NTLM als Authentifizierungsprotokoll für SMB-Bereitstellungen aktiviert wird</translation>
 <translation id="2673363037046384711">Der Endnutzer kann den Modus für hohe Effizienz aktivieren oder deaktivieren.</translation>
 <translation id="2673968385134502798">Spiele</translation>
@@ -2592,6 +2612,7 @@ Wenn die Richtlinie deaktiviert oder nicht konfiguriert ist, können Nutzer Date
       Ist die Richtlinie deaktiviert, kann <ph name="PRODUCT_NAME" /> diese Hosts nur verwenden, wenn sie auf Systemebene installiert wurden.</translation>
 <translation id="2753637905605932878">Den von WebRTC verwendeten Bereich lokaler UDP-Ports einschränken</translation>
 <translation id="2755847332939882873">Speichern einer systemweiten Leistungs-Trace erlauben</translation>
+<translation id="2755963656455766808">Legt fest, ob ein Nutzer IWAs manuell installieren kann</translation>
 <translation id="2757054304033424106">Typen von Erweiterungen bzw. Apps, die installiert werden können</translation>
 <translation id="275769337615229465">Die meisten Ursprünge werden von anderen Ursprüngen auf derselben Website isoliert.</translation>
 <translation id="2759224876420453487">Nutzerverhalten in Mehrfachprofil-Sitzung steuern</translation>
@@ -4275,6 +4296,7 @@ Die Richtlinie kann mit <ph name="POLICY_CLOUD_POLICY_OVERRIDES_PLATFORM_POLICY_
 <translation id="3927291637826333102">Desktop-, Fenster- und Tabaufnahme für diese Ursprünge zulassen</translation>
 <translation id="3928726028264020458">Melden der VPD-Informationen auf Geräten aktivieren</translation>
 <translation id="3935592079035695061">Millisekunden seit Mitternacht.</translation>
+<translation id="3937800910397007337">Vordergrundpriorität für alle Tabs erzwingen</translation>
 <translation id="3941289958028934630">Gesprochenes Feedback auf dem Anmeldebildschirm deaktivieren</translation>
 <translation id="3943930334592166130">Diese Richtlinie legt fest, ob Nutzer aufgefordert werden, ein Clientzertifikat auszuwählen, wenn mehrere Zertifikate zu <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_POLICY_NAME" /> passen.
       Ist die Richtlinie aktiviert, werden Nutzer aufgefordert, immer dann ein Clientzertifikat auszuwählen, wenn die Richtlinie für die automatische Auswahl zu mehreren Zertifikaten passt.
@@ -5639,6 +5661,12 @@ Diese Richtlinie gilt vorübergehend und wird 2026 entfernt.</translation>
        Ein Hostname kann bei vollständiger Host- oder beliebiger Domainübereinstimmung erlaubt sein. Beispiel: Für die URL „https://foo.beispiel.de/bar“ werden Warnungen möglicherweise unterdrückt, wenn „foo.beispiel.de“ oder „beispiel.de“ zur Liste hinzugefügt wurden.</translation>
 <translation id="4852900976354340846">Einstellungen für Direct Sockets</translation>
 <translation id="485419696366295465">Steuert zum <ph name="BOREALIS_NAME" />-Subsystem gehörige Richtlinien.</translation>
+<translation id="4854384393031206645">Durch diese Richtlinie wird festgelegt, ob der Nutzer IWAs manuell installieren kann.
+
+Ist die Richtlinie auf „false“ gesetzt, wird die Installation von IWAs für den Nutzer blockiert.
+
+Ist die Richtlinie auf „true“ gesetzt oder nicht konfiguriert, kann der Nutzer IWAs installieren.
+</translation>
 <translation id="4855636880814771207">Wenn die Richtlinie aktiviert oder nicht konfiguriert ist, können Nutzer Bluetooth aktivieren oder deaktivieren.
 
       Wenn die Richtlinie deaktiviert ist, wird Bluetooth von <ph name="PRODUCT_OS_NAME" /> deaktiviert und Nutzer können es nicht aktivieren.
@@ -6071,6 +6099,7 @@ Diese Richtlinie ist eine vorübergehende Lösung, damit genug Zeit ist, Webinha
       </translation>
 <translation id="5104606191349861549">Tastenkombinationen (seit Version 129 unterstützt)</translation>
 <translation id="5105313908130842249">Verzögerung für die Bildschirmsperre im Akkubetrieb</translation>
+<translation id="5105593357527099243">Installation von isolierten Web-Apps (IWAs) für Nutzer deaktivieren</translation>
 <translation id="510604120100968366">Aktiviert die Funktion für Ton bei niedrigem Akkustand.
 
           Diese Funktion sorgt dafür, dass bei niedrigem Akkustand ein Ton abgespielt wird.
@@ -6213,6 +6242,7 @@ HINWEIS: Während der Browser ausgeführt wird, werden Änderungen an dieser Ric
       * auf "Moderat" festgelegt, kann der Nutzer auf YouTube nur den moderaten eingeschränkten Modus und den strikten eingeschränkten Modus auswählen, den eingeschränkten Modus aber nicht deaktivieren.
 
       * auf "Aus" festgelegt oder ist kein Wert angegeben, wird der eingeschränkte Modus auf YouTube nicht durch Chrome erzwungen. Der eingeschränkte Modus wird jedoch möglicherweise trotzdem durch externe Richtlinien wie YouTube-Richtlinien erzwungen.</translation>
+<translation id="5191007233343702012">Standardpriorisierung von Tabs verwenden</translation>
 <translation id="5191476996923842491">Standardverhalten für die Mindestverzögerung der Funktion setTimeout().</translation>
 <translation id="519247340330463721">Hiermit werden die Safe Browsing-Richtlinien konfiguriert.</translation>
 <translation id="5192555640439947289">Ist die Richtlinie aktiviert, fragt <ph name="PRODUCT_OS_NAME" /> Nutzer zum Entsperren des Geräts nach einem Passwort, wenn es sich im Ruhemodus befindet oder zugeklappt wurde.
@@ -6413,6 +6443,13 @@ Hinweis: Diese Richtlinie gilt nicht für HSTS-Umstellungen.</translation>
 <translation id="5303080953475303561">Mit dieser Richtlinie kannst du festlegen, wie oft auf dem Sperrbildschirm das Passwort zum schnellen Entsperren angefordert wird. Immer dann, wenn der Sperrbildschirm angezeigt wird und die letzte Passworteingabe vor dem über den ausgewählten Wert festgelegten Zeitfenster liegt, steht schnelles Entsperren nicht zur Verfügung. Wenn Nutzer auf dem Sperrbildschirm bleiben, bis diese Zeit abgelaufen ist, wird das nächste Mal, wenn sie einen falschen Code eingeben oder wieder auf den Sperrbildschirm gelangen, ein Passwort angefordert, je nachdem, welche Situation zuerst eintritt.
 
       Wenn die Richtlinie nicht konfiguriert ist, müssen Nutzer, die schnelles Entsperren verwenden, ihr Passwort einmal am Tag eingeben.</translation>
+<translation id="530488290401810961">Mit dieser Richtlinie kann konfiguriert werden, wie <ph name="PRODUCT_NAME" /> das Foundation Model für generative KI herunterlädt und lokal für die Inferenz verwendet.
+
+Wenn die Richtlinie auf „Zulässig (0)“ gesetzt oder nicht konfiguriert ist, wird das Modell automatisch heruntergeladen und für die Inferenz verwendet.
+
+Ist die Richtlinie auf „Deaktiviert (1)“ gesetzt, wird das Modell nicht heruntergeladen und das vorhandene Modell (sofern bereits heruntergeladen) gelöscht.
+
+Auf Desktop-Plattformen kann das Herunterladen von Modellen auch über die Richtlinie „<ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />“ deaktiviert werden.</translation>
 <translation id="5306186200045823863">Der veralteten Symantec-PKI vertrauen</translation>
 <translation id="5307432759655324440">Inkognitomodus - Verfügbarkeit</translation>
 <translation id="5308551343115571396">Wenn <ph name="LACROS_NAME" /> deaktiviert wurde, versuchen wir, so viele Nutzerdaten wie möglich zu speichern und gleichzeitig alle Browserdaten zu entfernen.</translation>
@@ -6469,6 +6506,15 @@ Verwaltete Konten können keiner Familiengruppe beitreten oder eine erstellen un
 <translation id="5345892164332459671">Floating-SSO deaktivieren und die Webdienst-Authentifizierungen des Nutzers nicht auf ein neues Gerät verschieben</translation>
 <translation id="5345910753471481870">Button „Google Lens“ nicht im Suchfeld auf der Seite „Neuer Tab“ anzeigen.</translation>
 <translation id="5346587320074666194">Den Zugriff auf Sensoren für diese Websites sperren</translation>
+<translation id="5347735051291224683">Mit dieser Richtlinie wird festgelegt, ob im Hintergrund ausgeführte Webinhalte mit Vordergrundpriorität ausgeführt werden müssen.
+
+Standardmäßig optimiert der Browser Ressourcen, indem er Inhalte von im Hintergrund ausgeführten Tabs weniger priorisiert. Wenn du diese Richtlinie aktivierst, wird dieses Verhalten überschrieben und Tabs im Hintergrund werden genauso geplant wie der aktive Tab.
+
+Beachte, dass das Erzwingen der Vordergrundpriorität für im Hintergrund ausgeführte Inhalte die Reaktionsfähigkeit des aktiven Tabs leicht beeinträchtigen kann.
+
+Wenn diese Richtlinie aktiviert ist, werden alle Webinhalte mit Vordergrundpriorität ausgeführt, unabhängig von ihrem Sichtbarkeitsstatus.
+
+Wenn diese Richtlinie deaktiviert oder nicht konfiguriert ist, bestimmt der Browser die Priorität anhand der Standardheuristik (z. B. indem Inhalte weniger priorisiert werden, die nicht sichtbar sind, keinen Ton wiedergeben oder nicht an Videoanrufen beteiligt sind).</translation>
 <translation id="534836255587440809">„Automatischer Klick“ auf dem Anmeldebildschirm deaktivieren</translation>
 <translation id="5348658899015174540">Die <ph name="GET_DISPLAY_MEDIA_SET_NAME" /> API erlaubt Web-Apps, mehrere Oberflächen gleichzeitig aufzunehmen.
       Diese Richtlinie macht das Attribut <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> für Web-Apps an definierten Ursprüngen verfügbar.

@@ -125,7 +125,6 @@
 #import "ios/chrome/browser/whats_new/coordinator/whats_new_util.h"
 #import "ios/chrome/grit/ios_strings.h"
 #import "ios/components/enterprise/analysis/features.h"
-#import "ios/components/enterprise/data_controls/features.h"
 #import "ios/components/security_interstitials/https_only_mode/feature.h"
 #import "ios/public/provider/chrome/browser/app_utils/app_utils_api.h"
 #import "ios/web/common/features.h"
@@ -1347,6 +1346,26 @@ const FeatureEntry::FeatureVariation kModelBasedPageClassificationVariations[] =
         {"(100%)", kModelBasedPageClassificationParam100, nullptr},
 };
 
+const FeatureEntry::FeatureParam kAfterEditForExplainGeminiEditMenu[] = {
+    {kExplainGeminiEditMenuParams, "1"}};
+const FeatureEntry::FeatureParam kAfterSearchForExplainGeminiEditMenu[] = {
+    {kExplainGeminiEditMenuParams, "2"}};
+
+const FeatureEntry::FeatureVariation kPositionForExplainGeminiEditMenu[] = {
+    {"Explain Gemini shows up after Edit", kAfterEditForExplainGeminiEditMenu,
+     nullptr},
+    {"Explain Gemini shows up after Search with Google",
+     kAfterSearchForExplainGeminiEditMenu, nullptr}};
+
+const FeatureEntry::FeatureParam kPageActionMenuIconSparkles1[] = {
+    {kPageActionMenuIconParams, "1"}};
+const FeatureEntry::FeatureParam kPageActionMenuIconSparkles2[] = {
+    {kPageActionMenuIconParams, "2"}};
+
+const FeatureEntry::FeatureVariation kPageActionMenuIconVariations[] = {
+    {"Sparkles 1", kPageActionMenuIconSparkles1, nullptr},
+    {"Sparkles 2", kPageActionMenuIconSparkles2, nullptr}};
+
 // To add a new entry, add to the end of kFeatureEntries. There are four
 // distinct types of entries:
 // . ENABLE_DISABLE_VALUE: entry is either enabled, disabled, or uses the
@@ -1852,9 +1871,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"app-background-refresh-ios", flag_descriptions::kAppBackgroundRefreshName,
      flag_descriptions::kAppBackgroundRefreshDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnableAppBackgroundRefresh)},
-    {"home-memory-improvements", flag_descriptions::kHomeMemoryImprovementsName,
-     flag_descriptions::kHomeMemoryImprovementsDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kHomeMemoryImprovements)},
     {"lens-web-page-load-optimization-enabled",
      flag_descriptions::kLensWebPageLoadOptimizationEnabledName,
      flag_descriptions::kLensWebPageLoadOptimizationEnabledDescription,
@@ -2041,6 +2057,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"enhanced-calendar", flag_descriptions::kEnhancedCalendarName,
      flag_descriptions::kEnhancedCalendarDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kEnhancedCalendar)},
+    {"explain-gemini-edit-menu", flag_descriptions::kExplainGeminiEditMenuName,
+     flag_descriptions::kExplainGeminiEditMenuDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kExplainGeminiEditMenu,
+                                    kPositionForExplainGeminiEditMenu,
+                                    "ExplainGeminiEditMenu")},
     {"data-sharing-debug-logs", flag_descriptions::kDataSharingDebugLogsName,
      flag_descriptions::kDataSharingDebugLogsDescription, flags_ui::kOsIos,
      SINGLE_VALUE_TYPE(data_sharing::kDataSharingDebugLoggingEnabled)},
@@ -2049,6 +2070,12 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kSupervisedUserBlockInterstitialV3Description,
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(supervised_user::kSupervisedUserBlockInterstitialV3)},
+    {"supervised-user-emit-log-record-separately",
+     flag_descriptions::kSupervisedUserEmitLogRecordSeparatelyName,
+     flag_descriptions::kSupervisedUserEmitLogRecordSeparatelyDescription,
+     flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(
+         supervised_user::kSupervisedUserEmitLogRecordSeparately)},
     {"supervised-user-merge-device-parental-controls-and-family-link-prefs",
      flag_descriptions::
          kSupervisedUserMergeDeviceParentalControlsAndFamilyLinkPrefsName,
@@ -2125,9 +2152,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kGeminiCopresence,
                                     kGeminiCopresenceVariations,
                                     "GeminiCopresence")},
-    {"gemini-cross-tab", flag_descriptions::kGeminiCrossTabName,
-     flag_descriptions::kGeminiCrossTabDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kGeminiCrossTab)},
     {"bwg-promo-consent", flag_descriptions::kBWGPromoConsentName,
      flag_descriptions::kBWGPromoConsentDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(kBWGPromoConsent,
@@ -2334,20 +2358,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(password_manager::features::
                             kApplyClientsideModelPredictionsForPasswordTypes)},
-    {"page-context-anchor-tags", flag_descriptions::kPageContextAnchorTagsName,
-     flag_descriptions::kPageContextAnchorTagsDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kPageContextAnchorTags)},
     {"cpe-passkey-largeblob-support",
      flag_descriptions::kCredentialProviderPasskeyLargeBlobName,
      flag_descriptions::kCredentialProviderPasskeyLargeBlobDescription,
      flags_ui::kOsIos, FEATURE_VALUE_TYPE(kCredentialProviderPasskeyLargeBlob)},
-#if BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
-    {"enable-clipboard-data-controls-ios",
-     flag_descriptions::kEnableClipboardDataControlsIOSName,
-     flag_descriptions::kEnableClipboardDataControlsIOSDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(data_controls::kEnableClipboardDataControlsIOS)},
-#endif  // BUILDFLAG(ENTERPRISE_DATA_CONTROLS)
     {"autofill-credit-card-scanner-ios",
      flag_descriptions::kAutofillCreditCardScannerIosName,
      flag_descriptions::kAutofillCreditCardScannerIosDescription,
@@ -2359,6 +2373,10 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"composebox-deep-search", flag_descriptions::kComposeboxDeepSearchName,
      flag_descriptions::kComposeboxDeepSearchDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kComposeboxDeepSearch)},
+    {"composebox-server-side-state",
+     flag_descriptions::kComposeboxServerSideStateName,
+     flag_descriptions::kComposeboxServerSideStateDescription, flags_ui::kOsIos,
+     FEATURE_VALUE_TYPE(kComposeboxServerSideState)},
     {"composebox-devtools", flag_descriptions::kComposeboxDevToolsName,
      flag_descriptions::kComposeboxDevToolsDescription, flags_ui::kOsIos,
      FEATURE_WITH_PARAMS_VALUE_TYPE(kComposeboxDevTools,
@@ -2511,9 +2529,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      flag_descriptions::kGeminiLatencyImprovementName,
      flag_descriptions::kGeminiLatencyImprovementDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiLatencyImprovement)},
-    {"gemini-onboarding-cards", flag_descriptions::kGeminiOnboardingCardsName,
-     flag_descriptions::kGeminiOnboardingCardsDescription, flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kGeminiOnboardingCards)},
     {"ios-save-to-drive-client-folder",
      flag_descriptions::kIOSSaveToDriveClientFolderName,
      flag_descriptions::kIOSSaveToDriveClientFolderDescription,
@@ -2614,12 +2629,6 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
     {"gemini-refactored-fre", flag_descriptions::kGeminiRefactoredFREName,
      flag_descriptions::kGeminiRefactoredFREDescription, flags_ui::kOsIos,
      FEATURE_VALUE_TYPE(kGeminiRefactoredFRE)},
-    {"composebox-fetch-contextual-suggestions-for-image",
-     flag_descriptions::kComposeboxFetchContextualSuggestionsForImageName,
-     flag_descriptions::
-         kComposeboxFetchContextualSuggestionsForImageDescription,
-     flags_ui::kOsIos,
-     FEATURE_VALUE_TYPE(kComposeboxFetchContextualSuggestionsForImage)},
     {"composebox-fetch-contextual-suggestions-for-multiple-attachments",
      flag_descriptions::
          kComposeboxFetchContextualSuggestionsForMultipleAttachmentsName,
@@ -2706,6 +2715,11 @@ constexpr auto kFeatureEntries = std::to_array<flags_ui::FeatureEntry>({
      FEATURE_WITH_PARAMS_VALUE_TYPE(kModelBasedPageClassification,
                                     kModelBasedPageClassificationVariations,
                                     "ModelBasedPageClassification")},
+    {"page-action-menu-icon", flag_descriptions::kPageActionMenuIconName,
+     flag_descriptions::kPageActionMenuIconDescription, flags_ui::kOsIos,
+     FEATURE_WITH_PARAMS_VALUE_TYPE(kPageActionMenuIcon,
+                                    kPageActionMenuIconVariations,
+                                    "PageActionMenuIcon")},
 });
 
 bool SkipConditionalFeatureEntry(const flags_ui::FeatureEntry& entry) {

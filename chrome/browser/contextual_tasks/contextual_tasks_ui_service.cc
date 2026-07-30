@@ -27,12 +27,12 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_interface.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_utils.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/tabs/tab_enums.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
 #include "chrome/browser/ui/webui/webui_embedding_context.h"
@@ -466,6 +466,14 @@ void ContextualTasksUiService::OnThreadLinkClicked(
           base::BindOnce(&ContextualTasksUiService::OnTextFinderLookupComplete,
                          weak_ptr_factory_.GetWeakPtr(),
                          existing_tab->GetWeakPtr(), url, task_id, browser));
+    }
+
+    if (auto* controller =
+            contextual_tasks::ContextualTasksPanelController::From(
+                browser.get())) {
+      // Count as part of a cobrowsing session if the user interacted with the
+      // AI response.
+      controller->OnAiInteraction();
     }
 
     return;

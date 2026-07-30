@@ -28,6 +28,16 @@
 #include "remoting/host/desktop_process.h"
 #include "remoting/host/me2me_desktop_environment.h"
 
+#if BUILDFLAG(IS_LINUX) && defined(REMOTING_USE_X11)
+#include <gtk/gtk.h>
+
+#include "ui/gfx/x/xlib_support.h"
+#endif
+
+#if BUILDFLAG(IS_POSIX)
+#include "base/files/file_descriptor_watcher_posix.h"
+#endif
+
 #if BUILDFLAG(IS_WIN)
 #include "base/functional/bind.h"
 #include "remoting/host/win/session_interaction_strategy.h"
@@ -41,6 +51,22 @@ namespace remoting {
 int DesktopProcessMain() {
   const base::CommandLine* command_line =
       base::CommandLine::ForCurrentProcess();
+
+#if BUILDFLAG(IS_LINUX) && defined(REMOTING_USE_X11)
+  // Initialize Xlib for multi-threaded use, allowing non-Chromium code to
+  // use X11 safely (such as the WebRTC capturer, GTK ...)
+  x11::InitXlib();
+
+  // Required for any calls into GTK functions, such as the Disconnect and
+  // Continue windows, though these should not be used for the Me2Me case
+  // (crbug.com/104377).
+#if GTK_CHECK_VERSION(3, 90, 0)
+  gtk_init();
+#else
+  gtk_init(nullptr, nullptr);
+#endif
+
+#endif  // BUILDFLAG(IS_LINUX) && defined(REMOTING_USE_X11)
 
   base::ThreadPoolInstance::CreateAndStartWithDefaultParams("Me2Me");
 
@@ -62,6 +88,13 @@ int DesktopProcessMain() {
   scoped_refptr<AutoThreadTaskRunner> io_task_runner =
       AutoThread::CreateWithType("I/O thread", ui_task_runner,
                                  base::MessagePumpType::IO);
+
+#if BUILDFLAG(IS_POSIX)
+  // Allow the main thread (which is not an I/O thread) to use
+  // FileDescriptorWatcher. The constructor of FileDescriptorWatcher registers
+  // itself in a thread local storage.
+  base::FileDescriptorWatcher fd_watcher(io_task_runner->task_runner());
+#endif
 
   mojo::core::ScopedIPCSupport ipc_support(
       io_task_runner->task_runner(),

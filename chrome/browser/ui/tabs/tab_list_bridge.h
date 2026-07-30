@@ -7,8 +7,8 @@
 
 #include "base/memory/raw_ref.h"
 #include "base/observer_list.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
-#include "chrome/browser/ui/tabs/tab_list_interface_observer.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
+#include "chrome/browser/tab_list/tab_list_interface_observer.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/browser/ui/tabs/tab_strip_model_observer.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
@@ -34,8 +34,6 @@
 // case of a tab being missing (if it's expected).
 class TabListBridge : public TabListInterface, public TabStripModelObserver {
  public:
-  DECLARE_USER_DATA(TabListBridge);
-
   TabListBridge(TabStripModel& tab_strip_model,
                 ui::UnownedUserDataHost& unowned_data_host);
   TabListBridge(const TabListBridge&) = delete;
@@ -53,7 +51,7 @@ class TabListBridge : public TabListInterface, public TabStripModelObserver {
   tabs::TabInterface* OpenTab(const GURL& url, int index) override;
   void SetOpenerForTab(tabs::TabHandle target, tabs::TabHandle opener) override;
   tabs::TabInterface* GetOpenerForTab(tabs::TabHandle target) override;
-  void DiscardTab(tabs::TabHandle tab) override;
+  content::WebContents* DiscardTab(tabs::TabHandle tab) override;
   tabs::TabInterface* DuplicateTab(tabs::TabHandle tab) override;
   tabs::TabInterface* GetTab(int index) override;
   int GetIndexOfTab(tabs::TabHandle tab) override;
@@ -102,7 +100,7 @@ class TabListBridge : public TabListInterface, public TabStripModelObserver {
 
   base::ObserverList<TabListInterfaceObserver> observers_;
 
-  ui::ScopedUnownedUserData<TabListBridge> scoped_data_holder_;
+  ui::ScopedUnownedUserData<TabListInterface> scoped_data_holder_;
 };
 
 #endif  // CHROME_BROWSER_UI_TABS_TAB_LIST_BRIDGE_H_

@@ -25,6 +25,9 @@
                   '|isimpledom' \
                   '|liblouis'
     },
+    'accessibility_annotator': {
+      'filepath': 'accessibility_annotator'
+    },
     'accessibility_component_extensions': {
       'filepath': 'chrome/browser/resources/chromeos/accessibility'
     },
@@ -147,6 +150,12 @@
     'android_search_widget': {
       'filepath': 'chrome/android/java/src/org/chromium/chrome/browser/locale/' \
                   '|chrome/android/java/src/org/chromium/chrome/browser/searchwidget/'
+    },
+    'android_side_panel': {
+      'filepath': 'chrome/browser/ui/side_ui/'\
+                  '|chrome/browser/ui/side_panel_container/'\
+                  '|.*SidePanel.*\.java'\
+                  '|.*SideUi.*\.java'
     },
     'android_startup_metrics': {
       'filepath': 'chrome/android/java/src/org/chromium/chrome/browser/metrics/.*StartupMetricsTracker.java' \
@@ -2544,6 +2553,7 @@
                       'nektar+watch@chromium.org',
                       'yuzo+watch@chromium.org',
                       'francisjp+watcha11y@google.com'],
+    'accessibility_annotator': ['accessibility-annotator-reviews@google.com'],
     'accessibility_component_extensions': ['anastasi+watch@google.com',
                                            'hirokisato+watch@chromium.org',
                                            'katie+watch@chromium.org',
@@ -2584,6 +2594,7 @@
     'android_lint': ['wnwen+watch@chromium.org'],
     'android_omnibox': ['ender+watch@chromium.org'],
     'android_search_widget': ['yusufo+watch@chromium.org'],
+    'android_side_panel': ['mschillaci@google.com'],
     'android_startup_metrics': ['pasko+watch@chromium.org'],
     'android_studio': ['wnwen+watch@chromium.org',
                        'nyquist+watch@chromium.org'],

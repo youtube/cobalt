@@ -50,6 +50,19 @@ struct ResolvedTarget {
   blink::WebWidget* GetWidget(const ToolBase& tool) const;
 };
 
+// Struct to return the validation result and the target point if set.
+struct ValidationResult {
+  explicit ValidationResult(
+      mojom::ActionResultPtr result,
+      std::optional<gfx::PointF> target_point = std::nullopt);
+  ~ValidationResult();
+  ValidationResult(ValidationResult&&);
+  ValidationResult& operator=(ValidationResult&&);
+
+  mojom::ActionResultPtr result;
+  std::optional<gfx::PointF> target_point;
+};
+
 class ToolBase {
  public:
   using ToolFinishedCallback = base::OnceCallback<void(mojom::ActionResultPtr)>;
@@ -63,7 +76,7 @@ class ToolBase {
   // Validates that the tool can be executed and returns the result. The
   // implementation stores any necessary state to allow Execute() to run
   // afterwards.
-  virtual mojom::ActionResultPtr Validate() = 0;
+  virtual ValidationResult Validate() = 0;
 
   // Executes the tool. `callback` is invoked with the tool result. Requires
   // validation to be called first.
@@ -91,6 +104,8 @@ class ToolBase {
   // stability tracking, which is currently only supported on a subset of
   // interactions.
   virtual bool SupportsPaintStability() const;
+
+  void MarkAsRevalidation() { is_revalidation_ = true; }
 
   content::RenderFrame* frame() const { return &frame_.get(); }
   const TaskId& task_id() const { return task_id_; }
@@ -120,6 +135,8 @@ class ToolBase {
   // observation.
   mojom::ActionResultPtr ValidateTimeOfUse(
       const ResolvedTarget& resolved_target) const;
+
+  bool is_revalidation_ = false;
 };
 }  // namespace actor
 

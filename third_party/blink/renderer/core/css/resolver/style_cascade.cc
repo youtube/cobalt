@@ -120,10 +120,11 @@ bool ConsumeComma(CSSParserTokenStream& stream) {
   return false;
 }
 
-const CSSValue* ParseAsCSSWideKeyword(const CSSVariableData& data) {
+const CSSValue* ParseAsCSSWideKeyword(const CSSVariableData& data,
+                                      const CSSParserContext& context) {
   CSSParserTokenStream stream(data.OriginalText());
   stream.ConsumeWhitespace();
-  CSSValue* value = css_parsing_utils::ConsumeCSSWideKeyword(stream);
+  CSSValue* value = css_parsing_utils::ConsumeCSSWideKeyword(stream, context);
   return stream.AtEnd() ? value : nullptr;
 }
 
@@ -458,7 +459,7 @@ const CSSUnparsedDeclarationValue* StyleCascade::ResolveSubstitutions(
     return nullptr;
   }
   return MakeGarbageCollected<CSSUnparsedDeclarationValue>(
-      sequence.BuildVariableData());
+      sequence.BuildVariableData(), context);
 }
 
 void StyleCascade::AnalyzeIfNeeded() {
@@ -1253,7 +1254,7 @@ StyleCascade::MakeFunctionContextFromMixinAndResolveSubstitutions(
   FunctionContext ctx = {
       .arguments = function_arguments,
       .locals = {},  // Populated by ApplyLocalVariables.
-      .unresolved_locals = {},
+      .unresolved_locals = mixin_parameter_bindings->GetLocals(),
       .local_types = local_types,
       .parent = function_context,
   };
@@ -1349,7 +1350,8 @@ const CSSValue* StyleCascade::ResolveCustomProperty(
   {
     CSSParserTokenStream stream(data->OriginalText());
     stream.ConsumeWhitespace();
-    CSSValue* value = css_parsing_utils::ConsumeCSSWideKeyword(stream);
+    CSSValue* value =
+        css_parsing_utils::ConsumeCSSWideKeyword(stream, *decl.ParserContext());
     if (value && stream.AtEnd()) {
       return value;
     }
@@ -2191,7 +2193,7 @@ CSSVariableData* StyleCascade::ResolveLocalVariable(
   // frame.
   //
   // https://drafts.csswg.org/css-mixins-1/#resolve-function-styles
-  if (const CSSValue* css_wide = ParseAsCSSWideKeyword(*resolved)) {
+  if (const CSSValue* css_wide = ParseAsCSSWideKeyword(*resolved, context)) {
     return GetKeywordVariableData(name, *css_wide, resolver, context,
                                   &function_context);
   }
@@ -2875,19 +2877,6 @@ bool StyleCascade::HasLineHeightDependency(const CustomProperty& property,
     return true;
   }
   return false;
-}
-
-bool StyleCascade::ValidateFallback(const CustomProperty& property,
-                                    StringView value) const {
-  if (!property.IsRegistered()) {
-    return true;
-  }
-  auto context_mode =
-      state_.GetDocument().GetExecutionContext()->GetSecureContextMode();
-  auto* context = StrictCSSParserContext(context_mode);
-  auto local_context =
-      CSSParserLocalContext::CreateWithoutPropertyForSubstitutions();
-  return property.Parse(value, *context, local_context);
 }
 
 void StyleCascade::MarkIsReferenced(const CustomProperty& referenced) {

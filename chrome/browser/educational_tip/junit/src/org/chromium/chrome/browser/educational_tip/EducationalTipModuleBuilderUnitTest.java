@@ -43,6 +43,7 @@ import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModel;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils;
+import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.feature_engagement.FeatureConstants;
 import org.chromium.components.feature_engagement.Tracker;
 import org.chromium.components.segmentation_platform.InputContext;
@@ -72,6 +73,7 @@ public class EducationalTipModuleBuilderUnitTest {
     @Mock private IdentityServicesProvider mIdentityServicesProvider;
     @Mock private IdentityManager mIdentityManagerMock;
     @Mock private SetupListManager mSetupListManager;
+    @Mock private BottomSheetController mBottomSheetController;
 
     private EducationalTipModuleBuilder mModuleBuilder;
 
@@ -102,6 +104,7 @@ public class EducationalTipModuleBuilderUnitTest {
         when(IdentityServicesProvider.get().getIdentityManager(any()))
                 .thenReturn(mIdentityManagerMock);
         when(mIdentityManagerMock.hasPrimaryAccount(ConsentLevel.SIGNIN)).thenReturn(false);
+        when(mActionDelegate.getBottomSheetController()).thenReturn(mBottomSheetController);
 
         mModuleBuilder =
                 new EducationalTipModuleBuilder(ModuleType.QUICK_DELETE_PROMO, mActionDelegate);
@@ -169,6 +172,42 @@ public class EducationalTipModuleBuilderUnitTest {
         assertNotNull(inputContextForTest.getEntryValue("tab_group_exists"));
         assertNotNull(inputContextForTest.getEntryValue("number_of_tabs"));
         assertNotNull(inputContextForTest.getEntryValue("is_user_signed_in"));
+    }
+
+    @Test
+    @SmallTest
+    public void testIsEligible_SetupList_StrictlyFollowsManager() {
+        // Mock Setup List module.
+        int setupListModule = ModuleType.SIGN_IN_PROMO;
+        EducationalTipModuleBuilder builder =
+                new EducationalTipModuleBuilder(setupListModule, mActionDelegate);
+
+        // Case 1: Manager says eligible.
+        when(mSetupListManager.isModuleEligible(setupListModule)).thenReturn(true);
+        assertTrue(builder.isEligible());
+
+        // Case 2: Manager says ineligible.
+        when(mSetupListManager.isModuleEligible(setupListModule)).thenReturn(false);
+        assertFalse(builder.isEligible());
+    }
+
+    @Test
+    @SmallTest
+    public void testIsEligible_RegularTip_RequiresProfile() {
+        // Mock regular Educational Tip module.
+        int regularTipModule = ModuleType.QUICK_DELETE_PROMO;
+        EducationalTipModuleBuilder builder =
+                new EducationalTipModuleBuilder(regularTipModule, mActionDelegate);
+
+        // Case 1: Profile is null. Implementation currently returns true for non-setup modules.
+        when(mActionDelegate.getProfileSupplier())
+                .thenReturn(ObservableSuppliers.createNonNull(null));
+        assertTrue(builder.isEligible());
+
+        // Case 2: Profile is present.
+        when(mActionDelegate.getProfileSupplier())
+                .thenReturn(ObservableSuppliers.createNonNull(mProfile));
+        assertTrue(builder.isEligible());
     }
 
     @Test

@@ -10,11 +10,16 @@
 #import <memory>
 #import <string>
 
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/browser/data_import/ui/data_import_credential_conflict_mutator.h"
 
 namespace password_manager {
 class SavedPasswordsPresenter;
 }  // namespace password_manager
+
+namespace signin {
+class IdentityManager;
+}  // namespace signin
 
 namespace syncer {
 class SyncService;
@@ -75,7 +80,7 @@ class PrefService;
 // passed back to the OS to receive the credential data.
 - (instancetype)initWithUUID:(NSUUID*)UUID
                     delegate:(id<CredentialImportMediatorDelegate>)delegate
-                   userEmail:(std::string)userEmail
+             identityManager:(signin::IdentityManager*)identityManager
      savedPasswordsPresenter:
          (std::unique_ptr<password_manager::SavedPasswordsPresenter>)
              savedPasswordsPresenter
@@ -90,7 +95,7 @@ class PrefService;
 // `trustedVaultKeys` are needed to encrypt passkeys if there are any to be
 // imported.
 - (void)startImportingCredentialsWithTrustedVaultKeys:
-    (NSArray<NSData*>*)trustedVaultKeys;
+    (webauthn::SharedKeyList)trustedVaultKeys;
 
 @end
 

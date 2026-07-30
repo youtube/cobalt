@@ -274,6 +274,16 @@ chromium-metrics-reviews@google.com.
   </int>
 </enum>
 
+<!-- LINT.IfChange(AndroidTabStripBookmarkAllTabsResult) -->
+
+<enum name="AndroidTabStripBookmarkAllTabsResult">
+  <int value="0" label="Success"/>
+  <int value="1" label="Failure: Tab model was null"/>
+  <int value="2" label="Failure: Tab list was empty"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/compositor/overlays/strip/StripLayoutHelper.java:BookmarkAllTabsResult) -->
+
 <enum name="AndroidThemeSettingsEntry">
   <summary>See Android.DarkTheme.ThemeSettingsEntry.</summary>
   <int value="0" label="Settings"/>
@@ -1255,6 +1265,7 @@ chromium-metrics-reviews@google.com.
   <int value="6" label="DroppedUnusedOlderStates"/>
   <int value="7" label="TransferBackToBrowserSuccessfully"/>
   <int value="8" label="DroppedTransferBackToBrowserFailed"/>
+  <int value="9" label="SpeculativeTransferStateReplaced"/>
 </enum>
 
 <enum name="LightTheme">
@@ -1562,6 +1573,18 @@ chromium-metrics-reviews@google.com.
   <int value="16" label="MIDI_SYSEX"/>
 </enum>
 
+<!-- LINT.IfChange(persistent_state_id_verification) -->
+
+<enum name="PersistentStateIdVerification">
+  <int value="0" label="No persistent state nor id"/>
+  <int value="1" label="Missing persistent state"/>
+  <int value="2" label="Missing persistent state id"/>
+  <int value="3" label="Persistent state match"/>
+  <int value="4" label="Persistent state mismatch"/>
+</enum>
+
+<!-- LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/multiwindow/MultiWindowUtils.java:persistent_state_id_verification) -->
+
 <enum name="PhotoPickerDialogAction">
   <int value="0" label="Cancel"/>
   <int value="1" label="Photo picked"/>
@@ -1605,14 +1628,6 @@ chromium-metrics-reviews@google.com.
   <int value="1" label="Used on Search Suggestion in zero-prefix context"/>
   <int value="2" label="Used on Search Suggestion in non-zero-prefix context"/>
   <int value="3" label="Used on Search Suggestion in both contexts"/>
-</enum>
-
-<enum name="RelatedAppType">
-  <int value="0" label="Other"/>
-  <int value="1" label="Regular app"/>
-  <int value="2" label="Instant app"/>
-  <int value="3" label="WebApk owned by the caller"/>
-  <int value="4" label="Other WebApk"/>
 </enum>
 
 <enum name="RendererLibraryPrefetchMode">
@@ -2002,6 +2017,7 @@ chromium-metrics-reviews@google.com.
   <int value="14" label="RIRDelegateConnectionNotSetup"/>
   <int value="15" label="SharedMemoryUnavailable"/>
   <int value="16" label="PositiveEventAndDownTimeDelta"/>
+  <int value="17" label="XrIsActive"/>
 </enum>
 
 <!-- LINT.ThenChange(//content/public/browser/android/transfer_input_to_viz_result.h:TransferInputToVizResult)-->

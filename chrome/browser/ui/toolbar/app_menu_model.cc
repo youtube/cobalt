@@ -68,6 +68,7 @@
 #include "chrome/browser/ui/safety_hub/safety_hub_hats_service_factory.h"
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_prompt_manager.h"
 #include "chrome/browser/ui/tab_search_feature.h"
+#include "chrome/browser/ui/tabs/features.h"
 #include "chrome/browser/ui/tabs/organization/tab_declutter_controller.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_service_factory.h"
 #include "chrome/browser/ui/tabs/organization/tab_organization_utils.h"
@@ -200,6 +201,7 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(AppMenuModel, kInstallAppItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(AppMenuModel, kCreateShortcutItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(AppMenuModel,
                                       kSetBrowserAsDefaultMenuItem);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(AppMenuModel, kHelpMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ToolsMenuModel, kPerformanceMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ToolsMenuModel, kChromeLabsMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ToolsMenuModel, kReadingModeMenuItem);
@@ -207,6 +209,7 @@ DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ExtensionsMenuModel,
                                       kManageExtensionsMenuItem);
 DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(ExtensionsMenuModel,
                                       kVisitChromeWebStoreMenuItem);
+DEFINE_CLASS_ELEMENT_IDENTIFIER_VALUE(HelpMenuModel, kReportUnsafeSiteMenuItem);
 
 namespace {
 
@@ -916,18 +919,15 @@ void LogWrenchMenuAction(AppMenuAction action_id) {
 // HelpMenuModel
 // Only used in branded builds.
 
-class HelpMenuModel : public ui::SimpleMenuModel {
- public:
-  HelpMenuModel(ui::SimpleMenuModel::Delegate* delegate, Browser* browser)
-      : SimpleMenuModel(delegate) {
-    Build(browser);
-  }
+HelpMenuModel::HelpMenuModel(ui::SimpleMenuModel::Delegate* delegate,
+                             Browser* browser)
+    : SimpleMenuModel(delegate) {
+  Build(browser);
+}
 
-  HelpMenuModel(const HelpMenuModel&) = delete;
-  HelpMenuModel& operator=(const HelpMenuModel&) = delete;
+HelpMenuModel::~HelpMenuModel() = default;
 
- private:
-  void Build(Browser* browser) {
+void HelpMenuModel::Build(Browser* browser) {
 #if BUILDFLAG(IS_CHROMEOS) && defined(OFFICIAL_BUILD)
     int help_string_id = IDS_GET_HELP;
 #else
@@ -959,11 +959,13 @@ class HelpMenuModel : public ui::SimpleMenuModel {
         AddItemWithStringIdAndVectorIcon(this, IDC_REPORT_UNSAFE_SITE,
                                          IDS_REPORT_UNSAFE_SITE,
                                          vector_icons::kWarningIcon);
+        SetElementIdentifierAt(
+            GetIndexOfCommandId(IDC_REPORT_UNSAFE_SITE).value(),
+            HelpMenuModel::kReportUnsafeSiteMenuItem);
       }
     }
 #endif  // BUILDFLAG(GOOGLE_CHROME_BRANDING)
-  }
-};
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ToolsMenuModel
@@ -991,9 +993,13 @@ void ToolsMenuModel::Build(Browser* browser) {
   is_tablet_mode = display::Screen::Get()->InTabletMode();
 #endif  // BUILDFLAG(IS_CHROMEOS)
   if (!is_tablet_mode) {
-    if (features::HasTabSearchToolbarButton()) {
+    if (features::HasTabSearchToolbarButton() ||
+        base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)) {
       AddItemWithStringIdAndVectorIcon(
-          this, IDC_TAB_SEARCH, IDS_TAB_SEARCH_MENU, kTabSearchToolbarIcon);
+          this, IDC_TAB_SEARCH, IDS_TAB_SEARCH_MENU,
+          base::FeatureList::IsEnabled(tabs::kHorizontalTabStripComboButton)
+              ? kTabSearchTabStripIcon
+              : kTabSearchToolbarIcon);
     }
 
     if (base::FeatureList::IsEnabled(features::kTabOrganizationAppMenuItem) &&
@@ -2138,6 +2144,8 @@ void AppMenuModel::Build() {
   sub_menus_.push_back(std::make_unique<HelpMenuModel>(this, browser_));
   AddSubMenuWithStringIdAndVectorIcon(this, IDC_HELP_MENU, IDS_HELP_MENU,
                                       sub_menus_.back().get(), kHelpMenuIcon);
+  SetElementIdentifierAt(GetIndexOfCommandId(IDC_HELP_MENU).value(),
+                         kHelpMenuItem);
 #else
 #if BUILDFLAG(IS_CHROMEOS)
   AddItem(IDC_ABOUT, l10n_util::GetStringUTF16(IDS_ABOUT));

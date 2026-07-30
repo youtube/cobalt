@@ -26,6 +26,7 @@ class SiteInstance;
 namespace content {
 class BrowserContext;
 class RenderProcessHost;
+class SecurityPrincipal;
 class StoragePartitionConfig;
 
 using SiteInstanceId = base::IdType32<class SiteInstanceIdTag>;
@@ -164,6 +165,10 @@ class CONTENT_EXPORT SiteInstance : public base::RefCounted<SiteInstance> {
   // SiteInstances) belongs.
   virtual BrowserContext* GetBrowserContext() = 0;
 
+  // Returns the security principal identifying all documents and workers within
+  // this SiteInstance.
+  virtual const SecurityPrincipal& GetSecurityPrincipal() const = 0;
+
   // Get the web site that this SiteInstance is rendering pages for. This
   // includes the scheme and registered domain, but not the port.
   //
@@ -206,10 +211,6 @@ class CONTENT_EXPORT SiteInstance : public base::RefCounted<SiteInstance> {
   // Returns true if this SiteInstance is for a site that requires a dedicated
   // process. This only returns true under the "site per process" process model.
   virtual bool RequiresDedicatedProcess() = 0;
-
-  // Returns true if the SiteInstance is for a process-isolated sandboxed
-  // documents only.
-  virtual bool IsSandboxed() = 0;
 
   // Return whether this SiteInstance and the provided |url| are part of the
   // same web site, for the purpose of assigning them to processes accordingly.

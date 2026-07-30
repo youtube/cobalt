@@ -14,8 +14,8 @@
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/paint/timing/largest_contentful_paint_calculator.h"
 #include "third_party/blink/renderer/core/paint/timing/paint_timing_record.h"
-#include "third_party/blink/renderer/core/timing/navigation_id_generator.h"
 #include "third_party/blink/renderer/core/timing/performance_entry.h"
+#include "third_party/blink/renderer/core/timing/performance_timeline_entry_id_generator.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_set.h"
 #include "third_party/blink/renderer/platform/heap/garbage_collected.h"
 #include "third_party/blink/renderer/platform/heap/prefinalizer.h"
@@ -60,15 +60,45 @@ class CORE_EXPORT SoftNavigationContext
   }
 
   bool HasNavigationId() const {
-    return navigation_id_ != kNavigationIdAbsentValue;
+    return navigation_id_ != PerformanceTimelineEntryIdInfo::kNoId;
   }
-  uint32_t NavigationId() const { return navigation_id_; }
-  void SetNavigationId(uint32_t navigation_id) {
+  uint64_t NavigationId() const { return navigation_id_; }
+  void SetNavigationId(uint64_t navigation_id) {
     navigation_id_ = navigation_id;
   }
 
-  base::TimeTicks TimeOrigin() const { return time_origin_; }
-  void SetTimeOrigin(base::TimeTicks value) { time_origin_ = value; }
+  // The time origin is used for calculating soft navigation timings, especially
+  // Soft LCP. It is the earlier of the processing end of the interaction and
+  // the url change time. Once the processing of the interaction has ended, it
+  // is guaranteed to be available; once the URL change time has been set,
+  // it's available and final. When not available it may be null.
+  base::TimeTicks TimeOrigin() const;
+
+  // Indicates when the interaction processing is finished, which is after the
+  // event handler has finished executing.
+  base::TimeTicks ProcessingEnd() const { return processing_end_; }
+  void SetProcessingEnd(base::TimeTicks value) { processing_end_ = value; }
+
+  // This is set to the time of the first URL change and is not updated
+  // afterwards.
+  base::TimeTicks UrlChangeTime() const { return url_change_time_; }
+
+  // Sets URL, retaining the first URL only and the first
+  // |same_document_metrics_token|, while also recording the UrlChangeTime() as
+  // base::TimeTicks::Now().
+  void AddUrl(const String& url,
+              base::UnguessableToken same_document_metrics_token);
+
+  base::UnguessableToken SameDocumentMetricsToken() const {
+    return same_document_metrics_token_;
+  }
+
+  // A single interaction / navigation may change URLs multiple times.
+  // For now, we use the initial URL value as the URL to attribute the
+  // performance data to-- but it is reasonable to evaluate using the final URL
+  // as an alternative.
+  const String& AttributionUrl() const { return initial_url_; }
+  bool HasUrl() const { return !initial_url_.empty(); }
 
   bool HasFirstContentfulPaint() const {
     return first_image_or_text_ && first_image_or_text_->HasPaintTime();
@@ -80,23 +110,6 @@ class CORE_EXPORT SoftNavigationContext
   const DOMPaintTimingInfo& FirstContentfulPaintTimingInfo() const {
     CHECK(HasFirstContentfulPaint());
     return first_image_or_text_->PaintTimingInfo();
-  }
-
-  // A single interaction / navigation may change URLs multiple times.
-  // For now, we use the initial URL value as the URL to attribute the
-  // performance data to-- but it is reasonable to evaluate using the final URL
-  // as an alternative.
-  const String& AttributionUrl() const { return initial_url_; }
-  void AddUrl(const String& url,
-              base::UnguessableToken same_document_metrics_token) {
-    if (initial_url_.empty()) {
-      initial_url_ = url;
-      same_document_metrics_token_ = same_document_metrics_token;
-    }
-  }
-  bool HasUrl() const { return !initial_url_.empty(); }
-  base::UnguessableToken SameDocumentMetricsToken() const {
-    return same_document_metrics_token_;
   }
 
   void AddModifiedNode(Node* node);
@@ -157,15 +170,15 @@ class CORE_EXPORT SoftNavigationContext
  private:
   static uint64_t last_context_id_;
 
-  // Pre-Increment `last_context_id_` such that the newest context uses the
   // largest value and can be used to identify the most recent context.
   const uint64_t context_id_ = ++last_context_id_;
 
-  uint32_t navigation_id_ = kNavigationIdAbsentValue;
+  uint64_t navigation_id_ = PerformanceTimelineEntryIdInfo::kNoId;
   bool was_emitted_ = false;
 
-  base::TimeTicks time_origin_;
   base::TimeTicks first_input_or_scroll_time_;
+  base::TimeTicks url_change_time_;
+  base::TimeTicks processing_end_;
 
   String initial_url_;
   base::UnguessableToken same_document_metrics_token_;

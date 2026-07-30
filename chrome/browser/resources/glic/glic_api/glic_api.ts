@@ -88,6 +88,24 @@ export declare interface AdditionalContextPart {
   region?: CapturedRegion;
 }
 
+/** Options for invoking Glic. */
+export declare interface InvokeOptions {
+  /** Source that triggered this invocation. */
+  invocationSource: InvocationSource;
+  /** Prompts to pre-populate or suggest. */
+  prompts?: string[];
+  /** Additional context to attach. */
+  context?: AdditionalContext;
+  /** Whether to automatically submit the prompt. */
+  autoSubmit: boolean;
+  /** Feature mode to switch to. */
+  featureMode: FeatureMode;
+  /** Whether to suppress Zero State Suggestions. */
+  disableZeroStateSuggestions: boolean;
+  /** Skill ID to trigger. */
+  skillId?: string;
+}
+
 /**
  * Implemented by the Glic web client, with its methods being called by the
  * browser. Most functions are optional.
@@ -157,6 +175,14 @@ export declare interface GlicWebClient {
    * as unresponsive and displaying an error state to the user.
    */
   checkResponsive?(): Promise<void>;
+
+  /**
+   * Invokes Glic with specific options.
+   * This can be called to open the panel or update an existing session.
+   * Returns when the invocation has been received and processed by the client.
+   * @throws {Error} on failure.
+   */
+  invoke?(options: InvokeOptions): Promise<void>;
 
   // !!! ATTENTION !!!
   // Avoid adding new methods to this interface! Instead, to push information to
@@ -1344,6 +1370,11 @@ export declare interface PanelOpeningData {
    */
   promptSuggestion?: string;
   /**
+   * If true and promptSuggestion is set, the prompt will be automatically
+   * submitted after the panel opens.
+   */
+  autoSend?: boolean;
+  /**
    * An optional Skill. If provided, the Gemini app should auto-run it.
    */
   skillToInvoke?: Skill;
@@ -1621,6 +1652,7 @@ export declare interface TabData {
   /**
    * Whether the tab's browser window is active. Note that this does not
    * consider whether the tab is active in the window.
+   * WARNING: This is not implemented on Android, and is always true.
    */
   isWindowActive?: boolean;
 }
@@ -2636,6 +2668,19 @@ export enum InvocationSource {
   HANDOFF_BUTTON = 14,
   // From invoking skills.
   SKILLS = 15,
+  // Automatically opened from contextual cueing.
+  AUTO_OPENED_BY_CONTEXTUAL_CUE = 16,
+  // User clicked the summarize button in the PDF viewer.
+  PDF_SUMMARIZE_BUTTON = 17,
+}
+
+///////////////////////////////////////////////
+// WARNING - GENERATED FROM MOJOM, DO NOT EDIT.
+// Mode for specific feature behaviors.
+export enum FeatureMode {
+  UNSPECIFIED = 0,
+  IMAGE_GENERATION = 1,
+  BLUEDOG = 2,
 }
 
 ///////////////////////////////////////////////

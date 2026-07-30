@@ -42,7 +42,6 @@ suite('Toolbar', () => {
 
   suite('with read aloud', () => {
     setup(() => {
-      chrome.readingMode.isReadAloudEnabled = true;
       return createToolbar();
     });
 
@@ -123,54 +122,38 @@ suite('Toolbar', () => {
         const moreButton = getButton('more');
         assertTrue(!!moreButton);
       });
-    });
-  });
 
-  suite('without read aloud', () => {
-    setup(() => {
-      chrome.readingMode.isReadAloudEnabled = false;
-      return createToolbar();
-    });
+      suite('tab index', () => {
+        setup(() => {
+          toolbar.isImmersiveMode = true;
+          assertEquals(toolbar.$.toolbarContainer.tabIndex, 0);
+        });
 
-    test('has text settings menus', () => {
-      stubAnimationFrame();
+        test('is -1 after Tab keydown', () => {
+          stubAnimationFrame();
+          toolbar.$.toolbarContainer.dispatchEvent(new FocusEvent('blur'));
+          assertEquals(toolbar.$.toolbarContainer.tabIndex, -1);
+        });
 
-      const colorButton = getButton('color');
-      assertTrue(!!colorButton);
-      colorButton.click();
-      assertTrue(toolbar.$.colorMenu.$.menu.$.lazyMenu.get().open);
+        test('is reset after closing reading mode', async () => {
+          stubAnimationFrame();
+          toolbar.$.toolbarContainer.dispatchEvent(new FocusEvent('blur'));
+          assertEquals(toolbar.$.toolbarContainer.tabIndex, -1);
+          toolbar.presentationState = 1;
+          await microtasksFinished();
+          assertEquals(toolbar.$.toolbarContainer.tabIndex, 0);
+        });
 
-      const lineSpacingButton = getButton('line-spacing');
-      assertTrue(!!lineSpacingButton);
-      lineSpacingButton.click();
-      assertTrue(toolbar.$.lineSpacingMenu.$.menu.$.lazyMenu.get().open);
-
-      const letterSpacingButton = getButton('letter-spacing');
-      assertTrue(!!letterSpacingButton);
-      letterSpacingButton.click();
-      assertTrue(toolbar.$.letterSpacingMenu.$.menu.$.lazyMenu.get().open);
-    });
-
-    test('does not have voice menu', () => {
-      stubAnimationFrame();
-      const voiceButton = getButton('voice-selection');
-      assertFalse(!!voiceButton);
-    });
-
-    test('does not have highlight menu', () => {
-      stubAnimationFrame();
-      const highlightButton = getButton('highlight');
-      assertFalse(!!highlightButton);
-    });
-
-    test('does not have audio controls', () => {
-      const audioControls = shadowRoot.querySelector('#audio-controls');
-      assertFalse(!!audioControls);
-    });
-
-    test('font is select element', () => {
-      const fontSelect = shadowRoot.querySelector('#font-select');
-      assertTrue(!!fontSelect);
+        test('is reset after opening reading mode in side panel', async () => {
+          toolbar.isImmersiveMode = true;
+          stubAnimationFrame();
+          toolbar.$.toolbarContainer.dispatchEvent(new FocusEvent('blur'));
+          assertEquals(toolbar.$.toolbarContainer.tabIndex, -1);
+          toolbar.presentationState = 2;
+          await microtasksFinished();
+          assertEquals(toolbar.$.toolbarContainer.tabIndex, 0);
+        });
+      });
     });
   });
 
@@ -184,18 +167,11 @@ suite('Toolbar', () => {
     }
 
     setup(async () => {
-      chrome.readingMode.isReadAloudEnabled = true;
       await createToolbar();
 
       const rate = shadowRoot.querySelector<CrButtonElement>('#rate');
       assertTrue(!!rate);
       rateButton = rate;
-    });
-
-    test('does not exist with read aloud disabled', async () => {
-      chrome.readingMode.isReadAloudEnabled = false;
-      await createToolbar();
-      assertFalse(!!shadowRoot.querySelector<CrButtonElement>('#rate'));
     });
 
     test('shows rate menu on click', () => {
@@ -230,18 +206,11 @@ suite('Toolbar', () => {
     }
 
     setup(async () => {
-      chrome.readingMode.isReadAloudEnabled = true;
       await createToolbar();
 
       const highlight = getButton('highlight');
       assertTrue(!!highlight);
       highlightButton = highlight;
-    });
-
-    test('does not exist with read aloud disabled', async () => {
-      chrome.readingMode.isReadAloudEnabled = false;
-      await createToolbar();
-      assertFalse(!!shadowRoot.querySelector<CrButtonElement>('#highlight'));
     });
 
     test('shows highlight menu on click', () => {
@@ -276,7 +245,6 @@ suite('Toolbar', () => {
     let previousButton: CrIconButtonElement;
 
     setup(async () => {
-      chrome.readingMode.isReadAloudEnabled = true;
       await createToolbar();
 
       const playPause = getButton('play-pause');

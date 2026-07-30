@@ -12,8 +12,8 @@
 #include <vector>
 
 #include "base/memory/raw_ptr.h"
+#include "chrome/browser/tab_list/tab_removed_reason.h"
 #include "chrome/browser/ui/tabs/tab_change_type.h"
-#include "chrome/browser/ui/tabs/tab_removed_reason.h"
 #include "components/sessions/core/session_id.h"
 #include "components/split_tabs/split_tab_id.h"
 #include "components/split_tabs/split_tab_visual_data.h"
@@ -545,11 +545,6 @@ class TabStripModelObserver {
 
   // Invoked when the pinned state of a tab changes.
   virtual void OnTabPinnedStateChanged(tabs::TabInterface* tab, int index);
-
-  // Invoked when the blocked state of a tab changes.
-  // NOTE: This is invoked when a tab becomes blocked/unblocked by a tab modal
-  // window.
-  virtual void OnTabBlockedStateChanged(tabs::TabInterface* tab, int index);
 
   // Called when the tab at `index` is added to the group with id `new_group` or
   // removed from a group with id `old_group`.

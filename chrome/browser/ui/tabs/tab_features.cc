@@ -9,6 +9,8 @@
 #include "base/feature_list.h"
 #include "base/memory/ptr_util.h"
 #include "base/no_destructor.h"
+#include "chrome/browser/accessibility_annotator/content_annotator/content_annotator_service_factory.h"
+#include "chrome/browser/accessibility_annotator/content_annotator/content_annotator_tab_helper.h"
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/ui/actor_ui_tab_controller.h"
@@ -98,7 +100,10 @@
 #if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || \
     BUILDFLAG(IS_CHROMEOS)
 #include "chrome/browser/contextual_tasks/contextual_tasks_tab_visit_tracker.h"
+#include "chrome/browser/record_replay/chrome_record_replay_client.h"
+#include "chrome/browser/ui/views/location_bar/record_replay_page_action_controller.h"
 #include "chrome/browser/wallet/chrome_walletable_pass_client.h"
+#include "chrome/common/record_replay/record_replay_features.h"
 #endif
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
 #include "chrome/browser/ui/contextual_search/tab_contextualization_controller.h"
@@ -127,6 +132,7 @@
 #include "chrome/browser/glic/browser_ui/glic_tab_indicator_helper.h"
 #include "chrome/browser/glic/public/glic_enabling.h"
 #include "chrome/browser/glic/public/glic_keyed_service.h"
+#include "chrome/browser/glic/selection/selection_overlay_controller.h"
 #include "chrome/browser/glic/service/glic_instance_helper.h"
 #include "chrome/browser/ui/views/side_panel/glic/glic_side_panel_coordinator_impl.h"
 
@@ -266,6 +272,15 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
               tab, tab, profile->GetPrefs(), *page_action_controller_);
     }
 
+#if !BUILDFLAG(IS_ANDROID)
+    if (base::FeatureList::IsEnabled(
+            record_replay::features::kRecordReplayBase)) {
+      record_replay_page_action_controller_ =
+          GetUserDataFactory().CreateInstance<RecordReplayPageActionController>(
+              tab, tab, *page_action_controller_);
+    }
+#endif
+
     js_optimizations_page_action_controller_ =
         std::make_unique<JsOptimizationsPageActionController>(
             tab, *page_action_controller_);
@@ -357,6 +372,9 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       glic_tab_indicator_helper_ =
           GetUserDataFactory().CreateInstance<glic::GlicTabIndicatorHelper>(
               tab, &tab);
+      glic_selection_overlay_controller_ =
+          GetUserDataFactory().CreateInstance<glic::SelectionOverlayController>(
+              tab, &tab, profile->GetPrefs());
     }
     if (glic::GlicEnabling::IsMultiInstanceEnabled() &&
         glic::GlicKeyedService::Get(profile)) {
@@ -382,6 +400,16 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
       skills_ui_tab_controller_ =
           GetUserDataFactory().CreateInstance<skills::SkillsUiTabController>(
               tab, tab);
+    }
+
+    if (accessibility_annotator::
+            ContentAnnotatorService* content_annotator_service =
+                accessibility_annotator::ContentAnnotatorServiceFactory::
+                    GetForProfile(profile)) {
+      content_annotator_tab_helper_ =
+          std::make_unique<accessibility_annotator::ContentAnnotatorTabHelper>(
+              tab, *content_annotator_service,
+              ChromeTranslateClient::FromWebContents(tab.GetContents()));
     }
   }  // IsInNormalWindow() end.
 
@@ -465,7 +493,8 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
   inactive_window_mouse_event_controller_ =
       std::make_unique<InactiveWindowMouseEventController>();
 
-  if (base::FeatureList::IsEnabled(wallet::kWalletablePassDetection)) {
+  if (base::FeatureList::IsEnabled(
+          wallet::features::kWalletablePassDetection)) {
     walletable_pass_client_ =
         std::make_unique<wallet::ChromeWalletablePassClient>(&tab);
   }
@@ -499,6 +528,14 @@ void TabFeatures::Init(TabInterface& tab, Profile* profile) {
 
   tab_alert_controller_ =
       GetUserDataFactory().CreateInstance<TabAlertController>(tab, tab);
+
+#if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          record_replay::features::kRecordReplayBase)) {
+    record_replay_client_ =
+        GetUserDataFactory().CreateInstance<ChromeRecordReplayClient>(tab, tab);
+  }
+#endif
 
   tab_contextualization_controller_ =
       GetUserDataFactory().CreateInstance<lens::TabContextualizationController>(

@@ -8,6 +8,7 @@
 <translation id="1073417869336441572">Tashqi cookie fayllarga nega ruxsat berganingiz sababini yozish orqali Chromeni yaxshilashimizga yordam bering. <ph name="BEGIN_LINK" />Fikr-mulohaza<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Saytlarning kompyuter versiyasini ochishga ruxsat soʻrash mumkin</translation>
 <translation id="1085696779717592361">Chrome birlamchi boʻlsin</translation>
+<translation id="1126523729897810826">Chromedan maksimal foydalanish uchun quyidagi tavsiya etilgan amallarni bajaring</translation>
 <translation id="113098737392899175">Klaviatura ulanganda sahifalarni matn kursori bilan kezing</translation>
 <translation id="1149644372535087155">Parollarni Chromeda saqlang</translation>
 <translation id="1178015372320901893">Mening yorliqlarim quyi ekrani</translation>
@@ -39,6 +40,7 @@
 <translation id="1415855080660575082">Qurilmadagi ilovalar roʻyxati va qidiruv natijalarida oxirgi varaqlar chiqishi uchun Chrome ularni qurilmaga ulashishiga ruxsat bering. Buni Chrome sozlamalarida faolsizlantirish mumkin.</translation>
 <translation id="1420688843103859429">Sensorli panelda ikki barmoq bilan surish orqali orqaga va oldinga qayting</translation>
 <translation id="1432650420699700107">Saytlar mahalliy tarmoqdagi istalgan qurilmaga ulanish uchun ruxsat soʻrashi mumkin</translation>
+<translation id="1442081309487427303">Oʻqish rejimi havolalarini yoqish</translation>
 <translation id="1448064542941920355">Kichiklashtirish</translation>
 <translation id="1464044141348608623">Saytlarning qurilmadan foydalanish axborotidan foydalanishini taqiqlash</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> ta sayt}other{<ph name="SITE_COUNT" /> ta sayt}}</translation>
@@ -52,6 +54,7 @@
 <translation id="1569054338208717605">Chrome V8 tizimidagi saytlar ishlashini tezlatish, Chrome brauzerining hujumlardan himoyasini esa biroz pasaytirish</translation>
 <translation id="1593426485665524382">Yangi amallar ekranning yuqoriroq qismida joylashgan</translation>
 <translation id="1594521731409209842">Surat oʻlchamini oʻzgartirish uchun ekranni chimding</translation>
+<translation id="1599268789440304082">Sozlash ekrani ochildi</translation>
 <translation id="1601560923496285236">Tatbiq etish</translation>
 <translation id="1615755956145364867">Saytlar himoyalangan kontent ijrosi uchun ruxsat soʻray oladi</translation>
 <translation id="1620510694547887537">Kamera</translation>
@@ -73,6 +76,7 @@
 <translation id="1766455884659449403">Chrome maslahatlari bildirishnomalarini olish</translation>
 <translation id="1777815584158991902">Tasmani varaqlash quyi ekrani</translation>
 <translation id="1779089405699405702">Tasvir dekoderi</translation>
+<translation id="1781533683087883868">Oʻqish rejimi havolalarini faolsizlantirish</translation>
 <translation id="1785415724048343560">Nuqsonlarsiz ishlashi uchun tavsiya etiladi</translation>
 <translation id="1796588414813960292">Ovozdan foydalanadigan funksiyalar ishlamaydi</translation>
 <translation id="1799920918471566157">Chrome maslahatlari</translation>
@@ -312,6 +316,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="4046123991198612571">Keyingi musiqa</translation>
 <translation id="4077310749977440510">Saytlar odatda nusxalanayotgan matn formatini saqlab qolish uchun klipbord axborotini oʻqiydi</translation>
 <translation id="4082080074595021446">Android qurilmalarida RAM xotirasi yetarli emasligi uchun taqiqlangan muayyan saytlardan tashqari.</translation>
+<translation id="4089304748532599471">Ayrim Chrome sozlamalari oʻzgartirildi</translation>
 <translation id="4149890623864272035">Qurilmadagi cookie fayllar kabi maʼlumotlarni oʻchirilib, bu saytning ruxsatlari asliga qaytarilsinmi?</translation>
 <translation id="4149994727733219643">Veb sahifalarni ko‘rish uchun oddiy rejim</translation>
 <translation id="4151930093518524179">Asosiy masshtab</translation>
@@ -347,8 +352,11 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="4478158430052450698">Foydalanuvchilarga turli saytlar masshtabini oʻzgartirishni osonlashtirish</translation>
 <translation id="4479647676395637221">Kameradan foydalanishga ruxsat so‘ralsin (tavsiya etiladi)</translation>
 <translation id="4505788138578415521">URL manzil yoyildi</translation>
+<translation id="4522570452068850558">Tafsilotlar</translation>
 <translation id="4523472416386354622">Avval hisobga kiring</translation>
+<translation id="4529207923544043455">Tugallangan va tugallanmagan sozlash vazifalari roʻyxati aks etgan quyi ekran</translation>
 <translation id="4534723447064627427"><ph name="APP_NAME" /> mikrofondan foydalanishiga ruxsat berish uchun <ph name="BEGIN_LINK" />Android sozlamalari<ph name="END_LINK" /> orqali mikrofonni yoqing.</translation>
+<translation id="4545694195887112015">Sozlash ekrani yopildi</translation>
 <translation id="4566417217121906555">Mikrofonni ovozsiz qilish</translation>
 <translation id="4570913071927164677">Tafsilotlar</translation>
 <translation id="4578289292431526768">Boshlash</translation>
@@ -683,6 +691,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="8117244575099414087">Yoqilsa, saytlar qurilmangiz sensoridan foydalana oladi. Oʻchirilsa, ulardan foydalana olmaydi.</translation>
 <translation id="813082847718468539">Sayt haqidagi ma’lumotlar</translation>
 <translation id="8131740175452115882">Tasdiqlash</translation>
+<translation id="8148160259207090265">Android sozlamalarida Kuchaytirilgan himoya yoniqligida mazkur sozlama faol qoladi.</translation>
 <translation id="8163152278172770963">Saytlarga tasvir ustida tasvir rejimiga avtomatik kirishiga ruxsat berilmasin</translation>
 <translation id="8168435359814927499">Kontent</translation>
 <translation id="818487310457576362">Butun ekran rejimidan chiqish uchun ekranning chap yoki oʻng chekkasini torting.</translation>
@@ -712,6 +721,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="8441146129660941386">Orqaga qaytarish</translation>
 <translation id="8444433999583714703"><ph name="APP_NAME" /> joylashuvingizni aniqlay olishi uchun <ph name="BEGIN_LINK" />Android sozlamalari<ph name="END_LINK" /> orqali Joylashuvni aniqlash xizmatini yoqing.</translation>
 <translation id="8447861592752582886">Qurilma ruxsatini bekor qilish</translation>
+<translation id="8463843545738141778">Android sozlamalarida Kengaytirilgan himoya yoqilgani sababli bu sozlama faolsizlantirildi.</translation>
 <translation id="8467359479529706065">Yangi varaq sahifasi dizayni quyi ekrani yarim hajmda ochildi</translation>
 <translation id="8471525937465764768">Saytlar odatda hujjatni chop etish yoki tashqi xotiraga saqlash maqsadida USB qurilmalarga ulanadi</translation>
 <translation id="8473055640493819707">“<ph name="APP_NAME" />” eskirgan. Ilovani qayta oʻrnating.</translation>
@@ -743,6 +753,7 @@ Quyidagi Chrome sozlamalari Kuchaytirilgan himoya boshqaruvida:
 <translation id="8719283222052720129"><ph name="BEGIN_LINK" />Android sozlamalari<ph name="END_LINK" /> orqali <ph name="APP_NAME" /> uchun ruxsatnomani yoqing.</translation>
 <translation id="8721719390026067591">Yoqilsa, saytlar Bluetooth qurilmalarni qidirish uchun ruxsat soʻrashi mumkin. Oʻchirilsa, saytlar bunday qurilmalarni qidira olmaydi.</translation>
 <translation id="8725066075913043281">Qayta urinib ko‘ring</translation>
+<translation id="8727043961453758442">Chromedan unumli foydalaning</translation>
 <translation id="8730621377337864115">Tayyor</translation>
 <translation id="8737426583868847403">Bu yerda alohida zum darajasi saqlangan saytlar chiqadi</translation>
 <translation id="8748714929822124637">Saytlar uchun mahalliy tarmoqdagi boshqa qurilmalarga ruxsatni taqiqlash</translation>

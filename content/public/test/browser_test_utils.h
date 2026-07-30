@@ -1072,9 +1072,6 @@ RenderFrameHost* ChildFrameAt(const ToRenderFrameHost& adapter, size_t index);
 // OriginAgentCluster header.
 bool HasOriginKeyedProcess(RenderFrameHost* frame);
 
-// Returns true if `frame` has a sandboxed SiteInstance.
-bool HasSandboxedSiteInstance(RenderFrameHost* frame);
-
 // Returns the frames visited by |RenderFrameHost::ForEachRenderFrameHost| in
 // the same order.
 std::vector<RenderFrameHost*> CollectAllRenderFrameHosts(
@@ -2321,6 +2318,13 @@ int LoadBasicRequest(network::mojom::NetworkContext* network_context,
 // has the same properties as factories vended to the Renderer process that
 // hosts the |frame|).
 int LoadBasicRequest(RenderFrameHost* frame, const GURL& url);
+
+// Wait until the network context has/doesn't have preloaded shared dictionary
+// info. Returns true if the expected value was observed within the timeout,
+// false otherwise.
+bool WaitUntilHasPreloadSharedDictionaryInfo(
+    network::mojom::NetworkContext* network_context,
+    bool expected_value);
 
 // Ensures that all StoragePartitions for the given BrowserContext have their
 // cookies flushed to disk.

@@ -85,6 +85,7 @@
 #include "third_party/blink/renderer/core/html/html_html_element.h"
 #include "third_party/blink/renderer/core/html/html_image_element.h"
 #include "third_party/blink/renderer/core/html/html_map_element.h"
+#include "third_party/blink/renderer/core/html/html_menu_item_element.h"
 #include "third_party/blink/renderer/core/html/html_no_script_element.h"
 #include "third_party/blink/renderer/core/html/html_progress_element.h"
 #include "third_party/blink/renderer/core/html/html_script_element.h"
@@ -260,7 +261,7 @@ void AddIntAttribute(const AXObject* obj,
                      int min_value = INT_MIN) {
   const AtomicString& value = obj->AriaAttribute(attr_name);
   if (!value.empty()) {
-    int value_as_int = StringToInt(value).value_or(0);
+    int value_as_int = StringToIntLoose(value).value_or(0);
     if (value_as_int >= min_value) {
       node_data->AddIntAttribute(node_data_attr, value_as_int);
     }
@@ -1007,7 +1008,7 @@ bool AXObject::AriaIntAttribute(const QualifiedName& attribute,
     return false;
   }
 
-  int int_value = StringToInt(value).value_or(0);
+  int int_value = StringToIntLoose(value).value_or(0);
   int value_if_less_than_1 = 1;
 
   if (attribute == html_names::kAriaSetsizeAttr) {
@@ -1209,7 +1210,8 @@ void AXObject::Serialize(ui::AXNodeData* node_data,
   // in the PDF should appear in the PDF's structured tree.
   bool ignore = IsIgnored();
   if (accessibility_mode.has_mode(ui::AXMode::kPDFPrinting)) {
-    if (node_data->role == ax::mojom::blink::Role::kStaticText) {
+    if (node_data->role == ax::mojom::blink::Role::kStaticText ||
+        node_data->role == ax::mojom::blink::Role::kRubyAnnotation) {
       ignore = false;
     }
   }
@@ -2204,6 +2206,13 @@ void AXObject::SerializeUnignoredAttributes(ui::AXNodeData* node_data,
 #else
     SerializeStyleAttributes(node_data);
 #endif
+  } else if (accessibility_mode.has_mode(ui::AXMode::kPDFPrinting)) {
+    // For PDF printing, we need to serialize the list style to distinguish
+    // ordered vs unordered lists in the PDF structure tree.
+    if (RoleValue() == ax::mojom::blink::Role::kListItem &&
+        GetListStyle() != ax::mojom::blink::ListStyle::kNone) {
+      node_data->SetListStyle(GetListStyle());
+    }
   }
 
   if (IsLinked()) {
@@ -3229,8 +3238,7 @@ ax::mojom::blink::CheckedState AXObject::CheckedState() const {
   }
 
   // First test for native checked state
-  if (IsA<HTMLInputElement>(*node)) {
-    const auto* input = DynamicTo<HTMLInputElement>(node);
+  if (const auto* input = DynamicTo<HTMLInputElement>(node)) {
     if (!input) {
       return ax::mojom::blink::CheckedState::kNone;
     }
@@ -3255,6 +3263,10 @@ ax::mojom::blink::CheckedState AXObject::CheckedState() const {
                  ? ax::mojom::blink::CheckedState::kTrue
                  : ax::mojom::blink::CheckedState::kFalse;
     }
+  } else if (auto* menu_item = DynamicTo<HTMLMenuItemElement>(node)) {
+    return menu_item->ShouldAppearChecked()
+               ? ax::mojom::blink::CheckedState::kTrue
+               : ax::mojom::blink::CheckedState::kFalse;
   }
 
   // Try ARIA checked/pressed state
@@ -6939,7 +6951,7 @@ AtomicString AXObject::Language() const {
   // This is not part of what the HTML5 Standard suggests but it still
   // appears to be necessary.
   if (const String languages = document->ContentLanguage()) {
-    String first_language = languages.Substring(0, languages.Find(","));
+    String first_language = languages.Substring(0, languages.find(","));
     if (!first_language.empty()) {
       return AtomicString(first_language.StripWhiteSpace());
     }
@@ -6948,7 +6960,7 @@ AtomicString AXObject::Language() const {
   // Use the first accept language preference if present.
   if (Page* page = document->GetPage()) {
     const String languages = page->GetChromeClient().AcceptLanguages();
-    String first_language = languages.Substring(0, languages.Find(","));
+    String first_language = languages.Substring(0, languages.find(","));
     if (!first_language.empty()) {
       return AtomicString(first_language.StripWhiteSpace());
     }
@@ -7910,8 +7922,8 @@ ax::mojom::blink::Role AXObject::FirstValidRoleInRoleString(
     bool ignore_form_and_region) {
   DCHECK(!value.empty());
 
-  Vector<String> role_vector;
-  value.SimplifyWhiteSpace().Split(' ', role_vector);
+  Vector<String> role_vector =
+      value.SimplifyWhiteSpace().SplitSkippingEmpty(' ');
   for (const auto& child : role_vector) {
     ax::mojom::blink::Role role =
         AriaRoleToInternalRole(AtomicString(child.LowerASCII()));

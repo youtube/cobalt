@@ -33,6 +33,7 @@
 #include "chrome/browser/autofill/autofill_ai_model_executor_factory.h"
 #include "chrome/browser/autofill/autofill_entity_data_manager_factory.h"
 #include "chrome/browser/autofill/autofill_optimization_guide_decider_factory.h"
+#include "chrome/browser/autofill/glic/glic_form_parsing_tracker.h"
 #include "chrome/browser/autofill/one_time_token_service_factory.h"
 #include "chrome/browser/autofill/personal_data_manager_factory.h"
 #include "chrome/browser/autofill/ui/ui_util.h"
@@ -887,16 +888,7 @@ void ChromeAutofillClient::ShowPlusAddressEmailOverrideNotification(
       AutofillSnackbarType::kPlusAddressEmailOverride,
       std::move(email_override_undo_callback));
 #else
-  tabs::TabInterface* tab = GetTabInterface();
-  if (!tab) {
-    return;
-  }
-  BrowserWindowInterface* window_interface = tab->GetBrowserWindowInterface();
-  if (!window_interface) {
-    return;
-  }
-  if (ToastController* controller =
-          window_interface->GetFeatures().toast_controller()) {
+  if (ToastController* controller = GetToastController()) {
     ToastParams params(ToastId::kPlusAddressOverride);
     params.menu_model = std::make_unique<plus_addresses::PlusAddressMenuModel>(
         base::UTF8ToUTF16(
@@ -1271,6 +1263,8 @@ ChromeAutofillClient::ChromeAutofillClient(content::WebContents* web_contents)
             base::BindRepeating(&ChromeAutofillClient::OnActorTaskStateChange,
                                 base::Unretained(this)));
   }
+
+  glic_form_parsing_tracker_ = std::make_unique<GlicFormParsingTracker>(this);
 #endif
 }
 
@@ -1288,20 +1282,10 @@ tabs::TabInterface* ChromeAutofillClient::GetTabInterface() {
 }
 
 void ChromeAutofillClient::ShowEmailVerifiedToast() {
-  tabs::TabInterface* tab_interface = GetTabInterface();
-  if (!tab_interface) {
-    return;
-  }
 #if !BUILDFLAG(IS_ANDROID)
   // The toast is only supported on desktop for now, since Android uses
   // snackbars instead.
-  BrowserWindowInterface* window_interface =
-      tab_interface->GetBrowserWindowInterface();
-  if (!window_interface) {
-    return;
-  }
-  if (ToastController* toast_controller =
-          window_interface->GetFeatures().toast_controller()) {
+  if (ToastController* toast_controller = GetToastController()) {
     toast_controller->MaybeShowToast(ToastParams(ToastId::kEmailVerified));
   }
 #endif
@@ -1461,6 +1445,32 @@ void ChromeAutofillClient::ShowAutofillAiLocalSaveNotification() {
     controller->ShowLocalSaveNotification();
   }
 #endif  // !BUILDFLAG(IS_ANDROID)
+}
+
+void ChromeAutofillClient::ShowAutofillAiFailureNotification(
+    std::u16string message) {
+#if !BUILDFLAG(IS_ANDROID)
+  if (ToastController* toast_controller = GetToastController()) {
+    ToastParams params(ToastId::kAutofillAiWalletErrorMessage);
+    params.body_string_override = std::move(message);
+    toast_controller->MaybeShowToast(std::move(params));
+  }
+#endif  // !BUILDFLAG(IS_ANDROID)
+}
+
+ToastController* ChromeAutofillClient::GetToastController() {
+#if BUILDFLAG(IS_ANDROID)
+  return nullptr;
+#else
+  tabs::TabInterface* tab_interface = GetTabInterface();
+  if (!tab_interface) {
+    return nullptr;
+  }
+  BrowserWindowInterface* window_interface =
+      tab_interface->GetBrowserWindowInterface();
+  return window_interface ? window_interface->GetFeatures().toast_controller()
+                          : nullptr;
+#endif  // BUILDFLAG(IS_ANDROID)
 }
 
 #if !BUILDFLAG(IS_ANDROID)

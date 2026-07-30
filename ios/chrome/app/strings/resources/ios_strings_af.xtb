@@ -125,6 +125,7 @@
 <translation id="1436671784520050284">Gaan voort met opstelling</translation>
 <translation id="143681031165817424">Adres is net op hierdie toestel gestoor</translation>
 <translation id="1445276840641906250">Al jou oortjies in een blaaier</translation>
+<translation id="1447564161241938558">“Voer wagwoorde en toegangsleutels in” is deur jou administrateur gedeaktiveer</translation>
 <translation id="1450170672351507823">Standaardbeskerming is aan. Gebruik verbeterde beskerming vir selfs nog meer sekuriteit.</translation>
 <translation id="1455660774629812862">Moenie versteek nie</translation>
 <translation id="1456545332132818232">Produkresensies van <ph name="PRODUCT_NAME" />, <ph name="STARS" /> uit <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
@@ -295,7 +296,6 @@
 <translation id="2015722694326466240">Om wagwoorde te sien, moet jy eers 'n wagkode op jou toestel stel.</translation>
 <translation id="201759455285471444">Vou oortjiegroep uit.</translation>
 <translation id="202070562065520783">Verduidelik dit vir my</translation>
-<translation id="2023713324775943812">Kry toegang tot Leesmodus vanaf die adresbalk wanneer dit beskikbaar is</translation>
 <translation id="2044394949148788042">Maak die oortjierooster oop</translation>
 <translation id="2044681667265133332">Die rekening <ph name="USER_EMAIL" /> word bestuur deur <ph name="HOSTED_DOMAIN" /> wat dalk sekere inligting kan bekyk. <ph name="BEGIN_LINK" />Meer inligting<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">nuwe item</translation>
@@ -585,6 +585,7 @@
 <translation id="3140825265190223781">Gestoorde wagwoorde en toegangsleutels</translation>
 <translation id="3143515551205905069">Kanselleer sinkronisering</translation>
 <translation id="3144126448740580210">KLAAR</translation>
+<translation id="3147521114983561406">Toegangsleutels word in jou wagwoordbestuurder gestoor. Jy kan in Incognito- en gewone oortjies toegang tot hulle kry.</translation>
 <translation id="3148052723910099040">Gewone Oortjierooster</translation>
 <translation id="3148237711805373460">Neem my daarheen</translation>
 <translation id="3157387275655328056">Voeg by leeslys</translation>
@@ -1860,6 +1861,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="7772032839648071052">Bevestig wagfrase</translation>
 <translation id="7772948288262733182">Welkom terug</translation>
 <translation id="777637629667389858">Wanneer jy aangemeld is, beskerm dit jou oral in Google-dienste.</translation>
+<translation id="7776604279034196531">Kry toegang tot leesmodus vanaf die adresbalk wanneer dit beskikbaar is</translation>
 <translation id="7781829728241885113">Gister</translation>
 <translation id="7788868432173225918">Maak uitgevoude aansig toe</translation>
 <translation id="7791543448312431591">Voeg by</translation>
@@ -2097,6 +2099,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="8587001564479545614">Skep ’n terugstel-PIN</translation>
 <translation id="8588404856427128947">Af</translation>
 <translation id="8590286732816598906">Oortjiegroep, <ph name="GROUP_TITLE" />, Kieslys.</translation>
+<translation id="8593317261815647019">Skep ’n toegangsleutel buite Incognito?</translation>
 <translation id="8600272508328041907">Skakel oor na volbladvertaling</translation>
 <translation id="860043288473659153">Kaarthouernaam</translation>
 <translation id="8601611099293226919">Soek op jou skerm met Google Lens</translation>
@@ -2234,6 +2237,7 @@ Oorgee moet ook in die Algemene afdeling van Instellings geaktiveer word, en jou
 <translation id="9055291197094969722">Skep oortjiegroepe om jou oop oortjies te organiseer en produktief te bly</translation>
 <translation id="9055580485132823283">Jy is op die punt om {password_count} wagwoorde, {passkey_count} toegangsleutels en die lys werwe en apps uit te vee wat jy gekies het om nooit aanmeldinligting voor te stoor nie. Enige rekening wat jy vir werwe en apps geskep het, sal nie uitgevee word nie.</translation>
 <translation id="9057030985451135243">Kry meer inligting oor gedeelde oortjiegroepe</translation>
+<translation id="9064106978262828592">Kon nie jou data uitvoer nie</translation>
 <translation id="9065203028668620118">Wysig</translation>
 <translation id="9066097352053395362">Versteek Wysig boekmerk</translation>
 <translation id="9070824521421603770">Jy sal afgemeld word en oortjies sal toegemaak word</translation>

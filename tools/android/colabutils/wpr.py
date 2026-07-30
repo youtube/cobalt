@@ -61,7 +61,7 @@ HTTP_PORT = 8080  # The port used by WPR for HTTP connections.
 HTTPS_PORT = 8081  # The port used by WPR for HTTPS connections.
 
 # Command line configuration for Chrome to use the WPR proxy. Copied from
-# https://chromium.googlesource.com/catapult/+/HEAD/web_page_replay_go/README.md#running-on-android
+# https://chromium.googlesource.com/webpagereplay/+/HEAD/README.md#running-on-android
 COMMAND_LINE_FLAGS = [
     f"--host-resolver-rules=\"MAP *:80 127.0.0.1:{HTTP_PORT},MAP *:443 127.0.0.1:{HTTPS_PORT},EXCLUDE localhost\"",
     "--ignore-certificate-errors-spki-list=PhrPvGIaAMmd29hj8BCZOq096yj7uMpRNHpn5PDxI6I=,2HcXCSKKJS0lEXLQEWhpHUfGuojiU0tiT5gOF9LP6IQ="
@@ -130,7 +130,7 @@ async def _server(action, archive_path):
             command_line.run("go",
                              "run",
                              "-C",
-                             "third_party/catapult/web_page_replay_go",
+                             "third_party/webpagereplay",
                              "src/wpr.go",
                              action,
                              "--https_cert_file",

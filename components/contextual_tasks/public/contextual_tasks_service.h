@@ -49,7 +49,7 @@ class ContextualTasksService : public KeyedService {
  public:
   // Whether a task was updated by  a change in the local or remote client.
   enum class TriggerSource {
-    kUnown,
+    kUnknown,
     kLocal,
     kRemote,
   };
@@ -162,6 +162,8 @@ class ContextualTasksService : public KeyedService {
   // Returns DataTypeControllerDelegate for the contextual task thread datatype.
   virtual base::WeakPtr<syncer::DataTypeControllerDelegate>
   GetAiThreadControllerDelegate() = 0;
+  virtual base::WeakPtr<syncer::DataTypeControllerDelegate>
+  GetGeminiThreadControllerDelegate() = 0;
 };
 
 }  // namespace contextual_tasks

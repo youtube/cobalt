@@ -92,6 +92,7 @@
 #include "components/autofill/core/browser/filling/form_filler.h"
 #include "components/autofill/core/browser/filling/payments/field_filling_payments_util.h"
 #include "components/autofill/core/browser/form_import/form_data_importer.h"
+#include "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
 #include "components/autofill/core/browser/form_qualifiers.h"
 #include "components/autofill/core/browser/form_structure.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
@@ -341,6 +342,7 @@ FillDataType GetEventTypeFromSingleFieldSuggestionType(SuggestionType type) {
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kPendingStateSignin:
     case SuggestionType::kOneTimePasswordEntry:
+    case SuggestionType::kLoadingThrobber:
       NOTREACHED();
   }
   NOTREACHED();
@@ -793,6 +795,7 @@ bool IsManagementFooterOption(const Suggestion& suggestion) {
     case SuggestionType::kDevtoolsTestAddressByCountry:
     case SuggestionType::kFillAutofillAi:
     case SuggestionType::kPendingStateSignin:
+    case SuggestionType::kLoadingThrobber:
       return false;
   }
 }
@@ -844,9 +847,6 @@ BrowserAutofillManager::MetricsState::MetricsState(
 
 BrowserAutofillManager::MetricsState::~MetricsState() {
   if (has_parsed_forms) {
-    base::UmaHistogramBoolean(
-        "Autofill.WebOTP.PhoneNumberCollection.ParseResult",
-        has_observed_phone_number_field);
     base::UmaHistogramBoolean("Autofill.WebOTP.OneTimeCode.FromAutocomplete",
                               has_observed_one_time_code_field);
   }
@@ -2074,8 +2074,10 @@ void BrowserAutofillManager::FillOrPreviewCreditCardForm(
              CreditCard::CardInfoRetrievalEnrollmentState::
                  kRetrievalEnrolled)) {
       DCHECK(!credit_card.cvc().empty());
-      self->client().GetFormDataImporter()->CacheFetchedVirtualCard(
-          credit_card.LastFourDigits());
+      self->client()
+          .GetFormDataImporter()
+          ->GetPaymentsFormDataImporter()
+          .CacheFetchedVirtualCard(credit_card.LastFourDigits());
 
       FilledCardInformationBubbleOptions options;
       options.masked_card_name = credit_card.CardNameForAutofillDisplay();
@@ -2226,20 +2228,18 @@ void BrowserAutofillManager::OnSelectControlSelectionChangedImpl(
       ai_manager->OnEditedAutofilledField(*form_structure, *autofill_field,
                                           driver().GetPageUkmSourceId());
     }
+  } else {
+    if (logger && base::FeatureList::IsEnabled(
+                      features::kAutofillTrackSelectFieldEdits)) {
+      logger->OnEditedNonFilledField(field_id);
+    }
   }
-  // Note that compared to `BAM::OnTextFieldValueChangedImpl()` this function
-  // differs in that we do not call `logger->OnEditedNonFilledField()` if the
-  // edited select element was not autofilled at the time of the edit. Reason is
-  // that this would only make a difference in the following two scenarios:
-  // 1) The user modifies a select field in a form while leaving all other
-  //    fields untouched. This case is probably uninteresting for Autofill.
-  // 2) JavaScript edits a select field in a form that the user didn't interact
-  //    with at all (But maybe after the user clicked on the page somewhere so
-  //    that the edited frame would have transient activation). This case should
-  //    not be included as it doesn't qualify as an edit.
-  // Should the metrics start recording the number of edits or anything related
-  // to the volume of edits, the decision to not call this function should be
-  // revisited, for now we only care about whether the form was edited or not.
+
+  // Note that it is possible that we capture a select field edit while the user
+  // didn't interact with the form at all. This is because the select field
+  // could have been edited by JavaScript.
+  // TODO(crbug.com/480908722): Revert the comment if
+  // kAutofillTrackSelectFieldEdits doesn't launch.
 }
 
 void BrowserAutofillManager::OnDidAutofillFormImpl(const FormData& form) {
@@ -3446,16 +3446,6 @@ void BrowserAutofillManager::ProcessFieldLogEventsInForm(
         metrics_->initial_interaction_timestamp,
         metrics_->form_submitted_timestamp,
         GetAcUnrecognizedBehavior(client()));
-  }
-
-  if (base::FeatureList::IsEnabled(features::kAutofillUKMExperimentalFields) &&
-      !metrics_->form_submitted_timestamp.is_null() &&
-      ShouldUploadUkm(form_structure,
-                      /*require_classified_field=*/false)) {
-    client()
-        .GetFormInteractionsUkmLogger()
-        .LogAutofillFormWithExperimentalFieldsCountAtFormRemove(
-            driver().GetPageUkmSourceId(), form_structure);
   }
 
   for (const auto& autofill_field : form_structure) {

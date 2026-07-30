@@ -171,6 +171,7 @@ namespace http://www.w3.org/1999/xhtml
     property localName
     property lookupNamespaceURI
     property lookupPrefix
+    property marker
     property matches
     property moveBefore
     property namespaceURI
@@ -574,6 +575,7 @@ html element colgroup
     property span
     property vAlign
     property width
+html element credential
 html element data
     property value
 html element datalist
@@ -610,7 +612,6 @@ html element embed
     property src
     property type
     property width
-html element federation
 html element fencedframe
     property allow
     property config
@@ -861,7 +862,6 @@ html element install
     property onpromptdismiss
     property onvalidationstatuschange
     property permissionStatus
-    property type
 html element kbd
 html element label
     property control
@@ -1013,15 +1013,6 @@ html element param
     property type
     property value
     property valueType
-html element permission
-    property initialPermissionStatus
-    property invalidReason
-    property isValid
-    property onpromptaction
-    property onpromptdismiss
-    property onvalidationstatuschange
-    property permissionStatus
-    property type
 html element picture
 html element plaintext
 html element pre
@@ -1499,6 +1490,7 @@ namespace http://www.w3.org/2000/svg
     property localName
     property lookupNamespaceURI
     property lookupPrefix
+    property marker
     property matches
     property moveBefore
     property namespaceURI

@@ -908,7 +908,7 @@ namespace {
 
 bool SandboxConfigurationsMatch(const SiteInfo& site_info,
                                 const UrlInfo& url_info) {
-  return site_info.is_sandboxed() == url_info.is_sandboxed &&
+  return site_info.IsSandboxed() == url_info.is_sandboxed &&
          site_info.unique_sandbox_id() == url_info.unique_sandbox_id;
 }
 
@@ -999,15 +999,6 @@ bool SiteInstanceImpl::RequiresDedicatedProcess() {
   return site_info_.RequiresDedicatedProcess(GetIsolationContext());
 }
 
-bool SiteInstanceImpl::IsSandboxed() {
-  DCHECK_CURRENTLY_ON(BrowserThread::UI);
-  if (!has_site_) {
-    return false;
-  }
-
-  return site_info_.is_sandboxed();
-}
-
 void SiteInstanceImpl::IncrementRelatedActiveContentsCount() {
   browsing_instance_->IncrementActiveContentsCount();
 }
@@ -1018,6 +1009,10 @@ void SiteInstanceImpl::DecrementRelatedActiveContentsCount() {
 
 BrowserContext* SiteInstanceImpl::GetBrowserContext() {
   return browsing_instance_->browser_context();
+}
+
+const SecurityPrincipal& SiteInstanceImpl::GetSecurityPrincipal() const {
+  return site_info_;
 }
 
 // static
@@ -1673,7 +1668,7 @@ SiteInstanceImpl::GetCompatibleSandboxedSiteInstance(
     const url::Origin& parent_origin) {
   DCHECK(!IsDefaultSiteInstance());
   DCHECK(has_site_);
-  DCHECK(!GetSiteInfo().is_sandboxed());
+  DCHECK(!GetSecurityPrincipal().IsSandboxed());
   DCHECK(url_info.url.IsAboutSrcdoc());
 
   UrlInfo sandboxed_url_info = url_info;

@@ -253,11 +253,7 @@ final class ChromeAndroidTaskImpl
                     if (!BuildConfig.IS_DESKTOP_ANDROID) {
                         var browserWindow = mAndroidBrowserWindows.remove(profile);
                         if (browserWindow != null) {
-                            var ptr = browserWindow.getOrCreateNativePtr();
-                            for (var observer : mAndroidBrowserWindowObservers) {
-                                observer.onBrowserWindowRemoved(ptr);
-                            }
-                            browserWindow.destroy();
+                            destroyBrowserWindow(profile, browserWindow);
                         }
                     }
                 }
@@ -609,15 +605,27 @@ final class ChromeAndroidTaskImpl
         destroyFeatures();
         ProfileManager.removeObserver(mProfileObserver);
 
-        for (AndroidBrowserWindow browserWindow : mAndroidBrowserWindows.values()) {
-            long ptr = browserWindow.getOrCreateNativePtr();
-            for (var observer : mAndroidBrowserWindowObservers) {
-                observer.onBrowserWindowRemoved(ptr);
-            }
-            browserWindow.destroy();
+        for (var profileAndbrowserWindow : mAndroidBrowserWindows.entrySet()) {
+            destroyBrowserWindow(
+                    profileAndbrowserWindow.getKey(), profileAndbrowserWindow.getValue());
         }
         mAndroidBrowserWindows.clear();
         mState = State.DESTROYED;
+    }
+
+    private void destroyBrowserWindow(Profile profile, AndroidBrowserWindow browserWindow) {
+        long ptr = browserWindow.getOrCreateNativePtr();
+        for (var observer : mAndroidBrowserWindowObservers) {
+            observer.onBrowserWindowRemoved(ptr);
+        }
+        var activityScopedObjects = mActivityScopedObjectsDeque.peekFirst();
+        if (activityScopedObjects != null) {
+            activityScopedObjects
+                    .mTabModelSelector
+                    .getModel(profile.isOffTheRecord())
+                    .dissociateWithBrowserWindow();
+        }
+        browserWindow.destroy();
     }
 
     @Override
@@ -1109,7 +1117,9 @@ final class ChromeAndroidTaskImpl
             associateTabModelWithBrowserWindow(tabModelSelector.getCurrentModel());
         }
 
-        tabModelSelector.getCurrentTabModelSupplier().addObserver(mOnTabModelSelectedCallback);
+        tabModelSelector
+                .getCurrentTabModelSupplier()
+                .addSyncObserverAndPostIfNonNull(mOnTabModelSelectedCallback);
         onTabModelSelected(tabModelSelector.getCurrentModel());
 
         getActivity(topActivityWindowAndroid)
@@ -1173,6 +1183,10 @@ final class ChromeAndroidTaskImpl
             tabModelSelector
                     .getCurrentTabModelSupplier()
                     .removeObserver(mOnTabModelSelectedCallback);
+
+            for (var tabModel : tabModelSelector.getModels()) {
+                tabModel.dissociateWithBrowserWindow();
+            }
         }
         getActivity(topActivityWindowAndroid)
                 .findViewById(android.R.id.content)

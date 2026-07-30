@@ -13,6 +13,7 @@
 
 #include <stdint.h>
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -71,9 +72,6 @@ class WorkItem {
   // Possible states
   enum CopyOverWriteOption {
     ALWAYS,          // Always overwrite regardless of what existed before.
-    NEVER,           // Not used currently.
-    IF_DIFFERENT,    // Overwrite if different. Currently only applies to file.
-    IF_NOT_PRESENT,  // Copy only if file/directory do not exist already.
     NEW_NAME_IF_IN_USE  // Copy to a new path if dest is in use(only files).
   };
 
@@ -193,10 +191,12 @@ class WorkItem {
   // a list of WorkItems.
   static WorkItemList* CreateWorkItemList();
 
-  // Create a conditional work item list that will execute only if
-  // condition->ShouldRun() returns true. The WorkItemList instance
-  // assumes ownership of condition.
-  static WorkItemList* CreateConditionalWorkItemList(Condition* condition);
+  // Create a conditional work item that will execute either `if_item` or
+  // `else_item` based on the result of `condition->ShouldRun()`.
+  static WorkItem* CreateConditionalWorkItem(
+      std::unique_ptr<Condition> condition,
+      std::unique_ptr<WorkItem> if_item,
+      std::unique_ptr<WorkItem> else_item);
 
   // Perform the actions of WorkItem. Returns true if success or if
   // best_effort(). Can only be called once per instance.

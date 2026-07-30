@@ -96,9 +96,14 @@ void ContextualCueingPageData::FindMatchingConfig() {
     if (decision == kAllowed) {
       if (kUseDynamicCues.Get() && config.has_dynamic_cue_label()) {
         std::move(cueing_decision_callback_)
-            .Run(base::ok(CueingResult{config.dynamic_cue_label(),
-                                       config.default_text(),
-                                       /*is_dynamic=*/true}));
+            .Run(base::ok(CueingResult{
+                config.dynamic_cue_label(), config.default_text(),
+                /*is_dynamic=*/true, config.auto_open_eligible(),
+                config.has_auto_send_params()
+                    ? std::make_optional(CueingResult::AutoSendParams{
+                          /*auto_send_eligible=*/
+                          config.auto_send_params().auto_send_eligible()})
+                    : std::nullopt}));
         return;
       } else if (config.has_cue_label()) {
         std::move(cueing_decision_callback_)
@@ -106,7 +111,7 @@ void ContextualCueingPageData::FindMatchingConfig() {
                 l10n_util::GetStringUTF8(
                     IDS_GLIC_BUTTON_ENTRYPOINT_ASK_ABOUT_THIS_PAGE_LABEL),
                 /*prompt_suggestion=*/"",
-                /*is_dynamic=*/false}));
+                /*is_dynamic=*/false, /*auto_open_eligible=*/false}));
         return;
       }
     } else if (decision == kNeedsPdfPageCount) {

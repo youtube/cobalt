@@ -661,7 +661,8 @@ chromium-metrics-reviews@google.com.
   <int value="100228" label="AccessibilityReadAnythingVoiceName"/>
   <int value="100229" label="AccessibilityReadAnythingSpeechRate"/>
   <int value="100230" label="AccessibilityReadAnythingHighlightGranularity"/>
-  <int value="100231" label="AccessibilityReadAnythingHighlightColor"/>
+  <int value="100231"
+      label="(Obsolete) AccessibilityReadAnythingHighlightColor"/>
   <int value="100232" label="PinnedActions"/>
   <int value="100233" label="PinnedSearchCompanionMigrationComplete"/>
   <int value="100234" label="TouchpadInternalSettings"/>
@@ -828,6 +829,7 @@ chromium-metrics-reviews@google.com.
   <int value="100376" label="iOSPriceTrackingPromoLastImpressionTimestamp"/>
   <int value="100377" label="iOSPriceTrackingPromoImpressionsCounter"/>
   <int value="100378" label="iOSPriceTrackingPromoOptOut"/>
+  <int value="100379" label="AccessibilityReadAnythingLineFocusEnabledMode"/>
 <!-- LINT.ThenChange(/chrome/browser/sync/prefs/chrome_syncable_prefs_database.cc:ChromeSyncablePref)-->
 
 <!-- LINT.IfChange(IosSyncablePref) -->
@@ -1037,6 +1039,7 @@ chromium-metrics-reviews@google.com.
   <int value="75" label="Autofill Valuable Metadata"/>
   <int value="76" label="Skill"/>
   <int value="77" label="Gemini Thread"/>
+  <int value="78" label="Themes (iOS)"/>
 </enum>
 
 <!-- LINT.ThenChange(/components/sync/base/data_type.h:SyncDataTypes) -->

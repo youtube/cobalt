@@ -21,6 +21,7 @@
 #include "chrome/common/buildflags.h"
 #include "chrome/common/chrome_features.h"
 #include "components/optimization_guide/core/optimization_guide_switches.h"
+#include "components/optimization_guide/core/optimization_guide_util.h"
 #include "components/optimization_guide/proto/hints.pb.h"
 #include "components/prefs/pref_service.h"
 #include "components/search_engines/template_url.h"
@@ -370,6 +371,7 @@ ContextualCueingService::MakeZeroStateSuggestionsRequest(
   if (g_browser_process) {
     request_proto.set_locale(g_browser_process->GetApplicationLocale());
   }
+  request_proto.set_chrome_platform(optimization_guide::GetChromePlatform());
   PopulateSupportedToolsForRequest(supported_tools, pref_service_,
                                    &request_proto);
   // Instantiate the one-of to indicate the request type.
@@ -506,14 +508,17 @@ void ContextualCueingService::OnPinnedTabsSuggestionsReceived(
 
 void ContextualCueingService::OnPageContentExtracted(
     content::Page& page,
-    const optimization_guide::proto::AnnotatedPageContent& page_content) {
+    scoped_refptr<
+        const page_content_annotations::RefCountedAnnotatedPageContent>
+        page_content) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  CHECK(page_content);
 
   auto* cueing_page_data = ContextualCueingPageData::GetForPage(page);
   if (!cueing_page_data) {
     return;
   }
-  cueing_page_data->OnPageContentExtracted(page_content);
+  cueing_page_data->OnPageContentExtracted(page_content->data);
 }
 
 }  // namespace contextual_cueing

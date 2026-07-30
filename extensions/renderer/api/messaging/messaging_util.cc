@@ -20,6 +20,7 @@
 #include "extensions/common/extension_features.h"
 #include "extensions/common/manifest.h"
 #include "extensions/common/manifest_handlers/background_info.h"
+#include "extensions/common/manifest_handlers/message_serialization_info.h"
 #include "extensions/common/mojom/context_type.mojom.h"
 #include "extensions/common/mojom/message_port.mojom.h"
 #include "extensions/renderer/extension_interaction_provider.h"
@@ -141,9 +142,9 @@ MessageMetadata GetMessageMetadata(v8::Local<v8::Context> context) {
 
 // Serializes the given `value` using structured cloning and returns it wrapped
 // in a `Message object`. This also populates user gesture and context privilege
-// information. Returns empty `StructuredCloneMessageWireData` on failure, and
+// information. Returns empty `StructuredCloneMessageData` on failure, and
 // populates `error` with the failure reason.
-StructuredCloneMessageWireData MessageFromV8UsingStructuredClone(
+StructuredCloneMessageData MessageFromV8UsingStructuredClone(
     v8::Isolate& isolate,
     v8::Local<v8::Value> value,
     std::string* error) {
@@ -151,9 +152,9 @@ StructuredCloneMessageWireData MessageFromV8UsingStructuredClone(
       blink::WebSerializedScriptValue::Serialize(&isolate, value);
   if (!serialized.IsValid()) {
     *error = kErrorCouldNotSerialize;
-    return StructuredCloneMessageWireData();
+    return StructuredCloneMessageData();
   }
-  return StructuredCloneMessageWireData(serialized.WireData());
+  return serialized.GetCloneableMessage(base::UnguessableToken::Create());
 }
 
 }  // namespace
@@ -171,27 +172,22 @@ const char kOnUserScriptConnectEvent[] = "runtime.onUserScriptConnect";
 const char kOnConnectExternalEvent[] = "runtime.onConnectExternal";
 const char kOnConnectNativeEvent[] = "runtime.onConnectNative";
 
-std::unique_ptr<Message> MessageFromV8(v8::Local<v8::Context> context,
-                                       v8::Local<v8::Value> value,
-                                       mojom::SerializationFormat format,
-                                       std::string* error) {
+std::optional<Message> MessageFromV8(v8::Local<v8::Context> context,
+                                     v8::Local<v8::Value> value,
+                                     mojom::SerializationFormat format,
+                                     std::string* error) {
   DCHECK(!value.IsEmpty());
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
   CHECK(isolate);
 
-  if (format == mojom::SerializationFormat::kStructuredClone) {
-    CHECK(base::FeatureList::IsEnabled(
-        extensions_features::kStructuredCloningForMessaging));
-  }
-
   size_t message_size = 0;
   std::string json_message;
-  StructuredCloneMessageWireData structured_message;
+  StructuredCloneMessageData structured_message;
   switch (format) {
     case mojom::SerializationFormat::kJson: {
       json_message = MessageFromV8UsingJSON(context, *isolate, value, error);
       if (!error->empty()) {
-        return nullptr;
+        return std::nullopt;
       }
       message_size = json_message.length();
       break;
@@ -200,9 +196,9 @@ std::unique_ptr<Message> MessageFromV8(v8::Local<v8::Context> context,
       structured_message =
           MessageFromV8UsingStructuredClone(*isolate, value, error);
       if (!error->empty()) {
-        return nullptr;
+        return std::nullopt;
       }
-      message_size = structured_message.size();
+      message_size = structured_message.encoded_message.size();
       break;
     }
   }
@@ -210,22 +206,23 @@ std::unique_ptr<Message> MessageFromV8(v8::Local<v8::Context> context,
   // IPC messages will fail at > 128 MiB. Restrict extension messages to 64 MiB.
   // A 64 MiB JSON serialized object is scary enough as it is.
   // TODO(crbug.com/40321352): The 64 MiB limit also applies to structured
-  // messages. Can we unrestrict that since it uses `mojom_base::BigBuffer`
-  // which has shared memory benefits for large messages?
+  // messages. Can we unrestrict that since it uses `blink::CloneableMessage`
+  // (which contains `mojo_base::BigBuffer` that has shared memory benefits for
+  // large messages)?
   if (message_size > mojom::kMaxMessageBytes) {
     *error = "Message exceeded maximum allowed size of 64MiB.";
-    return nullptr;
+    return std::nullopt;
   }
 
   MessageMetadata metadata = GetMessageMetadata(context);
   switch (format) {
     case mojom::SerializationFormat::kJson: {
-      return std::make_unique<Message>(
+      return std::make_optional<Message>(
           std::move(json_message), mojom::SerializationFormat::kJson,
           metadata.has_user_gesture, metadata.is_from_privileged_context);
     }
     case mojom::SerializationFormat::kStructuredClone: {
-      return std::make_unique<Message>(
+      return std::make_optional<Message>(
           std::move(structured_message),
           mojom::SerializationFormat::kStructuredClone,
           metadata.has_user_gesture, metadata.is_from_privileged_context);
@@ -239,11 +236,13 @@ std::unique_ptr<Message> MessageFromV8(v8::Local<v8::Context> context,
 // Deserializes the given `message` using structured cloning and returns it as a
 // v8::Value. Returns an empty handle on failure, and populates `error`.
 v8::Local<v8::Value> MessageToV8UsingStructuredClone(v8::Isolate& isolate,
-                                                     const Message& message,
+                                                     Message message,
                                                      std::string* error) {
   blink::WebSerializedScriptValue serialized =
-      blink::WebSerializedScriptValue::Create(
-          base::span<const uint8_t>(message.structured_data()));
+      blink::WebSerializedScriptValue::CreateFromCloneableMessage(
+          message.TakeStructuredMessage());
+  // `message` no longer has valid message data because we've just taken it to
+  // create `serialized`.
   return serialized.Deserialize(&isolate);
 }
 
@@ -275,7 +274,7 @@ v8::Local<v8::Value> MessageToV8UsingJSON(v8::Local<v8::Context> context,
 }
 
 v8::Local<v8::Value> MessageToV8(v8::Local<v8::Context> context,
-                                 const Message& message,
+                                 Message message,
                                  bool is_parsing_fail_safe,
                                  std::string* error) {
   v8::Isolate* isolate = v8::Isolate::GetCurrent();
@@ -283,7 +282,8 @@ v8::Local<v8::Value> MessageToV8(v8::Local<v8::Context> context,
 
   switch (message.format()) {
     case mojom::SerializationFormat::kStructuredClone:
-      return MessageToV8UsingStructuredClone(*isolate, message, error);
+      return MessageToV8UsingStructuredClone(*isolate, std::move(message),
+                                             error);
     case mojom::SerializationFormat::kJson:
       return MessageToV8UsingJSON(context, *isolate, message,
                                   is_parsing_fail_safe, error);
@@ -365,7 +365,7 @@ bool GetTargetExtensionId(ScriptContext* script_context,
   std::string target_id;
   // If omitted, we use the extension associated with the context.
   // Note: we deliberately treat the empty string as omitting the id, even
-  // though it's not strictly correct. See https://crbug.com/823577.
+  // though it's not strictly correct. See https://crbug.com/41377567.
   if (v8_target_id->IsNull() ||
       (v8_target_id->IsString() &&
        v8_target_id.As<v8::String>()->Length() == 0)) {

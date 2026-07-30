@@ -59,17 +59,32 @@ TEST_F(InputStateModelTest, TestInitialization) {
   const auto& state = input_state_model_->get_state_for_testing();
 
   // All values should be default since we are using a default
-  // `SearchboxConfig`. Except INPUT_TYPE_BROWSER_TAB should be added manually
-  // since it doesn't exist in the `allowed_input_types`.
+  // `SearchboxConfig`.
   EXPECT_TRUE(state.allowed_tools.empty());
   EXPECT_TRUE(state.allowed_models.empty());
-  EXPECT_THAT(state.allowed_input_types,
-              testing::UnorderedElementsAre(omnibox::INPUT_TYPE_BROWSER_TAB));
+  EXPECT_TRUE(state.allowed_input_types.empty());
   EXPECT_EQ(state.active_tool, omnibox::ToolMode::TOOL_MODE_UNSPECIFIED);
   EXPECT_EQ(state.active_model, omnibox::ModelMode::MODEL_MODE_UNSPECIFIED);
   EXPECT_TRUE(state.disabled_tools.empty());
   EXPECT_TRUE(state.disabled_models.empty());
   EXPECT_TRUE(state.disabled_input_types.empty());
+}
+
+TEST_F(InputStateModelTest,
+       AddsBrowserTabWhenLensImageAndFileInputsAreAllowed) {
+  omnibox::SearchboxConfig config;
+  auto* rule_set = config.mutable_rule_set();
+  rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+  rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_FILE);
+
+  input_state_model_ =
+      std::make_unique<InputStateModel>(session_handle_, config);
+  const auto& state = input_state_model_->get_state_for_testing();
+
+  EXPECT_THAT(state.allowed_input_types,
+              testing::UnorderedElementsAre(omnibox::INPUT_TYPE_LENS_IMAGE,
+                                            omnibox::INPUT_TYPE_LENS_FILE,
+                                            omnibox::INPUT_TYPE_BROWSER_TAB));
 }
 
 TEST_F(InputStateModelTest, TestSubscribeAndNotify) {
@@ -281,6 +296,8 @@ class InputStateModelCompatibilityTest : public InputStateModelTest {
     state_.disabled_tools = {};
     state_.disabled_models = {};
     state_.disabled_input_types = {};
+    state_.max_total_inputs = 2;
+    state_.max_instances[omnibox::InputType::INPUT_TYPE_LENS_IMAGE] = 1;
 
     // Create the model *after* the config is set up.
     InputStateModelTest::SetUp();
@@ -354,8 +371,9 @@ TEST_F(InputStateModelCompatibilityTest, SelectImageInput) {
   // Models are not disabled, since they both support images.
   EXPECT_TRUE(new_state.disabled_models.empty());
 
-  // No input types are disabled based on other inputs.
-  EXPECT_TRUE(new_state.disabled_input_types.empty());
+  // Only image input should be disabled since max_instance is 1.
+  EXPECT_THAT(new_state.disabled_input_types,
+              UnorderedElementsAre(omnibox::InputType::INPUT_TYPE_LENS_IMAGE));
 }
 
 TEST_F(InputStateModelCompatibilityTest, SelectTabInput) {
@@ -522,8 +540,43 @@ TEST_F(InputStateModelCompatibilityTest, MaxTotalInputsDisablesInputs) {
   input_state_model_->OnContextChanged();
   const auto& final_state = input_state_model_->get_state_for_testing();
 
-  // Input types should no longer be disabled.
-  EXPECT_TRUE(final_state.disabled_input_types.empty());
+  // Image input should still be disabled due to max_instance.
+  EXPECT_THAT(final_state.disabled_input_types,
+              UnorderedElementsAre(omnibox::InputType::INPUT_TYPE_LENS_IMAGE));
+}
+
+TEST_F(InputStateModelCompatibilityTest,
+       MaxInstancesAndMaxTotalInputsDisablesInputs) {
+  // Simulate adding one image.
+  std::vector<FileInfo> file_infos;
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kImage;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->OnContextChanged();
+  const auto& new_state = input_state_model_->get_state_for_testing();
+
+  // Only image input should be disabled.
+  EXPECT_THAT(new_state.disabled_input_types,
+              UnorderedElementsAre(omnibox::InputType::INPUT_TYPE_LENS_IMAGE));
+
+  // Simulate adding a file.
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kPdf;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // Trigger an update.
+  input_state_model_->OnContextChanged();
+  const auto& final_state = input_state_model_->get_state_for_testing();
+
+  // All input types should be disabled.
+  EXPECT_THAT(final_state.disabled_input_types,
+              UnorderedElementsAre(omnibox::InputType::INPUT_TYPE_LENS_IMAGE,
+                                   omnibox::InputType::INPUT_TYPE_LENS_FILE,
+                                   omnibox::InputType::INPUT_TYPE_BROWSER_TAB));
 }
 
 TEST_F(InputStateModelCompatibilityTest, ToolWithAllowAllInputs) {
@@ -607,6 +660,33 @@ TEST_F(InputStateModelCompatibilityTest, ToolWithSpecificInputs) {
   EXPECT_THAT(new_state.disabled_tools,
               UnorderedElementsAre(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH,
                                    omnibox::ToolMode::TOOL_MODE_IMAGE_GEN));
+}
+
+TEST_F(InputStateModelTest, ImageGenUploadActive) {
+  // 1. Set active tool to IMAGE_GEN without any image input.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  auto state = input_state_model_->get_state_for_testing();
+  EXPECT_EQ(state.active_tool, omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  EXPECT_FALSE(state.image_gen_upload_active);
+
+  // 2. Simulate adding an image.
+  std::vector<FileInfo> file_infos;
+  file_infos.emplace_back();
+  file_infos.back().mime_type = lens::MimeType::kImage;
+  ON_CALL(session_handle_, GetUploadedContextFileInfos())
+      .WillByDefault(testing::Return(file_infos));
+
+  // 3. Set active tool to IMAGE_GEN again, now with an image input.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  state = input_state_model_->get_state_for_testing();
+  EXPECT_EQ(state.active_tool, omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
+  EXPECT_TRUE(state.image_gen_upload_active);
+
+  // 4. Set a different tool and verify image_gen_upload_active is reset.
+  input_state_model_->setActiveTool(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  state = input_state_model_->get_state_for_testing();
+  EXPECT_EQ(state.active_tool, omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
+  EXPECT_FALSE(state.image_gen_upload_active);
 }
 
 }  // namespace contextual_search

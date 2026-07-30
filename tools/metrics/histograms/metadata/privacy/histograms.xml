@@ -1200,7 +1200,7 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
 
 <histogram name="PrivacySandbox.Attestations.LoadAPKAssetStatus"
     enum="PrivacySandboxAttestationLoadAPKAssetStatus"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>shivanisha@chromium.org</owner>
   <owner>xiaochenzh@chromium.org</owner>
   <summary>
@@ -1762,17 +1762,6 @@ Regular profiles start at bucket 1, we don't consider non-regular profiles. -->
   <owner>koilos@google.com</owner>
   <summary>
     Records the status when attempting to surface the sentiment survey.
-  </summary>
-</histogram>
-
-<histogram name="PrivacySandbox.Surveys.SurfaceAttempts"
-    enum="PrivacySandboxSurveyTypes" expires_after="2026-05-07">
-  <owner>alvingo@google.com</owner>
-  <owner>koilos@google.com</owner>
-  <summary>
-    Records the amount of times each survey was attempted to be shown on Clank.
-    Values do not indicate the amount of surveys shown as each attempt can fail
-    due to various factors.
   </summary>
 </histogram>
 

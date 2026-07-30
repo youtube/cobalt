@@ -10,6 +10,7 @@
 
 #import <vector>
 
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_consumer.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_favicon_provider.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_export_view_controller.h"
@@ -24,6 +25,10 @@ namespace webauthn {
 class PasskeyModel;
 }  // namespace webauthn
 
+namespace signin {
+class IdentityManager;
+}  // namespace signin
+
 namespace syncer {
 class SyncService;
 }  // namespace syncer
@@ -37,7 +42,7 @@ class FaviconLoader;
 // Asks the delegate to fetch trusted vault keys. This is only called if
 // passkeys are detected in the export list.
 - (void)fetchTrustedVaultKeysWithCompletion:
-    (void (^)(NSArray<NSData*>*))completion;
+    (void (^)(webauthn::SharedKeyList))completion;
 
 @end
 
@@ -60,7 +65,8 @@ class FaviconLoader;
         reauthenticationModule:(id<ReauthenticationProtocol>)reauthModule
                  exportHandler:(id<PasswordExportHandler>)exportHandler
                    syncService:(syncer::SyncService*)syncService
-                     userEmail:(NSString*)userEmail NS_DESIGNATED_INITIALIZER;
+               identityManager:(signin::IdentityManager*)identityManager
+    NS_DESIGNATED_INITIALIZER;
 
 - (instancetype)init NS_UNAVAILABLE;
 

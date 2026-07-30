@@ -8,6 +8,7 @@
 <translation id="1073417869336441572">Pomozte nám vylepšit Chrome tím, že nám sdělíte, proč jste povolili soubory cookie třetích stran. <ph name="BEGIN_LINK" />Odeslat zpětnou vazbu<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Můžete požádat o zobrazení verze webů pro počítače</translation>
 <translation id="1085696779717592361">Používejte Chrome ve výchozím nastavení</translation>
+<translation id="1126523729897810826">Pokud Chrome chcete využít na maximum, proveďte níže uvedené navrhované akce</translation>
 <translation id="113098737392899175">Když je připojená klávesnice, procházet stránky pomocí textového kurzoru</translation>
 <translation id="1149644372535087155">Ukládejte si v Chromu hesla</translation>
 <translation id="1178015372320901893">Spodní panel Moje zkratky</translation>
@@ -53,6 +54,7 @@
 <translation id="1569054338208717605">Zrychlit weby v Chromu pomocí modulu V8, čímž se ale o trochu sníží odolnost Chromu vůči útokům</translation>
 <translation id="1593426485665524382">V horní části obrazovky jsou k dispozici nové akce</translation>
 <translation id="1594521731409209842">Velikost fotky změníte stažením nebo roztažením prstů</translation>
+<translation id="1599268789440304082">Byl otevřen panel nastavení</translation>
 <translation id="1601560923496285236">Použít</translation>
 <translation id="1615755956145364867">Weby mohou žádat o přehrání chráněného obsahu</translation>
 <translation id="1620510694547887537">Kamera</translation>
@@ -295,6 +297,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="3903738175795615004">Režim celé obrazovky ukončíte přetažením shora nebo stisknutím klávesy Esc.</translation>
 <translation id="3905475044299942653">Zastavit spousty oznámení</translation>
 <translation id="3922092564198021702">V telefonu přejděte do Nastavení</translation>
+<translation id="3924858949939391676">Po zapnutí režimu čtení zobrazit odkazy</translation>
 <translation id="3933121352599513978">Sbalit nechtěné žádosti (doporučeno)</translation>
 <translation id="3934905113567851655">Velikost změníte stažením prstů</translation>
 <translation id="3955193568934677022">Povolit webům přehrávat chráněný obsah (doporučeno)</translation>
@@ -313,6 +316,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="4046123991198612571">Další skladba</translation>
 <translation id="4077310749977440510">Weby obvykle čtou obsah schránky kvůli funkcím, jako je zachování formátu zkopírovaného textu</translation>
 <translation id="4082080074595021446">Výjimky pro konkrétní webové stránky jsou zakázány, protože zařízení s Androidem nemá dostatek paměti RAM.</translation>
+<translation id="4089304748532599471">Některá nastavení Chromu se změnila</translation>
 <translation id="4149890623864272035">Opravdu chcete vymazat všechna místní data, včetně souborů cookie, a resetovat všechna oprávnění tohoto webu?</translation>
 <translation id="4149994727733219643">Zjednodušené zobrazení webových stránek</translation>
 <translation id="4151930093518524179">Výchozí přiblížení</translation>
@@ -348,8 +352,11 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="4478158430052450698">Usnadnit přizpůsobení velikosti zobrazení pro různé weby</translation>
 <translation id="4479647676395637221">Pokud web bude chtít použít vaši kameru, zobrazit dotaz (doporučeno)</translation>
 <translation id="4505788138578415521">Rozbalená adresa URL</translation>
+<translation id="4522570452068850558">Podrobnosti</translation>
 <translation id="4523472416386354622">Nejdřív se přihlaste</translation>
+<translation id="4529207923544043455">Spodní panel zobrazující dokončené a nedokončené úkoly ze seznamu nastavení</translation>
 <translation id="4534723447064627427">Pokud aplikaci <ph name="APP_NAME" /> chcete umožnit přístup k mikrofonu, zapněte mikrofon také v <ph name="BEGIN_LINK" />Nastavení Android<ph name="END_LINK" />.</translation>
+<translation id="4545694195887112015">Panel nastavení byl zavřen</translation>
 <translation id="4566417217121906555">Vypnout mikrofon</translation>
 <translation id="4570913071927164677">Podrobnosti</translation>
 <translation id="4578289292431526768">Jdeme na to</translation>
@@ -358,6 +365,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="4644713492825682049">Vymazat a resetovat</translation>
 <translation id="4645575059429386691">Spravováno vaším rodičem</translation>
 <translation id="4652266463001779298">Není povoleno</translation>
+<translation id="4655846733459137112">Když kliknete na Ano, budete mít heslo při příštím přihlášení snadno k dispozici</translation>
 <translation id="4663373278480897665">Kamera je povolena</translation>
 <translation id="4670064810192446073">Virtuální realita</translation>
 <translation id="4672315773691449562">Klepněte na aplikaci Prohlížeč a potom na Chrome</translation>
@@ -464,6 +472,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="5804241973901381774">Oprávnění</translation>
 <translation id="5817042798620209981">Informace o webu, dialogové okno</translation>
 <translation id="5822675474983796325">Spodní panel Přizpůsobení stránky Nová karta otevřený na celou výšku</translation>
+<translation id="5826403277762134844">Spodní panel s pokyny k ukládání hesel v Chromu</translation>
 <translation id="5833899990800318936">Nepovolovat webům používat JavaScript</translation>
 <translation id="583673505367439042">Weby mohou žádat o úpravu souborů a složek v zařízení</translation>
 <translation id="5844448279347999754">Když je tato možnost zapnutá, weby mohou žádat o zobrazení textu a obrázků uložených do schránky. Když je vypnutá, weby k textům ani obrázkům uloženým do schránky nemají přístup.</translation>
@@ -643,6 +652,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="775043444390799886">Zrušit oprávnění</translation>
 <translation id="7758789811447313947">Fialový motiv</translation>
 <translation id="7759147511335618829">Ovládání a přeprogramování zařízení MIDI</translation>
+<translation id="7771089277295008211">Spodní panel s pokyny k ukládání hesel byl zavřen</translation>
 <translation id="7781829728241885113">Včera</translation>
 <translation id="7791543448312431591">Přidat</translation>
 <translation id="780301667611848630">Ne, děkuji</translation>
@@ -660,6 +670,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="7940722705963108451">Připomenout</translation>
 <translation id="7948081750384205628">Další informace o nastavení <ph name="SETTING_TITLE" /></translation>
 <translation id="7952708427581814389">Weby mohou žádat o zobrazení textu a obrázků ve schránce</translation>
+<translation id="7958779728312669715">Spodní panel s pokyny ohledně ukládání hesel se úplně otevřel</translation>
 <translation id="798299424881500862">Oranžový motiv</translation>
 <translation id="7986741934819883144">Výběr kontaktu</translation>
 <translation id="7990211076305263060">Když je tato možnost zapnutá, weby mohou žádat o použití mikrofonu. Když je vypnutá, weby mikrofon používat nemohou.</translation>
@@ -680,6 +691,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="8117244575099414087">Když je tato možnost zapnutá, weby mohou používat senzory zařízení. Když je vypnutá, weby senzory používat nemohou.</translation>
 <translation id="813082847718468539">Zobrazit informace o webu</translation>
 <translation id="8131740175452115882">Potvrdit</translation>
+<translation id="8148160259207090265">Tohle nastavení zůstane zapnuté, dokud budete mít v nastavení Androidu zapnutou pokročilou ochranu.</translation>
 <translation id="8163152278172770963">Nepovolovat webům automaticky aktivovat režim obrazu v obraze</translation>
 <translation id="8168435359814927499">Obsah</translation>
 <translation id="818487310457576362">Přetažením ze strany obrazovky ukončíte celou obrazovku.</translation>
@@ -709,6 +721,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="8441146129660941386">Přetočit dozadu</translation>
 <translation id="8444433999583714703">Pokud aplikaci <ph name="APP_NAME" /> chcete povolit přístup ke své poloze, zapněte polohu také v <ph name="BEGIN_LINK" />Nastavení Android<ph name="END_LINK" />.</translation>
 <translation id="8447861592752582886">Zrušit oprávnění zařízení</translation>
+<translation id="8463843545738141778">Tohle nastavení nejde zapnout, protože jste v nastavení Androidu zapnuli pokročilou ochranu.</translation>
 <translation id="8467359479529706065">Spodní panel vzhledu stránky Nová karta otevřený na polovinu výšky</translation>
 <translation id="8471525937465764768">Weby se obvykle připojují k zařízením USB kvůli funkcím, jako je tisk dokumentu nebo uložení obsahu na paměťové zařízení</translation>
 <translation id="8473055640493819707">Aplikace <ph name="APP_NAME" /> je zastaralá. Přeinstalujte ji.</translation>
@@ -740,6 +753,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="8719283222052720129">Zapněte v <ph name="BEGIN_LINK" />Nastavení Android<ph name="END_LINK" /> oprávnění pro aplikaci <ph name="APP_NAME" />.</translation>
 <translation id="8721719390026067591">Když je tato možnost zapnutá, weby mohou žádat o vyhledání zařízení Bluetooth. Když je vypnutá, weby zařízení Bluetooth vyhledávat nemohou.</translation>
 <translation id="8725066075913043281">Zkusit znovu</translation>
+<translation id="8727043961453758442">Využití všech funkcí Chromu</translation>
 <translation id="8730621377337864115">Hotovo</translation>
 <translation id="8737426583868847403">Tady se zobrazí weby, pro které uložíte vlastní úroveň přiblížení</translation>
 <translation id="8748714929822124637">Nepovolovat webům přístup k dalším zařízením v místní síti</translation>
@@ -756,6 +770,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="8889294078294184559">Při dalším procházení může Chrome na požádání jinému webu sdělit, že vás předchozí web ověřil jako pravděpodobně skutečného uživatele</translation>
 <translation id="8899807382908246773">Rušivé reklamy</translation>
 <translation id="8903921497873541725">Přiblížit</translation>
+<translation id="8919911527569629802">Přihlaste se na libovolný web</translation>
 <translation id="8921772741368021346"><ph name="POSITION" />/<ph name="DURATION" /></translation>
 <translation id="8926389886865778422">Dotaz již nezobrazovat</translation>
 <translation id="8926666909099850184">Funkce NFC je v tomto zařízení vypnutá. Zapnete ji v <ph name="BEGIN_LINK" />Nastavení Android<ph name="END_LINK" />.</translation>
@@ -783,6 +798,7 @@ Pokročilá ochrana spravuje tato nastavení Chromu:
 <translation id="9182556968660520230">Nepovolovat webům přehrávání chráněného obsahu</translation>
 <translation id="947156494302904893">Weby, které navštěvujete, mohou ověřit, že jste člověk, a ne robot</translation>
 <translation id="959682366969460160">Uspořádejte si položky</translation>
+<translation id="960590623979248167">Zobrazit hypertextové odkazy</translation>
 <translation id="961930410699694996">Přístup k poloze byl pro tentokrát povolen</translation>
 <translation id="967624055006145463">Uložená data</translation>
 <translation id="969975166333045662">Zakázat webu používat optimalizátor V8.</translation>

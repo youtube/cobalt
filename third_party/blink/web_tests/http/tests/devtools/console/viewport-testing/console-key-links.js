@@ -130,6 +130,7 @@ import * as Console from 'devtools/panels/console/console.js';
     await TestRunner.evaluateInPagePromise(expression);
     await ConsoleTestRunner.waitForConsoleMessagesPromise(expectedCount);
     await ConsoleTestRunner.waitForPendingViewportUpdates();
+    await TestRunner.waitForPendingLiveLocationUpdates();
   }
 
   function press(key) {
@@ -178,7 +179,7 @@ import * as Console from 'devtools/panels/console/console.js';
     if (element.id)
       name += '#' + element.id;
     else if (element.className)
-      name += '.' + element.className.split(' ').join('.');
+      name += '.' + element.className.split(' ').filter(Boolean).join('.');
     if (element.deepTextContent())
       name += '\nactive text: ' + element.deepTextContent();
     TestRunner.addResult(name);

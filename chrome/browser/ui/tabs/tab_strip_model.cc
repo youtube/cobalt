@@ -1329,14 +1329,9 @@ tabs::TabInterface* TabStripModel::GetOpenerOfTabAt(const int index) const {
   return tab->opener();
 }
 
-void TabStripModel::SetOpenerOfWebContentsAt(int index, WebContents* opener) {
+void TabStripModel::SetOpenerOfTabAt(int index, tabs::TabInterface* opener) {
   CHECK(ContainsIndex(index));
-  // The TabStripModel only maintains the references to openers that it itself
-  // owns; trying to set an opener to an external WebContents can result in
-  // the opener being used after its freed. See crbug.com/698681.
-  DCHECK(!opener || GetIndexOfWebContents(opener) != kNoTab)
-      << "Cannot set opener to a web contents not owned by this tab strip.";
-  GetTabModelAtIndex(index)->set_opener(GetTabForWebContents(opener));
+  GetTabModelAtIndex(index)->set_opener(opener);
 }
 
 int TabStripModel::GetIndexOfLastWebContentsOpenedBy(const WebContents* opener,
@@ -1387,14 +1382,12 @@ void TabStripModel::TabNavigating(WebContents* contents,
 
 void TabStripModel::SetTabBlocked(int index, bool blocked) {
   CHECK(ContainsIndex(index));
-  tabs::TabModel* tab_model = GetTabModelAtIndex(index);
+  tabs::TabModel* const tab_model = GetTabModelAtIndex(index);
   if (tab_model->IsBlocked() == blocked) {
     return;
   }
   tab_model->set_blocked(blocked);
-  for (auto& observer : observers_) {
-    observer.OnTabBlockedStateChanged(tab_model, index);
-  }
+  NotifyTabChanged(tab_model, TabChangeType::kBlockedOnly);
 }
 
 int TabStripModel::SetTabPinned(int index, bool pinned) {
@@ -1442,7 +1435,7 @@ bool TabStripModel::IsTabInForeground(int index) const {
     return false;
   }
 
-  const tabs::TabInterface *active_tab = GetActiveTab();
+  const tabs::TabInterface* active_tab = GetActiveTab();
   if (!active_tab) {
     return false;
   }
@@ -3970,7 +3963,6 @@ TabStripSelectionChange TabStripModel::SetSelection(
       }
     }
 
-
     TabStripModelChange change;
     OnChange(change, selection);
   }
@@ -5444,11 +5436,11 @@ std::optional<int> TabStripModel::DetermineNewSelectedIndex(
   // Third preference is the block's opener.
   for (size_t i = block_tabs.start(); i < block_tabs.end(); ++i) {
     tabs::TabInterface* opener = GetTabModelAtIndex(i)->opener();
-    std::optional<int> opener_index =
-        opener ? std::make_optional(GetIndexOfTab(opener)) : std::nullopt;
-    if (opener && !block_tabs.Contains(gfx::Range(opener_index.value())) &&
-        !IsTabCollapsed(opener_index.value())) {
-      return GetTabIndexAfterClosing(opener_index.value(), block_tabs);
+    int opener_index = opener ? GetIndexOfTab(opener) : TabStripModel::kNoTab;
+    if (opener_index != TabStripModel::kNoTab &&
+        !block_tabs.Contains(gfx::Range(opener_index)) &&
+        !IsTabCollapsed(opener_index)) {
+      return GetTabIndexAfterClosing(opener_index, block_tabs);
     }
   }
 

@@ -17,12 +17,15 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.ui.browser_window.ChromeAndroidTask;
 import org.chromium.chrome.browser.ui.extensions.ExtensionActionContextMenuBridge;
 import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuBridge;
+import org.chromium.chrome.browser.ui.extensions.ExtensionsMenuTypes;
 import org.chromium.content_public.browser.WebContents;
 import org.chromium.ui.listmenu.ListMenuButton;
 import org.chromium.ui.modelutil.MVCListAdapter.ListItem;
 import org.chromium.ui.modelutil.MVCListAdapter.ModelList;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.widget.RectProvider;
+
+import java.util.List;
 
 /**
  * Mediator for the extensions menu. This class is responsible for listening to changes in the
@@ -75,6 +78,8 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
     private static class RelativeViewRectProvider extends RectProvider {
         private final View mAnchorView;
         private final View mParentView;
+        private final int[] mAnchorLocation = new int[2];
+        private final int[] mParentLocation = new int[2];
 
         /**
          * @param anchorView The view to be used as an anchor.
@@ -92,16 +97,14 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
          */
         @Override
         public Rect getRect() {
-            int[] anchorLocation = new int[2];
-            mAnchorView.getLocationOnScreen(anchorLocation);
+            mAnchorView.getLocationOnScreen(mAnchorLocation);
+            mParentView.getLocationOnScreen(mParentLocation);
 
-            int[] parentLocation = new int[2];
-            mParentView.getLocationOnScreen(parentLocation);
+            int x = mAnchorLocation[0] - mParentLocation[0];
+            int y = mAnchorLocation[1] - mParentLocation[1];
 
-            int x = anchorLocation[0] - parentLocation[0];
-            int y = anchorLocation[1] - parentLocation[1];
-
-            return new Rect(x, y, x + mAnchorView.getWidth(), y + mAnchorView.getHeight());
+            mRect.set(x, y, x + mAnchorView.getWidth(), y + mAnchorView.getHeight());
+            return mRect;
         }
     }
 
@@ -147,26 +150,23 @@ class ExtensionsMenuMediator implements Destroyable, ExtensionsMenuBridge.Observ
      */
     @Override
     public void onReady() {
-        // TODO(crbug.com/473213114): Currently getActions is returning an array that contains both
-        // name and id, following [name1, id1, name2, id2, ...]. This is just an intermediary step
-        // until we introduce a type that holds all the action information.
-        String[] actions = mMenuBridge.getActions();
-        for (int i = 0; i < actions.length; i += 2) {
-            final String id = actions[i];
-            final String name = actions[i + 1];
+        mActionModels.clear();
+        List<ExtensionsMenuTypes.MenuEntryState> entries = mMenuBridge.getMenuEntries();
 
+        for (ExtensionsMenuTypes.MenuEntryState entry : entries) {
             PropertyModel model =
                     new PropertyModel.Builder(ExtensionsMenuItemProperties.ALL_KEYS)
-                            .with(ExtensionsMenuItemProperties.TITLE, name)
+                            .with(ExtensionsMenuItemProperties.TITLE, entry.actionButton.text)
                             .with(
                                     ExtensionsMenuItemProperties.CLICK_LISTENER,
-                                    (view) -> onContextMenuButtonClicked((ListMenuButton) view, id))
+                                    (view) ->
+                                            onContextMenuButtonClicked(
+                                                    (ListMenuButton) view, entry.id))
                             .build();
-
             mActionModels.add(new ListItem(0, model));
         }
 
-        boolean isZeroState = actions.length == 0;
+        boolean isZeroState = entries.isEmpty();
         mMenuPropertyModel.set(ExtensionsMenuProperties.IS_ZERO_STATE, isZeroState);
         mOnReady.run();
     }

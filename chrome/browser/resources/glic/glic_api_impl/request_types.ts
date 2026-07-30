@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 import type {WebClientInitialState} from '../glic.mojom-webui.js';
-import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, CreateSkillRequest, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFillingRequest, GetPinCandidatesOptions, HostCapability, Journal, MetricUserInputReactionType, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, Skill, SkillPreview, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
+import type {ActorTaskPauseReason, ActorTaskState, ActorTaskStopReason, AdditionalContext, AdditionalContextPart, AnnotatedPageData, AutofillSuggestion, CancelActionsResult, CaptureRegionErrorReason, CaptureRegionResult, ChromeVersion, ConversationInfo, CreateSkillRequest, Credential, DraggableArea, ErrorReasonTypes, ErrorWithReason, FocusedTabDataHasFocus, FocusedTabDataHasNoFocus, FormFillingRequest, GetPinCandidatesOptions, HostCapability, InvokeOptions, Journal, MetricUserInputReactionType, NavigationConfirmationRequest, NavigationConfirmationResponse, OnResponseStoppedDetails, OpenPanelInfo, OpenSettingsOptions, PageMetadata, PanelOpeningData, PanelState, PdfDocumentData, PinCandidate, PinTabsOptions, Platform, ResumeActorTaskResult, Screenshot, ScrollToParams, SelectAutofillSuggestionsDialogRequest, SelectAutofillSuggestionsDialogResponse, SelectCredentialDialogRequest, SelectCredentialDialogResponse, Skill, SkillPreview, TabContextOptions, TabContextResult, TabData, TaskOptions, UnpinTabsOptions, UpdateSkillRequest, UserConfirmationDialogRequest, UserConfirmationDialogResponse, UserProfileInfo, ViewChangedNotification, ViewChangeRequest, WebClientMode, ZeroStateSuggestions, ZeroStateSuggestionsOptions, ZeroStateSuggestionsV2} from '../glic_api/glic_api.js';
 
 /*
 This file defines messages sent over postMessage in-between the Glic WebUI
@@ -688,6 +688,9 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
     backgroundAllowed: true,
   },
   glicWebClientCheckResponsive: {
+    response: {
+      clientSendMessageQueueLength: number,
+    },
     backgroundAllowed: true,
   },
   glicWebClientNotifyManualResizeChanged: {
@@ -839,6 +842,12 @@ export declare type WebClientRequestTypes = ValidateRequestMap<{
       // If not present, the tab no longer exists and no more updates will be
       // received.
       tabData?: TabDataPrivate, observationId: number,
+    },
+    backgroundAllowed: true,
+  },
+  glicWebClientInvoke: {
+    request: {
+      options: InvokeOptionsPrivate,
     },
     backgroundAllowed: true,
   },
@@ -1031,7 +1040,10 @@ export type WebClientInitialStatePrivate =
       platform: Platform,
       focusedTabData: FocusedTabDataPrivate,
       loggingEnabled: boolean,
+      maxInFlightRequests: number,
+      sendResponsesForAllRequests: boolean,
       enableZeroStateSuggestions: boolean,
+      enableCachedGetUserProfileInfo: boolean,
       hostCapabilities: HostCapability[],
       rgbaToBmp: boolean,
     }>;
@@ -1117,6 +1129,11 @@ export declare interface AdditionalContextPartPrivate extends
 export declare interface AdditionalContextPrivate extends
     Omit<AdditionalContext, 'parts'> {
   parts: AdditionalContextPartPrivate[];
+}
+
+export declare interface InvokeOptionsPrivate extends
+    Omit<InvokeOptions, 'context'> {
+  context?: AdditionalContextPrivate;
 }
 
 export declare interface CredentialPrivate extends Omit<Credential, 'getIcon'> {

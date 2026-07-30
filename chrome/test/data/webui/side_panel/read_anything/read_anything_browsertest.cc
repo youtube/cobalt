@@ -23,8 +23,7 @@ class ReadAnythingMochaBrowserTest : public WebUIMochaBrowserTest {
     set_test_loader_host(chrome::kChromeUIUntrustedReadAnythingSidePanelHost);
     set_test_loader_scheme(content::kChromeUIUntrustedScheme);
     scoped_feature_list_.InitWithFeatures(
-        {features::kReadAnythingReadAloud,
-         features::kReadAnythingImagesViaAlgorithm},
+        {features::kReadAnythingImagesViaAlgorithm},
         {features::kReadAnythingReadAloudPhraseHighlighting,
          features::kReadAnythingDocsIntegration});
   }
@@ -54,7 +53,6 @@ class ReadAnythingMochaParameterizedTest
  protected:
   ReadAnythingMochaParameterizedTest() {
     std::vector<base::test::FeatureRef> enabled_features = {
-        features::kReadAnythingReadAloud,
         features::kReadAnythingImagesViaAlgorithm};
     if (IsTsSegmentationEnabled()) {
       enabled_features.push_back(
@@ -202,11 +200,6 @@ IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest, FontMenu) {
   RunSidePanelTest("side_panel/read_anything/font_menu_test.js", "mocha.run()");
 }
 
-IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest, FontSelect) {
-  RunSidePanelTest("side_panel/read_anything/font_select_test.js",
-                   "mocha.run()");
-}
-
 IN_PROC_BROWSER_TEST_P(ReadAnythingMochaParameterizedTest, SimpleActionMenu) {
   RunSidePanelTest("side_panel/read_anything/simple_action_menu_test.js",
                    "mocha.run()");
@@ -308,9 +301,7 @@ class ReadAnythingReadAloudTsSegmentationMochaTest
  protected:
   ReadAnythingReadAloudTsSegmentationMochaTest() {
     scoped_feature_list_.InitWithFeatures(
-        {features::kReadAnythingReadAloud,
-         features::kReadAnythingReadAloudTSTextSegmentation},
-        {});
+        {features::kReadAnythingReadAloudTSTextSegmentation}, {});
   }
 
  private:
@@ -338,9 +329,8 @@ IN_PROC_BROWSER_TEST_F(ReadAnythingReadAloudTsSegmentationMochaTest,
 class ImmersiveReadAnythingMochaTest : public ReadAnythingMochaBrowserTest {
  protected:
   ImmersiveReadAnythingMochaTest() {
-    scoped_feature_list_.InitWithFeatures(
-        {features::kReadAnythingReadAloud, features::kImmersiveReadAnything},
-        {});
+    scoped_feature_list_.InitWithFeatures({features::kImmersiveReadAnything},
+                                          {});
   }
 
  private:

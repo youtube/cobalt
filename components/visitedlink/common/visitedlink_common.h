@@ -8,6 +8,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include <array>
 #include <string_view>
 #include <vector>
 
@@ -27,8 +28,7 @@ class Origin;
 
 namespace visitedlink {
 
-// number of bytes in the salt
-#define LINK_SALT_LENGTH 8
+using LinkSalt = std::array<uint8_t, 8>;
 
 // A multiprocess-safe database of the visited links for the browser. There
 // should be exactly one process that has write access (implemented by
@@ -66,8 +66,8 @@ class VisitedLinkCommon {
   typedef int32_t Hash;
 
   // A fingerprint or hash value that does not exist
-  static const Fingerprint null_fingerprint_;
-  static const Hash null_hash_;
+  static constexpr Fingerprint kNullFingerprint = 0;
+  static constexpr Hash kNullHash = -1;
 
   VisitedLinkCommon();
 
@@ -111,7 +111,7 @@ class VisitedLinkCommon {
     uint32_t length;
 
     // goes into salt_
-    uint8_t salt[LINK_SALT_LENGTH];
+    LinkSalt salt;
 
     // Padding to ensure the Fingerprint table is aligned. Without this, reading
     // from the table causes unaligned reads.
@@ -144,7 +144,7 @@ class VisitedLinkCommon {
   // contain endian issues.
   Fingerprint FingerprintAt(int32_t table_offset) const {
     if (!hash_table_)
-      return null_fingerprint_;
+      return kNullFingerprint;
     return UNSAFE_TODO(hash_table_[table_offset]);
   }
 
@@ -152,9 +152,8 @@ class VisitedLinkCommon {
   // same algorithm can be re-used by the table rebuilder, so you will have to
   // pass the salt as a parameter. See the non-static version above if you
   // want to use the current class' salt.
-  static Fingerprint ComputeURLFingerprint(
-      std::string_view canonical_url,
-      const uint8_t salt[LINK_SALT_LENGTH]);
+  static Fingerprint ComputeURLFingerprint(std::string_view canonical_url,
+                                           LinkSalt salt);
 
   // Computes the fingerprint of the given VisitedLink using the provided
   // per-origin `salt`.
@@ -173,7 +172,7 @@ class VisitedLinkCommon {
   // into the hashtable.
   static Hash HashFingerprint(Fingerprint fingerprint, int32_t table_length) {
     if (table_length == 0)
-      return null_hash_;
+      return kNullHash;
     return static_cast<Hash>(fingerprint % table_length);
   }
   // Uses the current hashtable.
@@ -191,7 +190,7 @@ class VisitedLinkCommon {
   int32_t table_length_ = 0;
 
   // salt used for each URL when computing the fingerprint
-  uint8_t salt_[LINK_SALT_LENGTH] = {};
+  LinkSalt salt_ = {};
 };
 
 }  // namespace visitedlink

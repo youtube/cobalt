@@ -1163,6 +1163,10 @@
     Couldn't save this info to your Google Wallet. Check your connection.
   </message>
 
+  <message name="IDS_AUTOFILL_AI_WALLET_FETCH_FAILURE_NOTIFICATION" desc="A snackbar (toast) message appearing at the top of the screen. The user sees this error if they attempt to autofill information but the request fails due to network connectivity issues." translateable="false">
+    Trouble filling your info. Check your connection.
+  </message>
+
   <!-- Prompt strings used on Android -->
   <!-- TODO: crbug.com/460410690 - Make strings translateable. -->
   <if expr="is_android">
@@ -1186,9 +1190,16 @@
     <message name="IDS_AUTOFILL_AI_ENTITY_EDITOR_DELETE_LOCAL_ENTITY_DIALOG_TEXT" desc="The text that appears beneath a 'Delete object' title. We want the 'Autofill' keyword to be as prominent as possible because that word captures the value of saved information. 'On this device': helps the user understand that information is saved locally, not in the Cloud." translateable="false" formatter_data="android_java">
       Autofill won't have this info on this device to help fill out forms
     </message>
+    <message name="IDS_AUTOFILL_AI_LOCAL_ENTITY_EDITOR_SOURCE_NOTICE" desc="The footer message in the editor dialog informing the user that their data will be stored locally on their device. 'To your device': helps the user understand that information is saved locally, not in the Cloud." translateable="false" formatter_data="android_java">
+      Your info is saved only to your device. You'll have the chance to save it to Wallet the next time you fill a relevant form.
+    </message>
+    <message name="IDS_AUTOFILL_AI_WALLET_ENTITY_EDITOR_SOURCE_NOTICE" desc="The footer message in the editor dialog informing the user that their data will be stored in the Google Wallet." translateable="false" formatter_data="android_java">
+      Your info gets saved to Google Wallet for <ph name="ACCOUNT">$1<ex>elisa.beckett@gmail.com</ex></ph>. You may use it across Google services to fill forms faster.
+    </message>
   </if>
 
   <!-- FFR Dialog -->
+  <!-- TODO: crbug.com/440488776 - Remove FFR strings once default availability is launched. -->
   <message name="IDS_AUTOFILL_AI_FFR_WHEN_ON_TITLE" desc="A sub title that highlights the benefits of using ‘enhanced autofill’. ‘More fields’ is referring to values in online forms. The user can fill more fields faster because ‘enhanced autofill’ supports more data types than standard autofill, including passports, driver’s licenses, and vehicles.">
     Fill more fields faster
   </message>
@@ -1201,8 +1212,20 @@
   <message name="IDS_AUTOFILL_AI_FFR_CONSIDER_LEARN_MORE" desc="Link for the enhanced autofill settings page to learn more about this feature.">
     learn more about enhanced autofill in settings
   </message>
+  <!-- TODO(crbug.com/467563819): Translate this string. -->
   <message name="IDS_SETTINGS_AUTOFILL_AI_PAGE_TITLE" desc="The title of the page in Settings that allows managing the enhanced autofill settings." formatter_data="android_java">
     Enhanced autofill
+  </message>
+  <!-- TODO(crbug.com/467563819): Translate this string. -->
+  <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON" desc="A title that contain a section highlighting what happens when ‘enhanced autofill’ is enabled." translateable="false" formatter_data="android_java">
+    When on
+  </message>
+  <!-- TODO(crbug.com/467563819): Translate this string. -->
+  <message name="IDS_SETTINGS_AUTOFILL_AI_THINGS_TO_CONSIDER" desc="A title that contain a section highlighting things to consider when using ‘enhanced autofill’ to improve the feature." translateable="false" formatter_data="android_java">
+    Things to consider
+  </message>
+  <message name="IDS_SETTINGS_AUTOFILL_AI_TO_CONSIDER_DATA_USAGE" desc="Bullet 1 of 2 that appears beneath the 'Things to consider' title. The point of this bullet is to convey to the user the types of data that get shared with Google to support this feature. There are 2 data types: 1) 'the page’s URL' and 2) 'content', by which we mean the words, visuals, and layout of the pages the user visits. This notion that Google is considering 'page content' is new. We want to lead with 'To offer suggestions' even though it might be a bit grammatically awkward, because we want to express the need / value before explaining the data that gets shared." formatter_data="android_java">
+    To offer suggestions and improve this feature, the page’s URL and content are shared with Google
   </message>
   <if expr="_google_chrome">
     <message name="IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION" desc="The description of the enhanced autofill button on chrome://settings/autofill." formatter_data="android_java">
@@ -1211,6 +1234,10 @@
     <message name="IDS_SETTINGS_AUTOFILL_AI_TOGGLE_SUB_LABEL" desc="The description of the setting. By 'understand forms better', we mean that when a user submits a form on a website, and if they're using enhanced autofill, this feature can offer to save the user's submitted info. When Chrome saves that info, we save the submitted values and consider the page context.">
       Chrome understands forms better and can autofill them faster for you
     </message>
+    <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_CAN_FILL_DIFFICULT_FIELDS" desc="Bullet point that appears beneath appears beneath the 'When on' title when seeing the Enhanced Autofill description page. This string explains one of the advantages users will get from enabling the feature and serves as a way to incentivize the user to do so." formatter_data="android_java">
+      Chrome can autofill difficult fields that standard autofill might miss
+    </message>
+
   </if>
   <if expr="not _google_chrome">
     <message name="IDS_SETTINGS_AUTOFILL_AI_DESCRIPTION" desc="The description of the enhanced autofill button on chrome://settings/autofill." formatter_data="android_java">
@@ -1218,6 +1245,9 @@
     </message>
     <message name="IDS_SETTINGS_AUTOFILL_AI_TOGGLE_SUB_LABEL" desc="The description of the setting. By 'understand forms better', we mean that when a user submits a form on a website, and if they're using enhanced autofill, this feature can offer to save the user's submitted info. When Chromium saves that info, we save the submitted values and consider the page context.">
       Chromium understands forms better and can autofill them faster for you
+    </message>
+    <message name="IDS_SETTINGS_AUTOFILL_AI_WHEN_ON_CAN_FILL_DIFFICULT_FIELDS" desc="Bullet point that appears beneath the 'When on' title when seeing the Enhanced Autofill description page. This string explains one of the advantages users will get from enabling the feature and serves as a way to incentivize the user to do so." formatter_data="android_java">
+      Chromium can autofill difficult fields that standard autofill might miss
     </message>
   </if>
 </grit-part>

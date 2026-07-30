@@ -132,17 +132,17 @@ bool AccountInfo::IsUnderAdvancedProtection() const {
 }
 
 std::optional<std::string_view> AccountInfo::GetFullName() const {
-  if (full_name.empty()) {
+  if (full_name_.empty()) {
     return std::nullopt;
   }
-  return full_name;
+  return full_name_;
 }
 
 std::optional<std::string_view> AccountInfo::GetGivenName() const {
-  if (given_name.empty()) {
+  if (given_name_.empty()) {
     return std::nullopt;
   }
-  return given_name;
+  return given_name_;
 }
 
 std::optional<std::string_view> AccountInfo::GetHostedDomain() const {
@@ -181,8 +181,8 @@ std::optional<gfx::Image> AccountInfo::GetAvatarImage() const {
 }
 
 #if BUILDFLAG(ENABLE_DICE_SUPPORT)
-signin_metrics::AccessPoint AccountInfo::GetLastAuthenticationAccessPoint()
-    const {
+std::optional<signin_metrics::AccessPoint>
+AccountInfo::GetLastAuthenticationAccessPoint() const {
   return access_point;
 }
 #endif  // BUILDFLAG(ENABLE_DICE_SUPPORT)
@@ -204,14 +204,14 @@ std::optional<std::string_view> AccountInfo::GetLocale() const {
 
 bool AccountInfo::IsEmpty() const {
   return CoreAccountInfo::IsEmpty() && hosted_domain_.empty() &&
-         full_name.empty() && given_name.empty() && locale.empty() &&
+         full_name_.empty() && given_name_.empty() && locale.empty() &&
          picture_url_.empty();
 }
 
 bool AccountInfo::IsValid() const {
   return !account_id.empty() && !email.empty() && !gaia.empty() &&
-         !hosted_domain_.empty() && !full_name.empty() && !given_name.empty() &&
-         !picture_url_.empty();
+         !hosted_domain_.empty() && !full_name_.empty() &&
+         !given_name_.empty() && !picture_url_.empty();
 }
 
 bool AccountInfo::UpdateWith(const AccountInfo& other) {
@@ -223,8 +223,8 @@ bool AccountInfo::UpdateWith(const AccountInfo& other) {
   bool modified = false;
   modified |= UpdateField(&gaia, other.gaia);
   modified |= UpdateField(&email, other.email, nullptr);
-  modified |= UpdateField(&full_name, other.full_name, nullptr);
-  modified |= UpdateField(&given_name, other.given_name, nullptr);
+  modified |= UpdateField(&full_name_, other.full_name_, nullptr);
+  modified |= UpdateField(&given_name_, other.given_name_, nullptr);
   modified |=
       UpdateField(&hosted_domain_, other.hosted_domain_, kNoHostedDomainFound);
   modified |= UpdateField(&locale, other.locale, nullptr);
@@ -232,7 +232,7 @@ bool AccountInfo::UpdateWith(const AccountInfo& other) {
       UpdateField(&picture_url_, other.picture_url_, kNoPictureURLFound);
   modified |= UpdateField(&is_child_account_, other.is_child_account_);
   modified |= UpdateField(&access_point, other.access_point,
-                          signin_metrics::AccessPoint::kUnknown);
+                          std::optional<signin_metrics::AccessPoint>());
   modified |= UpdateField(&is_under_advanced_protection,
                           other.is_under_advanced_protection);
   modified |= capabilities.UpdateWith(other.capabilities);
@@ -334,16 +334,16 @@ AccountInfo::Builder& AccountInfo::Builder::SetIsUnderAdvancedProtection(
 }
 
 AccountInfo::Builder& AccountInfo::Builder::SetFullName(
-    std::string_view full_name_val) {
-  CHECK(!full_name_val.empty());
-  account_info_.full_name = std::string(full_name_val);
+    std::string_view full_name) {
+  CHECK(!full_name.empty());
+  account_info_.full_name_ = std::string(full_name);
   return *this;
 }
 
 AccountInfo::Builder& AccountInfo::Builder::SetGivenName(
-    std::string_view given_name_val) {
-  CHECK(!given_name_val.empty());
-  account_info_.given_name = std::string(given_name_val);
+    std::string_view given_name) {
+  CHECK(!given_name.empty());
+  account_info_.given_name_ = std::string(given_name);
   return *this;
 }
 
@@ -455,10 +455,13 @@ base::android::ScopedJavaLocalRef<jobject> ConvertToJavaAccountInfo(
           : gfx::ConvertToJavaBitmap(
                 *account_info.account_image.AsImageSkia().bitmap());
   return signin::Java_AccountInfo_Constructor(
-      env, account_info.account_id, account_info.email, account_info.gaia,
-      account_info.full_name, account_info.given_name, hosted_domain,
+      env, account_info.GetAccountId(), std::string(account_info.GetEmail()),
+      account_info.GetGaiaId(),
+      std::string(account_info.GetFullName().value_or("")),
+      std::string(account_info.GetGivenName().value_or("")), hosted_domain,
       account_image,
-      account_info.capabilities.ConvertToJavaAccountCapabilities(env));
+      account_info.GetAccountCapabilities().ConvertToJavaAccountCapabilities(
+          env));
 }
 
 CoreAccountInfo ConvertFromJavaCoreAccountInfo(

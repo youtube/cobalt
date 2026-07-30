@@ -1,0 +1,60 @@
+# Copyright 2026 The Chromium Authors
+# Use of this source code is governed by a BSD-style license that can be
+# found in the LICENSE file.
+
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "fake_suggestions_autocomplete_controller.h",
+    "fake_suggestions_autocomplete_controller.mm",
+    "fake_suggestions_builder.h",
+    "fake_suggestions_builder.mm",
+  ]
+  deps = [
+    "//base",
+    "//components/omnibox/browser",
+    "//components/omnibox/browser:test_support",
+    "//ios/chrome/browser/autocomplete/model",
+    "//testing/gmock",
+  ]
+}
+
+source_set("eg_app_support+eg2") {
+  configs += [ "//build/config/ios:xctest_config" ]
+  testonly = true
+  sources = [
+    "autocomplete_app_interface.h",
+    "autocomplete_app_interface.mm",
+  ]
+  visibility = [ "//ios/chrome/test/earl_grey:hooks" ]
+  deps = [
+    ":test_support",
+    "//base",
+    "//ios/chrome/browser/autocomplete/model",
+    "//ios/chrome/browser/omnibox/public",
+    "//ios/chrome/browser/shared/model/browser",
+    "//ios/chrome/common:string_conversions",
+    "//ios/chrome/test/app:test_support",
+    "//ios/chrome/test/earl_grey:eg_app_support+eg2",
+    "//ios/testing/earl_grey:eg_app_support+eg2",
+    "//net",
+  ]
+}
+
+source_set("eg_test_support+eg2") {
+  configs += [ "//build/config/ios:xctest_config" ]
+  testonly = true
+  sources = [
+    "autocomplete_app_interface.h",
+    "autocomplete_app_interface_stub.mm",
+  ]
+  deps = [
+    "//base/test:test_support",
+    "//ios/chrome/common:string_conversions",
+    "//ios/chrome/test/earl_grey:eg_test_support+eg2",
+    "//ios/testing/earl_grey:eg_test_support+eg2",
+    "//net",
+    "//url",
+  ]
+  public_deps = [ "//ios/chrome/browser/omnibox/public:constants" ]
+}

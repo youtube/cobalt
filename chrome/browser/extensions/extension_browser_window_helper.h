@@ -9,24 +9,23 @@
 #include "base/scoped_observation.h"
 #include "extensions/browser/extension_registry.h"
 #include "extensions/browser/extension_registry_observer.h"
+#include "extensions/buildflags/buildflags.h"
 
+static_assert(BUILDFLAG(ENABLE_EXTENSIONS_CORE));
+
+class BrowserWindowInterface;
 class Profile;
-class TabStripModel;
-
-namespace chrome {
-class BrowserCommandController;
-}  // namespace chrome
 
 namespace extensions {
 
-// A helper object for extensions-related management for Browser* objects.
-// It is owned by `BrowserWindowFeatures`.
+// A helper object for extensions-related management for browser objects.
+// It is owned by `BrowserWindowFeatures` or `AndroidBrowserWindow`.
 class ExtensionBrowserWindowHelper : public ExtensionRegistryObserver {
  public:
-  ExtensionBrowserWindowHelper(
-      chrome::BrowserCommandController* command_controller,
-      TabStripModel* tab_strip_model,
-      Profile* profile);
+  // Takes a BrowserWindowInterface instead of TabListInterface because the tab
+  // list may not be constructed by the time this object is created.
+  ExtensionBrowserWindowHelper(BrowserWindowInterface* browser,
+                               Profile* profile);
 
   ExtensionBrowserWindowHelper(const ExtensionBrowserWindowHelper&) = delete;
   ExtensionBrowserWindowHelper& operator=(const ExtensionBrowserWindowHelper&) =
@@ -36,8 +35,6 @@ class ExtensionBrowserWindowHelper : public ExtensionRegistryObserver {
 
  private:
   // ExtensionRegistryObserver:
-  void OnExtensionLoaded(content::BrowserContext* browser_context,
-                         const Extension* extension) override;
   void OnExtensionUnloaded(content::BrowserContext* browser_context,
                            const Extension* extension,
                            UnloadedExtensionReason reason) override;
@@ -47,8 +44,7 @@ class ExtensionBrowserWindowHelper : public ExtensionRegistryObserver {
 
   // These pointers come from the associated Browser object and it will ensure
   // they outlive this object.
-  const raw_ref<chrome::BrowserCommandController> command_controller_;
-  const raw_ref<TabStripModel> tab_strip_model_;
+  const raw_ref<BrowserWindowInterface> browser_;
 
   base::ScopedObservation<ExtensionRegistry, ExtensionRegistryObserver>
       registry_observation_{this};

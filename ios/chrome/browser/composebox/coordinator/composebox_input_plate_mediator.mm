@@ -243,9 +243,6 @@ CreateInputDataFromAnnotatedPageContent(
                         prefService:(PrefService*)prefService {
   self = [super init];
   if (self) {
-    _items = [[ComposeboxInputItemCollection alloc]
-        initWithAttachmentLimit:kAttachmentLimit];
-    _items.delegate = self;
     _prefService = prefService;
     _contextualSearchSession = std::move(contextualSearchSession);
     _contextualSearchSession->NotifySessionStarted();
@@ -276,6 +273,10 @@ CreateInputDataFromAnnotatedPageContent(
       [self createInputStateModel];
       [self startInputStateObservation];
     }
+
+    _items = [[ComposeboxInputItemCollection alloc]
+        initWithAttachmentLimit:[self totalAttachmentLimit]];
+    _items.delegate = self;
   }
   return self;
 }
@@ -332,10 +333,20 @@ CreateInputDataFromAnnotatedPageContent(
 }
 
 - (BOOL)canAddMoreAttachments {
-  return [self maxNumberOfAttachmentsAllowed] > 0;
+  return [self remainingAttachmentCapacity] > 0;
 }
 
-- (NSUInteger)maxNumberOfAttachmentsAllowed {
+// The absolute value for the maximum number of attachments available,
+// regardless the type.
+- (NSUInteger)totalAttachmentLimit {
+  if (EnableComposeboxServerSideState()) {
+    return _inputState.max_total_inputs;
+  }
+
+  return kAttachmentLimit;
+}
+
+- (NSUInteger)remainingAttachmentCapacity {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
 
   NSUInteger availableSlots = _items.availableSlots;
@@ -356,6 +367,24 @@ CreateInputDataFromAnnotatedPageContent(
                  : MIN(availableSlots, kAttachmentLimitForImageGeneration);
     }
   }
+}
+
+- (NSUInteger)remainingNumberOfImagesAllowed {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+
+  int remainingAttachmentCapacity = [self remainingAttachmentCapacity];
+  if (EnableComposeboxServerSideState()) {
+    CHECK(_inputStateModel);
+    auto limits = _inputState.max_instances;
+    auto type = omnibox::InputType::INPUT_TYPE_LENS_IMAGE;
+    if (limits.count(type)) {
+      int serverLimit = limits[type];
+      int remainingSlots = serverLimit - _items.imagesCount;
+      return MIN(remainingSlots, remainingAttachmentCapacity);
+    }
+  }
+
+  return remainingAttachmentCapacity;
 }
 
 #pragma mark - ComposeboxInputPlateMutator
@@ -382,6 +411,8 @@ CreateInputDataFromAnnotatedPageContent(
   if (base::FeatureList::IsEnabled(kComposeboxAutoattachTab) && _items.empty) {
     _modeHolder.mode = ComposeboxMode::kRegularSearch;
   }
+
+  [self notifyContextChanged];
 }
 
 - (void)sendText:(NSString*)text {
@@ -513,6 +544,11 @@ CreateInputDataFromAnnotatedPageContent(
 }
 
 - (void)setModelOption:(ComposeboxModelOption)modelOption {
+  [self setModelOption:modelOption explicitUserAction:NO];
+}
+
+- (void)setModelOption:(ComposeboxModelOption)modelOption
+    explicitUserAction:(BOOL)explicitUserAction {
   using enum ComposeboxModelOption;
 
   if (_modelOption == modelOption) {
@@ -520,7 +556,10 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   _modelOption = modelOption;
-  [_consumer setModelOption:modelOption];
+
+  [self updateModel];
+
+  BOOL advancedModel = _modelOption == kAuto || _modelOption == kThinking;
   switch (modelOption) {
     case kNone:
       _inputStateModel->setActiveModel(
@@ -540,10 +579,12 @@ CreateInputDataFromAnnotatedPageContent(
     return;
   }
 
-  // TODO(crbug.com/477888273): Handle model incompatibility with composebox
-  // modes based on server-side logic.
-  if (_modeHolder.isRegularSearch) {
-    _modeHolder.mode = ComposeboxMode::kAIM;
+  // Only when the user explicitly picked the advanced model in regular mode
+  // do the switch to AIM.
+  if (explicitUserAction && advancedModel) {
+    if (_modeHolder.isRegularSearch) {
+      _modeHolder.mode = ComposeboxMode::kAIM;
+    }
   }
 }
 
@@ -590,16 +631,8 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)composeboxModeDidChange:(ComposeboxMode)mode {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
-  if (base::FeatureList::IsEnabled(
-          omnibox::kComposeboxUsesChromeComposeClient)) {
-    [self reloadSuggestions];
-  }
 
-  [self.consumer setAIModeEnabled:mode == ComposeboxMode::kAIM];
-  [self.consumer
-      setImageGenerationEnabled:mode == ComposeboxMode::kImageGeneration];
-  [self.consumer setCanvasEnabled:mode == ComposeboxMode::kCanvas];
-  [self.consumer setDeepSearchEnabled:mode == ComposeboxMode::kDeepSearch];
+  [self updateMode];
 
   switch (mode) {
     case ComposeboxMode::kRegularSearch:
@@ -617,20 +650,20 @@ CreateInputDataFromAnnotatedPageContent(
       _inputStateModel->setActiveTool(omnibox::TOOL_MODE_UNSPECIFIED);
       break;
     case ComposeboxMode::kImageGeneration:
-      if (![self isEligibleToCreateImages]) {
+      if (![self imageToolAllowed]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
       [self cleanAttachmentsForImageGeneration];
-      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_IMAGE_GEN);
+      [self updateImageGenerationToolMode];
       break;
     case ComposeboxMode::kCanvas:
-      if (![self isEligibleToCanvas]) {
+      if (![self canvasToolAllowed]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
       _inputStateModel->setActiveTool(omnibox::TOOL_MODE_CANVAS);
       break;
     case ComposeboxMode::kDeepSearch:
-      if (![self isEligibleToDeepSearch]) {
+      if (![self deepSearchToolAllowed]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
       _inputStateModel->setActiveTool(omnibox::TOOL_MODE_DEEP_SEARCH);
@@ -639,6 +672,7 @@ CreateInputDataFromAnnotatedPageContent(
 
   [self updateModelOnModeChange];
   [self commitUIUpdates];
+  [self reloadSuggestions];
 }
 
 #pragma mark - ComposeboxTabPickerSelectionDelegate
@@ -684,6 +718,26 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (NSUInteger)nonTabAttachmentCount {
   return _items.nonTabAttachmentCount;
+}
+
+- (NSUInteger)maxTabAttachmentCount {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+
+  int remainingAttachmentCapacity = [self remainingAttachmentCapacity];
+  int tabsCount = _items.tabsCount;
+  int capacityForTabs = remainingAttachmentCapacity + tabsCount;
+
+  if (EnableComposeboxServerSideState()) {
+    CHECK(_inputStateModel);
+    auto limits = _inputState.max_instances;
+    auto type = omnibox::InputType::INPUT_TYPE_BROWSER_TAB;
+    if (limits.count(type)) {
+      int serverLimit = limits[type];
+      return MIN(serverLimit, capacityForTabs);
+    }
+  }
+
+  return capacityForTabs;
 }
 
 - (void)attachSelectedTabsWithWebStateIDs:
@@ -845,6 +899,8 @@ CreateInputDataFromAnnotatedPageContent(
     _contextualSearchSession->StartTabContextUploadFlow(
         serverToken, std::move(inputData), image_options);
   }
+
+  [self notifyContextChanged];
 }
 
 // Invoked when a file context has been successfully uploaded to the server
@@ -943,6 +999,30 @@ CreateInputDataFromAnnotatedPageContent(
 }
 
 #pragma mark - Private
+
+// Updates the tool mode when in image generation mode.
+- (void)updateImageGenerationToolMode {
+  if (_modeHolder.mode != ComposeboxMode::kImageGeneration) {
+    return;
+  }
+
+  BOOL imageGenUploadMode =
+      (_items.count) > 0 && [self uploadAllowedInImageGeneration];
+
+  omnibox::ToolMode toolMode =
+      imageGenUploadMode ? omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD
+                         : omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
+  if (_inputState.active_tool != toolMode) {
+    _inputStateModel->setActiveTool(toolMode);
+  }
+}
+
+// Informs the model of a context change (e.g.; attachment added or deleted).
+- (void)notifyContextChanged {
+  if (_inputStateModel) {
+    _inputStateModel->OnContextChanged();
+  }
+}
 
 // Adds an item to the collection.
 - (void)addItem:(ComposeboxInputItem*)item {
@@ -1138,26 +1218,27 @@ CreateInputDataFromAnnotatedPageContent(
                                                         kImageGeneration];
       break;
     case ComposeboxMode::kCanvas:
-      // TODO(crbug.com/477244841): Add metrics recording for canvas.
+      [self.metricsRecorder
+          recordComposeboxFocusResultedInNavigation:_inNavigation
+                                    withAttachments:!_items.empty
+                                        requestType:AutocompleteRequestType::
+                                                        kCanvas];
       break;
     case ComposeboxMode::kDeepSearch:
-      // TODO(crbug.com/481280186): Add metrics recording for deep search.
+      [self.metricsRecorder
+          recordComposeboxFocusResultedInNavigation:_inNavigation
+                                    withAttachments:!_items.empty
+                                        requestType:AutocompleteRequestType::
+                                                        kImageGeneration];
+      break;
   }
 }
 
 // Reloads the displayed suggestions based on the attachments/modeHolder.
 - (void)reloadSuggestions {
-  BOOL shouldRestartAutocomplete = _items.empty;
+  BOOL shouldRestartAutocomplete = _items.count <= 1;
 
-  if (_items.count == 1) {
-    shouldRestartAutocomplete = YES;
-    if (_items.firstItem.type ==
-            ComposeboxInputItemType::kComposeboxInputItemTypeImage &&
-        _modeHolder.mode != ComposeboxMode::kImageGeneration) {
-      shouldRestartAutocomplete =
-          IsComposeboxFetchContextualSuggestionsForImageEnabled();
-    }
-  } else if (_items.count > 1) {
+  if (_items.count > 1) {
     shouldRestartAutocomplete =
         IsComposeboxFetchContextualSuggestionsForMultiAttachmentsEnabled();
   }
@@ -1197,6 +1278,8 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   [_items replaceWithItems:itemsToKeep];
+
+  [self notifyContextChanged];
 }
 
 // Handles the loaded preview `image` for the item with the given `identifier`.
@@ -1326,6 +1409,7 @@ CreateInputDataFromAnnotatedPageContent(
   _contextualSearchSession->StartFileContextUploadFlow(
       serverToken, fileName, kPortableNetworkGraphicMimeType, std::move(buffer),
       options);
+  [self notifyContextChanged];
 }
 
 // Uploads the `image` for the item with the given `identifier`.
@@ -1407,6 +1491,7 @@ CreateInputDataFromAnnotatedPageContent(
         serverToken, fileName, kAdobePortableDocumentFormatMimeType,
         std::move(buffer),
         /*image_options=*/std::nullopt);
+    [self notifyContextChanged];
   }
 
   // Concurrently, generate a preview for the UI.
@@ -1441,20 +1526,36 @@ CreateInputDataFromAnnotatedPageContent(
   return _aimEligibilityService->IsAimEligible();
 }
 
-// Checks if the user is eligible to create images, taking into account
-// experimental settings overrides.
-- (BOOL)isEligibleToCreateImages {
+// Checks if the user is allowed to create images, taking into account
+// eligibility and experimental settings overrides.
+- (BOOL)imageToolAllowed {
   if (experimental_flags::ShouldForceDisableComposeboxCreateImages()) {
     return NO;
   }
   if (!_aimEligibilityService) {
     return NO;
   }
-  return _aimEligibilityService->IsCreateImagesEligible();
+  BOOL generateImageAllowed =
+      [self toolAllowedInInputState:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN];
+  return generateImageAllowed &&
+         _aimEligibilityService->IsCreateImagesEligible();
 }
 
-// Whether the client is eligible to access canvas mode.
-- (BOOL)isEligibleToCanvas {
+// Whether upload is permitted when in image generation.
+- (BOOL)uploadAllowedInImageGeneration {
+  if (![self imageToolAllowed]) {
+    return NO;
+  }
+  if (EnableComposeboxServerSideState()) {
+    return [self
+        toolAllowedInInputState:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD];
+  }
+
+  return YES;
+}
+
+// Whether the client is allowed to access canvas mode.
+- (BOOL)canvasToolAllowed {
   if (!ShowComposeboxAdditionalAdvancedTools()) {
     return NO;
   }
@@ -1464,11 +1565,13 @@ CreateInputDataFromAnnotatedPageContent(
   if (!_aimEligibilityService) {
     return NO;
   }
-  return _aimEligibilityService->IsCanvasEligible();
+
+  return [self toolAllowedInInputState:omnibox::TOOL_MODE_CANVAS] &&
+         _aimEligibilityService->IsCanvasEligible();
 }
 
-// Whether the client is eligible to access deep search mode.
-- (BOOL)isEligibleToDeepSearch {
+// Whether the client is allowed to access deep search mode.
+- (BOOL)deepSearchToolAllowed {
   if (!ShowDeepSearchTool()) {
     return NO;
   }
@@ -1478,7 +1581,8 @@ CreateInputDataFromAnnotatedPageContent(
   if (!_aimEligibilityService) {
     return NO;
   }
-  return _aimEligibilityService->IsDeepSearchEligible();
+  return [self toolAllowedInInputState:omnibox::TOOL_MODE_DEEP_SEARCH] &&
+         _aimEligibilityService->IsDeepSearchEligible();
 }
 
 // Checks if the user is eligible to upload PDFs, taking into account
@@ -1493,28 +1597,85 @@ CreateInputDataFromAnnotatedPageContent(
   return _aimEligibilityService->IsPdfUploadEligible();
 }
 
-// Whether Canvas is in the list of allowed tools.
+// Whether Create Image is in the list of disabled tools.
 // If restricted, the tool will persist in the UI with a 'disabled' status,
 // pending a change in state.
-- (BOOL)imageToolAllowed {
-  BOOL allowedToGenerateImage =
-      [self allowedToUseMode:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN] &&
-      [self allowedToUseMode:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD];
+- (BOOL)imageToolDisabled {
+  BOOL generateImageDisabled =
+      [self toolDisabledInInputState:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN] ||
+      [self toolDisabledInInputState:omnibox::ToolMode::
+                                         TOOL_MODE_IMAGE_GEN_UPLOAD];
   BOOL hasTabOrFile = _items.hasTabOrFile;
-  return allowedToGenerateImage && !hasTabOrFile;
+  return generateImageDisabled || hasTabOrFile;
 }
 
-// Whether Canvas is in the list of allowed tools.
+// Whether Canvas is in the list of disabled tools.
 // If restricted, the tool will persist in the UI with a 'disabled' status,
 // pending a change in state.
-- (BOOL)canvasToolAllowed {
-  return [self allowedToUseMode:omnibox::ToolMode::TOOL_MODE_CANVAS];
+- (BOOL)canvasToolDisabled {
+  return [self toolDisabledInInputState:omnibox::ToolMode::TOOL_MODE_CANVAS];
 }
 
-- (BOOL)allowedToUseMode:(omnibox::ToolMode)toolMode {
+// Whether Deep Search is in the list of disabled tools.
+// If restricted, the tool will persist in the UI with a 'disabled' status,
+// pending a change in state.
+- (BOOL)deepSearchToolDisabled {
+  return
+      [self toolDisabledInInputState:omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH];
+}
+
+#pragma mark - InputState rules helpers
+
+// Whether the given mode is allowed in the input state.
+- (BOOL)toolAllowedInInputState:(omnibox::ToolMode)toolMode {
+  if (!EnableComposeboxServerSideState()) {
+    return YES;
+  }
   return std::find(_inputState.allowed_tools.begin(),
                    _inputState.allowed_tools.end(),
                    toolMode) != _inputState.allowed_tools.end();
+}
+
+// Whether the given mode is disabled in the input state.
+- (BOOL)toolDisabledInInputState:(omnibox::ToolMode)toolMode {
+  if (!EnableComposeboxServerSideState()) {
+    return NO;
+  }
+  return std::find(_inputState.disabled_tools.begin(),
+                   _inputState.disabled_tools.end(),
+                   toolMode) != _inputState.disabled_tools.end();
+}
+
+// Whether the given model mode is selectable.
+- (BOOL)canSelectToolBasedOnInputState:(omnibox::ToolMode)toolMode {
+  return [self toolAllowedInInputState:toolMode] &&
+         ![self toolDisabledInInputState:toolMode];
+}
+
+// Whether the given mode is allowed in the input state.
+- (BOOL)modelAllowedInInputState:(omnibox::ModelMode)modelMode {
+  if (!EnableComposeboxServerSideState()) {
+    return YES;
+  }
+  return std::find(_inputState.allowed_models.begin(),
+                   _inputState.allowed_models.end(),
+                   modelMode) != _inputState.allowed_models.end();
+}
+
+// Whether the given mode is disabled in the input state.
+- (BOOL)modelDisabledInInputState:(omnibox::ModelMode)modelMode {
+  if (!EnableComposeboxServerSideState()) {
+    return NO;
+  }
+  return std::find(_inputState.disabled_models.begin(),
+                   _inputState.disabled_models.end(),
+                   modelMode) != _inputState.disabled_models.end();
+}
+
+// Whether the given model mode is selectable.
+- (BOOL)canSelectModelBasedOnInputState:(omnibox::ModelMode)modelMode {
+  return [self modelAllowedInInputState:modelMode] &&
+         ![self modelDisabledInInputState:modelMode];
 }
 
 // The list of model options available based on the input model.
@@ -1534,6 +1695,142 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   return allowed;
+}
+
+// The list of model options disabled based on the input model.
+- (std::unordered_set<ComposeboxModelOption>)disabledModels {
+  std::unordered_set<ComposeboxModelOption> disabled = {
+      ComposeboxModelOption::kNone};
+  if (!ShowComposeboxAdditionalAdvancedTools()) {
+    return disabled;
+  }
+  for (auto modelType : _inputState.disabled_models) {
+    if (modelType == omnibox::ModelMode::MODEL_MODE_GEMINI_PRO) {
+      disabled.insert(ComposeboxModelOption::kThinking);
+    } else if (modelType ==
+               omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE) {
+      disabled.insert(ComposeboxModelOption::kAuto);
+    }
+  }
+
+  return disabled;
+}
+
+#pragma mark - Attachments availability checks
+
+// Whether the current input state disables the given input type.
+- (BOOL)inputStateDisablesType:(omnibox::InputType)inputType {
+  return std::find(_inputState.disabled_input_types.begin(),
+                   _inputState.disabled_input_types.end(),
+                   inputType) != _inputState.disabled_input_types.end();
+}
+
+// Whether the current input state allows the given input type.
+- (BOOL)inputStateAllowsType:(omnibox::InputType)inputType {
+  return std::find(_inputState.allowed_input_types.begin(),
+                   _inputState.allowed_input_types.end(),
+                   inputType) != _inputState.allowed_input_types.end();
+}
+
+// Whether the current state allows tab attachments.
+- (BOOL)tabAttachmentAllowed {
+  if (![self attachmentsAvailable]) {
+    return NO;
+  }
+  if (EnableComposeboxServerSideState()) {
+    return [self inputStateAllowsType:omnibox::INPUT_TYPE_BROWSER_TAB];
+  }
+
+  return YES;
+}
+
+// Whether the current state allows tab attachments.
+- (BOOL)fileAttachmentAllowed {
+  BOOL canUploadFiles = [self isEligibleToUploadPdf];
+  if (![self attachmentsAvailable] || !canUploadFiles) {
+    return NO;
+  }
+
+  if (EnableComposeboxServerSideState()) {
+    return [self inputStateAllowsType:omnibox::INPUT_TYPE_LENS_FILE];
+  }
+
+  return YES;
+}
+
+// Whether the current state allows image attachments.
+- (BOOL)imageAttachmentAllowed {
+  if (![self attachmentsAvailable]) {
+    return NO;
+  }
+
+  if (EnableComposeboxServerSideState() &&
+      ![self inputStateAllowsType:omnibox::INPUT_TYPE_LENS_IMAGE]) {
+    return NO;
+  }
+
+  BOOL isImageCreationMode =
+      _modeHolder.mode == ComposeboxMode::kImageGeneration;
+  if (isImageCreationMode) {
+    return [self uploadAllowedInImageGeneration];
+  }
+
+  return YES;
+}
+
+// Disables tab attachment.
+- (BOOL)tabAttachmentDisabled {
+  if (![self canAddMoreAttachments]) {
+    return YES;
+  }
+
+  if (EnableComposeboxServerSideState()) {
+    return [self inputStateDisablesType:omnibox::INPUT_TYPE_BROWSER_TAB];
+  }
+
+  BOOL isImageCreationMode =
+      _modeHolder.mode == ComposeboxMode::kImageGeneration;
+  return isImageCreationMode;
+}
+
+// Whether the current state allows tab attachments.
+- (BOOL)fileAttachmentDisabled {
+  if (![self canAddMoreAttachments]) {
+    return YES;
+  }
+
+  if (EnableComposeboxServerSideState()) {
+    return [self inputStateDisablesType:omnibox::INPUT_TYPE_LENS_FILE];
+  }
+
+  BOOL isImageCreationMode =
+      _modeHolder.mode == ComposeboxMode::kImageGeneration;
+  return isImageCreationMode;
+}
+
+// Whether the current state allows image attachments.
+- (BOOL)imageAttachmentDisabled {
+  if (![self canAddMoreAttachments]) {
+    return YES;
+  }
+
+  if (EnableComposeboxServerSideState()) {
+    return [self inputStateDisablesType:omnibox::INPUT_TYPE_LENS_IMAGE];
+  }
+
+  return NO;
+}
+
+- (BOOL)attachmentsAvailable {
+  if (![self isContentSharingEnabled]) {
+    return NO;
+  }
+
+  BOOL canSearchWithAI = [self isEligibleToAIM];
+  BOOL canCreateImage = [self imageToolAllowed];
+  BOOL canUseCanvas = [self canvasToolAllowed];
+  BOOL canUseDeepSearch = [self deepSearchToolAllowed];
+  return canUseCanvas || canCreateImage || canUseDeepSearch || canSearchWithAI;
 }
 
 - (BOOL)isDSEGoogle {
@@ -1564,13 +1861,8 @@ CreateInputDataFromAnnotatedPageContent(
 
 #pragma mark - ComposeboxOmniboxClientDelegate
 
-- (omnibox::ToolMode)composeboxToolMode {
-  if (_modeHolder.mode == ComposeboxMode::kImageGeneration) {
-    return _items.count > 0 ? omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD
-                            : omnibox::ToolMode::TOOL_MODE_IMAGE_GEN;
-  }
-
-  return omnibox::ToolMode::TOOL_MODE_UNSPECIFIED;
+- (contextual_search::InputState)inputState {
+  return _inputState;
 }
 
 - (std::optional<lens::proto::LensOverlaySuggestInputs>)suggestInputs {
@@ -1609,11 +1901,13 @@ CreateInputDataFromAnnotatedPageContent(
       [self sendText:[NSString cr_fromString16:text]];
       break;
     case ComposeboxMode::kCanvas:
-      // TODO(crbug.com/477244841): Add metrics recording for canvas.
+      [self.metricsRecorder recordAutocompleteRequestTypeAtNavigation:
+                                AutocompleteRequestType::kCanvas];
       [self sendText:[NSString cr_fromString16:text]];
       break;
     case ComposeboxMode::kDeepSearch:
-      // TODO(crbug.com/481280186): Add metrics recording for deep search.
+      [self.metricsRecorder recordAutocompleteRequestTypeAtNavigation:
+                                AutocompleteRequestType::kDeepSearch];
       [self sendText:[NSString cr_fromString16:text]];
       break;
   }
@@ -1640,13 +1934,20 @@ CreateInputDataFromAnnotatedPageContent(
 
 // Reacts to a change in the model choice.
 - (void)updateModelOnModeChange {
+  using enum ComposeboxModelOption;
   if (_modeHolder.isRegularSearch) {
-    [self setModelOption:ComposeboxModelOption::kNone];
+    [self setModelOption:kNone];
     return;
   }
 
-  if (_modelOption == ComposeboxModelOption::kNone) {
-    [self setModelOption:ComposeboxModelOption::kAuto];
+  if (_modelOption == kNone) {
+    auto allowedModels = [self allowedModels];
+    auto disabledModel = [self disabledModels];
+    BOOL autoAllowed = allowedModels.contains(kAuto);
+    BOOL autoDisabled = disabledModel.contains(kAuto);
+    if (autoAllowed && !autoDisabled) {
+      [self setModelOption:ComposeboxModelOption::kAuto];
+    }
     return;
   }
 }
@@ -1741,58 +2042,44 @@ CreateInputDataFromAnnotatedPageContent(
 
 /// Updates the consumer actions enabled/disable state.
 - (void)updateConsumerActionsState {
-  BOOL canUploadFiles = [self isEligibleToUploadPdf];
-  BOOL canCreateImage = [self isEligibleToCreateImages];
-  BOOL canSearchWithAI = [self isEligibleToAIM];
-  BOOL canUseCanvas = [self isEligibleToCanvas];
-  BOOL canUseDeepSearch = [self isEligibleToDeepSearch];
-
-  BOOL isImageCreationMode =
-      _modeHolder.mode == ComposeboxMode::kImageGeneration;
-  BOOL attachmentsAvailable =
-      (canUseCanvas || canCreateImage || canSearchWithAI) &&
-      [self isContentSharingEnabled];
-  BOOL canAddMoreAttachments = [self canAddMoreAttachments];
-
   // Image generation action.
-  [self.consumer disableCreateImageActions:![self imageToolAllowed]];
-  [self.consumer hideCreateImageActions:!canCreateImage];
+  [self.consumer disableCreateImageActions:[self imageToolDisabled]];
+  [self.consumer hideCreateImageActions:![self imageToolAllowed]];
 
   // Canvas action.
-  [self.consumer disableCanvasActions:![self canvasToolAllowed]];
-  [self.consumer hideCanvasActions:!canUseCanvas];
+  [self.consumer disableCanvasActions:[self canvasToolDisabled]];
+  [self.consumer hideCanvasActions:![self canvasToolAllowed]];
 
   // Deep search action.
-  [self.consumer hideDeepSearchActions:!canUseDeepSearch];
+  [self.consumer disableDeepSearchActions:[self deepSearchToolDisabled]];
+  [self.consumer hideDeepSearchActions:![self deepSearchToolAllowed]];
 
   // Model picker.
   // TODO(crbug.com/477888273): Handle attachment incompatibility based on
   // server-side logic.
   [self.consumer allowModelPicker:ShowComposeboxAdditionalAdvancedTools()];
   [self.consumer setAllowedModels:[self allowedModels]];
+  [self.consumer setDisabledModels:[self disabledModels]];
 
   // Add tabs action.
-  [self.consumer
-      disableAttachTabActions:isImageCreationMode || !canAddMoreAttachments];
-  [self.consumer hideAttachTabActions:!attachmentsAvailable];
+  [self.consumer disableAttachTabActions:[self tabAttachmentDisabled]];
+  [self.consumer hideAttachTabActions:![self tabAttachmentAllowed]];
 
   // Add files action.
-  [self.consumer
-      disableAttachFileActions:isImageCreationMode || !canAddMoreAttachments];
-  [self.consumer
-      hideAttachFileActions:!canUploadFiles || !attachmentsAvailable];
+  [self.consumer disableAttachFileActions:[self fileAttachmentDisabled]];
+  [self.consumer hideAttachFileActions:![self fileAttachmentAllowed]];
 
   // Add pictures from user gallery action.
-  [self.consumer disableGalleryActions:!canAddMoreAttachments];
-  [self.consumer hideGalleryActions:!attachmentsAvailable];
+  [self.consumer disableGalleryActions:[self imageAttachmentDisabled]];
+  [self.consumer hideGalleryActions:![self imageAttachmentAllowed]];
 
   // Add picture from camera action.
-  [self.consumer disableCameraActions:!canAddMoreAttachments];
-  [self.consumer hideCameraActions:!attachmentsAvailable];
+  [self.consumer disableCameraActions:[self imageAttachmentDisabled]];
+  [self.consumer hideCameraActions:![self imageAttachmentAllowed]];
 
   // Set the number of attachments that can still be added.
   [self.consumer
-      setRemainingAttachmentCapacity:[self maxNumberOfAttachmentsAllowed]];
+      setRemainingAttachmentCapacity:[self remainingAttachmentCapacity]];
 }
 
 /// Updates the consumer items and maybe trigger AIM.
@@ -1808,6 +2095,27 @@ CreateInputDataFromAnnotatedPageContent(
         recordAiModeActivationSource:AiModeActivationSource::kImplicit];
     _modeHolder.mode = ComposeboxMode::kAIM;
   }
+}
+
+// Updates the UI for the visible mode.
+- (void)updateMode {
+  auto mode = _modeHolder.mode;
+  [self.consumer setAIModeEnabled:mode == ComposeboxMode::kAIM];
+  [self.consumer
+      setImageGenerationEnabled:mode == ComposeboxMode::kImageGeneration];
+  [self.consumer setCanvasEnabled:mode == ComposeboxMode::kCanvas];
+  [self.consumer setDeepSearchEnabled:mode == ComposeboxMode::kDeepSearch];
+}
+
+// Updates the UI for the current model.
+- (void)updateModel {
+  // In regular
+  if (_modeHolder.isRegularSearch) {
+    [_consumer setModelOption:ComposeboxModelOption::kNone];
+    return;
+  }
+
+  [_consumer setModelOption:_modelOption];
 }
 
 /// Updates the consumer whether to show in compact mode.
@@ -1836,6 +2144,8 @@ CreateInputDataFromAnnotatedPageContent(
   [self updateButtonsVisibility];
   [self updateConsumerActionsState];
   [self updateCompactMode];
+  [self updateModel];
+  [self updateMode];
 
   _isUpdatingCompactMode = NO;
 }
@@ -1896,20 +2206,15 @@ CreateInputDataFromAnnotatedPageContent(
 - (void)applyPreselection:
             (const contextual_search::InputState&)preselectionState
         forReferenceState:(const contextual_search::InputState&)referenceState {
-  bool allows_model = std::find(referenceState.allowed_models.begin(),
-                                referenceState.allowed_models.end(),
-                                preselectionState.active_model) !=
-                      referenceState.allowed_models.end();
-  if (allows_model) {
+  bool canSelectModel =
+      [self canSelectModelBasedOnInputState:preselectionState.active_model];
+  if (canSelectModel) {
     _inputStateModel->setActiveModel(preselectionState.active_model);
   }
 
-  bool allows_tool = std::find(referenceState.allowed_tools.begin(),
-                               referenceState.allowed_tools.end(),
-                               preselectionState.active_tool) !=
-                     referenceState.allowed_tools.end();
-
-  if (allows_tool) {
+  bool canSelectTool =
+      [self canSelectToolBasedOnInputState:preselectionState.active_tool];
+  if (canSelectTool) {
     _inputStateModel->setActiveTool(preselectionState.active_tool);
   }
 }
@@ -1970,6 +2275,7 @@ CreateInputDataFromAnnotatedPageContent(
     (ComposeboxInputItemCollection*)composeboxInputItemCollection {
   [self updateConsumerItems];
   [self commitUIUpdates];
+  [self updateImageGenerationToolMode];
 }
 
 #pragma mark - VoiceSearchDelegate

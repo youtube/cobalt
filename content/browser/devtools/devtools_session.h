@@ -55,6 +55,8 @@ class DevToolsSession : public protocol::FrontendChannel,
                         public DevToolsExternalAgentProxy,
                         public content::DevToolsAgentHostClientChannel {
  public:
+  static int GetRootSessionCount();
+
   // For sessions attached to the Tab target, the mode is set to TabTarget.
   // For other sessions, the mode is inherited from the parent.
   // This is used as an indication that the client has opted in into using
@@ -260,7 +262,10 @@ class DevToolsSession : public protocol::FrontendChannel,
       child_sessions_;
   base::OnceClosure runtime_resume_;
   raw_ptr<DevToolsExternalAgentProxyDelegate> proxy_delegate_ = nullptr;
-  base::ObserverList<ChildObserver, true, false> child_observers_;
+  base::ObserverList<ChildObserver,
+                     true,
+                     base::ObserverListReentrancyPolicy::kDisallowReentrancy>
+      child_observers_;
   mojo::Remote<network::mojom::DurableMessageCollector>
       durable_message_collector_;
 

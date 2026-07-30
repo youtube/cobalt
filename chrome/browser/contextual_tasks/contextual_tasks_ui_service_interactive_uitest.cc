@@ -12,10 +12,10 @@
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service_factory.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
 #include "chrome/browser/ui/browser_tabstrip.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/interactive_test_utils.h"
@@ -127,6 +127,10 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
                                      browser()->GetWeakPtr());
 
         EXPECT_TRUE(observer.was_inserted());
+      }),
+      Do([&]() {
+        // Close side panel.
+        coordinator->Close();
       }));
   browser()->tab_strip_model()->RemoveObserver(&observer);
 
@@ -136,6 +140,8 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
                 "ContextualTasks.AiResponse.UserAction.LinkClicked.Panel"),
             1);
   histogram_tester.ExpectUniqueSample("ContextualTasks.ActiveTasksCount", 1, 1);
+  histogram_tester.ExpectUniqueSample("ContextualTasks.Session.Completed", true,
+                                      1);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
@@ -210,6 +216,9 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
       ContextualTasksPanelController::From(browser());
   EXPECT_TRUE(coordinator->IsPanelOpenForContextualTask());
 
+  base::HistogramTester histogram_tester;
+  base::UserActionTester user_action_tester;
+
   // Verify the new tab can navigation back.
   EXPECT_TRUE(browser()
                   ->GetActiveTabInterface()
@@ -229,6 +238,15 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,
 
   // Verify the side panel is closed.
   EXPECT_FALSE(coordinator->IsPanelOpenForContextualTask());
+
+  // Verify metrics recorded.
+  histogram_tester.ExpectUniqueSample(
+      "ContextualTasks.BackButton.UserAction.NavigatedFromSidePanelToFullTab",
+      true, 1);
+  EXPECT_EQ(
+      user_action_tester.GetActionCount("ContextualTasks.BackButton.UserAction."
+                                        "NavigatedFromSidePanelToFullTab"),
+      1);
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksUiServiceInteractiveUiTest,

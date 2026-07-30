@@ -7,14 +7,14 @@
 
 #import <UIKit/UIKit.h>
 
-#import "ios/chrome/browser/content_suggestions/tab_resumption/ui/tab_resumption_consumer.h"
-
 @protocol TabResumptionCommands;
-@protocol TabResumptionConsumer;
 @class TabResumptionItem;
 
+/// TODO(crbug.com/482377120): Consider refactoring to use an `IconDetailView`
+/// as the main content view for this Magic Stack card.
+
 // A view that displays a tab resumption item in the Magic Stack.
-@interface TabResumptionView : UIView <TabResumptionConsumer>
+@interface TabResumptionView : UIView
 
 // Initialize a TabResumptionView with the given `item`.
 - (instancetype)initWithItem:(TabResumptionItem*)item;

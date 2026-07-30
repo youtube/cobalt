@@ -695,7 +695,7 @@ OSExchangeDataProviderWin::GetVirtualFilenames() const {
 
   // On dragenter scenarios, need a placeholder file path for drag metadata
   // checks without actually creating the temp file.
-  base::FilePath temp_path(FILE_PATH_LITERAL("temp.tmp"));
+  const base::FilePath temp_path(kVirtualFileTempPlaceholderPath);
 
   std::vector<FileInfo> result;
   for (const auto& display_name : display_names.value()) {
@@ -794,17 +794,9 @@ bool OSExchangeDataProviderWin::HasCustomFormat(
 
 void OSExchangeDataProviderWin::SetDownloadFileInfo(
     DownloadFileInfo* download) {
-  // If the filename is not provided, set storage to NULL to indicate that
-  // the delay rendering will be used.
-  // TODO(dcheng): Is it actually possible for filename to be empty here? I
-  // think we always synthesize one in WebContentsDragWin.
-  STGMEDIUM storage = kNullStorageMedium;
-  if (!download->filename.empty()) {
-    clipboard_util::CreateStorageForFileNames(
-        {FileInfo(download->filename, base::FilePath())});
-  }
-
   // Add CF_HDROP.
+  // Set storage to NULL to indicate that the delay rendering will be used.
+  STGMEDIUM storage = kNullStorageMedium;
   auto info = DataObjectImpl::StoredDataInfo::TakeStorageMedium(
       ClipboardFormatType::CFHDropType().ToFormatEtc(), storage);
   info->downloader = std::move(download->downloader);

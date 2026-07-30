@@ -8,6 +8,7 @@
 <translation id="1073417869336441572">Ajude a melhorar o Chrome informando por que você permitiu cookies de terceiros. <ph name="BEGIN_LINK" />Enviar feedback<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Você pode pedir para ver a versão para computador dos sites</translation>
 <translation id="1085696779717592361">Usar o Chrome por padrão</translation>
+<translation id="1126523729897810826">Para aproveitar o Chrome ao máximo, use as configurações sugeridas abaixo.</translation>
 <translation id="113098737392899175">Acessar páginas com um cursor de texto quando um teclado está conectado</translation>
 <translation id="1149644372535087155">Salvar senhas no Chrome</translation>
 <translation id="1178015372320901893">Página inferior "Meus atalhos"</translation>
@@ -39,6 +40,7 @@
 <translation id="1415855080660575082">Permita que o Chrome compartilhe suas guias recentes com o dispositivo para que elas apareçam na lista de apps e nos resultados da pesquisa do aparelho. É possível ativar ou desativar essa opção nas configurações do Chrome.</translation>
 <translation id="1420688843103859429">Deslize com os dois dedos no touchpad para avançar ou voltar</translation>
 <translation id="1432650420699700107">Os sites podem pedir para se conectar a qualquer dispositivo na sua rede local</translation>
+<translation id="1442081309487427303">Ativar links no Modo de Leitura</translation>
 <translation id="1448064542941920355">Diminuir zoom</translation>
 <translation id="1464044141348608623">Não permitir que sites saibam quando você está usando o dispositivo ativamente</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> site}one{<ph name="SITE_COUNT" /> site}other{<ph name="SITE_COUNT" /> sites}}</translation>
@@ -52,6 +54,7 @@
 <translation id="1569054338208717605">Tornar os sites mais rápidos com o mecanismo V8 do Chrome, mas deixar o navegador um pouco menos resistente a ataques</translation>
 <translation id="1593426485665524382">Novas ações disponíveis perto da parte de cima da tela</translation>
 <translation id="1594521731409209842">Faça o gesto de pinça na tela para redimensionar a foto</translation>
+<translation id="1599268789440304082">A página de configurações está aberta</translation>
 <translation id="1601560923496285236">Aplicar</translation>
 <translation id="1615755956145364867">Os sites podem pedir para reproduzir conteúdo protegido</translation>
 <translation id="1620510694547887537">Câmera</translation>
@@ -73,6 +76,7 @@
 <translation id="1766455884659449403">Ative as notificações das dicas do Chrome</translation>
 <translation id="1777815584158991902">Página inferior do feed do Discover</translation>
 <translation id="1779089405699405702">Decodificador de imagem</translation>
+<translation id="1781533683087883868">Desativar links no Modo de Leitura</translation>
 <translation id="1785415724048343560">Recomendado para melhorar a experiência</translation>
 <translation id="1796588414813960292">Os recursos que precisam de som não funcionarão</translation>
 <translation id="1799920918471566157">Dicas do Chrome</translation>
@@ -293,6 +297,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="3903738175795615004">Para sair da tela cheia, arraste a parte de cima da tela ou pressione a tecla Esc.</translation>
 <translation id="3905475044299942653">Parar muitas notificações</translation>
 <translation id="3922092564198021702">No smartphone, acesse as Configurações.</translation>
+<translation id="3924858949939391676">Mostrar links quando o Modo de Leitura estiver ativado</translation>
 <translation id="3933121352599513978">Fechar solicitações indesejadas (recomendado)</translation>
 <translation id="3934905113567851655">Faça um gesto de pinça para redimensionar</translation>
 <translation id="3955193568934677022">Permitir que os sites mostrem conteúdo protegido (recomendado)</translation>
@@ -311,6 +316,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="4046123991198612571">Próxima faixa</translation>
 <translation id="4077310749977440510">Os sites geralmente leem a área de transferência para uso em recursos como manter a formatação do texto copiado</translation>
 <translation id="4082080074595021446">As exceções para sites específicos não foram permitidas porque o dispositivo Android não tem RAM suficiente.</translation>
+<translation id="4089304748532599471">Algumas configurações do Chrome mudaram</translation>
 <translation id="4149890623864272035">Você quer mesmo excluir todos os dados locais, incluindo cookies, e redefinir todas as permissões deste site?</translation>
 <translation id="4149994727733219643">Versão simplificada das páginas da Web</translation>
 <translation id="4151930093518524179">Zoom padrão</translation>
@@ -346,8 +352,11 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="4478158430052450698">Facilitar a personalização do zoom para sites diferentes</translation>
 <translation id="4479647676395637221">Perguntar antes de permitir que sites usem sua câmera (recomendado)</translation>
 <translation id="4505788138578415521">URL expandido</translation>
+<translation id="4522570452068850558">Saiba mais</translation>
 <translation id="4523472416386354622">Fazer login para começar</translation>
+<translation id="4529207923544043455">A página inferior está mostrando as tarefas concluídas e pendentes na lista de configurações</translation>
 <translation id="4534723447064627427">Para permitir que o app <ph name="APP_NAME" /> acesse seu microfone, também é preciso ativá-lo nas <ph name="BEGIN_LINK" />configurações do Android<ph name="END_LINK" />.</translation>
+<translation id="4545694195887112015">A página de configurações foi fechada</translation>
 <translation id="4566417217121906555">Desativar microfone</translation>
 <translation id="4570913071927164677">Detalhes</translation>
 <translation id="4578289292431526768">Vamos lá</translation>
@@ -356,6 +365,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="4644713492825682049">Excluir e redefinir</translation>
 <translation id="4645575059429386691">Gerenciado pelos seus pais</translation>
 <translation id="4652266463001779298">Sem permissão</translation>
+<translation id="4655846733459137112">Toque em Sim para facilitar o uso dessa senha na próxima vez que você fizer login</translation>
 <translation id="4663373278480897665">Câmera permitida</translation>
 <translation id="4670064810192446073">Realidade virtual</translation>
 <translation id="4672315773691449562">Toque em "App de navegação" e em "Chrome"</translation>
@@ -462,6 +472,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="5804241973901381774">Permissões</translation>
 <translation id="5817042798620209981">Caixa de diálogo de informações do site</translation>
 <translation id="5822675474983796325">A página inferior "Personalizar 'Nova guia'" está aberta no tamanho máximo</translation>
+<translation id="5826403277762134844">Página inferior com instruções para salvar senhas no Chrome</translation>
 <translation id="5833899990800318936">Não permitir que os sites usem JavaScript</translation>
 <translation id="583673505367439042">Os sites podem pedir para editar arquivos e pastas no dispositivo</translation>
 <translation id="5844448279347999754">Quando essa configuração está ativada, os sites podem pedir para acessar texto e imagens na sua área de transferência. Quando está desativada, os sites não podem acessar texto e imagens na sua área de transferência.</translation>
@@ -641,6 +652,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="775043444390799886">Revogar permissão</translation>
 <translation id="7758789811447313947">Tema violeta</translation>
 <translation id="7759147511335618829">Controle e reprogramação de dispositivos MIDI</translation>
+<translation id="7771089277295008211">A página inferior com instruções para salvar senhas foi fechada</translation>
 <translation id="7781829728241885113">Ontem</translation>
 <translation id="7791543448312431591">Adicionar</translation>
 <translation id="780301667611848630">Agora não</translation>
@@ -658,6 +670,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="7940722705963108451">Lembrar</translation>
 <translation id="7948081750384205628">Saiba mais sobre <ph name="SETTING_TITLE" /></translation>
 <translation id="7952708427581814389">Os sites podem pedir para acessar texto e imagens na sua área de transferência</translation>
+<translation id="7958779728312669715">A página inferior com instruções para salvar senhas foi aberta por completo</translation>
 <translation id="798299424881500862">Tema laranja</translation>
 <translation id="7986741934819883144">Selecione um contato</translation>
 <translation id="7990211076305263060">Quando essa configuração está ativada, os sites podem pedir para usar o microfone. Quando está desativada, os sites não podem usar o microfone.</translation>
@@ -678,6 +691,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="8117244575099414087">Quando essa configuração está ativada, os sites podem usar os sensores do dispositivo. Quando está desativada, os sites não podem usar sensores.</translation>
 <translation id="813082847718468539">Ver informações do site</translation>
 <translation id="8131740175452115882">Confirmar</translation>
+<translation id="8148160259207090265">Essa configuração vai continuar ativada enquanto a Proteção Avançada estiver habilitada nas configurações do Android.</translation>
 <translation id="8163152278172770963">Não permitir que os sites entrem no modo picture-in-picture automaticamente</translation>
 <translation id="8168435359814927499">Conteúdo</translation>
 <translation id="818487310457576362">Arraste da lateral da tela para sair do modo de tela cheia.</translation>
@@ -707,6 +721,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="8441146129660941386">Voltar</translation>
 <translation id="8444433999583714703">Para permitir que o app <ph name="APP_NAME" /> acesse seu local, ative-o também nas <ph name="BEGIN_LINK" />configurações do Android<ph name="END_LINK" />.</translation>
 <translation id="8447861592752582886">Revogar permissão do dispositivo</translation>
+<translation id="8463843545738141778">Essa configuração está desativada porque você ativou a Proteção Avançada nas configurações do Android.</translation>
 <translation id="8467359479529706065">A página inferior de aparência da página "Nova guia" está aberta na metade da altura</translation>
 <translation id="8471525937465764768">Os sites geralmente se conectam a dispositivos USB para recursos como imprimir um documento ou salvar em um dispositivo de armazenamento</translation>
 <translation id="8473055640493819707">O app <ph name="APP_NAME" /> está desatualizado e precisa ser reinstalado.</translation>
@@ -738,6 +753,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="8719283222052720129">Ative a permissão para o app <ph name="APP_NAME" /> nas <ph name="BEGIN_LINK" />configurações do Android<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">Quando essa configuração está ativada, os sites podem pedir para procurar dispositivos Bluetooth. Quando está desativada, os sites não podem procurar dispositivos Bluetooth.</translation>
 <translation id="8725066075913043281">Tentar novamente</translation>
+<translation id="8727043961453758442">Aproveite o Chrome</translation>
 <translation id="8730621377337864115">Concluído</translation>
 <translation id="8737426583868847403">Os sites que você salvar com um nível de zoom personalizado vão aparecer aqui</translation>
 <translation id="8748714929822124637">Não permitir que os sites acessem outros dispositivos na sua rede local</translation>
@@ -754,6 +770,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="8889294078294184559">Conforme você navega, eles podem verificar com o navegador e o site visitado anteriormente que você é uma pessoa real</translation>
 <translation id="8899807382908246773">Anúncios invasivos</translation>
 <translation id="8903921497873541725">Aumentar zoom</translation>
+<translation id="8919911527569629802">Faça login em qualquer site</translation>
 <translation id="8921772741368021346"><ph name="POSITION" /> / <ph name="DURATION" /></translation>
 <translation id="8926389886865778422">Não perguntar novamente</translation>
 <translation id="8926666909099850184">A NFC está desativada neste dispositivo. Ative-a nas <ph name="BEGIN_LINK" />configurações do Android<ph name="END_LINK" />.</translation>
@@ -781,6 +798,7 @@ A Proteção Avançada controla estas configurações do Chrome:
 <translation id="9182556968660520230">Não permitir que os sites reproduzam conteúdo protegido</translation>
 <translation id="947156494302904893">Os sites que você visita podem verificar que você é uma pessoa real, e não um bot</translation>
 <translation id="959682366969460160">Organize-se</translation>
+<translation id="960590623979248167">Mostrar hiperlinks</translation>
 <translation id="961930410699694996">Localização permitida apenas desta vez</translation>
 <translation id="967624055006145463">Dados armazenados</translation>
 <translation id="969975166333045662">Impedir que o site use o otimizador V8.</translation>

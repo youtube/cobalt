@@ -18,7 +18,9 @@ import static org.mockito.Mockito.when;
 
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM_NUM_ACTIVITIES_DESKTOP_WINDOW;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM_NUM_INSTANCES_DESKTOP_WINDOW;
+import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION;
 import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.INVALID_TASK_ID;
+import static org.chromium.chrome.browser.multiwindow.MultiWindowUtils.PERSISTENT_STATE_ID;
 import static org.chromium.chrome.browser.url_constants.UrlConstantResolver.getOriginalNativeNtpUrl;
 
 import android.app.Activity;
@@ -26,6 +28,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
 import android.os.Build.VERSION_CODES;
+import android.os.PersistableBundle;
 import android.util.SparseIntArray;
 
 import androidx.test.core.app.ApplicationProvider;
@@ -44,7 +47,6 @@ import org.robolectric.annotation.Config;
 import org.robolectric.annotation.Implementation;
 import org.robolectric.annotation.Implements;
 
-import org.chromium.base.FeatureOverrides;
 import org.chromium.base.SysUtils;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
@@ -60,6 +62,7 @@ import org.chromium.chrome.browser.homepage.HomepageManager;
 import org.chromium.chrome.browser.incognito.IncognitoUtils;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.InstanceAllocationType;
 import org.chromium.chrome.browser.multiwindow.MultiInstanceManager.PersistedInstanceType;
+import org.chromium.chrome.browser.multiwindow.MultiWindowUtils.PersistentStateIdVerification;
 import org.chromium.chrome.browser.multiwindow.MultiWindowUtilsUnitTest.ShadowMultiInstanceManagerApi31;
 import org.chromium.chrome.browser.preferences.ChromePreferenceKeys;
 import org.chromium.chrome.browser.preferences.ChromeSharedPreferences;
@@ -81,11 +84,8 @@ import org.chromium.url.GURL;
 
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
 
 /** Unit tests for {@link MultiWindowUtils}. */
 @RunWith(BaseRobolectricTestRunner.class)
@@ -1088,25 +1088,6 @@ public class MultiWindowUtilsUnitTest {
     }
 
     @Test
-    @DisableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
-    public void testMaxInstances_DisableInstanceLimitDisabled() {
-        // Verify instance limit on Android S- devices.
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(false);
-        assertEquals(
-                "Instance limit for Android S- devices is incorrect.",
-                3,
-                MultiWindowUtils.getMaxInstances());
-
-        // Verify instance limit when FF is disabled.
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-        assertEquals(
-                "Instance limit when feature is disabled is incorrect.",
-                5,
-                MultiWindowUtils.getMaxInstances());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
     public void testMaxInstances_DefaultValues() {
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
 
@@ -1128,103 +1109,6 @@ public class MultiWindowUtilsUnitTest {
     }
 
     @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
-    public void testMaxInstances_CustomInstanceLimit_HighMemoryDevice() {
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-        Map<String, Integer> featureParams = new HashMap<>();
-        featureParams.put("max_instance_limit", 50);
-        updateFeatureParams(ChromeFeatureList.DISABLE_INSTANCE_LIMIT, featureParams);
-
-        assertEquals(
-                "Instance limit on high-memory device is incorrect.",
-                50,
-                MultiWindowUtils.getMaxInstances());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
-    public void testMaxInstances_CustomInstanceLimit_LowMemoryDevice() {
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-        SysUtils.setAmountOfPhysicalMemoryKbForTesting(
-                4000 * ConversionUtils.KILOBYTES_PER_MEGABYTE);
-        Map<String, Integer> featureParams = new HashMap<>();
-        featureParams.put("max_instance_limit", 50);
-        updateFeatureParams(ChromeFeatureList.DISABLE_INSTANCE_LIMIT, featureParams);
-
-        assertEquals(
-                "Instance limit on high-memory device is incorrect.",
-                5,
-                MultiWindowUtils.getMaxInstances());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
-    public void testMaxInstances_CustomMemoryThreshold_HighMemoryDevice() {
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-        SysUtils.setAmountOfPhysicalMemoryKbForTesting(
-                8500 * ConversionUtils.KILOBYTES_PER_MEGABYTE);
-        Map<String, Integer> featureParams = new HashMap<>();
-        featureParams.put("max_instance_limit_memory_threshold_mb", 8000);
-        updateFeatureParams(ChromeFeatureList.DISABLE_INSTANCE_LIMIT, featureParams);
-
-        assertEquals(
-                "Instance limit on high-memory device is incorrect.",
-                20,
-                MultiWindowUtils.getMaxInstances());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
-    public void testMaxInstances_CustomMemoryThreshold_LowMemoryDevice() {
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-        SysUtils.setAmountOfPhysicalMemoryKbForTesting(
-                7500 * ConversionUtils.KILOBYTES_PER_MEGABYTE);
-        Map<String, Integer> featureParams = new HashMap<>();
-        featureParams.put("max_instance_limit_memory_threshold_mb", 8000);
-        updateFeatureParams(ChromeFeatureList.DISABLE_INSTANCE_LIMIT, featureParams);
-
-        assertEquals(
-                "Instance limit on low-memory device is incorrect.",
-                5,
-                MultiWindowUtils.getMaxInstances());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
-    public void testMaxInstances_CustomInstanceLimit_CustomMemoryThreshold_HighMemoryDevice() {
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-        SysUtils.setAmountOfPhysicalMemoryKbForTesting(
-                8500 * ConversionUtils.KILOBYTES_PER_MEGABYTE);
-        Map<String, Integer> featureParams = new HashMap<>();
-        featureParams.put("max_instance_limit", 50);
-        featureParams.put("max_instance_limit_memory_threshold_mb", 8000);
-        updateFeatureParams(ChromeFeatureList.DISABLE_INSTANCE_LIMIT, featureParams);
-
-        assertEquals(
-                "Instance limit on high-memory device is incorrect.",
-                50,
-                MultiWindowUtils.getMaxInstances());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
-    public void testMaxInstances_CustomInstanceLimit_CustomMemoryThreshold_LowMemoryDevice() {
-        MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
-        SysUtils.setAmountOfPhysicalMemoryKbForTesting(
-                7500 * ConversionUtils.KILOBYTES_PER_MEGABYTE);
-        Map<String, Integer> featureParams = new HashMap<>();
-        featureParams.put("max_instance_limit", 50);
-        featureParams.put("max_instance_limit_memory_threshold_mb", 8000);
-        updateFeatureParams(ChromeFeatureList.DISABLE_INSTANCE_LIMIT, featureParams);
-
-        assertEquals(
-                "Instance limit on low-memory device is incorrect.",
-                5,
-                MultiWindowUtils.getMaxInstances());
-    }
-
-    @Test
-    @EnableFeatures(ChromeFeatureList.DISABLE_INSTANCE_LIMIT)
     public void testMaxInstances_DesktopDevice() {
         mOverrideContextWrapperTestRule.setIsDesktop(true);
         MultiWindowUtils.setMultiInstanceApi31EnabledForTesting(true);
@@ -1234,12 +1118,86 @@ public class MultiWindowUtilsUnitTest {
                 MultiWindowUtils.getMaxInstances());
     }
 
-    private void updateFeatureParams(String feature, Map<String, Integer> featureParams) {
-        FeatureOverrides.Builder overrides = FeatureOverrides.newBuilder().enable(feature);
-        for (Entry<String, Integer> entry : featureParams.entrySet()) {
-            overrides = overrides.param(entry.getKey(), entry.getValue());
-        }
-        overrides.apply();
+    @Test
+    public void testVerifyLatestPersistentStateId_InvalidWindowId() {
+        var watcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                        PersistentStateIdVerification.NO_PERSISTENT_STATE_NOR_ID);
+        MultiWindowUtils.verifyLatestPersistentStateId(TabWindowManager.INVALID_WINDOW_ID, null);
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testVerifyLatestPersistentStateId_NoPersistentStateNorId() {
+        int windowId = INSTANCE_ID_0;
+        // Ensure no id is stored.
+        MultiInstancePersistentStore.deleteInstanceState(windowId);
+
+        var watcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                        PersistentStateIdVerification.NO_PERSISTENT_STATE_NOR_ID);
+        MultiWindowUtils.verifyLatestPersistentStateId(windowId, null);
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testVerifyLatestPersistentStateId_MissingPersistentState() {
+        int windowId = INSTANCE_ID_0;
+        MultiInstancePersistentStore.writeLatestPersistentStateId(windowId, 123);
+
+        var watcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                        PersistentStateIdVerification.MISSING_PERSISTENT_STATE);
+        MultiWindowUtils.verifyLatestPersistentStateId(windowId, null);
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testVerifyLatestPersistentStateId_MissingPersistentStateId() {
+        int windowId = INSTANCE_ID_0;
+        MultiInstancePersistentStore.deleteInstanceState(windowId);
+
+        var watcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                        PersistentStateIdVerification.MISSING_PERSISTENT_STATE_ID);
+        MultiWindowUtils.verifyLatestPersistentStateId(windowId, new PersistableBundle());
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testVerifyLatestPersistentStateId_Match() {
+        int windowId = INSTANCE_ID_0;
+        PersistableBundle bundle = new PersistableBundle();
+        int persistentStateId = bundle.hashCode();
+        bundle.putInt(PERSISTENT_STATE_ID, persistentStateId);
+        MultiInstancePersistentStore.writeLatestPersistentStateId(windowId, persistentStateId);
+
+        var watcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                        PersistentStateIdVerification.PERSISTENT_STATE_MATCH);
+        MultiWindowUtils.verifyLatestPersistentStateId(windowId, bundle);
+        watcher.assertExpected();
+    }
+
+    @Test
+    public void testVerifyLatestPersistentStateId_Mismatch() {
+        int windowId = INSTANCE_ID_0;
+        PersistableBundle bundle = new PersistableBundle();
+        int persistentStateId = bundle.hashCode();
+        bundle.putInt(PERSISTENT_STATE_ID, persistentStateId + 1);
+        MultiInstancePersistentStore.writeLatestPersistentStateId(windowId, persistentStateId);
+
+        var watcher =
+                HistogramWatcher.newSingleRecordWatcher(
+                        HISTOGRAM_PERSISTENT_STATE_ID_VERIFICATION,
+                        PersistentStateIdVerification.PERSISTENT_STATE_MISMATCH);
+        MultiWindowUtils.verifyLatestPersistentStateId(windowId, bundle);
+        watcher.assertExpected();
     }
 
     private void testRecordTabCountForRelaunchWhenActivityPausedImpl(int windowId) {

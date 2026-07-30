@@ -44,6 +44,7 @@
 #import "components/translate/core/browser/translate_manager.h"
 #import "components/trusted_vault/trusted_vault_server_constants.h"
 #import "components/webauthn/ios/ios_passkey_client.h"
+#import "components/webauthn/ios/ios_passkey_client_commands.h"
 #import "ios/chrome/browser/app_launcher/model/app_launcher_tab_helper_browser_presentation_provider.h"
 #import "ios/chrome/browser/app_store_rating/model/features.h"
 #import "ios/chrome/browser/authentication/signin/non_modal_promo/coordinator/non_modal_signin_promo_coordinator.h"
@@ -117,7 +118,7 @@
 #import "ios/chrome/browser/download/model/pass_kit_tab_helper.h"
 #import "ios/chrome/browser/download/ui/features.h"
 #import "ios/chrome/browser/drive_file_picker/coordinator/root_drive_file_picker_coordinator.h"
-#import "ios/chrome/browser/enterprise/data_controls/coordinator/data_controls_dialog_coordinator.h"
+#import "ios/chrome/browser/enterprise/enterprise_dialog/coordinator/enterprise_dialog_coordinator.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_factory.h"
 #import "ios/chrome/browser/feature_engagement/model/tracker_util.h"
 #import "ios/chrome/browser/file_upload_panel/coordinator/file_upload_panel_coordinator.h"
@@ -239,10 +240,11 @@
 #import "ios/chrome/browser/shared/public/commands/contextual_panel_entrypoint_iph_commands.h"
 #import "ios/chrome/browser/shared/public/commands/contextual_sheet_commands.h"
 #import "ios/chrome/browser/shared/public/commands/country_code_picker_commands.h"
-#import "ios/chrome/browser/shared/public/commands/data_controls_commands.h"
+#import "ios/chrome/browser/shared/public/commands/docking_promo_commands.h"
 #import "ios/chrome/browser/shared/public/commands/download_list_commands.h"
 #import "ios/chrome/browser/shared/public/commands/drive_file_picker_commands.h"
 #import "ios/chrome/browser/shared/public/commands/enhanced_calendar_commands.h"
+#import "ios/chrome/browser/shared/public/commands/enterprise_commands.h"
 #import "ios/chrome/browser/shared/public/commands/file_upload_panel_commands.h"
 #import "ios/chrome/browser/shared/public/commands/find_in_page_commands.h"
 #import "ios/chrome/browser/shared/public/commands/google_one_commands.h"
@@ -317,7 +319,6 @@
 #import "ios/chrome/browser/synced_set_up/coordinator/synced_set_up_coordinator_delegate.h"
 #import "ios/chrome/browser/synced_set_up/utils/utils.h"
 #import "ios/chrome/browser/tab_insertion/model/tab_insertion_browser_agent.h"
-#import "ios/chrome/browser/tab_switcher/tab_strip/coordinator/tab_strip_coordinator.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_action_type.h"
 #import "ios/chrome/browser/tab_switcher/ui_bundled/tab_group_confirmation_coordinator.h"
 #import "ios/chrome/browser/tabs/model/tab_title_util.h"
@@ -391,12 +392,12 @@ const char kChromeAppStoreUrl[] =
     ContextualPanelEntrypointIPHCommands,
     ContextualSheetCommands,
     CountryCodePickerCommands,
-    DataControlsCommands,
     DefaultBrowserGenericPromoCommands,
     DefaultPromoNonModalPresentationDelegate,
     DownloadListCommands,
     DriveFilePickerCommands,
     EnhancedCalendarCommands,
+    EnterpriseCommands,
     EditMenuBuilder,
     EnterprisePromptCoordinatorDelegate,
     FileUploadPanelCommands,
@@ -453,7 +454,8 @@ const char kChromeAppStoreUrl[] =
     WebNavigationNTPDelegate,
     WebUsageEnablerBrowserAgentObserving,
     WelcomeBackPromoCommands,
-    WhatsNewCommands>
+    WhatsNewCommands,
+    DockingPromoCommands>
 
 // Whether the coordinator is started.
 @property(nonatomic, assign, getter=isStarted) BOOL started;
@@ -693,7 +695,6 @@ const char kChromeAppStoreUrl[] =
   LensOverlayCoordinator* _lensOverlayCoordinator;
   ToolbarCoordinator* _toolbarCoordinator;
   BrowserOmniboxStateProvider* _browserOmniboxStateProvider;
-  TabStripCoordinator* _tabStripCoordinator;
   SideSwipeCoordinator* _sideSwipeCoordinator;
   raw_ptr<FullscreenController> _fullscreenController;
   // The coordinator that shows the Send Tab To Self UI.
@@ -772,8 +773,8 @@ const char kChromeAppStoreUrl[] =
   // The coordinator for the Welcome Back promo.
   WelcomeBackCoordinator* _welcomeBackCoordinator;
 
-  // The coordinator for displaying Enterprise Data Controls dialogs.
-  DataControlsDialogCoordinator* _dataControlsDialogCoordinator;
+  // The coordinator for displaying Enterprise dialogs.
+  EnterpriseDialogCoordinator* _enterpriseDialogCoordinator;
 
   // The coordinator for managing the Synced Set Up flow.
   SyncedSetUpCoordinator* _syncedSetUpCoordinator;
@@ -1222,7 +1223,8 @@ const char kChromeAppStoreUrl[] =
     @protocol(WhatsNewCommands),
     @protocol(GoogleOneCommands),
     @protocol(WelcomeBackPromoCommands),
-    @protocol(DataControlsCommands),
+    @protocol(DockingPromoCommands),
+    @protocol(EnterpriseCommands),
   ];
 
   for (Protocol* protocol in protocols) {
@@ -1264,11 +1266,6 @@ const char kChromeAppStoreUrl[] =
   _urlLoadingBrowserAgent = UrlLoadingBrowserAgent::FromBrowser(browser);
   _urlLoadingNotifierBrowserAgent =
       UrlLoadingNotifierBrowserAgent::FromBrowser(browser);
-
-  if (ui::GetDeviceFormFactor() == ui::DEVICE_FORM_FACTOR_TABLET) {
-    _tabStripCoordinator =
-        [[TabStripCoordinator alloc] initWithBrowser:browser];
-  }
 
   _bubblePresenterCoordinator =
       [[BubblePresenterCoordinator alloc] initWithBrowser:browser];
@@ -1349,7 +1346,6 @@ const char kChromeAppStoreUrl[] =
   _viewControllerDependencies.popupMenuCoordinator = self.popupMenuCoordinator;
   _viewControllerDependencies.ntpCoordinator = _NTPCoordinator;
   _viewControllerDependencies.toolbarCoordinator = _toolbarCoordinator;
-  _viewControllerDependencies.tabStripCoordinator = _tabStripCoordinator;
   _viewControllerDependencies.sideSwipeCoordinator = _sideSwipeCoordinator;
   _viewControllerDependencies.bookmarksCoordinator = _bookmarksCoordinator;
   _viewControllerDependencies.fullscreenController = _fullscreenController;
@@ -1411,7 +1407,6 @@ const char kChromeAppStoreUrl[] =
     _omniboxCommandsHandler = HandlerForProtocol(_dispatcher, OmniboxCommands);
   }
 
-  _tabStripCoordinator.baseViewController = viewController;
   _NTPCoordinator.baseViewController = viewController;
   _bubblePresenterCoordinator.baseViewController = viewController;
 
@@ -1433,8 +1428,6 @@ const char kChromeAppStoreUrl[] =
 
   [_bubblePresenterCoordinator stop];
   _bubblePresenterCoordinator = nil;
-
-  _tabStripCoordinator = nil;
 
   [_sideSwipeCoordinator stop];
   _sideSwipeCoordinator = nil;
@@ -1639,12 +1632,6 @@ const char kChromeAppStoreUrl[] =
       _promosManagerCoordinator;
   [_credentialProviderPromoCoordinator start];
 
-  _dockingPromoCoordinator = [[DockingPromoCoordinator alloc]
-      initWithBaseViewController:self.viewController
-                         browser:self.browser];
-  _dockingPromoCoordinator.promosUIHandler = _promosManagerCoordinator;
-  [_dockingPromoCoordinator start];
-
   _lensOverlayCoordinator = [[LensOverlayCoordinator alloc]
       initWithBaseViewController:self.viewController
                          browser:self.browser];
@@ -1798,8 +1785,8 @@ const char kChromeAppStoreUrl[] =
   [_BWGCoordinator stop];
   _BWGCoordinator = nil;
 
-  [_dataControlsDialogCoordinator stop];
-  _dataControlsDialogCoordinator = nil;
+  [_enterpriseDialogCoordinator stop];
+  _enterpriseDialogCoordinator = nil;
 
   [_passkeyCreationBottomSheetCoordinator stop];
   _passkeyCreationBottomSheetCoordinator = nil;
@@ -1824,6 +1811,7 @@ const char kChromeAppStoreUrl[] =
   [self stopPasskeyWelcomeScreenCoordinator];
   [self dismissSearchWhatYouSeePromo];
   [self dismissNotificationsOptIn];
+  [self dismissDockingPromo];
   [self hideWelcomeBackPromo];
   [self hideComposeboxImmediately:YES completion:nil];
 }
@@ -2144,6 +2132,10 @@ const char kChromeAppStoreUrl[] =
   [self.paymentsSuggestionBottomSheetCoordinator start];
 }
 
+- (void)showScanCardSaveAndFillBottomSheet:
+    (const autofill::FormActivityParams&)params {
+}
+
 - (void)showCardUnmaskAuthentication {
   self.cardUnmaskAuthenticationCoordinator =
       [[CardUnmaskAuthenticationCoordinator alloc]
@@ -2304,12 +2296,13 @@ const char kChromeAppStoreUrl[] =
   [_passkeyCreationBottomSheetCoordinator start];
 }
 
-- (void)showPasskeySuggestionBottomSheet:(const std::string&)requestID {
+- (void)showPasskeySuggestionBottomSheet:
+    (webauthn::IOSPasskeyClient::RequestInfo)requestInfo {
   self.credentialSuggestionBottomSheetCoordinator =
       [[CredentialSuggestionBottomSheetCoordinator alloc]
           initWithBaseViewController:self.viewController
                              browser:self.browser
-                           requestID:requestID
+                         requestInfo:std::move(requestInfo)
                             delegate:self];
   self.credentialSuggestionBottomSheetCoordinator
       .browserCoordinatorCommandsHandler =
@@ -2844,8 +2837,8 @@ const char kChromeAppStoreUrl[] =
   [_lastTabClosingAlert stop];
   _lastTabClosingAlert = nil;
 
-  [_dataControlsDialogCoordinator stop];
-  _dataControlsDialogCoordinator = nil;
+  [_enterpriseDialogCoordinator stop];
+  _enterpriseDialogCoordinator = nil;
 
   [_passkeyCreationBottomSheetCoordinator stop];
   _passkeyCreationBottomSheetCoordinator = nil;
@@ -3446,24 +3439,17 @@ const char kChromeAppStoreUrl[] =
     id<CredentialProviderPromoCommands> credentialProviderPromoHandler =
         HandlerForProtocol(self.browser->GetCommandDispatcher(),
                            CredentialProviderPromoCommands);
-    id<DockingPromoCommands> dockingPromoHandler = HandlerForProtocol(
-        self.browser->GetCommandDispatcher(), DockingPromoCommands);
 
     self.promosManagerCoordinator = [[PromosManagerCoordinator alloc]
             initWithBaseViewController:self.viewController
                                browser:self.browser
                           sceneHandler:sceneHandler
-        credentialProviderPromoHandler:credentialProviderPromoHandler
-                   dockingPromoHandler:dockingPromoHandler];
+        credentialProviderPromoHandler:credentialProviderPromoHandler];
 
     // CredentialProviderPromoCoordinator is initialized earlier than this, so
     // make sure to set its UI handler.
     _credentialProviderPromoCoordinator.promosUIHandler =
         self.promosManagerCoordinator;
-
-    // _dockingPromoCoordinator is initialized earlier than this, so
-    // make sure to set its UI handler.
-    _dockingPromoCoordinator.promosUIHandler = self.promosManagerCoordinator;
 
     [self.promosManagerCoordinator start];
   } else {
@@ -3559,6 +3545,14 @@ const char kChromeAppStoreUrl[] =
   CHECK(_NTPCoordinator.isNTPActiveForCurrentWebState);
   [_NTPCoordinator showHomeBackgroundCustomizationPromoWithUIHandler:
                        _promosManagerCoordinator];
+}
+
+- (void)showDockingPromo {
+  _dockingPromoCoordinator = [[DockingPromoCoordinator alloc]
+      initWithBaseViewController:self.viewController
+                         browser:self.browser];
+  _dockingPromoCoordinator.promosUIHandler = self.promosManagerCoordinator;
+  [_dockingPromoCoordinator start];
 }
 
 #pragma mark - PageActionMenuCommands
@@ -5060,6 +5054,13 @@ const char kChromeAppStoreUrl[] =
       presentInProductHelpWithType:InProductHelpType::kWhatsNew];
 }
 
+#pragma mark - DockingPromoCommands
+
+- (void)dismissDockingPromo {
+  [_dockingPromoCoordinator stop];
+  _dockingPromoCoordinator = nil;
+}
+
 #pragma mark - WelcomeBackPromoCommands
 
 - (void)hideWelcomeBackPromo {
@@ -5168,24 +5169,24 @@ const char kChromeAppStoreUrl[] =
   [self.downloadListCoordinator start];
 }
 
-#pragma mark - DataControlsCommands
+#pragma mark - EnterpriseCommands
 
-- (void)showDataControlsWarningDialog:
+- (void)showEnterpriseWarningDialog:
             (data_controls::DataControlsDialog::Type)dialogType
-                   organizationDomain:(std::string_view)organizationDomain
-                             callback:(base::OnceCallback<void(bool)>)callback {
+                 organizationDomain:(std::string_view)organizationDomain
+                           callback:(base::OnceCallback<void(bool)>)callback {
   // If a dialog is already shown, dismiss it before showing a new one.
-  if (_dataControlsDialogCoordinator) {
-    [_dataControlsDialogCoordinator stop];
+  if (_enterpriseDialogCoordinator) {
+    [_enterpriseDialogCoordinator stop];
   }
 
-  _dataControlsDialogCoordinator = [[DataControlsDialogCoordinator alloc]
+  _enterpriseDialogCoordinator = [[EnterpriseDialogCoordinator alloc]
       initWithBaseViewController:self.browserContentCoordinator.viewController
                          browser:self.browser
                       dialogType:dialogType
               organizationDomain:organizationDomain
                         callback:std::move(callback)];
-  [_dataControlsDialogCoordinator start];
+  [_enterpriseDialogCoordinator start];
 }
 
 @end

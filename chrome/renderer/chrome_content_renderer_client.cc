@@ -196,6 +196,8 @@
 #include "components/feed/content/renderer/rss_link_reader.h"
 #include "components/feed/feed_feature_list.h"
 #else
+#include "chrome/common/record_replay/record_replay_features.h"
+#include "chrome/renderer/record_replay/record_replay_agent.h"
 #include "chrome/renderer/searchbox/searchbox.h"
 #include "chrome/renderer/searchbox/searchbox_extension.h"
 #include "components/search/ntp_features.h"  // nogncheck
@@ -694,6 +696,13 @@ void ChromeContentRendererClient::RenderFrameCreated(
                       associated_interfaces);
   }
 
+#if !BUILDFLAG(IS_ANDROID)
+  if (base::FeatureList::IsEnabled(
+          record_replay::features::kRecordReplayBase)) {
+    new record_replay::RecordReplayAgent(render_frame, associated_interfaces);
+  }
+#endif
+
   if (content_capture::features::IsContentCaptureEnabled()) {
     new content_capture::ContentCaptureSender(render_frame,
                                               associated_interfaces);
@@ -759,7 +768,8 @@ void ChromeContentRendererClient::RenderFrameCreated(
   }
 #endif
 
-  if (base::FeatureList::IsEnabled(wallet::kWalletablePassDetection) &&
+  if (base::FeatureList::IsEnabled(
+          wallet::features::kWalletablePassDetection) &&
       render_frame->IsMainFrame()) {
     wallet::ImageExtractor::Create(render_frame, registry);
   }
@@ -1482,6 +1492,8 @@ void ChromeContentRendererClient::
     blink::WebRuntimeFeatures::EnableAIWriterAPIForWorkers(true);
     blink::WebRuntimeFeatures::EnableLanguageDetectionAPIForWorkers(true);
     blink::WebRuntimeFeatures::EnableTranslationAPIForWorkers(true);
+    blink::WebRuntimeFeatures::EnableLanguageModelLegacyParamsAndAttributes(
+        true);
   }
 }
 

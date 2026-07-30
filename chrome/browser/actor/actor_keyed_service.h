@@ -180,9 +180,6 @@ class ActorKeyedService : public KeyedService,
       std::optional<size_t> index_of_failed_action,
       std::vector<ActionResultWithLatencyInfo> action_results);
 
-  // Stops all the active tasks.
-  void StopAllTasks(ActorTask::StoppedReason stop_reason);
-
   // The jounrnal should be last in destruction order since other things like
   // ActorTask might be using a SafeRef to this object.
   AggregatedJournal journal_;
@@ -198,10 +195,16 @@ class ActorKeyedService : public KeyedService,
 
   std::map<TaskId, std::unique_ptr<ActorTask>> active_tasks_;
 
+  // Tasks that are stopped are deleted asynchronously by being placed into this
+  // map and deleted from a posted task. We use this map so that Shutdown() can
+  // force synchronous deletion since ActorTask holds references to objects
+  // owned by other keyed services which need to be released.
+  std::map<TaskId, std::unique_ptr<ActorTask>> pending_delete_tasks_;
+
   TaskId::Generator next_task_id_;
 
   base::RepeatingCallbackList<void(TaskId, ActorTask::State)>
-      tab_state_change_callback_list_;
+      task_state_change_callback_list_;
 
   // Owns this.
   raw_ptr<Profile> profile_;

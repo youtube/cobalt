@@ -651,7 +651,8 @@ void WaitForBrowserSetLastActive(BrowserWindowInterface* browser,
 
 void SendToOmniboxAndSubmit(BrowserWindowInterface* browser,
                             std::string_view input,
-                            base::TimeTicks match_selection_timestamp) {
+                            base::TimeTicks match_selection_timestamp,
+                            bool wait_for_autocomplete_done) {
   LocationBar* location_bar =
       browser->GetBrowserForMigrationOnly()->window()->GetLocationBar();
   OmniboxView* omnibox = location_bar->GetOmniboxView();
@@ -661,7 +662,9 @@ void SendToOmniboxAndSubmit(BrowserWindowInterface* browser,
   location_bar->GetOmniboxController()->edit_model()->OpenSelectionForTesting(
       match_selection_timestamp);
 
-  WaitForAutocompleteDone(browser);
+  if (wait_for_autocomplete_done) {
+    WaitForAutocompleteDone(browser);
+  }
 }
 
 Browser* GetBrowserNotInSet(
@@ -910,8 +913,7 @@ class WaitHistoryLoadedObserver : public history::HistoryServiceObserver {
 
 WaitHistoryLoadedObserver::WaitHistoryLoadedObserver(
     content::MessageLoopRunner* runner)
-    : runner_(runner) {
-}
+    : runner_(runner) {}
 
 WaitHistoryLoadedObserver::~WaitHistoryLoadedObserver() = default;
 
@@ -964,7 +966,11 @@ void TabAddedWaiter::OnTabStripModelChanged(
   }
 }
 
-AllBrowserTabAddedWaiter::AllBrowserTabAddedWaiter() {
+AllBrowserTabAddedWaiter::AllBrowserTabAddedWaiter(
+    std::optional<size_t> expected_count)
+    : expected_count_(expected_count) {
+  // If `expected_count` is 0, `Wait()` will hang indefinitely.
+  CHECK_GE(expected_count_.value_or(1), 1u);
   browser_collection_observation_.Observe(
       GlobalBrowserCollection::GetInstance());
   ForEachCurrentBrowserWindowInterfaceOrderedByActivation(
@@ -978,21 +984,25 @@ AllBrowserTabAddedWaiter::~AllBrowserTabAddedWaiter() = default;
 
 content::WebContents* AllBrowserTabAddedWaiter::Wait() {
   run_loop_.Run();
-  return web_contents_;
+  CHECK_GE(web_contents_.size(), 1u);
+  return web_contents_[0];
 }
 
 void AllBrowserTabAddedWaiter::OnTabStripModelChanged(
     TabStripModel* tab_strip_model,
     const TabStripModelChange& change,
     const TabStripSelectionChange& selection) {
-  if (web_contents_)
+  if (change.type() != TabStripModelChange::kInserted) {
     return;
-
-  if (change.type() != TabStripModelChange::kInserted)
-    return;
-
-  web_contents_ = change.GetInsert()->contents[0].contents;
-  run_loop_.Quit();
+  }
+  web_contents_.push_back(change.GetInsert()->contents[0].contents.get());
+  if (expected_count_) {
+    EXPECT_LE(web_contents_.size(), expected_count_)
+        << "Unexpected tab created";
+  }
+  if (web_contents_.size() == expected_count_.value_or(1)) {
+    run_loop_.Quit();
+  }
 }
 
 void AllBrowserTabAddedWaiter::OnBrowserCreated(

@@ -179,9 +179,43 @@ CSSGapDecorationUtils::GetExpandedGapDataList(
 
 RuleBreak CSSGapDecorationUtils::ResolveRuleBreakValue(
     const ComputedStyle& style,
+    GridTrackSizingDirection direction,
+    GapGeometry::ContainerType container_type) {
+  RuleBreak rule_break =
+      direction == kForColumns ? style.ColumnRuleBreak() : style.RowRuleBreak();
+
+  // For multicol containers, `normal` resolves to `none` for row-rule-break
+  // and `intersection` for column-rule-break.
+  if (container_type == GapGeometry::ContainerType::kMultiColumn &&
+      rule_break == RuleBreak::kNormal) {
+    return direction == kForColumns ? RuleBreak::kIntersection
+                                    : RuleBreak::kNone;
+  }
+
+  return rule_break;
+}
+
+RuleVisibilityItems CSSGapDecorationUtils::ResolveRuleVisibilityItemsValue(
+    const ComputedStyle& style,
+    GapGeometry::ContainerType container_type,
     GridTrackSizingDirection direction) {
-  return direction == kForColumns ? style.ColumnRuleBreak()
-                                  : style.RowRuleBreak();
+  RuleVisibilityItems rule_visibility = direction == kForColumns
+                                            ? style.ColumnRuleVisibilityItems()
+                                            : style.RowRuleVisibilityItems();
+  if (rule_visibility != RuleVisibilityItems::kAuto) {
+    return rule_visibility;
+  }
+
+  // Resolve `auto` value based on the container type.
+  //
+  // https://drafts.csswg.org/css-gaps-1/#visibility-rules.
+  switch (container_type) {
+    case GapGeometry::ContainerType::kGrid:
+    case GapGeometry::ContainerType::kFlex:
+      return RuleVisibilityItems::kAll;
+    case GapGeometry::ContainerType::kMultiColumn:
+      return RuleVisibilityItems::kBetween;
+  }
 }
 
 // Explicit template instantiations

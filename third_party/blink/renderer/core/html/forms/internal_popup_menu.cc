@@ -62,8 +62,37 @@ const char* FontStyleToString(FontSelectionValue slope) {
   return "normal";
 }
 
-StringView TextTransformToString(ETextTransform transform) {
-  return GetCSSValueNameAs<StringView>(PlatformEnumToCSSValueID(transform));
+String TextTransformToString(ETextTransform transform) {
+  if (transform == ETextTransform::kNone) {
+    return "none";
+  }
+  if (transform == ETextTransform::kMathAuto) {
+    return "math-auto";
+  }
+
+  StringBuilder result;
+  if (EnumHasFlags(transform, ETextTransform::kCapitalize)) {
+    result.Append("capitalize");
+  } else if (EnumHasFlags(transform, ETextTransform::kUppercase)) {
+    result.Append("uppercase");
+  } else if (EnumHasFlags(transform, ETextTransform::kLowercase)) {
+    result.Append("lowercase");
+  }
+
+  if (EnumHasFlags(transform, ETextTransform::kFullWidth)) {
+    if (!result.empty()) {
+      result.Append(' ');
+    }
+    result.Append("full-width");
+  }
+  if (EnumHasFlags(transform, ETextTransform::kFullSizeKana)) {
+    if (!result.empty()) {
+      result.Append(' ');
+    }
+    result.Append("full-size-kana");
+  }
+
+  return result.ReleaseString();
 }
 
 StringView TextAlignToString(ETextAlign align) {
@@ -583,7 +612,7 @@ void InternalPopupMenu::SetValueAndClosePopup(int num_value,
   DCHECK(popup_);
   DCHECK(owner_element_);
   if (!string_value.empty()) {
-    auto result = StringToInt(string_value);
+    auto result = StringToIntLoose(string_value);
     int list_index = result.value_or(0);
     DCHECK(result.has_value());
 
@@ -626,7 +655,7 @@ void InternalPopupMenu::SetValueAndClosePopup(int num_value,
 
 void InternalPopupMenu::SetValue(const String& value) {
   DCHECK(owner_element_);
-  auto result = StringToInt(value);
+  auto result = StringToIntLoose(value);
   int list_index = result.value_or(0);
   DCHECK(result.has_value());
   owner_element_->ProvisionalSelectionChanged(list_index);

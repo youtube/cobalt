@@ -9,31 +9,66 @@ import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.components.autofill.FieldType;
+
+import java.util.Objects;
 
 /** Represents information of an Autofill AI attribute type. */
 @JNINamespace("autofill")
 @NullMarked
 public class AttributeType {
     // This maps to a C++ enum which defines the name/type of the attribute.
-    public final @AttributeTypeName int typeName;
+    private final @AttributeTypeName int mTypeName;
     // The name of the attribute as displayed to the user.
-    public final String typeNameAsString;
+    private final String mTypeNameAsString;
     // The `dataType` defined whether the input rendered for the attribute should be a country
     // selector, a date picker or a simple text field.
-    public final @DataType int dataType;
+    private final @DataType int mDataType;
+    // The field type this attribute type describes.
+    private final @FieldType int mFieldType;
 
     @CalledByNative
     public AttributeType(
             @AttributeTypeName int typeName,
             @JniType("std::u16string") String typeNameAsString,
-            @DataType int dataType) {
-        this.typeName = typeName;
-        this.typeNameAsString = typeNameAsString;
-        this.dataType = dataType;
+            @DataType int dataType,
+            @FieldType int fieldType) {
+        mTypeName = typeName;
+        mTypeNameAsString = typeNameAsString;
+        mDataType = dataType;
+        mFieldType = fieldType;
     }
 
     @CalledByNative
     public @AttributeTypeName int getTypeName() {
-        return typeName;
+        return mTypeName;
+    }
+
+    public String getTypeNameAsString() {
+        return mTypeNameAsString;
+    }
+
+    public @DataType int getDataType() {
+        return mDataType;
+    }
+
+    public @FieldType int getFieldType() {
+        return mFieldType;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o instanceof AttributeType that) {
+            return mTypeName == that.mTypeName;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(mTypeName);
     }
 }

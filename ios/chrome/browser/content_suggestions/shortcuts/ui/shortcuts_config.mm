@@ -8,20 +8,22 @@
 
 @implementation ShortcutsConfig
 
+#pragma mark - NSCopying
+
+- (instancetype)copyWithZone:(NSZone*)zone {
+  ShortcutsConfig* config = [[super copyWithZone:zone] init];
+  // The updates to properties must be reflected in the copy method.
+  // LINT.IfChange(Copy)
+  config.shortcutItems = [self.shortcutItems copy];
+  config.commandHandler = self.commandHandler;
+  // LINT.ThenChange(shortcuts_config.h:Copy)
+  return config;
+}
+
 #pragma mark - MagicStackModule
 
 - (ContentSuggestionsModuleType)type {
   return ContentSuggestionsModuleType::kShortcuts;
-}
-
-#pragma mark - NSCopying
-
-- (id)copyWithZone:(NSZone*)zone {
-  ShortcutsConfig* copy = [[super copyWithZone:zone] init];
-  copy.shortcutItems = self.shortcutItems;
-  copy.consumerSource = self.consumerSource;
-  copy.commandHandler = self.commandHandler;
-  return copy;
 }
 
 @end

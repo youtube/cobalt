@@ -6,6 +6,7 @@
 #define IOS_CHROME_BROWSER_SCENE_COORDINATOR_SCENE_COORDINATOR_H_
 
 #import "base/ios/block_types.h"
+#import "base/memory/raw_ptr.h"
 #import "ios/chrome/browser/authentication/ui_bundled/signin/signin_constants.h"
 #import "ios/chrome/browser/settings/ui_bundled/settings_navigation_controller.h"
 #import "ios/chrome/browser/shared/coordinator/root_coordinator/root_coordinator.h"
@@ -20,11 +21,14 @@ enum class SafariDataImportEntryPoint;
 @protocol SafariDataImportUIHandler;
 @protocol SceneCommands;
 @class BrowserLayoutViewController;
+@class OpenNewTabCommand;
 @class SceneCoordinator;
+class SceneUrlLoadingService;
 @class SettingsNavigationController;
 @class ShowSigninCommand;
 @class SigninCoordinator;
 @protocol TabOpening;
+enum class UserFeedbackSender;
 struct UrlLoadParams;
 
 namespace password_manager {
@@ -54,14 +58,12 @@ enum class WarningType;
 // because the incognito profile is deleted.
 @property(nonatomic, assign) Browser* incognitoBrowser;
 
-// Navigation View controller for the settings.
-// TODO(crbug.com/463347803): This property is temporarily exposed to facilitate
-// migration. It should be private once the migration is complete.
-@property(nonatomic, strong)
-    SettingsNavigationController* settingsNavigationController;
-
 // Returns YES if sign-in is in progress.
 @property(nonatomic, readonly) BOOL isSigninInProgress;
+
+// The scene level component for url loading.
+@property(nonatomic, assign) raw_ptr<SceneUrlLoadingService>
+    sceneURLLoadingService;
 
 // Sets the main, inactive, and incognito browsers from the given provider.
 - (void)setBrowsersFromProvider:(id<BrowserProviderInterface>)provider;
@@ -170,6 +172,19 @@ enum class WarningType;
 - (void)showPrivacySettingsFromViewController:
     (UIViewController*)baseViewController;
 
+// Shows the Report an Issue UI, presenting from `baseViewController`.
+- (void)showReportAnIssueFromViewController:
+            (UIViewController*)baseViewController
+                                     sender:(UserFeedbackSender)sender;
+
+// Shows the Report an Issue UI, presenting from `baseViewController`, using
+// `specificProductData` for additional product data to be sent in the report.
+- (void)
+    showReportAnIssueFromViewController:(UIViewController*)baseViewController
+                                 sender:(UserFeedbackSender)sender
+                    specificProductData:(NSDictionary<NSString*, NSString*>*)
+                                            specificProductData;
+
 // Shows the Settings UI if nothing else is displayed.
 - (void)maybeShowSettingsFromViewController;
 
@@ -191,6 +206,9 @@ enum class WarningType;
 
 // Shows the settings UI for price tracking notifications.
 - (void)showPriceTrackingNotificationsSettings;
+
+// Closes presented views and opens `command`.
+- (void)closePresentedViewsAndOpenURL:(OpenNewTabCommand*)command;
 
 // Closes presented views.
 - (void)closePresentedViews;
@@ -215,6 +233,12 @@ enum class WarningType;
 // for `referrer`.
 - (void)dismissModalsAndShowPasswordCheckupPageForReferrer:
     (password_manager::PasswordCheckReferrer)referrer;
+
+// Opens the `command` URL in a new tab.
+- (void)openURLInNewTab:(OpenNewTabCommand*)command;
+
+// Open a new window with `userActivity`
+- (void)openNewWindowWithActivity:(NSUserActivity*)userActivity;
 
 @end
 

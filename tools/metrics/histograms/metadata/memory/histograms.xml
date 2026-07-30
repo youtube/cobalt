@@ -72,6 +72,7 @@ chromium-metrics-reviews@google.com.
   <variant name="DawnSharedContext"/>
   <variant name="DevTools"/>
   <variant name="DevtoolsDurableMessageCollectorManager"/>
+  <variant name="DevToolsManager"/>
   <variant name="DiscardableSharedMemoryManager"/>
   <variant name="DOMStorage"/>
   <variant name="DownloadService"/>
@@ -182,11 +183,16 @@ chromium-metrics-reviews@google.com.
   <variant name=".DawnSharedContext.Textures"
       summary="Only counting textures' memory used by the Graphite Dawn
                shared context."/>
+  <variant name=".DevTools.Sessions.ActiveCount"
+      summary="Reports the number of active DevTools sessions."/>
   <variant name=".Discardable"
       summary="Only counting memory used by Discardable manager."/>
   <variant name=".DurableMessages.AggregateMemoryUsage"
       summary="Reports the aggregate memory usage in megabytes by all
                DevToolsDurableMessageCollector instances."/>
+  <variant name=".DurableMessages.CollectorCount"
+      summary="Reports the number of DevToolsDurableMessageCollector
+               instances."/>
   <variant name=".ExtensionFunctions"
       summary="Only counting memory used by ExtensionFunctions."/>
   <variant name=".Extensions.ValueStore"
@@ -989,7 +995,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="HeapProfiling.InProcess.SampledAddressCacheBucketLengths{Process}"
-    units="nodes" expires_after="2026-06-07">
+    units="nodes" expires_after="2026-08-09">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1014,7 +1020,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HeapProfiling.InProcess.SampledAddressCacheHitRate{Process}"
-    units="1/100 %" expires_after="2026-06-07">
+    units="1/100 %" expires_after="2026-08-09">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1055,7 +1061,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="HeapProfiling.InProcess.SampledAddressCacheUniformity{Process}"
-    units="%" expires_after="2026-06-07">
+    units="%" expires_after="2026-08-09">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1069,7 +1075,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="HeapProfiling.InProcess.SamplesPerSnapshot{Process}"
-    units="samples" expires_after="2026-04-26">
+    units="samples" expires_after="2026-08-09">
   <owner>joenotcharles@google.com</owner>
   <owner>chrome-memory@google.com</owner>
   <summary>
@@ -1788,7 +1794,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Experimental.Gpu2.Small{ProcessMemoryAllocatorSmall2}"
-    units="KB" expires_after="2026-06-07">
+    units="KB" expires_after="2026-08-09">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -1820,7 +1826,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Experimental.Gpu2{ProcessMemoryAllocator2}" units="MB"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -2041,7 +2047,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.Experimental.Renderer2{ProcessMemoryAllocator2}"
-    units="MB" expires_after="2026-06-07">
+    units="MB" expires_after="2026-08-09">
   <owner>erikchen@chromium.org</owner>
   <owner>ssid@chromium.org</owner>
   <owner>lizeb@chromium.org</owner>
@@ -2422,7 +2428,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.NativeLibrary.MappedAndResidentMemoryFootprint3"
-    units="KB" expires_after="2026-06-07">
+    units="KB" expires_after="2026-08-09">
   <owner>lizeb@chromium.org</owner>
   <owner>pasko@chromium.org</owner>
   <summary>
@@ -3095,7 +3101,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.RenderProcessHost.Count2.OriginAgentClusterOverhead"
-    units="processes" expires_after="2026-06-07">
+    units="processes" expires_after="2026-08-09">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>
@@ -3120,7 +3126,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Memory.RenderProcessHost.Count2.SandboxedIframeOverhead"
-    units="processes" expires_after="2026-06-07">
+    units="processes" expires_after="2026-08-09">
   <owner>wjmaclean@chromium.org</owner>
   <owner>alexmos@chromium.org</owner>
   <owner>creis@chromium.org</owner>

@@ -188,7 +188,6 @@
 <translation id="1289129165308566697">Դիտեք ձեր պատմությունն այլ սարքերում</translation>
 <translation id="1292571435393770077">Դարակ 16</translation>
 <translation id="1292701964462482250">«Համակարգչում տեղադրված ծրագիրը Chrome-ին թույլ չի տալիս անվտանգ միանալ համացանցին» (միայն Windows համակարգիչներում)</translation>
-<translation id="1293154089865862473">Վճարման էջի բովանդակությունը փոխանցվում է Google-ին՝ այս տարբերակներն առաջարկելու համար։ Տարաժամկետ վճարման տարբերակները ավտոմատ լրացման ժամանակ թաքցնելու համար անցեք <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" />։</translation>
 <translation id="1293556467332435079">Ֆայլեր</translation>
 <translation id="1293797321964802402">Envelope 9 x 11 դյմ</translation>
 <translation id="129553762522093515">Վերջերս փակված</translation>
@@ -660,6 +659,7 @@
 <translation id="2071156619270205202">Նշված համարը չի կարող օգտագործվել վիրտուալ քարտի համար։</translation>
 <translation id="2071852865256799872">Ձեր դիտարկիչը կառավարվում է ձեր կազմակերպության կողմից, իսկ պրոֆիլը՝ <ph name="PROFILE_DOMAIN" /> տիրույթի կողմից</translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
+<translation id="2073286362006276165">Տվյալները պահվեցին միայն սարքում</translation>
 <translation id="2074733626795553847">Արգելաբացել «<ph name="TOPIC" />» թեման</translation>
 <translation id="2074771604462073334">Դուք այցելել եք</translation>
 <translation id="2078956195623975415">Երաժշտական և պարային խաղեր</translation>
@@ -708,6 +708,7 @@
 <translation id="2137891579555018930">Սպասում ենք թույլտվության…</translation>
 <translation id="213826338245044447">Բջջային էջանիշներ</translation>
 <translation id="2141000681034340397">Փոփոխեք ձեր մուտքագրումը</translation>
+<translation id="2141475438898772664">Վճարեք 4 անգամով կամ ամսական</translation>
 <translation id="2144171668675205303">Ակտիվ թեմաներ չկան</translation>
 <translation id="2145193671493396738">Տնտեսական նորություններ</translation>
 <translation id="214556005048008348">Չեղարկել վճարումը</translation>
@@ -1121,13 +1122,13 @@
 <translation id="277133753123645258">Ուղարկման եղանակ</translation>
 <translation id="277499241957683684">Սարքի գրանցված չէ</translation>
 <translation id="2775884851269838147">Տպման առաջին էջ</translation>
+<translation id="277828055419948999">Chromium-ը կարող է ավտոմատ լրացնել դժվար դաշտերը, որոնք ստանդարտ ինքնալրացումը կարող է բաց թողնել</translation>
 <translation id="2781185443919227679">Լողափեր և կղզիներ</translation>
 <translation id="2781692009645368755">Google Pay</translation>
 <translation id="2781799097551205934">Վճարման նախապատրաստում</translation>
 <translation id="2782088940970074970">Մեքենայի վարձույթ</translation>
 <translation id="278436560439594386">Կենցաղային տեխնիկա</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
-<translation id="2784540996156451674">Վճարման էջի բովանդակությունը փոխանցվում է Google-ին՝ այս տարբերակներն առաջարկելու համար։</translation>
 <translation id="2784949926578158345">Կապակցումը վերակայվել է:</translation>
 <translation id="2786008859124691917">Հեծանիվներ և պարագաներ</translation>
 <translation id="2792012897584536778">Այս սարքի ադմինիստրատորները կարգավորել են անվտանգության հավաստագրեր, որոնց շնորհիվ նրանք կարող են տեսնել ձեր այցելած կայքերի բովանդակությունը:</translation>
@@ -2480,6 +2481,7 @@
 <translation id="4950898438188848926">Ներդիրների միջև անցման կոճակ։ Բացված ներդիրին (<ph name="TAB_SWITCH_FOCUSED_FRIENDLY_MATCH_TEXT" />) անցնելու համար սեղմեք «Enter»։</translation>
 <translation id="495170559598752135">Գործողություններ</translation>
 <translation id="4953689047182316270">Արձագանքել մատչելիության գործողություններին</translation>
+<translation id="4954505713046251871">Առաջարկներ տրամադրելու և այս գործառույթը բարելավելու նպատակով էջի URL-ն ու բովանդակությունը տրամադրվում են Google-ին</translation>
 <translation id="4954891067389874142">Պահեք ձեր քարտի տվյալներն ու վճարեք ավելի արագ։ Քարտի տվյալները գաղտնագրվում են Google Wallet-ում։</translation>
 <translation id="4957080528849277028">«Դիտել Chrome-ի պատմությունը» կոճակ․ ակտիվացրեք՝ Chrome-ի կարգավորումներում ձեր այցելությունների պատմությունը դիտելու և կառավարելու համար</translation>
 <translation id="4957781475307065660">{DOMAIN_COUNT,plural, =1{+ 1 կայք}one{+ # կայք}other{+ # կայք}}</translation>
@@ -2800,6 +2802,7 @@
 <translation id="5466018172325111652">Չե՞ք ստացել կոդը։ <ph name="BEGIN_LINK" />Ստանալ նոր կոդ<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">Վճարային հավելվածներ</translation>
 <translation id="5470861586879999274">&amp;Վերարկել փոփոխումը</translation>
+<translation id="5471158297908124590">Հաստատեք ձեր ինքնությունը՝ վճարման եղանակները փոփոխելու համար</translation>
 <translation id="5472588168895083535">Ձեռքերի շարժումների հետագծումն արգելափակված է</translation>
 <translation id="5477756102936130143">Թույլատրել վերաուղղորդումը դեպի աջակցվող վճարային հավելվածներ</translation>
 <translation id="5479505548832623900">Հավանաբար այս ընդլայնման մեջ կանոնները չեն գործում։</translation>
@@ -2856,6 +2859,7 @@
 <translation id="5543564889050342791">Կենդանաբանական այգիներ, ակվարիումներ և արգելոցներ</translation>
 <translation id="5543722831081909240">180 աստիճան</translation>
 <translation id="5544836308113951378">Կրուիզներ և չարտերային թռիչքներ</translation>
+<translation id="5545314360139398232">Տարաժամկետ վճարումներ կատարելու համար կապեք <ph name="ISSUER_NAME" /> հաշիվը</translation>
 <translation id="5547939254150808298">Տպագրություն և հրատարակություն</translation>
 <translation id="554815783948612276">Ֆորումների և զրույցների ծառայությունների մատակարարներ</translation>
 <translation id="5548606607480005320">Անվտանգության ստուգում</translation>
@@ -2877,6 +2881,7 @@
 <translation id="5570825185877910964">Պաշտպանել հաշիվը</translation>
 <translation id="5571083550517324815">Տվյալ հասցեից առաքման ընդունում հնարավոր չէ: Ընտրեք այլ հասցե:</translation>
 <translation id="5572434905385510939">22 x 28 դյույմ</translation>
+<translation id="5573090972398558474">Ձեր կազմակերպությունն արգելափակել է այս էջը ինկոգնիտո ռեժիմում։</translation>
 <translation id="5573641252776268565">Փոփոխել անձնագիրը</translation>
 <translation id="5578606540385219379">Ծառայություններ մատուցողներ</translation>
 <translation id="5580958916614886209">Ստուգեք սպառման ամիսը և նորից փորձեք</translation>
@@ -3183,6 +3188,7 @@
 <translation id="6093795393556121384">Ձեր քարտը հաստատված է</translation>
 <translation id="6094253940069566294">Փոփոխել փոխադրամիջոցը</translation>
 <translation id="6094290315941448991">Ըստ ադմինիստրատորի սահմանած կանոնի՝ էկրանի տեսագրման հնարավորությունն անջատվում է, երբ գաղտնի բովանդակություն է տեսանելի</translation>
+<translation id="6097297436119286254">Հաստատեք ձեր ինքնությունը՝ վճարային տվյալները լրացնելու համար</translation>
 <translation id="6099269767116481177">22 x 29,5 դյույմ</translation>
 <translation id="6101583188322746099">Մթերքի առաքման ծառայություններ</translation>
 <translation id="6104072995492677441">JIS B6</translation>
@@ -3701,6 +3707,7 @@
 <translation id="6926216138694948720">Բոդի արտ</translation>
 <translation id="692638818576287323">Կոմերցիոն փոխադրամիջոցներ</translation>
 <translation id="6927878187051807444">տեսախցիկի ֆայլեր և սքրինշոթներ</translation>
+<translation id="6929949393612835405">Փակել և վերադառնալ «<ph name="OPENER_TITLE" />»</translation>
 <translation id="6930607614725241390">Որոնեք կողային վահանակում</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />Կանխադրված որոնողական համակարգը թույլ է տալիս որոնել համացանցում և աջակցում է Chrome-ի այնպիսի գործառույթներ<ph name="END_BOLD" />, ինչպիսիք են որոնումը հասցեագոտուց և պատկերների միջոցով վեբ էջերում։ Գործառույթը կարող է հասանելի չլինել, եթե ձեր որոնողական համակարգը չի աջակցում այն։</translation>
 <translation id="6934672428414710184">Այս անունը վերցված է ձեր Google հաշվից</translation>
@@ -3982,6 +3989,7 @@
 <translation id="7377314930809374926">Հյուրանոցային արդյունաբերություն</translation>
 <translation id="7378594059915113390">Մեդիա կարգավորումներ</translation>
 <translation id="7378810950367401542">/</translation>
+<translation id="7379321689415048316">Chrome-ը կարող է ավտոմատ լրացնել դժվար դաշտերը, որոնք ստանդարտ ինքնալրացումը կարող է բաց թողնել</translation>
 <translation id="7380398842872229465">10 x 15 դյույմ</translation>
 <translation id="7381551826960739226">Վճարման եղանակների ինքնալրացումն անջատված է, քանի որ այս ձևն ապահով միացում չի օգտագործում։</translation>
 <translation id="7388380253839603603">Բենզինի գներ և տրանսպորտային միջոցների լիցքավորում</translation>
@@ -4303,6 +4311,7 @@
 <translation id="7844689747373518809">{COUNT,plural, =0{Չկա}=1{1 հավելված (<ph name="EXAMPLE_APP_1" />)}=2{2 հավելված (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}one{# հավելված (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />, <ph name="AND_MORE" />)}other{# հավելված (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />, <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">Սխալ առաջացավ։ Նորից փորձեք։</translation>
 <translation id="784623644169604270">Նոր գործողություններ չկան</translation>
+<translation id="7848926355794727168">Ավտոմատ դիտարկում</translation>
 <translation id="7853222852810008596">Տարաժամկետ վճարումը հասանելի չէ այս արժույթով</translation>
 <translation id="785476343534277563">Համալսարանական սպորտ</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" /> <ph name="CURRENCY_CODE" /> <ph name="FORMATTED_TOTAL_AMOUNT" /></translation>
@@ -4905,6 +4914,7 @@
 <translation id="8858065207712248076">Խորհուրդ ենք տալիս վերակայել <ph name="BEGIN_BOLD" /><ph name="ORG_NAME" /><ph name="END_BOLD" />-ի ձեր գաղտնաբառը, եթե այն օգտագործել եք այլ կայքերում:</translation>
 <translation id="885906927438988819">Եթե տառասխալ չկա, <ph name="BEGIN_LINK" />գործարկեք Windows-ի ցանցի դիագնոստիկան<ph name="END_LINK" />։</translation>
 <translation id="8861126751581835107">Լուսանկարչական և թվային արվեստներ</translation>
+<translation id="8861482055962701239">Չհաջողվեց պահել այս տվյալները ձեր Google Wallet-ում։ Փոխարենը դրանք պահվեցին Chrome-ում՝ այս սարքում։ Հաջորդ անգամ, երբ օգտագործեք դրանք, Chrome-ը կառաջարկի պահել Wallet-ում։</translation>
 <translation id="8863218129525348270">Հաջորդ անգամ ավելի արագ վճարելու համար պահեք քարտը ձեր սարքում</translation>
 <translation id="8864939224504814334">Կոստյումներ և բիզնես ոճի հագուստ</translation>
 <translation id="8866132857352163524">Սաունդթրեքներ</translation>
@@ -4930,6 +4940,7 @@
 <translation id="8897428486789851669">Լող</translation>
 <translation id="8899807382908246773">Հոգնեցնող գովազդ</translation>
 <translation id="8903921497873541725">Խոշորացնել</translation>
+<translation id="8903998444169664879">Հաստատեք ձեր ինքնությունը՝ վճարման կարգավորումները փոխելու համար</translation>
 <translation id="890493561996401738">Հուշումը հեռացնելու կոճակ։ Սեղմեք Enter՝ հեռացնելու համար։ <ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="8910898109640902752">8 x 10 դյմ</translation>
 <translation id="8914504000324227558">Chrome-ի վերագործարկում</translation>

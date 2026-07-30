@@ -276,6 +276,10 @@ export class ComposeboxElement extends I18nMixinLit
   private showTypedSuggestWithContext_: boolean =
       loadTimeData.getBoolean('composeboxShowTypedSuggestWithContext');
   private showZps: boolean = loadTimeData.getBoolean('composeboxShowZps');
+  // Determines whether to query zps when the composebox is rendered.
+  private queryZpsOnLoad: boolean = loadTimeData.valueExists('queryZpsOnLoad') ?
+      loadTimeData.valueExists('queryZpsOnLoad') :
+      true;
   private browserProxy: ComposeboxProxyImpl = ComposeboxProxyImpl.getInstance();
   private searchboxCallbackRouter_: SearchboxPageCallbackRouter;
   private pageHandler_: PageHandlerRemote;
@@ -355,7 +359,7 @@ export class ComposeboxElement extends I18nMixinLit
     this.focusInput();
     // For "next" searchboxes (Realbox Next, Omnibox Next, etc.), the zps
     // autocomplete query is triggered after the state has been initialized.
-    if (this.showZps && !this.searchboxNextEnabled) {
+    if (this.queryZpsOnLoad && !this.searchboxNextEnabled) {
       this.queryAutocomplete_(/* clearMatches= */ false);
     }
 
@@ -412,7 +416,6 @@ export class ComposeboxElement extends I18nMixinLit
 
     const changedPrivateProperties =
         changedProperties as Map<PropertyKey, unknown>;
-
     // When the result initially gets set check if dropdown should show.
     if (changedPrivateProperties.has('input_') ||
         changedPrivateProperties.has('result_') ||
@@ -489,6 +492,10 @@ export class ComposeboxElement extends I18nMixinLit
     this.queryAutocomplete_(clearMatches);
   }
 
+  protected onQueryAutocomplete_(e: CustomEvent<{clearMatches: boolean}>) {
+    this.queryAutocomplete_(e.detail.clearMatches);
+  }
+
   playGlowAnimation() {
     // If |animationState_| were still EXPANDING, this function would have no
     // effect because nothing changes in CSS and therefore animations wouldn't
@@ -515,6 +522,20 @@ export class ComposeboxElement extends I18nMixinLit
     this.$.context.resetModes();
   }
 
+  setDefaultModel() {
+    if (this.inputState_?.activeModel === ModelMode.kUnspecified) {
+      this.searchboxHandler_.setActiveModelMode(
+          this.inputState_?.allowedModels[0] ?? ModelMode.kUnspecified);
+    }
+  }
+
+  resetToolsAndModels() {
+    if (this.inputState_) {
+      this.searchboxHandler_.setActiveToolMode(ToolMode.kUnspecified);
+      this.searchboxHandler_.setActiveModelMode(ModelMode.kUnspecified);
+    }
+  }
+
   closeDropdown() {
     this.clearAutocompleteMatches();
   }
@@ -535,7 +556,7 @@ export class ComposeboxElement extends I18nMixinLit
     return this.$.context.getAutomaticActiveTabChipElement();
   }
 
-  protected initializeState_(
+  protected async initializeState_(
       text: string = '', files: ContextualUpload[] = [],
       mode: ToolMode = ToolMode.kUnspecified,
       model: ModelMode = ModelMode.kUnspecified,
@@ -547,7 +568,9 @@ export class ComposeboxElement extends I18nMixinLit
     if (this.showZps && files.length === 0) {
       this.queryAutocomplete_(/* clearMatches= */ false);
     }
-    this.inputState_ = inputState;
+    this.inputState_ = inputState ?
+        inputState :
+        (await this.searchboxHandler_.getInputState()).state;
     if (files.length > 0) {
       this.$.context.setContextFiles(files);
     }
@@ -556,7 +579,10 @@ export class ComposeboxElement extends I18nMixinLit
     }
     if (model !== ModelMode.kUnspecified) {
       this.searchboxHandler_.setActiveModelMode(model);
+    } else if (this.inputState_ && this.inputState_.allowedModels.length > 0) {
+      this.searchboxHandler_.setActiveModelMode(this.inputState_.allowedModels[0]!);
     }
+    this.updateInputPlaceholder_();
   }
 
   protected computeCancelButtonTitle_() {
@@ -775,8 +801,11 @@ export class ComposeboxElement extends I18nMixinLit
     }
   }
 
-  protected onContextMenuClosed_() {
+  protected async onContextMenuClosed_() {
     this.contextMenuOpened_ = false;
+
+    await this.updateComplete;
+    this.focusInput();
   }
 
   protected onContextMenuOpened_() {
@@ -804,6 +833,7 @@ export class ComposeboxElement extends I18nMixinLit
   protected voiceSearchEndCleanup_() {
     this.inVoiceSearchMode_ = false;
     this.animationState = GlowAnimationState.NONE;
+    this.transcript_ = '';
   }
 
   protected async onVoiceSearchFinalResult_(e: CustomEvent<string>) {
@@ -818,6 +848,7 @@ export class ComposeboxElement extends I18nMixinLit
       this.searchboxHandler_.submitQuery(
           e.detail, /*mouse_button=*/ 0, /*alt_key=*/ false,
           /*ctrl_key=*/ false, /*meta_key=*/ false, /*shift_key=*/ false);
+      this.submitCleanup_();
     } else {
       // If auto-submit is not enabled, update the input to the voice search
       // query, clear autocomplete matches, and recompute whether submission
@@ -908,6 +939,31 @@ export class ComposeboxElement extends I18nMixinLit
   }
 
   private updateInputPlaceholder_() {
+    if (this.inputState_) {
+      if (this.activeToolMode_ !== ToolMode.kUnspecified) {
+        const config = this.inputState_.toolConfigs.find(
+            c => c.tool === this.activeToolMode_);
+        if (config?.hintText) {
+          this.inputPlaceholder_ = config.hintText;
+          return;
+        }
+      }
+
+      if (this.inputState_.activeModel !== ModelMode.kUnspecified) {
+        const config = this.inputState_.modelConfigs.find(
+            c => c.model === this.inputState_!.activeModel);
+        if (config?.hintText) {
+          this.inputPlaceholder_ = config.hintText;
+          return;
+        }
+      }
+
+      if (this.inputState_.hintText) {
+        this.inputPlaceholder_ = this.inputState_.hintText;
+        return;
+      }
+    }
+
     if (this.activeToolMode_ === ToolMode.kDeepSearch) {
       this.inputPlaceholder_ =
           loadTimeData.getString('composeDeepSearchPlaceholder');
@@ -923,13 +979,13 @@ export class ComposeboxElement extends I18nMixinLit
   protected async onSetToolMode_(
       e: CustomEvent<{tool: ToolMode, enabled: boolean}>) {
     await this.handleToolMode_(e.detail.tool, e.detail.enabled);
-    }
+  }
 
   get activeToolMode(): ToolMode {
     return this.activeToolMode_;
   }
 
-  private async handleToolMode_(tool: ToolMode, enabled: boolean) {
+  private handleToolMode_(tool: ToolMode, enabled: boolean) {
     if (enabled) {
       this.activeToolMode_ = tool;
     } else if (this.activeToolMode_ === tool) {
@@ -938,20 +994,13 @@ export class ComposeboxElement extends I18nMixinLit
 
     this.searchboxHandler_.setActiveToolMode(this.activeToolMode_);
     this.queryAutocomplete_(/* clearMatches= */ true);
-    if (tool !== ToolMode.kCanvas) {
-      this.updateInputPlaceholder_();
-    }
+    this.updateInputPlaceholder_();
     this.fire('active-tool-mode-changed', {value: this.activeToolMode_});
-
-    await this.updateComplete;
-    this.focusInput();
   }
 
-  protected async onModelClick_(e: CustomEvent<{model: ModelMode}>) {
+  protected onModelClick_(e: CustomEvent<{model: ModelMode}>) {
     this.searchboxHandler_.setActiveModelMode(e.detail.model);
-
-    await this.updateComplete;
-    this.focusInput();
+    this.updateInputPlaceholder_();
   }
 
   protected onErrorScrimDismissed_() {
@@ -1141,11 +1190,7 @@ export class ComposeboxElement extends I18nMixinLit
   private closeComposebox_() {
     this.resetModes();
     this.searchboxHandler_.clearFiles();
-    if (this.inputState_) {
-      this.searchboxHandler_.setActiveToolMode(ToolMode.kUnspecified);
-      this.searchboxHandler_.setActiveModelMode(
-          this.inputState_?.allowedModels[0] || ModelMode.kUnspecified);
-    }
+    this.resetToolsAndModels();
     this.fire('close-composebox', {composeboxText: this.input_});
 
     if (this.isCollapsible) {
@@ -1153,6 +1198,28 @@ export class ComposeboxElement extends I18nMixinLit
       this.animationState = GlowAnimationState.NONE;
       this.$.input.blur();
     }
+  }
+
+  protected submitCleanup_() {
+    // Update states after submitting:
+    this.animationState = GlowAnimationState.SUBMITTING;
+    // Nano banana and deep search allow for follow ups, so
+    // do not clear them.
+    if (this.activeToolMode_ === ToolMode.kCanvas) {
+      this.resetModes();
+    }
+
+    // If the composebox is expandable or we should clear it, clear the input
+    // after submitting the query.
+    if (this.isCollapsible || this.clearAllInputsWhenSubmittingQuery_) {
+      this.clearAllInputs(/* querySubmitted= */ true);
+    }
+
+    if (this.isCollapsible) {
+      this.$.input.blur();
+    }
+
+    this.fire('composebox-submit');
   }
 
   protected submitQuery_(e: KeyboardEvent|MouseEvent) {
@@ -1186,18 +1253,7 @@ export class ComposeboxElement extends I18nMixinLit
           e.ctrlKey, e.metaKey, e.shiftKey);
     }
 
-    this.animationState = GlowAnimationState.SUBMITTING;
-
-    // If the composebox is expandable, collapse it and clear the input after
-    // submitting.
-    if (this.isCollapsible || this.clearAllInputsWhenSubmittingQuery_) {
-      this.clearAllInputs(/* querySubmitted= */ true);
-    }
-
-    if (this.isCollapsible) {
-      this.$.input.blur();
-    }
-    this.fire('composebox-submit');
+    this.submitCleanup_();
   }
 
   /**
@@ -1216,6 +1272,10 @@ export class ComposeboxElement extends I18nMixinLit
     this.selectedMatchIndex_ = e.detail.value;
     this.selectedMatch_ =
         this.result_?.matches[this.selectedMatchIndex_] || null;
+  }
+
+  getResultForTesting(): AutocompleteResult|null {
+    return this.result_;
   }
 
   /**
@@ -1267,7 +1327,10 @@ export class ComposeboxElement extends I18nMixinLit
     }
     this.haveReceivedAutcompleteResponse_ = true;
     this.result_ = result;
-    this.fire('zero-state-result-changed', result);
+    /* Indicates when suggestion results have changed so that zero state
+     * suggestion results in contextual tasks composebox can update accordingly.
+     */
+    this.fire('result-changed', result);
 
     const hasMatches = this.result_.matches.length > 0;
     const firstMatch = hasMatches ? this.result_.matches[0] : null;
@@ -1397,6 +1460,12 @@ export class ComposeboxElement extends I18nMixinLit
 
   clearAllInputs(querySubmitted: boolean) {
     this.clearInput();
+    // Let `querySubmit_` handle clearing files if the tool mode is a tool mode
+    // that should be cleared after submitting. For all other general
+    // clearing, clear input here.
+    if (!querySubmitted) {
+      this.resetModes();
+    }
     const remainingFiles = this.$.context.resetContextFiles();
     // Reset files in set to match remaining files in carousel.
     this.setPendingUploads(remainingFiles);

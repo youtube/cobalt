@@ -980,6 +980,22 @@ constexpr char kGlicGuestUrlPresetProd[] = "glic.guest_url_preset_prod";
 // Deprecated 02/2026.
 constexpr char kProfilesDeletedOld[] = "profiles.profiles_deleted";
 
+// Deprecated 02/2026.
+inline constexpr char kExplicitBrowserSigninWithoutFeatureEnabled[] =
+    "signin.explicit_browser_signin";
+
+// Deprecated 02/2026.
+constexpr char kDiceMigrationDialogShownCount[] =
+    "signin.dice_migration.dialog_shown_count";
+constexpr char kDiceMigrationDialogLastShownTime[] =
+    "signin.dice_migration.dialog_last_shown_time";
+constexpr char kDiceMigrationBackup[] = "signin.dice_migration.backup";
+constexpr char kDiceMigrationRestoredFromBackup[] =
+    "signin.dice_migration.restored_from_backup";
+
+// Deprecated 02/2026.
+inline constexpr char kTabSearchOpened[] = "tab_search.opened";
+
 // Register local state used only for migration (clearing or moving to a new
 // key).
 void RegisterLocalStatePrefsForMigration(PrefRegistrySimple* registry) {
@@ -1359,6 +1375,19 @@ void RegisterProfilePrefsForMigration(
   registry->RegisterStringPref(kGlicGuestUrlPresetAutopush, std::string());
   registry->RegisterStringPref(kGlicGuestUrlPresetPreprod, std::string());
   registry->RegisterStringPref(kGlicGuestUrlPresetProd, std::string());
+
+  // Deprecated 02/2026.
+  registry->RegisterBooleanPref(kExplicitBrowserSigninWithoutFeatureEnabled,
+                                false);
+
+  // Deprecated 02/2026.
+  registry->RegisterIntegerPref(kDiceMigrationDialogShownCount, 0);
+  registry->RegisterTimePref(kDiceMigrationDialogLastShownTime, base::Time());
+  registry->RegisterDictionaryPref(kDiceMigrationBackup);
+  registry->RegisterBooleanPref(kDiceMigrationRestoredFromBackup, false);
+
+  // Deprecated 02/2026.
+  registry->RegisterBooleanPref(kTabSearchOpened, false);
 }
 
 }  // namespace
@@ -2164,6 +2193,14 @@ void RegisterProfilePrefs(user_prefs::PrefRegistrySyncable* registry,
   registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownLens, false);
   registry->RegisterBooleanPref(
       prefs::kAndroidTipNotificationShownBottomOmnibox, false);
+  registry->RegisterBooleanPref(
+      prefs::kAndroidTipNotificationShownPasswordAutofill, false);
+  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownSignin,
+                                false);
+  registry->RegisterBooleanPref(
+      prefs::kAndroidTipNotificationShownCreateTabGroup, false);
+  registry->RegisterBooleanPref(prefs::kAndroidTipNotificationShownCustomizeMVT,
+                                false);
 #endif  // BUILDFLAG(IS_ANDROID)
 
   registry->RegisterBooleanPref(prefs::kStaticStorageQuotaEnabled, false);
@@ -2641,6 +2678,12 @@ void MigrateObsoleteProfilePrefs(PrefService* profile_prefs,
   profile_prefs->ClearPref(kGlicGuestUrlPresetAutopush);
   profile_prefs->ClearPref(kGlicGuestUrlPresetPreprod);
   profile_prefs->ClearPref(kGlicGuestUrlPresetProd);
+
+  // Added 02/2026.
+  profile_prefs->ClearPref(kExplicitBrowserSigninWithoutFeatureEnabled);
+
+  // Added 02/2026.
+  profile_prefs->ClearPref(kTabSearchOpened);
 
   // Please don't delete the following line. It is used by PRESUBMIT.py.
   // END_MIGRATE_OBSOLETE_PROFILE_PREFS

@@ -55,10 +55,7 @@ class ScopedRasterTimerTest : public Test {
     test_context_provider_ =
         viz::TestContextProvider::CreateRaster(std::move(fake_raster_context));
     auto* test_raster = test_context_provider_->UnboundTestRasterInterface();
-    test_raster->set_supports_mappable_format(
-        viz::SinglePlaneFormat::kRGBA_8888, true);
-    test_raster->set_supports_mappable_format(
-        viz::SinglePlaneFormat::kBGRA_8888, true);
+    test_raster->set_texture_format_bgra8888(true);
 
     gpu::SharedImageCapabilities shared_image_caps;
     shared_image_caps.supports_scanout_shared_images = true;
@@ -85,8 +82,8 @@ TEST_F(ScopedRasterTimerTest, UnacceleratedRasterDuration) {
 
   const gpu::SharedImageUsageSet shared_image_usage_flags =
       gpu::SHARED_IMAGE_USAGE_DISPLAY_READ | gpu::SHARED_IMAGE_USAGE_SCANOUT;
-  std::unique_ptr<CanvasNon2DResourceProviderSharedImage> provider =
-      CanvasNon2DResourceProviderSharedImage::Create(
+  std::unique_ptr<Canvas2DResourceProviderSharedImage> provider =
+      Canvas2DResourceProviderSharedImage::Create(
           gfx::Size(10, 10), GetN32FormatForCanvas(), kPremul_SkAlphaType,
           gfx::ColorSpace::CreateSRGB(),
           CanvasResourceProvider::ShouldInitialize::kCallClear,
@@ -120,7 +117,7 @@ TEST_F(ScopedRasterTimerTest, UnacceleratedRasterDuration) {
 TEST_F(ScopedRasterTimerTest, AcceleratedRasterDuration) {
   base::ScopedMockElapsedTimersForTest mock_timer;
 
-  auto provider = CanvasNon2DResourceProviderSharedImage::Create(
+  auto provider = Canvas2DResourceProviderSharedImage::Create(
       gfx::Size(10, 10), GetN32FormatForCanvas(), kPremul_SkAlphaType,
       gfx::ColorSpace::CreateSRGB(),
       CanvasResourceProvider::ShouldInitialize::kCallClear,

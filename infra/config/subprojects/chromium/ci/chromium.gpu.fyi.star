@@ -2934,7 +2934,7 @@ ci.thin_tester(
     # TODO(crbug.com/473587145): Rename this to "Win11" when the upgrade goes
     # to stable.
     name = "Win10 FYI x64 Release (AMD RX 5500 XT)",
-    description_html = "Runs release GPU tests on stable Windows 10/AMD RX 5500 XT configs",
+    description_html = "Runs release GPU tests on stable Windows 11/AMD RX 5500 XT configs",
     parent = "GPU FYI Win x64 Builder",
     builder_spec = builder_config.builder_spec(
         execution_mode = builder_config.execution_mode.TEST,
@@ -2958,7 +2958,7 @@ ci.thin_tester(
             "gpu_fyi_win_amd_release_telemetry_tests",
         ],
         mixins = [
-            "win10_amd_rx_5500_xt_stable",
+            "win11_amd_rx_5500_xt_stable",
         ],
         per_test_modifications = {
             "gl_unittests": targets.mixin(
@@ -2979,7 +2979,7 @@ ci.thin_tester(
         os_type = targets.os_type.WINDOWS,
     ),
     console_view_entry = consoles.console_view_entry(
-        category = "Windows|10|x64|AMD",
+        category = "Windows|11|x64|AMD",
         short_name = "rel",
     ),
 )
@@ -3238,30 +3238,29 @@ ci.thin_tester(
         # should have the same test suites as "Win10 FYI x64 Release (AMD
         # RX 5500XT)".
         targets = [
-            "gpu_fyi_win_gtests",
-            "gpu_fyi_win_amd_release_telemetry_tests",
+            "gpu_noop_sleep_telemetry_test",
         ],
         mixins = [
             "limited_capacity_bot",
             "win11_amd_rx_5500_xt_experimental",
         ],
-        per_test_modifications = {
-            "gl_unittests": targets.mixin(
-                args = [
-                    "--test-launcher-filter-file=../../testing/buildbot/filters/win.amd.5500xt.gl_unittests.filter",
-                ],
-            ),
-        },
+        # per_test_modifications = {
+        #     "gl_unittests": targets.mixin(
+        #         args = [
+        #             "--test-launcher-filter-file=../../testing/buildbot/filters/win.amd.5500xt.gl_unittests.filter",
+        #         ],
+        #     ),
+        # },
     ),
     targets_settings = targets.settings(
         browser_config = targets.browser_config.RELEASE_X64,
         os_type = targets.os_type.WINDOWS,
     ),
     # Uncomment this entry when this experimental tester is actually in use.
-    console_view_entry = consoles.console_view_entry(
-        category = "Windows|11|x64|AMD",
-        short_name = "rel",
-    ),
+    # console_view_entry = consoles.console_view_entry(
+    #     category = "Windows|11|x64|AMD",
+    #     short_name = "rel",
+    # ),
     list_view = "chromium.gpu.experimental",
 )
 

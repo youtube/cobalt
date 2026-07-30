@@ -4,6 +4,7 @@
 
 #include "chrome/browser/ash/login/screens/offline_login_screen.h"
 
+#include "base/check_deref.h"
 #include "base/check_op.h"
 #include "base/functional/bind.h"
 #include "base/metrics/histogram_functions.h"
@@ -14,8 +15,6 @@
 #include "chrome/browser/ash/login/screen_manager.h"
 #include "chrome/browser/ash/login/wizard_context.h"
 #include "chrome/browser/ash/policy/core/browser_policy_connector_ash.h"
-#include "chrome/browser/browser_process.h"
-#include "chrome/browser/browser_process_platform_part.h"
 #include "chrome/browser/ui/ash/login/login_display_host.h"
 #include "chrome/browser/ui/ash/login/signin_ui.h"
 #include "chrome/browser/ui/webui/ash/login/offline_login_screen_handler.h"
@@ -51,12 +50,6 @@ enum class OfflineLoginEvent {
   kMaxValue = kOfflineLoginBlockedByInvalidToken,
 };
 
-inline std::string GetEnterpriseDomainManager() {
-  policy::BrowserPolicyConnectorAsh* connector =
-      g_browser_process->platform_part()->browser_policy_connector_ash();
-  return connector->GetEnterpriseDomainManager();
-}
-
 void RecordEvent(OfflineLoginEvent event) {
   base::UmaHistogramEnumeration("Login.OfflineLoginWithHiddenUserPods", event);
 }
@@ -75,9 +68,14 @@ std::string OfflineLoginScreen::GetResultString(Result result) {
   // LINT.ThenChange(//tools/metrics/histograms/metadata/oobe/histograms.xml)
 }
 
-OfflineLoginScreen::OfflineLoginScreen(base::WeakPtr<OfflineLoginView> view,
-                                       const ScreenExitCallback& exit_callback)
+OfflineLoginScreen::OfflineLoginScreen(
+    PrefService* local_state,
+    const policy::BrowserPolicyConnectorAsh* browser_policy_connector_ash,
+    base::WeakPtr<OfflineLoginView> view,
+    const ScreenExitCallback& exit_callback)
     : BaseScreen(OfflineLoginView::kScreenId, OobeScreenPriority::DEFAULT),
+      local_state_(CHECK_DEREF(local_state)),
+      browser_policy_connector_ash_(CHECK_DEREF(browser_policy_connector_ash)),
       auth_factor_editor_(UserDataAuthClient::Get()),
       view_(std::move(view)),
       exit_callback_(exit_callback) {
@@ -100,7 +98,8 @@ void OfflineLoginScreen::ShowImpl() {
   StartIdleDetection();
 
   base::DictValue params;
-  const std::string enterprise_domain_manager(GetEnterpriseDomainManager());
+  const std::string enterprise_domain_manager(
+      browser_policy_connector_ash_->GetEnterpriseDomainManager());
   if (!enterprise_domain_manager.empty()) {
     params.Set("enterpriseDomainManager", enterprise_domain_manager);
   }
@@ -144,7 +143,7 @@ void OfflineLoginScreen::HandleTryLoadOnlineLogin() {
 void OfflineLoginScreen::HandleCompleteAuth(const std::string& email,
                                             const std::string& password) {
   const std::string sanitized_email = gaia::SanitizeEmail(email);
-  user_manager::KnownUser known_user(g_browser_process->local_state());
+  user_manager::KnownUser known_user(&local_state_.get());
   const AccountId account_id = known_user.GetAccountId(
       sanitized_email, std::string() /* id */, AccountType::UNKNOWN);
   const user_manager::User* user =
@@ -165,7 +164,7 @@ void OfflineLoginScreen::HandleCompleteAuth(const std::string& email,
   if (!authenticate_by_pin_) {
     user_context.SetLocalPasswordInput(LocalPasswordInput{password});
     // Save the user's plaintext password for possible authentication to a
-    // network. See https://crbug.com/386606 for details.
+    // network. See https://crbug.com/40371326 for details.
     user_context.SetPasswordKey(Key(password));
   }
   user_context.SetIsUsingPin(authenticate_by_pin_);
@@ -187,7 +186,7 @@ void OfflineLoginScreen::HandleEmailSubmitted(const std::string& email) {
 
   bool offline_limit_expired = false;
   const std::string sanitized_email = gaia::SanitizeEmail(email);
-  user_manager::KnownUser known_user(g_browser_process->local_state());
+  user_manager::KnownUser known_user(&local_state_.get());
   const AccountId account_id = known_user.GetAccountId(
       sanitized_email, std::string(), AccountType::UNKNOWN);
   const std::optional<base::TimeDelta> offline_signin_interval =

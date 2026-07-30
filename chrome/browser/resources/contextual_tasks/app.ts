@@ -18,18 +18,24 @@ import type {Uuid} from 'chrome://resources/mojo/mojo/public/mojom/base/uuid.moj
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import type {ContextualTasksComposeboxElement} from './composebox.js';
+import type {ComposeboxPosition} from './contextual_tasks.mojom-webui.js';
 import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
 import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 import {PostMessageHandler} from './post_message_handler.js';
 
 declare global {
   interface HTMLElementEventMap {
+    'loadstart': chrome.webviewTag.LoadStartEvent;
     'newwindow': chrome.webviewTag.NewWindowEvent;
+    'permissionrequest': chrome.webviewTag.PermissionRequestEvent;
   }
 }
 
 type ChromeEventFunctionType<T> =
     T extends ChromeEvent<infer ListenerType>? ListenerType : never;
+
+export type OnBeforeRequestDetails = Parameters<
+    ChromeEventFunctionType<typeof chrome.webRequest.onBeforeRequest>>[0];
 
 // The url query parameter keys for the viewport size.
 const VIEWPORT_HEIGHT_KEY = 'bih';
@@ -67,6 +73,14 @@ function updateTaskDetailsInUrl(
   } else {
     window.history.replaceState({}, '', url.href);
   }
+}
+
+// Preserve the aim url to the search param named aim_url used for reload and
+// session restore.
+function updateAimUrl(aimUrl: any) {
+  const url = new URL(window.location.href);
+  url.searchParams.set('aim_url', aimUrl);
+  window.history.replaceState({}, '', url.href);
 }
 
 // Updates param for the title in the WebUI URL. This facilitates the restore
@@ -141,7 +155,7 @@ export class ContextualTasksAppElement extends CrLitElement {
       isLensOverlayShowing_: {type: Boolean},
       isGhostLoaderVisible_: {type: Boolean, reflect: true},
       isErrorDialogVisible_: {type: Boolean},
-      enableNativeZeroStateSuggestions: {
+      enableNativeZeroStateSuggestions_: {
         type: Boolean,
         reflect: true,
       },
@@ -149,11 +163,12 @@ export class ContextualTasksAppElement extends CrLitElement {
         type: Boolean,
         reflect: true,
       },
+      isInputLocked_: {
+        type: Boolean,
+      },
     };
   }
 
-  accessor enableNativeZeroStateSuggestions: boolean =
-      loadTimeData.getBoolean('enableNativeZeroStateSuggestions');
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
   protected accessor enableBasicModeZOrder_: boolean =
       loadTimeData.getBoolean('enableBasicModeZOrder');
@@ -168,12 +183,15 @@ export class ContextualTasksAppElement extends CrLitElement {
   protected accessor isInBasicMode_: boolean = false;
   protected accessor isErrorPageVisible_: boolean = false;
   protected accessor isZeroState_: boolean = false;
+  protected accessor enableNativeZeroStateSuggestions_: boolean =
+      loadTimeData.getBoolean('enableNativeZeroStateSuggestions');
+  protected accessor isGhostLoaderVisible_: boolean = false;
+  protected accessor isInputLocked_: boolean = false;
 
   protected friendlyZeroStateSubtitle: string =
       loadTimeData.getString('friendlyZeroStateSubtitle');
   protected friendlyZeroStateTitle: string =
       loadTimeData.getString('friendlyZeroStateTitle');
-  protected accessor isGhostLoaderVisible_: boolean = false;
   // Tracks whether the frame is currently loading. Needed to avoid race
   // condition while awaiting isAiPage.
   private isFrameLoading: boolean = false;
@@ -192,32 +210,9 @@ export class ContextualTasksAppElement extends CrLitElement {
   private popStateFinishedCallbackForTesting_: (() => void)|null = null;
   private forceBasicModeIfOpeningThreadHistory_: boolean =
       loadTimeData.getBoolean('forceBasicModeIfOpeningThreadHistory');
-
-  override firstUpdated() {
-    this.postMessageHandler_ =
-        new PostMessageHandler(this.$.threadFrame, this.browserProxy_);
-  }
-
-  protected async onNewThreadClick_() {
-    chrome.metricsPrivate.recordUserAction(
-        'ContextualTasks.WebUI.UserAction.OpenNewThread');
-    chrome.metricsPrivate.recordBoolean(
-        'ContextualTasks.WebUI.UserAction.OpenNewThread', true);
-    const {url} = await this.browserProxy_.handler.getThreadUrl();
-    const newThreadUrl = new URL(url);
-    const currentUrl = new URL(this.$.threadFrame.src);
-    const source = currentUrl.searchParams.get('source');
-    if (source) {
-      newThreadUrl.searchParams.set('source', source);
-    }
-    const aep = currentUrl.searchParams.get('aep');
-    if (aep) {
-      newThreadUrl.searchParams.set('aep', aep);
-    }
-    this.$.threadFrame.src = newThreadUrl.href;
-    this.$.composebox.startExpandAnimation();
-    this.$.composebox.clearInputAndFocus();
-  }
+  // This is needed to keep navigations between non-AIM pages from triggering
+  // the input hide/restore callbacks.
+  private isNavigatingFromAiPage_: boolean = false;
 
   override async connectedCallback() {
     super.connectedCallback();
@@ -246,14 +241,37 @@ export class ContextualTasksAppElement extends CrLitElement {
       // TODO(crbug.com/474359572): Rename this to be more descriptive of what
       // it actually does.
       callbackRouter.hideInput.addListener(() => {
+        // OnBeforeRequest will trigger before the navigation, so this is needed
+        // to prevent the input from being hidden when navigating to a new
+        // page.
+        if (this.isNavigatingFromAiPage_) {
+          return;
+        }
+
         this.isInBasicMode_ = true;
       }),
       callbackRouter.restoreInput.addListener(() => {
+        // OnBeforeRequest will trigger before the navigation, so this is needed
+        // to prevent the input from being restored when navigating to a new
+        // page.
+        if (this.isNavigatingFromAiPage_) {
+          return;
+        }
+
         this.isInBasicMode_ = false;
       }),
       callbackRouter.setTaskDetails.addListener(updateTaskDetailsInUrl),
+      callbackRouter.setAimUrl.addListener(updateAimUrl),
       callbackRouter.onZeroStateChange.addListener((isZeroState: boolean) => {
+        const wasZeroState = this.isZeroState_;
         this.isZeroState_ = isZeroState;
+        // If we just changed to zero state, that means
+        // it is a new thread or new AIM page. Otherwise,
+        // we are not in zero state anymore, or not in an AIM URL. In
+        // both thread/AIM cases for zero state, we clear input.
+        if (isZeroState && !wasZeroState) {
+          this.$.composebox.clearInputAndFocus();
+        }
       }),
       callbackRouter.onLensOverlayStateChanged.addListener(
           (isOverlayShowing: boolean) => {
@@ -267,6 +285,15 @@ export class ContextualTasksAppElement extends CrLitElement {
       }),
       callbackRouter.showOauthErrorDialog.addListener(() => {
         this.isErrorDialogVisible_ = true;
+      }),
+      callbackRouter.updateComposeboxPosition.addListener(
+          this.onUpdateComposeboxPosition_.bind(this),
+          ),
+      callbackRouter.lockInput.addListener(() => {
+        this.isInputLocked_ = true;
+      }),
+      callbackRouter.unlockInput.addListener(() => {
+        this.isInputLocked_ = false;
       }),
     ];
 
@@ -310,17 +337,18 @@ export class ContextualTasksAppElement extends CrLitElement {
         this.isFrameLoading = false;
         this.setIsGhostLoaderVisible(false);
       });
-      this.$.threadFrame.addEventListener('loadstart', async (ev: any) => {
-        if (!ev.isTopLevel) {
-          return;
-        }
-        this.isFrameLoading = true;
-        const { isAiPage } =
-          await this.browserProxy_.handler.isAiPage(ev.url as string);
-        if (this.isFrameLoading && !isAiPage) {
-          this.setIsGhostLoaderVisible(true);
-        }
-      });
+      this.$.threadFrame.addEventListener(
+          'loadstart', async (ev: chrome.webviewTag.LoadStartEvent) => {
+            if (!ev.isTopLevel) {
+              return;
+            }
+            this.isFrameLoading = true;
+            const {isAiPage} =
+                await this.browserProxy_.handler.isAiPage(ev.url);
+            if (this.isFrameLoading && !isAiPage) {
+              this.setIsGhostLoaderVisible(true);
+            }
+          });
     }
 
     // Setup the webview request overrides before loading the first URL.
@@ -379,9 +407,24 @@ export class ContextualTasksAppElement extends CrLitElement {
     super.disconnectedCallback();
     this.listenerIds_.forEach(
         id => this.browserProxy_.callbackRouter.removeListener(id));
-    this.$.threadFrame.request.onBeforeRequest.removeListener(
-        this.onBeforeRequest);
+    this.removeWebviewRequestOverrides();
     this.eventTracker_.removeAll();
+  }
+
+  override firstUpdated() {
+    this.postMessageHandler_ =
+        new PostMessageHandler(this.$.threadFrame, this.browserProxy_);
+
+    this.eventTracker_.add(
+        this.$.composebox, 'composebox-height-update', (e: CustomEvent) => {
+          // TODO(crbug.com/483737358): Sending an object instead of a proto is
+          // a temporary solution to unblock the prototype. Remove this method
+          // once the proto is implemented on the webview side.
+          this.postMessageHandler_.sendObjectMessage({
+            type: 'composebox-height-update',
+            height: e.detail.height,
+          });
+        });
   }
 
   override updated(changedProperties: PropertyValues<this>) {
@@ -395,6 +438,62 @@ export class ContextualTasksAppElement extends CrLitElement {
     if (changedPrivateProperties.has('isShownInTab_')) {
       this.updateCommonSearchParams();
     }
+  }
+  private setStyleVariable(variable: string, value: string) {
+    this.$.composebox.style.setProperty(variable, `${value}px`);
+  }
+  /* Adjust composebox based on server notifications. Negatives are used if
+   * server wants to change marginTop, marginRight.
+   */
+  private onUpdateComposeboxPosition_(position: ComposeboxPosition) {
+    if (position.maxWidth !== null) {
+      this.setStyleVariable('--max-composebox-width', `${position.maxWidth}px`);
+    }
+    if (position.maxHeight !== null) {
+      // Set contextual task's composebox max-height.
+      this.setStyleVariable(
+          '--max-composebox-height', `${position.maxHeight}px`);
+      // Set cr-component's composebox max-height.
+      this.setStyleVariable(
+          '--cr-composebox-max-height', `${position.maxHeight}px`);
+    }
+    if (position.marginBottom !== null) {
+      this.setStyleVariable(
+          '--composebox-margin-bottom', `${position.marginBottom}px`);
+    }
+    if (position.marginLeft !== null) {
+      this.setStyleVariable(
+          '--composebox-margin-left', `${position.marginLeft}px`);
+    }
+  }
+
+  protected async onNewThreadClick_() {
+    chrome.metricsPrivate.recordUserAction(
+        'ContextualTasks.WebUI.UserAction.OpenNewThread');
+    chrome.metricsPrivate.recordBoolean(
+        'ContextualTasks.WebUI.UserAction.OpenNewThread', true);
+    const {url} = await this.browserProxy_.handler.getThreadUrl();
+    const newThreadUrl = new URL(url);
+    const currentUrl = new URL(this.$.threadFrame.src);
+    const source = currentUrl.searchParams.get('source');
+    if (source) {
+      newThreadUrl.searchParams.set('source', source);
+    }
+    const aep = currentUrl.searchParams.get('aep');
+    if (aep) {
+      newThreadUrl.searchParams.set('aep', aep);
+    }
+    this.$.threadFrame.src = newThreadUrl.href;
+    this.$.composebox.startExpandAnimation();
+    this.$.composebox.clearInputAndFocus();
+  }
+
+  getEnableNativeZeroStateSuggestionsForTesting() {
+    return this.enableNativeZeroStateSuggestions_;
+  }
+
+  setEnableNativeZeroStateSuggestionsForTesting(enable: boolean) {
+    this.enableNativeZeroStateSuggestions_ = enable;
   }
 
   // Conditionally update the provided thread URL so it restores an existing
@@ -458,20 +557,31 @@ export class ContextualTasksAppElement extends CrLitElement {
           urls: ['<all_urls>'],
         },
         ['blocking']);
+    this.$.threadFrame.request.onCompleted.addListener(this.onCompleted, {
+      types: ['main_frame'] as any,
+      urls: ['<all_urls>'],
+    });
 
     // Allow downloading files. This is necessary since aim can generate images
     // for download.
-    this.$.threadFrame.addEventListener('permissionrequest', (e: any) => {
-      if (e.permission === 'download') {
-        e.request.allow();
-      }
-    });
+    this.$.threadFrame.addEventListener(
+        'permissionrequest', (e: chrome.webviewTag.PermissionRequestEvent) => {
+          if (e.permission === 'download') {
+            e.request.allow();
+          }
+        });
 
     // Sets the user agent to the default user agent + the contextual tasks
     // custom suffix.
     const userAgent = this.$.threadFrame.getUserAgent();
     const userAgentSuffix = loadTimeData.getString('userAgentSuffix');
     this.$.threadFrame.setUserAgentOverride(`${userAgent} ${userAgentSuffix}`);
+  }
+
+  private removeWebviewRequestOverrides() {
+    this.$.threadFrame.request.onBeforeRequest.removeListener(
+        this.onBeforeRequest);
+    this.$.threadFrame.request.onCompleted.removeListener(this.onCompleted);
   }
 
   private addCommonSearchParams(url: URL): URL {
@@ -506,6 +616,10 @@ export class ContextualTasksAppElement extends CrLitElement {
             const newUrl = this.addCommonSearchParams(url);
             const isSigninDomain =
                 !!this.signInDomains_.find((domain) => domain === url.host);
+            if (this.isAiPage_) {
+              this.isNavigatingFromAiPage_ = true;
+              this.isInBasicMode_ = true;
+            }
             if (this.forcedEmbeddedPageHost && !isSigninDomain) {
               newUrl.host = this.forcedEmbeddedPageHost;
             }
@@ -514,6 +628,15 @@ export class ContextualTasksAppElement extends CrLitElement {
             }
             return {};
           };
+
+  private onCompleted = (): void => {
+    if (!this.isNavigatingFromAiPage_) {
+      return;
+    }
+
+    this.isInBasicMode_ = false;
+    this.isNavigatingFromAiPage_ = false;
+  };
 
   getThreadUrlForTesting() {
     return this.$.threadFrame.src;
@@ -534,6 +657,23 @@ export class ContextualTasksAppElement extends CrLitElement {
 
   setPopStateFinishedCallbackForTesting(callback: () => void) {
     this.popStateFinishedCallbackForTesting_ = callback;
+  }
+
+  setMockPostMessageHandlerForTesting(mockPostMessageHandler:
+                                          PostMessageHandler) {
+    this.postMessageHandler_ = mockPostMessageHandler;
+  }
+
+  isNavigatingForTesting() {
+    return this.isNavigatingFromAiPage_;
+  }
+
+  onBeforeRequestForTesting(details: OnBeforeRequestDetails) {
+    return this.onBeforeRequest(details);
+  }
+
+  onCompletedForTesting() {
+    this.onCompleted();
   }
 }
 

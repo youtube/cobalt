@@ -195,6 +195,8 @@ class Host : public GlicSharingManagerProvider {
     // If set, the textbox for user input will be populated with the given
     // string before the panel opens.
     std::optional<std::string> prompt_suggestion;
+    // If set, the suggested query will be auto-sent after the panel opens.
+    bool auto_send = false;
     // Up to 3 most recently active conversations, ordered by most recently
     // active first.
     std::optional<std::vector<glic::mojom::ConversationInfoPtr>>
@@ -400,6 +402,8 @@ class Host : public GlicSharingManagerProvider {
   void NotifyActorTaskListRowClicked(int32_t task_id);
 
   void NotifySkillToInvokeChanged(mojom::SkillPtr skill);
+
+  void Invoke(mojom::InvokeOptionsPtr options, base::OnceClosure callback);
 
   void NotifyContextualSkillsChanged(
       std::vector<mojom::SkillPreviewPtr> contextual_skill_previews);

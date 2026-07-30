@@ -10,12 +10,9 @@ import org.chromium.base.MutableBooleanParamWithSafeDefault;
 import org.chromium.base.MutableFlagWithSafeDefault;
 import org.chromium.base.MutableIntParamWithSafeDefault;
 import org.chromium.build.annotations.NullMarked;
-import org.chromium.components.cached_flags.CachedFlag;
 import org.chromium.content.common.ContentInternalFeatures;
 import org.chromium.content_public.common.ContentFeatures;
 import org.chromium.ui.accessibility.AccessibilityFeatures;
-
-import java.util.List;
 
 /** Convenience static methods to access {@link ContentFeatureMap}. */
 @NullMarked
@@ -52,6 +49,12 @@ public class ContentFeatureList {
     public static final String ACCESSIBILITY_UNIFIED_SNAPSHOTS = "AccessibilityUnifiedSnapshots";
     public static final String ACCESSIBILITY_MANAGE_BROADCAST_RECEIVER_ON_BACKGROUND =
             "AccessibilityManageBroadcastReceiverOnBackground";
+
+    public static final String ALLOW_DELAYED_AUDIO_FOCUS_GAIN_ANDROID =
+            "AllowDelayedAudioFocusGainAndroid";
+
+    public static final String ANDROID_ENABLE_BACKGROUND_MEDIA_CAPTURING =
+            "AndroidEnableBackgroundMediaCapturing";
 
     public static final String ANDROID_CAPTURE_KEY_EVENTS = "AndroidCaptureKeyEvents";
     public static final String ANDROID_CARET_BROWSING = "AndroidCaretBrowsing";
@@ -132,7 +135,7 @@ public class ContentFeatureList {
             new MutableFlagWithSafeDefault(
                     ContentFeatureMap.getInstance(),
                     ContentInternalFeatures.STRICT_HIGH_RANK_PROCESS_LRU,
-                    false);
+                    true);
 
     public static final MutableFlagWithSafeDefault sRemoveCachedProcessFromBindingManager =
             new MutableFlagWithSafeDefault(
@@ -159,10 +162,9 @@ public class ContentFeatureList {
     public static final MutableBooleanParamWithSafeDefault sSpareRendererRemoveBindingNoTimeout =
             sSpareRendererProcessPriority.newBooleanParam("remove-binding-no-timeout", false);
 
-    // Use a CachedFlag as this is often checked before native is loaded, and must stay consistent
-    // once decided upon.
-    public static final CachedFlag sJavalessRenderers =
-            new CachedFlag(ContentFeatureMap.getInstance(), JAVALESS_RENDERERS, false, true);
+    public static final MutableFlagWithSafeDefault sJavalessRenderers =
+            new MutableFlagWithSafeDefault(
+                    ContentFeatureMap.getInstance(), JAVALESS_RENDERERS, false);
 
     public static final MutableFlagWithSafeDefault sAndroidDesktopZoomScaling =
             new MutableFlagWithSafeDefault(
@@ -175,6 +177,4 @@ public class ContentFeatureList {
 
     public static final MutableIntParamWithSafeDefault sAndroidMonitorZoomScalingFactor =
             sAndroidDesktopZoomScaling.newIntParam("monitor-zoom-scaling-factor", 100);
-
-    public static final List<CachedFlag> sCachedFlags = List.of(sJavalessRenderers);
 }

@@ -37,6 +37,7 @@ import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutU
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.PINNED_TAB_WIDTH_DP;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.TAB_GROUP_BOTTOM_INDICATOR_WIDTH_OFFSET;
 import static org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutUtils.TAB_OVERLAP_WIDTH_DP;
+import static org.chromium.chrome.browser.tabmodel.TabGroupTitleUtils.UNSET_TAB_GROUP_TITLE;
 import static org.chromium.components.data_sharing.SharedGroupTestHelper.GROUP_MEMBER1;
 import static org.chromium.components.data_sharing.SharedGroupTestHelper.GROUP_MEMBER2;
 
@@ -137,6 +138,7 @@ import org.chromium.chrome.browser.tabmodel.TabRemover;
 import org.chromium.chrome.browser.tabmodel.TabUngrouper;
 import org.chromium.chrome.browser.tasks.tab_management.TabDragHandlerBase;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListBottomSheetCoordinatorFactory;
+import org.chromium.chrome.browser.ui.messages.snackbar.SnackbarManager;
 import org.chromium.chrome.test.util.browser.tabmodel.MockTabModel;
 import org.chromium.components.browser_ui.bottomsheet.BottomSheetController;
 import org.chromium.components.browser_ui.styles.SemanticColorUtils;
@@ -180,7 +182,8 @@ import java.util.stream.IntStream;
 @LooperMode(Mode.LEGACY)
 @DisableFeatures({
     ChromeFeatureList.DATA_SHARING,
-    ChromeFeatureList.TAB_STRIP_CLOSE_REFACTOR_ANDROID
+    ChromeFeatureList.TAB_STRIP_CLOSE_REFACTOR_ANDROID,
+    ChromeFeatureList.GLIC
 })
 @EnableFeatures(ChromeFeatureList.TAB_STRIP_AUTO_SELECT_ON_CLOSE_CHANGE)
 public class StripLayoutHelperTest {
@@ -215,6 +218,7 @@ public class StripLayoutHelperTest {
     @Mock private MultiInstanceManager mMultiInstanceManager;
     @Mock private ShareDelegate mShareDelegate;
     @Mock private TabGroupListBottomSheetCoordinatorFactory mBottomSheetCoordinatorFactory;
+    @Mock private SnackbarManager mSnackbarManager;
     @Mock private Tab mTab;
     @Mock private TabCreator mTabCreator;
     @Mock private TabGroupSyncService mTabGroupSyncService;
@@ -281,6 +285,10 @@ public class StripLayoutHelperTest {
         when(mTabGroupModelFilter.isTabInTabGroup(any())).thenReturn(false);
         when(mTabGroupModelFilter.getTabModel()).thenReturn(mModel);
         when(mTabGroupModelFilter.getTabUngrouper()).thenReturn(mTabUngrouper);
+        when(mTabGroupModelFilter.getTabGroupTitle(any(Token.class)))
+                .thenReturn(UNSET_TAB_GROUP_TITLE);
+        when(mTabGroupModelFilter.getTabGroupTitle(any(Tab.class)))
+                .thenReturn(UNSET_TAB_GROUP_TITLE);
 
         mModel.setTabRemover(mTabRemover);
         mContext =
@@ -3810,8 +3818,6 @@ public class StripLayoutHelperTest {
         mStripLayoutHelper.drag(startX + dragDistance, 0f, dragDistance);
     }
 
-    // TODO(crbug.com/450954710): This test fails on SDK 36.
-    @Config(sdk = 29)
     @Test
     public void testTabClosed() {
         // Initialize with 10 tabs.
@@ -3840,7 +3846,7 @@ public class StripLayoutHelperTest {
                 "Tab strip should match tab model.",
                 expectedNumTabs,
                 mStripLayoutHelper.getStripLayoutTabsForTesting().length);
-        verify(mUpdateHost, times(9)).requestUpdate();
+        verify(mUpdateHost, times(6)).requestUpdate();
         verify(mUpdateHost, times(4)).requestUpdate(any());
     }
 
@@ -4673,7 +4679,8 @@ public class StripLayoutHelperTest {
                 mBottomSheetController,
                 mMultiInstanceManager,
                 () -> mShareDelegate,
-                mBottomSheetCoordinatorFactory);
+                mBottomSheetCoordinatorFactory,
+                mSnackbarManager);
     }
 
     private String[] getExpectedAccessibilityDescriptions(int tabIndex) {

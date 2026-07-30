@@ -626,6 +626,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.compositor") {
     "src/org/chromium/chrome/browser/compositor/PerformancePTTest.java",
     "src/org/chromium/chrome/browser/compositor/layouts/LayoutManagerTest.java",
     "src/org/chromium/chrome/browser/compositor/layouts/content/TabContentManagerTest.java",
+    "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripContextMenuTest.java",
     "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripGroupContextMenuTest.java",
     "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripPinUnpinTabsTest.java",
     "src/org/chromium/chrome/browser/compositor/overlays/strip/TabStripTest.java",
@@ -687,7 +688,6 @@ android_library("chrome_test_java_org.chromium.chrome.browser.customtabs") {
     "src/org/chromium/chrome/browser/customtabs/CustomTabFromChromeExternalNavigationTest.java",
     "src/org/chromium/chrome/browser/customtabs/CustomTabModalDialogTest.java",
     "src/org/chromium/chrome/browser/customtabs/CustomTabPostMessageTest.java",
-    "src/org/chromium/chrome/browser/customtabs/CustomTabPrivacySandboxDialogTest.java",
     "src/org/chromium/chrome/browser/customtabs/CustomTabTabPersistenceIntegrationTest.java",
     "src/org/chromium/chrome/browser/customtabs/CustomTabTabPersistencePolicyTest.java",
     "src/org/chromium/chrome/browser/customtabs/CustomTabTaskDescriptionHelperTest.java",
@@ -1110,6 +1110,7 @@ android_library("chrome_test_java_org.chromium.chrome.browser.permissions") {
     "src/org/chromium/chrome/browser/permissions/MIDITest.java",
     "src/org/chromium/chrome/browser/permissions/MediaTest.java",
     "src/org/chromium/chrome/browser/permissions/NotificationTest.java",
+    "src/org/chromium/chrome/browser/permissions/PermissionClapperLoudTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionClapperQuietTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionNavigationTest.java",
     "src/org/chromium/chrome/browser/permissions/PermissionPromptRenderTest.java",
@@ -1239,7 +1240,10 @@ android_library("chrome_test_java_org.chromium.chrome.browser.signin") {
     "src/org/chromium/chrome/browser/signin/SigninSurveyControllerTest.java",
   ]
 
-  deps = [ ":chrome_test_java_helper" ]
+  deps = [
+    ":chrome_test_java_helper",
+    "//chrome/browser/prefs/android:java",
+  ]
 }
 
 android_library("chrome_test_java_org.chromium.chrome.browser.site_settings") {
@@ -1435,7 +1439,6 @@ android_library("chrome_test_java_org.chromium.chrome.browser.tasks") {
     "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupListRenderTest.java",
     "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabGroupRowViewRenderTest.java",
     "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/TabSwitcherPanePublicTransitTest.java",
-    "//chrome/android/features/tab_ui/java/src/org/chromium/chrome/browser/tasks/tab_management/tab_bottom_sheet/TabBottomSheetManagerTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsCardRenderTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/ArchivedTabsDialogCoordinatorTest.java",
     "//chrome/android/features/tab_ui/javatests/src/org/chromium/chrome/browser/tasks/tab_management/ClosableTabListEditorTest.java",
@@ -1597,7 +1600,6 @@ android_library("chrome_test_java_various") {
     "src/org/chromium/chrome/browser/policy/PolicyAuditorBridgeTest.java",
     "src/org/chromium/chrome/browser/previewtab/PreviewTabTest.java",
     "src/org/chromium/chrome/browser/printing/PrintingControllerTest.java",
-    "src/org/chromium/chrome/browser/privacy_sandbox/PrivacySandboxSurveyControllerIntegrationTest.java",
     "src/org/chromium/chrome/browser/push_messaging/PushMessagingTest.java",
     "src/org/chromium/chrome/browser/read_later/ReadLaterContextMenuTest.java",
     "src/org/chromium/chrome/browser/reengagement/ReengagementNotificationControllerIntegrationTest.java",

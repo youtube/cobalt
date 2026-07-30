@@ -26,10 +26,12 @@ class LabelButton;
 class NewTabButton;
 class TabStripActionContainer;
 class TabSearchButton;
+class TabStripComboButton;
 class TabStrip;
 class TabStripScrollContainer;
 class TabSearchPositionMetricsLogger;
 class TabStripControlButton;
+class TabStripFlatEdgeButton;
 
 // Container for the tabstrip and the other views sharing space with it -
 // with the exception of the caption buttons.
@@ -97,6 +99,8 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
 
   TabStrip* tab_strip() { return tab_strip_; }
 
+  TabStripFlatEdgeButton* GetTabSearchButton();
+
 #if BUILDFLAG(ENABLE_GLIC)
   views::LabelButton* GetGlicButton();
 #endif  // BUILDFLAG(ENABLE_GLIC)
@@ -153,6 +157,7 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   raw_ptr<views::View> reserved_grab_handle_space_ = nullptr;
   raw_ptr<TabStrip> tab_strip_ = nullptr;
   raw_ptr<TabStripScrollContainer> tab_strip_scroll_container_ = nullptr;
+  raw_ptr<TabStripComboButton> combo_button_ = nullptr;
   raw_ptr<views::Button> new_tab_button_ = nullptr;
   raw_ptr<TabSearchContainer> tab_search_container_ = nullptr;
   raw_ptr<TabStripControlButton> unfocus_button_ = nullptr;

@@ -8,6 +8,7 @@
 <translation id="1073417869336441572">Tulungan kaming pahusayin ang Chrome sa pamamagitan ng pagsasabi sa amin kung bakit mo pinayagan ang third-party na cookies. <ph name="BEGIN_LINK" />Magpadala ng feedback<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">Puwede mong hilinging makita ang desktop na bersyon ng mga site</translation>
 <translation id="1085696779717592361">Gamitin ang Chrome Bilang Default</translation>
+<translation id="1126523729897810826">Kumpletuhin ang mga iminumungkahing aksyong ito sa ibaba para masulit ang Chrome</translation>
 <translation id="113098737392899175">Mag-navigate sa mga page gamit ang cursor ng text kapag may nakakabit na keyboard</translation>
 <translation id="1149644372535087155">Mag-save ng mga password sa Chrome</translation>
 <translation id="1178015372320901893">Bottom sheet ng aking mga shortcut</translation>
@@ -39,6 +40,7 @@
 <translation id="1415855080660575082">Hayaang i-share ng Chrome ang iyong mga kamakailang tab gamit ang device mo para makita ang mga ito sa listahan ng app at mga resulta ng paghahanap ng iyong device. Puwede mo itong i-on o i-off sa mga setting ng Chrome.</translation>
 <translation id="1420688843103859429">Mag-navigate pabalik-balik sa pamamagitan ng pag-swipe gamit ang dalawang daliri sa touchpad</translation>
 <translation id="1432650420699700107">Puwedeng hilingin ng mga site na kumonekta sa anumang device sa iyong lokal na network</translation>
+<translation id="1442081309487427303">I-on ang mga link sa Reading Mode</translation>
 <translation id="1448064542941920355">Bawasan ang pag-zoom</translation>
 <translation id="1464044141348608623">Huwag payagan ang mga site na malaman kung aktibo mong ginagamit ang iyong device</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> site}one{<ph name="SITE_COUNT" /> site}other{<ph name="SITE_COUNT" /> na site}}</translation>
@@ -52,6 +54,7 @@
 <translation id="1569054338208717605">Pabilisin ang mga site gamit ang V8 na engine ng Chrome pero gawing bahagyang hindi gaanong resistant sa mga attack ang Chrome</translation>
 <translation id="1593426485665524382">Available ang mga bagong pagkilos malapit sa itaas ng screen</translation>
 <translation id="1594521731409209842">I-pinch ang screen para i-resize ang larawan</translation>
+<translation id="1599268789440304082">Binuksan ang sheet ng pag-set up</translation>
 <translation id="1601560923496285236">Ilapat</translation>
 <translation id="1615755956145364867">Puwedeng hilingin ng mga site na mag-play ng pinoprotektahang content</translation>
 <translation id="1620510694547887537">Camera</translation>
@@ -73,6 +76,7 @@
 <translation id="1766455884659449403">Makakuha ng mga notification sa mga tip sa Chrome</translation>
 <translation id="1777815584158991902">Bottom sheet ng feed ng Discover</translation>
 <translation id="1779089405699405702">Pang-decode ng larawan</translation>
+<translation id="1781533683087883868">I-off ang mga link sa Reading Mode</translation>
 <translation id="1785415724048343560">Inirerekomenda para sa pinakamagandang experience</translation>
 <translation id="1796588414813960292">Hindi gagana ang mga feature na nangangailangan ng tunog</translation>
 <translation id="1799920918471566157">Mga Tip sa Chrome</translation>
@@ -293,6 +297,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="3903738175795615004">Mag-drag mula sa itaas o pindutin ang Esc key para lumabas sa full screen.</translation>
 <translation id="3905475044299942653">Ihinto ang napakaraming notification</translation>
 <translation id="3922092564198021702">Sa iyong telepono, buksan ang Mga Setting</translation>
+<translation id="3924858949939391676">Ipakita ang mga link kapag naka-on na ang Reading Mode</translation>
 <translation id="3933121352599513978">I-collapse ang mga hindi gustong request (inirerekomenda)</translation>
 <translation id="3934905113567851655">I-pinch para i-resize</translation>
 <translation id="3955193568934677022">Pahintulutan ang mga site na mag-play ng pinoprotektahang content (inirerekomenda)</translation>
@@ -311,6 +316,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="4046123991198612571">Susunod na track</translation>
 <translation id="4077310749977440510">Karaniwang binabasa ng mga site ang iyong clipboard para sa mga feature gaya ng pagpapanatili ng pag-format ng text na nakopya mo</translation>
 <translation id="4082080074595021446">Hindi pinapayagan ang mga exception para sa mga partikular na website dahil walang sapat na RAM ang Android device.</translation>
+<translation id="4089304748532599471">Nagbago ang ilang setting ng Chrome</translation>
 <translation id="4149890623864272035">Sigurado ka bang gusto mong i-delete ang lahat ng lokal na data, kabilang ang cookies, at i-reset ang lahat ng pahintulot para sa website na ito?</translation>
 <translation id="4149994727733219643">Pinasimpleng view para sa mga web page</translation>
 <translation id="4151930093518524179">Default na pag-zoom</translation>
@@ -346,8 +352,11 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="4478158430052450698">Mas padalii ang pag-customize sa pag-zoom para sa iba't ibang site</translation>
 <translation id="4479647676395637221">Magtanong muna bago payagan ang mga site na gamitin ang iyong camera (inirerekomenda)</translation>
 <translation id="4505788138578415521">Na-expand ang URL</translation>
+<translation id="4522570452068850558">Mga Detalye</translation>
 <translation id="4523472416386354622">Mag-sign in para makapagsimula</translation>
+<translation id="4529207923544043455">Bottom sheet na nagpapakita ng mga kumpleto at hindi pa kumpletong gawain sa listahan ng pag-set up</translation>
 <translation id="4534723447064627427">Para payagan ang <ph name="APP_NAME" /> na i-access ang iyong mikropono, i-on din ang mikropono sa <ph name="BEGIN_LINK" />Mga Setting ng Android<ph name="END_LINK" />.</translation>
+<translation id="4545694195887112015">Isinara ang sheet ng pag-set up</translation>
 <translation id="4566417217121906555">I-mute ang mikropono</translation>
 <translation id="4570913071927164677">Mga Detalye</translation>
 <translation id="4578289292431526768">Tara na</translation>
@@ -356,6 +365,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="4644713492825682049">I-delete at i-reset</translation>
 <translation id="4645575059429386691">Pinamamahalaan ng iyong magulang</translation>
 <translation id="4652266463001779298">Hindi pinapayagan</translation>
+<translation id="4655846733459137112">I-tap ang Oo para madaling magamit ang password na ito sa susunod na mag-sign in ka</translation>
 <translation id="4663373278480897665">Pinapayagan ang camera</translation>
 <translation id="4670064810192446073">Virtual reality</translation>
 <translation id="4672315773691449562">I-tap ang Browser app at pagkatapos ay i-tap ang Chrome</translation>
@@ -462,6 +472,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="5804241973901381774">Mga Pahintulot</translation>
 <translation id="5817042798620209981">Impormasyon ng site, dialog</translation>
 <translation id="5822675474983796325">Binuksan nang buo ang bottom sheet ng pag-customize ng page ng bagong tab mo</translation>
+<translation id="5826403277762134844">Bottom sheet ng tagubilin sa pag-save ng mga password sa Chrome</translation>
 <translation id="5833899990800318936">Huwag payagan ang mga site na gumamit ng JavaScript</translation>
 <translation id="583673505367439042">Puwedeng hilingin ng mga site na mag-edit ng mga file at folder sa iyong device</translation>
 <translation id="5844448279347999754">Kapag naka-on, puwedeng hilingin ng mga site na makita ang text at mga larawang naka-save sa iyong clipboard. Kapag naka-off, hindi makikita ng mga site ang text o mga larawang naka-save sa iyong clipboard.</translation>
@@ -641,6 +652,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="775043444390799886">Bawiin ang pahintulot</translation>
 <translation id="7758789811447313947">Violet na tema</translation>
 <translation id="7759147511335618829">Kontrol / reprogram: MIDI device</translation>
+<translation id="7771089277295008211">Isinara ang bottom sheet ng mga tagubilin sa pag-save ng mga password</translation>
 <translation id="7781829728241885113">Kahapon</translation>
 <translation id="7791543448312431591">Idagdag</translation>
 <translation id="780301667611848630">Hindi salamat</translation>
@@ -658,6 +670,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="7940722705963108451">Ipaalala sa akin</translation>
 <translation id="7948081750384205628">Matuto pa tungkol sa <ph name="SETTING_TITLE" /></translation>
 <translation id="7952708427581814389">Puwedeng hilingin ng mga site na makita ang text at mga larawan sa iyong clipboard</translation>
+<translation id="7958779728312669715">Nakabukas nang buo ang bottom sheet ng mga tagubilin sa pag-save ng mga password</translation>
 <translation id="798299424881500862">Orange na tema</translation>
 <translation id="7986741934819883144">Pumili ng contact</translation>
 <translation id="7990211076305263060">Kapag naka-on, puwedeng hilingin ng mga site na gamitin ang iyong mikropono. Kapag naka-off, hindi magagamit ng mga site ang iyong mikropono.</translation>
@@ -678,6 +691,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="8117244575099414087">Kapag naka-on, magagamit ng mga site ang mga sensor ng iyong device. Kapag naka-off, hindi makakagamit ang mga site ng mga sensor.</translation>
 <translation id="813082847718468539">Tingnan ang impormasyon ng site</translation>
 <translation id="8131740175452115882">Kumpirmahin</translation>
+<translation id="8148160259207090265">Mananatiling naka-on ang setting na ito hangga't na-on mo ang Advanced na Proteksyon sa Mga Setting ng Android.</translation>
 <translation id="8163152278172770963">Huwag payagan ang mga site na awtomatikong pumasok sa picture-in-picture</translation>
 <translation id="8168435359814927499">Content</translation>
 <translation id="818487310457576362">Mag-drag mula sa gilid ng screen para lumabas sa full screen.</translation>
@@ -707,6 +721,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="8441146129660941386">Maghanap nang pabalik</translation>
 <translation id="8444433999583714703">Para payagan ang <ph name="APP_NAME" /> na i-access ang iyong lokasyon, i-on din ang lokasyon sa <ph name="BEGIN_LINK" />Mga Setting ng Android<ph name="END_LINK" />.</translation>
 <translation id="8447861592752582886">Bawiin ang pahintulot ng device</translation>
+<translation id="8463843545738141778">Naka-disable ang setting na ito dahil na-on mo ang Advanced na Proteksyon sa Mga Setting ng Android.</translation>
 <translation id="8467359479529706065">Binuksan nang kalahati ang bottom sheet ng hitsura ng page ng bagong tab</translation>
 <translation id="8471525937465764768">Karaniwang kumokonekta ang mga site sa mga USB device para sa mga feature gaya ng pag-print ng dokumento o pag-save sa storage device</translation>
 <translation id="8473055640493819707">Luma na ang '<ph name="APP_NAME" />.' Paki-install ulit ang app.</translation>
@@ -738,6 +753,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="8719283222052720129">I-on ang pahintulot para sa <ph name="APP_NAME" /> sa <ph name="BEGIN_LINK" />Mga Setting ng Android<ph name="END_LINK" />.</translation>
 <translation id="8721719390026067591">Kapag naka-on, puwedeng hilingin ng mga site na maghanap ng mga Bluetooth device. Kapag naka-off, hindi makakapaghanap ng mga Bluetooth device ang mga site.</translation>
 <translation id="8725066075913043281">Subukan ulit</translation>
+<translation id="8727043961453758442">Sulitin ang Chrome</translation>
 <translation id="8730621377337864115">Tapos na</translation>
 <translation id="8737426583868847403">Lalabas dito ang mga site kung para saan ka nag-save ng custom na level ng pag-zoom</translation>
 <translation id="8748714929822124637">Huwag payagan ang mga site na i-access ang iba pang device sa iyong lokal na network</translation>
@@ -754,6 +770,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="8889294078294184559">Habang patuloy kang nagba-browse, puwedeng sumangguni ang mga site sa Chrome at i-verify sa naunang site na binisita mo kung malamang na totoong tao ka.</translation>
 <translation id="8899807382908246773">Mga nakakasagabal na ad</translation>
 <translation id="8903921497873541725">Mag-zoom in</translation>
+<translation id="8919911527569629802">Mag-sign in sa anumang website</translation>
 <translation id="8921772741368021346"><ph name="POSITION" /> / <ph name="DURATION" /></translation>
 <translation id="8926389886865778422">Huwag nang itanong ulit</translation>
 <translation id="8926666909099850184">Naka-off ang NFC para sa device na ito. I-on ito sa <ph name="BEGIN_LINK" />Mga Setting ng Android<ph name="END_LINK" />.</translation>
@@ -781,6 +798,7 @@ Kinokontrol ng Advanced na Proteksyon ang mga setting ng Chrome na ito:
 <translation id="9182556968660520230">Huwag payagan ang mga site na mag-play ng pinoprotektahang content</translation>
 <translation id="947156494302904893">Magagawa ng mga site na binibisita mo na i-verify na totoong tao ka at hindi ka bot</translation>
 <translation id="959682366969460160">Maging organisado</translation>
+<translation id="960590623979248167">Ipakita ang mga hyperlink</translation>
 <translation id="961930410699694996">Pinapayagan ang lokasyon sa ngayon</translation>
 <translation id="967624055006145463">Naka-store na data</translation>
 <translation id="969975166333045662">I-block ang site sa paggamit ng V8 optimizer.</translation>

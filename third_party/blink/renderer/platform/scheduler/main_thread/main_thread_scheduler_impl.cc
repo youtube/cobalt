@@ -426,6 +426,7 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
       main_thread_only_(this, helper_.GetClock(), helper_.NowTicks()),
       any_thread_(this),
       policy_may_need_update_(&any_thread_lock_) {
+  MaybeUpdateThreadTypeLease();
   helper_.AttachToCurrentThread();
 
   // Compositor task queue and default task queue should be managed by
@@ -487,7 +488,8 @@ MainThreadSchedulerImpl::MainThreadSchedulerImpl(
     trace_event::AddTraceSessionObserver(this);
   }
 
-  if (base::FeatureList::IsEnabled(kInputHandlingModeFromPerformanceScenario)) {
+  if (base::FeatureList::IsEnabled(kInputHandlingModeFromPerformanceScenario) ||
+      base::FeatureList::IsEnabled(kLoadingModeFromPerformanceScenario)) {
     if (auto performance_scenario_observer_list =
             performance_scenarios::PerformanceScenarioObserverList::GetForScope(
                 performance_scenarios::ScenarioScope::kCurrentProcess)) {
@@ -553,7 +555,8 @@ MainThreadSchedulerImpl::~MainThreadSchedulerImpl() {
   CHECK(main_thread_only().detached_task_queues.empty());
   CHECK(!virtual_time_control_task_queue_);
 
-  if (base::FeatureList::IsEnabled(kInputHandlingModeFromPerformanceScenario)) {
+  if (base::FeatureList::IsEnabled(kInputHandlingModeFromPerformanceScenario) ||
+      base::FeatureList::IsEnabled(kLoadingModeFromPerformanceScenario)) {
     if (auto performance_scenario_observer_list =
             performance_scenarios::PerformanceScenarioObserverList::GetForScope(
                 performance_scenarios::ScenarioScope::kCurrentProcess)) {
@@ -561,6 +564,21 @@ MainThreadSchedulerImpl::~MainThreadSchedulerImpl() {
     }
   }
   trace_event::RemoveTraceSessionObserver(this);
+}
+
+void MainThreadSchedulerImpl::MaybeUpdateThreadTypeLease() {
+  // Boost the main thread priority to kPresentation for performance, except:
+  // 1. (under kLowerPriorityForCompositorGestures) During compositor gestures
+  // (to avoid contending with the compositor).
+  // 2. When default thread type is explicitly requested (e.g. by WebRTC being
+  // in use).
+  if ((base::FeatureList::IsEnabled(kLowerPriorityForCompositorGestures) &&
+       main_thread_only().current_use_case == UseCase::kCompositorGesture) ||
+      default_thread_type_usage_count_ > 0) {
+    raise_thread_type_lease_ = std::nullopt;
+  } else if (!raise_thread_type_lease_) {
+    raise_thread_type_lease_.emplace(base::ThreadType::kPresentation);
+  }
 }
 
 // static
@@ -1797,25 +1815,7 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
     main_thread_only().renderer_frozen_metadata.reset();
   }
 
-  // During a compositor gesture, main thread latency is usually not directly
-  // visible to the user. In this case, make sure that the thread priority is
-  // low enough to not compete with the actually critical threads (e.g. the
-  // compositor thread).
-  if (base::FeatureList::IsEnabled(kLowerPriorityForCompositorGestures)) {
-    base::ThreadType desired_thread_type;
-    switch (main_thread_only().current_use_case) {
-      case UseCase::kCompositorGesture:
-        desired_thread_type = base::ThreadType::kDefault;
-        break;
-      default:
-        desired_thread_type = base::ThreadType::kPresentation;
-        break;
-    }
-
-    if (base::PlatformThread::GetCurrentThreadType() != desired_thread_type) {
-      base::PlatformThread::SetCurrentThreadType(desired_thread_type);
-    }
-  }
+  MaybeUpdateThreadTypeLease();
 
 #if BUILDFLAG(IS_ANDROID)
   if (ShouldRestrictMainThreadBigCoreAffinity()) {
@@ -1838,6 +1838,16 @@ void MainThreadSchedulerImpl::UpdatePolicyLocked(UpdateType update_type) {
     }
   }
 #endif  // BUILDFLAG(IS_ANDROID)
+}
+
+void MainThreadSchedulerImpl::IncreaseDefaultThreadTypeUsageCount() {
+  default_thread_type_usage_count_++;
+  MaybeUpdateThreadTypeLease();
+}
+
+void MainThreadSchedulerImpl::DecreaseDefaultThreadTypeUsageCount() {
+  default_thread_type_usage_count_--;
+  MaybeUpdateThreadTypeLease();
 }
 
 bool MainThreadSchedulerImpl::ComputeIsInputHandlingFromPerformanceScenario(

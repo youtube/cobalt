@@ -8,8 +8,8 @@ import 'chrome://resources/cr_elements/icons.html.js';
 import './card.js';
 import './icons.html.js';
 
+import {assert} from '//resources/js/assert.js';
 import {CrLitElement} from '//resources/lit/v3_0/lit.rollup.js';
-import {assert} from 'chrome://resources/js/assert.js';
 
 import type {Skill} from './skill.mojom-webui.js';
 import {SkillsDialogType} from './skills.mojom-webui.js';
@@ -107,7 +107,7 @@ export class UserSkillsPageElement extends CrLitElement {
   }
 
   protected onExploreButtonClick_() {
-    const path = '/browse-skills';
+    const path = '/browse';
     this.fire('route-click', {path});
   }
 

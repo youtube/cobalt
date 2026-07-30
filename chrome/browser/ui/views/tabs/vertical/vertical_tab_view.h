@@ -12,6 +12,8 @@
 #include "base/memory/raw_ptr.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/tabs/tab_style.h"
+#include "chrome/browser/ui/tabs/vertical_tab_strip_state_controller.h"
+#include "chrome/browser/ui/views/tabs/hover_card_anchor_target.h"
 #include "chrome/browser/ui/views/tabs/tab/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/tab/tab_context_menu_controller.h"
 #include "chrome/common/buildflags.h"
@@ -34,6 +36,10 @@ namespace views {
 class Label;
 }
 
+namespace tabs {
+class VerticalTabStripStateController;
+}
+
 #if BUILDFLAG(ENABLE_GLIC)
 namespace glic {
 class TabUnderlineView;
@@ -49,7 +55,8 @@ class VerticalTabView : public views::View,
                         public views::LayoutDelegate,
                         public views::MaskedTargeterDelegate,
                         public AlertIndicatorButton::Delegate,
-                        public views::ContextMenuController {
+                        public views::ContextMenuController,
+                        public HoverCardAnchorTarget {
   METADATA_HEADER(VerticalTabView, views::View)
 
  public:
@@ -66,11 +73,16 @@ class VerticalTabView : public views::View,
 
   const TabCollectionNode* collection_node() const { return collection_node_; }
   const TabStyle* tab_style() { return tab_style_; }
-  const TabRendererData& tab_data() const { return tab_data_; }
   float radial_highlight_opacity() { return radial_highlight_opacity_; }
 
   TabCloseButton* close_button_for_testing() { return close_button_; }
   bool collapsed_for_testing() { return collapsed_; }
+
+  // HoverCardAnchorTarget:
+  bool IsActive() const override;
+  bool IsValid() const override;
+  const TabRendererData& data() const override;
+  views::BubbleBorder::Arrow GetAnchorPosition() const override;
 
  private:
   // views::View
@@ -131,6 +143,8 @@ class VerticalTabView : public views::View,
   void UpdateAccessibleName();
   void OnAXNameChanged(ax::mojom::StringAttribute attribute,
                        const std::optional<std::string>& name);
+  void OnCollapsedStateChanged(
+      tabs::VerticalTabStripStateController* controller);
   void OnDataChanged();
   void SetSelection(bool selected);
   void UpdateTabData(tabs::TabInterface* tab);
@@ -143,12 +157,17 @@ class VerticalTabView : public views::View,
   void CloseButtonPressed(const ui::Event& event);
   void RecordMousePressedInTab();
 
+  void UpdateHoverCard(HoverCardAnchorTarget* target,
+                       int hover_card_update_type);
+
   bool IsHoverAnimationActive() const;
   double GetHoverAnimationValue() const;
   float GetHoverOpacity() const;
 
   bool IsFrameActive() const;
   TabStyle::TabSelectionState GetSelectionState() const;
+
+  bool IsDragging() const;
 
   const tabs::TabInterface* GetTabInterface() const;
 
@@ -169,6 +188,7 @@ class VerticalTabView : public views::View,
 
   base::CallbackListSubscription node_destroyed_subscription_;
   base::CallbackListSubscription data_changed_subscription_;
+  base::CallbackListSubscription collapsed_state_changed_subscription_;
   base::CallbackListSubscription paint_as_active_subscription_;
 
   TabRendererData tab_data_;

@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.app.tabmodel;
 
-import static org.chromium.build.NullUtil.assumeNonNull;
-
 import android.app.Activity;
 
 import androidx.annotation.VisibleForTesting;
@@ -16,7 +14,6 @@ import org.chromium.build.annotations.EnsuresNonNull;
 import org.chromium.build.annotations.MonotonicNonNull;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
-import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
 import org.chromium.chrome.browser.compositor.overlays.strip.StripLayoutHelperManager.TabModelStartupInfo;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab_ui.TabContentManager;
@@ -41,6 +38,7 @@ public class TabModelOrchestrator {
     protected @MonotonicNonNull TabModelSelectorBase mTabModelSelector;
     protected @MonotonicNonNull TabPersistencePolicy mTabPersistencePolicy;
     protected @Nullable TabPersistentStore mShadowTabPersistentStore;
+    protected @Nullable PersistentStoreMigrationManager mMigrationManager;
     private boolean mTabModelsInitialized;
     private @Nullable Callback<String> mOnStandardActiveIndexRead;
     private boolean mTabPersistentStoreDestroyedEarly;
@@ -253,10 +251,10 @@ public class TabModelOrchestrator {
      * @param instanceId Instance ID.
      */
     public void cleanupInstance(int instanceId) {
+        String windowTag = String.valueOf(instanceId);
         PersistentStoreMigrationManager migrationManager =
-                TabWindowManagerSingleton.getInstance()
-                        .getPersistentStoreMigrationManagerById(instanceId);
-        assumeNonNull(migrationManager).onWindowCleared();
+                new PersistentStoreMigrationManagerImpl(windowTag);
+        migrationManager.onWindowCleared();
     }
 
     /** Clean up persisted state for this orchestrator. */

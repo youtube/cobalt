@@ -24,6 +24,7 @@
 #include "chrome/browser/extensions/window_controller.h"
 #include "chrome/browser/extensions/window_controller_list.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/translate/chrome_translate_client.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
@@ -32,7 +33,6 @@
 #include "chrome/browser/ui/browser_window/public/create_browser_window.h"
 #include "chrome/browser/ui/incognito_allowed_url.h"
 #include "chrome/browser/ui/recently_audible_helper.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/tabs/tab_muted_utils.h"
 #include "chrome/browser/web_applications/web_app_helpers.h"
 #include "chrome/common/pref_names.h"
@@ -187,8 +187,8 @@ bool SetOpenerOfTab(content::WebContents& tab,
       tab_browser->GetBrowserForMigrationOnly()->tab_strip_model();
   int tab_index = tab_strip->GetIndexOfWebContents(&tab);
   CHECK_NE(TabStripModel::kNoTab, tab_index);
-  CHECK_NE(TabStripModel::kNoTab, tab_strip->GetIndexOfWebContents(&opener));
-  tab_strip->SetOpenerOfWebContentsAt(tab_index, &opener);
+  tab_strip->SetOpenerOfTabAt(tab_index,
+                              ::tabs::TabInterface::GetFromContents(&opener));
 #endif
 
   return true;
@@ -1037,7 +1037,7 @@ ExtensionFunction::ResponseValue WindowsCreateFunction::OnBrowserWindowCreated(
     if (set_self_as_opener_) {
       // Depending on the `setSelfAsOpener` option, we need to put the new
       // contents in the same BrowsingInstance as their opener.  See also
-      // https://crbug.com/713888.
+      // https://crbug.com/40516654.
       //
       // TODO(crbug.com/40636155): Add tests for checking opener SiteInstance
       // behavior from a SW based extension's extension frame (e.g. from popup).
@@ -1441,7 +1441,7 @@ void WindowsUpdateFunction::UpdateWindowState(
 
   if (set_window_bounds) {
     // TODO(varkha): Updating bounds during a drag can cause problems and a more
-    // general solution is needed. See http://crbug.com/251813 .
+    // general solution is needed. See http://crbug.com/40322435 .
     browser_window->SetBounds(window_bounds);
   }
 

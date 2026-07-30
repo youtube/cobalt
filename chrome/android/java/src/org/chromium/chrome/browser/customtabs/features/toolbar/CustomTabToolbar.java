@@ -60,7 +60,6 @@ import androidx.annotation.VisibleForTesting;
 import androidx.appcompat.content.res.AppCompatResources;
 import androidx.browser.customtabs.CustomTabsIntent;
 import androidx.browser.customtabs.CustomTabsIntent.CloseButtonPosition;
-import androidx.browser.customtabs.ExperimentalOpenInBrowser;
 import androidx.core.content.ContextCompat;
 import androidx.core.view.MarginLayoutParamsCompat;
 import androidx.core.widget.ImageViewCompat;
@@ -675,7 +674,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
      * @param intentDataProvider {@link BrowserServicesIntentDataProvider} for accessing CCT intent
      *     data.
      */
-    @ExperimentalOpenInBrowser
     public void initVisibilityRule(
             Activity activity,
             Supplier<AppMenuHandler> appMenuHandler,
@@ -2772,9 +2770,6 @@ public class CustomTabToolbar extends ToolbarLayout implements View.OnLongClickL
 
         @Override
         public void clearUrlBarCursorWithoutFocusAnimations() {}
-
-        @Override
-        public void selectAll() {}
 
         @Override
         public void revertChanges() {}

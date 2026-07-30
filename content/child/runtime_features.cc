@@ -532,6 +532,8 @@ void SetCustomizedRuntimeFeaturesFromCombinedArgs(
       ui::NativeTheme::GetInstanceForWeb()->use_overlay_scrollbar());
 #endif
   WebRuntimeFeatures::EnableFluentScrollbars(ui::IsFluentScrollbarEnabled());
+  WebRuntimeFeatures::EnableDesktopAndroidScrollbars(
+      command_line.HasSwitch(blink::switches::kEnableDesktopAndroidScrollbars));
 
   // TODO(rodneyding): This is a rare case for a stable feature
   // Need to investigate more to determine whether to refactor it.
@@ -634,17 +636,6 @@ void ResolveInvalidConfigurations() {
         << network::features::kInterestGroupStorage.name << " in addition.";
     WebRuntimeFeatures::EnableAdInterestGroupAPI(false);
     WebRuntimeFeatures::EnableFledge(false);
-  }
-
-  // PermissionElement cannot be enabled without the support of the
-  // browser process.
-  if (!base::FeatureList::IsEnabled(blink::features::kPermissionElement)) {
-    LOG_IF(WARNING,
-           WebRuntimeFeatures::IsPermissionElementEnabledByRuntimeFlag())
-        << "PermissionElement cannot be enabled in this configuration. Use --"
-        << switches::kEnableFeatures << "="
-        << blink::features::kPermissionElement.name << " instead.";
-    WebRuntimeFeatures::EnablePermissionElement(false);
   }
 
   // UserMediaElement cannot be enabled without the support of the

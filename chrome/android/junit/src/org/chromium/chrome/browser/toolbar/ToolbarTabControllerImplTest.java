@@ -26,7 +26,8 @@ import org.mockito.junit.MockitoJUnit;
 import org.mockito.junit.MockitoRule;
 import org.robolectric.annotation.Config;
 
-import org.chromium.base.supplier.MonotonicObservableSupplier;
+import org.chromium.base.supplier.ObservableSuppliers;
+import org.chromium.base.supplier.SettableMonotonicObservableSupplier;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.chrome.browser.feature_engagement.TrackerFactory;
 import org.chromium.chrome.browser.homepage.HomepageManager;
@@ -37,7 +38,6 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabLaunchType;
 import org.chromium.chrome.browser.tabmodel.TabCreator;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
-import org.chromium.chrome.browser.tabmodel.TabList;
 import org.chromium.chrome.browser.toolbar.bottom.BottomControlsCoordinator;
 import org.chromium.chrome.browser.ui.native_page.NativePage;
 import org.chromium.chrome.browser.url_constants.UrlConstantResolver;
@@ -72,11 +72,6 @@ public class ToolbarTabControllerImplTest {
     @Mock private Supplier<Tab> mTabSupplier;
     @Mock private Tab mTab;
     @Mock private Tab mTab2;
-
-    @Mock
-    private MonotonicObservableSupplier<BottomControlsCoordinator>
-            mBottomControlsCoordinatorSupplier;
-
     @Mock private BottomControlsCoordinator mBottomControlsCoordinator;
     @Mock private Tracker mTracker;
     @Mock private Supplier<Tracker> mTrackerSupplier;
@@ -88,6 +83,8 @@ public class ToolbarTabControllerImplTest {
     @Mock private TabCreator mTabCreator;
     @Mock private MultiInstanceManager mMultiInstanceManager;
 
+    private final SettableMonotonicObservableSupplier<BottomControlsCoordinator>
+            mBottomControlsCoordinatorSupplier = ObservableSuppliers.createMonotonic();
     private final GURL mGURL = new GURL("https://example.com");
     private ToolbarTabControllerImpl mToolbarTabController;
 
@@ -127,7 +124,7 @@ public class ToolbarTabControllerImplTest {
 
     @Test
     public void back_handledByBottomControls() {
-        doReturn(mBottomControlsCoordinator).when(mBottomControlsCoordinatorSupplier).get();
+        mBottomControlsCoordinatorSupplier.set(mBottomControlsCoordinator);
         doReturn(true).when(mBottomControlsCoordinator).onBackPressed();
         Assert.assertTrue(mToolbarTabController.back());
 
@@ -138,7 +135,6 @@ public class ToolbarTabControllerImplTest {
 
     @Test
     public void back_notifyNativePageHiding() {
-        doReturn(null).when(mBottomControlsCoordinatorSupplier).get();
         doReturn(true).when(mTab).canGoBack();
 
         mToolbarTabController.back();
@@ -247,12 +243,8 @@ public class ToolbarTabControllerImplTest {
                 .createTabWithHistory(mTab, TabLaunchType.FROM_HISTORY_NAVIGATION_BACKGROUND);
         inOrder.verify(mTab2).goBack();
         inOrder.verify(mMultiInstanceManager)
-                .moveTabsToWindow(
-                        /* destWindowId= */ MultiInstanceManager.INVALID_WINDOW_ID,
-                        Collections.singletonList(mTab2),
-                        /* destTabIndex= */ TabList.INVALID_TAB_INDEX,
-                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX,
-                        NewWindowAppSource.KEYBOARD_SHORTCUT);
+                .moveTabsToNewWindow(
+                        Collections.singletonList(mTab2), NewWindowAppSource.KEYBOARD_SHORTCUT);
         inOrder.verifyNoMoreInteractions();
     }
 
@@ -311,12 +303,8 @@ public class ToolbarTabControllerImplTest {
                 .createTabWithHistory(mTab, TabLaunchType.FROM_HISTORY_NAVIGATION_BACKGROUND);
         inOrder.verify(mTab2).goForward();
         inOrder.verify(mMultiInstanceManager)
-                .moveTabsToWindow(
-                        /* destWindowId= */ MultiInstanceManager.INVALID_WINDOW_ID,
-                        Collections.singletonList(mTab2),
-                        /* destTabIndex= */ TabList.INVALID_TAB_INDEX,
-                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX,
-                        NewWindowAppSource.KEYBOARD_SHORTCUT);
+                .moveTabsToNewWindow(
+                        Collections.singletonList(mTab2), NewWindowAppSource.KEYBOARD_SHORTCUT);
         inOrder.verifyNoMoreInteractions();
     }
 

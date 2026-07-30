@@ -1416,7 +1416,8 @@ void TemplateURLService::RepairPrepopulatedSearchEngines() {
       prepopulate_data_resolver_->GetPrepopulatedEngines();
   DCHECK(!prepopulated_urls.empty());
   ActionsFromCurrentData actions(CreateActionsFromCurrentPrepopulateData(
-      &prepopulated_urls, template_urls_, default_search_provider_));
+      &prepopulated_urls, template_urls_, default_search_provider_,
+      prepopulate_data_resolver_.get()));
 
   // Remove items.
   for (auto i = actions.removed_engines.begin();
@@ -1749,7 +1750,8 @@ void TemplateURLService::OnWebDataServiceRequestDone(
               regional_capabilities::CountryAccessKey(
                   regional_capabilities::CountryAccessReason::
                       kTemplateURLServiceDatabaseMetadataCaching)));
-
+      web_data_service_->SetPrepopulatedEnginesMigrationEnabled(
+          updated_keywords_metadata.prepopulated_engines_migration_enabled);
     }
 
     if (updated_keywords_metadata.HasStarterPackData()) {

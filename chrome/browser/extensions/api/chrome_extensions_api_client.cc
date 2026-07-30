@@ -30,9 +30,9 @@
 #include "chrome/browser/extensions/extension_tab_util.h"
 #include "chrome/browser/favicon/favicon_utils.h"
 #include "chrome/browser/supervised_user/supervised_user_extensions_delegate_impl.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/webui/devtools/devtools_ui.h"
 #include "chrome/common/buildflags.h"
 #include "chrome/common/url_constants.h"
@@ -230,7 +230,7 @@ void ChromeExtensionsAPIClient::NotifyWebRequestWithheld(
   // invoking the extension on a site grants access to the tab's origin if
   // and only if the extension requested it; without requesting the tab,
   // clicking on the extension won't grant access to the resource.
-  // https://crbug.com/891586.
+  // https://crbug.com/41418607.
   // TODO(crbug.com/40076508): We can remove this if extensions require host
   // permissions to the initiator, since then we'll never get into this type
   // of circumstance (the request would be blocked, rather than withheld).

@@ -22,6 +22,7 @@ import("//media/media_options.gni")
 import("//net/features.gni")
 import("//printing/buildflags/buildflags.gni")
 import("//services/device/public/cpp/compute_pressure/buildflags.gni")
+import("//services/network/public/cpp/features.gni")
 import("//testing/libfuzzer/fuzzer_test.gni")
 import("//third_party/blink/public/public_features.gni")
 import("//tools/ipc_fuzzer/ipc_fuzzer.gni")
@@ -1453,8 +1454,6 @@ source_set("browser") {
     "memory/scheduler_loop_quarantine_web_contents_observer.h",
     "memory/swap_metrics_driver_impl.cc",
     "memory/swap_metrics_driver_impl.h",
-    "memory_coordinator/browser_memory_consumer_registry.cc",
-    "memory_coordinator/browser_memory_consumer_registry.h",
     "memory_coordinator/browser_memory_coordinator.cc",
     "memory_coordinator/browser_memory_coordinator.h",
     "memory_coordinator/child_memory_consumer_registry_host.cc",
@@ -1638,7 +1637,8 @@ source_set("browser") {
     "preloading/prefetch/prefetch_streaming_url_loader_common_types.h",
     "preloading/prefetch/prefetch_type.cc",
     "preloading/prefetch/prefetch_type.h",
-    "preloading/prefetch/prefetch_url_loader_helper.cc",
+    "preloading/prefetch/prefetch_url_loader_factory_utils.cc",
+    "preloading/prefetch/prefetch_url_loader_factory_utils.h",
     "preloading/prefetch/prefetch_url_loader_interceptor.cc",
     "preloading/prefetch/prefetch_url_loader_interceptor.h",
     "preloading/prefetcher.cc",
@@ -1970,8 +1970,6 @@ source_set("browser") {
     "renderer_host/overscroll_controller.h",
     "renderer_host/overscroll_controller_delegate.cc",
     "renderer_host/overscroll_controller_delegate.h",
-    "renderer_host/p2p/socket_dispatcher_host.cc",
-    "renderer_host/p2p/socket_dispatcher_host.h",
     "renderer_host/page_delegate.h",
     "renderer_host/page_factory.cc",
     "renderer_host/page_factory.h",
@@ -2061,6 +2059,8 @@ source_set("browser") {
     "renderer_host/visible_time_request_trigger.cc",
     "renderer_host/visible_time_request_trigger.h",
     "resource_coordinator_service.cc",
+    "sandboxed_opaque_origin_creator.cc",
+    "sandboxed_opaque_origin_creator.h",
     "scheduler/browser_io_thread_delegate.cc",
     "scheduler/browser_io_thread_delegate.h",
     "scheduler/browser_task_executor.cc",
@@ -2522,6 +2522,8 @@ source_set("browser") {
     "worker_host/dedicated_worker_hosts_for_document.h",
     "worker_host/dedicated_worker_service_impl.cc",
     "worker_host/dedicated_worker_service_impl.h",
+    "worker_host/network_restrictions_worker_throttle.cc",
+    "worker_host/network_restrictions_worker_throttle.h",
     "worker_host/shared_worker_connector_impl.cc",
     "worker_host/shared_worker_connector_impl.h",
     "worker_host/shared_worker_content_settings_proxy_impl.cc",
@@ -2659,6 +2661,14 @@ source_set("browser") {
   if (allow_oop_video_decoder) {
     sources += [ "media/oop_video_decoder_factory.cc" ]
     deps += [ "//media/mojo/mojom" ]
+  }
+
+  if (is_p2p_enabled) {
+    sources += [
+      "renderer_host/p2p/socket_dispatcher_host.cc",
+      "renderer_host/p2p/socket_dispatcher_host.h",
+    ]
+    deps += [ "//services/network/public/cpp:cpp_p2p" ]
   }
 
   if (enable_smart_card) {

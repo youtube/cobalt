@@ -259,6 +259,8 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
     perfetto::Category("toplevel").SetTags("scheduling", "toplevel"),
     perfetto::Category("toplevel.flow").SetTags("scheduling", "toplevel"),
     perfetto::Category("ui").SetTags("rendering"),
+    perfetto::Category("update_client").SetDescription(
+        "Events from component updater."),
     perfetto::Category("v8"),
     perfetto::Category("v8.execute"),
     perfetto::Category("v8.wasm"),
@@ -272,6 +274,7 @@ PERFETTO_DEFINE_CATEGORIES_IN_NAMESPACE_WITH_ATTRS(
       "Includes events related to WaaP (Webium-as-a-Product) UI experiments as "
       "described in //chrome/browser/waap."),
     perfetto::Category("wayland"),
+    perfetto::Category("wayland.debug").SetTags("debug"),
     perfetto::Category("webaudio").SetTags("audio"),
     perfetto::Category("webengine.fidl"),
     perfetto::Category("WebCore"),

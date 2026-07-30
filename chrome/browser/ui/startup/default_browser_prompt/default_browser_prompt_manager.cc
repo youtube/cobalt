@@ -11,7 +11,11 @@
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "chrome/browser/browser_process.h"
+#include "chrome/browser/default_browser/default_browser_controller.h"
+#include "chrome/browser/default_browser/default_browser_manager.h"
+#include "chrome/browser/ui/startup/default_browser_prompt/default_browser_bubble_dialog_manager.h"
 #include "chrome/browser/ui/startup/default_browser_prompt/default_browser_infobar_manager.h"
+#include "chrome/browser/ui/startup/default_browser_prompt/default_browser_surface_manager.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/pref_names.h"
 #include "components/prefs/pref_service.h"
@@ -23,6 +27,9 @@
 #endif
 
 namespace {
+
+using default_browser::DefaultBrowserManager;
+using default_browser::DefaultBrowserPromptSurface;
 
 bool ShouldShowPrompts() {
   PrefService* local_state = g_browser_process->local_state();
@@ -68,8 +75,7 @@ DefaultBrowserPromptManager* DefaultBrowserPromptManager::GetInstance() {
   return base::Singleton<DefaultBrowserPromptManager>::get();
 }
 
-DefaultBrowserPromptManager::DefaultBrowserPromptManager()
-    : infobar_manager_(std::make_unique<DefaultBrowserInfoBarManager>()) {}
+DefaultBrowserPromptManager::DefaultBrowserPromptManager() = default;
 
 DefaultBrowserPromptManager::~DefaultBrowserPromptManager() = default;
 
@@ -84,7 +90,7 @@ bool DefaultBrowserPromptManager::MaybeShowPrompt() {
   // If the experiment to separate the default browser prompt and the pin to
   // taskbar prompt is enabled, do not offer to pin to taskbar.
   if (base::FeatureList::IsEnabled(features::kSeparateDefaultAndPinPrompt)) {
-    infobar_manager_->ShowInfoBars(/*can_pin_to_taskbar=*/false);
+    ShowPrompts(/*can_pin_to_taskbar=*/false);
     return true;
   }
 
@@ -99,19 +105,43 @@ bool DefaultBrowserPromptManager::MaybeShowPrompt() {
                      base::Unretained(this)));
   return true;
 #else
-  infobar_manager_->ShowInfoBars(/*can_pin_to_taskbar=*/false);
+  ShowPrompts(/*can_pin_to_taskbar=*/false);
   return true;
 #endif  // BUILDFLAG(IS_WIN)
 }
 
 void DefaultBrowserPromptManager::OnCanPinToTaskbarResult(
     bool should_offer_to_pin) {
-  infobar_manager_->ShowInfoBars(/*can_pin_to_taskbar=*/should_offer_to_pin);
+  ShowPrompts(/*can_pin_to_taskbar=*/should_offer_to_pin);
+}
+
+void DefaultBrowserPromptManager::ShowPrompts(bool can_pin_to_taskbar) {
+  DefaultBrowserPromptSurface prompt_surface =
+      default_browser::GetDefaultBrowserPromptSurface();
+
+  switch (prompt_surface) {
+    case DefaultBrowserPromptSurface::kInfobar:
+      prompt_surface_manager_ =
+          std::make_unique<DefaultBrowserInfoBarManager>();
+      break;
+    case DefaultBrowserPromptSurface::kBubbleDialog:
+      prompt_surface_manager_ =
+          std::make_unique<DefaultBrowserBubbleDialogManager>();
+      break;
+  }
+  CHECK(prompt_surface_manager_);
+
+  prompt_surface_manager_->Show(
+      default_browser::DefaultBrowserManager::CreateControllerFor(
+          prompt_surface_manager_->GetEntrypointType()),
+      can_pin_to_taskbar);
 }
 
 void DefaultBrowserPromptManager::CloseAllPrompts(CloseReason close_reason) {
-  infobar_manager_->CloseAllInfoBars();
-
+  if (prompt_surface_manager_) {
+    prompt_surface_manager_->CloseAll();
+    prompt_surface_manager_.reset();
+  }
   if (close_reason == CloseReason::kAccept) {
     SetAppMenuItemVisibility(false);
   }

@@ -125,6 +125,7 @@
 <translation id="1436671784520050284">설정 계속하기</translation>
 <translation id="143681031165817424">이 기기에만 저장된 주소</translation>
 <translation id="1445276840641906250">하나의 브라우저에 모든 탭</translation>
+<translation id="1447564161241938558">관리자가 비밀번호 및 패스키 가져오기를 사용 중지했습니다</translation>
 <translation id="1450170672351507823">표준 보호 모드가 사용 설정되어 있습니다. 보안을 더욱 강화하려면 향상된 보호 모드를 사용하세요.</translation>
 <translation id="1455660774629812862">숨기지 않음</translation>
 <translation id="1456545332132818232"><ph name="PRODUCT_NAME" />의 제품 리뷰, 별 <ph name="MAX_STARS" />개 중 <ph name="STARS" />개, <ph name="DOMAIN" /></translation>
@@ -295,7 +296,6 @@
 <translation id="2015722694326466240">비밀번호를 보려면 먼저 기기에 비밀번호를 설정해야 합니다.</translation>
 <translation id="201759455285471444">탭 그룹을 펼칩니다.</translation>
 <translation id="202070562065520783">설명해 줘</translation>
-<translation id="2023713324775943812">사용 가능한 경우 주소 표시줄에서 읽기 모드에 액세스</translation>
 <translation id="2044394949148788042">탭 그리드 열기</translation>
 <translation id="2044681667265133332"><ph name="USER_EMAIL" /> 계정은 일부 정보를 볼 수 있는 <ph name="HOSTED_DOMAIN" />에서 관리합니다. <ph name="BEGIN_LINK" />자세히 알아보기<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">새 항목</translation>
@@ -585,6 +585,7 @@
 <translation id="3140825265190223781">저장된 비밀번호 및 패스키</translation>
 <translation id="3143515551205905069">동기화 취소</translation>
 <translation id="3144126448740580210">완료</translation>
+<translation id="3147521114983561406">패스키가 비밀번호 관리자에 저장됩니다. 시크릿 탭과 일반 탭에서 액세스할 수 있습니다</translation>
 <translation id="3148052723910099040">일반 탭 그리드</translation>
 <translation id="3148237711805373460">이동하기</translation>
 <translation id="3157387275655328056">읽기 목록에 추가</translation>
@@ -1860,6 +1861,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="7772032839648071052">암호 확인</translation>
 <translation id="7772948288262733182">다시 방문해 주셔서 감사합니다</translation>
 <translation id="777637629667389858">로그인하면 Google 서비스 전반에서 사용자를 보호합니다.</translation>
+<translation id="7776604279034196531">사용 가능한 경우 주소 표시줄에서 읽기 모드에 액세스</translation>
 <translation id="7781829728241885113">어제</translation>
 <translation id="7788868432173225918">확장형 뷰 닫기</translation>
 <translation id="7791543448312431591">추가</translation>
@@ -2097,6 +2099,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="8587001564479545614">복구 PIN을 만듭니다.</translation>
 <translation id="8588404856427128947">사용 안함</translation>
 <translation id="8590286732816598906">탭 그룹, <ph name="GROUP_TITLE" />, 메뉴.</translation>
+<translation id="8593317261815647019">시크릿 모드 외부에서 패스키를 만드시겠습니까?</translation>
 <translation id="8600272508328041907">전체 페이지 번역으로 전환</translation>
 <translation id="860043288473659153">카드 명의자 이름</translation>
 <translation id="8601611099293226919">Google 렌즈로 화면 검색</translation>
@@ -2234,6 +2237,7 @@ Handoff는 설정의 일반 섹션에서도 사용 설정할 수 있으며, 이�
 <translation id="9055291197094969722">열려 있는 탭을 정리하고 생산성을 유지하려면 탭 그룹을 만드세요.</translation>
 <translation id="9055580485132823283">비밀번호 {password_count}개, 패스키 {passkey_count}개, 로그인 정보를 저장하지 않도록 선택한 사이트 및 앱 목록을 삭제하려고 합니다. 사이트 및 앱용으로 만든 계정은 삭제되지 않습니다.</translation>
 <translation id="9057030985451135243">공유된 탭 그룹에 관해 알아보기</translation>
+<translation id="9064106978262828592">데이터를 내보내는 중에 문제 발생</translation>
 <translation id="9065203028668620118">수정</translation>
 <translation id="9066097352053395362">북마크 수정 숨기기</translation>
 <translation id="9070824521421603770">로그아웃되고 탭이 닫힙니다</translation>

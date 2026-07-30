@@ -141,10 +141,6 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kAVDColorSpaceChanges);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(
     kBrowserInitiatedAutomaticPictureInPictureDryRun);
 
-#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) && !BUILDFLAG(IS_FUCHSIA)
-#endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_CHROMEOS) &&
-        // !BUILDFLAG(IS_FUCHSIA)
-
 // NOTE: callers should always use the free functions in
 // /media/cast/encoding/encoding_support.h instead of accessing these features
 // directly.
@@ -152,6 +148,16 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCastStreamingAv1);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(
     kCastStreamingExponentialVideoBitrateAlgorithm);
+MEDIA_EXPORT extern const base::FeatureParam<int>
+    kCastStreamingExponentialVideoBitrateAlgorithmWindowSize;
+MEDIA_EXPORT extern const base::FeatureParam<int>
+    kCastStreamingExponentialVideoBitrateAlgorithmDropThreshold;
+MEDIA_EXPORT extern const base::FeatureParam<double>
+    kCastStreamingExponentialVideoBitrateAlgorithmIncreaseFactor;
+MEDIA_EXPORT extern const base::FeatureParam<double>
+    kCastStreamingExponentialVideoBitrateAlgorithmDecreaseFactor;
+MEDIA_EXPORT extern const base::FeatureParam<double>
+    kCastStreamingExponentialVideoBitrateAlgorithmDynamicWindowMultiplier;
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCastStreamingHardwareHevc);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCastStreamingMediaVideoEncoder);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kCastStreamingPerformanceOverlay);
@@ -318,6 +324,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kResumeBackgroundVideo);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kRevokeMediaSourceObjectURLOnAttach);
 #if BUILDFLAG(ENABLE_SYMPHONIA)
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kSymphoniaAudioDecoding);
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kSymphoniaMp3Decoding);
 #endif
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kShareThisTabInsteadButtonGetDisplayMedia);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(
@@ -361,6 +368,7 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kResolutionBasedDecoderPriority);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kMatchSourceAudioChannelLayout);
 
 #if BUILDFLAG(IS_ANDROID)
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowDelayedAudioFocusGainAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAllowEnhancedPipTransition);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoDocPiPPermissionPromptAndroid);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kAutoPictureInPictureAndroid);

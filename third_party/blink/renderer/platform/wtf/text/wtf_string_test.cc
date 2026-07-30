@@ -284,27 +284,39 @@ TEST(WTF, SimplifyWhiteSpace) {
 }
 
 TEST(StringTest, SplitByChar) {
-  Vector<String> result;
-  String("").Split(' ', result);
+  Vector<String> result = String("").SplitSkippingEmpty(' ');
   EXPECT_EQ(0u, result.size());
-  result.clear();
 
-  String("  foo  bar").Split(' ', result);
+  result = String("  foo  bar").SplitSkippingEmpty(' ');
   EXPECT_EQ(2u, result.size());
   EXPECT_EQ("foo", result[0]);
   EXPECT_EQ("bar", result[1]);
-  result.clear();
 
-  String("").Split(',', true, result);
+  result = String("").Split(',');
   EXPECT_EQ(1u, result.size());
   EXPECT_EQ("", result[0]);
-  result.clear();
 
-  String("foo,,bar").Split(',', true, result);
+  result = String("foo,,bar").Split(',');
   EXPECT_EQ(3u, result.size());
   EXPECT_EQ("foo", result[0]);
   EXPECT_EQ("", result[1]);
   EXPECT_EQ("bar", result[2]);
+}
+
+TEST(StringTest, SplitByString) {
+  Vector<String> result = String("  foo  bar").Split(" ");
+  EXPECT_EQ(5u, result.size());
+  EXPECT_EQ("", result[0]);
+  EXPECT_EQ("", result[1]);
+  EXPECT_EQ("foo", result[2]);
+  EXPECT_EQ("", result[3]);
+  EXPECT_EQ("bar", result[4]);
+
+  result = String("  foo   bar").Split("  ");
+  EXPECT_EQ(3u, result.size());
+  EXPECT_EQ("", result[0]);
+  EXPECT_EQ("foo", result[1]);
+  EXPECT_EQ(" bar", result[2]);
 }
 
 TEST(StringTest, StartsWithIgnoringUnicodeCase) {
@@ -313,41 +325,41 @@ TEST(StringTest, StartsWithIgnoringUnicodeCase) {
                   .DeprecatedStartsWithIgnoringCase("sk"));
 }
 
-TEST(StringTest, StartsWithIgnoringASCIICase) {
+TEST(StringTest, StartsWithIgnoringAsciiCase) {
   String all_ascii("LINK");
   String all_ascii_lower_case("link");
-  EXPECT_TRUE(all_ascii.StartsWithIgnoringASCIICase(all_ascii_lower_case));
+  EXPECT_TRUE(all_ascii.StartsWithIgnoringAsciiCase(all_ascii_lower_case));
   String all_ascii_mixed_case("lInK");
-  EXPECT_TRUE(all_ascii.StartsWithIgnoringASCIICase(all_ascii_mixed_case));
+  EXPECT_TRUE(all_ascii.StartsWithIgnoringAsciiCase(all_ascii_mixed_case));
   String all_ascii_different("foo");
-  EXPECT_FALSE(all_ascii.StartsWithIgnoringASCIICase(all_ascii_different));
+  EXPECT_FALSE(all_ascii.StartsWithIgnoringAsciiCase(all_ascii_different));
   String non_ascii = String::FromUTF8("LIN\xE2\x84\xAA");
-  EXPECT_FALSE(all_ascii.StartsWithIgnoringASCIICase(non_ascii));
+  EXPECT_FALSE(all_ascii.StartsWithIgnoringAsciiCase(non_ascii));
   EXPECT_TRUE(
-      all_ascii.StartsWithIgnoringASCIICase(non_ascii.DeprecatedLower()));
+      all_ascii.StartsWithIgnoringAsciiCase(non_ascii.DeprecatedLower()));
 
-  EXPECT_FALSE(non_ascii.StartsWithIgnoringASCIICase(all_ascii));
-  EXPECT_FALSE(non_ascii.StartsWithIgnoringASCIICase(all_ascii_lower_case));
-  EXPECT_FALSE(non_ascii.StartsWithIgnoringASCIICase(all_ascii_mixed_case));
-  EXPECT_FALSE(non_ascii.StartsWithIgnoringASCIICase(all_ascii_different));
+  EXPECT_FALSE(non_ascii.StartsWithIgnoringAsciiCase(all_ascii));
+  EXPECT_FALSE(non_ascii.StartsWithIgnoringAsciiCase(all_ascii_lower_case));
+  EXPECT_FALSE(non_ascii.StartsWithIgnoringAsciiCase(all_ascii_mixed_case));
+  EXPECT_FALSE(non_ascii.StartsWithIgnoringAsciiCase(all_ascii_different));
 }
 
-TEST(StringTest, EndsWithIgnoringASCIICase) {
+TEST(StringTest, EndsWithIgnoringAsciiCase) {
   String all_ascii("LINK");
   String all_ascii_lower_case("link");
-  EXPECT_TRUE(all_ascii.EndsWithIgnoringASCIICase(all_ascii_lower_case));
+  EXPECT_TRUE(all_ascii.EndsWithIgnoringAsciiCase(all_ascii_lower_case));
   String all_ascii_mixed_case("lInK");
-  EXPECT_TRUE(all_ascii.EndsWithIgnoringASCIICase(all_ascii_mixed_case));
+  EXPECT_TRUE(all_ascii.EndsWithIgnoringAsciiCase(all_ascii_mixed_case));
   String all_ascii_different("foo");
-  EXPECT_FALSE(all_ascii.EndsWithIgnoringASCIICase(all_ascii_different));
+  EXPECT_FALSE(all_ascii.EndsWithIgnoringAsciiCase(all_ascii_different));
   String non_ascii = String::FromUTF8("LIN\xE2\x84\xAA");
-  EXPECT_FALSE(all_ascii.EndsWithIgnoringASCIICase(non_ascii));
-  EXPECT_TRUE(all_ascii.EndsWithIgnoringASCIICase(non_ascii.DeprecatedLower()));
+  EXPECT_FALSE(all_ascii.EndsWithIgnoringAsciiCase(non_ascii));
+  EXPECT_TRUE(all_ascii.EndsWithIgnoringAsciiCase(non_ascii.DeprecatedLower()));
 
-  EXPECT_FALSE(non_ascii.EndsWithIgnoringASCIICase(all_ascii));
-  EXPECT_FALSE(non_ascii.EndsWithIgnoringASCIICase(all_ascii_lower_case));
-  EXPECT_FALSE(non_ascii.EndsWithIgnoringASCIICase(all_ascii_mixed_case));
-  EXPECT_FALSE(non_ascii.EndsWithIgnoringASCIICase(all_ascii_different));
+  EXPECT_FALSE(non_ascii.EndsWithIgnoringAsciiCase(all_ascii));
+  EXPECT_FALSE(non_ascii.EndsWithIgnoringAsciiCase(all_ascii_lower_case));
+  EXPECT_FALSE(non_ascii.EndsWithIgnoringAsciiCase(all_ascii_mixed_case));
+  EXPECT_FALSE(non_ascii.EndsWithIgnoringAsciiCase(all_ascii_different));
 }
 
 TEST(StringTest, EqualIgnoringASCIICase) {
@@ -368,21 +380,21 @@ TEST(StringTest, EqualIgnoringASCIICase) {
   EXPECT_FALSE(EqualIgnoringASCIICase(non_ascii, all_ascii_different));
 }
 
-TEST(StringTest, FindIgnoringASCIICase) {
+TEST(StringTest, FindIgnoringAsciiCase) {
   String needle = String::FromUTF8("a\xCC\x88qa\xCC\x88");
 
   // Multiple matches, non-overlapping
   String haystack1 = String::FromUTF8(
       "aA\xCC\x88QA\xCC\x88sA\xCC\x88qa\xCC\x88rfi\xC3\xA4q\xC3\xA4");
-  EXPECT_EQ(1u, haystack1.FindIgnoringASCIICase(needle));
-  EXPECT_EQ(7u, haystack1.FindIgnoringASCIICase(needle, 2));
-  EXPECT_EQ(kNotFound, haystack1.FindIgnoringASCIICase(needle, 8));
+  EXPECT_EQ(1u, haystack1.FindIgnoringAsciiCase(needle));
+  EXPECT_EQ(7u, haystack1.FindIgnoringAsciiCase(needle, 2));
+  EXPECT_EQ(kNotFound, haystack1.FindIgnoringAsciiCase(needle, 8));
 
   // Multiple matches, overlapping
   String haystack2 = String::FromUTF8("aA\xCC\x88QA\xCC\x88qa\xCC\x88rfi");
-  EXPECT_EQ(1u, haystack2.FindIgnoringASCIICase(needle));
-  EXPECT_EQ(4u, haystack2.FindIgnoringASCIICase(needle, 2));
-  EXPECT_EQ(kNotFound, haystack2.FindIgnoringASCIICase(needle, 5));
+  EXPECT_EQ(1u, haystack2.FindIgnoringAsciiCase(needle));
+  EXPECT_EQ(4u, haystack2.FindIgnoringAsciiCase(needle, 2));
+  EXPECT_EQ(kNotFound, haystack2.FindIgnoringAsciiCase(needle, 5));
 }
 
 TEST(StringTest, DeprecatedLower) {
@@ -458,6 +470,74 @@ TEST(StringTest, StringPrinter) {
                                          0x30C8};  // "Test" in Japanese.
   EXPECT_EQ("\"\\u30C6\\u30B9\\u30C8\"",
             ToStdStringThroughPrinter(String(base::span(kUnicodeSample))));
+}
+
+TEST(StringTest, FindSubstring) {
+  EXPECT_EQ(kNotFound, String().find(StringView()));
+  EXPECT_EQ(kNotFound, String("").find(StringView()));
+  EXPECT_EQ(kNotFound, String(u"").find(StringView()));
+  EXPECT_EQ(kNotFound, String().find("a"));
+  EXPECT_EQ(kNotFound, String("").find("a"));
+  EXPECT_EQ(kNotFound, String(u"").find("a"));
+
+  String view8("abcdeabcde");
+  ASSERT_TRUE(view8.Is8Bit());
+  EXPECT_EQ(0u, view8.find(""));
+  EXPECT_EQ(4u, view8.find("", 4));
+  EXPECT_EQ(view8.length(), view8.find("", view8.length()));
+  EXPECT_EQ(kNotFound, view8.find("", view8.length() + 1));
+
+  EXPECT_EQ(0u, view8.find("ab"));
+  EXPECT_EQ(5u, view8.find("ab", 1));
+  EXPECT_EQ(5u, view8.find("ab", 5));
+  EXPECT_EQ(kNotFound, view8.find("ab", 6));
+  EXPECT_EQ(kNotFound, view8.find("ab", view8.length() - 1));
+  EXPECT_EQ(kNotFound, view8.find("ab", view8.length()));
+  EXPECT_EQ(kNotFound, view8.find("ab", view8.length() + 1));
+  EXPECT_EQ(0u, view8.find(view8));
+  EXPECT_EQ(kNotFound, view8.find(view8, 1));
+  EXPECT_EQ(kNotFound, view8.find("abcdeabcdea"));
+
+  EXPECT_EQ(0u, view8.find(u"ab"));
+  EXPECT_EQ(5u, view8.find(u"ab", 1));
+  EXPECT_EQ(5u, view8.find(u"ab", 5));
+  EXPECT_EQ(kNotFound, view8.find(u"ab", 6));
+  EXPECT_EQ(kNotFound, view8.find(u"ab", view8.length() - 1));
+  EXPECT_EQ(kNotFound, view8.find(u"ab", view8.length()));
+  EXPECT_EQ(kNotFound, view8.find(u"ab", view8.length() + 1));
+  EXPECT_EQ(0u, view8.find(u"abcdeabcde"));
+  EXPECT_EQ(kNotFound, view8.find(u"abcdeabcde", 1));
+  EXPECT_EQ(kNotFound, view8.find(u"abcdeabcdea"));
+
+  String view8_with_null(base::byte_span_from_cstring("as\0cii"));
+  ASSERT_TRUE(view8_with_null.Is8Bit());
+  EXPECT_EQ(kNotFound, view8_with_null.find("ascii"));
+  const StringView kSNulC(base::byte_span_from_cstring("s\0c"));
+  EXPECT_EQ(1u, view8_with_null.find(kSNulC));
+  EXPECT_EQ(1u, view8_with_null.find(kSNulC, 1));
+  EXPECT_EQ(3u, view8_with_null.find("c"));
+  const StringView kNul(base::byte_span_from_cstring("\0"));
+  EXPECT_EQ(2u, view8_with_null.find(kNul));
+  EXPECT_EQ(kNotFound, view8_with_null.find(kNul, 3));
+
+  String view16(u"abcde\u1234abcde");
+  ASSERT_FALSE(view16.Is8Bit());
+  EXPECT_EQ(0u, view16.find("ab"));
+  EXPECT_EQ(2u, view16.find("cd"));
+  EXPECT_EQ(6u, view16.find("ab", 5));
+  EXPECT_EQ(kNotFound, view16.find("ab", 7));
+  EXPECT_EQ(5u, view16.find(u"\u1234a"));
+  EXPECT_EQ(kNotFound, view16.find("abd"));
+  EXPECT_EQ(kNotFound, view16.find(u"\u1234a", 6));
+
+  String view16_with_null(base::span_from_cstring(u"asci\0i"));
+  ASSERT_FALSE(view16_with_null.Is8Bit());
+  const StringView kNul16(base::span_from_cstring(u"\0"));
+  EXPECT_EQ(4u, view16_with_null.find(kNul));
+  EXPECT_EQ(4u, view16_with_null.find(kNul16));
+  EXPECT_EQ(4u, view16_with_null.find(kNul16, 4));
+  EXPECT_EQ(5u, view16_with_null.find("i", 4));
+  EXPECT_EQ(kNotFound, view16_with_null.find(kNul16, 5));
 }
 
 class TestMatcher {

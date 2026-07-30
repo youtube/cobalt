@@ -28,6 +28,7 @@
 #include "remoting/protocol/authenticator.h"
 #include "remoting/protocol/content_description.h"
 #include "remoting/protocol/errors.h"
+#include "remoting/protocol/jingle_message_xml_converter.h"
 #include "remoting/protocol/jingle_messages.h"
 #include "remoting/protocol/jingle_session_manager.h"
 #include "remoting/protocol/session_config.h"
@@ -303,10 +304,10 @@ void JingleSession::AcceptIncomingConnection(
 
   ProcessIncomingPluginMessage(initiate_message);
   // Process the first authentication message.
-  const jingle_xmpp::XmlElement* first_auth_message =
-      initiate_message.description->authenticator_message();
+  const JingleAuthentication& first_auth_message =
+      initiate_message.description->authentication();
 
-  if (!first_auth_message) {
+  if (first_auth_message.is_empty()) {
     Close(ErrorCode::INVALID_ARGUMENT,
           "Cannot find the first authentication message.", FROM_HERE);
     return;
@@ -334,13 +335,13 @@ void JingleSession::ContinueAcceptIncomingConnection() {
   auto message = std::make_unique<JingleMessage>(peer_address_, SessionAccept(),
                                                  session_id_);
 
-  std::unique_ptr<jingle_xmpp::XmlElement> auth_message;
+  JingleAuthentication auth_message;
   if (authenticator_->state() == Authenticator::MESSAGE_READY) {
     auth_message = authenticator_->GetNextMessage();
   }
 
   message->description = std::make_unique<ContentDescription>(
-      CandidateSessionConfig::CreateFrom(*config_), std::move(auth_message));
+      CandidateSessionConfig::CreateFrom(*config_), auth_message);
   SendMessage(std::move(message));
 
   // Update state.
@@ -379,16 +380,16 @@ void JingleSession::SetTransport(Transport* transport) {
 }
 
 void JingleSession::SendTransportInfo(
-    std::unique_ptr<jingle_xmpp::XmlElement> transport_info) {
+    std::unique_ptr<JingleTransportInfo> transport_info) {
   DCHECK_CALLED_ON_VALID_THREAD(thread_checker_);
   DCHECK_EQ(state_, AUTHENTICATED);
 
   auto message = std::make_unique<JingleMessage>(
-      peer_address_, JingleTransportInfo(), session_id_);
-  message->transport_info_legacy = std::move(transport_info);
+      peer_address_, std::move(*transport_info), session_id_);
   AddPluginAttachments(message.get());
 
-  std::unique_ptr<jingle_xmpp::XmlElement> stanza = message->ToXml();
+  std::unique_ptr<jingle_xmpp::XmlElement> stanza =
+      JingleMessageToXml(*message);
   stanza->AddAttr(kQNameId, GetNextOutgoingId());
 
   auto request = session_manager_->iq_sender()->SendIq(
@@ -488,7 +489,8 @@ void JingleSession::SendMessage(std::unique_ptr<JingleMessage> message) {
     // SESSION_TERMINATE message.
     AddPluginAttachments(message.get());
   }
-  std::unique_ptr<jingle_xmpp::XmlElement> stanza = message->ToXml();
+  std::unique_ptr<jingle_xmpp::XmlElement> stanza =
+      JingleMessageToXml(*message);
   stanza->AddAttr(kQNameId, GetNextOutgoingId());
 
   auto request = session_manager_->iq_sender()->SendIq(
@@ -639,9 +641,9 @@ void JingleSession::OnAccept(std::unique_ptr<JingleMessage> message,
 
   std::move(reply_callback).Run(JingleMessageReply::NONE);
 
-  const jingle_xmpp::XmlElement* auth_message =
-      message->description->authenticator_message();
-  if (!auth_message) {
+  const JingleAuthentication& auth_message =
+      message->description->authentication();
+  if (auth_message.is_empty()) {
     Close(ErrorCode::INVALID_ARGUMENT,
           "Received session-accept without authentication message", FROM_HERE);
     return;
@@ -666,8 +668,14 @@ void JingleSession::OnAccept(std::unique_ptr<JingleMessage> message,
 
 void JingleSession::OnSessionInfo(std::unique_ptr<JingleMessage> message,
                                   ReplyCallback reply_callback) {
-  if (!message->info_legacy.get() ||
-      !Authenticator::IsAuthenticatorMessage(message->info_legacy.get())) {
+  const JingleAuthentication* auth_message = nullptr;
+  if (auto* session_info = std::get_if<SessionInfo>(&message->payload())) {
+    if (session_info->authentication) {
+      auth_message = &*session_info->authentication;
+    }
+  }
+
+  if (!auth_message) {
     std::move(reply_callback).Run(JingleMessageReply::UNSUPPORTED_INFO);
     return;
   }
@@ -676,23 +684,20 @@ void JingleSession::OnSessionInfo(std::unique_ptr<JingleMessage> message,
       authenticator_->state() != Authenticator::WAITING_MESSAGE) {
     std::move(reply_callback).Run(JingleMessageReply::UNEXPECTED_REQUEST);
     Close(ErrorCode::INVALID_ARGUMENT,
-          base::StringPrintf("Received unexpected authenticator message %s",
-                             message->info_legacy->Str()),
-          FROM_HERE);
+          "Received unexpected authenticator message", FROM_HERE);
     return;
   }
 
   std::move(reply_callback).Run(JingleMessageReply::NONE);
 
   authenticator_->ProcessMessage(
-      message->info_legacy.get(),
-      base::BindOnce(&JingleSession::ProcessAuthenticationStep,
-                     base::Unretained(this)));
+      *auth_message, base::BindOnce(&JingleSession::ProcessAuthenticationStep,
+                                    base::Unretained(this)));
 }
 
 void JingleSession::OnTransportInfo(std::unique_ptr<JingleMessage> message,
                                     ReplyCallback reply_callback) {
-  if (!message->transport_info_legacy) {
+  if (!std::holds_alternative<JingleTransportInfo>(message->payload())) {
     std::move(reply_callback).Run(JingleMessageReply::BAD_REQUEST);
     return;
   }
@@ -703,7 +708,7 @@ void JingleSession::OnTransportInfo(std::unique_ptr<JingleMessage> message,
   } else if (state_ == AUTHENTICATED) {
     std::move(reply_callback)
         .Run(transport_->ProcessTransportInfo(
-                 message->transport_info_legacy.get())
+                 std::get<JingleTransportInfo>(message->payload()))
                  ? JingleMessageReply::NONE
                  : JingleMessageReply::BAD_REQUEST);
   } else {
@@ -823,8 +828,9 @@ void JingleSession::ProcessAuthenticationStep() {
   if (authenticator_->state() == Authenticator::MESSAGE_READY) {
     auto message = std::make_unique<JingleMessage>(peer_address_, SessionInfo(),
                                                    session_id_);
-    message->info_legacy = authenticator_->GetNextMessage();
-    DCHECK(message->info_legacy.get());
+    SessionInfo session_info;
+    session_info.authentication = authenticator_->GetNextMessage();
+    message->SetPayload(std::move(session_info));
     SendMessage(std::move(message));
   }
   DCHECK_NE(authenticator_->state(), Authenticator::MESSAGE_READY);
@@ -858,7 +864,7 @@ void JingleSession::OnAuthenticated() {
   for (auto& message : messages_to_process) {
     std::move(message.reply_callback)
         .Run(transport_->ProcessTransportInfo(
-                 message.message->transport_info_legacy.get())
+                 std::get<JingleTransportInfo>(message.message->payload()))
                  ? JingleMessageReply::NONE
                  : JingleMessageReply::BAD_REQUEST);
     if (!self) {
@@ -894,20 +900,19 @@ bool JingleSession::is_session_active() {
 }
 
 void JingleSession::ProcessIncomingPluginMessage(const JingleMessage& message) {
-  if (!message.attachments_legacy) {
-    return;
-  }
-  for (remoting::protocol::SessionPlugin* plugin : plugins_) {
-    plugin->OnIncomingMessage(*(message.attachments_legacy));
+  for (const auto& attachment : message.attachments) {
+    for (SessionPlugin* plugin : plugins_) {
+      plugin->OnIncomingMessage(attachment);
+    }
   }
 }
 
 void JingleSession::AddPluginAttachments(JingleMessage* message) {
   DCHECK(message);
-  for (remoting::protocol::SessionPlugin* plugin : plugins_) {
-    std::unique_ptr<XmlElement> attachment = plugin->GetNextMessage();
-    if (attachment) {
-      message->AddAttachment(std::move(attachment));
+  for (SessionPlugin* plugin : plugins_) {
+    std::optional<Attachment> attachment = plugin->GetNextMessage();
+    if (attachment.has_value()) {
+      message->attachments.emplace_back(std::move(*attachment));
     }
   }
 }
@@ -920,9 +925,14 @@ void JingleSession::SendSessionInitiateMessage() {
       peer_address_, SessionInitiate(), session_id_);
   message->initiator =
       session_manager_->signal_strategy_->GetLocalAddress().id();
+
+  JingleAuthentication auth_message;
+  if (authenticator_->state() == Authenticator::MESSAGE_READY) {
+    auth_message = authenticator_->GetNextMessage();
+  }
+
   message->description = std::make_unique<ContentDescription>(
-      session_manager_->protocol_config_->Clone(),
-      authenticator_->GetNextMessage());
+      session_manager_->protocol_config_->Clone(), auth_message);
   SendMessage(std::move(message));
 }
 

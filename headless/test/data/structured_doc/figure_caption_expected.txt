@@ -1,0 +1,16 @@
+{
+   "lang": "en",
+   "type": "Document",
+   "~children": [ {
+      "type": "Figure",
+      "~children": [ {
+         "alt": "Test image",
+         "type": "Figure"
+      }, {
+         "type": "Caption",
+         "~children": [ {
+            "type": "NonStruct"
+         } ]
+      } ]
+   } ]
+}

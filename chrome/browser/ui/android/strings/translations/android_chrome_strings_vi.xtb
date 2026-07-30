@@ -299,6 +299,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="2287421207599770907">{NUMBER_OF_TABS,plural, =1{Xem <ph name="TABS_COUNT_ONE" /> thẻ}other{Xem <ph name="TABS_COUNT_MANY" /> thẻ}}</translation>
 <translation id="2297822946037605517">Chia sẻ trang này</translation>
 <translation id="230115972905494466">Không tìm thấy thiết bị tương thích</translation>
+<translation id="2316129865977710310">Không, cảm ơn</translation>
 <translation id="2318045970523081853">Nhấn để gọi điện</translation>
 <translation id="2323763861024343754">Bộ nhớ trang web</translation>
 <translation id="2328474416100889417">Mọi người sẽ ngay lập tức mất quyền truy cập vào nhóm thẻ "<ph name="GROUP_NAME" />" và tất cả đường liên kết của lời mời sẽ đều bị vô hiệu hoá</translation>
@@ -432,6 +433,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="2870560284913253234">Trang web</translation>
 <translation id="2871733351037274014">Tải trước các trang</translation>
 <translation id="2876136027428473467"><ph name="CHILD_NAME" /> muốn bạn phê duyệt trang web này:</translation>
+<translation id="2876556152483133018">Tìm kiếm trong trang web</translation>
 <translation id="2876628302275096482">Tìm hiểu thêm về <ph name="BEGIN_LINK" />cách Chrome bảo mật dữ liệu của bạn<ph name="END_LINK" /></translation>
 <translation id="2878607776582720720"><ph name="TAB_TITLE" />, Thẻ ẩn danh đang chia sẻ và được chọn cùng với nhiều thẻ khác</translation>
 <translation id="2885355868600171871">Chuyển đến thanh địa chỉ</translation>
@@ -474,6 +476,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="2992473221983447149">Nội dung mô tả hình ảnh</translation>
 <translation id="2996291259634659425">Tạo cụm mật khẩu</translation>
 <translation id="2996809686854298943">Cần có URL</translation>
+<translation id="3008916997590006706">Nhấn vào Lưu để dễ dàng truy cập mật khẩu này vào lần tới bạn đăng nhập</translation>
 <translation id="3024215143424744261">Đã đóng các lựa chọn ưu tiên của Chế độ đọc</translation>
 <translation id="3026955690410463085">Thêm đường liên kết</translation>
 <translation id="3027644380269727216">Dựa vào hoạt động của bạn trên một trang web. Chế độ cài đặt này đang bật.</translation>
@@ -621,6 +624,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="3709577906275923507"><ph name="FILE_NAME" /> có thể chứa thông tin nhạy cảm và không nên được chia sẻ</translation>
 <translation id="3710501561113687889">Để tiếp tục, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> sẽ chia sẻ <ph name="FIELDS_STRING" /> của bạn với trang web này.</translation>
 <translation id="3710560693796335511">Cộng tác</translation>
+<translation id="3714430408451673233">Đã mở bảng thẻ ở dưới cùng trên một nửa màn hình.</translation>
 <translation id="3718765429352682176">Nhật ký có thể bao gồm các đường liên kết được mở trong Chrome từ các ứng dụng khác.</translation>
 <translation id="3721119614952978349">Bạn và Google</translation>
 <translation id="3727000368239390918">Đăng nhập để sử dụng thẻ và nhiều nội dung khác trên mọi thiết bị của bạn</translation>
@@ -765,6 +769,7 @@ Chỉ những người có cụm mật khẩu mới đọc được dữ liệu 
 <translation id="4326079409704643112">Xác minh danh tính của bạn để lưu dữ liệu Chrome vào Tài khoản Google và sử dụng dữ liệu đó</translation>
 <translation id="433213510553688132">Đang theo dõi...</translation>
 <translation id="4335835283689002019">Tính năng Duyệt web an toàn đang tắt</translation>
+<translation id="4343250402091037179">Để tìm kiếm trong một trang web cụ thể hoặc một phần của Chrome, hãy nhập lối tắt của trang web hoặc phần đó vào thanh địa chỉ, sau đó nhập phím tắt ưu tiên của bạn.</translation>
 <translation id="4351244548802238354">Đóng hộp thoại</translation>
 <translation id="4352287748243729941">Dùng mật khẩu <ph name="PROVIDER" /> của bạn?</translation>
 <translation id="4355272626458588338">Bạn có thể thêm dấu trang để truy cập lại một trang mà bạn thấy quan trọng</translation>
@@ -955,7 +960,9 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="5056587122125565772">Tạo hình ảnh</translation>
 <translation id="506254248375231072">Không có thẻ nào</translation>
 <translation id="5075939510584558547">Lưu mà không mã hoá</translation>
+<translation id="5078638979202084724">Đánh dấu tất cả các thẻ</translation>
 <translation id="5085038751173179818">Đăng nhập vào trang web này và Chrome để sử dụng dấu trang và các nội dung khác trên tất cả thiết bị của bạn</translation>
+<translation id="5088347662971855383">Ghim Gemini</translation>
 <translation id="5091199029769593641">Bạn sẽ sớm thấy các tin bài của <ph name="SITE_NAME" /> khi mở một thẻ mới. Các trang web bạn theo dõi sẽ được lưu trong tài khoản Google của bạn. Bạn có thể quản lý các trang web đó trong phần cài đặt Khám phá.</translation>
 <translation id="509429900233858213">Đã xảy ra lỗi.</translation>
 <translation id="5096775069898886423">Đối với những trang web không hỗ trợ kết nối bảo mật, bạn sẽ nhận được cảnh báo trước khi truy cập trang web đó</translation>
@@ -1000,6 +1007,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="5267572070504076962">Bật tính năng Duyệt web an toàn để được bảo vệ khỏi các trang web nguy hiểm</translation>
 <translation id="5271967389191913893">Thiết bị không thể mở nội dung được tải xuống.</translation>
 <translation id="5273031377282080577">Quản trị viên của bạn quản lý chế độ cài đặt này.</translation>
+<translation id="5290322819358431297">Tự động điền mật khẩu</translation>
 <translation id="5292796745632149097">Gửi đến</translation>
 <translation id="5301876394151419436">Bạn đã đăng nhập bằng <ph name="EMAIL" />. Bạn có thể dừng đồng bộ hoá bất cứ lúc nào trong phần cài đặt. Google có thể cá nhân hoá dịch vụ Tìm kiếm và các dịch vụ khác dựa trên nhật ký của bạn.</translation>
 <translation id="5304593522240415983">Không được để trống trường này</translation>
@@ -1038,6 +1046,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="544776284582297024">Để mở các thẻ và truy cập cùng lúc vào nhiều trang, hãy nhấn vào nút mở thẻ</translation>
 <translation id="5456381639095306749">Tải trang xuống</translation>
 <translation id="5458366071038729214">Bạn sẽ thấy các trang web mình theo dõi tại đây</translation>
+<translation id="5465437530117042974">Đã đóng bảng thẻ ở dưới cùng.</translation>
 <translation id="5469852975082458401">Bạn có thể di chuyển giữa các trang bằng con trỏ văn bản. Hãy nhấn F7 để tắt.</translation>
 <translation id="5471273988133666918">Không thể di chuyển thẻ <ph name="TAB_TITLE" /></translation>
 <translation id="548278423535722844">Mở trong ứng dụng bản đồ</translation>
@@ -1091,6 +1100,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="572328651809341494">Thẻ gần đây</translation>
 <translation id="5728072125198221967">Các dịch vụ của Google được liên kết</translation>
 <translation id="5734658507307260911"><ph name="TAB_TITLE" />, Thẻ ẩn danh đang phát âm thanh và được ghim</translation>
+<translation id="5736345781200955827">Tạo, lưu và quản lý mật khẩu để dễ dàng đăng nhập vào các trang web và ứng dụng bằng Chrome</translation>
 <translation id="5744751019568455640">Đây là những giọng nói mà bạn có thể chọn để tôi đọc to nội dung các trang web. Nếu bạn thích giọng nói này và muốn tôi dùng tiếp, chỉ cần nhấn vào tên giọng nói.</translation>
 <translation id="574845902699630049">Chia sẻ dưới tên <ph name="OWNER_FULL_NAME" /></translation>
 <translation id="5749068826913805084">Chrome cần quyền truy cập vào bộ nhớ để tải tệp xuống.</translation>
@@ -1171,6 +1181,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="604996488070107836">Không tải xuống được <ph name="FILE_NAME" /> do lỗi không xác định.</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">Kiểm soát tin bài và hoạt động của bạn tại đây</translation>
+<translation id="606985262342505139">Đã mở bảng thẻ ở dưới cùng trên toàn màn hình</translation>
 <translation id="6071995715087444295">Để kiểm tra xem có mật khẩu nào bị lộ không, hãy đăng nhập vào Tài khoản Google của bạn</translation>
 <translation id="6078323886959318429">Thêm lối tắt</translation>
 <translation id="6085886413119427067">Xác định cách kết nối với các trang web qua đường kết nối an toàn</translation>
@@ -1187,6 +1198,7 @@ Tài khoản Google của bạn có thể có các dạng nhật ký duyệt web
 <translation id="6125864963080902918"><ph name="BEGIN_LINK" />Thông tin chi tiết khác<ph name="END_LINK" /></translation>
 <translation id="6127860394906721547">Mở nhóm thẻ <ph name="TITLE_OF_GROUP" />, màu <ph name="COLOR_NAME" />, có các trang web <ph name="URL_LIST" />.</translation>
 <translation id="6130303040046284160">Thu nhỏ thẻ</translation>
+<translation id="6132075343662013154">Chrome sẽ đề xuất lưu mật khẩu của bạn</translation>
 <translation id="6134168885321518274">Mở Thanh tìm kiếm</translation>
 <translation id="6135608400322377268">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" /> thẻ}other{<ph name="TAB_COUNT_MANY" /> thẻ}}</translation>
 <translation id="6137022273846704445">Ngôn ngữ của <ph name="APP_NAME" /></translation>
@@ -1334,11 +1346,13 @@ Ví dụ: một số trang web có thể phản hồi yêu cầu này bằng cá
 <translation id="6648977384226967773">{CONTACT,plural, =1{<ph name="CONTACT_PREVIEW" />\u2026 và <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> tùy chọn khác}other{<ph name="CONTACT_PREVIEW" />\u2026 và <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> tùy chọn khác}}</translation>
 <translation id="6649642165559792194">Xem trước hình ảnh <ph name="BEGIN_NEW" />Mới<ph name="END_NEW" /></translation>
 <translation id="666731172850799929">Mở trong <ph name="APP_NAME" /></translation>
+<translation id="6669390930482049506">Thông báo cho tôi</translation>
 <translation id="6671495933530132209">Sao chép ảnh</translation>
 <translation id="6672697278890207089">Nhập cụm mật khẩu của bạn</translation>
 <translation id="6672917148207387131">Thêm <ph name="DOMAIN" /></translation>
 <translation id="6674571176963658787">Để bắt đầu đồng bộ hóa, hãy nhập cụm mật khẩu của bạn</translation>
 <translation id="6676927815633975364">Đăng nhập vào trang web này và Chrome</translation>
+<translation id="6684262542644248484">Đăng nhập vào một trang web</translation>
 <translation id="6684809838922667136">Cải thiện Chrome</translation>
 <translation id="6689436252814043643">Không dùng được chế độ đọc</translation>
 <translation id="6700279777779583398">Đã lưu lựa chọn</translation>
@@ -1499,6 +1513,7 @@ Ví dụ: một số trang web có thể phản hồi yêu cầu này bằng cá
 <translation id="7237724030342645845">Trình quản lý mật khẩu của Google đã ngừng hoạt động</translation>
 <translation id="7239496616545081903">Ẩn Chế độ đọc</translation>
 <translation id="72415438529550637">Nội dung đề xuất mật khẩu đã đóng.</translation>
+<translation id="724510009481365878">Không thể in trang này</translation>
 <translation id="7248671827512403053">Ứng dụng</translation>
 <translation id="7253951228444156601">Đang kiểm tra mật khẩu…</translation>
 <translation id="7260367682327802201">Thiết bị Android của bạn có thể có chế độ cài đặt tương tự. Nếu bạn bật tính năng Đo lường quảng cáo trong Chrome và trên thiết bị Android, một công ty có thể đo lường mức độ hiệu quả của quảng cáo trên những trang web bạn truy cập và ứng dụng bạn dùng.</translation>

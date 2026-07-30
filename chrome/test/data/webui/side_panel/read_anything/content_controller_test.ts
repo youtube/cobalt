@@ -543,6 +543,25 @@ suite('ContentController', () => {
       assertEquals(buttonText, root.textContent);
     });
 
+    test(
+        'builds a button as a <div> tag when Readability enabled', async () => {
+          chrome.readingMode.isReadabilityEnabled = true;
+          chrome.readingMode.activeDistillationMethod =
+              chrome.readingMode.distillationTypeReadability;
+          const buttonText = 'Buttons should be seen and not clicked';
+          contentController.configureTrustedTypes();
+          readingMode.htmlContent = `<button>${buttonText}</button>`;
+
+          const root = contentController.updateContent();
+          await microtasksFinished();
+
+          assertTrue(!!root);
+          assertFalse(!!(root as DocumentFragment).querySelector('button'));
+          const newDiv = (root as DocumentFragment).querySelector('div > div');
+          assertTrue(!!newDiv);
+          assertEquals(buttonText, newDiv.textContent);
+        });
+
     test('sets text direction', () => {
       const childId = 70;
       readingMode.getHtmlTag = (id) => {
@@ -800,12 +819,15 @@ suite('ContentController', () => {
       assertEquals(imageData.height, canvas.height);
       assertEquals(imageData.scale.toString(), canvas.style.zoom);
       assertTrue(drewImage);
+      assertTrue(receivedContentChange);
     });
 
     test('does nothing if element is missing', async () => {
       await contentController.onImageDownloaded(nodeId);
       await microtasksFinished();
+
       assertFalse(drewImage);
+      assertFalse(receivedContentChange);
     });
 
     test('does nothing if element is not a canvas', async () => {
@@ -816,6 +838,7 @@ suite('ContentController', () => {
       await microtasksFinished();
 
       assertFalse(drewImage);
+      assertFalse(receivedContentChange);
     });
   });
 
@@ -877,6 +900,20 @@ suite('ContentController', () => {
       assertEquals('', figure.style.display);
       assertFalse(nodeStore.areNodesAllHidden(
           [ReadAloudNode.createFromAxNode(textId)!]));
+      assertTrue(receivedContentChange);
+    });
+
+    test('notifies of content change with readability', async () => {
+      chrome.readingMode.imagesFeatureEnabled = true;
+      chrome.readingMode.imagesEnabled = false;
+      chrome.readingMode.activeDistillationMethod =
+          chrome.readingMode.distillationTypeReadability;
+      contentController.setState(ContentType.HAS_CONTENT);
+      receivedContentChange = false;
+
+      contentController.updateImages(shadowRoot);
+      await microtasksFinished();
+
       assertTrue(receivedContentChange);
     });
   });

@@ -21,11 +21,12 @@ export function getHtml(this: ContextualTasksAppElement) {
       </top-toolbar>
     </div>
   `}
-  <webview id="threadFrame" allowtransparency="on" partition="persist:contextual-tasks"></webview>
+  <webview id="threadFrame" allowtransparency="on" partition="persist:contextual-tasks"
+      aria-hidden="${this.isZeroState_ && !this.isShownInTab_}"></webview>
   <ghost-loader id="ghostLoader"></ghost-loader>
   ${this.isErrorDialogVisible_ ?
     html`<contextual-tasks-error-dialog></contextual-tasks-error-dialog>` : ''}
-  <div class="flex-center" id="flexCenterContainer">
+  <div id="flexCenterContainer">
     <div id="composeboxHeaderWrapper"
         ?hidden="${this.isInBasicMode_ && !this.enableBasicModeZOrder_}">
       <h1 class="thread-header" id="composeboxHeader">
@@ -40,7 +41,8 @@ export function getHtml(this: ContextualTasksAppElement) {
           .isZeroState="${this.isZeroState_}"
           .isSidePanel="${!this.isShownInTab_}"
           .enableNativeZeroStateSuggestions=
-              "${this.enableNativeZeroStateSuggestions}">
+              "${this.enableNativeZeroStateSuggestions_}"
+          .inputEnabled="${!this.isInputLocked_}">
     </contextual-tasks-composebox>
   </div>
   <error-page id="errorPage"></error-page>

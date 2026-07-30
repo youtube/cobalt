@@ -99,7 +99,6 @@ public class UrlBar extends AutocompleteEditText {
 
     private @Nullable UrlBarDelegate mUrlBarDelegate;
     private @Nullable Callback<String> mTextChangeListener;
-    private @Nullable Runnable mTypingStartedListener;
     private @Nullable OnKeyListener mKeyDownListener;
     private @Nullable UrlBarTextContextMenuDelegate mTextContextMenuDelegate;
     private @Nullable Callback<Integer> mUrlDirectionListener;
@@ -110,7 +109,6 @@ public class UrlBar extends AutocompleteEditText {
     private boolean mFocused;
     private boolean mFocusEventEmitted;
     private boolean mAllowFocus = true;
-    private boolean mShouldSendTypingStartedEvent;
 
     private boolean mPendingScroll;
     private boolean mIsInCct;
@@ -244,6 +242,11 @@ public class UrlBar extends AutocompleteEditText {
         int endPadding = getResources().getDimensionPixelSize(R.dimen.url_bar_end_padding);
         setPaddingRelative(0, verticalPadding, endPadding, verticalPadding);
 
+        // Always select all content if the focus is triggered by the user.
+        // Software triggered focus can apply selection at will, but when focus comes from
+        // the click/touch - the OS overrides.
+        setSelectAllOnFocus(true);
+
         setTextClassifier(TextClassifier.NO_OP);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
             setIsHandwritingDelegate(true);
@@ -276,42 +279,11 @@ public class UrlBar extends AutocompleteEditText {
         setOnFocusChangeListener(null);
         mTextContextMenuDelegate = null;
         mTextChangeListener = null;
-        mTypingStartedListener = null;
     }
 
     /** Set the delegate to be used for text context menu actions. */
     public void setTextContextMenuDelegate(UrlBarTextContextMenuDelegate delegate) {
         mTextContextMenuDelegate = delegate;
-    }
-
-    /**
-     * When predictive back gesture is enabled, keycode_back will not be sent from Android OS
-     * starting from T. {@link LocationBarMediator} will intercept the back press instead.
-     */
-    @Override
-    public boolean onKeyPreIme(int keyCode, KeyEvent event) {
-        // NOTE: Do not pass ENTER key to listeners from here. This is because Enter key may also
-        // come from a software keyboard.
-        // - If we pass the event here, it will be emitted twice (once before IME and once after),
-        // - if we don't pass the event after IME, soft keyboard navigation will not work.
-        // DPAD and TAB keys are also not passed into the listeners here. This is to prevent those
-        // keys from being consumed too early. Premature consumption of these keys can break certain
-        // IME features, for example, keyboard navigation within the Chinese / Japanese candidate
-        // window.
-        return (KeyNavigationUtil.isActionDown(event)
-                        // Pass NUMPAD_ENTER as IME inserts a newline character.
-                        && event.getKeyCode() != KeyEvent.KEYCODE_ENTER
-                        && !KeyNavigationUtil.isGoAnyDirection(event)
-                        && !KeyNavigationUtil.isTabNavigation(event)
-                        && (mKeyDownListener != null
-                                && mKeyDownListener.onKey(this, keyCode, event)))
-                || super_onKeyPreIme(keyCode, event);
-    }
-
-    @CheckDiscard("exposed for testing; should be inlined")
-    @VisibleForTesting
-    public boolean super_onKeyPreIme(int keyCode, KeyEvent event) {
-        return super.onKeyPreIme(keyCode, event);
     }
 
     @Override
@@ -367,8 +339,6 @@ public class UrlBar extends AutocompleteEditText {
             mPendingScroll = false;
         }
         fixupTextDirection();
-
-        mShouldSendTypingStartedEvent = focused;
     }
 
     @Override
@@ -467,13 +437,6 @@ public class UrlBar extends AutocompleteEditText {
 
     @Override
     protected void onTextChanged(CharSequence text, int start, int lengthBefore, int lengthAfter) {
-        if (mShouldSendTypingStartedEvent && lengthAfter > 0) {
-            if (mTypingStartedListener != null) {
-                mTypingStartedListener.run();
-            }
-            mShouldSendTypingStartedEvent = false;
-        }
-
         // Do not move this to the top of the method!
         // Make sure to emit the "TypingStarted" signal ahead of "onTextChanged", to allow the
         // Autocomplete session to begin.
@@ -653,14 +616,6 @@ public class UrlBar extends AutocompleteEditText {
      */
     public void setTextChangeListener(Callback<String> listener) {
         mTextChangeListener = listener;
-    }
-
-    /**
-     * Install the listener notified when the user begins typing in recently focused Omnibox for the
-     * first time. When <null>, callback is removed.
-     */
-    /* package */ void setTypingStartedListener(@Nullable Runnable r) {
-        mTypingStartedListener = r;
     }
 
     /**

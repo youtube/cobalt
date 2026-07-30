@@ -12,11 +12,16 @@
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_tasks/ai_mode_context_library_converter.h"
 #include "chrome/browser/contextual_tasks/contextual_tasks_ui_service.h"
+#include "chrome/browser/feedback/public/feedback_source.h"
+#include "chrome/browser/feedback/show_feedback_page.h"
 #include "chrome/browser/global_features.h"
 #include "chrome/browser/profiles/profile.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/grit/branded_strings.h"
+#include "chrome/grit/generated_resources.h"
 #include "components/application_locale_storage/application_locale_storage.h"
 #include "components/contextual_tasks/public/context_decoration_params.h"
 #include "components/contextual_tasks/public/contextual_task.h"
@@ -27,11 +32,13 @@
 #include "components/prefs/pref_service.h"
 #include "components/sessions/core/session_id.h"
 #include "components/tabs/public/tab_interface.h"
+#include "content/public/browser/web_contents.h"
 #include "content/public/browser/web_ui.h"
 #include "google_apis/gaia/gaia_constants.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/aim_communication.pb.h"
 #include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
+#include "ui/base/l10n/l10n_util.h"
 #include "url/gurl.h"
 
 #if !BUILDFLAG(IS_ANDROID)
@@ -39,7 +46,6 @@
 #endif
 
 namespace {
-
 constexpr char kMyActivityUrl[] = "https://myactivity.google.com/myactivity";
 
 void OpenUrlWithDisposition(Profile* profile,
@@ -92,6 +98,44 @@ PopulateContextualResources(contextual_tasks::ContextualTaskContext* context) {
 
 }  // namespace
 
+namespace contextual_tasks {
+contextual_tasks::mojom::ComposeboxPositionPtr InputPlateConfigToMojo(
+    const lens::InputPlateParametersRequest& update_msg) {
+  auto mojo_position = contextual_tasks::mojom::ComposeboxPosition::New();
+
+  if (update_msg.has_max_width()) {
+    // AIM Proto is int32 since some languages in Google3 do not handle
+    // uint32. If we have a negative value, we set it as 0 since width
+    // cannot be negative. Mojom is uint32 for proper representation
+    // and security concerns.
+    if (update_msg.max_width() < 0) {
+      mojo_position->max_width = 0;
+    } else {
+      mojo_position->max_width = static_cast<uint32_t>(update_msg.max_width());
+    }
+  }
+  if (update_msg.has_max_height()) {
+    // AIM Proto is int32 since some languages in Google3 do not handle
+    // uint32. If we have a negative value, we set it as 0 since height
+    // cannot be negative. Mojom is uint32 for proper representation
+    // and security concerns.
+    if (update_msg.max_height() < 0) {
+      mojo_position->max_height = 0;
+    } else {
+      mojo_position->max_height =
+          static_cast<uint32_t>(update_msg.max_height());
+    }
+  }
+  if (update_msg.has_margin_bottom()) {
+    mojo_position->margin_bottom = update_msg.margin_bottom();
+  }
+  if (update_msg.has_margin_left()) {
+    mojo_position->margin_left = update_msg.margin_left();
+  }
+  return mojo_position;
+}
+}  // namespace contextual_tasks
+
 ContextualTasksPageHandler::ContextualTasksPageHandler(
     mojo::PendingReceiver<contextual_tasks::mojom::PageHandler> receiver,
     contextual_tasks::ContextualTasksUIInterface* web_ui_controller,
@@ -123,6 +167,12 @@ void ContextualTasksPageHandler::GetUrlForTask(const base::Uuid& uuid,
   std::optional<GURL> initial_url = ui_service_->GetInitialUrlForTask(uuid);
   if (initial_url) {
     std::move(callback).Run(initial_url.value());
+    return;
+  }
+
+  GURL aim_url = web_ui_controller_->GetAimUrl();
+  if (!aim_url.is_empty()) {
+    std::move(callback).Run(aim_url);
     return;
   }
 
@@ -182,9 +232,25 @@ void ContextualTasksPageHandler::OpenMyActivityUi() {
 }
 
 void ContextualTasksPageHandler::OpenHelpUi() {
-  OpenUrlWithDisposition(web_ui_controller_->GetProfile(),
-                         GURL(contextual_tasks::GetContextualTasksHelpUrl()),
-                         WindowOpenDisposition::NEW_FOREGROUND_TAB);
+  if (skip_feedback_ui_for_testing_) {
+    return;
+  }
+  GURL page_url =
+      web_ui_controller_->GetWebUIWebContents()->GetLastCommittedURL();
+  if (auto* browser = web_ui_controller_->GetBrowser()) {
+    if (auto* tab_list = TabListInterface::From(browser)) {
+      if (auto* active_tab = tab_list->GetActiveTab()) {
+        page_url = active_tab->GetContents()->GetLastCommittedURL();
+      }
+    }
+  }
+  chrome::ShowFeedbackPage(page_url, web_ui_controller_->GetProfile(),
+                           feedback::kFeedbackSourceAI,
+                           /*description_template=*/std::string(),
+                           /*description_placeholder_text=*/
+                           l10n_util::GetStringUTF8(IDS_LENS_SEND_FEEDBACK),
+                           /*category_tag=*/"cobrowse",
+                           /*extra_diagnostics=*/std::string());
 }
 
 void ContextualTasksPageHandler::OpenOnboardingHelpUi() {
@@ -250,6 +316,15 @@ void ContextualTasksPageHandler::OnWebviewMessage(
     web_ui_controller_->GetPageRemote()->RestoreInput();
   } else if (aim_to_client_message.has_enter_basic_mode()) {
     web_ui_controller_->GetPageRemote()->HideInput();
+  } else if (aim_to_client_message
+                 .has_set_chrome_desktop_input_plate_configuration()) {
+    const auto& update_msg =
+        aim_to_client_message.set_chrome_desktop_input_plate_configuration();
+
+    auto mojo_position = contextual_tasks::InputPlateConfigToMojo(update_msg);
+
+    web_ui_controller_->GetPageRemote()->UpdateComposeboxPosition(
+        std::move(mojo_position));
   } else if (aim_to_client_message.has_exit_basic_mode()) {
     web_ui_controller_->GetPageRemote()->RestoreInput();
   } else if (aim_to_client_message.has_update_thread_context_library()) {
@@ -261,6 +336,10 @@ void ContextualTasksPageHandler::OnWebviewMessage(
     web_ui_controller_->OnZeroStateChange(
         aim_to_client_message.notify_zero_state_rendered()
             .is_zero_state_rendered());
+  } else if (aim_to_client_message.has_lock_input()) {
+    web_ui_controller_->GetPageRemote()->LockInput();
+  } else if (aim_to_client_message.has_unlock_input()) {
+    web_ui_controller_->GetPageRemote()->UnlockInput();
   }
 }
 

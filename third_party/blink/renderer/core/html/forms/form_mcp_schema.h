@@ -10,6 +10,7 @@
 #include "third_party/blink/public/web/web_document.h"
 #include "third_party/blink/renderer/core/core_export.h"
 #include "third_party/blink/renderer/core/html/forms/html_form_control_element.h"
+#include "third_party/blink/renderer/core/html/forms/listed_element.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_hash_map.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
@@ -31,7 +32,7 @@ class CORE_EXPORT FormMCPSchema {
   // Form controls may be named, but there is not a 1:1 relationship
   // between names and form controls; we keep track of all form controls
   // associated with a given name. (See name_to_controls_.)
-  using ControlVector = GCedHeapVector<Member<HTMLFormControlElement>>;
+  using ControlVector = GCedHeapVector<Member<ListedElement>>;
 
  public:
   explicit FormMCPSchema(HTMLFormElement&);
@@ -60,6 +61,15 @@ class CORE_EXPORT FormMCPSchema {
   std::unique_ptr<JSONObject> ComputeDateParameterSchema(
       const ControlVector& controls_for_name,
       bool& required);
+  std::unique_ptr<JSONObject> ComputeDatetimeLocalParameterSchema(
+      const ControlVector& controls_for_name,
+      bool& required);
+  std::unique_ptr<JSONObject> ComputeMonthParameterSchema(
+      const ControlVector& controls_for_name,
+      bool& required);
+  std::unique_ptr<JSONObject> ComputeWeekParameterSchema(
+      const ControlVector& controls_for_name,
+      bool& required);
   std::unique_ptr<JSONObject> ComputeTimeParameterSchema(
       const ControlVector& controls_for_name,
       bool& required);
@@ -78,9 +88,6 @@ class CORE_EXPORT FormMCPSchema {
   std::unique_ptr<JSONObject> ComputeRadioParameterSchema(const ControlVector&,
                                                           bool& required);
   std::unique_ptr<JSONObject> ComputeColorParameterSchema(
-      const ControlVector& controls_for_name,
-      bool& required);
-  std::unique_ptr<JSONObject> ComputeFileParameterSchema(
       const ControlVector& controls_for_name,
       bool& required);
 
@@ -113,8 +120,6 @@ class CORE_EXPORT FormMCPSchema {
                          const JSONValue&);
   bool ValidateSelectData(const ControlVector& controls_for_name,
                           const JSONValue&);
-  bool ValidateFileData(const ControlVector& controls_for_name,
-                        const JSONValue&);
 
   void FillParameterData(const String& name, const JSONValue&);
   void FillTextData(const ControlVector& controls_for_name, const JSONValue&);
@@ -123,10 +128,9 @@ class CORE_EXPORT FormMCPSchema {
                         const JSONValue&);
   void FillRadioData(const ControlVector& controls_for_name, const JSONValue&);
   void FillSelectData(const ControlVector& controls_for_name, const JSONValue&);
-  void FillFileData(const ControlVector& controls_for_name, const JSONValue&);
 
-  void AddTitle(HTMLFormControlElement&, JSONObject&);
-  void AddDescription(HTMLFormControlElement&, JSONObject&);
+  void AddTitle(ListedElement&, JSONObject&);
+  void AddDescription(ListedElement&, JSONObject&, String = String());
 
   // It's not clear yet where to host the toolparamtitle/description
   // attributes for <input type=radio>, or other parameters that are
@@ -138,30 +142,35 @@ class CORE_EXPORT FormMCPSchema {
   // are missing.
   //
   // See also: https://github.com/webmachinelearning/webmcp/issues/71
-  void AddTitleAndDescriptionFromToolAttributesOnly(HTMLFormControlElement&,
+  void AddTitleAndDescriptionFromToolAttributesOnly(ListedElement&,
                                                     JSONObject&);
 
-  String ToolParamTitleAttribute(HTMLFormControlElement&);
-  String ToolParamDescriptionAttribute(HTMLFormControlElement&);
-  String ComputeDescription(HTMLFormControlElement&);
-  String LabelText(HTMLFormControlElement&);
+  String ToolParamTitleAttribute(ListedElement&) const;
+  String ToolParamDescriptionAttribute(ListedElement&) const;
+  String ComputeDescription(ListedElement&);
+  String LabelText(ListedElement&);
 
   void ProcessForm(HTMLFormElement&);
   ControlVector& EnsureControlVector(const String& name);
 
-  bool IsText(HTMLFormControlElement&) const;
-  bool IsDate(HTMLFormControlElement&) const;
-  bool IsTime(HTMLFormControlElement&) const;
-  bool IsNumber(HTMLFormControlElement&) const;
-  bool IsSelect(HTMLFormControlElement&) const;
-  bool IsRange(HTMLFormControlElement&) const;
-  bool IsCheckbox(HTMLFormControlElement&) const;
-  bool IsRadio(HTMLFormControlElement&) const;
-  bool IsColor(HTMLFormControlElement&) const;
-  bool IsFile(HTMLFormControlElement&) const;
+  bool IsText(ListedElement&) const;
+  bool IsDate(ListedElement&) const;
+  bool IsDatetimeLocal(ListedElement&) const;
+  bool IsMonth(ListedElement&) const;
+  bool IsWeek(ListedElement&) const;
+  bool IsTime(ListedElement&) const;
+  bool IsNumber(ListedElement&) const;
+  bool IsSelect(ListedElement&) const;
+  bool IsRange(ListedElement&) const;
+  bool IsCheckbox(ListedElement&) const;
+  bool IsRadio(ListedElement&) const;
+  bool IsColor(ListedElement&) const;
 
   bool IsText(const ControlVector& controls_for_name) const;
   bool IsDate(const ControlVector& controls_for_name) const;
+  bool IsDatetimeLocal(const ControlVector& controls_for_name) const;
+  bool IsMonth(const ControlVector& controls_for_name) const;
+  bool IsWeek(const ControlVector& controls_for_name) const;
   bool IsTime(const ControlVector& controls_for_name) const;
   bool IsNumber(const ControlVector& controls_for_name) const;
   bool IsSelect(const ControlVector& controls_for_name) const;
@@ -169,7 +178,6 @@ class CORE_EXPORT FormMCPSchema {
   bool IsCheckbox(const ControlVector& controls_for_name) const;
   bool IsRadio(const ControlVector& controls_for_name) const;
   bool IsColor(const ControlVector& controls_for_name) const;
-  bool IsFile(const ControlVector& controls_for_name) const;
 
   // Maps a WebMCP parameter name (HTMLFormControlElement::
   // GetWebMCPParameterName()) to a list of form controls.

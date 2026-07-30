@@ -30,10 +30,10 @@
 #include "chrome/browser/page_content_annotations/multi_source_page_context_fetcher.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/search/search.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser_navigator.h"
 #include "chrome/browser/ui/browser_navigator_params.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
 #include "chrome/common/actor/journal_details_builder.h"
@@ -129,7 +129,14 @@ ActorKeyedService::~ActorKeyedService() = default;
 void ActorKeyedService::Shutdown() {
   // Ensure all tasks are stopped here so we don't cause them to stop in the
   // dtor.
-  StopAllTasks(ActorTask::StoppedReason::kShutdown);
+  GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::Shutdown", {});
+  for (auto [task_id, _] : GetActiveTasks()) {
+    StopTask(task_id, ActorTask::StoppedReason::kShutdown);
+  }
+
+  // Ensure tasks get deleted synchronously to avoid dangling refs.
+  CHECK(active_tasks_.empty());
+  pending_delete_tasks_.clear();
 }
 
 // static
@@ -348,7 +355,7 @@ TaskId ActorKeyedService::CreateTaskImpl(
 
   const TaskId task_id = next_task_id_.GenerateNextId();
   auto actor_task = std::make_unique<ActorTask>(
-      base::PassKey<ActorKeyedService>(), profile_.get(), task_id,
+      base::PassKey<ActorKeyedService>(), *this, task_id,
       std::move(ui_event_dispatcher), std::move(options), policy_checker,
       std::move(delegate));
 
@@ -360,12 +367,31 @@ TaskId ActorKeyedService::CreateTaskImpl(
 
 base::CallbackListSubscription ActorKeyedService::AddTaskStateChangedCallback(
     TaskStateChangedCallback callback) {
-  return tab_state_change_callback_list_.Add(std::move(callback));
+  return task_state_change_callback_list_.Add(std::move(callback));
 }
 
 void ActorKeyedService::NotifyTaskStateChanged(TaskId task_id,
                                                ActorTask::State state) {
-  tab_state_change_callback_list_.Notify(task_id, state);
+  task_state_change_callback_list_.Notify(task_id, state);
+
+  if (ActorTask::IsCompletedState(state)) {
+    // Remove a stopped task from the active_tasks_ list. Post this since this
+    // call comes from the ActorTask so we don't want to delete it while it's on
+    // the stack.
+    auto node = active_tasks_.extract(task_id);
+    if (!node.empty()) {
+      pending_delete_tasks_.insert(std::move(node));
+
+      RunLater(base::BindOnce(
+          [](base::WeakPtr<ActorKeyedService> self, TaskId task_id) {
+            if (!self) {
+              return;
+            }
+            self->pending_delete_tasks_.erase(task_id);
+          },
+          GetWeakPtr(), task_id));
+    }
+  }
 }
 
 void ActorKeyedService::RequestTabObservation(
@@ -526,17 +552,10 @@ void ActorKeyedService::OnActionsFinished(
     std::move(callback).Run(result->code, index_of_failed_action,
                             std::move(action_results));
   } else {
+    // RunLater is load bearing. See:
+    // https://chromium-review.googlesource.com/c/chromium/src/+/7552225/comment/b0b7f011_71da3233/
     RunLater(base::BindOnce(std::move(callback), result->code,
                             index_of_failed_action, std::move(action_results)));
-  }
-}
-
-void ActorKeyedService::StopAllTasks(ActorTask::StoppedReason stop_reason) {
-  std::vector<TaskId> tasks_to_stop =
-      FindTaskIdsInActive([](const ActorTask& task) { return true; });
-  GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::StopAllTasks", {});
-  for (const auto& task_id : tasks_to_stop) {
-    StopTask(task_id, stop_reason);
   }
 }
 
@@ -549,10 +568,12 @@ void ActorKeyedService::StopTask(TaskId task_id,
                        .Add("stop_reason", stop_reason)
                        .Build());
 
-  auto task = active_tasks_.extract(task_id);
-  if (!task.empty()) {
-    task.mapped()->Stop(stop_reason);
+  auto task_itr = active_tasks_.find(task_id);
+  if (task_itr == active_tasks_.end()) {
+    return;
   }
+
+  task_itr->second->Stop(stop_reason);
 }
 
 ActorTask* ActorKeyedService::GetTask(TaskId task_id) {

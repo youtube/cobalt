@@ -4,11 +4,14 @@
 
 #import "ios/chrome/browser/credential_exchange/coordinator/credential_import_coordinator.h"
 
+#import <AuthenticationServices/AuthenticationServices.h>
 #import <UIKit/UIKit.h>
 
 #import "base/ios/block_types.h"
 #import "base/not_fatal_until.h"
 #import "base/notreached.h"
+#import "base/task/bind_post_task.h"
+#import "base/task/sequenced_task_runner.h"
 #import "components/keyed_service/core/service_access_type.h"
 #import "components/metrics/metrics_pref_names.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
@@ -34,7 +37,9 @@
 #import "ios/chrome/browser/passwords/model/ios_chrome_profile_password_store_factory.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/create_password_manager_title_view.h"
 #import "ios/chrome/browser/settings/ui_bundled/password/reauthentication/local_reauthentication_coordinator.h"
+#import "ios/chrome/browser/settings/ui_bundled/utils/password_auto_fill_status_manager.h"
 #import "ios/chrome/browser/shared/coordinator/alert/alert_coordinator.h"
+#import "ios/chrome/browser/shared/coordinator/utils/credential_provider_settings_utils.h"
 #import "ios/chrome/browser/shared/model/application_context/application_context.h"
 #import "ios/chrome/browser/shared/model/profile/profile_ios.h"
 #import "ios/chrome/browser/signin/model/identity_manager_factory.h"
@@ -73,9 +78,6 @@
   // Bridge to the PasskeyKeychainProvider that manages passkey vault keys.
   PasskeyKeychainProviderBridge* _passkeyKeychainProviderBridge;
 
-  // Email of the signed in user account.
-  std::string _userEmail;
-
   // Reauthentication module used in credential import flow.
   id<ReauthenticationProtocol> _reauthModule;
 
@@ -108,9 +110,6 @@
   _viewController = [[CredentialImportViewController alloc] init];
   _viewController.delegate = self;
   ProfileIOS* profile = self.profile;
-  _userEmail = IdentityManagerFactory::GetForProfile(profile)
-                   ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-                   .email;
   std::unique_ptr<password_manager::SavedPasswordsPresenter>
       savedPasswordsPresenter =
           std::make_unique<password_manager::SavedPasswordsPresenter>(
@@ -123,7 +122,7 @@
   _mediator = [[CredentialImportMediator alloc]
                  initWithUUID:_UUID
                      delegate:self
-                    userEmail:_userEmail
+              identityManager:IdentityManagerFactory::GetForProfile(profile)
       savedPasswordsPresenter:std::move(savedPasswordsPresenter)
                  passkeyModel:IOSPasskeyModelFactory::GetForProfile(
                                   self.profile)
@@ -202,7 +201,7 @@
       // If no passkeys are being imported, there is no point in fetching the
       // trusted vault keys Proceed to start the importing process.
       if (!_mediator.importingPasskeys) {
-        [_mediator startImportingCredentialsWithTrustedVaultKeys:nil];
+        [_mediator startImportingCredentialsWithTrustedVaultKeys:{}];
         break;
       }
 
@@ -220,23 +219,46 @@
           IdentityManagerFactory::GetForProfile(self.profile)
               ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
       __weak __typeof(self) weakSelf = self;
+      auto completion_block = base::CallbackToBlock(base::BindOnce(
+          [](__weak __typeof(self) weakSelf,
+             webauthn::SharedKeyList trustedVaultKeys, NSError* error) {
+            [weakSelf onTrustedVaultKeysFetched:std::move(trustedVaultKeys)
+                                          error:error];
+          },
+          weakSelf));
       [_passkeyKeychainProviderBridge
           fetchTrustedVaultKeysForGaia:account.gaia.ToNSString()
                             credential:nil
                                purpose:webauthn::ReauthenticatePurpose::kEncrypt
-                            completion:^(NSArray<NSData*>* trustedVaultKeys,
-                                         NSError* error) {
-                              [weakSelf
-                                  onTrustedVaultKeysFetched:trustedVaultKeys
-                                                      error:error];
-                            }];
+                            completion:completion_block];
       break;
     }
     case CredentialImportStage::kImporting:
       NOTREACHED() << "Primary action button should be disabled";
-    case CredentialImportStage::kImported:
-      [self.delegate credentialImportCoordinatorDidFinish:self];
+    case CredentialImportStage::kImported: {
+      // On successful import, display the credential provider prompt, if the
+      // AutoFill is not already enabled.
+      PasswordAutoFillStatusManager* sharedManager =
+          [PasswordAutoFillStatusManager sharedManager];
+      if (!sharedManager.ready || sharedManager.autoFillEnabled) {
+        [_delegate credentialImportCoordinatorDidFinish:self];
+        break;
+      }
+
+      // The completion handler of the OS library function might not run on
+      // the main thread, ensure that the UI dismissal does.
+      __weak __typeof(self) weakSelf = self;
+      auto callback = base::BindPostTask(
+          base::SequencedTaskRunner::GetCurrentDefault(),
+          base::BindOnce(^(BOOL appWasEnabledForAutoFill) {
+            [weakSelf
+                handleTurnOnAutoFillPromptOutcome:appWasEnabledForAutoFill];
+          }));
+      [ASSettingsHelper
+          requestToTurnOnCredentialProviderExtensionWithCompletionHandler:
+              base::CallbackToBlock(std::move(callback))];
       break;
+    }
   }
 }
 
@@ -313,7 +335,7 @@
 }
 
 - (void)providerDidCompleteReauthentication {
-  // TODO(crbug.com/450982128): Implement if needed.
+  // Not actionable for credential import.
 }
 
 #pragma mark - PasskeyWelcomeScreenCoordinatorDelegate
@@ -329,19 +351,20 @@
 // Called when fetching trusted vault keys for passkeys finishes. If there are
 // no unexpected errors and the keys are present, informs the mediator to start
 // importing credentials.
-- (void)onTrustedVaultKeysFetched:(NSArray<NSData*>*)trustedVaultKeys
+- (void)onTrustedVaultKeysFetched:(webauthn::SharedKeyList)trustedVaultKeys
                             error:(NSError*)error {
   // First, dismiss welcome screens if there are any presented.
   if (_viewController.presentedViewController) {
     __weak __typeof(self) weakSelf = self;
     [self dismissPasskeyWelcomeScreenWithCompletion:^{
-      [weakSelf onTrustedVaultKeysFetched:trustedVaultKeys error:error];
+      [weakSelf onTrustedVaultKeysFetched:std::move(trustedVaultKeys)
+                                    error:error];
     }];
     return;
   }
 
   // Display an alert if there is a real error (not just user cancellation).
-  if (trustedVaultKeys.count != 0 && error &&
+  if (trustedVaultKeys.empty() && error &&
       error.code != webauthn::kErrorUserDismissedGPMPinFlow) {
     NSString* title =
         l10n_util::GetNSString(IDS_IOS_CREDENTIAL_EXCHANGE_GENERIC_ERROR_TITLE);
@@ -351,8 +374,10 @@
     return;
   }
 
-  if (trustedVaultKeys.count > 0) {
-    [_mediator startImportingCredentialsWithTrustedVaultKeys:trustedVaultKeys];
+  if (!trustedVaultKeys.empty()) {
+    [_mediator
+        startImportingCredentialsWithTrustedVaultKeys:std::move(
+                                                          trustedVaultKeys)];
   }
 }
 
@@ -414,6 +439,15 @@
   [_passkeyWelcomeScreenCoordinator stopWithCompletion:completion];
   _passkeyWelcomeScreenCoordinator.delegate = nil;
   _passkeyWelcomeScreenCoordinator = nil;
+}
+
+// Handles outcome of user's choice in the credential provider promo prompt.
+- (void)handleTurnOnAutoFillPromptOutcome:(BOOL)appWasEnabledForAutoFill {
+  RecordTurnOnCredentialProviderExtensionPromptOutcome(
+      TurnOnCredentialProviderExtensionPromptSource::kCredentialImport,
+      appWasEnabledForAutoFill);
+
+  [_delegate credentialImportCoordinatorDidFinish:self];
 }
 
 @end

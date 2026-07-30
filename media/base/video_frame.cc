@@ -98,7 +98,8 @@ std::string VideoFrame::StorageTypeToString(
 }
 
 // static
-bool VideoFrame::IsStorageTypeMappable(VideoFrame::StorageType storage_type) {
+bool VideoFrame::StorageTypeAllowsDirectCpuAccess(
+    VideoFrame::StorageType storage_type) {
   // CPU memory is the only kind of storage that is mappable at the level of
   // VideoFrame itself (other types of storage such as DMA bufs and
   // MappableSharedImage can be mapped, but not at the level of VideoFrame).
@@ -869,7 +870,7 @@ scoped_refptr<VideoFrame> VideoFrame::WrapVideoFrame(
   wrapping_frame->set_color_space(frame->ColorSpace());
   wrapping_frame->set_hdr_metadata(frame->hdr_metadata());
 
-  if (frame->IsMappable()) {
+  if (frame->HasDirectCpuAccess()) {
     for (size_t i = 0; i < new_plane_count; ++i) {
       wrapping_frame->data_[i] = frame->data_[i];
     }
@@ -1161,8 +1162,8 @@ void VideoFrame::BackWithOwnedSharedMemory(
   owned_shm_mapping_ = std::move(mapping);
 }
 
-bool VideoFrame::IsMappable() const {
-  return IsStorageTypeMappable(storage_type_);
+bool VideoFrame::HasDirectCpuAccess() const {
+  return StorageTypeAllowsDirectCpuAccess(storage_type_);
 }
 
 bool VideoFrame::HasSharedImage() const {
@@ -1280,7 +1281,7 @@ template <typename T>
 base::span<T> VideoFrame::GetVisibleDataInternal(base::span<T> data,
                                                  size_t plane) const {
   DCHECK(IsValidPlane(format(), plane));
-  DCHECK(IsMappable());
+  DCHECK(HasDirectCpuAccess());
   if (data.empty()) [[unlikely]] {
     return {};
   }
@@ -1357,6 +1358,7 @@ SkYUVAInfo VideoFrame::GetVisibleSkYUVAInfo() const {
 
 std::vector<SkPixmap> VideoFrame::GetVisiblePlanesSkPixmaps() const {
   const auto yuva_info = GetVisibleSkYUVAInfo();
+  const auto color_space = ColorSpace().GetAsFullRangeRGB().ToSkColorSpace();
   std::array<SkISize, kMaxPlanes> plane_dimensions = {
       SkISize::Make(visible_rect_.width(), visible_rect_.height()),
   };
@@ -1376,8 +1378,8 @@ std::vector<SkPixmap> VideoFrame::GetVisiblePlanesSkPixmaps() const {
     const auto alpha_type = SkColorTypeIsAlwaysOpaque(color_type)
                                 ? kOpaque_SkAlphaType
                                 : kUnpremul_SkAlphaType;
-    const SkImageInfo plane_info =
-        SkImageInfo::Make(plane_dimensions[p], color_type, alpha_type);
+    const SkImageInfo plane_info = SkImageInfo::Make(
+        plane_dimensions[p], color_type, alpha_type, color_space);
     planes[p] = SkPixmap(plane_info, visible_data(p), stride(p));
   }
   return planes;

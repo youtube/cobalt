@@ -21,7 +21,7 @@ import '../internal/icons.html.js';
 
 // </if>
 
-import type {CrMenuSelector} from 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
+import type {CrMenuSelectorElement} from 'chrome://resources/cr_elements/cr_menu_selector/cr_menu_selector.js';
 import {assert} from 'chrome://resources/js/assert.js';
 import {PolymerElement} from 'chrome://resources/polymer/v3_0/polymer/polymer_bundled.min.js';
 
@@ -38,7 +38,7 @@ import {getTemplate} from './settings_menu.html.js';
 export interface SettingsMenuElement {
   $: {
     autofill: HTMLLinkElement,
-    menu: CrMenuSelector,
+    menu: CrMenuSelectorElement,
     people: HTMLLinkElement,
     yourSavedInfo: HTMLLinkElement,
   };
@@ -88,6 +88,14 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
   private showAiPageMenuItem_(): boolean {
     return this.showAiPage_ &&
         (!this.pageVisibility_ || this.pageVisibility_.ai !== false);
+  }
+
+  private showAutofillMenuItem_(): boolean {
+    const showYourSavedInfo = this.enableYourSavedInfoSettingsPage_ &&
+        this.pageVisibility_?.yourSavedInfo !== false;
+    const showAutofill = !this.enableYourSavedInfoSettingsPage_ &&
+        this.pageVisibility_?.autofill !== false;
+    return showYourSavedInfo || showAutofill;
   }
 
   override currentRouteChanged(newRoute: Route) {
@@ -154,12 +162,6 @@ export class SettingsMenuElement extends SettingsMenuElementBase {
         'Autofill.AutofillAndPasswordsSettingsPage.VisitReferrer';
     this.metricsBrowserProxy_.recordAutofillSettingsReferrer(
         metricName, AutofillSettingsReferrer.SETTINGS_MENU);
-  }
-
-  private onYourSavedInfoClick_() {
-    this.metricsBrowserProxy_.recordAutofillSettingsReferrer(
-        'Autofill.YourSavedInfoSettingsPage.VisitReferrer',
-        AutofillSettingsReferrer.SETTINGS_MENU);
   }
 
   private onAiPageClick_() {

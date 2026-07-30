@@ -805,8 +805,6 @@ static_library("browser") {
     "ntp_tiles/chrome_most_visited_sites_factory.h",
     "ntp_tiles/chrome_popular_sites_factory.cc",
     "ntp_tiles/chrome_popular_sites_factory.h",
-    "origin_trials/origin_trials_factory.cc",
-    "origin_trials/origin_trials_factory.h",
     "page_content_annotations/multi_source_page_context_fetcher.cc",
     "page_content_annotations/page_content_annotations_service_factory.cc",
     "page_content_annotations/page_content_extraction_service_factory.cc",
@@ -1221,8 +1219,6 @@ static_library("browser") {
     "profiles/renderer_updater.h",
     "profiles/renderer_updater_factory.cc",
     "profiles/renderer_updater_factory.h",
-    "profiles/sql_init_error_message_ids.cc",
-    "profiles/sql_init_error_message_ids.h",
     "profiles/storage_partition_descriptor.h",
     "push_messaging/budget_database.cc",
     "push_messaging/budget_database.h",
@@ -1516,7 +1512,6 @@ static_library("browser") {
     "webauthn/password_credential_fetcher.h",
     "webauthn/webauthn_metrics_util.cc",
     "webauthn/webauthn_switches.cc",
-    "webdata_services/web_data_service_factory.cc",
   ]
 
   configs += [
@@ -1862,6 +1857,7 @@ static_library("browser") {
     "//chrome/browser/omnibox",
     "//chrome/browser/optimization_guide",
     "//chrome/browser/optimization_guide:impl",
+    "//chrome/browser/origin_trials",
     "//chrome/browser/page_content_annotations",
     "//chrome/browser/page_content_annotations:extraction_service",
     "//chrome/browser/page_content_annotations:fetcher",
@@ -1996,6 +1992,7 @@ static_library("browser") {
     "//chrome/browser/webauthn",
     "//chrome/browser/webauthn:chrome_web_authentication_delegate",
     "//chrome/browser/webdata_services",
+    "//chrome/browser/webdata_services:impl",
     "//chrome/browser/webid",
     "//chrome/browser/webid:impl",
     "//components/activity_reporter",
@@ -2584,6 +2581,8 @@ static_library("browser") {
       "//chrome/browser/accessibility_annotator/content_annotator",
       "//chrome/browser/contextual_tasks:ui_impl",
       "//chrome/browser/legion",
+      "//chrome/browser/record_replay",
+      "//chrome/browser/record_replay:impl",
       "//chrome/browser/startup",
       "//chrome/browser/ui/browser_window",
       "//chrome/browser/ui/webui/omnibox_popup/mojom",
@@ -4787,6 +4786,8 @@ static_library("browser") {
         "media/android/desktop_media_picker_android.h",
         "media/android/media_capture_picker_manager_bridge.cc",
         "media/android/media_capture_picker_manager_bridge.h",
+        "media/android/tab_sharing_indicator_android.cc",
+        "media/android/tab_sharing_indicator_android.h",
       ]
     }
   }
@@ -6255,6 +6256,10 @@ static_library("browser") {
       ]
       allow_circular_includes_from += [ "//chrome/browser/glic/media" ]
     }
+
+    if (!enable_extensions_core) {
+      deps += [ "//components/guest_view/browser/slim_web_view:mojo_bindings" ]
+    }
   }
 
   if (enable_background_mode) {
@@ -6586,8 +6591,6 @@ static_library("browser") {
       "lifetime/application_lifetime_mac.mm",
       "mac/auth_session_request.h",
       "mac/auth_session_request.mm",
-      "mac/bluetooth_utility.h",
-      "mac/bluetooth_utility.mm",
       "mac/chrome_browser_main_extra_parts_mac.h",
       "mac/chrome_browser_main_extra_parts_mac.mm",
       "mac/code_sign_clone_manager.h",
@@ -8505,6 +8508,8 @@ static_library("browser_public_dependencies") {
     ]
   } else {
     public_deps += [
+      "//chrome/browser/record_replay",
+      "//chrome/common/record_replay:mojom",
       "//components/commerce/core:coupon_db_content_proto",
       "//components/commerce/core/mojom:mojo_bindings",
       "//extensions/buildflags",
@@ -8607,6 +8612,7 @@ static_library("browser_generated_files") {
     "//chrome/browser/ui/webui/suggest_internals:mojo_bindings",
     "//chrome/browser/ui/webui/usb_internals:mojo_bindings",
     "//chrome/browser/ui/webui/user_education_internals:mojo_bindings",
+    "//chrome/browser/ui/webui/webnn_internals:mojo_bindings",
     "//chrome/browser/v8_compile_hints/proto",
     "//chrome/browser/web_applications/mojom:mojom_web_apps_enum",
     "//chrome/common/request_header_integrity:buildflags",

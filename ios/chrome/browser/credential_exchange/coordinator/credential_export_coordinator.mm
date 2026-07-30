@@ -7,6 +7,7 @@
 #import <string>
 #import <vector>
 
+#import "base/ios/block_types.h"
 #import "base/memory/raw_ptr.h"
 #import "base/strings/sys_string_conversions.h"
 #import "components/metrics/metrics_pref_names.h"
@@ -56,9 +57,6 @@
   // which point it is moved from and should not be accessed.
   std::vector<password_manager::AffiliatedGroup> _affiliatedGroups;
 
-  // Email of the signed in user account.
-  std::string _userEmail;
-
   // Module handling reauthentication before accessing sensitive data.
   ReauthenticationModule* _reauthModule;
 
@@ -92,21 +90,19 @@
 
 - (void)start {
   _viewController = [[CredentialExportViewController alloc] init];
+  ProfileIOS* profile = self.profile;
   FaviconLoader* faviconLoader =
-      IOSChromeFaviconLoaderFactory::GetForProfile(self.profile);
+      IOSChromeFaviconLoaderFactory::GetForProfile(profile);
   _reauthModule = password_manager::BuildReauthenticationModule();
-  _userEmail = IdentityManagerFactory::GetForProfile(self.profile)
-                   ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
-                   .email;
   _mediator = [[CredentialExportMediator alloc]
               initWithWindow:_baseNavigationController.view.window
             affiliatedGroups:std::move(_affiliatedGroups)
-                passkeyModel:IOSPasskeyModelFactory::GetForProfile(self.profile)
+                passkeyModel:IOSPasskeyModelFactory::GetForProfile(profile)
                faviconLoader:faviconLoader
       reauthenticationModule:_reauthModule
                exportHandler:self
-                 syncService:SyncServiceFactory::GetForProfile(self.profile)
-                   userEmail:base::SysUTF8ToNSString(_userEmail)];
+                 syncService:SyncServiceFactory::GetForProfile(profile)
+             identityManager:IdentityManagerFactory::GetForProfile(profile)];
   _affiliatedGroups = {};
   _viewController.delegate = _mediator;
   _mediator.delegate = self;
@@ -150,7 +146,7 @@
 #pragma mark - CredentialExportMediatorDelegate
 
 - (void)fetchTrustedVaultKeysWithCompletion:
-    (void (^)(NSArray<NSData*>*))completion {
+    (void (^)(webauthn::SharedKeyList))completion {
   CHECK(completion);
   bool metricsReportingEnabled =
       GetApplicationContext()->GetLocalState()->GetBoolean(
@@ -166,16 +162,20 @@
       IdentityManagerFactory::GetForProfile(self.profile)
           ->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin);
   __weak __typeof(self) weakSelf = self;
+  auto completion_block = base::CallbackToBlock(base::BindOnce(
+      [](__weak __typeof(self) weakSelf,
+         void (^completion)(webauthn::SharedKeyList),
+         webauthn::SharedKeyList trustedVaultKeys, NSError* error) {
+        [weakSelf onTrustedVaultKeysFetched:std::move(trustedVaultKeys)
+                                      error:error
+                                 completion:completion];
+      },
+      weakSelf, completion));
   [_passkeyKeychainProviderBridge
       fetchTrustedVaultKeysForGaia:account.gaia.ToNSString()
                         credential:nil
                            purpose:webauthn::ReauthenticatePurpose::kDecrypt
-                        completion:^(NSArray<NSData*>* trustedVaultKeys,
-                                     NSError* error) {
-                          [weakSelf onTrustedVaultKeysFetched:trustedVaultKeys
-                                                        error:error
-                                                   completion:completion];
-                        }];
+                        completion:completion_block];
 }
 
 #pragma mark - PasswordExportHandler
@@ -236,14 +236,15 @@
 
 // Called when fetching trusted vault keys for passkeys finishes. If there are
 // no unexpected errors and the keys are present, calls `completion`
-- (void)onTrustedVaultKeysFetched:(NSArray<NSData*>*)trustedVaultKeys
+- (void)onTrustedVaultKeysFetched:(webauthn::SharedKeyList)trustedVaultKeys
                             error:(NSError*)error
-                       completion:(void (^)(NSArray<NSData*>*))completion {
+                       completion:
+                           (void (^)(webauthn::SharedKeyList))completion {
   // First, dismiss welcome screens if there are any presented.
   if (_viewController.presentedViewController) {
     __weak __typeof(self) weakSelf = self;
     [self dismissPasskeyWelcomeScreenWithCompletion:^{
-      [weakSelf onTrustedVaultKeysFetched:trustedVaultKeys
+      [weakSelf onTrustedVaultKeysFetched:std::move(trustedVaultKeys)
                                     error:error
                                completion:completion];
     }];
@@ -251,14 +252,14 @@
   }
 
   // Display an alert if there is a real error (not just user cancellation).
-  if (trustedVaultKeys.count == 0 && error &&
+  if (trustedVaultKeys.empty() && error &&
       error.code != webauthn::kErrorUserDismissedGPMPinFlow) {
     [self showErrorAlert];
     return;
   }
 
-  if (trustedVaultKeys.count != 0) {
-    completion(trustedVaultKeys);
+  if (!trustedVaultKeys.empty()) {
+    completion(std::move(trustedVaultKeys));
   }
 }
 

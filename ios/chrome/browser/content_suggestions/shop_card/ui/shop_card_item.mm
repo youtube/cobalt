@@ -8,20 +8,22 @@
 
 @implementation ShopCardItem
 
+#pragma mark - NSCopying
+
+- (instancetype)copyWithZone:(NSZone*)zone {
+  ShopCardItem* item = [[super copyWithZone:zone] init];
+  // The updates to properties must be reflected in the copy method.
+  // LINT.IfChange(Copy)
+  item.shopCardData = self.shopCardData;
+  item.shopCardHandler = self.shopCardHandler;
+  // LINT.ThenChange(shop_card_item.h:Copy)
+  return item;
+}
+
 #pragma mark - MagicStackModule
 
 - (ContentSuggestionsModuleType)type {
   return ContentSuggestionsModuleType::kShopCard;
-}
-
-#pragma mark - NSCopying
-
-- (id)copyWithZone:(NSZone*)zone {
-  ShopCardItem* copy = [[super copyWithZone:zone] init];
-  copy.shopCardData = self.shopCardData;
-  copy.shopCardFaviconConsumerSource = self.shopCardFaviconConsumerSource;
-  copy.commandHandler = self.commandHandler;
-  return copy;
 }
 
 @end

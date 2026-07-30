@@ -22,6 +22,7 @@
 #include "base/scoped_observation_traits.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/time/time.h"
+#include "base/types/strong_alias.h"
 #include "build/build_config.h"
 #include "cc/metrics/events_metrics_manager.h"
 #include "cc/metrics/frame_sequence_tracker.h"
@@ -634,7 +635,13 @@ class COMPOSITOR_EXPORT Compositor : public base::PowerSuspendObserver,
   raw_ptr<Layer> root_layer_ = nullptr;
 
   base::ObserverList<CompositorObserver, true>::Unchecked observer_list_;
-  base::ObserverList<CompositorAnimationObserver>::Unchecked
+
+  // TODO(crbug.com/40562847): Allow skipping reentrancy check for
+  // `Check()` and change to kDisallowReentrancy.
+  base::ObserverList<
+      CompositorAnimationObserver,
+      /*check_empty=*/false,
+      base::ObserverListReentrancyPolicy::kAllowReentrancyUntriaged>::Unchecked
       animation_observer_list_;
 
   gfx::AcceleratedWidget widget_ = gfx::kNullAcceleratedWidget;

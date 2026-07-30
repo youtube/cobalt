@@ -66,4 +66,9 @@ public class EducationalTipModuleTwoCellBuilder implements ModuleProviderBuilder
     public @Nullable Integer getManualRank() {
         return SetupListModuleUtils.getManualRank(mModuleType);
     }
+
+    @Override
+    public boolean isEligible() {
+        return SetupListModuleUtils.isSetupListModule(mModuleType);
+    }
 }

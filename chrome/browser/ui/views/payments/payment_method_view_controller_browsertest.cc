@@ -12,7 +12,7 @@
 #include "components/payments/content/payment_request.h"
 #include "components/payments/content/payment_request_state.h"
 #include "components/payments/content/service_worker_payment_app_finder.h"
-#include "components/payments/core/test_payment_manifest_downloader.h"
+#include "components/payments/content/test_payment_manifest_downloader.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
 #include "content/public/browser/web_contents.h"
@@ -52,9 +52,16 @@ class PaymentMethodViewControllerTest : public PaymentRequestBrowserTestBase {
   void SetDownloaderAndIgnorePortInOriginComparisonForTesting() {
     content::BrowserContext* context =
         GetActiveWebContents()->GetBrowserContext();
+    mojo::Remote<network::mojom::URLLoaderFactory> renderer_url_loader_factory;
+    GetActiveWebContents()
+        ->GetPrimaryMainFrame()
+        ->CreateNetworkServiceDefaultFactory(
+            renderer_url_loader_factory.BindNewPipeAndPassReceiver());
     auto downloader = std::make_unique<TestDownloader>(
-        GetCSPCheckerForTests(), context->GetDefaultStoragePartition()
-                                     ->GetURLLoaderFactoryForBrowserProcess());
+        GetCSPCheckerForTests(),
+        context->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        std::move(renderer_url_loader_factory));
     downloader->AddTestServerURL("https://kylepay.test/",
                                  kylepay_server_.GetURL("kylepay.test", "/"));
     downloader->AddTestServerURL("https://google.com/",

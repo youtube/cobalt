@@ -80,13 +80,11 @@ constexpr int kInvalidTabGroupColorId = -1;
 template <typename Container>
 std::vector<TabAndroid*> GetAllTabsFromHandles(const Container& handles) {
   std::vector<TabAndroid*> tabs;
-  tabs.reserve(tabs.size());
+  tabs.reserve(handles.size());
   for (tabs::TabHandle handle : handles) {
-    TabAndroid* tab_android = TabAndroid::FromTabHandle(handle);
-    if (!tab_android) {
-      continue;
+    if (TabAndroid* tab_android = TabAndroid::FromTabHandle(handle)) {
+      tabs.push_back(tab_android);
     }
-    tabs.push_back(tab_android);
   }
   return tabs;
 }
@@ -135,9 +133,17 @@ void TabModelJniBridge::AssociateWithBrowserWindow(
   CHECK(android_browser_window != nullptr);
 
   scoped_unowned_user_data_ =
-      std::make_unique<ui::ScopedUnownedUserData<TabModel>>(
+      std::make_unique<ui::ScopedUnownedUserData<TabListInterface>>(
           android_browser_window->GetUnownedUserDataHost(), *this);
   SetSessionId(android_browser_window->GetSessionID());
+#endif
+}
+
+void TabModelJniBridge::DissociateWithBrowserWindow(JNIEnv* env) {
+#if BUILDFLAG(IS_DESKTOP_ANDROID)
+  CHECK(scoped_unowned_user_data_ != nullptr);
+  scoped_unowned_user_data_.reset();
+  SetSessionId(SessionID::InvalidValue());
 #endif
 }
 
@@ -511,23 +517,24 @@ tabs::TabInterface* TabModelJniBridge::GetOpenerForTab(tabs::TabHandle target) {
   return Java_TabModelJniBridge_getOpenerForTab(env, jobj, target_tab);
 }
 
-void TabModelJniBridge::DiscardTab(tabs::TabHandle tab) {
+content::WebContents* TabModelJniBridge::DiscardTab(tabs::TabHandle tab) {
   if (!base::FeatureList::IsEnabled(features::kWebContentsDiscard)) {
-    return;
+    return nullptr;
   }
 
   TabAndroid* tab_android = TabAndroid::FromTabHandle(tab);
   // For now just don't discard the activated tab. This ruleset could be refined
   // in the future.
   if (!tab_android || tab_android->IsActivated()) {
-    return;
+    return nullptr;
   }
 
   content::WebContents* web_contents = tab_android->web_contents();
   if (!web_contents) {
-    return;
+    return nullptr;
   }
   web_contents->Discard(base::DoNothing());
+  return web_contents;
 }
 
 tabs::TabInterface* TabModelJniBridge::DuplicateTab(tabs::TabHandle tab) {

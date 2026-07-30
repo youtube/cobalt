@@ -464,7 +464,8 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
                             EdgeToEdgeUtils.isUseBackupNavbarInsetsEnabled(),
                             EdgeToEdgeFieldTrialImpl.getBackupNavbarInsetsOverrides(),
                             ChromeFeatureList.sEdgeToEdgeUseBackupNavbarInsetsUseGestures
-                                    .getValue());
+                                    .getValue(),
+                            ChromeFeatureList.sEdgeToEdgeExtraLogs.isEnabled());
         }
         return mEdgeToEdgeLayoutCoordinator;
     }
@@ -786,7 +787,8 @@ public class ChromeBaseAppCompatActivity extends AppCompatActivity
     private InsetObserver createInsetObserver() {
         return new InsetObserver(
                 new ImmutableWeakReference<>(getWindow().getDecorView().getRootView()),
-                ChromeFeatureList.sAccountForSuppressedKeyboardInsets.isEnabled());
+                ChromeFeatureList.sAccountForSuppressedKeyboardInsets.isEnabled(),
+                ChromeFeatureList.sEdgeToEdgeExtraLogs.isEnabled());
     }
 
     private void setAutomotiveToolbarBackButtonAction() {

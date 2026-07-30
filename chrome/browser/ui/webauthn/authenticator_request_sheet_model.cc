@@ -20,7 +20,7 @@ std::u16string AuthenticatorRequestSheetModel::GetHint() const {
   return std::u16string();
 }
 
-bool AuthenticatorRequestSheetModel::IsManageDevicesButtonVisible() const {
+bool AuthenticatorRequestSheetModel::IsGpmSettingsButtonVisible() const {
   return false;
 }
 
@@ -41,7 +41,7 @@ std::u16string AuthenticatorRequestSheetModel::GetOtherMechanismButtonLabel()
   return std::u16string();
 }
 
-void AuthenticatorRequestSheetModel::OnManageDevices() {}
+void AuthenticatorRequestSheetModel::OnOpenGpmSettingsButtonPressed() {}
 
 void AuthenticatorRequestSheetModel::OnForgotGPMPin() const {}
 

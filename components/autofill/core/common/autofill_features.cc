@@ -38,6 +38,12 @@ BASE_FEATURE(kAutofillAcrossIframesIosThrottling,
 BASE_FEATURE(kAutofillAcrossIframesIosTriggerFormExtraction,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// If enabled, ActorFormFillingServiceImpl will attempt to split requests for a
+// form section fill (when relevant) into two sub-fills - one for a "contact
+// info" sub-section and one for an "address" sub-section.
+BASE_FEATURE(kAutofillActorFormFillingSplitOutContactInfo,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Kill switch: If enabled, `ChromeAutofillClient` may enter the actor mode,
 // changing how the UI, parsing and the server predictions work. For more
 // context see: go/autofill-actor-mode-implementation
@@ -328,7 +334,6 @@ BASE_FEATURE(kAutofillAllowFillingModifiedInitialValues,
 BASE_FEATURE(kAutofillAndPasswordsInSameSurface,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-#if BUILDFLAG(IS_ANDROID)
 // If enabled, on Android desktop, the Autofill keyboard accessory will have a
 // new behavior and design.
 // TODO(crbug.com/438125774): Remove when launched.
@@ -339,7 +344,6 @@ BASE_FEATURE(kAutofillAndroidDesktopKeyboardAccessoryRevamp,
 // suppressed when there are no autofill suggestions.
 BASE_FEATURE(kAutofillAndroidDesktopSuppressAccessoryOnEmpty,
              base::FEATURE_DISABLED_BY_DEFAULT);
-#endif  // BUILDFLAG(IS_ANDROID)
 
 // Controls whether user tap on an element is needed to show autofill
 // suggestions. If enabled, this flag would disable android autofill suggestions
@@ -388,6 +392,14 @@ BASE_FEATURE(kAutofillCreditCardUserPerceptionSurvey,
 BASE_FEATURE(kAutofillDeepLinkAutofillOptions,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
+
+// If enabled, `GlicFormParsingTracker` will wait up to 1 second
+// for Autofill to finish parsing forms pesent on a given tab before capturing
+// APC. For more context see: go/autofill-actor-mode-implementation
+// TODO(crbug.com/479794574): Convert to killswitch if no regressions are
+// spotted.
+BASE_FEATURE(kAutofillDelayApcForPredictions,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Kill switch for Autofill address import.
 BASE_FEATURE(kAutofillDisableAddressImport, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -568,7 +580,7 @@ BASE_FEATURE(kAutofillEnableNonAffiliatedLoyaltyCardsFilling,
 
 // Kill switch for saving entities to wallet from settings.
 BASE_FEATURE(kAutofillEnableSaveToWalletFromSettings,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
 // Controls if Chrome Autofill UI surfaces ignore touch events if something is
@@ -581,6 +593,13 @@ BASE_FEATURE(kAutofillEnableSecurityTouchEventFilteringAndroid,
 // field that has autocomplete=unrecognized attribute.
 BASE_FEATURE(kAutofillEnableSkippingUnrecognizedAttribute,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, the missing merge modes will be re-enabled on nodes. To do that,
+// MergeMode::kMergeChildrenAndReformatIfNeeded will be also added to all the
+// nodes where required.
+// TODO(crbug.com/447111009): Remove when launched.
+BASE_FEATURE(kAutofillEnableStreetAddressMergeModes,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, chrome will support home and work addresses from account.
 // TODO: crbug.com/354706653 - Clean up when launched.
@@ -693,6 +712,12 @@ BASE_FEATURE(kAutofillImproveAddressFieldSwapping,
 BASE_FEATURE(kAutofillImprovePhoneFieldParser,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// When enabled, `(PHONE_HOME_COUNTRY_CODE, PHONE_HOME_WHOLE_NUMBER)` are
+// rationalized to `(PHONE_HOME_COUNTRY_CODE,
+// PHONE_HOME_CITY_AND_NUMBER_WITHOUT_TRUNK_PREFIX)`.
+BASE_FEATURE(kAutofillImprovePhoneNumberRationalization,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // TODO(crbug.com/346507576): Remove once the experiment is over.
 // When enabled, makes autocomplete label sensitive.
 BASE_FEATURE(kAutofillLabelSensitiveAutocomplete,
@@ -758,6 +783,11 @@ BASE_FEATURE_PARAM(int,
 // When Enabled Autofill server will stop applying small form rule and Chrome
 // will take care of this logic.
 BASE_FEATURE(kAutofillMoveSmallFormLogicToClient,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Improves the regex for matching augmented country code select options by
+// supporting cases like +1 (234).
+BASE_FEATURE(kAutofillNewAugmentedPhoneCountryCodeRegex,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // If enabled, more patterns are added to the PHONE_COUNTRY_CODE regex.
@@ -827,6 +857,11 @@ BASE_FEATURE(kAutofillPopupDontAcceptNonVisibleEnoughSuggestion,
 BASE_FEATURE(kAutofillPopupZOrderSecuritySurface,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// When enabled, we prefer a `PHONE_HOME_COUNTRY_CODE` heuristic type over a
+// `HtmlFieldType::kCountryCode`.
+BASE_FEATURE(kAutofillPreferPhoneCountryCodeTypeOverCountryHtmlType,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Replaces cached web elements in AutofillAgent and FormTracker by their
 // renderer ids.
 BASE_FEATURE(kAutofillReplaceCachedWebElementsByRendererIds,
@@ -866,6 +901,11 @@ BASE_FEATURE(kAutofillSkipPreFilledFields, base::FEATURE_ENABLED_BY_DEFAULT);
 // If enabled, upload votes for sms otp.
 // TODO(crbug.com/453999673): Clean up when launched.
 BASE_FEATURE(kAutofillSmsOtpCrowdsourcing, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// If enabled, fetch sms otp from gmscore and upload votes for sms otp.
+// TODO(crbug.com/453999673): Clean up when launched.
+BASE_FEATURE(kAutofillSmsOtpCrowdsourcingFetchFromGmscore,
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 // If this feature is enabled, the AddressFieldParser does NOT try to parse
 // address lines once it has found a street name and house number or other
@@ -908,6 +948,9 @@ BASE_FEATURE(kAutofillThirdPartyModeRestoredOnStart,
              base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
+// Enables tracking of user edits to <select> fields that were not autofilled.
+BASE_FEATURE(kAutofillTrackSelectFieldEdits, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kAutofillUKMExperimentalFields, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE_PARAM(std::string,
                    kAutofillUKMExperimentalFieldsBucket0,
@@ -940,11 +983,8 @@ BASE_FEATURE_PARAM(std::string,
 BASE_FEATURE(kAutofillUploadManualFallbackFieldsToServer,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// If enabled, the MergeMode::kMergeChildrenAndReformatIfNeeded will be added to
-// the StreetAddressNode, StreetLocationNode and HouseNumberAndApartmentNode's
-// merge mode.
-// TODO(crbug.com/447111009): Remove when launched.
-BASE_FEATURE(kAutofillUseChildrenAndReformatMergeMode,
+// Enables the use of the Accessibility Annotator data adapter for Autofill AI.
+BASE_FEATURE(kAutofillUseAccessibilityAnnotator,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables using a custom address model for India, overriding the legacy one.

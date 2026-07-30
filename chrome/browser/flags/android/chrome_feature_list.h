@@ -7,6 +7,8 @@
 
 #include <jni.h>
 
+#include <string>
+
 #include "base/feature_list.h"
 #include "base/metrics/field_trial_params.h"
 #include "base/time/time.h"
@@ -42,12 +44,9 @@ BASE_DECLARE_FEATURE(kAndroidDataImporterService);
 BASE_DECLARE_FEATURE(kAndroidDesktopDensity);
 BASE_DECLARE_FEATURE(kAndroidElegantTextHeight);
 BASE_DECLARE_FEATURE(kAndroidFirstRunLaunchBounds);
-BASE_DECLARE_FEATURE(kAndroidLogoViewRefactor);
 BASE_DECLARE_FEATURE(kAndroidNewMediaPicker);
 BASE_DECLARE_FEATURE(kAndroidNoVisibleHintForDifferentTLD);
 BASE_DECLARE_FEATURE(kAndroidOmniboxFocusedNewTabPage);
-BASE_DECLARE_FEATURE(kAndroidPbDisablePulseAnimation);
-BASE_DECLARE_FEATURE(kAndroidPbDisableSmoothAnimation);
 BASE_DECLARE_FEATURE(kAndroidPinnedTabs);
 BASE_DECLARE_FEATURE(kAndroidPinnedTabsTabletTabStrip);
 BASE_DECLARE_FEATURE(kAndroidProgressBarVisualUpdate);
@@ -142,10 +141,10 @@ BASE_DECLARE_FEATURE(kControlsVisibilityFromNavigations);
 BASE_DECLARE_FEATURE(kCrossDeviceTabPaneAndroid);
 BASE_DECLARE_FEATURE(kDefaultBrowserPromoAndroid2);
 BASE_DECLARE_FEATURE(kDefaultBrowserPromoEntryPoint);
+BASE_DECLARE_FEATURE(kDefaultBrowserPromoFre);
 BASE_DECLARE_FEATURE(kDesktopAndroidLinkCapturing);
 BASE_DECLARE_FEATURE(kDesktopUAOnConnectedDisplay);
 BASE_DECLARE_FEATURE(kDeviceAuthenticatorAndroidx);
-BASE_DECLARE_FEATURE(kDisableInstanceLimit);
 BASE_DECLARE_FEATURE(kDiscardPageWithCrashedSubframePolicy);
 BASE_DECLARE_FEATURE(kDiscardPageWithCrashedSubframeRelaxedEligibility);
 BASE_DECLARE_FEATURE(kDontAutoHideBrowserControls);
@@ -153,6 +152,7 @@ BASE_DECLARE_FEATURE(kDontPrefetchLibraries);
 BASE_DECLARE_FEATURE(kDrawChromePagesEdgeToEdge);
 BASE_DECLARE_FEATURE(kEdgeToEdgeBottomChin);
 BASE_DECLARE_FEATURE(kEdgeToEdgeEverywhere);
+BASE_DECLARE_FEATURE(kEdgeToEdgeExtraLogs);
 BASE_DECLARE_FEATURE(kEdgeToEdgeMonitorConfigurations);
 BASE_DECLARE_FEATURE(kEdgeToEdgeTablet);
 BASE_DECLARE_FEATURE(kEdgeToEdgeUseBackupNavbarInsets);
@@ -170,7 +170,6 @@ BASE_DECLARE_FEATURE(kFullscreenInsetsApiMigrationOnAutomotive);
 BASE_DECLARE_FEATURE(kGridTabSwitcherSurfaceColorUpdate);
 BASE_DECLARE_FEATURE(kGridTabSwitcherUpdate);
 BASE_DECLARE_FEATURE(kGroupNewTabWithParent);
-BASE_DECLARE_FEATURE(kHeadlessTabModel);
 BASE_DECLARE_FEATURE(kHistoryPaneAndroid);
 BASE_DECLARE_FEATURE(kHomeModulePrefRefactor);
 BASE_DECLARE_FEATURE(kImprovedA2HS);
@@ -201,11 +200,11 @@ BASE_DECLARE_FEATURE(kNewTabPageCustomization);
 BASE_DECLARE_FEATURE(kNewTabPageCustomizationForMvt);
 BASE_DECLARE_FEATURE(kNewTabPageCustomizationToolbarButton);
 BASE_DECLARE_FEATURE(kNewTabPageCustomizationV2);
-BASE_DECLARE_FEATURE(kNotificationPermissionBottomSheet);
 BASE_DECLARE_FEATURE(kNotificationPermissionVariant);
 BASE_DECLARE_FEATURE(kNotificationTrampoline);
 BASE_DECLARE_FEATURE(kNotificationTrampolineNoNewTask);
 BASE_DECLARE_FEATURE(kOmahaMinSdkVersionAndroid);
+BASE_DECLARE_FEATURE(kOnDemandBackgroundTabContextCapture);
 BASE_DECLARE_FEATURE(kOptimizeGeolocationHeaderGeneration);
 BASE_DECLARE_FEATURE(kPCCTMinimumHeight);
 BASE_DECLARE_FEATURE(kPageAnnotationsService);
@@ -364,6 +363,12 @@ inline constexpr base::FeatureParam<int>
         &kReadAloud,
         "read_aloud_readability_delay_ms_after_page_load",
         /* default_value=*/500);
+
+inline constexpr base::FeatureParam<std::string>
+    kReadAloudAudioOverviewsSupportedLanguages(
+        &kReadAloudAudioOverviews,
+        "read_aloud_audio_overviews_supported_languages",
+        /* default_value=*/"en");
 
 inline constexpr base::FeatureParam<bool> kTouchToSearchCalloutIph(
     &kTouchToSearchCallout,

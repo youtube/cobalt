@@ -31,6 +31,8 @@ class SharedImageCopyManager;
 class SharedImageFactory;
 
 // TODO(kylechar): Merge with OzoneImageBacking::AccessStream enum.
+//
+// LINT.IfChange(SharedImageAccessStream)
 enum class SharedImageAccessStream {
   kSkia,
   kOverlay,
@@ -40,8 +42,10 @@ enum class SharedImageAccessStream {
   kMemory,
   kVaapi,
   kWebNNTensor,
-  kVulkan
+  kVulkan,
+  kMaxValue = kVulkan
 };
+// LINT.ThenChange(//tools/metrics/histograms/metadata/gpu/enums.xml:SharedImageAccessStream)
 
 GPU_GLES2_EXPORT std::ostream& operator<<(
     std::ostream& os,
@@ -177,7 +181,8 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   // the backing that is going to be accessed if most recent pixels are in
   // a different backing.
   void NotifyBeginAccess(SharedImageBacking* backing,
-                         RepresentationAccessMode mode);
+                         RepresentationAccessMode mode,
+                         SharedImageAccessStream stream);
 
   // Called by wrapped representations during EndAccess(). This will update the
   // CompoundImageBacking's clear rect with the accessed backing's clear rect it
@@ -435,6 +440,10 @@ class GPU_GLES2_EXPORT CompoundImageBacking
   base::OnceCallback<void(bool)> pending_copy_to_gmb_callback_;
   scoped_refptr<SharedImageCopyManager> copy_manager_;
   bool has_shm_backing_ = false;
+  // Tracks the maximum number of SharedImageBacking elements that were
+  // allocated within this CompoundImageBacking instance during its lifetime.
+  // This value is recorded in a UMA histogram in the destructor.
+  size_t max_elements_allocated_ = 0;
 };
 
 }  // namespace gpu

@@ -52,6 +52,8 @@ BASE_DECLARE_FEATURE(kGlicHibernateAllOnMemoryPressure);
 
 BASE_DECLARE_FEATURE(kGlicHibernateOnMemoryUsage);
 
+BASE_DECLARE_FEATURE(kGlicMaxAwakeInstances);
+
 // An interface to GlicInstanceCoordinatorImpl. Should be used instead of direct
 // access to GlicInstanceCoordinatorImpl to allow for test fakes.
 class GlicInstanceCoordinator : public GlicWindowController {};
@@ -123,7 +125,8 @@ class GlicInstanceCoordinatorImpl
   void Toggle(BrowserWindowInterface* browser,
               bool prevent_close,
               mojom::InvocationSource source,
-              std::optional<std::string> prompt_suggestion) override;
+              std::optional<std::string> prompt_suggestion,
+              bool auto_send) override;
   void ShowAfterSignIn(base::WeakPtr<Browser> browser) override;
   // Shuts down all hosts. Only call it before destruction of the instance
   // coordinator.
@@ -203,12 +206,14 @@ class GlicInstanceCoordinatorImpl
   void ToggleSidePanel(BrowserWindowInterface* browser,
                        bool prevent_close,
                        glic::mojom::InvocationSource source,
-                       std::optional<std::string> prompt_suggestion);
+                       std::optional<std::string> prompt_suggestion,
+                       bool auto_send);
 
   void CloseFloaty(const CloseOptions& options = {});
 
   void OnMemoryPressure(base::MemoryPressureLevel level) override;
   void CheckMemoryUsage();
+  void ApplyMaxAwakeInstancesLimit();
 
   void RemoveInstance(GlicInstanceImpl* instance) override;
 
@@ -216,7 +221,9 @@ class GlicInstanceCoordinatorImpl
   void ComputeContentAccessIndicator();
 
   void OnTabsInserted(const TabStripModelChange::Insert* insert);
-  void MaybeDaisyChainSidePanel(const TabCreationEvent& event);
+  void MaybeDaisyChainNewTab(const TabCreationEvent& event);
+  void MaybeDaisyChainFromLinkClick(const TabCreationEvent& event);
+
   GlicInstanceImpl* GetOrRestoreInstanceImpl(
       const GlicRestoredState::InstanceInfo& instance_info);
   void RestoreTab(content::WebContents* web_contents,

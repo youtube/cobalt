@@ -406,6 +406,7 @@ PseudoId CSSSelector::GetPseudoId(PseudoType type) {
       return kPseudoIdViewTransitionNew;
     case kPseudoOverscrollAreaParent:
       return kPseudoIdOverscrollAreaParent;
+    case kPseudoAnimatedImage:
     case kPseudoActive:
     case kPseudoActiveOption:
     case kPseudoActiveViewTransition:
@@ -611,6 +612,7 @@ constexpr static NameToPseudoStruct kPseudoTypeWithoutArgumentsMap[] = {
     {"active-option", CSSSelector::kPseudoActiveOption},
     {"active-view-transition", CSSSelector::kPseudoActiveViewTransition},
     {"after", CSSSelector::kPseudoAfter},
+    {"animated-image", CSSSelector::kPseudoAnimatedImage},
     {"any-link", CSSSelector::kPseudoAnyLink},
     {"autofill", CSSSelector::kPseudoAutofill},
     {"backdrop", CSSSelector::kPseudoBackdrop},
@@ -793,8 +795,6 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
   }
 
   if (match->type == CSSSelector::kPseudoPermissionGranted &&
-      !RuntimeEnabledFeatures::PermissionElementEnabled(
-          document ? document->GetExecutionContext() : nullptr) &&
       !RuntimeEnabledFeatures::GeolocationElementEnabled(
           document ? document->GetExecutionContext() : nullptr) &&
       !RuntimeEnabledFeatures::UserMediaElementEnabled(
@@ -855,6 +855,10 @@ CSSSelector::PseudoType CSSSelector::NameToPseudoType(
 
   if (match->type == CSSSelector::kPseudoActiveOption &&
       !RuntimeEnabledFeatures::CustomizableComboboxEnabled()) {
+    return CSSSelector::kPseudoUnknown;
+  }
+  if (match->type == CSSSelector::kPseudoAnimatedImage &&
+      !RuntimeEnabledFeatures::CSSImageAnimationEnabled()) {
     return CSSSelector::kPseudoUnknown;
   }
 
@@ -1001,6 +1005,7 @@ void CSSSelector::UpdatePseudoType(const AtomicString& value,
     case kPseudoActiveOption:
     case kPseudoActiveViewTransition:
     case kPseudoActiveViewTransitionType:
+    case kPseudoAnimatedImage:
     case kPseudoAny:
     case kPseudoAnyLink:
     case kPseudoAutofill:
@@ -1790,6 +1795,7 @@ bool CSSSelector::IsAllowedAfterPart() const {
     //
     // All non-structural pseudo-classes should be allowed, and structural
     // pseudo-classes should be forbidden.
+    case kPseudoAnimatedImage:
     case kPseudoAutofill:
     case kPseudoAutofillPreviewed:
     case kPseudoAutofillSelected:
@@ -2144,6 +2150,7 @@ CSSSelector::RelationType ConvertRelationToRelative(
 // static
 bool CSSSelector::SupportsPseudoStateChange(PseudoType type) {
   switch (type) {
+    case CSSSelector::kPseudoAnimatedImage:
     case CSSSelector::kPseudoActive:
     case CSSSelector::kPseudoActiveOption:
     case CSSSelector::kPseudoActiveViewTransition:

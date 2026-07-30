@@ -358,6 +358,8 @@ chromium-metrics-reviews@google.com.
                visited tiles on iOS"/>
   <variant name="IPH_iOSPostDefaultAbandonmentPromo"
       summary="showing the iOS post-default browser abandonment promo on iOS"/>
+  <variant name="IPH_iOSPriceTrackingDesktop"
+      summary="showing the price tracking desktop to mobile promo on desktop"/>
   <variant name="IPH_iOSPromoAllTabs"
       summary="showing All Tabs default browser promo"/>
   <variant name="IPH_iOSPromoAppStore"
@@ -433,6 +435,8 @@ chromium-metrics-reviews@google.com.
   <variant name="IPH_iOSTabGridSwipeRightForIncognito"
       summary="the full screen IPH for left swipe on regular tab grid to
                browse in incognito"/>
+  <variant name="IPH_iOSTabGroupsDesktop"
+      summary="showing the tab groups promo on desktop"/>
   <variant name="IPH_iOSWelcomeBackFeature"
       summary="shows returning users features they may be interested in"/>
   <variant name="IPH_KeyboardAccessoryAddressFilling"
@@ -695,7 +699,7 @@ chromium-metrics-reviews@google.com.
 </variants>
 
 <histogram name="InProductHelp.Config.ParsingEvent" enum="ConfigParsingEvent"
-    expires_after="2026-06-07">
+    expires_after="2026-08-09">
   <owner>nyquist@chromium.org</owner>
   <summary>
     Records if in-product help configuration is parsed correctly, and the
@@ -751,7 +755,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="InProductHelp.EventStorageMigration.Status"
-    enum="InProductHelpEventStorageMigrationStatus" expires_after="2026-06-07">
+    enum="InProductHelpEventStorageMigrationStatus" expires_after="2026-08-09">
   <owner>cheickcisse@google.com</owner>
   <owner>shaktisahu@chromium.org</owner>
   <summary>

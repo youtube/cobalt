@@ -1028,6 +1028,10 @@ interface CSSPseudoElement
     getter parent
     getter type
     method constructor
+    method convertPointFromNode
+    method convertQuadFromNode
+    method convertRectFromNode
+    method getBoxQuads
     method pseudo
 interface CSSRGB : CSSColorValue
     attribute @@toStringTag
@@ -1040,6 +1044,9 @@ interface CSSRGB : CSSColorValue
     setter b
     setter g
     setter r
+interface CSSResultRule : CSSGroupingRule
+    attribute @@toStringTag
+    method constructor
 interface CSSRotate : CSSTransformComponent
     attribute @@toStringTag
     getter angle
@@ -2542,6 +2549,7 @@ interface Element : Node
     getter innerHTML
     getter lastElementChild
     getter localName
+    getter marker
     getter namespaceURI
     getter nextElementSibling
     getter onbeforecopy
@@ -2689,6 +2697,7 @@ interface Element : Node
     setter headingReset
     setter id
     setter innerHTML
+    setter marker
     setter onbeforecopy
     setter onbeforecut
     setter onbeforepaste
@@ -3847,6 +3856,9 @@ interface HTMLCollection
     method constructor
     method item
     method namedItem
+interface HTMLCredentialElement : HTMLElement
+    attribute @@toStringTag
+    method constructor
 interface HTMLDListElement : HTMLElement
     attribute @@toStringTag
     getter compact
@@ -4192,9 +4204,6 @@ interface HTMLEmbedElement : HTMLElement
     setter src
     setter type
     setter width
-interface HTMLFederationElement : HTMLElement
-    attribute @@toStringTag
-    method constructor
 interface HTMLFencedFrameElement : HTMLElement
     static method canLoadOpaqueURL
     attribute @@toStringTag
@@ -4619,13 +4628,23 @@ interface HTMLInputElement : HTMLElement
     setter valueAsNumber
     setter webkitdirectory
     setter width
-interface HTMLInstallElement : HTMLPermissionElement
+interface HTMLInstallElement : HTMLElement
     attribute @@toStringTag
+    getter initialPermissionStatus
     getter installURL
+    getter invalidReason
+    getter isValid
     getter manifestId
+    getter onpromptaction
+    getter onpromptdismiss
+    getter onvalidationstatuschange
+    getter permissionStatus
     method constructor
     setter installURL
     setter manifestId
+    setter onpromptaction
+    setter onpromptdismiss
+    setter onvalidationstatuschange
 interface HTMLLIElement : HTMLElement
     attribute @@toStringTag
     getter type
@@ -4989,22 +5008,6 @@ interface HTMLParamElement : HTMLElement
     setter type
     setter value
     setter valueType
-interface HTMLPermissionElement : HTMLElement
-    static method isTypeSupported
-    attribute @@toStringTag
-    getter initialPermissionStatus
-    getter invalidReason
-    getter isValid
-    getter onpromptaction
-    getter onpromptdismiss
-    getter onvalidationstatuschange
-    getter permissionStatus
-    getter type
-    method constructor
-    setter onpromptaction
-    setter onpromptdismiss
-    setter onvalidationstatuschange
-    setter type
 interface HTMLPictureElement : HTMLElement
     attribute @@toStringTag
     method constructor
@@ -5378,6 +5381,7 @@ interface HTMLUnknownElement : HTMLElement
     attribute @@toStringTag
     method constructor
 interface HTMLUserMediaElement : HTMLElement
+    static method isTypeSupported
     attribute @@toStringTag
     getter initialPermissionStatus
     getter invalidReason
@@ -5911,13 +5915,10 @@ interface LanguageDetector
 interface LanguageModel : EventTarget
     static method availability
     static method create
-    static method params
     attribute @@toStringTag
     getter inputQuota
     getter inputUsage
     getter onquotaoverflow
-    getter temperature
-    getter topK
     method append
     method clone
     method constructor
@@ -5926,13 +5927,6 @@ interface LanguageModel : EventTarget
     method prompt
     method promptStreaming
     setter onquotaoverflow
-interface LanguageModelParams
-    attribute @@toStringTag
-    getter defaultTemperature
-    getter defaultTopK
-    getter maxTemperature
-    getter maxTopK
-    method constructor
 interface LanguageModelToolCall
     attribute @@toStringTag
     getter arguments
@@ -9909,6 +9903,7 @@ interface ShadowRoot : DocumentFragment
     getter fullscreenElement
     getter host
     getter innerHTML
+    getter marker
     getter mode
     getter onslotchange
     getter pictureInPictureElement

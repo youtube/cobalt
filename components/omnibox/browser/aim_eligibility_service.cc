@@ -30,12 +30,14 @@
 #include "components/signin/public/identity_manager/identity_manager.h"
 #include "google_apis/gaia/google_service_auth_error.h"
 #include "net/base/load_flags.h"
+#include "net/base/url_util.h"
 #include "net/http/http_response_headers.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
 #include "services/network/public/cpp/resource_request.h"
 #include "services/network/public/cpp/shared_url_loader_factory.h"
 #include "services/network/public/cpp/simple_url_loader.h"
 #include "services/network/public/mojom/url_response_head.mojom.h"
+#include "third_party/omnibox_proto/aim_eligibility_client_request.pb.h"
 #include "third_party/omnibox_proto/aim_eligibility_response.pb.h"
 #include "url/gurl.h"
 
@@ -217,6 +219,19 @@ void BuildFallbackConfig(const omnibox::AimEligibilityResponse& response,
                          omnibox::SearchboxConfig& fallback_config) {
   fallback_config.Clear();
   auto* rule_set = fallback_config.mutable_rule_set();
+  rule_set->set_max_total_inputs(10);
+
+  auto* lens_image_rule = rule_set->add_input_type_rules();
+  lens_image_rule->set_input_type(omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+  lens_image_rule->set_max_instance(10);
+
+  auto* lens_file_rule = rule_set->add_input_type_rules();
+  lens_file_rule->set_input_type(omnibox::InputType::INPUT_TYPE_LENS_FILE);
+  lens_file_rule->set_max_instance(10);
+
+  auto* browser_tab_rule = rule_set->add_input_type_rules();
+  browser_tab_rule->set_input_type(omnibox::InputType::INPUT_TYPE_BROWSER_TAB);
+  browser_tab_rule->set_max_instance(10);
 
   if (response.is_deep_search_eligible()) {
     rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_DEEP_SEARCH);
@@ -231,7 +246,6 @@ void BuildFallbackConfig(const omnibox::AimEligibilityResponse& response,
   }
   if (response.is_image_generation_eligible()) {
     rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
-    rule_set->add_allowed_tools(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
     auto* tool_config = fallback_config.add_tool_configs();
     tool_config->set_tool(omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
     auto* image_gen_rule = rule_set->add_tool_rules();
@@ -241,6 +255,10 @@ void BuildFallbackConfig(const omnibox::AimEligibilityResponse& response,
   }
   if (response.is_pdf_upload_eligible()) {
     rule_set->add_allowed_input_types(omnibox::InputType::INPUT_TYPE_LENS_FILE);
+    rule_set->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_LENS_IMAGE);
+    rule_set->add_allowed_input_types(
+        omnibox::InputType::INPUT_TYPE_BROWSER_TAB);
   }
 }
 
@@ -311,12 +329,32 @@ std::string AimEligibilityService::EligibilityResponseSourceToString(
   }
 }
 
+// static
+AimEligibilityService::ServerEligibilityRequestMode
+AimEligibilityService::GetServerEligibilityRequestMode() {
+  if (base::FeatureList::IsEnabled(
+          omnibox::kAimServerEligibilityIncludeClientLocale)) {
+    switch (omnibox::kAimServerEligibilityIncludeClientLocaleMode.Get()) {
+      case omnibox::AimServerEligibilityIncludeClientLocaleMode::kPostWithProto:
+        return ServerEligibilityRequestMode::kPostWithProto;
+      case omnibox::AimServerEligibilityIncludeClientLocaleMode::kGetWithLocale:
+        return ServerEligibilityRequestMode::kGetWithLocale;
+      case omnibox::AimServerEligibilityIncludeClientLocaleMode::kLegacyGet:
+        return ServerEligibilityRequestMode::kLegacyGet;
+    }
+  }
+
+  // Default behavior is legacy GET (no locale).
+  return ServerEligibilityRequestMode::kLegacyGet;
+}
+
 AimEligibilityService::AimEligibilityService(
     PrefService& pref_service,
     TemplateURLService* template_url_service,
     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
     signin::IdentityManager* identity_manager,
-    bool is_off_the_record)
+    bool is_off_the_record,
+    const std::string& locale)
     : pref_service_(pref_service),
       template_url_service_(template_url_service),
       url_loader_factory_(url_loader_factory),
@@ -357,7 +395,7 @@ AimEligibilityService::AimEligibilityService(
     net::NetworkChangeNotifier::AddNetworkChangeObserver(this);
   } else if (startup_request_enabled) {
     startup_request_sent_ = true;
-    StartServerEligibilityRequest(RequestSource::kStartup);
+    StartServerEligibilityRequest(RequestSource::kStartup, locale);
   }
 
   if (identity_manager_) {
@@ -447,11 +485,8 @@ bool AimEligibilityService::IsCreateImagesEligible() const {
   if (is_off_the_record_) {
     return false;
   }
-  bool server_eligible =
-      IsToolAllowed(*GetSearchboxConfig(),
-                    omnibox::ToolMode::TOOL_MODE_IMAGE_GEN) &&
-      IsToolAllowed(*GetSearchboxConfig(),
-                    omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD);
+  bool server_eligible = IsToolAllowed(*GetSearchboxConfig(),
+                                       omnibox::ToolMode::TOOL_MODE_IMAGE_GEN);
   return IsEligibleByServer(server_eligible);
 }
 
@@ -505,7 +540,7 @@ const omnibox::SearchboxConfig* AimEligibilityService::GetSearchboxConfig()
 }
 
 void AimEligibilityService::StartServerEligibilityRequestForDebugging() {
-  StartServerEligibilityRequest(RequestSource::kUser);
+  StartServerEligibilityRequest(RequestSource::kUser, GetLocale());
 }
 
 bool AimEligibilityService::SetEligibilityResponseForDebugging(
@@ -561,7 +596,8 @@ void AimEligibilityService::OnPrimaryAccountChanged(
   }
   // Change to the primary account might affect AIM eligibility.
   // Refresh the server eligibility state.
-  StartServerEligibilityRequest(RequestSource::kPrimaryAccountChange);
+  StartServerEligibilityRequest(RequestSource::kPrimaryAccountChange,
+                                GetLocale());
 }
 
 void AimEligibilityService::OnAccountsInCookieUpdated(
@@ -574,7 +610,7 @@ void AimEligibilityService::OnAccountsInCookieUpdated(
   }
   // Change to the accounts in the cookie jar might affect AIM eligibility.
   // Refresh the server eligibility state.
-  StartServerEligibilityRequest(RequestSource::kCookieChange);
+  StartServerEligibilityRequest(RequestSource::kCookieChange, GetLocale());
 }
 
 void AimEligibilityService::OnNetworkChanged(
@@ -589,7 +625,7 @@ void AimEligibilityService::OnNetworkChanged(
   bool is_online = !net::NetworkChangeNotifier::IsOffline();
   if (is_online && !startup_request_sent_) {
     startup_request_sent_ = true;
-    StartServerEligibilityRequest(RequestSource::kNetworkChange);
+    StartServerEligibilityRequest(RequestSource::kNetworkChange, GetLocale());
   }
 }
 
@@ -664,7 +700,8 @@ void AimEligibilityService::LoadMostRecentResponse() {
 GURL AimEligibilityService::GetRequestUrl(
     RequestSource request_source,
     const TemplateURLService* template_url_service,
-    signin::IdentityManager* identity_manager) {
+    signin::IdentityManager* identity_manager,
+    const std::string& locale) {
   if (!search::DefaultSearchProviderIsGoogle(template_url_service)) {
     return GURL();
   }
@@ -684,6 +721,12 @@ GURL AimEligibilityService::GetRequestUrl(
       !omnibox::kAimUrlInterceptionParams.Get().empty()) {
     url = net::AppendQueryParameter(url, "url_intercept_params",
                                     omnibox::kAimUrlInterceptionParams.Get());
+  }
+
+  // Append locale if mode is `kGetWithLocale`.
+  if (GetServerEligibilityRequestMode() ==
+      ServerEligibilityRequestMode::kGetWithLocale) {
+    url = net::AppendQueryParameter(url, "client_locale", locale);
   }
 
   // Get the index of the primary account in the cookie jar.
@@ -720,7 +763,8 @@ GURL AimEligibilityService::GetRequestUrl(
 }
 
 void AimEligibilityService::StartServerEligibilityRequest(
-    RequestSource request_source) {
+    RequestSource request_source,
+    const std::string& locale) {
   // URLLoaderFactory may be null in tests.
   if (!url_loader_factory_ || !template_url_service_) {
     return;
@@ -728,7 +772,7 @@ void AimEligibilityService::StartServerEligibilityRequest(
 
   // Request URL may be invalid.
   GURL request_url = GetRequestUrl(request_source, template_url_service_.get(),
-                                   identity_manager_);
+                                   identity_manager_, locale);
   if (!request_url.is_valid()) {
     return;
   }
@@ -740,9 +784,25 @@ void AimEligibilityService::StartServerEligibilityRequest(
   request->load_flags = net::LOAD_DO_NOT_SAVE_COOKIES;
   // Set the SiteForCookies to the request URL's site to avoid cookie blocking.
   request->site_for_cookies = net::SiteForCookies::FromUrl(request->url);
+
+  // If mode is POST with Proto, set method to POST.
+  if (GetServerEligibilityRequestMode() ==
+      ServerEligibilityRequestMode::kPostWithProto) {
+    request->method = "POST";
+  }
+
   std::unique_ptr<network::SimpleURLLoader> loader =
       network::SimpleURLLoader::Create(std::move(request),
                                        kRequestTrafficAnnotation);
+
+  if (GetServerEligibilityRequestMode() ==
+      ServerEligibilityRequestMode::kPostWithProto) {
+    omnibox::AimEligibilityClientRequest client_request;
+    client_request.set_client_locale(locale);
+    std::string request_body;
+    client_request.SerializeToString(&request_body);
+    loader->AttachStringForUpload(request_body, "application/x-protobuf");
+  }
 
   LogEligibilityRequestStatus(EligibilityRequestStatus::kSent, request_source);
 

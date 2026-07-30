@@ -500,7 +500,14 @@ bool AppBrowserController::HasPendingUpdateNotIgnoredByUser() const {
   return false;
 }
 
+bool AppBrowserController::HasPendingMigration() const {
+  return false;
+}
+
 void AppBrowserController::CreateMetadataAndTriggerAppUpdateDialog(
+    base::TimeTicks start_time) const {}
+
+void AppBrowserController::CreateMetadataAndTriggerAppMigrationDialog(
     base::TimeTicks start_time) const {}
 
 bool AppBrowserController::IsPreventCloseEnabled() const {

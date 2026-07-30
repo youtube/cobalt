@@ -1403,17 +1403,14 @@ GPUTexture* BaseRenderingContext2D::transferToGPUTexture(
     return nullptr;
   }
 
-  // Get the SharedImage backing this canvas resource, signaling that an
-  // external write will occur. This call will ensure that a copy occurs if
-  // needed for CopyOnWrite or for creation of a SharedImage with WebGPU usage
-  // and will end the canvas access.
+  // Get the SharedImage backing this canvas resource for transfer to WebGPU.
+  // This call will ensure that a copy occurs if needed for CopyOnWrite or for
+  // creation of a SharedImage with WebGPU usage and will end the canvas access.
   gpu::SyncToken canvas_access_sync_token;
   bool performed_copy = false;
   scoped_refptr<gpu::ClientSharedImage> client_si =
-      provider->GetBackingClientSharedImageForExternalWrite(
-          gpu::SHARED_IMAGE_USAGE_WEBGPU_READ |
-              gpu::SHARED_IMAGE_USAGE_WEBGPU_WRITE,
-          canvas_access_sync_token, &performed_copy);
+      provider->GetBackingClientSharedImageForTransferToWebGPU(
+          canvas_access_sync_token, performed_copy);
   if (access_options->requireZeroCopy() && performed_copy) {
     exception_state.ThrowDOMException(
         DOMExceptionCode::kInvalidStateError,
@@ -1527,10 +1524,10 @@ void BaseRenderingContext2D::transferBackFromGPUTexture(
   gpu::SyncToken webgpu_completion_sync_token =
       webgpu_access_texture_->GetMailboxTexture()->Dissociate();
 
-  // Signal to the resource provider that the external write to the resource has
-  // completed to ensure that it waits on the WebGPU service-side operations to
-  // complete before any further canvas operations occur.
-  resource_provider->EndExternalWrite(webgpu_completion_sync_token);
+  // Signal to the resource provider that the transfer to WebGPU has completed
+  // to ensure that it waits on the WebGPU service-side operations to complete
+  // before any further canvas operations occur.
+  resource_provider->TransferBackFromWebGPU(webgpu_completion_sync_token);
 
   // Destroy the WebGPU texture to prevent it from being used after
   // `transferBackFromGPUTexture`.

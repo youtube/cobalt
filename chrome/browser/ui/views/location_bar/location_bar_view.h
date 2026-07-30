@@ -204,10 +204,12 @@ class LocationBarView
   IntentChipButton* intent_chip() { return intent_chip_; }
 
   // LocationBar:
-  void FocusLocation(bool is_user_initiated) override;
+  void FocusLocation(bool is_user_initiated,
+                     bool clear_focus_if_failed) override;
   void Revert() override;
   OmniboxView* GetOmniboxView() override;
   OmniboxController* GetOmniboxController() override;
+  bool ShouldCloseOmniboxPopup(ui::MouseEvent* event) override;
   ChipController* GetChipController() override;
   void UpdateWithoutTabRestore() override;
   LocationBarModel* GetLocationBarModel() override;
@@ -288,6 +290,7 @@ class LocationBarView
   // LocationIconView::Delegate:
   const LocationBarModel* GetLocationBarModel() const override;
   bool IsEditingOrEmpty() const override;
+  void OnLocationIconGestureEvent(ui::GestureEvent* event) override;
   void OnLocationIconPressed(const ui::MouseEvent& event) override;
   void OnLocationIconDragged(const ui::MouseEvent& event) override;
   bool ShowPageInfoDialog() override;
@@ -393,6 +396,7 @@ class LocationBarView
 
   // LocationBar:
   void FocusSearch() override;
+  void UpdateFocusBehavior(bool toolbar_visible) override;
   void UpdateContentSettingsIcons() override;
   void SaveStateToContents(content::WebContents* contents) override;
   LocationBarTesting* GetLocationBarForTesting() override;
@@ -481,6 +485,8 @@ class LocationBarView
   // if there is no valid active tab or the tab is in the process of being
   // destroyed.
   page_actions::PageActionController* GetPageActionController();
+
+  bool OpenContextMenu();
 
 #if BUILDFLAG(IS_MAC)
   // Called when app shims change.

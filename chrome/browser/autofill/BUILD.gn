@@ -17,6 +17,8 @@ static_library("autofill") {
     "address_normalizer_factory.h",
     "autocomplete_history_manager_factory.cc",
     "autocomplete_history_manager_factory.h",
+    "autofill_accessibility_annotator_data_adapter_factory.cc",
+    "autofill_accessibility_annotator_data_adapter_factory.h",
     "autofill_ai_model_cache_factory.cc",
     "autofill_ai_model_cache_factory.h",
     "autofill_ai_model_executor_factory.cc",
@@ -82,6 +84,7 @@ static_library("autofill") {
     "//components/prefs",
     "//components/strings:components_strings_grit",
     "//components/variations/service",
+    "//components/wallet/core/browser",
     "//third_party/libphonenumber",
   ]
   configs += [ "//build/config/compiler:wexit_time_destructors" ]
@@ -109,6 +112,8 @@ static_library("autofill") {
       "android/entity_data_manager_android.h",
       "android/entity_instance_android.cc",
       "android/entity_instance_android.h",
+      "android/entity_instance_with_labels.cc",
+      "android/entity_instance_with_labels.h",
       "android/entity_metadata_android.cc",
       "android/entity_metadata_android.h",
       "android/entity_type_android.cc",

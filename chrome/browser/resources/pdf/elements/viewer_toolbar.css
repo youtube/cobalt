@@ -59,6 +59,7 @@
 }
 
 #end {
+  align-items: center;
   display: flex;
   justify-content: flex-end;
   padding-inline-start: 20px;
@@ -167,6 +168,14 @@ cr-progress,
   opacity: 1;
   visibility: visible;
 }
+
+<if expr="enable_glic">
+#glic-summarize-button {
+  background-color: #a6c6fa;
+  color: #0e326f;
+  margin-inline-end: 16px;
+}
+</if>
 
 <if expr="enable_pdf_ink2">
 .annotate-button {

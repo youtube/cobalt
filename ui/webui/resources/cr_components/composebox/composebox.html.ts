@@ -9,6 +9,7 @@ import {html, nothing} from '//resources/lit/v3_0/lit.rollup.js';
 import type {ComposeboxElement} from './composebox.js';
 
 export function getHtml(this: ComposeboxElement) {
+  // eslint-disable-next-line @webui-eslint/lit-element-template-structure
   const submitContainer = html`
     <div id="submitContainer" class="icon-fade" part="submit"
         slot="${this.searchboxNextEnabled ? 'submit-button' : nothing}"
@@ -44,7 +45,7 @@ export function getHtml(this: ComposeboxElement) {
     .errorMessage="${this.errorMessage_}"
     @dismiss-error-scrim="${this.onErrorScrimDismissed_}">
   </ntp-error-scrim>
-  <div id="composebox" ?inert="${this.errorMessage_}"
+  <div id="composebox" part="composebox" ?inert="${this.errorMessage_}"
       @keydown="${this.onKeydown_}"
       @focusin="${this.handleComposeboxFocusIn_}"
       @focusout="${this.handleComposeboxFocusOut_}"
@@ -97,7 +98,8 @@ export function getHtml(this: ComposeboxElement) {
           class="${this.carouselOnTop_ && this.isCollapsible ? 'icon-fade' : ''}"
           exportparts="context-menu-entrypoint-icon,
               cr-composebox-file-carousel, upload-container, voice-icon,
-              carousel-divider, carousel-container, thumbnail"
+              carousel-divider, carousel-container, thumbnail,
+              thumbnail-title, tool-chip-label"
           in-composebox
           .tabSuggestions="${this.tabSuggestions_}"
           .showMenuOnClick="${this.showMenuOnClick}"
@@ -112,6 +114,8 @@ export function getHtml(this: ComposeboxElement) {
           @model-click="${this.onModelClick_}"
           @get-tab-preview="${this.getTabPreview_}"
           @open-file-dialog="${this.onOpenFileDialog_}"
+          @query-autocomplete="${this.onQueryAutocomplete_}"
+          @clear-autocomplete-matches="${this.clearAutocompleteMatches}"
           @context-menu-container-click="${this.searchboxLayoutMode === 'Compact' ?  nothing : this.focusInput}"
           @context-menu-closed="${this.onContextMenuClosed_}"
           @context-menu-opened="${this.onContextMenuOpened_}"

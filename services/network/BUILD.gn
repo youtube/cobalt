@@ -420,7 +420,10 @@ component("network_service") {
   }
 
   if (is_p2p_enabled) {
-    deps += [ "//third_party/webrtc_overrides:webrtc_component" ]
+    deps += [
+      "//services/network/public/cpp:cpp_p2p",
+      "//third_party/webrtc_overrides:webrtc_component",
+    ]
   }
 
   if (is_android) {
@@ -429,6 +432,10 @@ component("network_service") {
 
   if (is_win) {
     deps += [ "//sandbox/win:sandbox" ]
+  }
+
+  if (is_mac) {
+    deps += [ "//components/enterprise/platform_auth:enterprise_platform_auth" ]
   }
 
   defines = [ "IS_NETWORK_SERVICE_IMPL" ]

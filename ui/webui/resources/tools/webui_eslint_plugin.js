@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import {ESLintUtils} from '../../../../third_party/node/node_modules/@typescript-eslint/utils/dist/index.js';
+import esquery from '../../../../third_party/node/node_modules/esquery/dist/esquery.esm.min.js';
 
 // NOTE: Using `\u002F` instead of a forward slash, to workaround for
 // https://github.com/eslint/eslint/issues/16555,
@@ -23,6 +24,42 @@ const POLYMER_IMPORT_REGEX = [
 const LIT_IMPORT_REGEX =
     ['resources', 'lit', 'v3_0', 'lit.rollup.js$'].join('\\u002F');
 
+const CR_LIT_ELEMENT_EXTENDS_MIXIN_SELECTOR =
+    'CallExpression[callee.name=/Mixin$/][arguments.0.name="CrLitElement"]';
+
+function isCrLitElementSubclass(node, programNode) {
+  assert.ok(node.type === 'ClassDeclaration');
+
+  if (!node.superClass) {
+    return false;
+  }
+
+  if (node.superClass.type === 'Identifier') {
+    if (node.superClass.name === 'CrLitElement') {
+      // Case1: 'MyElement extends CrLitElement {...}'
+      return true;
+    }
+
+    // Case2:
+    // const MyElementBase = SomeMixin(CrLitElement);
+    // MyElement extends MyElementBase {...}'
+    const baseClassSelector = esquery.parse(
+        `Program > VariableDeclaration > VariableDeclarator[id.name="${
+            node.superClass.name}"] ${CR_LIT_ELEMENT_EXTENDS_MIXIN_SELECTOR}`);
+    const matchingNodes = esquery.match(programNode, baseClassSelector);
+    return matchingNodes.length > 0;
+  }
+
+  if (node.superClass.type === 'CallExpression') {
+    // Case3: 'MyElement extends SomeMixin(SomeOtherMixin((CrLitElement)) {...}'
+    const selector = esquery.parse(CR_LIT_ELEMENT_EXTENDS_MIXIN_SELECTOR);
+    const matchingNodes = esquery.match(node.superClass, selector);
+    return matchingNodes.length > 0;
+  }
+
+  return false;
+}
+
 const litElementStructureRule = ESLintUtils.RuleCreator.withoutDocs({
   name: 'lit-element-structure',
   meta: {
@@ -33,6 +70,10 @@ const litElementStructureRule = ESLintUtils.RuleCreator.withoutDocs({
       recommended: 'error',
     },
     messages: {
+      incorrectClassName:
+          'CrLitElement subclass {{className}} should end with the \'Element\' suffix.',
+      incorrectMethodDefinitionOrder:
+          'Inconsistent method definition order in class {{className}}. Expected [{{expectedOrder}}], found [{{actualOrder}}].',
       missingSuperCalls:
           'Missing superclass calls for lifecycle method(s) {{lifecycleMethods}} in class {{className}}.',
       missingStaticIsGetter:
@@ -54,6 +95,21 @@ const litElementStructureRule = ESLintUtils.RuleCreator.withoutDocs({
 
     // Regex to detect if a class is subclassing a native HTMLElement.
     const NATIVE_HTML_SUBCLASS_REGEX = /^HTML\S+Element$/g;
+
+    // The order in which boilerplate and lifecycle CrLitElement methods should
+    // be defined.
+    const desiredMethodDefinitionOrder = new Map([
+      ['is', 0],
+      ['styles', 1],
+      ['render', 2],
+      ['properties', 3],
+      ['constructor', 4],
+      ['connectedCallback', 5],
+      ['disconnectedCallback', 6],
+      ['willUpdate', 7],
+      ['firstUpdated', 8],
+      ['updated', 9],
+    ]);
 
     // Necessary info to track about each class definition encountered in the
     // current file.
@@ -81,20 +137,32 @@ const litElementStructureRule = ESLintUtils.RuleCreator.withoutDocs({
 
         // Set of calls to superclass lifecycle methods.
         this.superCallCalled = new Set();
+
+        // Holds the order in which various methods are defined.
+        // interface OrderEntry {
+        //   name: string;
+        //   node: MethodDefinition;
+        // }
+        this.methodDefinitionOrder = [];
       }
 
       visitClassDeclaration(node) {
-        if (!node.id.name.includes('Element') || node.superClass === null) {
+        this.isLitElement =
+            isCrLitElementSubclass(node, context.sourceCode.ast);
+        if (!this.isLitElement) {
           return;
         }
 
-        if (node.superClass.type === 'Identifier' &&
-            (node.superClass.name.match(NATIVE_HTML_SUBCLASS_REGEX) ||
-             node.superClass.name === 'TestBrowserProxy')) {
-          return;
+        if (!node.id.name.endsWith('Element')) {
+          context.report({
+            node: node,
+            messageId: 'incorrectClassName',
+            data: {
+              className: node.id.name,
+            },
+          });
         }
 
-        this.isLitElement = true;
         this.node = node;
       }
 
@@ -208,13 +276,51 @@ interface HTMLElementTagNameMap {
           },
         });
       }
+
+      runMethodDefinitionOrderCheck() {
+        if (!this.isLitElement || !this.node) {
+          return;
+        }
+
+        const actualOrder = this.methodDefinitionOrder.map(entry => entry.name);
+        const expectedOrder =
+            this.methodDefinitionOrder
+                .sort((a, b) => {
+                  return desiredMethodDefinitionOrder.get(a.name) -
+                      desiredMethodDefinitionOrder.get(b.name);
+                })
+                .map(entry => entry.name);
+
+        if (JSON.stringify(actualOrder) === JSON.stringify(expectedOrder)) {
+          return;
+        }
+
+        context.report({
+          node: this.node,
+          messageId: 'incorrectMethodDefinitionOrder',
+          data: {
+            className: this.node.id.name,
+            expectedOrder: expectedOrder.join(', '),
+            actualOrder: actualOrder.join(', '),
+          },
+        });
+      }
     }
 
+    const METHOD_DEFINITION_SELECTOR_TEMPLATE =
+        'ClassDeclaration > ClassBody > MethodDefinition[key.name=/{{methodDefinition}}/]';
+
+    const METHOD_DEFINITION_ORDER_REGEX =
+        `^(${Array.from(desiredMethodDefinitionOrder.keys()).join('|')})$`;
+    const METHOD_DEFINITION_SELECTOR =
+        METHOD_DEFINITION_SELECTOR_TEMPLATE.replace(
+            '{{methodDefinition}}', METHOD_DEFINITION_ORDER_REGEX);
+
     const SUPER_CALL_REQUIRED_REGEX =
-        '^connectedCallback|disconnectedCallback|willUpdate|updated$';
+        '^(connectedCallback|disconnectedCallback|willUpdate|updated)$';
     const LIFECYCLE_METHOD_DEFINITION_SELECTOR =
-        `ClassDeclaration > ClassBody > MethodDefinition[key.name=/${
-            SUPER_CALL_REQUIRED_REGEX}/]`;
+        METHOD_DEFINITION_SELECTOR_TEMPLATE.replace(
+            '{{methodDefinition}}', SUPER_CALL_REQUIRED_REGEX);
     const LIFECYCLE_METHOD_SUPER_CALL_SELECTOR = `${
         LIFECYCLE_METHOD_DEFINITION_SELECTOR} > FunctionExpression > BlockStatement > ExpressionStatement > CallExpression > MemberExpression[object.type="Super"][property.name=/${
         SUPER_CALL_REQUIRED_REGEX}/]`;
@@ -247,6 +353,14 @@ interface HTMLElementTagNameMap {
 
         currentClassInfo.visitStaticGetIs(node);
       },
+      [METHOD_DEFINITION_SELECTOR](node) {
+        if (!hasLitImport) {
+          return;
+        }
+
+        currentClassInfo.methodDefinitionOrder.push(
+            {name: node.key.name, node});
+      },
       [LIFECYCLE_METHOD_DEFINITION_SELECTOR](node) {
         if (!hasLitImport) {
           return;
@@ -268,6 +382,7 @@ interface HTMLElementTagNameMap {
 
         currentClassInfo.runMissingStaticIsGetterCheck();
         currentClassInfo.runMissingSuperCallsCheck();
+        currentClassInfo.runMethodDefinitionOrderCheck();
       },
       ['Program > TSModuleDeclaration[kind=global] > TSModuleBlock > TSInterfaceDeclaration[id.name="HTMLElementTagNameMap"] > TSInterfaceBody > TSPropertySignature'](
           node) {
@@ -574,7 +689,7 @@ const webComponentMissingDeps = ESLintUtils.RuleCreator.withoutDocs({
         f => f.fileName.startsWith(compilerOptions.rootDir + '/'));
 
     // The file where imports are expected to exist.
-    const classDefinitionFile = sourceFiles.find(
+    let classDefinitionFile = sourceFiles.find(
         f => (f.fileName === templateFilename.replace(/\.html\.ts$/, '.ts')) ||
             null);
 
@@ -606,7 +721,14 @@ const webComponentMissingDeps = ESLintUtils.RuleCreator.withoutDocs({
     // Regular expression to extract all DOM tag names from a string.
     const TAG_NAME_REGEX = /<(?<tagName>[^ >\/!\n]+)/g;
 
+    const importNodes = [];
+
     return {
+      ['ImportDeclaration'](node) {
+        if (node.specifiers.length > 0) {
+          importNodes.push(node);
+        }
+      },
       ['FunctionDeclaration[id.name=/getHtml|getTemplate/]'](node) {
         // Looking for either of the following patterns
         //  - Lit templates: 'getHtml(this: SomeType) {...}'
@@ -617,6 +739,26 @@ const webComponentMissingDeps = ESLintUtils.RuleCreator.withoutDocs({
           // Handle a few cases where lit-html is used directly and there is no
           // classDefinitionFilename file.
           return;
+        }
+
+        if (node.id.name === 'getHtml' && !classDefinitionFile) {
+          // Handle cases for sub-templates by finding the appropriate file.
+          const paramSelector = esquery.parse('Identifier[name="this"]');
+          const matchingNodes = esquery.match(node, paramSelector);
+          const className =
+              matchingNodes[0].typeAnnotation.typeAnnotation.typeName.name;
+          // Find the URL of the import that imports the class.
+          const classImport =
+              importNodes
+                  .find(importNode => {
+                    return importNode.specifiers.some(specifier => {
+                      return specifier.local.name === className;
+                    });
+                  })
+                  .source.value;
+          const classFile = path.basename(classImport).replace('.js', '.ts');
+          classDefinitionFile =
+              sourceFiles.find(f => path.basename(f.fileName) === classFile);
         }
 
         // Extract function's body as a string.
@@ -782,13 +924,13 @@ const litElementTemplateStructure = ESLintUtils.RuleCreator.withoutDocs({
     },
     messages: {
       ifStatementFound:
-          'If statement found in the HTML template file \'{{fileName}}\'. Use ternary statements for conditional rendering, and delegate more complex logic to the class definition file',
+          'If statement found in getHtml() method. Use ternary statements for conditional rendering, and delegate more complex logic to the class definition file',
       forStatementFound:
-          'For loop found in the HTML template file \'{{fileName}}\'. Use the map() directive to render the same HTML for an array of items, and delegate more complex logic to the class definition file',
+          'For loop found in getHtml() method. Use Array#map() to render the same HTML for an array of items, and delegate more complex logic to the class definition file',
       variableDeclarationFound:
-          'Local (const/let) variable \'{{variableName}}\' found in the HTML template file \'{{fileName}}\'. Logic should be delegated to the class definition file',
+          'Local (const/let) variable \'{{variableName}}\' found in the HTML template file. Logic should be delegated to the class definition file',
       functionDefinitionFound:
-          'Extra function definition \'{{functionName}}\' found in the HTML template file \'{{fileName}}\'. Complex logic should be delegated to the class definition file. Standalone/separate chunks of templates may need a dedicated custom element',
+          'Extra function definition \'{{functionName}}\' found in the HTML template file. Complex logic should be delegated to the class definition file. Standalone/separate chunks of templates may need a dedicated custom element',
     },
   },
   defaultOptions: [],
@@ -804,7 +946,7 @@ const litElementTemplateStructure = ESLintUtils.RuleCreator.withoutDocs({
       [`ImportDeclaration[source.value=/${LIT_IMPORT_REGEX}/]`](node) {
         hasLitImport = true;
       },
-      ['FunctionDeclaration[id.name!=/getHtml/]'](node) {
+      ['FunctionDeclaration[id.name!="getHtml"]'](node) {
         if (!hasLitImport) {
           return;
         }
@@ -814,11 +956,10 @@ const litElementTemplateStructure = ESLintUtils.RuleCreator.withoutDocs({
           messageId: 'functionDefinitionFound',
           data: {
             functionName: node.id.name,
-            fileName: path.basename(templateFilename),
           },
         });
       },
-      ['FunctionDeclaration[id.name=/getHtml/] ForStatement'](node) {
+      ['FunctionDeclaration[id.name="getHtml"] ForStatement'](node) {
         if (!hasLitImport) {
           return;
         }
@@ -826,12 +967,9 @@ const litElementTemplateStructure = ESLintUtils.RuleCreator.withoutDocs({
         context.report({
           node,
           messageId: 'forStatementFound',
-          data: {
-            fileName: path.basename(templateFilename),
-          },
         });
       },
-      ['FunctionDeclaration[id.name=/getHtml/] ForOfStatement'](node) {
+      ['FunctionDeclaration[id.name="getHtml"] ForOfStatement'](node) {
         if (!hasLitImport) {
           return;
         }
@@ -839,13 +977,18 @@ const litElementTemplateStructure = ESLintUtils.RuleCreator.withoutDocs({
         context.report({
           node,
           messageId: 'forStatementFound',
-          data: {
-            fileName: path.basename(templateFilename),
-          },
         });
       },
-      // TODO (crbug.com/481519338): Enable these parts of the check.
-      /*
+      ['FunctionDeclaration[id.name="getHtml"] IfStatement'](node) {
+        if (!hasLitImport) {
+          return;
+        }
+
+        context.report({
+          node,
+          messageId: 'ifStatementFound',
+        });
+      },
       ['VariableDeclaration'](node) {
         if (!hasLitImport) {
           return;
@@ -857,25 +1000,10 @@ const litElementTemplateStructure = ESLintUtils.RuleCreator.withoutDocs({
             messageId: 'variableDeclarationFound',
             data: {
               variableName: declaration.id.name,
-              fileName: path.basename(templateFilename),
             },
           });
         }
       },
-      [FunctionDeclaration[id.name=/getHtml/] 'IfStatement'](node) {
-        if (!hasLitImport) {
-          return;
-        }
-
-        context.report({
-          node,
-          messageId: 'ifStatementFound',
-          data: {
-            fileName: path.basename(templateFilename),
-          },
-        });
-      },
-      */
     };
   },
 });

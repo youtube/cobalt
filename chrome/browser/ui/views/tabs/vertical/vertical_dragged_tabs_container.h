@@ -5,14 +5,17 @@
 #ifndef CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_DRAGGED_TABS_CONTAINER_H_
 #define CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_DRAGGED_TABS_CONTAINER_H_
 
+#include "base/callback_list.h"
 #include "base/containers/flat_map.h"
 #include "base/memory/raw_ref.h"
 #include "base/scoped_observation.h"
 #include "chrome/browser/ui/views/tabs/dragging/tab_drag_target.h"
+#include "chrome/browser/ui/views/tabs/vertical/tab_drag_scroll_handler.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/vector2d.h"
 #include "ui/views/view_observer.h"
 
+class TabCollectionNode;
 class VerticalTabDragHandler;
 
 namespace views {
@@ -36,6 +39,7 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
   enum class DragLayout { kVertical, kSquash };
 
   VerticalDraggedTabsContainer(views::View& host_view,
+                               TabCollectionNode* collection_node,
                                DragAxes drag_axis,
                                DragLayout drag_layout);
   VerticalDraggedTabsContainer(const VerticalDraggedTabsContainer& other) =
@@ -99,13 +103,10 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
                          std::optional<int> min_x_overlap,
                          std::optional<int> min_y_overlap) const;
 
+  VerticalTabDragHandler& GetDragHandler();
+  const VerticalTabDragHandler& GetDragHandler() const;
+
  private:
-  virtual VerticalTabDragHandler& GetDragHandler() = 0;
-  virtual const VerticalTabDragHandler& GetDragHandler() const = 0;
-
-  // Whether the tab strip is collapsed.
-  virtual bool IsTabStripCollapsed() const = 0;
-
   // Returns the scroll view for the container.
   virtual views::ScrollView* GetScrollViewForContainer() const = 0;
 
@@ -116,6 +117,10 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
   // `point_in_container` is a point relative to this target's view.
   virtual void HandleTabDragInContainer(
       const gfx::Rect& dragged_tab_bounds) = 0;
+
+  // Handles dragged tabs entering this container, applying the necessary
+  // updates to reparent them into this.
+  void HandleTabDragEnteredContainer();
 
   // Updates state related to dragging tabs, to be used when this container
   // starts handling a drag.
@@ -128,6 +133,9 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
                                    bool is_source_dragged_view);
   void AddViewToSquashedDragLayout(views::View* dragging_view,
                                    bool is_source_dragged_view);
+
+  // Whether the tab strip is collapsed.
+  bool IsTabStripCollapsed() const;
 
   // Clears drag state and removes the transformations that were being used for
   // the drag.
@@ -146,7 +154,16 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
   gfx::Rect GetDraggingViewsBoundsAtPointClamped(
       const gfx::Point& point_in_container) const;
 
+  void ResetCollectionNode();
+
+  // Handles updates, both visually and in the model, for whenever the dragged
+  // tabs' position changes.
+  void ApplyUpdatesForDragPositionChange();
+
   const raw_ref<const views::View> host_view_;
+  raw_ptr<TabCollectionNode> collection_node_;
+
+  base::CallbackListSubscription node_destroyed_subscription_;
   int tab_strip_padding_;
 
   gfx::Point last_drag_point_in_screen_;
@@ -163,6 +180,11 @@ class VerticalDraggedTabsContainer : public TabDragTarget,
 
   base::ScopedObservation<views::View, views::ViewObserver>
       host_view_observation_{this};
+
+  TabDragScrollHandler scroll_handler_;
+
+  std::optional<base::CallbackListSubscription> on_scrolled_subscription_ =
+      std::nullopt;
 
   base::OnceClosureList on_will_destroy_callback_list_;
 };

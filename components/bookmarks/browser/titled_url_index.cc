@@ -8,7 +8,6 @@
 
 #include <algorithm>
 #include <iterator>
-#include <unordered_set>
 #include <utility>
 
 #include "base/i18n/case_conversion.h"
@@ -23,6 +22,7 @@
 #include "components/bookmarks/browser/titled_url_node.h"
 #include "components/omnibox/common/string_cleaning.h"
 #include "components/query_parser/snippet.h"
+#include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "third_party/icu/source/common/unicode/normalizer2.h"
 #include "third_party/icu/source/common/unicode/utypes.h"
 
@@ -68,11 +68,13 @@ void TitledUrlIndex::AddPath(const TitledUrlNode* node) {
 void TitledUrlIndex::RemovePath(const TitledUrlNode* node) {
   for (const std::u16string& term :
        ExtractQueryWords(Normalize(node->GetTitledUrlNodeTitle()))) {
-    // `path_index_.count(term)` should be > 0, since nodes can't be
+    // `path_index_ should contain `term`, since nodes can't be
     // removed/renamed if they didn't exist to begin with. But some tests don't
     // fully load bookmarks so it's not `DCHECK`ed.
-    if (path_index_.count(term) && !--path_index_[term])
-      path_index_.erase(term);
+    if (auto it = path_index_.find(term);
+        it != path_index_.end() && !--(it->second)) {
+      path_index_.erase(it);
+    }
   }
 }
 
@@ -324,9 +326,9 @@ TitledUrlIndex::TitledUrlNodeSet TitledUrlIndex::RetrieveNodesMatchingAnyTerms(
       [](size_t first, size_t second) { return first < second; },
       [](const auto& matches) { return matches.size(); });
 
-  // Use an `unordered_set` to avoid potentially 1000's of linear time
+  // Use an `absl::flat_hash_set` to avoid potentially 1000's of linear time
   // insertions into the ordered `TitledUrlNodeSet` (i.e. `flat_set`).
-  std::unordered_set<const TitledUrlNode*> matches;
+  absl::flat_hash_set<const TitledUrlNode*> matches;
   for (const auto& term_matches : matches_per_term) {
     for (const TitledUrlNode* node : term_matches) {
       matches.insert(node);

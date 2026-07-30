@@ -136,7 +136,10 @@ class MockActiveTaskContextProvider : public ActiveTaskContextProvider {
   MOCK_METHOD(void, AddObserver, (Observer * observer), (override));
   MOCK_METHOD(void, RemoveObserver, (Observer * observer), (override));
   MOCK_METHOD(void, RefreshContext, (), (override));
-  MOCK_METHOD(void, SetSessionHandleGetter, (SessionHandleGetter), (override));
+  MOCK_METHOD(void,
+              SetContextualTasksPanelController,
+              (ContextualTasksPanelController*),
+              (override));
 };
 
 }  // namespace
@@ -188,7 +191,7 @@ class ContextualTasksSidePanelCoordinatorTest : public testing::Test {
 
     coordinator_ = std::make_unique<ContextualTasksSidePanelCoordinator>(
         browser_window_.get(), &mock_side_panel_ui_,
-        &mock_active_task_context_provider_);
+        &mock_active_task_context_provider_, nullptr);
 
     // Create a new tab.
     tab_strip_model_->AppendWebContents(
@@ -213,6 +216,15 @@ class ContextualTasksSidePanelCoordinatorTest : public testing::Test {
     browser_window_.reset();
     mock_controller_ = nullptr;
     profile_.reset();
+  }
+
+  void TriggerOnEligibilityChange(bool is_eligible) {
+    coordinator_->OnEligibilityChange(is_eligible);
+  }
+
+  void CreateWebContentsForTesting() {
+    coordinator_->CreateCachedWebContentsForTesting(
+        base::Uuid::GenerateRandomV4(), true);
   }
 
   std::unique_ptr<KeyedService> CreateMockContextController(
@@ -279,6 +291,20 @@ TEST_F(ContextualTasksSidePanelCoordinatorTest, ShowSidePanelSetsEntryPoint) {
   coordinator_->Show(
       false,
       omnibox::ChromeAimEntryPoint::DESKTOP_CHROME_COBROWSE_TOOLBAR_BUTTON);
+}
+
+TEST_F(ContextualTasksSidePanelCoordinatorTest, CloseSidePanelWhenNotEligible) {
+  ON_CALL(mock_side_panel_ui_, IsSidePanelEntryShowing(_))
+      .WillByDefault(Return(true));
+
+  CreateWebContentsForTesting();
+  EXPECT_EQ(1u, coordinator_->GetNumberOfActiveTasks());
+
+  // Verify that the side panel is closed when not eligible and cache is empty.
+  EXPECT_CALL(mock_side_panel_ui_,
+              Close(SidePanelEntry::PanelType::kToolbar, _, _));
+  TriggerOnEligibilityChange(false);
+  EXPECT_EQ(0u, coordinator_->GetNumberOfActiveTasks());
 }
 
 }  // namespace contextual_tasks

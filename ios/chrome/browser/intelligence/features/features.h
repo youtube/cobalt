@@ -69,12 +69,6 @@ extern const char kAskGeminiChipPrepopulateAndIgnoreCriteria[];
 bool IsAskGeminiChipAllowNonconsentedUsersEnabled();
 extern const char kAskGeminiChipAllowNonconsentedUsers[];
 
-// Feature flag controlling the cross-tab floaty chat persistence.
-BASE_DECLARE_FEATURE(kGeminiCrossTab);
-
-// Returns true if the cross-tab chat persistence is enabled for the floaty.
-bool IsGeminiCrossTabEnabled();
-
 // Whether the omnibox entry point opens the BWG overlay immediately, skipping
 // the AI hub.
 bool IsDirectBWGEntryPoint();
@@ -108,6 +102,9 @@ bool ShouldSkipBWGPromoNewUserDelay();
 // Feature flag to enable BWG Promo Consent.
 BASE_DECLARE_FEATURE(kBWGPromoConsent);
 
+// Feature flag to enable Explain Gemini in Edit Menu.
+BASE_DECLARE_FEATURE(kExplainGeminiEditMenu);
+
 extern const char kExplainGeminiEditMenuParams[];
 
 // Holds the position of Explain Gemini button in the EditMenu.
@@ -120,28 +117,11 @@ enum class PositionForExplainGeminiEditMenu {
 // Returns the position of Explain Gemini in the EditMenu.
 PositionForExplainGeminiEditMenu ExplainGeminiEditMenuPosition();
 
-// Feature flag to enable Explain Gemini in Edit Menu.
-BASE_DECLARE_FEATURE(kExplainGeminiEditMenu);
-
 // Feature flag to enable Precise Location in BWG Settings Menu.
 BASE_DECLARE_FEATURE(kBWGPreciseLocation);
 
 // Returns true if the precise location setting is enabled.
 bool IsBWGPreciseLocationEnabled();
-
-// Feature flag controlling the inclusion of anchor tags (links) in Page
-// Context.
-BASE_DECLARE_FEATURE(kPageContextAnchorTags);
-
-// Returns true if the anchor tags are enabled in Page Context.
-bool IsPageContextAnchorTagsEnabled();
-
-// Feature flag controlling whether Gemini is available for managed accounts.
-BASE_DECLARE_FEATURE(kGeminiForManagedAccounts);
-
-// Returns true if Gemini is available for managed accounts. If true, can still
-// be disabled by an Enterprise policy.
-bool IsGeminiAvailableForManagedAccounts();
 
 // Feature flag to show the AI Hub new badge.
 BASE_DECLARE_FEATURE(kAIHubNewBadge);
@@ -257,10 +237,6 @@ bool IsGeminiLatencyImprovementEnabled();
 BASE_DECLARE_FEATURE(kGeminiImmediateOverlay);
 bool IsGeminiImmediateOverlayEnabled();
 
-// Feature flag for the discovery onboarding cards.
-BASE_DECLARE_FEATURE(kGeminiOnboardingCards);
-bool IsGeminiOnboardingCardsEnabled();
-
 // Feature flag to use the new refactored version of the page context extractor.
 // Acts as a killswitch where the feature is enabled by default.
 BASE_DECLARE_FEATURE(kPageContextExtractorRefactored);
@@ -343,5 +319,20 @@ bool IsModelBasedPageClassificationEnabled();
 int GetModelBasedPageClassificationExecutionRate();
 
 extern const char kModelBasedPageClassificationExecutionRateParam[];
+
+// Enables the PageActionMenuIcon feature.
+BASE_DECLARE_FEATURE(kPageActionMenuIcon);
+
+// Param for the page action menu icon variations.
+extern const char kPageActionMenuIconParams[];
+
+// Icon to use for the page action menu entry point.
+enum class PageActionMenuIconVariations {
+  kDefault = 0,
+  kSparkles1 = 1,
+  kSparkles2 = 2,
+};
+
+PageActionMenuIconVariations GetPageActionMenuIcon();
 
 #endif  // IOS_CHROME_BROWSER_INTELLIGENCE_FEATURES_FEATURES_H_

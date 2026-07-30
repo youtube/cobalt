@@ -52,6 +52,8 @@ class ContextualTasksPanelController {
   // In both cases, the cache needs to be updated.
   virtual void OnTaskChanged(content::WebContents* web_contents,
                              base::Uuid task_id) = 0;
+  // Called when there is an AI interaction in the panel.
+  virtual void OnAiInteraction() = 0;
 
   // WebContents & session management.
   // Returns the currently active WebContents, or NULL if there is none.
@@ -72,6 +74,11 @@ class ContextualTasksPanelController {
       std::unique_ptr<content::WebContents> web_contents) = 0;
   // Get the task associated with the active tab.
   virtual std::optional<ContextualTask> GetCurrentTask() = 0;
+
+  // Returns currently showing task's task ID and session handle.
+  virtual std::pair<std::optional<base::Uuid>,
+                    contextual_search::ContextualSearchSessionHandle*>
+  GetSessionHandleForActiveTabOrSidePanel() = 0;
 
   // Metrics.
   // Returns the number of active tasks tracked by `this`.

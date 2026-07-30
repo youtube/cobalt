@@ -32,7 +32,7 @@ class AutofillDriver;
 struct AutofillErrorDialogContext;
 class AutofillOfferData;
 class AutofillOfferManager;
-enum class AutofillProgressDialogType;
+enum class AutofillProgressUiType;
 class AutofillSaveCardBottomSheetBridge;
 class AutofillSaveIbanBottomSheetBridge;
 class BnplIssuer;
@@ -243,7 +243,7 @@ class PaymentsAutofillClient : public RiskDataLoader {
 
   // Used to hold the data entered by the user in the Save and Fill dialog,
   // including card number, expiration date, name on card, and an optional
-  // security code.
+  // security code and nickname if it's on iOS platform.
   struct UserProvidedCardSaveAndFillDetails : public UserProvidedCardDetails {
     UserProvidedCardSaveAndFillDetails();
     UserProvidedCardSaveAndFillDetails(
@@ -254,6 +254,9 @@ class PaymentsAutofillClient : public RiskDataLoader {
 
     std::u16string card_number;
     std::optional<std::u16string> security_code;
+#if BUILDFLAG(IS_IOS)
+    std::optional<std::u16string> nickname;
+#endif
   };
 
   // Callback to run after the local/upload card Save and Fill dialog is shown.
@@ -451,7 +454,7 @@ class PaymentsAutofillClient : public RiskDataLoader {
   // Show/dismiss the progress dialog which contains a throbber and a text
   // message indicating that something is in progress.
   virtual void ShowAutofillProgressDialog(
-      AutofillProgressDialogType autofill_progress_dialog_type,
+      AutofillProgressUiType autofill_progress_dialog_type,
       base::OnceClosure cancel_callback) = 0;
   virtual void CloseAutofillProgressDialog(
       bool show_confirmation_before_closing,

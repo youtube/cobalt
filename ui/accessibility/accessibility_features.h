@@ -256,9 +256,6 @@ AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForEspeakNGTts();
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityManifestV3GoogleTts);
 AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForGoogleTts();
 
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kAccessibilityManifestV3SwitchAccess);
-AX_BASE_EXPORT bool IsAccessibilityManifestV3EnabledForSwitchAccess();
-
 #endif  // BUILDFLAG(IS_CHROMEOS)
 
 #if BUILDFLAG(IS_ANDROID)
@@ -324,10 +321,6 @@ GetReadAnythingMenuShuffleExperimentGroup();
 
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingMenuShuffleExperiment);
 AX_BASE_EXPORT bool IsReadAnythingMenuShuffleExperimentEnabled();
-
-// Show the Read Aloud feature in Read Anything.
-AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingReadAloud);
-AX_BASE_EXPORT bool IsReadAnythingReadAloudEnabled();
 
 // Enable phrase highlighting in Read Anything Read Aloud.
 AX_BASE_EXPORT BASE_DECLARE_FEATURE(kReadAnythingReadAloudPhraseHighlighting);

@@ -32,6 +32,7 @@
 #include "components/sessions/content/session_tab_helper.h"
 #include "net/base/url_util.h"
 #include "third_party/lens_server_proto/lens_overlay_server.pb.h"
+#include "third_party/omnibox_proto/chrome_aim_entry_point.pb.h"
 
 namespace {
 std::vector<lens::ContextualInput> ConvertPageContentToContextualInput(
@@ -150,14 +151,14 @@ void LensQueryFlowRouter::SendTaskCompletionGen204IfEnabled(
     }
     auto* file_info = session_handle->GetController()->GetFileInfo(
         overlay_tab_context_file_token_.value());
-    if (!file_info) {
+    if (!file_info || !file_info->request_id.has_value()) {
       return;
     }
 
     gen204_controller()->SendTaskCompletionGen204IfEnabled(
-        /*encoded_analytics_id=*/file_info->request_id.analytics_id(),
+        /*encoded_analytics_id=*/file_info->request_id->analytics_id(),
         user_action,
-        /*request_id=*/file_info->request_id);
+        /*request_id=*/file_info->request_id.value());
     return;
   }
   lens_overlay_query_controller()->SendTaskCompletionGen204IfEnabled(
@@ -174,7 +175,7 @@ void LensQueryFlowRouter::SendSemanticEventGen204IfEnabled(
     }
     auto* file_info = session_handle->GetController()->GetFileInfo(
         overlay_tab_context_file_token_.value());
-    if (!file_info) {
+    if (!file_info || !file_info->request_id.has_value()) {
       return;
     }
 
@@ -544,6 +545,10 @@ LensQueryFlowRouter::CreateSearchUrlRequestInfoFromInteraction(
 
   request_info->additional_params = additional_search_query_params;
   request_info->invocation_source = invocation_source;
+  // TODO(crbug.com/483805922): Create individual AIM entry points for each
+  // Lens invocation source.
+  request_info->aim_entry_point =
+      omnibox::DESKTOP_CHROME_LENS_CONTEXTUAL_SEARCHBOX_ENTRY_POINT;
 
   if (region) {
     auto client_logs =

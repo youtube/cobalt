@@ -161,8 +161,8 @@ WebWindowFeatures GetWindowFeaturesFromString(const String& feature_string,
         value_string == "true") {
       value = 1;
     } else {
-      value = CharactersToInt(value_string, NumberParsingOptions::Loose(),
-                              /*ok=*/nullptr);
+      value =
+          StringToInt(value_string, NumberParsingOptions::Loose()).value_or(0);
     }
 
     if (!ui_features_were_disabled && key_string != "noopener" &&
@@ -331,8 +331,7 @@ Frame* CreateNewWindow(LocalFrame& opener_frame,
                    NavigationPolicy::kNavigationPolicyNewPopup;
   bool borderless = false;
   if (auto* widget = opener_frame.GetWidgetForLocalRoot()) {
-    borderless =
-        widget->DisplayMode() == mojom::blink::DisplayMode::kBorderless;
+    borderless = widget->DisplayMode() == mojom::blink::DisplayMode::kUnframed;
   }
   if (new_popup && borderless) {
     min_size = kMinimumBorderlessWindowSize;

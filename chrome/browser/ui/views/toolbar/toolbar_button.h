@@ -121,6 +121,7 @@ class ToolbarButton : public views::LabelButton,
   void SetLayoutInsetDelta(const gfx::Insets& insets);
 
   // views::LabelButton:
+  void StateChanged(ButtonState old_state) override;
   void OnBoundsChanged(const gfx::Rect& previous_bounds) override;
   void OnThemeChanged() override;
   gfx::Rect GetAnchorBoundsInScreen() const override;
@@ -235,6 +236,8 @@ class ToolbarButton : public views::LabelButton,
                              SkColor hovered_color,
                              SkColor pressed_color,
                              SkColor disabled_color);
+
+  std::optional<SkColor> GetBackgroundColor() const;
 
   static constexpr int kDefaultIconSize = 16;
   static constexpr int kDefaultIconSizeChromeRefresh = 20;

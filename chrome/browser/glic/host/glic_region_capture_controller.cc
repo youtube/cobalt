@@ -4,12 +4,14 @@
 
 #include "chrome/browser/glic/host/glic_region_capture_controller.h"
 
+#include "base/feature_list.h"
 #include "chrome/browser/glic/host/context/glic_tab_data.h"
 #include "chrome/browser/glic/host/glic.mojom.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "content/public/browser/web_contents.h"
 
 #if !BUILDFLAG(IS_ANDROID)
+#include "chrome/browser/glic/selection/selection_overlay_controller.h"
 #include "chrome/browser/lens/region_search/lens_region_search_controller.h"
 #include "ui/gfx/geometry/rect_conversions.h"
 #include "ui/views/widget/widget.h"
@@ -18,6 +20,12 @@
 namespace glic {
 
 #if !BUILDFLAG(IS_ANDROID)
+
+namespace {
+// Enable new new region selection code path based on Lens overlay controller.
+BASE_FEATURE(kGlicRegionSelectionNew, base::FEATURE_DISABLED_BY_DEFAULT);
+}  // namespace
+
 // TODO(crbug.com/452944608): Add additional metrics for the CaptureRegion API.
 
 GlicRegionCaptureController::GlicRegionCaptureController() = default;
@@ -25,7 +33,7 @@ GlicRegionCaptureController::GlicRegionCaptureController() = default;
 GlicRegionCaptureController::~GlicRegionCaptureController() = default;
 
 void GlicRegionCaptureController::CaptureRegion(
-    content::WebContents* web_contents,
+    tabs::TabInterface* tab,
     mojo::PendingRemote<mojom::CaptureRegionObserver> observer) {
   on_capture_region_for_testing_.Run();
   // If a capture is already in progress, cancel it and notify the observer.
@@ -42,32 +50,48 @@ void GlicRegionCaptureController::CaptureRegion(
     lens_region_search_controller_->CloseWithReason(
         views::Widget::ClosedReason::kUnspecified);
   }
-  web_contents_ = web_contents;
-  if (!web_contents_) {
+  content::WebContents* web_contents = tab ? tab->GetContents() : nullptr;
+  if (!web_contents) {
     mojo::Remote<mojom::CaptureRegionObserver> remote(std::move(observer));
     remote->OnUpdate(mojom::CaptureRegionResultPtr(),
                      mojom::CaptureRegionErrorReason::kNoFocusableTab);
     return;
   }
+  tab_handle_ = tab->GetHandle();
+  content_discarded_subscription_ = tab->RegisterWillDiscardContents(
+      base::BindRepeating(&GlicRegionCaptureController::HandleDiscardContents,
+                          weak_factory_.GetWeakPtr()));
 
   capture_region_observer_.Bind(std::move(observer));
   capture_region_observer_.set_disconnect_handler(base::BindOnce(
       &GlicRegionCaptureController::OnCaptureRegionObserverDisconnected,
       base::Unretained(this)));
-  lens_region_search_controller_ =
-      std::make_unique<lens::LensRegionSearchController>();
-  lens_region_search_controller_->StartForRegionSelection(
-      web_contents_.get(), /*is_multi_capture=*/true,
-      base::BindRepeating(&GlicRegionCaptureController::OnRegionSelected,
-                          weak_factory_.GetWeakPtr()),
-      base::BindOnce(&GlicRegionCaptureController::OnRegionSelectionFlowClosed,
-                     weak_factory_.GetWeakPtr()));
+
+  if (base::FeatureList::IsEnabled(kGlicRegionSelectionNew)) {
+    SelectionOverlayController::FromTabWebContents(web_contents)->Show();
+  } else {
+    lens_region_search_controller_ =
+        std::make_unique<lens::LensRegionSearchController>();
+    lens_region_search_controller_->StartForRegionSelection(
+        web_contents, /*is_multi_capture=*/true,
+        base::BindRepeating(&GlicRegionCaptureController::OnRegionSelected,
+                            weak_factory_.GetWeakPtr()),
+        base::BindOnce(
+            &GlicRegionCaptureController::OnRegionSelectionFlowClosed,
+            weak_factory_.GetWeakPtr()));
+  }
 }
 
 void GlicRegionCaptureController::ResetMembers() {
+  if (base::FeatureList::IsEnabled(kGlicRegionSelectionNew) &&
+      tab_handle_.Get()) {
+    if (auto* web_contents = tab_handle_.Get()->GetContents()) {
+      SelectionOverlayController::FromTabWebContents(web_contents)->Hide();
+    }
+  }
+
   lens_region_search_controller_.reset();
   capture_region_observer_.reset();
-  web_contents_ = nullptr;
 }
 
 void GlicRegionCaptureController::CancelCaptureRegion() {
@@ -90,7 +114,11 @@ void GlicRegionCaptureController::OnRegionSelected(const gfx::Rect& rect) {
   if (!capture_region_observer_) {
     return;
   }
-  if (!web_contents_) {
+  content::WebContents* web_contents = nullptr;
+  if (auto* tab = tab_handle_.Get()) {
+    web_contents = tab->GetContents();
+  }
+  if (!web_contents) {
     capture_region_observer_->OnUpdate(
         mojom::CaptureRegionResultPtr(),
         mojom::CaptureRegionErrorReason::kUnknown);
@@ -98,9 +126,9 @@ void GlicRegionCaptureController::OnRegionSelected(const gfx::Rect& rect) {
     return;
   }
   auto result = mojom::CaptureRegionResult::New();
-  result->tab_id = GetTabId(web_contents_);
+  result->tab_id = tab_handle_.raw_value();
   content::RenderWidgetHostView* view =
-      web_contents_->GetPrimaryMainFrame()->GetView();
+      web_contents->GetPrimaryMainFrame()->GetView();
   result->region = mojom::CapturedRegion::NewRect(
       gfx::ScaleToEnclosingRect(rect, view->GetDeviceScaleFactor()));
   capture_region_observer_->OnUpdate(std::move(result), std::nullopt);
@@ -125,6 +153,13 @@ void GlicRegionCaptureController::OnRegionSelectionFlowClosed() {
 
 void GlicRegionCaptureController::OnCaptureRegionObserverDisconnected() {
   // The client has closed the pipe, so we should cancel the capture.
+  CancelCaptureRegion();
+}
+
+void GlicRegionCaptureController::HandleDiscardContents(
+    tabs::TabInterface* tab,
+    content::WebContents* old_contents,
+    content::WebContents* new_contents) {
   CancelCaptureRegion();
 }
 

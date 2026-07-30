@@ -1668,6 +1668,36 @@ void MaybeRegisterChromeFeaturePromos(
                                    "Triggered when a password is saved.")));
   }
 
+  // kIPHiOSTabGroupsDesktopFeature
+  if (MobilePromoOnDesktopTypeEnabled(
+          MobilePromoOnDesktopPromoType::kTabGroups)) {
+    registry.RegisterFeature(std::move(
+        FeaturePromoSpecification::CreateForCustomUi(
+            feature_engagement::kIPHiOSTabGroupsDesktopFeature,
+            kToolbarAvatarButtonElementId,
+            user_education::CreateCustomHelpBubbleViewFactoryCallback(
+                base::BindRepeating(
+                    &IOSPromoBubbleView::Create,
+                    desktop_to_mobile_promos::PromoType::kTabGroups)))
+            .SetMetadata(146, "bmcclure@google.com",
+                         "Triggered when Tab Groups are interacted with.")));
+  }
+
+  // kIPHiOSPriceTrackingDesktopFeature
+  if (MobilePromoOnDesktopTypeEnabled(
+          MobilePromoOnDesktopPromoType::kPriceTracking)) {
+    registry.RegisterFeature(std::move(
+        FeaturePromoSpecification::CreateForCustomUi(
+            feature_engagement::kIPHiOSPriceTrackingDesktopFeature,
+            kToolbarAvatarButtonElementId,
+            user_education::CreateCustomHelpBubbleViewFactoryCallback(
+                base::BindRepeating(
+                    &IOSPromoBubbleView::Create,
+                    desktop_to_mobile_promos::PromoType::kPriceTracking)))
+            .SetMetadata(146, "bmcclure@google.com",
+                         "Triggered when Price Tracking alerts are enabled.")));
+  }
+
 #endif  // BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX) || BUILDFLAG(IS_WIN)
 
 #if BUILDFLAG(ENABLE_COMPOSE)
@@ -1943,14 +1973,18 @@ void MaybeRegisterChromeTutorials(
             // Bubble step - inactive tab to right click.
             BubbleStep(kLastInactiveTabElementName)
                 .SetBubbleBodyText(IDS_SPLIT_VIEW_TAB_SWITCH_STEP_IPH_BODY)
-                .SetBubbleArrow(HelpBubbleArrow::kTopLeft),
+                .SetBubbleArrow(HelpBubbleArrow::kTopLeft)
+                .SetBubbleFocusOnShow(
+                    true),  // This bubble can be safely focused.
 
             HiddenStep::WaitForShown(kToolbarSplitTabsToolbarButtonElementId),
 
             // Bubble step - highlight the toolbar button.
             BubbleStep(kToolbarSplitTabsToolbarButtonElementId)
                 .SetBubbleBodyText(IDS_SPLIT_VIEW_TOOLBAR_BUTTON_STEP_IPH_BODY)
-                .SetBubbleArrow(HelpBubbleArrow::kTopLeft),
+                .SetBubbleArrow(HelpBubbleArrow::kTopLeft)
+                .SetBubbleFocusOnShow(
+                    true),  // This bubble can be safely focused.
 
             HiddenStep::WaitForShown(
                 SplitTabMenuModel::kReversePositionMenuItem),

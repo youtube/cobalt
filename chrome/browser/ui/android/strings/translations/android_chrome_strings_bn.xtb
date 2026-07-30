@@ -299,6 +299,7 @@
 <translation id="2287421207599770907">{NUMBER_OF_TABS,plural, =1{<ph name="TABS_COUNT_ONE" />টি ট্যাব দেখুন}one{<ph name="TABS_COUNT_MANY" />টি ট্যাব দেখুন}other{<ph name="TABS_COUNT_MANY" />টি ট্যাব দেখুন}}</translation>
 <translation id="2297822946037605517">এই পৃষ্ঠাটি শেয়ার করুন</translation>
 <translation id="230115972905494466">উপযুক্ত ডিভাইস খুঁজে পাওয়া যায়নি</translation>
+<translation id="2316129865977710310">না, ধন্যবাদ</translation>
 <translation id="2318045970523081853">কল করতে ট্যাপ করুন</translation>
 <translation id="2323763861024343754">সাইটের স্টোরেজ</translation>
 <translation id="2328474416100889417">প্রত্যেক ব্যক্তি অবিলম্বে "<ph name="GROUP_NAME" />" ট্যাব গ্রুপের অ্যাক্সেস হারাবেন এবং সব আমন্ত্রণের লিঙ্ক বন্ধ করা হবে</translation>
@@ -432,6 +433,7 @@
 <translation id="2870560284913253234">সাইট</translation>
 <translation id="2871733351037274014">পৃষ্ঠা প্রিলোড করা</translation>
 <translation id="2876136027428473467"><ph name="CHILD_NAME" /> চায় যে আপনি এই ওয়েবসাইট অনুমোদন করুন:</translation>
+<translation id="2876556152483133018">সাইট সার্চ</translation>
 <translation id="2876628302275096482"><ph name="BEGIN_LINK" />Chrome কীভাবে আপনার ডেটা ব্যক্তিগত রাখে<ph name="END_LINK" /> সেই সম্পর্কে আরও জানুন</translation>
 <translation id="2878607776582720720"><ph name="TAB_TITLE" />, একাধিক বেছে নেওয়া শেয়ারিং ছদ্মবেশী ট্যাব</translation>
 <translation id="2885355868600171871">সরাসরি অ্যাড্রেস বারে যান</translation>
@@ -474,6 +476,7 @@
 <translation id="2992473221983447149">ছবির বিবরণ</translation>
 <translation id="2996291259634659425">পাসফ্রেজ তৈরি করুন</translation>
 <translation id="2996809686854298943">URL প্রয়োজন</translation>
+<translation id="3008916997590006706">পরেরবার সাইন-ইন করার সময় সহজে এই পাসওয়ার্ড অ্যাক্সেস করতে, "সেভ করুন" বিকল্পে ট্যাপ করুন</translation>
 <translation id="3024215143424744261">রিডিং মোড সম্পর্কিত পছন্দ বন্ধ করা হয়েছে</translation>
 <translation id="3026955690410463085">লিঙ্ক যোগ করুন</translation>
 <translation id="3027644380269727216">সাইটে আপনার অ্যাক্টিভিটির উপর ভিত্তি করে। এই সেটিংটি চালু করা আছে।</translation>
@@ -621,6 +624,7 @@
 <translation id="3709577906275923507"><ph name="FILE_NAME" />-এ সংবেদনশীল তথ্য থাকতে পারে এবং এটি শেয়ার করা উচিত নয়</translation>
 <translation id="3710501561113687889">চালিয়ে যেতে, <ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> এই সাইটের সাথে আপনার <ph name="FIELDS_STRING" /> শেয়ার করবে।</translation>
 <translation id="3710560693796335511">কোলাবরেশন</translation>
+<translation id="3714430408451673233">ট্যাব বটম শিট অর্ধেক উচ্চতায় খোলা আছে।</translation>
 <translation id="3718765429352682176">Chrome-এ লিঙ্ক খোলে এমন অন্যান্য অ্যাপের ইতিহাস হয়ত দেখতে পারেন।</translation>
 <translation id="3721119614952978349">আপনি এবং Google</translation>
 <translation id="3727000368239390918">ব্যবহার করছেন এমন সব ট্যাব ও আরও অনেক কিছু আপনার সব ডিভাইসে পেতে সাইন-ইন করুন</translation>
@@ -765,6 +769,7 @@
 <translation id="4326079409704643112">আপনার Google অ্যাকাউন্টের Chrome ডেটা সেভ ও ব্যবহার করতে, আপনার পরিচয় যাচাই করুন</translation>
 <translation id="433213510553688132">অনুসরণ করা হচ্ছে...</translation>
 <translation id="4335835283689002019">'নিরাপদ ব্রাউজিং' বন্ধ আছে</translation>
+<translation id="4343250402091037179">কোনও নির্দিষ্ট সাইট বা Chrome-এর কোনও অংশ খুঁজতে, অ্যাড্রেস বারে এটির শর্টকাট টাইপ করে আপনার পছন্দের কীবোর্ড শর্টকাট প্রেস করুন।</translation>
 <translation id="4351244548802238354">ডায়ালগ বন্ধ করুন</translation>
 <translation id="4352287748243729941">আপনার <ph name="PROVIDER" /> পাসওয়ার্ড ব্যবহার করবেন?</translation>
 <translation id="4355272626458588338">বুকমার্ক যোগ করলে আপনি গুরুত্বপূর্ণ পৃষ্ঠায় ফিরে যেতে পারবেন</translation>
@@ -955,7 +960,9 @@
 <translation id="5056587122125565772">ছবি তৈরি করুন</translation>
 <translation id="506254248375231072">কোনও ট্যাব নেই</translation>
 <translation id="5075939510584558547">এনক্রিপশন না করে সেভ করুন</translation>
+<translation id="5078638979202084724">সকল ট্যাব বুকমার্ক করুন</translation>
 <translation id="5085038751173179818">আপনার ডিভাইসে আপনার বুকমার্ক ও আরও অনেক কিছু পেতে এই সাইট ও Chrome-এ সাইন-ইন করুন</translation>
+<translation id="5088347662971855383">Gemini পিন করুন</translation>
 <translation id="5091199029769593641">শীঘ্রই, আপনি নতুন কোনও ট্যাব খুললে, <ph name="SITE_NAME" /> থেকে গল্প পড়তে পারবেন। আপনি যেসব সাইট ফলো করেন, সেগুলি আপনার Google অ্যাকাউন্টে সেভ হয়ে যায়। আপনি 'ডিসকভার' সেটিংসে গিয়ে সেগুলি ম্যানেজ করতে পারেন।</translation>
 <translation id="509429900233858213">একটি ত্রুটি ঘটেছে৷</translation>
 <translation id="5096775069898886423">যেসব সাইটে সুরক্ষিত কানেকশনের সুবিধা কাজ করে না, সেই সব সাইট দেখার আগে সতর্কতা পান</translation>
@@ -1000,6 +1007,7 @@
 <translation id="5267572070504076962">বিপজ্জনক সাইট থেকে সুরক্ষার জন্য Safe Browsing চালু করুন</translation>
 <translation id="5271967389191913893">ডাউনলোড করা কন্টেন্ট ডিভাইস খুলতে পারবে না৷</translation>
 <translation id="5273031377282080577">আপনার অ্যাডমিনিস্ট্রেটর এই সেটিং ম্যানেজ করে।</translation>
+<translation id="5290322819358431297">আপনার পাসওয়ার্ড অটোফিল করুন</translation>
 <translation id="5292796745632149097">এতে পাঠান:</translation>
 <translation id="5301876394151419436">আপনি <ph name="EMAIL" /> হিসেবে সাইন-ইন করেছেন। সেটিংস থেকে আপনি যেকোনও সময় সিঙ্ক করা বন্ধ করতে পারবেন। আপনার ইতিহাসের ভিত্তিতে, সার্চ ও অন্যান্য পরিষেবা পছন্দমতো করে তুলতে Google এই ডেটা ব্যবহার করতে পারে।</translation>
 <translation id="5304593522240415983">এই ক্ষেত্রটি খালি রাখা যাবে না</translation>
@@ -1038,6 +1046,7 @@
 <translation id="544776284582297024">ট্যাব খুলে বিভিন্ন পৃষ্ঠা একইসাথে ব্রাউজ করার জন্য 'ট্যাব খুলুন' বোতাম টিপুন</translation>
 <translation id="5456381639095306749">পৃষ্ঠা ডাউনলোড করুন</translation>
 <translation id="5458366071038729214">যেসব সাইট ফলো করছেন সেগুলো এখানে দেখতে পাবেন</translation>
+<translation id="5465437530117042974">ট্যাব বটম শিটে করা পরিবর্তন বন্ধ করা হয়েছে।</translation>
 <translation id="5469852975082458401">টেক্সট কার্সরের মাধ্যমে আপনি একটি পৃষ্ঠা থেকে অন্য পৃষ্ঠাতে নেভিগেট করতে পারবেন। ক্যারেট ব্রাউজিং বন্ধ করার জন্য F7 শর্টকাট প্রেস করুন।</translation>
 <translation id="5471273988133666918"><ph name="TAB_TITLE" /> ট্যাব সরানো যাবে না</translation>
 <translation id="548278423535722844">ম্যাপ অ্যাপ্লিকেশানে খুলুন</translation>
@@ -1091,6 +1100,7 @@
 <translation id="572328651809341494">সাম্প্রতিক ট্যাবগুলি</translation>
 <translation id="5728072125198221967">লিঙ্ক করা Google পরিষেবা</translation>
 <translation id="5734658507307260911"><ph name="TAB_TITLE" />, পিন করা অডিবল ছদ্মবেশী ট্যাব</translation>
+<translation id="5736345781200955827">পাসওয়ার্ড তৈরি, সেভ ও ম্যানেজ করুন যাতে আপনি Chrome ব্যবহার করে সহজেই সাইট ও অ্যাপে সাইন-ইন করতে পারেন</translation>
 <translation id="5744751019568455640">আপনার ওয়েব পৃষ্ঠা জোরে পড়ে শোনানোর জন্য এইসব ভয়েস বেছে নিতে পারবেন। এই ভয়েস যদি পছন্দ করেন এবং চান যে এটি ব্যবহার করা চালিয়ে যাই, শুধুমাত্র ভয়েসের নামের উপরে ট্যাপ করুন।</translation>
 <translation id="574845902699630049"><ph name="OWNER_FULL_NAME" /> হিসেবে শেয়ার করুন</translation>
 <translation id="5749068826913805084">ফাইল ডাউনলোড করতে Chrome-এর জন্য স্টোরেজ অ্যাক্সেস প্রয়োজন।</translation>
@@ -1171,6 +1181,7 @@
 <translation id="604996488070107836">একটি অজানা ত্রুটির কারনে <ph name="FILE_NAME" /> ডাউনলোড করা যায়নি।</translation>
 <translation id="605721222689873409">YY</translation>
 <translation id="6059830886158432458">আপনার খবর ও গতিবিধি এখানে নিয়ন্ত্রণ করুন</translation>
+<translation id="606985262342505139">ট্যাব বটম শিট সম্পূর্ণ উচ্চতায় খোলা আছে</translation>
 <translation id="6071995715087444295">চুরি হয়ে যাওয়া পাসওয়ার্ড চেক করতে, নিজের Google অ্যাকাউন্টে সাইন-ইন করুন</translation>
 <translation id="6078323886959318429">শর্টকাট যোগ করুন</translation>
 <translation id="6085886413119427067">কোনও সুরক্ষিত কানেকশনের মাধ্যমে ওয়েবসাইটগুলিতে কীভাবে কানেক্ট করবেন তা নির্ধারণ করে</translation>
@@ -1187,6 +1198,7 @@
 <translation id="6125864963080902918"><ph name="BEGIN_LINK" />আরও বিবরণ<ph name="END_LINK" /></translation>
 <translation id="6127860394906721547"><ph name="URL_LIST" /> সাইটের <ph name="COLOR_NAME" /> রঙের <ph name="TITLE_OF_GROUP" /> ট্যাব গ্রুপ খুলুন।</translation>
 <translation id="6130303040046284160">ট্যাব মিনিমাইজ করুন</translation>
+<translation id="6132075343662013154">Chrome আপনার পাসওয়ার্ড সেভ করার সুবিধা প্রদান করবে</translation>
 <translation id="6134168885321518274">স্ক্রিনের মধ্যে খোঁজার বার খুলুন</translation>
 <translation id="6135608400322377268">{TAB_COUNT,plural, =1{<ph name="TAB_COUNT_ONE" />টি ট্যাব}one{<ph name="TAB_COUNT_MANY" />টি ট্যাব}other{<ph name="TAB_COUNT_MANY" />টি ট্যাব}}</translation>
 <translation id="6137022273846704445"><ph name="APP_NAME" /> অ্যাপের ভাষা</translation>
@@ -1334,11 +1346,13 @@
 <translation id="6648977384226967773">{CONTACT,plural, =1{<ph name="CONTACT_PREVIEW" />\u2026 এবং <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> আরও অনেক}one{<ph name="CONTACT_PREVIEW" />\u2026 এবং <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> আরও অনেক}other{<ph name="CONTACT_PREVIEW" />\u2026 এবং <ph name="NUMBER_OF_ADDITIONAL_CONTACTS" /> আরও অনেক}}</translation>
 <translation id="6649642165559792194"><ph name="BEGIN_NEW" />নতুন<ph name="END_NEW" /> ছবির প্রিভিউ দেখুন</translation>
 <translation id="666731172850799929"><ph name="APP_NAME" /> এ খুলুন</translation>
+<translation id="6669390930482049506">আমাকে জানান</translation>
 <translation id="6671495933530132209">ছবি কপি করুন</translation>
 <translation id="6672697278890207089">আপনার পাসফ্রেজটি প্রবেশ করান</translation>
 <translation id="6672917148207387131"><ph name="DOMAIN" /> যোগ করুন</translation>
 <translation id="6674571176963658787">সিঙ্ক শুরু করতে, আপনার পাসফ্রেজ লিখুন</translation>
 <translation id="6676927815633975364">এই সাইট ও Chrome-এ সাইন-ইন করুন</translation>
+<translation id="6684262542644248484">ওয়েবসাইটে সাইন-ইন করুন</translation>
 <translation id="6684809838922667136">Chrome-এর ব্যবহার উন্নত করুন</translation>
 <translation id="6689436252814043643">রিডিং মোড উপলভ্য নেই</translation>
 <translation id="6700279777779583398">পছন্দ সেভ করা হয়েছে</translation>
@@ -1499,6 +1513,7 @@
 <translation id="7237724030342645845">Google Password Manager কাজ করা বন্ধ করে দিয়েছে</translation>
 <translation id="7239496616545081903">রিডিং মোড লুকান</translation>
 <translation id="72415438529550637">পাসওয়ার্ড সাজেশন দেওয়ার সুবিধা বন্ধ করা আছে।</translation>
+<translation id="724510009481365878">পৃষ্ঠাটি প্রিন্ট করা যাবে না</translation>
 <translation id="7248671827512403053">অ্যাপ্লিকেশান</translation>
 <translation id="7253951228444156601">পাসওয়ার্ড চেক করে দেখা হচ্ছে…</translation>
 <translation id="7260367682327802201">আপনার Android ডিভাইসে একই ধরনের সেটিং থাকতে পারে। যদি Chrome এবং আপনার Android ডিভাইসে বিজ্ঞাপন পরিমাপ চালু থাকে, তাহলে একটি কোম্পানি আপনার ভিজিট করা ওয়েব সাইট এবং ব্যবহার করা অ্যাপ জুড়ে বিজ্ঞাপনের কার্যকারিতা পরিমাপ করতে পারে।</translation>

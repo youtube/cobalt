@@ -125,6 +125,7 @@
 <translation id="1436671784520050284">Continua amb la configuració</translation>
 <translation id="143681031165817424">L'adreça només s'ha desat en aquest dispositiu</translation>
 <translation id="1445276840641906250">Totes les pestanyes en un navegador</translation>
+<translation id="1447564161241938558">L'administrador ha desactivat la importació de contrasenyes i claus d'accés</translation>
 <translation id="1450170672351507823">La protecció estàndard està activada. Per augmentar la seguretat, utilitza la protecció millorada.</translation>
 <translation id="1455660774629812862">No amaguis</translation>
 <translation id="1456545332132818232">Ressenyes de productes a <ph name="PRODUCT_NAME" />, <ph name="STARS" /> de <ph name="MAX_STARS" />, <ph name="DOMAIN" /></translation>
@@ -295,7 +296,6 @@
 <translation id="2015722694326466240">Per veure les contrasenyes, primer has d'establir una contrasenya al dispositiu.</translation>
 <translation id="201759455285471444">Desplega el grup de pestanyes.</translation>
 <translation id="202070562065520783">Explica-m'ho</translation>
-<translation id="2023713324775943812">Accedeix al mode de lectura des de la barra d'adreces quan estigui disponible</translation>
 <translation id="2044394949148788042">Obre la quadrícula de pestanyes</translation>
 <translation id="2044681667265133332"><ph name="HOSTED_DOMAIN" /> gestiona el compte <ph name="USER_EMAIL" />, així que és possible que vegi algunes dades. <ph name="BEGIN_LINK" />Més informació<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">element nou</translation>
@@ -585,6 +585,7 @@
 <translation id="3140825265190223781">Contrasenyes i claus d'accés desades</translation>
 <translation id="3143515551205905069">Cancel·la la sincronització</translation>
 <translation id="3144126448740580210">FET</translation>
+<translation id="3147521114983561406">Les claus d'accés es desen al teu gestor de contrasenyes. S'hi pot accedir des de les pestanyes d'incògnit i les normals.</translation>
 <translation id="3148052723910099040">Quadrícula de pestanyes normals</translation>
 <translation id="3148237711805373460">Porta-m'hi</translation>
 <translation id="3157387275655328056">Afegeix a la llista de lectura</translation>
@@ -1860,6 +1861,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="7772032839648071052">Confirmeu la frase de contrasenya</translation>
 <translation id="7772948288262733182">Et donem la benvinguda de nou</translation>
 <translation id="777637629667389858">Quan tens la sessió iniciada, et protegeix en tots els serveis de Google.</translation>
+<translation id="7776604279034196531">Accedeix al mode de lectura des de la barra d'adreces quan estigui disponible</translation>
 <translation id="7781829728241885113">Ahir</translation>
 <translation id="7788868432173225918">Ignora la visualització ampliada</translation>
 <translation id="7791543448312431591">Afegeix</translation>
@@ -2097,6 +2099,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="8587001564479545614">Crea un PIN de recuperació</translation>
 <translation id="8588404856427128947">Desactivada</translation>
 <translation id="8590286732816598906">Grup de pestanyes, <ph name="GROUP_TITLE" />, menú.</translation>
+<translation id="8593317261815647019">Vols crear una clau d'accés fora del mode d'incògnit?</translation>
 <translation id="8600272508328041907">Canvia a la traducció de pàgina completa</translation>
 <translation id="860043288473659153">Nom del titular de la targeta</translation>
 <translation id="8601611099293226919">Fes cerques a la pantalla amb Google Lens</translation>
@@ -2234,6 +2237,7 @@ Handoff també ha d'estar activat a la secció General de Configuració, i els v
 <translation id="9055291197094969722">Crea grups de pestanyes per organitzar les pestanyes obertes i mantenir la productivitat</translation>
 <translation id="9055580485132823283">Estàs a punt de suprimir {password_count} contrasenyes, {passkey_count} claus d'accés i la llista de llocs web i aplicacions per als quals has triat que no es desi mai la informació d'inici de sessió. No se suprimiran els comptes que hagis creat per a llocs web i aplicacions.</translation>
 <translation id="9057030985451135243">Informació sobre els grups de pestanyes compartits</translation>
+<translation id="9064106978262828592">Hi ha hagut un problema en exportar les dades</translation>
 <translation id="9065203028668620118">Edita</translation>
 <translation id="9066097352053395362">Amaga l'opció Adreça d'interès</translation>
 <translation id="9070824521421603770">Es tancaran les pestanyes i la teva sessió</translation>

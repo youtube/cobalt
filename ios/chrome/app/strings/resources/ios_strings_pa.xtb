@@ -125,6 +125,7 @@
 <translation id="1436671784520050284">ਸੈੱਟਅੱਪ ਜਾਰੀ ਰੱਖੋ</translation>
 <translation id="143681031165817424">ਪਤਾ ਸਿਰਫ਼ ਇਸ ਡੀਵਾਈਸ 'ਤੇ ਰੱਖਿਅਤ ਕੀਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="1445276840641906250">ਇੱਕ ਹੀ ਬ੍ਰਾਊਜ਼ਰ ਵਿੱਚ ਤੁਹਾਡੀਆਂ ਸਾਰੀਆਂ ਟੈਬਾਂ</translation>
+<translation id="1447564161241938558">ਤੁਹਾਡੇ ਪ੍ਰਸ਼ਾਸਕ ਵੱਲੋਂ ਪਾਸਵਰਡ ਅਤੇ ਪਾਸਕੀਆਂ ਆਯਾਤ ਕਰਨ ਦੀ ਸੁਵਿਧਾ ਨੂੰ ਬੰਦ ਕਰ ਦਿੱਤਾ ਗਿਆ ਹੈ</translation>
 <translation id="1450170672351507823">ਮਿਆਰੀ ਸੁਰੱਖਿਆ ਚਾਲੂ ਹੈ। ਹੋਰ ਵੀ ਜ਼ਿਆਦਾ ਸੁਰੱਖਿਆ ਲਈ, ਵਿਸਤ੍ਰਿਤ ਸੁਰੱਖਿਆ ਵਰਤੋ।</translation>
 <translation id="1455660774629812862">ਨਾ ਲੁਕਾਓ</translation>
 <translation id="1456545332132818232"><ph name="PRODUCT_NAME" /> ਨੂੰ ਮਿਲੀਆਂ ਉਤਪਾਦ ਸਮੀਖਿਆਵਾਂ, <ph name="DOMAIN" /> 'ਤੇ ਇਸ ਉਤਪਾਦ ਨੂੰ <ph name="MAX_STARS" /> ਵਿੱਚੋਂ <ph name="STARS" /> ਮਿਲੇ ਹਨ</translation>
@@ -295,7 +296,6 @@
 <translation id="2015722694326466240">ਪਾਸਵਰਡਾਂ ਨੂੰ ਦੇਖਣ ਲਈ, ਪਹਿਲਾਂ ਤੁਹਾਨੂੰ ਆਪਣੇ ਡੀਵਾਈਸ 'ਤੇ ਕਿਸੇ ਪਾਸਕੋਡ ਨੂੰ ਸੈੱਟ ਕਰਨ ਦੀ ਲੋੜ ਹੈ।</translation>
 <translation id="201759455285471444">ਟੈਬ ਗਰੁੱਪ ਦਾ ਵਿਸਤਾਰ ਕਰੋ।</translation>
 <translation id="202070562065520783">ਮੈਨੂੰ ਇਸਦਾ ਵਰਣਨ ਦਿਓ</translation>
-<translation id="2023713324775943812">ਉਪਲਬਧ ਹੋਣ 'ਤੇ ਪਤਾ ਬਾਰ ਤੋਂ ਰੀਡਿੰਗ ਮੋਡ ਤੱਕ ਪਹੁੰਚ ਕਰੋ</translation>
 <translation id="2044394949148788042">ਟੈਬ GRid ਖੋਲ੍ਹੋ</translation>
 <translation id="2044681667265133332"><ph name="USER_EMAIL" /> ਖਾਤੇ ਦਾ ਪ੍ਰਬੰਧਨ <ph name="HOSTED_DOMAIN" /> ਵੱਲੋਂ ਕੀਤਾ ਜਾਂਦਾ ਹੈ, ਜਿਸ ਵੱਲੋਂ ਕੁਝ ਜਾਣਕਾਰੀ ਨੂੰ ਦੇਖਿਆ ਜਾ ਸਕਦਾ ਹੈ। <ph name="BEGIN_LINK" />ਹੋਰ ਜਾਣੋ<ph name="END_LINK" /></translation>
 <translation id="20485545164632846">ਨਵੀਂ ਆਈਟਮ</translation>
@@ -585,6 +585,7 @@
 <translation id="3140825265190223781">ਰੱਖਿਅਤ ਕੀਤੇ ਪਾਸਵਰਡ ਅਤੇ ਪਾਸਕੀਆਂ</translation>
 <translation id="3143515551205905069">ਸਿੰਕ ਰੱਦ ਕਰੋ</translation>
 <translation id="3144126448740580210">ਹੋ ਗਿਆ</translation>
+<translation id="3147521114983561406">ਪਾਸਕੀਆਂ ਨੂੰ ਤੁਹਾਡੇ Password Manager ਵਿੱਚ ਰੱਖਿਅਤ ਕੀਤਾ ਜਾਂਦਾ ਹੈ। ਉਹ ਇਨਕੋਗਨਿਟੋ ਅਤੇ ਨਿਯਮਿਤ ਟੈਬਾਂ ਵਿੱਚ ਪਹੁੰਚਯੋਗ ਹੁੰਦੇ ਹਨ।</translation>
 <translation id="3148052723910099040">ਨਿਯਮਿਤ ਟੈਬ ਗਰਿੱਡ</translation>
 <translation id="3148237711805373460">ਮੈਨੂੰ ਉੱਥੇ ਲੈ ਜਾਓ</translation>
 <translation id="3157387275655328056">ਪੜ੍ਹਨ ਸੂਚੀ ਵਿੱਚ ਸ਼ਾਮਲ ਕਰੋ</translation>
@@ -1860,6 +1861,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="7772032839648071052">ਪਾਸਫਰੇਜ਼ ਦੀ ਪੁਸ਼ਟੀ ਕਰੋ</translation>
 <translation id="7772948288262733182">ਮੁੜ ਜੀ ਆਇਆਂ ਨੂੰ</translation>
 <translation id="777637629667389858">ਤੁਹਾਡੇ ਵੱਲੋਂ ਸਾਈਨ-ਇਨ ਹੋਣ 'ਤੇ, ਇਹ ਸੁਵਿਧਾ Google ਸੇਵਾਵਾਂ ਵਿੱਚ ਤੁਹਾਡੀ ਸੁਰੱਖਿਆ ਕਰਦੀ ਹੈ।</translation>
+<translation id="7776604279034196531">ਉਪਲਬਧ ਹੋਣ 'ਤੇ, ਪਤਾ ਬਾਰ ਤੋਂ ਪੜ੍ਹਨ ਸੰਬੰਧੀ ਮੋਡ ਤੱਕ ਪਹੁੰਚ ਕਰੋ</translation>
 <translation id="7781829728241885113">ਕੱਲ੍ਹ</translation>
 <translation id="7788868432173225918">ਵਿਸਤ੍ਰਿਤ ਦ੍ਰਿਸ਼ ਨੂੰ ਖਾਰਜ ਕਰੋ</translation>
 <translation id="7791543448312431591">ਜੋੜੋ</translation>
@@ -2097,6 +2099,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="8587001564479545614">ਰਿਕਵਰੀ ਪਿੰਨ ਬਣਾਓ</translation>
 <translation id="8588404856427128947">ਬੰਦ</translation>
 <translation id="8590286732816598906">ਟੈਬ ਗਰੁੱਪ, <ph name="GROUP_TITLE" />, ਮੀਨੂ।</translation>
+<translation id="8593317261815647019">ਕੀ ਇਨਕੋਗਨਿਟੋ ਤੋਂ ਬਾਹਰ ਪਾਸਕੀ ਬਣਾਉਣੀ ਹੈ?</translation>
 <translation id="8600272508328041907">ਪੂਰੇ ਪੰਨੇ ਦੇ ਅਨੁਵਾਦ 'ਤੇ ਸਵਿੱਚ ਕਰੋ</translation>
 <translation id="860043288473659153">ਕਾਰਡਧਾਰਕ ਦਾ ਨਾਮ</translation>
 <translation id="8601611099293226919">Google Lens ਨਾਲ ਆਪਣੀ ਸਕ੍ਰੀਨ ਖੋਜੋ</translation>
@@ -2234,6 +2237,7 @@ Handoff ਨੂੰ ਵੀ ਸੈਟਿੰਗਾਂ ਦੇ 'ਆਮ' ਸੈਕਸ਼�
 <translation id="9055291197094969722">ਆਪਣੀਆਂ ਖੁੱਲ੍ਹੀਆਂ ਹੋਈਆਂ ਟੈਬਾਂ ਨੂੰ ਵਿਵਸਥਿਤ ਕਰਨ ਲਈ ਟੈਬ ਗਰੁੱਪ ਬਣਾਓ ਅਤੇ ਉਤਪਾਦਕ ਰਹੋ</translation>
 <translation id="9055580485132823283">ਤੁਸੀਂ {password_count} ਪਾਸਵਰਡ, {passkey_count} ਪਾਸਕੀ ਅਤੇ ਉਨ੍ਹਾਂ ਸਾਈਟਾਂ ਅਤੇ ਐਪਾਂ ਦੀ ਸੂਚੀ ਨੂੰ ਮਿਟਾਉਣ ਜਾ ਰਹੇ ਹੋ, ਜਿਨ੍ਹਾਂ ਲਈ ਤੁਸੀਂ ਸਾਈਨ-ਇਨ ਜਾਣਕਾਰੀ ਨੂੰ ਕਦੇ ਵੀ ਰੱਖਿਅਤ ਨਾ ਕਰਨ ਦਾ ਵਿਕਲਪ ਚੁਣਿਆ ਹੈ। ਸਾਈਟਾਂ ਅਤੇ ਐਪਾਂ ਲਈ ਤੁਹਾਡੇ ਵੱਲੋਂ ਬਣਾਇਆ ਗਿਆ ਕੋਈ ਵੀ ਖਾਤਾ ਨਹੀਂ ਮਿਟਾਇਆ ਜਾਵੇਗਾ।</translation>
 <translation id="9057030985451135243">ਸਾਂਝੇ ਕੀਤੇ ਟੈਬ ਗਰੁੱਪਾਂ ਬਾਰੇ ਹੋਰ ਜਾਣੋ</translation>
+<translation id="9064106978262828592">ਤੁਹਾਡੇ ਡਾਟੇ ਨੂੰ ਨਿਰਯਾਤ ਕਰਨ ਵਿੱਚ ਸਮੱਸਿਆ ਆਈ</translation>
 <translation id="9065203028668620118">ਸੰਪਾਦਿਤ ਕਰੋ</translation>
 <translation id="9066097352053395362">'ਬੁੱਕਮਾਰਕ ਦਾ ਸੰਪਾਦਨ ਕਰੋ' ਨੂੰ ਲੁਕਾਓ</translation>
 <translation id="9070824521421603770">ਤੁਸੀਂ ਸਾਈਨ-ਆਊਟ ਹੋ ਜਾਵੋਗੇ ਅਤੇ ਟੈਬਾਂ ਬੰਦ ਹੋ ਜਾਣਗੀਆਂ</translation>

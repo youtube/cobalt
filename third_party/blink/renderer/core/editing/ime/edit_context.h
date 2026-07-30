@@ -119,9 +119,6 @@ class CORE_EXPORT EditContext final : public EventTarget,
   // EventTarget overrides
   const AtomicString& InterfaceName() const override;
   ExecutionContext* GetExecutionContext() const override;
-  void AddedEventListener(
-      const AtomicString& event_type,
-      RegisteredEventListener& registered_listener) override;
 
   void SetExecutionContext(ExecutionContext* context);
 
@@ -326,6 +323,12 @@ class CORE_EXPORT EditContext final : public EventTarget,
   // composition_range_end_ should always be >= composition_range_start_.
   uint32_t composition_range_start_ = 0;
   uint32_t composition_range_end_ = 0;
+  // This flag tracks whether `FinishComposingText` is currently in progress.
+  // This is used to guard against re-entrant calls to `FinishComposingText`
+  // when editContext associations are changed during compositionend or
+  // textformatupdate event dispatch.
+  bool finish_composing_in_progress_ = false;
+
   // Elements that are associated with this EditContext.
   HeapVector<Member<HTMLElement>> attached_elements_;
 

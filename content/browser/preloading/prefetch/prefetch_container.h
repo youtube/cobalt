@@ -30,6 +30,13 @@ namespace base {
 class OneShotTimer;
 }  // namespace base
 
+namespace network {
+class SharedURLLoaderFactory;
+namespace mojom {
+class NetworkContext;
+}  // namespace mojom
+}  // namespace network
+
 namespace url {
 class Origin;
 }  // namespace url
@@ -246,10 +253,13 @@ class CONTENT_EXPORT PrefetchContainer {
   // based on |prefetch_type_|.
   bool IsProxyRequiredForURL(const GURL& url) const;
 
+  // Creates the initial resource request based on `PrefetchRequest`.
+  // `UpdateResourceRequest()`, which will be called on redirect, may update
+  // this resource request later on.
+  void MakeInitialResourceRequest();
   const network::ResourceRequest* GetResourceRequest() const {
     return resource_request_.get();
   }
-  void MakeResourceRequest();
 
   // Equivalent to `request().no_vary_search_hint()`.
   // Exposed for `PrefetchMatchResolver`.
@@ -326,17 +336,21 @@ class CONTENT_EXPORT PrefetchContainer {
   void PauseAllCookieListeners();
   void ResumeAllCookieListeners();
 
-  // The network context used to make network requests, copy cookies, etc. for
-  // the given `is_isolated_network_context_required`.
-  PrefetchNetworkContext* GetNetworkContext(
-      bool is_isolated_network_context_required) const;
+  // The isolated network context used to make network requests, copy cookies,
+  // etc. This is a per-`PrefetchContainer` instance that can be used for all
+  // redirect hops where needed.
+  // This returns `nullptr` when the isolated network context for `this` is not
+  // yet created.
+  PrefetchNetworkContext* GetIsolatedNetworkContext() const;
 
-  // Creates the network context for `is_isolated_network_context_required`.
-  PrefetchNetworkContext* CreateNetworkContext(
-      bool is_isolated_network_context_required,
+  // Creates the isolated network context.
+  PrefetchNetworkContext* CreateIsolatedNetworkContext(
       mojo::Remote<network::mojom::NetworkContext> isolated_network_context);
 
-  // Closes idle connections for all elements in |network_contexts_|.
+  scoped_refptr<network::SharedURLLoaderFactory>
+  GetOrCreateDefaultNetworkContextURLLoaderFactory();
+
+  // Closes idle connections for all isolated network contexts.
   void CloseIdleConnections();
 
   // Set the currently prefetching |PrefetchStreamingURLLoader|.
@@ -552,8 +566,8 @@ class CONTENT_EXPORT PrefetchContainer {
       const network::mojom::URLResponseHead& head);
   void NotifyPrefetchRequestComplete(
       const network::URLLoaderCompletionStatus& completion_status);
-  std::optional<mojo::PendingRemote<network::mojom::DevToolsObserver>>
-  MakeSelfOwnedNetworkServiceDevToolsObserver();
+  mojo::PendingRemote<network::mojom::DevToolsObserver>
+  MaybeMakeSelfOwnedNetworkServiceDevToolsObserver();
 
   bool is_in_dtor() const { return is_in_dtor_; }
 
@@ -731,10 +745,10 @@ class CONTENT_EXPORT PrefetchContainer {
   // The redirect chain resulting from prefetching |GetURL()|.
   std::vector<std::unique_ptr<PrefetchSingleRedirectHop>> redirect_chain_;
 
-  // The network contexts used for this prefetch. They key corresponds to the
-  // |is_isolated_network_context_required| param of the
-  // |PrefetchNetworkContext|.
-  std::map<bool, std::unique_ptr<PrefetchNetworkContext>> network_contexts_;
+  // The network contexts used for this prefetch.
+  scoped_refptr<network::SharedURLLoaderFactory>
+      default_network_context_url_loader_factory_;
+  std::unique_ptr<PrefetchNetworkContext> isolated_network_context_;
 
   // The currently prefetching streaming URL loader, prefetching the last
   // element of `redirect_chain_`. Multiple streaming URL loaders can be used in

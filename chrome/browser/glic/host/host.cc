@@ -227,6 +227,14 @@ void Host::NotifyContextualSkillsChanged(
   }
 }
 
+void Host::Invoke(mojom::InvokeOptionsPtr options, base::OnceClosure callback) {
+  if (auto* client = GetPrimaryWebClient()) {
+    client->Invoke(std::move(options), std::move(callback));
+  } else {
+    std::move(callback).Run();
+  }
+}
+
 void Host::Close() {
   delegate_->ClosePanel();
 }
@@ -283,7 +291,7 @@ void Host::PanelWillOpen(mojom::InvocationSource invocation_source,
         glic_instance_
             ? mojom::PanelOpeningData::New(
                   glic_instance_->GetPanelState().Clone(), invocation_source,
-                  std::move(options.prompt_suggestion),
+                  std::move(options.prompt_suggestion), options.auto_send,
                   /*skill_to_invoke=*/nullptr,
                   std::move(options.recently_active_conversations),
                   std::move(options.conversation_info))
@@ -464,6 +472,7 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
         recently_active_conversations;
     auto conversation_info = mojom::ConversationInfo::New();
 
+    bool auto_send = false;
     if (pending_panel_open_options_) {
       prompt_suggestion =
           std::move(pending_panel_open_options_->prompt_suggestion);
@@ -471,6 +480,7 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
           std::move(pending_panel_open_options_->recently_active_conversations);
       conversation_info =
           std::move(pending_panel_open_options_->conversation_info);
+      auto_send = pending_panel_open_options_->auto_send;
       pending_panel_open_options_.reset();
     }
 
@@ -478,7 +488,7 @@ void Host::SetWebClient(GlicWebClientAccess* web_client) {
         mojom::PanelOpeningData::New(
             glic_instance_ ? glic_instance_->GetPanelState().Clone()
                            : mojom::PanelState::New(),
-            *invocation_source_, std::move(prompt_suggestion),
+            *invocation_source_, std::move(prompt_suggestion), auto_send,
             /*skill_to_invoke=*/nullptr,
             std::move(recently_active_conversations),
             std::move(conversation_info)),

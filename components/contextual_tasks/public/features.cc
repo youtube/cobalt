@@ -19,7 +19,7 @@ BASE_FEATURE(kContextualTasks, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables the use of the kSearchResultsOAuth2Scope instead of the
 // kChromeSyncOAuth2Scope.
-BASE_FEATURE(kContextualTasksScopeChange, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kContextualTasksScopeChange, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables relevant context determination for contextual tasks.
 BASE_FEATURE(kContextualTasksContext, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -38,8 +38,8 @@ BASE_FEATURE(kContextualTasksContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualTasksSuggestionsEnabled,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Enables auto-suggestions for contextual tasks.
-BASE_FEATURE(kContextualTasksAutoSuggestionEnabled,
+// Enables tab auto-chip for contextual tasks.
+BASE_FEATURE(kContextualTasksTabAutoSuggestionChipEnabled,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksShowOnboardingTooltip,
@@ -59,10 +59,12 @@ BASE_FEATURE(kContextualTasksRemoveTasksWithoutThreadsOrTabAssociations,
 BASE_FEATURE(kEnableNotifyZeroStateRenderedCapability,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kContextualTasksTabListInterfaceObserver,
-             base::FEATURE_ENABLED_BY_DEFAULT);
-
 BASE_FEATURE(kContextualTasksExpandButton, base::FEATURE_DISABLED_BY_DEFAULT);
+
+const base::FeatureParam<bool> kContextualTasksLockAndUnlockInputCapability(
+    &kContextualTasks,
+    "ContextualTasksLockAndUnlockInputCapability",
+    true);
 
 const base::FeatureParam<bool> kContextualTasksBasicModeZOrder(
     &kContextualTasks,
@@ -362,6 +364,11 @@ bool ShouldEnableBasicModeZOrder() {
 
 bool ShouldEnableCookieSync() {
   return kContextualTasksEnableCookieSync.Get();
+}
+
+bool ShouldEnableLockAndUnlockInputCapability() {
+  return base::FeatureList::IsEnabled(kContextualTasks) &&
+         kContextualTasksLockAndUnlockInputCapability.Get();
 }
 
 namespace flag_descriptions {

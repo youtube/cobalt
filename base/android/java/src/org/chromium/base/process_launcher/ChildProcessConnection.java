@@ -21,7 +21,6 @@ import androidx.annotation.IntDef;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.ApkInfo;
-import org.chromium.base.BaseFeatureList;
 import org.chromium.base.ChildBindingState;
 import org.chromium.base.Log;
 import org.chromium.base.MemoryPressureLevel;
@@ -316,18 +315,6 @@ public class ChildProcessConnection {
     @GuardedBy("mProcessStateLock")
     private boolean mCleanExit;
 
-    // Whether the EffectiveBindingState feature is enabled.
-    //
-    // The feature status has to stay consistent throughout the lifetime of this object, and can't
-    // have it flip half way in the middle.
-    private final boolean mIsEffectiveBindingStateEnabled;
-
-    // Whether the UseIsUnboundCheck feature is enabled.
-    //
-    // The feature status has to stay consistent throughout the lifetime of this object, and can't
-    // have it flip half way in the middle.
-    private final boolean mUseIsUnboundCheck;
-
     public ChildProcessConnection(
             Context context,
             ComponentName serviceName,
@@ -377,8 +364,6 @@ public class ChildProcessConnection {
         mBindToCaller = bindToCaller;
         mIndependentFallback = independentFallback;
         mIsSandboxedForHistograms = isSandboxedForHistograms;
-        mIsEffectiveBindingStateEnabled = BaseFeatureList.sEffectiveBindingState.isEnabled();
-        mUseIsUnboundCheck = BaseFeatureList.sUseIsUnboundCheck.isEnabled();
 
         // Incremental install does not work with isolatedProcess, and externalService requires
         // isolatedProcess, so both need to be turned off for incremental install.
@@ -440,8 +425,7 @@ public class ChildProcessConnection {
         if (mServiceBundle != null) {
             bindIntent.putExtras(mServiceBundle);
         }
-        if (mIsEffectiveBindingStateEnabled
-                && RebindingChildServiceConnectionController.isEnabled()) {
+        if (RebindingChildServiceConnectionController.isEnabled()) {
             mConnectionController =
                     new RebindingChildServiceConnectionController(
                             connectionFactory,
@@ -1053,11 +1037,7 @@ public class ChildProcessConnection {
             return;
         }
         mStrongBindingCount++;
-        if (mIsEffectiveBindingStateEnabled) {
-            applyEffectiveBindingState();
-        } else if (mStrongBindingCount == 1) {
-            mConnectionController.setStrongBinding();
-        }
+        applyEffectiveBindingState();
     }
 
     public void removeStrongBinding() {
@@ -1067,11 +1047,7 @@ public class ChildProcessConnection {
         }
         assert mStrongBindingCount > 0;
         mStrongBindingCount--;
-        if (mIsEffectiveBindingStateEnabled) {
-            applyEffectiveBindingState();
-        } else if (mStrongBindingCount == 0) {
-            mConnectionController.unsetStrongBinding();
-        }
+        applyEffectiveBindingState();
     }
 
     public int getStrongBindingCount() {
@@ -1091,11 +1067,7 @@ public class ChildProcessConnection {
             return;
         }
         mVisibleBindingCount++;
-        if (mIsEffectiveBindingStateEnabled) {
-            applyEffectiveBindingState();
-        } else if (mVisibleBindingCount == 1) {
-            mConnectionController.setVisibleBinding();
-        }
+        applyEffectiveBindingState();
     }
 
     public void removeVisibleBinding() {
@@ -1105,11 +1077,7 @@ public class ChildProcessConnection {
         }
         assert mVisibleBindingCount > 0;
         mVisibleBindingCount--;
-        if (mIsEffectiveBindingStateEnabled) {
-            applyEffectiveBindingState();
-        } else if (mVisibleBindingCount == 0) {
-            mConnectionController.unsetVisibleBinding();
-        }
+        applyEffectiveBindingState();
     }
 
     public int getNotPerceptibleBindingCount() {
@@ -1124,11 +1092,7 @@ public class ChildProcessConnection {
             return;
         }
         mNotPerceptibleBindingCount++;
-        if (mIsEffectiveBindingStateEnabled) {
-            applyEffectiveBindingState();
-        } else if (mNotPerceptibleBindingCount == 1) {
-            mConnectionController.setNotPerceptibleBinding();
-        }
+        applyEffectiveBindingState();
     }
 
     public void removeNotPerceptibleBinding() {
@@ -1138,11 +1102,7 @@ public class ChildProcessConnection {
         }
         assert mNotPerceptibleBindingCount > 0;
         mNotPerceptibleBindingCount--;
-        if (mIsEffectiveBindingStateEnabled) {
-            applyEffectiveBindingState();
-        } else if (mNotPerceptibleBindingCount == 0) {
-            mConnectionController.unsetNotPerceptibleBinding();
-        }
+        applyEffectiveBindingState();
     }
 
     private void applyEffectiveBindingState() {
@@ -1276,11 +1236,8 @@ public class ChildProcessConnection {
      *
      * <p>Historically, we used `isConnected()`. But mConnectionController.isUnbound() is more
      * accurate.
-     *
-     * <p>TODO(crbug.com/447057423): Remove the flag and always use
-     * mConnectionController.isUnbound() after verifying it's safe.
      */
     private boolean isUnboundForStateChange() {
-        return mUseIsUnboundCheck ? mConnectionController.isUnbound() : !isConnected();
+        return mConnectionController.isUnbound();
     }
 }

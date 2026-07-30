@@ -15,6 +15,8 @@ import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.PersistableBundle;
 import android.text.TextUtils;
+import android.view.LayoutInflater;
+import android.view.View;
 import android.view.ViewGroup;
 import android.view.ViewStub;
 
@@ -25,6 +27,7 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import org.chromium.base.ApplicationStatus;
 import org.chromium.base.Callback;
+import org.chromium.base.CallbackUtils;
 import org.chromium.base.CommandLine;
 import org.chromium.base.DeviceInfo;
 import org.chromium.base.Log;
@@ -32,7 +35,6 @@ import org.chromium.base.ResettersForTesting;
 import org.chromium.base.Token;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.lifetime.Destroyable;
-import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.shared_preferences.SharedPreferencesManager;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
@@ -124,7 +126,6 @@ import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.night_mode.WebContentsDarkModeMessageController;
 import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionController;
 import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionController.RationaleDelegate;
-import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionRationaleBottomSheet;
 import org.chromium.chrome.browser.notifications.permissions.NotificationPermissionRationaleDialogController;
 import org.chromium.chrome.browser.notifications.tips.TipsOptInCoordinator;
 import org.chromium.chrome.browser.notifications.tips.TipsUtils;
@@ -136,6 +137,7 @@ import org.chromium.chrome.browser.ntp_customization.policy.NtpCustomizationPoli
 import org.chromium.chrome.browser.ntp_customization.theme.NtpSyncedThemeManager;
 import org.chromium.chrome.browser.offlinepages.indicator.OfflineIndicatorControllerV2;
 import org.chromium.chrome.browser.offlinepages.indicator.OfflineIndicatorInProductHelpController;
+import org.chromium.chrome.browser.omnibox.OmniboxActionDelegateImpl;
 import org.chromium.chrome.browser.omnibox.UrlFocusChangeListener;
 import org.chromium.chrome.browser.open_in_app.OpenInAppUtils;
 import org.chromium.chrome.browser.open_in_app.TabbedOpenInAppEntryPoint;
@@ -146,8 +148,6 @@ import org.chromium.chrome.browser.privacy.settings.PrivacySettings;
 import org.chromium.chrome.browser.privacy_sandbox.ActivityTypeMapper;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandbox3pcdRollbackMessageController;
 import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxBridge;
-import org.chromium.chrome.browser.privacy_sandbox.PrivacySandboxDialogController;
-import org.chromium.chrome.browser.privacy_sandbox.SurfaceType;
 import org.chromium.chrome.browser.profiles.Profile;
 import org.chromium.chrome.browser.read_later.ReadLaterIphController;
 import org.chromium.chrome.browser.readaloud.ReadAloudIphController;
@@ -166,6 +166,9 @@ import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TabAssociatedApp;
 import org.chromium.chrome.browser.tab.TabFavicon;
 import org.chromium.chrome.browser.tab.TabLaunchType;
+import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetFusebox.TabBottomSheetFuseboxConfig;
+import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetManager;
+import org.chromium.chrome.browser.tab_bottom_sheet.TabBottomSheetUtils;
 import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonController;
 import org.chromium.chrome.browser.tab_group_suggestion.toolbar.GroupSuggestionsButtonControllerFactory;
 import org.chromium.chrome.browser.tab_group_sync.TabGroupSyncControllerImpl;
@@ -187,8 +190,6 @@ import org.chromium.chrome.browser.tasks.tab_management.TabGroupFaviconCluster;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupListFaviconResolverFactory;
 import org.chromium.chrome.browser.tasks.tab_management.TabUiUtils;
 import org.chromium.chrome.browser.tasks.tab_management.UndoGroupSnackbarController;
-import org.chromium.chrome.browser.tasks.tab_management.tab_bottom_sheet.TabBottomSheetManager;
-import org.chromium.chrome.browser.tasks.tab_management.tab_bottom_sheet.TabBottomSheetUtils;
 import org.chromium.chrome.browser.toolbar.ToolbarButtonInProductHelpController;
 import org.chromium.chrome.browser.toolbar.ToolbarFeatures;
 import org.chromium.chrome.browser.toolbar.ToolbarIntentMetadata;
@@ -221,6 +222,7 @@ import org.chromium.components.browser_ui.widget.scrim.ScrimManager;
 import org.chromium.components.browser_ui.widget.scrim.ScrimManager.ScrimClient;
 import org.chromium.components.collaboration.CollaborationService;
 import org.chromium.components.feature_engagement.Tracker;
+import org.chromium.components.omnibox.action.OmniboxActionDelegate;
 import org.chromium.components.signin.AccountManagerFacadeProvider;
 import org.chromium.components.signin.base.CoreAccountInfo;
 import org.chromium.components.signin.identitymanager.ConsentLevel;
@@ -234,6 +236,7 @@ import org.chromium.components.webapps.bottomsheet.PwaBottomSheetController;
 import org.chromium.components.webapps.bottomsheet.PwaBottomSheetControllerFactory;
 import org.chromium.content_public.common.ContentSwitches;
 import org.chromium.ui.UiUtils;
+import org.chromium.ui.base.ActivityResultTracker;
 import org.chromium.ui.base.ActivityWindowAndroid;
 import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.base.IntentRequestTracker;
@@ -443,6 +446,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             @NonNull OneshotSupplier<LayoutStateProvider> layoutStateProviderOneshotSupplier,
             @NonNull BrowserControlsManager browserControlsManager,
             @NonNull ActivityWindowAndroid windowAndroid,
+            @NonNull ActivityResultTracker activityResultTracker,
             @NonNull OneshotSupplier chromeAndroidTaskSupplier,
             @NonNull ActivityLifecycleDispatcher activityLifecycleDispatcher,
             @NonNull MonotonicObservableSupplier<LayoutManagerImpl> layoutManagerSupplier,
@@ -501,6 +505,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 layoutStateProviderOneshotSupplier,
                 browserControlsManager,
                 windowAndroid,
+                activityResultTracker,
                 chromeAndroidTaskSupplier,
                 activityLifecycleDispatcher,
                 layoutManagerSupplier,
@@ -588,10 +593,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                     CoreAccountInfo primaryAccountInfo =
                             identityManager.getPrimaryAccountInfo(ConsentLevel.SIGNIN);
                     AccountManagerFacadeProvider.getInstance()
-                            .updateCredentials(
-                                    CoreAccountInfo.getAndroidAccountFrom(primaryAccountInfo),
-                                    mActivity,
-                                    successCallback);
+                            .updateCredentials(primaryAccountInfo, mActivity, successCallback);
                 };
 
         CollaborationControllerDelegateFactory collaborationControllerDelegateFactory =
@@ -1023,7 +1025,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                     new ChromeTabbedOnDragListener(
                             mMultiInstanceManager,
                             mTabModelSelectorSupplier.get(),
-                            mWindowAndroid,
+                            mActivity,
                             mLayoutStateProviderOneShotSupplier,
                             getDesktopWindowStateManager());
 
@@ -1216,8 +1218,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 new ScrimManager(mActivity, mCoordinator, ScrimClient.TABBED_ROOT_UI_COORDINATOR);
         scrimManager
                 .getStatusBarColorSupplier()
-                .addObserver(mStatusBarColorController::onScrimColorChanged);
-        scrimManager.getNavigationBarColorSupplier().addObserver(this::onNavBarScrimColorChanged);
+                .addSyncObserverAndPostIfNonNull(mStatusBarColorController::onScrimColorChanged);
+        scrimManager
+                .getNavigationBarColorSupplier()
+                .addSyncObserverAndPostIfNonNull(this::onNavBarScrimColorChanged);
         return scrimManager;
     }
 
@@ -1248,37 +1252,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             PrivacySandboxBridge privacySandboxBridge = new PrivacySandboxBridge(profile);
             privacySandboxBridge.recordActivityType(privacySandboxStorageActivityType);
         }
-    }
-
-    boolean maybeTriggerPsDialogSuppression(Profile profile) {
-        // Handles whether the PS Dialog should be suppressed, logs whether it was suppressed and
-        // returns whether a promo was triggered
-        Tab tab = mActivityTabProvider.get();
-
-        boolean isTabLaunchedFromExternalApp =
-                tab != null && tab.getLaunchType() == TabLaunchType.FROM_EXTERNAL_APP;
-        boolean shouldSuppressPsDialogForExternalAppLaunches =
-                ChromeFeatureList.getFieldTrialParamByFeatureAsBoolean(
-                        ChromeFeatureList.PRIVACY_SANDBOX_SETTINGS_4,
-                        "suppress-dialog-for-external-app-launches",
-                        true);
-        boolean shouldSuppressPsDialog =
-                isTabLaunchedFromExternalApp && shouldSuppressPsDialogForExternalAppLaunches;
-
-        String histogramName =
-                "Startup.Android.PrivacySandbox.DialogNotShownDueToTabLaunchedFromExternalApp";
-        RecordHistogram.recordBooleanHistogram(histogramName, shouldSuppressPsDialog);
-
-        if (!shouldSuppressPsDialog) {
-            return PrivacySandboxDialogController.maybeLaunchPrivacySandboxDialog(
-                    mActivity, profile, SurfaceType.BR_APP, mWindowAndroid);
-        }
-
-        return false;
-    }
-
-    private boolean maybeTriggerPrivacySandboxPrompt(Profile profile) {
-        return maybeTriggerPsDialogSuppression(profile);
     }
 
     // Private class methods
@@ -1651,9 +1624,30 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
     private void initiateTabBottomSheetManagers() {
         if (TabBottomSheetUtils.isTabBottomSheetEnabled()) {
+            View contentView =
+                    LayoutInflater.from(mActivity).inflate(R.layout.search_activity, null);
+            OmniboxActionDelegate omniboxActionDelegate =
+                    new OmniboxActionDelegateImpl(
+                            mActivity,
+                            () -> null,
+                            /* openUrlInExistingTabElseNewTabCb= */ (url) -> {},
+                            /* openIncognitoTabCb= */ CallbackUtils.emptyRunnable(),
+                            /* openPasswordSettingsCb= */ CallbackUtils.emptyRunnable(),
+                            /* openQuickDeleteCb= */ CallbackUtils.emptyRunnable(),
+                            /* tabWindowManagerSupplier= */ SupplierUtils.ofNull(),
+                            /* bringTabToFrontCallback= */ (tabInfo, url) -> {});
+            TabBottomSheetFuseboxConfig fuseboxConfig =
+                    new TabBottomSheetFuseboxConfig(
+                            contentView,
+                            contentView.findViewById(R.id.search_location_bar),
+                            contentView.findViewById(R.id.toolbar),
+                            contentView.findViewById(R.id.control_container),
+                            contentView.findViewById(R.id.bottom_container),
+                            omniboxActionDelegate);
             mTabBottomSheetManager =
                     new TabBottomSheetManager(
                             mActivity,
+                            fuseboxConfig,
                             mProfileSupplier.asNonNull(),
                             mWindowAndroid,
                             mActivityLifecycleDispatcher,
@@ -1886,22 +1880,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             return true;
         }
 
-        if (maybeTriggerPrivacySandboxPrompt(profile)) {
-            return true;
-        }
-
-        final Supplier<RationaleDelegate> rationaleUIDelegateSupplier;
-        if (NotificationPermissionController.shouldUseBottomSheetRationaleUi()) {
-            rationaleUIDelegateSupplier =
-                    () ->
-                            new NotificationPermissionRationaleBottomSheet(
-                                    mActivity, getBottomSheetController());
-        } else {
-            rationaleUIDelegateSupplier =
-                    () ->
-                            new NotificationPermissionRationaleDialogController(
-                                    mActivity, mModalDialogManagerSupplier.get());
-        }
+        final Supplier<RationaleDelegate> rationaleUIDelegateSupplier =
+                () ->
+                        new NotificationPermissionRationaleDialogController(
+                                mActivity, mModalDialogManagerSupplier.get());
         mNotificationPermissionController =
                 new NotificationPermissionController(mWindowAndroid, rationaleUIDelegateSupplier);
         NotificationPermissionController.attach(mWindowAndroid, mNotificationPermissionController);

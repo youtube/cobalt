@@ -9,6 +9,7 @@
 #include <string_view>
 #include <vector>
 
+#include "base/types/strong_alias.h"
 #include "components/autofill/core/common/aliases.h"
 #include "components/autofill/core/common/form_data.h"
 #include "components/autofill/core/common/form_field_data.h"
@@ -107,7 +108,9 @@ bool IsFormPerfectlyFilled(const FormData& form);
 // `PHONE_HOME_COUNTRY_CODE` field by looking at its option contents.
 // "Augmented" refers to the fact that we also allow select options containing
 // not only a country code but also further text like "Germany (+49)".
-bool LikelyAugmentedPhoneCountryCode(const FormFieldData& field);
+bool LikelyAugmentedPhoneCountryCode(
+    const FormFieldData& field,
+    bool new_augmented_cc_regex_experiment_enabled);
 
 }  // namespace autofill
 

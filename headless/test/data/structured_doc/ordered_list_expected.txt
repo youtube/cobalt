@@ -2,6 +2,10 @@
    "lang": "en",
    "type": "Document",
    "~children": [ {
+      "attributes": [ {
+         "ListNumbering": "Decimal",
+         "O": "List"
+      } ],
       "type": "L",
       "~children": [ {
          "type": "LI",

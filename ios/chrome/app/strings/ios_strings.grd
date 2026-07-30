@@ -1495,6 +1495,11 @@
         =1 {Add up to 1 file, tab, or image}
         other {Add up to {COUNT} files, tabs, or images}}
       </message>
+      <message name="IDS_IOS_COMPOSEBOX_MAXIMUM_TABS_REACHED" desc="Message displayed in a snackbar when the user tries to attach more than the maximum allowed number of tabs. [iOS only].">
+        {COUNT, plural,
+        =1 {Add up to 1 tab}
+        other {Add up to {COUNT} tabs}}
+      </message>
       <message name="IDS_IOS_COMPOSEBOX_MENU_TITLE" desc="Title for the contextual menu, the menu allows the user to attach images, tabs, files to their query. [iOS only].">
         Ask Google about tabs and more
       </message>
@@ -3048,7 +3053,7 @@
         Built for Your iPhone
       </message>
       <message name="IDS_IOS_GEMINI_IMAGE_CONTEXT_MENU_ENTRY_POINT" desc="The entry point for Gemini when the user long-presses an image. Invites the user to create an image using Gemini in Chrome.">
-        Edit image with Gemini
+        Edit Image with Gemini
       </message>
       <message name="IDS_IOS_GEMINI_IMAGE_REMIX_ENTRY_POINT_IPH" desc="Main text in the in-product help tooltip suggesting to users that they can create an image with Gemini.">
         Create an image with Gemini

@@ -20,7 +20,6 @@ import androidx.annotation.StringRes;
 import androidx.annotation.VisibleForTesting;
 
 import org.chromium.base.Callback;
-import org.chromium.base.ThreadUtils;
 import org.chromium.base.TraceEvent;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.build.BuildConfig;
@@ -151,8 +150,6 @@ class AutocompleteMediator
     // Set at the end of the Omnibox interaction to indicate whether the user selected an item
     // from the list (true) or left the Omnibox and suggestions list with no action taken (false).
     private boolean mOmniboxFocusResultedInNavigation;
-    // Facilitate detection of Autocomplete actions being scheduled from an Autocomplete action.
-    private boolean mIsExecutingAutocompleteAction;
     // The value of the last ZPS suppress metric recorded for the current ZPS session.
     // The value is reset to null for each new ZPS session.
     private @Nullable Boolean mLastRecordedZpsSuppressionValue;
@@ -465,17 +462,19 @@ class AutocompleteMediator
             mOmniboxFocusResultedInNavigation = false;
         }
 
-        // Ask directly for zero-suggestions related to current input, unless the user is
-        // currently visiting SearchActivity and the input is populated from the launch intent.
-        // In all contexts, the input will most likely be empty, triggering the same response
-        // (starting zero suggestions), but if the SearchActivity was launched with a QUERY,
-        // then the query might point to a different URL than the reported Page, and the
-        // suggestion would take the user to the DSE home page.
-        // This is tracked by MobileStartup.LaunchCause / EXTERNAL_SEARCH_ACTION_INTENT
-        // metric.
-        onTextChanged(
-                assumeNonNull(mAutocompleteInput).getUserText(),
-                /* isOnFocusContext= */ OmniboxFeatures.shouldRetainOmniboxOnFocus());
+        if (!input.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping()) {
+            // Ask directly for zero-suggestions related to current input, unless the user is
+            // currently visiting SearchActivity and the input is populated from the launch intent.
+            // In all contexts, the input will most likely be empty, triggering the same response
+            // (starting zero suggestions), but if the SearchActivity was launched with a QUERY,
+            // then the query might point to a different URL than the reported Page, and the
+            // suggestion would take the user to the DSE home page.
+            // This is tracked by MobileStartup.LaunchCause / EXTERNAL_SEARCH_ACTION_INTENT
+            // metric.
+            onTextChanged(
+                    assumeNonNull(mAutocompleteInput).getUserText(),
+                    /* isOnFocusContext= */ OmniboxFeatures.shouldRetainOmniboxOnFocus());
+        }
     }
 
     /**
@@ -927,6 +926,13 @@ class AutocompleteMediator
     public void onTextChanged(String textWithoutAutocomplete, boolean isOnFocusContext) {
         if (!isInInputSession()) return;
         if (mShouldPreventOmniboxAutocomplete) return;
+
+        if (mAutocompleteInput.shouldSuppressAutomaticSuggestionsUntilUserStartsTyping()
+                && TextUtils.equals(mAutocompleteInput.getUserText(), textWithoutAutocomplete)) {
+            return;
+        }
+        // User started typing.
+        mAutocompleteInput.setSuppressAutomaticSuggestionsUntilUserStartsTyping(false);
 
         // Always re-set the list's final state when we're about to request new suggestions.
         // This avoids a problem, where the property does not get an explicit update that the list
@@ -1457,17 +1463,23 @@ class AutocompleteMediator
      *     SCHEDULE_FOR_IMMEDIATE_EXECUTION to post action at front of the message queue.
      */
     private void postAutocompleteRequest(Runnable action, long delayMillis) {
-        assert !mIsExecutingAutocompleteAction : "Can't schedule conflicting autocomplete action";
-        assert ThreadUtils.runningOnUiThread() : "Detected input from a non-UI thread. Test error?";
+        // TODO(crbug.com/475620206) carefully reenable and chase down any cases where the
+        // input session restarts may lead to unnecessary, redundant autocomplete requests.
+        // This assert shows good optimization opportunities, not real bugs, but leads to
+        // unfortunate reverts of relevant changes.
+        // Facilitate detection of Autocomplete actions being scheduled from an Autocomplete action.
+        // static boolean mIsExecutingAutocompleteAction;
+        // assert !mIsExecutingAutocompleteAction : "Don't schedule recurring autocomplete action";
 
         cancelAutocompleteRequests();
         mCurrentAutocompleteRequest =
                 new Runnable() {
                     @Override
                     public void run() {
-                        mIsExecutingAutocompleteAction = true;
+                        // TODO(crbug.com/475620206) carefully reenable.
+                        // mIsExecutingAutocompleteAction = true;
                         action.run();
-                        mIsExecutingAutocompleteAction = false;
+                        // mIsExecutingAutocompleteAction = false;
                         // Release completed Runnable.
                         mCurrentAutocompleteRequest = null;
                     }

@@ -78,7 +78,6 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
   void ExecuteCommand(int command_id, int event_flags) override;
   bool IsCommandIdEnabled(int command_id) const override;
   bool IsCommandIdVisible(int command_id) const override;
-  bool IsCommandIdChecked(int command_id) const override;
   void AddTabContext(const TabInfo& tab_info);
   void UpdateSearchboxContext(
       std::optional<TabInfo> tab_info,
@@ -98,7 +97,8 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
     kAutoModel = 6,
     kThinkingModel = 7,
     kRegularModel = 8,
-    kMaxValue = kRegularModel,
+    kProNoGenUiModel = 9,
+    kMaxValue = kProNoGenUiModel,
   };
   // LINT.ThenChange(//tools/metrics/histograms/metadata/omnibox/enums.xml:ContextType,//tools/metrics/histograms/metadata/omnibox/histograms.xml:ContextType)
 
@@ -164,6 +164,8 @@ class OmniboxContextMenuController : public ui::SimpleMenuModel::Delegate {
 
   /* Helpers for InputType input_state fields. */
   omnibox::InputType GetInputTypeForCommandId(int command_id) const;
+  const omnibox::InputTypeConfig* GetInputTypeConfig(
+      omnibox::InputType input_type) const;
   bool IsInputTypeVisible(omnibox::InputType input_type) const;
   bool IsInputTypeEnabled(omnibox::InputType input_type) const;
 

@@ -14,6 +14,7 @@
 #include "chrome/browser/sync/test/integration/sync_service_impl_harness.h"
 #include "chrome/browser/sync/test/integration/sync_test.h"
 #include "chrome/browser/sync/test/integration/updated_progress_marker_checker.h"
+#include "components/browser_sync/browser_sync_switches.h"
 #include "components/password_manager/core/browser/features/password_features.h"
 #include "components/password_manager/core/browser/features/password_manager_features_util.h"
 #include "components/password_manager/core/browser/password_form.h"
@@ -102,6 +103,11 @@ class SingleClientPasswordsSyncTest
     if (GetSetupSyncMode() == SetupSyncMode::kSyncTransportOnly) {
       scoped_feature_list_.InitAndEnableFeature(
           syncer::kReplaceSyncPromosWithSignInPromos);
+    } else {
+      // Skip sync-to-signin migration for sync-the-feature tests. This is to
+      // avoid the sync state changing between the PRE_ tests.
+      scoped_feature_list_.InitAndDisableFeature(
+          switches::kMigrateSyncingUserToSignedIn);
     }
   }
   ~SingleClientPasswordsSyncTest() override = default;
@@ -591,14 +597,18 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsWithAccountStorageSyncTest,
   passwords_helper::GetProfilePasswordStoreInterface(0)->UpdateLogin(form1);
 
   // The passwords are still existing locally.
-  PasswordFormsChecker(0, {form0, form1}).Wait();
+  PasswordFormsChecker(0, {form0, form1},
+                       password_manager::PasswordForm::Store::kProfileStore)
+      .Wait();
 
   // Fix the authentication error, sync is available again.
   GetClient(0)->ExitSyncPausedStateForPrimaryAccount();
   ASSERT_TRUE(GetSyncService(0)->GetActiveDataTypes().Has(syncer::PASSWORDS));
 
   // `form0` has been deleted locally, only `form1` remains.
-  PasswordFormsChecker(0, {form1}).Wait();
+  PasswordFormsChecker(0, {form1},
+                       password_manager::PasswordForm::Store::kProfileStore)
+      .Wait();
 
   // `form1` was updated on the server.
   EXPECT_TRUE(ServerPasswordsEqualityChecker(
@@ -670,12 +680,16 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsWithAccountStorageSyncTest,
       passwords_helper::GetAccountPasswordStoreInterface(0);
   ASSERT_EQ(passwords_helper::GetAllLogins(account_store).size(), 0u);
 
-  PasswordFormsChecker(0, {form1, form2}).Wait();
+  PasswordFormsChecker(0, {form1, form2},
+                       password_manager::PasswordForm::Store::kProfileStore)
+      .Wait();
   ASSERT_TRUE(ServerCountMatchStatusChecker(syncer::PASSWORDS, 0).Wait());
 
   GetSyncService(0)->TriggerLocalDataMigration({syncer::PASSWORDS});
 
-  PasswordFormsChecker(0, {}).Wait();
+  PasswordFormsChecker(0, {},
+                       password_manager::PasswordForm::Store::kProfileStore)
+      .Wait();
   EXPECT_TRUE(ServerCountMatchStatusChecker(syncer::PASSWORDS, 2).Wait());
 
   EXPECT_THAT(
@@ -720,13 +734,17 @@ IN_PROC_BROWSER_TEST_F(SingleClientPasswordsWithAccountStorageSyncTest,
       passwords_helper::GetAccountPasswordStoreInterface(0);
   ASSERT_EQ(passwords_helper::GetAllLogins(account_store).size(), 0u);
 
-  PasswordFormsChecker(0, {form1, form2}).Wait();
+  PasswordFormsChecker(0, {form1, form2},
+                       password_manager::PasswordForm::Store::kProfileStore)
+      .Wait();
   ASSERT_TRUE(ServerCountMatchStatusChecker(syncer::PASSWORDS, 0).Wait());
 
   GetSyncService(0)->TriggerLocalDataMigrationForItems(
       {{syncer::PASSWORDS, {PasswordFormUniqueKey(form1)}}});
 
-  PasswordFormsChecker(0, {form2}).Wait();
+  PasswordFormsChecker(0, {form2},
+                       password_manager::PasswordForm::Store::kProfileStore)
+      .Wait();
   EXPECT_TRUE(ServerCountMatchStatusChecker(syncer::PASSWORDS, 1).Wait());
 
   EXPECT_THAT(fake_server_->GetSyncEntitiesByDataType(syncer::PASSWORDS),

@@ -306,7 +306,7 @@ class BrowsingHistoryServiceTest : public ::testing::TestWithParam<bool> {
     HistoryEntry entry;
     entry.url = GURL(url);
     for (int hour_offset : hour_offsets) {
-      entry.all_timestamps.insert(OffsetToTime(hour_offset));
+      entry.all_timestamps[entry.url].insert(OffsetToTime(hour_offset));
     }
     return entry;
   }
@@ -659,8 +659,8 @@ TEST_P(BrowsingHistoryServiceTest, MergeDuplicatesVerifyTimestamps) {
                                               {kUrl1, 3, kRemote},
                                               {kUrl2, 1, kRemote},
                                           }));
-  EXPECT_EQ(3U, results.first[0].all_timestamps.size());
-  EXPECT_EQ(1U, results.first[1].all_timestamps.size());
+  EXPECT_EQ(3U, results.first[0].all_timestamps[GURL(kUrl1)].size());
+  EXPECT_EQ(1U, results.first[1].all_timestamps[GURL(kUrl2)].size());
 }
 
 TEST_P(BrowsingHistoryServiceTest, MergeDuplicatesKeepNonEmptyIconUrl) {
@@ -1135,6 +1135,62 @@ TEST_P(BrowsingHistoryServiceTest, ActorVisitDeduplication) {
                              {kUrl1, 2, kBoth},
                          }));
 }
+
+TEST_P(BrowsingHistoryServiceTest, GroupSimilarVisits) {
+  base::test::ScopedFeatureList feature_list;
+  feature_list.InitAndEnableFeature(kBrowsingHistorySimilarVisitsGrouping);
+
+  // Add a page with a custom title.
+  HistoryAddPageArgs page1;
+  page1.url = GURL("http://www.a.com/1");
+  page1.time = OffsetToTime(4);
+  page1.title = u"Title A";
+  local_history()->AddPage(page1);
+
+  // Add a page with a different URL but the same title as page 1, this should
+  // not be grouped with page 1.
+  HistoryAddPageArgs page2;
+  page2.url = GURL("http://www.b.com/1");
+  page2.time = OffsetToTime(3);
+  page2.title = u"Title B";
+  local_history()->AddPage(page2);
+
+  // Add a remote page with a different URL but the same domain and title as
+  // page 1. This should be grouped with page 1.
+  HistoryAddPageArgs page3;
+  page3.url = GURL("http://www.a.com/2");
+  page3.time = OffsetToTime(2);
+  page3.title = u"Title A";
+  local_history()->AddPage(page3);
+
+  // Add a page with a different URL and title, but the same domain as page 1,
+  // this should not be grouped with page 1.
+  HistoryAddPageArgs page4;
+  page4.url = GURL("http://www.a.com/3");
+  page4.time = OffsetToTime(1);
+  page4.title = u"Title C";
+  local_history()->AddPage(page4);
+
+  // Add a page with the same URL and title as page 1, this should be grouped
+  // with page 1.
+  HistoryAddPageArgs page5;
+  page5.url = GURL("http://www.a.com/1");
+  page5.time = OffsetToTime(5);
+  page5.title = u"Title A";
+  local_history()->AddPage(page5);
+
+  BlockUntilHistoryProcessesPendingRequests();
+
+  EXPECT_THAT(
+      QueryHistory(),
+      MatchesQueryResult(baseline_time_, /*reached_beginning=*/true,
+                         std::vector<TestResult>{
+                             {"http://www.a.com/1", 5, kLocal},
+                             {"http://www.b.com/1", 3, kLocal},
+                             {"http://www.a.com/3", 1, kLocal},
+                         }));
+}
+
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)
 
 }  // namespace

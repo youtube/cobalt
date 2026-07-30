@@ -64,12 +64,22 @@ TopLevelDispatcher::TopLevelDispatcher(PolicyBase* policy) {
     signed_dispatcher_ = std::make_unique<SignedDispatcher>(policy);
     ipc_targets_[IpcTag::NTCREATESECTION] = signed_dispatcher_.get();
   }
+
+  ipc_calls_[IpcTag::PING1] = {
+      {UINT32_TYPE},
+      reinterpret_cast<CallbackGeneric>(&TopLevelDispatcher::Ping1)};
+  ipc_calls_[IpcTag::PING2] = {
+      {INOUTPTR_TYPE},
+      reinterpret_cast<CallbackGeneric>(&TopLevelDispatcher::Ping2)};
 }
 
 TopLevelDispatcher::~TopLevelDispatcher() {}
 
 std::vector<IpcTag> TopLevelDispatcher::ipc_targets() {
-  std::vector<IpcTag> results = {IpcTag::PING1, IpcTag::PING2};
+  std::vector<IpcTag> results;
+  for (const auto& pair : ipc_calls_) {
+    results.push_back(pair.first);
+  }
   for (const auto& pair : ipc_targets_) {
     results.push_back(pair.first);
   }
@@ -79,55 +89,44 @@ std::vector<IpcTag> TopLevelDispatcher::ipc_targets() {
 // When an IPC is ready in any of the targets we get called. We manage an array
 // of IPC dispatchers which are keyed on the IPC tag so we normally delegate
 // to the appropriate dispatcher unless we can handle the IPC call ourselves.
-Dispatcher* TopLevelDispatcher::OnMessageReady(IPCParams* ipc,
+Dispatcher* TopLevelDispatcher::OnMessageReady(IpcTag ipc_tag,
+                                               const IPCParamTypes& types,
                                                CallbackGeneric* callback) {
   DCHECK(callback);
-  static const IPCParams ping1 = {IpcTag::PING1, {UINT32_TYPE}};
-  static const IPCParams ping2 = {IpcTag::PING2, {INOUTPTR_TYPE}};
-
-  if (ping1.Matches(ipc) || ping2.Matches(ipc)) {
-    *callback = reinterpret_cast<CallbackGeneric>(
-        static_cast<Callback1>(&TopLevelDispatcher::Ping));
-    return this;
+  Dispatcher* dispatcher = Dispatcher::OnMessageReady(ipc_tag, types, callback);
+  if (!dispatcher) {
+    dispatcher =
+        GetDispatcher(ipc_tag)->OnMessageReady(ipc_tag, types, callback);
   }
-
-  return GetDispatcher(ipc->ipc_tag)->OnMessageReady(ipc, callback);
+  return dispatcher;
 }
 
 // Delegate to the appropriate dispatcher.
 bool TopLevelDispatcher::SetupService(InterceptionManager* manager,
                                       IpcTag service) {
-  if (IpcTag::PING1 == service || IpcTag::PING2 == service)
+  if (IpcTag::PING1 == service || IpcTag::PING2 == service) {
     return true;
-
+  }
   return GetDispatcher(service)->SetupService(manager, service);
 }
 
 // We service PING message which is a way to test a round trip of the
 // IPC subsystem. We receive a integer cookie and we are expected to return the
 // cookie times two (or three) and the current tick count.
-bool TopLevelDispatcher::Ping(IPCInfo* ipc, void* arg1) {
-  switch (ipc->ipc_tag) {
-    case IpcTag::PING1: {
-      IPCInt ipc_int(arg1);
-      uint32_t cookie = ipc_int.As32Bit();
-      ipc->return_info.extended_count = 2;
-      ipc->return_info.extended[0].unsigned_int = ::GetTickCount();
-      ipc->return_info.extended[1].unsigned_int = 2 * cookie;
-      return true;
-    }
-    case IpcTag::PING2: {
-      CountedBuffer* io_buffer = reinterpret_cast<CountedBuffer*>(arg1);
-      if (sizeof(uint32_t) != io_buffer->Size())
-        return false;
+bool TopLevelDispatcher::Ping1(IPCInfo* ipc, uint32_t cookie) {
+  ipc->return_info.extended_count = 2;
+  ipc->return_info.extended[0].unsigned_int = ::GetTickCount();
+  ipc->return_info.extended[1].unsigned_int = 2 * cookie;
+  return true;
+}
 
-      uint32_t* cookie = reinterpret_cast<uint32_t*>(io_buffer->Buffer());
-      *cookie = (*cookie) * 3;
-      return true;
-    }
-    default:
-      return false;
+bool TopLevelDispatcher::Ping2(IPCInfo* ipc, CountedBuffer* io_buffer) {
+  if (sizeof(uint32_t) != io_buffer->size()) {
+    return false;
   }
+  uint32_t* cookie = reinterpret_cast<uint32_t*>(io_buffer->data());
+  *cookie = (*cookie) * 3;
+  return true;
 }
 
 Dispatcher* TopLevelDispatcher::GetDispatcher(IpcTag ipc_tag) {

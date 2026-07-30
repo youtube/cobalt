@@ -28,26 +28,6 @@
 
 namespace {
 
-// Returns drag data sorted by index in the source tab strip model. Data without
-// a source index a placed at the end.
-// TODO(crbug.com/476084253): Update `DragSessionData` to ensure the tab drag
-// data is already sorted.
-std::vector<TabDragData> GetSortedTabDragData(
-    const DragSessionData& session_data) {
-  std::vector<TabDragData> drag_data = session_data.tab_drag_data_;
-  std::sort(drag_data.begin(), drag_data.end(),
-            [](const TabDragData& a, const TabDragData& b) {
-              if (!a.source_model_index.has_value()) {
-                return false;
-              }
-              if (!b.source_model_index.has_value()) {
-                return true;
-              }
-              return a.source_model_index < b.source_model_index;
-            });
-  return drag_data;
-}
-
 // Calculates the offset of the source dragged view (i.e. the main view being
 // dragged) from the mouse.
 gfx::Vector2d GetSourceViewOffsetFromMouse(
@@ -76,10 +56,17 @@ gfx::Vector2d GetSourceViewOffsetFromMouse(
 
 VerticalDraggedTabsContainer::VerticalDraggedTabsContainer(
     views::View& host_view,
+    TabCollectionNode* collection_node,
     DragAxes drag_axes,
     DragLayout drag_layout)
-    : host_view_(host_view), drag_axes_(drag_axes), drag_layout_(drag_layout) {
+    : host_view_(host_view),
+      collection_node_(collection_node),
+      drag_axes_(drag_axes),
+      drag_layout_(drag_layout) {
   host_view_observation_.Observe(&host_view);
+  node_destroyed_subscription_ = collection_node_->RegisterWillDestroyCallback(
+      base::BindOnce(&VerticalDraggedTabsContainer::ResetCollectionNode,
+                     base::Unretained(this)));
 }
 
 VerticalDraggedTabsContainer::~VerticalDraggedTabsContainer() {
@@ -101,21 +88,15 @@ TabDragContext* VerticalDraggedTabsContainer::OnTabDragUpdated(
     return GetDragHandler().GetDragContext();
   }
 
-  gfx::Point point_in_container = views::View::ConvertPointFromScreen(
-      base::to_address(host_view_), point_in_screen);
-
-  gfx::Rect dragged_bounds_in_container =
-      GetDraggingViewsBoundsAtPoint(point_in_container);
-  HandleTabDragInContainer(dragged_bounds_in_container);
-
   // Used to determine whether the layout should snap into position without
   // animating at the end of this drag cycle.
   bool is_initial_drag = dragging_views_.empty();
   if (is_initial_drag) {
+    HandleTabDragEnteredContainer();
     InitializeDragState(drag_controller);
   }
 
-  UpdateDraggingViewTransforms(point_in_container);
+  ApplyUpdatesForDragPositionChange();
 
   if (is_initial_drag) {
     // This is needed so that the transformation takes over without animating
@@ -128,17 +109,44 @@ TabDragContext* VerticalDraggedTabsContainer::OnTabDragUpdated(
   return GetDragHandler().GetDragContext();
 }
 
+void VerticalDraggedTabsContainer::ApplyUpdatesForDragPositionChange() {
+  gfx::Point point_in_container = views::View::ConvertPointFromScreen(
+      base::to_address(host_view_), last_drag_point_in_screen_);
+
+  gfx::Rect dragged_bounds_in_container =
+      GetDraggingViewsBoundsAtPoint(point_in_container);
+
+  auto* scroll_view = GetScrollViewForContainer();
+  CHECK(scroll_view);
+  scroll_handler_.OnDraggedTabPositionUpdated(
+      *scroll_view, views::View::ConvertRectToTarget(
+                        base::to_address(host_view_), scroll_view,
+                        dragged_bounds_in_container));
+
+  HandleTabDragInContainer(dragged_bounds_in_container);
+
+  UpdateDraggingViewTransforms(point_in_container);
+}
+
 void VerticalDraggedTabsContainer::OnTabDragExited(
     const gfx::Point& point_in_screen) {
   ResetDragState();
+  scroll_handler_.StopScrolling();
 }
 
 void VerticalDraggedTabsContainer::OnTabDragEnded() {
   ResetDragState();
+  scroll_handler_.StopScrolling();
 }
 
 bool VerticalDraggedTabsContainer::CanDropTab() {
   return true;
+}
+
+void VerticalDraggedTabsContainer::HandleTabDragEnteredContainer() {
+  CHECK(collection_node_);
+  GetDragHandler().HandleDraggedTabsIntoNode(*collection_node_);
+  UpdateLayoutForDrag();
 }
 
 base::CallbackListSubscription
@@ -165,6 +173,13 @@ void VerticalDraggedTabsContainer::InitializeDragState(
     TabDragTarget::DragController& controller) {
   CHECK(dragging_views_.empty());
 
+  auto* scroll_view = GetScrollViewForContainer();
+  CHECK(scroll_view);
+  on_scrolled_subscription_ =
+      scroll_view->AddContentsScrolledCallback(base::BindRepeating(
+          &VerticalDraggedTabsContainer::ApplyUpdatesForDragPositionChange,
+          base::Unretained(this)));
+
   tab_strip_padding_ = GetLayoutConstant(
       IsTabStripCollapsed()
           ? LayoutConstant::kVerticalTabStripCollapsedPadding
@@ -179,16 +194,13 @@ void VerticalDraggedTabsContainer::BuildDragLayout(
   auto* source_dragged_view = GetDragHandler().ViewFromTabSlot(
       session_data.source_view_drag_data()->attached_view);
   CHECK(source_dragged_view);
-  CHECK_EQ(dragging_views_bounds_, gfx::Rect());
 
+  dragging_views_bounds_ = gfx::Rect();
   dragging_views_bounds_.Offset(
       GetSourceViewOffsetFromMouse(*source_dragged_view, session_data));
 
-  for (const auto& datum : GetSortedTabDragData(session_data)) {
-    if (!datum.attached_view) {
-      continue;
-    }
-    auto* dragging_view = GetDragHandler().ViewFromTabSlot(datum.attached_view);
+  for (auto* attached_view : session_data.attached_views()) {
+    auto* dragging_view = GetDragHandler().ViewFromTabSlot(attached_view);
     CHECK(dragging_view);
 
     if (dragging_view->parent() != base::to_address(host_view_)) {
@@ -259,6 +271,8 @@ void VerticalDraggedTabsContainer::ResetDragState() {
   UpdateLayoutForDrag();
   dragging_views_.clear();
   dragging_views_bounds_ = gfx::Rect();
+
+  on_scrolled_subscription_.reset();
 }
 
 // TODO(crbug.com/476084253): Support laying out with multiple dragged tabs.
@@ -391,4 +405,26 @@ bool VerticalDraggedTabsContainer::HasMinimumOverlap(
 
 bool VerticalDraggedTabsContainer::IsHandlingDrag() const {
   return !dragging_views_.empty();
+}
+
+VerticalTabDragHandler& VerticalDraggedTabsContainer::GetDragHandler() {
+  return const_cast<VerticalTabDragHandler&>(
+      std::as_const(*this).GetDragHandler());
+}
+
+const VerticalTabDragHandler& VerticalDraggedTabsContainer::GetDragHandler()
+    const {
+  CHECK(collection_node_);
+  CHECK(collection_node_->GetController());
+  return collection_node_->GetController()->GetDragHandler();
+}
+
+bool VerticalDraggedTabsContainer::IsTabStripCollapsed() const {
+  CHECK(collection_node_);
+  const auto* controller = collection_node_->GetController();
+  return controller && controller->IsCollapsed();
+}
+
+void VerticalDraggedTabsContainer::ResetCollectionNode() {
+  collection_node_ = nullptr;
 }

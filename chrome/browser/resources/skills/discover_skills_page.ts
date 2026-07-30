@@ -22,6 +22,8 @@ import {SkillsPageBrowserProxy} from './skills_page_browser_proxy.js';
 
 // The category name for top skills.
 const kTopPickCategoryString: string = 'Top Pick';
+// The default category name for all skills.
+const kAllCategoriesString: string = 'All';
 
 export interface DiscoverSkillsPageElement {
   $: {
@@ -45,6 +47,7 @@ export class DiscoverSkillsPageElement extends CrLitElement {
   static override get properties() {
     return {
       skills_: {type: Object},
+      searchTerm_: {type: String},
       selectedCategory_: {type: String},
       is1PSkillSaving_: {type: Boolean},
     };
@@ -52,9 +55,12 @@ export class DiscoverSkillsPageElement extends CrLitElement {
 
   /* key: category, value: skill */
   protected accessor skills_: Map<string, Skill[]> = new Map();
+  // Skills that are pending removal and can't be saved.
+  protected skillsPendingRemoval_: Set<string> = new Set();
   protected accessor selectedCategory_: string = '';
   // Determines if a 1P skill is in the process of being saved.
   protected accessor is1PSkillSaving_: boolean = false;
+  protected accessor searchTerm_: string = '';
   private listenerIds_: number[] = [];
   private proxy_: SkillsPageBrowserProxy = SkillsPageBrowserProxy.getInstance();
   private eventTracker_: EventTracker = new EventTracker();
@@ -90,34 +96,106 @@ export class DiscoverSkillsPageElement extends CrLitElement {
         this.proxy_.handler.openSkillsDialog(SkillsDialogType.kAdd, savedSkill);
       } else {
         this.$.invalidSkillToast.show();
+        this.skillsPendingRemoval_ =
+            new Set([...this.skillsPendingRemoval_, savedSkill.id]);
       }
       this.is1PSkillSaving_ = false;
     });
   }
 
+  protected shouldDisableSave_(skill: Skill): boolean {
+    return this.is1PSkillSaving_ || this.skillsPendingRemoval_.has(skill.id);
+  }
+
   protected update1PMap_(skillMap: {[key: string]: Skill[]}) {
+    // Getting a new set of 1p skills, so we can remove any prior skills that
+    // were pending removal.
+    this.skillsPendingRemoval_ = new Set();
     this.skills_ = new Map(Object.entries(skillMap));
     const otherCategories = this.getOtherCategories_();
     this.selectedCategory_ =
         otherCategories.length > 0 ? otherCategories[0]! : '';
   }
 
+  protected getIconForCategory_(category: string): string {
+    switch (category) {
+      case 'All':
+        return 'skills:grid';
+      case 'Fun':
+        return 'skills:celebration';
+      case 'Learning':
+        return 'skills:book';
+      case 'Research':
+        return 'skills:search';
+      case 'Shopping':
+        return 'skills:shopping';
+      case 'Understand':
+        return 'skills:lightbulb';
+      case 'Writing':
+        return 'skills:write';
+      default:
+        return 'cr:add';
+    }
+  }
+
   protected isCategorySelected_(category: string): boolean {
     return this.selectedCategory_ === category;
   }
 
+  onSearchChanged(searchTerm: string) {
+    this.searchTerm_ = searchTerm.toLowerCase();
+  }
+
+  protected filter_(skills: Skill[]) {
+    const term = this.searchTerm_.toLowerCase();
+
+    if (!term) {
+      return skills;
+    }
+
+    return skills.filter(
+        skill => skill.name.toLowerCase().includes(term) ||
+            skill.description.toLowerCase().includes(term));
+  }
+
   protected topSkills_(): Skill[] {
-    return this.skills_.get(kTopPickCategoryString) || [];
+    return this.filter_(this.skills_.get(kTopPickCategoryString) || []);
   }
 
   protected getSelectedSkills_(): Skill[] {
-    return this.skills_.get(this.selectedCategory_) || [];
+    if (this.selectedCategory_ === kAllCategoriesString) {
+      return this.getOtherSkills_();
+    }
+    return this.filter_(this.skills_.get(this.selectedCategory_) || []);
+  }
+
+  // Gets all skills that are not tagged top skills.
+  protected getOtherSkills_(): Skill[] {
+    const allSkills =
+        Array.from(this.skills_.entries())
+            .filter(([category, _]) => category !== kTopPickCategoryString)
+            .flatMap(([_, skills]) => skills);
+    return this.filter_(allSkills);
   }
 
   // Gets all categories that are not tagged top skills.
   protected getOtherCategories_(): string[] {
-    return Array.from(this.skills_.keys())
-        .filter(category => category !== kTopPickCategoryString);
+    const filteredOtherCategories =
+        Array.from(this.skills_.keys())
+            .filter(category => category !== kTopPickCategoryString);
+
+    if (filteredOtherCategories.length === 0) {
+      return [];
+    }
+
+    return [kAllCategoriesString, ...filteredOtherCategories].filter(
+        category => {
+          if (category === kAllCategoriesString) {
+            return this.getOtherSkills_().length > 0;
+          }
+          const skills = this.skills_.get(category) ?? [];
+          return this.filter_(skills).length > 0;
+        });
   }
 
   protected onCategoryClick_(e: Event) {

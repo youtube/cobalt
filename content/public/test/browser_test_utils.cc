@@ -2088,13 +2088,6 @@ bool HasOriginKeyedProcess(RenderFrameHost* frame) {
       .IsOriginKeyed();
 }
 
-bool HasSandboxedSiteInstance(RenderFrameHost* frame) {
-  return static_cast<RenderFrameHostImpl*>(frame)
-      ->GetSiteInstance()
-      ->GetSiteInfo()
-      .is_sandboxed();
-}
-
 std::vector<RenderFrameHost*> CollectAllRenderFrameHosts(
     RenderFrameHost* starting_rfh) {
   std::vector<RenderFrameHost*> visited_frames;
@@ -4339,6 +4332,26 @@ int LoadBasicRequest(RenderFrameHost* frame, const GURL& url) {
   return LoadBasicRequest(
       url_loader_factory.get(), url, 0 /* load_flags */,
       frame->GetLastCommittedOrigin() /* request_initiator */);
+}
+
+bool WaitUntilHasPreloadSharedDictionaryInfo(
+    network::mojom::NetworkContext* network_context,
+    bool expected_value) {
+  base::Time deadline = base::Time::Now() + TestTimeouts::action_timeout();
+  while (base::Time::Now() < deadline) {
+    base::test::TestFuture<bool> result_future;
+    network_context->HasPreloadedSharedDictionaryInfoForTesting(
+        result_future.GetCallback());
+    if (result_future.Get() == expected_value) {
+      return true;
+    }
+    base::OneShotTimer one_shot_timer;
+    base::test::TestFuture<void> timer_future;
+    one_shot_timer.Start(FROM_HERE, TestTimeouts::tiny_timeout(),
+                         timer_future.GetCallback());
+    timer_future.Get();
+  }
+  return false;
 }
 
 void EnsureCookiesFlushed(BrowserContext* browser_context) {

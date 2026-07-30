@@ -11,10 +11,10 @@
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_color_updating.h"
 #import "ios/chrome/browser/ntp/ui_bundled/new_tab_page_trait.h"
 #import "ios/chrome/browser/shared/public/features/features.h"
+#import "ios/chrome/browser/shared/ui/elements/gradient/gradient_view.h"
 #import "ios/chrome/browser/shared/ui/symbols/symbols.h"
 #import "ios/chrome/browser/shared/ui/util/uikit_ui_util.h"
 #import "ios/chrome/common/ui/colors/semantic_color_names.h"
-#import "ios/chrome/common/ui/elements/gradient_view.h"
 #import "ios/chrome/common/ui/util/constraints_ui_util.h"
 #import "ios/chrome/common/ui/util/ui_util.h"
 
@@ -120,27 +120,13 @@ const CGFloat kSeparatorHeight = 0.5;
   contentStack.alignment = UIStackViewAlignmentTop;
   [self addSubview:contentStack];
   AddSameConstraints(contentStack, self);
-  NSArray<UITrait>* traits = TraitCollectionSetForTraits(
-      @[ UITraitPreferredContentSizeCategory.class ]);
-  [self registerForTraitChanges:traits
+  [self registerForTraitChanges:@[ UITraitPreferredContentSizeCategory.class ]
                      withAction:@selector(hideDescriptionOnTraitChange)];
   if (IsNTPBackgroundCustomizationEnabled()) {
     [self registerForTraitChanges:@[ NewTabPageTrait.class ]
                        withAction:@selector(applyBackgroundColors)];
   }
   [self applyBackgroundColors];
-}
-
-- (void)updateProductImageViewWithFavicon:(UIImage*)faviconImage {
-  // Skip update if no product image container exists (e.g. if invalid image
-  // data resulted in using a fallback icon).
-  if (!_productImage) {
-    return;
-  }
-  [self populateProductImageFaviconContainerAndView:faviconImage];
-  [self addFaviconToProductImage];
-  [self addConstraintsForProductImage];
-  [self addConstraintsForProductImageFavicon];
 }
 
 #pragma mark - NewTabPageColorUpdating

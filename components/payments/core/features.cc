@@ -51,5 +51,11 @@ BASE_FEATURE(kSecurePaymentConfirmationUseCredentialStoreAPIs,
 BASE_FEATURE(kSecurePaymentConfirmationFallback,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kPaymentRequestUseRendererUrlLoader,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kPaymentRequestRejectTooSmallWindows,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 }  // namespace features
 }  // namespace payments

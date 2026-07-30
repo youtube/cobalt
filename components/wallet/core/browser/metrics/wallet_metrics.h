@@ -6,6 +6,13 @@
 #define COMPONENTS_WALLET_CORE_BROWSER_METRICS_WALLET_METRICS_H_
 
 #include "components/wallet/core/browser/data_models/wallet_pass.h"
+#include "components/wallet/core/browser/network/wallet_request.h"
+
+namespace base {
+class TimeDelta;
+}
+
+class GoogleServiceAuthError;
 
 namespace wallet::metrics {
 
@@ -67,6 +74,16 @@ void LogServerExtractionEvent(PassCategory pass_category,
 
 void LogSaveEvent(PassCategory pass_category,
                   WalletablePassSaveFunnelEvents event);
+
+// Logs the OAuth errors that occur when WalletHttpClient requests a token.
+void RecordNetworkRequestOauthError(const GoogleServiceAuthError& error);
+
+// Logs latency of a `type` of network request.
+void RecordNetworkRequestLatency(WalletRequest::WalletNetworkRequestType type,
+                                 base::TimeDelta request_latency);
+
+std::string WalletNetworkRequestTypeToString(
+    WalletRequest::WalletNetworkRequestType type);
 
 }  // namespace wallet::metrics
 

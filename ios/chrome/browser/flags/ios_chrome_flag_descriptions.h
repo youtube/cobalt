@@ -202,9 +202,6 @@ extern const char kComposeboxDeepSearchDescription[];
 extern const char kComposeboxDevToolsName[];
 extern const char kComposeboxDevToolsDescription[];
 
-extern const char kComposeboxFetchContextualSuggestionsForImageName[];
-extern const char kComposeboxFetchContextualSuggestionsForImageDescription[];
-
 extern const char
     kComposeboxFetchContextualSuggestionsForMultipleAttachmentsName[];
 extern const char
@@ -224,6 +221,9 @@ extern const char kComposeboxIpadDescription[];
 
 extern const char kComposeboxMenuTitleName[];
 extern const char kComposeboxMenuTitleDescription[];
+
+extern const char kComposeboxServerSideStateName[];
+extern const char kComposeboxServerSideStateDescription[];
 
 extern const char kComposeboxTabPickerVariationName[];
 extern const char kComposeboxTabPickerVariationDescription[];
@@ -321,9 +321,6 @@ extern const char kEnableACPrefetchDescription[];
 extern const char kEnableAutofillAddressSavePromptName[];
 extern const char kEnableAutofillAddressSavePromptDescription[];
 
-extern const char kEnableClipboardDataControlsIOSName[];
-extern const char kEnableClipboardDataControlsIOSDescription[];
-
 extern const char kEnableCompromisedPasswordsMutingName[];
 extern const char kEnableCompromisedPasswordsMutingDescription[];
 
@@ -366,6 +363,9 @@ extern const char kEnableVariationsGoogleGroupFilteringDescription[];
 extern const char kEnhancedCalendarName[];
 extern const char kEnhancedCalendarDescription[];
 
+extern const char kExplainGeminiEditMenuName[];
+extern const char kExplainGeminiEditMenuDescription[];
+
 extern const char kFRESignInHeaderTextUpdateName[];
 extern const char kFRESignInHeaderTextUpdateDescription[];
 
@@ -389,9 +389,6 @@ extern const char kFullscreenTransitionSpeedDescription[];
 
 extern const char kGeminiCopresenceName[];
 extern const char kGeminiCopresenceDescription[];
-
-extern const char kGeminiCrossTabName[];
-extern const char kGeminiCrossTabDescription[];
 
 extern const char kGeminiDynamicSettingsName[];
 extern const char kGeminiDynamicSettingsDescription[];
@@ -417,9 +414,6 @@ extern const char kGeminiLoadingStateRedesignDescription[];
 extern const char kGeminiNavigationPromoName[];
 extern const char kGeminiNavigationPromoDescription[];
 
-extern const char kGeminiOnboardingCardsName[];
-extern const char kGeminiOnboardingCardsDescription[];
-
 extern const char kGeminiPersonalizationName[];
 extern const char kGeminiPersonalizationDescription[];
 
@@ -437,9 +431,6 @@ extern const char kHandleMdmErrorsForDasherAccountsDescription[];
 
 extern const char kHideToolbarsInOverflowMenuName[];
 extern const char kHideToolbarsInOverflowMenuDescription[];
-
-extern const char kHomeMemoryImprovementsName[];
-extern const char kHomeMemoryImprovementsDescription[];
 
 extern const char kHttpsUpgradesName[];
 extern const char kHttpsUpgradesDescription[];
@@ -771,6 +762,9 @@ extern const char kOmniboxZeroSuggestPrefetchingOnWebDescription[];
 extern const char kOptimizationGuideDebugLogsName[];
 extern const char kOptimizationGuideDebugLogsDescription[];
 
+extern const char kPageActionMenuIconName[];
+extern const char kPageActionMenuIconDescription[];
+
 extern const char kPageActionMenuName[];
 extern const char kPageActionMenuDescription[];
 
@@ -779,9 +773,6 @@ extern const char kPageContentAnnotationsDescription[];
 
 extern const char kPageContentAnnotationsRemotePageMetadataName[];
 extern const char kPageContentAnnotationsRemotePageMetadataDescription[];
-
-extern const char kPageContextAnchorTagsName[];
-extern const char kPageContextAnchorTagsDescription[];
 
 extern const char kPageVisibilityPageContentAnnotationsName[];
 extern const char kPageVisibilityPageContentAnnotationsDescription[];
@@ -918,6 +909,9 @@ extern const char kStrokesAPIEnabledDescription[];
 
 extern const char kSupervisedUserBlockInterstitialV3Name[];
 extern const char kSupervisedUserBlockInterstitialV3Description[];
+
+extern const char kSupervisedUserEmitLogRecordSeparatelyName[];
+extern const char kSupervisedUserEmitLogRecordSeparatelyDescription[];
 
 extern const char
     kSupervisedUserMergeDeviceParentalControlsAndFamilyLinkPrefsName[];

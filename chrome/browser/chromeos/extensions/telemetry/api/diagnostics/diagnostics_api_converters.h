@@ -9,32 +9,29 @@
 
 #include "chrome/common/chromeos/extensions/api/diagnostics.h"
 #include "chromeos/ash/services/cros_healthd/public/mojom/cros_healthd_diagnostics.mojom.h"
-#include "chromeos/crosapi/mojom/diagnostics_service.mojom.h"
 #include "chromeos/crosapi/mojom/telemetry_diagnostic_routine_service.mojom.h"
 
 namespace chromeos::converters::diagnostics {
 
-bool ConvertMojoRoutine(crosapi::mojom::DiagnosticsRoutineEnum in,
+bool ConvertMojoRoutine(ash::cros_healthd::mojom::DiagnosticRoutineEnum in,
                         chromeos::api::os_diagnostics::RoutineType* out);
 
 chromeos::api::os_diagnostics::RoutineStatus ConvertRoutineStatus(
-    crosapi::mojom::DiagnosticsRoutineStatusEnum status);
-chromeos::api::os_diagnostics::RoutineStatus ConvertRoutineStatus(
     ash::cros_healthd::mojom::DiagnosticRoutineStatusEnum status);
 
-crosapi::mojom::DiagnosticsRoutineCommandEnum ConvertRoutineCommand(
+ash::cros_healthd::mojom::DiagnosticRoutineCommandEnum ConvertRoutineCommand(
     chromeos::api::os_diagnostics::RoutineCommandType commandType);
 
-crosapi::mojom::DiagnosticsAcPowerStatusEnum ConvertAcPowerStatusRoutineType(
+ash::cros_healthd::mojom::AcPowerStatusEnum ConvertAcPowerStatusRoutineType(
     chromeos::api::os_diagnostics::AcPowerStatus routineType);
 
 chromeos::api::os_diagnostics::UserMessageType ConvertRoutineUserMessage(
-    crosapi::mojom::DiagnosticsRoutineUserMessageEnum userMessage);
+    ash::cros_healthd::mojom::DiagnosticRoutineUserMessageEnum userMessage);
 
-crosapi::mojom::DiagnosticsDiskReadRoutineTypeEnum ConvertDiskReadRoutineType(
+ash::cros_healthd::mojom::DiskReadRoutineTypeEnum ConvertDiskReadRoutineType(
     chromeos::api::os_diagnostics::DiskReadRoutineType routineType);
 
-crosapi::mojom::DiagnosticsNvmeSelfTestTypeEnum ConvertNvmeSelfTestRoutineType(
+ash::cros_healthd::mojom::NvmeSelfTestTypeEnum ConvertNvmeSelfTestRoutineType(
     chromeos::api::os_diagnostics::RunNvmeSelfTestRequest routineType);
 
 crosapi::mojom::TelemetryDiagnosticVolumeButtonRoutineArgument::ButtonType

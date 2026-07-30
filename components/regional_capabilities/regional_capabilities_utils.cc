@@ -7,7 +7,9 @@
 #include <algorithm>
 #include <optional>
 #include <random>
+#include <set>
 #include <string>
+#include <utility>
 #include <variant>
 
 #include "base/check_is_test.h"
@@ -33,10 +35,9 @@ using ::TemplateURLPrepopulateData::RegionalSettings;
 // Note: These entries are not also injected into
 // TemplateURLPrepopulateData::kAllEngines so simulating the full logic that
 // includes fallbacks is not supported.
-std::optional<std::vector<const PrepopulatedEngine*>>&
-GetPrepopulatedEnginesTestOverride() {
-  static base::NoDestructor<
-      std::optional<std::vector<const PrepopulatedEngine*>>>
+std::optional<PrepopulatedEnginesOverride>&
+GetPrepopulatedEnginesTestOverrideInternal() {
+  static base::NoDestructor<std::optional<PrepopulatedEnginesOverride>>
       g_preopulated_engines_test_override;
   return *g_preopulated_engines_test_override;
 }
@@ -67,8 +68,57 @@ void ShufflePrepopulatedEngines(std::vector<const PrepopulatedEngine*>& engines,
 
 }  // namespace
 
+constexpr MigratingEngines ComputeMigratedEnginesMapping(
+    base::span<const PrepopulatedEngine* const> all_engines) {
+  MigratingEngines migrating_engines;
+
+  for (const PrepopulatedEngine* engine : all_engines) {
+    if (engine->migrate_to_id == 0) {
+      continue;
+    }
+
+    // Data safety and YAGNI assumptions checks.
+    //
+    // They increase the time complexity of this computation, but as it should
+    // be called only once (result is cached) and we expect to only have 1
+    // engine with `migrate_to_id` set, it does not matter.
+    //
+    // If some data updates trigger some errors here, we should revisit the
+    // migration logic to check where it needs to also add support for these new
+    // cases.
+    // - No self-reference
+    CHECK_NE(engine->id, engine->migrate_to_id);
+    // - There is no already defined migration towards this target
+    CHECK(!migrating_engines.contains(engine->migrate_to_id));
+    // - The target is a known engine
+    auto matched_new_engine_iter = std::ranges::find(
+        all_engines, engine->migrate_to_id, &PrepopulatedEngine::id);
+    CHECK(matched_new_engine_iter != all_engines.end());
+    // - The target is not itself going through migration
+    CHECK_EQ((*matched_new_engine_iter)->migrate_to_id, 0);
+
+    migrating_engines.emplace(engine->migrate_to_id, engine);
+  }
+
+  return migrating_engines;
+}
+
+const MigratingEngines& GetMigratingPrepopulatedEngines() {
+  if (const auto& overrides = GetPrepopulatedEnginesTestOverrideInternal();
+      overrides.has_value()) {
+    CHECK_IS_TEST();
+    return overrides->migrating_engines;
+  }
+
+  // Maps from `id` to `PrepopulatedEngine` having `migrate_to_id` set.
+  static base::NoDestructor<MigratingEngines> migrating_engines(
+      ComputeMigratedEnginesMapping(TemplateURLPrepopulateData::kAllEngines));
+
+  return *migrating_engines;
+}
+
 std::optional<SearchEngineCountryOverride> GetSearchEngineCountryOverride() {
-  if (GetPrepopulatedEnginesTestOverride().has_value()) {
+  if (GetPrepopulatedEnginesTestOverrideInternal().has_value()) {
     CHECK_IS_TEST();
     return SearchEngineCountryListOverride::kTestOverride;
   }
@@ -169,20 +219,69 @@ std::vector<const PrepopulatedEngine*> GetDefaultPrepopulatedEngines() {
   return base::ToVector(GetRegionalSettings(CountryId()).search_engines);
 }
 
-std::vector<const PrepopulatedEngine*> GetTestOverridePrepopulatedEngines() {
-  CHECK_IS_TEST();
-  return GetPrepopulatedEnginesTestOverride().value();
+const base::span<const TemplateURLPrepopulateData::PrepopulatedEngine* const>
+GetAllPrepopulatedEngines() {
+  if (const auto& overrides = GetPrepopulatedEnginesTestOverrideInternal();
+      overrides.has_value()) {
+    CHECK_IS_TEST();
+    return base::span(overrides->all_engines);
+  }
+
+  return base::span(TemplateURLPrepopulateData::kAllEngines);
 }
 
-void SetPrepopulatedEnginesOverrideForTesting(  // IN-TEST
-    base::span<const PrepopulatedEngine*> engines) {
-  std::vector<const PrepopulatedEngine*> engines_vector(engines.begin(),
-                                                        engines.end());
-  GetPrepopulatedEnginesTestOverride() = std::move(engines_vector);
+// -- Test-only utils ---------------------------------------------------------
+
+const PrepopulatedEnginesOverride& GetPrepopulatedEnginesOverrideForTesting() {
+  CHECK_IS_TEST();
+  CHECK(GetPrepopulatedEnginesTestOverrideInternal().has_value());
+  return *GetPrepopulatedEnginesTestOverrideInternal();
+}
+
+ScopedPrepopulatedEnginesOverride
+SetPrepopulatedEnginesOverrideForTesting(  // IN-TEST
+    std::vector<const PrepopulatedEngine*> regional_engines,
+    std::vector<const PrepopulatedEngine*> other_known_engines) {
+  CHECK_IS_TEST();
+  std::vector<const PrepopulatedEngine*> all_engines;
+  // The `all_engines` list is generally used when some entry was not found by
+  // looking through the regional list. Append `other_known_engines` first to
+  // make it easier to show an engine being pulled from that list rather than
+  // from the regional list, for the cases where IDs are repeated.
+  all_engines.append_range(other_known_engines);
+  all_engines.append_range(regional_engines);
+
+  // Verify that there are not duplicates in `all_engines`.
+  CHECK_EQ(all_engines.size(),
+           std::set(all_engines.begin(), all_engines.end()).size());
+
+  PrepopulatedEnginesOverride overrides;
+  overrides.regional_engines = std::move(regional_engines);
+  overrides.all_engines = std::move(all_engines);
+  overrides.migrating_engines =
+      ComputeMigratedEnginesMapping(overrides.all_engines);
+
+  return ScopedPrepopulatedEnginesOverride(
+      &GetPrepopulatedEnginesTestOverrideInternal(), std::move(overrides));
 }
 
 void ClearPrepopulatedEnginesOverrideForTesting() {
-  GetPrepopulatedEnginesTestOverride().reset();
+  CHECK_IS_TEST();
+  GetPrepopulatedEnginesTestOverrideInternal().reset();
 }
+
+PrepopulatedEnginesOverride::PrepopulatedEnginesOverride() = default;
+
+PrepopulatedEnginesOverride::~PrepopulatedEnginesOverride() = default;
+
+PrepopulatedEnginesOverride::PrepopulatedEnginesOverride(
+    const PrepopulatedEnginesOverride&) = default;
+PrepopulatedEnginesOverride& PrepopulatedEnginesOverride::operator=(
+    const PrepopulatedEnginesOverride&) = default;
+
+PrepopulatedEnginesOverride::PrepopulatedEnginesOverride(
+    PrepopulatedEnginesOverride&&) = default;
+PrepopulatedEnginesOverride& PrepopulatedEnginesOverride::operator=(
+    PrepopulatedEnginesOverride&&) = default;
 
 }  // namespace regional_capabilities

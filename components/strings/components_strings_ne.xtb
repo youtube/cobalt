@@ -184,7 +184,6 @@
 <translation id="1289129165308566697">आफ्नो हिस्ट्री अन्य डिभाइसहरूमा हेर्नुहोस्</translation>
 <translation id="1292571435393770077">ट्रे १६</translation>
 <translation id="1292701964462482250">"तपाईंको कम्प्युटरमा रहेको सफ्टवेयरले Chrome लाई सुरक्षित रूपमा वेबमा जडान हुनबाट रोकिरहेको छ" (Windows कम्प्युटरहरू मात्र)</translation>
-<translation id="1293154089865862473">यी विकल्पहरू उपलब्ध गराउन चेकआउट पेजमा भएको कन्टेन्ट Google सँग सेयर गरिन्छ। अटोफिलमा पछि भुक्तानी गर्ने विकल्पहरू लुकाउन <ph name="IDS_AUTOFILL_CARD_BNPL_SELECT_PROVIDER_FOOTNOTE_HIDE_OPTION_PAYMENT_SETTINGS_LINK_TEXT" /> मा जानुहोस्।</translation>
 <translation id="1293556467332435079">फाइलहरू</translation>
 <translation id="1293797321964802402">Envelope 9 x 11 in</translation>
 <translation id="129553762522093515">हालैमा बन्द गरिएको</translation>
@@ -656,6 +655,7 @@
 <translation id="2071156619270205202">यो कार्डलाई भर्चुअल कार्ड नम्बर प्रदान गर्न मिल्दैन।</translation>
 <translation id="2071852865256799872">तपाईंको सङ्गठनले तपाईंको ब्राउजर र <ph name="PROFILE_DOMAIN" /> ले तपाईंको प्रोफाइल व्यवस्थापन गर्छ</translation>
 <translation id="2072011841331007013">Google Jamboard</translation>
+<translation id="2073286362006276165">जानकारी डिभाइसमा मात्र सेभ गरिएको छ</translation>
 <translation id="2074733626795553847"><ph name="TOPIC" /> अनब्लक गर्नुहोस्</translation>
 <translation id="2074771604462073334">तपाईंले ट्याब खोलेको समय:</translation>
 <translation id="2078956195623975415">सङ्गीत तथा नृत्यसम्बन्धी गेमहरू</translation>
@@ -704,6 +704,7 @@
 <translation id="2137891579555018930">अनुमति प्राप्त गर्न बाँकी छ…</translation>
 <translation id="213826338245044447">मोबाइल बुकमार्कहरू</translation>
 <translation id="2141000681034340397">आफ्नो इनपुट बदल्नुहोस्</translation>
+<translation id="2141475438898772664">४ किस्तामा वा मासिक रूपमा भुक्तानी गर्नुहोस्</translation>
 <translation id="2144171668675205303">कुनै पनि सक्रिय विषय छैन</translation>
 <translation id="2145193671493396738">आर्थिक समाचार</translation>
 <translation id="214556005048008348">भुक्तानी रद्द गर्नुहोस्</translation>
@@ -1117,13 +1118,13 @@
 <translation id="277133753123645258">ढुवानीको विधि</translation>
 <translation id="277499241957683684">हराइएको यन्त्रको रेकर्ड</translation>
 <translation id="2775884851269838147">प्रिन्ट गरिनु पर्ने पहिलो पृष्ठ</translation>
+<translation id="277828055419948999">Chromium ले डिफल्ट अटोफिलले छुटाउन सक्ने कठिन फिल्डहरू अटोफिल गर्न सक्छ</translation>
 <translation id="2781185443919227679">समुद्री तट तथा टापुहरू</translation>
 <translation id="2781692009645368755">Google Pay</translation>
 <translation id="2781799097551205934">चेकआउट गर्ने तयारी गरिँदै छ</translation>
 <translation id="2782088940970074970">कार भाडामा दिने कम्पनी</translation>
 <translation id="278436560439594386">घरायसी उपकरणहरू</translation>
 <translation id="2784474685437057136">B5 Extra</translation>
-<translation id="2784540996156451674">यी विकल्पहरू उपलब्ध गराउन चेकआउट पेजमा भएको कन्टेन्ट Google सँग सेयर गरिन्छ।</translation>
 <translation id="2784949926578158345">जडान पुनः कायम भयो ।</translation>
 <translation id="2786008859124691917">साइकल तथा साइकलका पाटपुर्जाहरू</translation>
 <translation id="2792012897584536778">यस डिभाइसका प्रशासकहरूले सुरक्षासम्बन्धी प्रमाणपत्रहरू सेटअप गरिसकेका हुँदा यसले उनीहरूलाई तपाईंले भ्रमण गर्नुहुने वेबसाटइका सामग्री हेर्न दिन सक्छ।</translation>
@@ -2472,6 +2473,7 @@
 <translation id="4950898438188848926">ट्याब बदल्ने बटन, खुला रहेको ट्याबमा जान Enter थिच्नुहोस्, <ph name="TAB_SWITCH_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="495170559598752135">कार्यहरू</translation>
 <translation id="4953689047182316270">पहुँचसम्बन्धी कार्यक्रमहरूमा प्रतिक्रिया दिनुहोस्</translation>
+<translation id="4954505713046251871">सुझावहरू दिन र यो सुविधामा सुधार ल्याउन यो पेजको URL र यसमा भएको सामग्री Google सँग सेयर गरिन्छ</translation>
 <translation id="4954891067389874142">आफ्नो कार्ड सेभ गरेर अझ छिटो भुक्तानी गर्नुहोस्। कार्डसम्बन्धी जानकारी Google Wallet मा इन्क्रिप्ट गरिन्छ।</translation>
 <translation id="4957080528849277028">Chrome को ब्राउजिङ हिस्ट्री हेर्ने बटन, Chrome का सेटिङमा गई आफ्ना ब्राउजिङ हिस्ट्री हेर्न तथा व्यवस्थापन गर्न यो बटन थिच्नुहोस्</translation>
 <translation id="4957781475307065660">{DOMAIN_COUNT,plural, =1{थप एउटा साइट}other{थप # वटा साइट}}</translation>
@@ -2789,6 +2791,7 @@
 <translation id="5466018172325111652">आफ्नो कोड प्राप्त गर्नुभएन? <ph name="BEGIN_LINK" />नयाँ कोड प्राप्त गर्नुहोस्<ph name="END_LINK" /></translation>
 <translation id="5466818462212249084">भुक्तानी गर्न प्रयोग गरिने एपहरू</translation>
 <translation id="5470861586879999274">सम्पादन &amp;पुन: गर्नुहोस्</translation>
+<translation id="5471158297908124590">भुक्तानी विधिहरू सम्पादन गर्न आफ्नो पहिचान पुष्टि गर्नुहोस्</translation>
 <translation id="5472588168895083535">हात ट्र्याक गर्ने सुविधा ब्लक गरिएको छ</translation>
 <translation id="5477756102936130143">भुक्तानी गर्न प्रयोग गर्न मिल्ने एपहरूमा रिडिरेक्ट गर्न दिनुहोस्</translation>
 <translation id="5479505548832623900">एक्स्टेन्सनले बेवास्ता गर्ने सम्भावना छ।</translation>
@@ -2845,6 +2848,7 @@
 <translation id="5543564889050342791">चिडियाखाना, एक्वारियम तथा आरक्षहरू</translation>
 <translation id="5543722831081909240">१८० डिग्री</translation>
 <translation id="5544836308113951378">क्रुज तथा चार्टर गरिएका जलयातायातका साधन</translation>
+<translation id="5545314360139398232">किस्तामा भुक्तानी गर्न <ph name="ISSUER_NAME" /> लिंक गर्नुहोस्</translation>
 <translation id="5547939254150808298">मुद्रण तथा प्रकाशन</translation>
 <translation id="554815783948612276">फोरम तथा च्याट प्रदायकहरू</translation>
 <translation id="5548606607480005320">सुरक्षा जाँच</translation>
@@ -2866,6 +2870,7 @@
 <translation id="5570825185877910964">खाता सेभ गर्नुहोस्</translation>
 <translation id="5571083550517324815">यो ठेगानाबाट पिकअप गर्न सकिँदैन। कुनै अर्को ठेगाना चयन गर्नुहोस्।</translation>
 <translation id="5572434905385510939">२२ x २८ इन्च</translation>
+<translation id="5573090972398558474">तपाईंको सङ्गठनले यो पेज इन्कोग्निटो मोडमा नखुल्ने बनाएको छ।</translation>
 <translation id="5573641252776268565">राहदानीसम्बन्धी जानकारी सम्पादन गर्नुहोस्</translation>
 <translation id="5578606540385219379">सेवा प्रदायक</translation>
 <translation id="5580958916614886209">आफ्नो म्याद सकिने महिनाको जाँच गरी फेरि प्रयास गर्नुहोस्</translation>
@@ -3172,6 +3177,7 @@
 <translation id="6093795393556121384">तपाईँको कार्ड प्रमाणीकरण गरियो</translation>
 <translation id="6094253940069566294">सवारी साधनसम्बन्धी जानकारी सम्पादन गर्नुहोस्</translation>
 <translation id="6094290315941448991">स्क्रिनमा गोप्य सामग्री देखिएका बेला एड्मिनले तोक्नुभएको नीतिअनुसार स्क्रिन रेकर्ड गर्ने सुविधा अफ गरिन्छ</translation>
+<translation id="6097297436119286254">आफ्नो भुक्तानीसम्बन्धी जानकारी भर्न आफ्नो पहिचान पुष्टि गर्नुहोस्</translation>
 <translation id="6099269767116481177">२२ x २९.५ इन्च</translation>
 <translation id="6101583188322746099">किराना सामान डेलिभरी गर्ने सेवा</translation>
 <translation id="6104072995492677441">JIS B6</translation>
@@ -3690,6 +3696,7 @@
 <translation id="6926216138694948720">शरीरमा बनाइने कला</translation>
 <translation id="692638818576287323">व्यावसायिक प्रयोजनका लागि प्रयोग हुने सवारी साधन</translation>
 <translation id="6927878187051807444">क्यामेरा फाइल र स्क्रिनसटहरू</translation>
+<translation id="6929949393612835405">बन्द गर्नुहोस् र "<ph name="OPENER_TITLE" />" मा फर्कनुहोस्</translation>
 <translation id="6930607614725241390">साइड प्यानलमा खोज्नुहोस्</translation>
 <translation id="6934236486840930310"><ph name="BEGIN_BOLD" />तपाईं आफ्नो डिफल्ट सर्च इन्जिन प्रयोग गरेर वेबमार्फत सामग्री खोज्न र Chrome का सुविधाहरू<ph name="END_BOLD" /> (जस्तै, वेबपेजमा उपलब्ध एड्रेस बार तथा फोटोहरू प्रयोग गरेर सामग्री खोज्ने सुविधा) प्राप्त गर्न सक्नुहुन्छ। तपाईंको सर्च इन्जिनमा काम नगर्ने सुविधा उपलब्ध नहुन सक्छ।</translation>
 <translation id="6934672428414710184">यो नाम तपाईंको Google खाताबाट लिइएको हो</translation>
@@ -3971,6 +3978,7 @@
 <translation id="7377314930809374926">आतिथ्य उद्योग</translation>
 <translation id="7378594059915113390">मिडियासम्बन्धी नियन्त्रणहरू</translation>
 <translation id="7378810950367401542">/</translation>
+<translation id="7379321689415048316">Chrome ले डिफल्ट अटोफिलले छुटाउन सक्ने कठिन फिल्डहरू अटोफिल गर्न सक्छ</translation>
 <translation id="7380398842872229465">१० x १५ इन्च</translation>
 <translation id="7381551826960739226">यो फाराममा सुरक्षित कनेक्सन प्रयोग नगरिएको हुनाले भुक्तानी विधिसम्बन्धी जानकारी स्वतः हाल्ने सुविधा अफ गरिएको छ।</translation>
 <translation id="7388380253839603603">पेट्रोलको मूल्य तथा इन्धनसम्बन्धी स्रोतसाधनहरू</translation>
@@ -4292,6 +4300,7 @@
 <translation id="7844689747373518809">{COUNT,plural, =0{कुनै पनि होइन}=1{१ एप (<ph name="EXAMPLE_APP_1" />)}=2{२ एपहरू (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />)}other{# एपहरू (<ph name="EXAMPLE_APP_1" />, <ph name="EXAMPLE_APP_2" />, <ph name="AND_MORE" />)}}</translation>
 <translation id="7846161022626028328">कुनै त्रुटि भयो। फेरि प्रयास गर्नुहोस्।</translation>
 <translation id="784623644169604270">हालसालै कुनै पनि क्रियाकलाप गरिएको छैन</translation>
+<translation id="7848926355794727168">स्वतः गरिएको ब्राउज</translation>
 <translation id="7853222852810008596">यो मुद्रामा पछि भुक्तानी गर्ने सुविधा उपलब्ध छैन</translation>
 <translation id="785476343534277563">कलेज खेलकुद</translation>
 <translation id="7855695075675558090"><ph name="TOTAL_LABEL" /> <ph name="CURRENCY_CODE" /> <ph name="FORMATTED_TOTAL_AMOUNT" /></translation>
@@ -4521,6 +4530,7 @@
 <translation id="8241707690549784388">तपाईंले खोजिरहनुभएको पृष्ठले तपाईंले प्रविष्ट गर्नुभएको जानकारी प्रयोग गर्‍यो। त्यस पृष्ठमा फर्किनाले तपाईंले दोहोरिनका लागि लिनुभएको कुनैपनि  प्रवेश कि प्रयोग जानकारी खोज्दै हुनुहुन्छ पृष्ठ कि। कि पृष्ठ फर्केपछि तिमी ले कुनै पनि काम नदोहोरिने गर्न लगाउँछ। तपाईं जारी राख्न चाहनुहुन्छ?</translation>
 <translation id="8241712895048303527">यस साइटमा रोक लगाउनुहोस्</translation>
 <translation id="8242426110754782860">अगाडि बढ्नुहोस्</translation>
+<translation id="824620968958405573">स्वतः ब्राउज गर्ने क्रममा गरिएको कार्य</translation>
 <translation id="8246482227229072868">औँठीहरू</translation>
 <translation id="8248406213705193919">कार्डसम्बन्धी जानकारी सुरक्षित रूपमा सेभ गर्ने हो?</translation>
 <translation id="8249296373107784235">रद्द गर्नुहोस्</translation>
@@ -4893,6 +4903,7 @@
 <translation id="8858065207712248076">तपाईंले आफ्नो <ph name="BEGIN_BOLD" /><ph name="ORG_NAME" /><ph name="END_BOLD" /> को पासवर्ड अन्य साइटहरूमा पुनः प्रयोग गर्नुभएका खण्डमा Chrome ले तपाईंलाई उक्त पासवर्ड रिसेट गर्न सिफारिस गर्दछ।</translation>
 <translation id="885906927438988819">हिज्जे सही छ भने <ph name="BEGIN_LINK" />'Windows नेटवर्कका डाइगोनेस्टिक्स' चलाएर हेर्नुहोस्<ph name="END_LINK" />।</translation>
 <translation id="8861126751581835107">फोटोग्राफी तथा डिजिटल कला</translation>
+<translation id="8861482055962701239">यो जानकारी तपाईंको Google Wallet मा सेभ गर्न सकिएन। यसलाई बरु यो डिभाइसको Chrome मा सेभ गरिएको छ। तपाईंले अर्को पटक यो कार्ड प्रयोग गर्दा Chrome ले यसलाई Wallet मा सेभ गर्ने विकल्प देखाउने छ।</translation>
 <translation id="8863218129525348270">अर्के पटक अझ छिटो भुक्तानी गर्न आफ्नो कार्ड डिभाइसमा सेभ गर्नुहोस्</translation>
 <translation id="8864939224504814334">अफिस जस्ता ठाउँहरूमा लगाइने सुट तथा पोशाक</translation>
 <translation id="8866132857352163524">साउन्ड ट्र्याकहरू</translation>
@@ -4918,6 +4929,7 @@
 <translation id="8897428486789851669">पौडी</translation>
 <translation id="8899807382908246773">हस्तक्षेपकारी विज्ञापनहरू</translation>
 <translation id="8903921497873541725">जुम इन</translation>
+<translation id="8903998444169664879">भुक्तानीसम्बन्धी सेटिङ परिवर्तन गर्न आफ्नो पहिचान पुष्टि गर्नुहोस्</translation>
 <translation id="890493561996401738">सुझावको बटन हटाउनुहोस्, हटाउन Enter थिच्नुहोस्, <ph name="REMOVE_BUTTON_FOCUSED_FRIENDLY_MATCH_TEXT" /></translation>
 <translation id="8910898109640902752">८ x १० इन्च</translation>
 <translation id="8914504000324227558">Chrome पुनः सुरु गर्नुहोस्</translation>

@@ -1689,6 +1689,7 @@ Nếu bạn không đặt chính sách này, thì các truy vấn DNS-over-HTTPS
 <translation id="2158741059065130266">Nếu bạn đặt chính sách này thành Đúng, người dùng ứng dụng Files <ph name="PRODUCT_OS_NAME" /> sẽ nhìn thấy Thùng rác. Các tệp trong mục Tệp của tôi và Tệp đã tải xuống (bao gồm cả các tệp con tương ứng do người dùng tạo) sẽ được gửi đến đó khi bị xoá.
 
       Nếu bạn đặt chính sách này thành Sai, các tệp từng nằm trong thùng rác vẫn sẽ hiển thị khi người dùng cho hiện các tệp bị ẩn và tìm thư mục .Trash trong mục Tệp của tôi hoặc Tệp đã tải xuống.</translation>
+<translation id="215891883000260452">Bật tính năng thu thập nhật ký chẩn đoán WebRTC cho các nguồn gốc cụ thể</translation>
 <translation id="2159092270572925582">Cho phép bạn đặt một danh sách mẫu url chỉ định các trang web được phép hiển thị nội dung hỗn hợp (nghĩa là nội dung HTTP trên những trang web HTTPS) có thể chặn (nghĩa là chủ động) và chỉ định các bản nâng cấp nội dung hỗn hợp có thể tuỳ ý chặn sẽ bị tắt.
 
           Nếu bạn không đặt chính sách này, nội dung hỗn hợp có thể chặn sẽ bị chặn và nội dung hỗn hợp có thể tuỳ ý chặn sẽ được nâng cấp. Đồng thời, người dùng sẽ được phép đặt trường hợp ngoại lệ để hiển thị nội dung trên các trang web cụ thể.
@@ -1978,6 +1979,7 @@ Trên <ph name="MAC_OS_NAME" />, chính sách này chỉ có trên các phiên b
       Chính sách này sẽ ghi đè <ph name="DEFAULT_WEB_USB_GUARD_SETTING_POLICY_NAME" />, <ph name="WEB_USB_ASK_FOR_URLS_POLICY_NAME" />, <ph name="WEB_USB_BLOCKED_FOR_URLS_POLICY_NAME" /> và các lựa chọn ưu tiên của người dùng.
 
       Chính sách này chỉ ảnh hưởng đến quyền truy cập vào thiết bị USB thông qua API WebUSB. Để cấp quyền truy cập vào thiết bị USB thông qua API Web Serial, hãy xem chính sách <ph name="SERIAL_ALLOW_USB_DEVICES_FOR_URLS_POLICY_NAME" />.</translation>
+<translation id="2318353380372431186">Cho phép người dùng cài đặt IWA</translation>
 <translation id="2318583605563438459">Cho phép cha mẹ thêm tài khoản được giám sát</translation>
 <translation id="2326031114717677574">Chu kỳ hệ thống lấy mẫu và thu thập dữ liệu âm thanh. Thời gian tối thiểu cho phép là 1 phút.
 
@@ -2155,6 +2157,17 @@ Nếu bạn không đặt chính sách này hoặc đặt chính sách này thà
 <translation id="2466131534462628618">Xác thực cổng cố định bỏ qua proxy</translation>
 <translation id="2467181864598429837">Hành vi mặc định của trình duyệt</translation>
 <translation id="2467896267442150508">Khoảng thời gian kéo dài tối đa 1 tuần. Nếu thời gian bắt đầu ở sau thời gian kết thúc, thì khoảng thời gian này sẽ kéo dài trong khoảng đó.</translation>
+<translation id="2475594733565572760">Chính sách này xác định chế độ cài đặt mặc định cho tất cả các tính năng AI tạo sinh được đề cập đến trong chính sách. Ví dụ: Nếu bạn đặt chính sách này thành giá trị 1, thì 1 sẽ là chế độ cài đặt mặc định cho tất cả các tính năng AI tạo sinh được đề cập. Các giá trị chính sách được đặt thủ công sẽ không bị ảnh hưởng. Chế độ cài đặt này sẽ xác định chế độ mặc định cho các tính năng AI tạo sinh được đề cập trong Chrome. Hãy truy cập vào https://support.google.com/chrome/a?p=generative_ai_settings để xem danh sách các tính năng được đề cập.
+
+Một số chính sách, chẳng hạn như <ph name="GEMINI_SETTINGS_POLICY_NAME" />, chỉ hỗ trợ các trạng thái Được phép và Không cho phép. Trong trường hợp này, nếu bạn đặt <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> thành 0 hoặc 1 thì tính năng này sẽ bật. Nếu bạn đặt <ph name="GEN_AI_DEFAULT_SETTINGS_POLICY_NAME" /> thành 2 thì tính năng này sẽ tắt. Tài liệu hướng dẫn cho từng tính năng bao gồm nhiều thông tin chi tiết hơn về cách tính năng tương tác với các giá trị trong chính sách này (ví dụ: Gemini trong Chrome – https://support.google.com/chrome/a/?p=gemini_in_chrome). Điều này áp dụng cho các tính năng sau đây: Gemini trong Chrome, Google Ống kính và Chế độ AI vì các tính nằng đó tuân theo những đảm bảo và/hoặc điều khoản dịch vụ riêng (https://support.google.com/chrome/a/?p=genai_features_chrome).
+
+0 = Cho phép sử dụng tính năng này và cho phép Google sử dụng dữ liệu liên quan để cải tiến các mô hình AI. Tuỳ thuộc vào tính năng, dữ liệu liên quan có thể bao gồm câu lệnh, thông tin đầu vào, thông tin đầu ra, tài liệu nguồn và phản hồi bằng văn bản. Dữ liệu này cũng có thể được nhân viên xem xét để cải tiến các mô hình AI. 0 là giá trị mặc định, trừ phi có ghi chú bên dưới.
+
+1 = Cho phép sử dụng tính năng nhưng không cho phép Google sử dụng nội dung của người dùng (bao gồm câu lệnh, thông tin đầu vào, thông tin đầu ra, tài liệu nguồn và phản hồi bằng văn bản) để cải tiến các mô hình. 1 là giá trị mặc định cho Người dùng doanh nghiệp do <ph name="GOOGLE_ADMIN_CONSOLE_PRODUCT_NAME" /> quản lý và Tài khoản thuộc tổ chức giáo dục do <ph name="GOOGLE_WORKSPACE_PRODUCT_NAME" /> quản lý.
+
+2 = Không cho phép sử dụng tính năng này.
+
+Để biết thêm thông tin về cách xử lý dữ liệu cho các tính năng AI tạo sinh, vui lòng truy cập https://support.google.com/chrome/a?p=generative_ai_settings.</translation>
 <translation id="2476249479201711962">Bật quyền truy cập trình đơn theo bối cảnh của nhà cung cấp dịch vụ tìm kiếm mặc định</translation>
 <translation id="2478756867046106663">Cho phép trang web có trải nghiệm lừa gạt mở cửa sổ hoặc thẻ mới</translation>
 <translation id="2479760962196319822">Chính sách này kiểm soát việc người dùng <ph name="PRODUCT_OS_NAME" /> có thể lưu trữ dữ liệu trên máy hay không.
@@ -2501,6 +2514,13 @@ Hệ thống chỉ truy vấn bản ghi AAAA khi thiết bị có thể kết n�
       Lưu ý: Kể từ M114, các ứng dụng kiosk cụ thể được phép ghi đè hành vi của chính sách này cho ứng dụng trong các trường hợp sử dụng đặc biệt, chẳng hạn như đánh giá học viên.</translation>
 <translation id="2667894101494585925">Bật chế độ Tìm nạp hướng dẫn tối ưu hoá</translation>
 <translation id="2669157090883237118">Không thay đổi cấu hình <ph name="PRODUCT_OS_NAME" /> đề xuất.</translation>
+<translation id="2669314653349044073">Chính sách này cho phép bật tính năng thu thập nhật ký chẩn đoán WebRTC cho các nguồn gốc cụ thể.
+
+Để biết thông tin chi tiết về các mẫu đầu vào hợp lệ, vui lòng truy cập vào https://chromeenterprise.google/policies/url-patterns. Giá trị <ph name="WILDCARD_VALUE" /> không được chấp nhận cho chính sách này. Chính sách này chỉ so khớp dựa trên nguồn gốc, nên mọi đường dẫn trong mẫu URL đều bị bỏ qua. Hỗ trợ lược đồ và miền con.
+
+Nếu chính sách này được thiết lập, tính năng thu thập nhật ký chẩn đoán sẽ được bật cho những nguồn gốc khớp với các mẫu trong danh sách.
+
+Nếu chính sách này không được thiết lập, tính năng thu thập nhật ký chẩn đoán sẽ bị tắt theo mặc định.</translation>
 <translation id="2672012807430078509">Kiểm soát việc bật NTLM làm giao thức xác thực cho các điểm kết nối SMB</translation>
 <translation id="2673363037046384711">Người dùng cuối có thể bật hoặc tắt Chế độ hiệu quả cao.</translation>
 <translation id="2673968385134502798">Trò chơi</translation>
@@ -2608,6 +2628,7 @@ Khi chính sách này được đặt thành false hoặc không được địn
       Nếu bạn đặt chính sách này thành Tắt, <ph name="PRODUCT_NAME" /> chỉ có thể sử dụng các máy chủ này nếu được cài đặt ở cấp hệ thống.</translation>
 <translation id="2753637905605932878">Hạn chế phạm vi của cổng UDP cục bộ do WebRTC sử dụng</translation>
 <translation id="2755847332939882873">Cho phép thu thập dữ liệu theo dõi hoạt động trên toàn hệ thống</translation>
+<translation id="2755963656455766808">Kiểm soát khả năng cài đặt Ứng dụng web tách biệt theo cách thủ công của người dùng</translation>
 <translation id="2757054304033424106">Các loại tiện ích/ứng dụng được phép cài đặt</translation>
 <translation id="275769337615229465">Hầu hết các nguồn gốc sẽ tách biệt với các nguồn gốc khác trong cùng một trang web.</translation>
 <translation id="2759224876420453487">Kiểm soát hoạt động của người dùng trong một phiên đa cấu hình</translation>
@@ -4315,6 +4336,7 @@ Bạn có thể kết hợp chính sách này với <ph name="POLICY_CLOUD_POLIC
 <translation id="3927291637826333102">Cho phép chụp Màn hình, Cửa sổ và Thẻ theo các nguồn gốc này</translation>
 <translation id="3928726028264020458">Bật tính năng báo cáo thông tin về VPD của thiết bị</translation>
 <translation id="3935592079035695061">Số mili giây kể từ nửa đêm.</translation>
+<translation id="3937800910397007337">Buộc chế độ ưu tiên nền trước đối với tất cả các thẻ</translation>
 <translation id="3941289958028934630">Tắt tính năng phản hồi bằng giọng nói trên màn hình đăng nhập</translation>
 <translation id="3943930334592166130">Chính sách này kiểm soát việc người dùng có được nhắc chọn chứng chỉ máy khách hay không khi nhiều chứng chỉ khớp <ph name="AUTO_SELECT_CERTIFICATE_FOR_URLS_POLICY_NAME" />.
       Nếu bạn bật chính sách này, thì người dùng sẽ được nhắc chọn chứng chỉ máy khách mỗi khi chính sách tự động chọn khớp với nhiều chứng chỉ.
@@ -5718,6 +5740,12 @@ Chính sách này chỉ mang tính tạm thời và sẽ bị loại bỏ vào n
        Một tên máy chủ có thể được phép nếu trùng khớp hoàn toàn với máy chủ hoặc trùng khớp với bất kỳ miền nào. Ví dụ: một URL như "https://foo.example.com/bar" có thể không hiển thị cảnh báo nếu danh sách này có "foo.example.com" hoặc "example.com".</translation>
 <translation id="4852900976354340846">Chế độ cài đặt Direct Sockets</translation>
 <translation id="485419696366295465">Kiểm soát các chính sách liên quan đến hệ thống con <ph name="BOREALIS_NAME" />.</translation>
+<translation id="4854384393031206645">Kiểm soát khả năng cài đặt Ứng dụng web tách biệt (IWA) theo cách thủ công của người dùng.
+
+Nếu bạn đặt chính sách này thành false (sai), hệ thống sẽ chặn khả năng cài đặt cài đặt IWA của người dùng.
+
+Nếu bạn đặt chính sách này thành true (đúng) hoặc không đặt chính sách này, người dùng sẽ được phép cài đặt IWA.
+</translation>
 <translation id="4855636880814771207">Nếu bạn đặt chính sách này thành Bật hoặc không đặt chính sách này, thì người dùng có thể bật hoặc tắt Bluetooth.
 
       Nếu bạn đặt chính sách này thành Tắt, thì <ph name="PRODUCT_OS_NAME" /> sẽ tắt Bluetooth và người dùng không thể bật được.
@@ -6154,6 +6182,7 @@ Chính sách này là giải pháp tạm thời để bạn có thời gian di c
       </translation>
 <translation id="5104606191349861549">Phím tắt (được hỗ trợ kể từ phiên bản 129)</translation>
 <translation id="5105313908130842249">Độ trễ khóa màn hình khi chạy trên nguồn pin</translation>
+<translation id="5105593357527099243">Không cho phép người dùng cài đặt IWA</translation>
 <translation id="510604120100968366">Bật tính năng phát chuông báo pin yếu.
 
           Tính năng này có nhiệm vụ phát chuông báo pin yếu.
@@ -6300,6 +6329,7 @@ chính sách này trong khi trình duyệt đang chạy.</translation>
       * Trung bình, thì người dùng chỉ có thể chọn Chế độ hạn chế trung bình và Chế độ hạn chế nghiêm ngặt trên YouTube, nhưng không thể tắt Chế độ hạn chế.
 
       * Tắt hoặc nếu bạn không đặt giá trị nào, thì Chrome sẽ không thực thi Chế độ hạn chế trên YouTube. Những chính sách bên ngoài, chẳng hạn như các chính sách của YouTube, có thể vẫn thực thi Chế độ hạn chế.</translation>
+<translation id="5191007233343702012">Sử dụng mức độ ưu tiên tiêu chuẩn đối với thẻ</translation>
 <translation id="5191476996923842491">Hành vi mặc định cho thời gian chờ tối thiểu trong hàm setTimeout().</translation>
 <translation id="519247340330463721">Định cấu hình các chính sách liên quan đến Duyệt web an toàn.</translation>
 <translation id="5192555640439947289">Nếu bạn đặt chính sách này thành Enabled (Bật) thì <ph name="PRODUCT_OS_NAME" /> sẽ yêu cầu người dùng nhập mật khẩu để mở khoá thiết bị khi thiết bị đang tạm ngưng hoặc đang đóng nắp.
@@ -6507,6 +6537,13 @@ Lưu ý: Chính sách này không áp dụng cho bản nâng cấp HSTS.</transl
 <translation id="5303080953475303561">Việc đặt chính sách này sẽ kiểm soát tần suất màn hình khóa yêu cầu mật khẩu để mở khóa nhanh. Mỗi lần màn hình khóa xuất hiện, nếu lần nhập mật khẩu gần đây nhất diễn ra trước khoảng thời gian chỉ định theo giá trị đã chọn, thì người dùng sẽ không sử dụng được tính năng mở khóa nhanh. Nếu vượt quá khoảng thời gian này mà người dùng vẫn chưa mở khóa màn hình, thì hệ thống sẽ yêu cầu mật khẩu vào lần tới khi người dùng nhập sai mã hoặc khi màn hình khóa xuất hiện lại, tùy theo trường hợp nào xảy ra trước.
 
       Nếu bạn không đặt chính sách này, người dùng sử dụng tính năng mở khóa nhanh sẽ phải nhập mật khẩu hằng ngày trên màn hình khóa.</translation>
+<translation id="530488290401810961">Định cấu hình cách <ph name="PRODUCT_NAME" /> tải mô hình AI tạo sinh nền tảng xuống và dùng mô hình đó để suy luận cục bộ.
+
+Khi bạn không đặt hoặc đặt chính sách này thành Allowed (Cho phép) (0), mô hình sẽ tự động được tải xuống và dùng để suy luận.
+
+Khi bạn đặt chính sách này thành Disabled (Tắt) (1), mô hình sẽ không được tải xuống và mô hình hiện có (nếu đã tải xuống) sẽ bị xoá.
+
+Trên nền tảng máy tính, bạn cũng có thể tắt tính năng tải mô hình xuống bằng chính sách <ph name="COMPONENT_UPDATES_ENABLED_POLICY_NAME" />.</translation>
 <translation id="5306186200045823863">Cho phép tin cậy Cơ sở hạ tầng khóa công khai (PKI) cũ của Symantec Corporation</translation>
 <translation id="5307432759655324440">Tính khả dụng của chế độ ẩn danh</translation>
 <translation id="5308551343115571396">Sau khi <ph name="LACROS_NAME" /> tắt, chúng tôi sẽ cố gắng giữ lại nhiều dữ liệu người dùng nhất có thể trong khi xoá tất cả dữ liệu của trình duyệt.</translation>
@@ -6563,6 +6600,22 @@ Các tài khoản được quản lý không đủ điều kiện tham gia hoặ
 <translation id="5345892164332459671">Tắt dịch vụ SSO di động và không chuyển trạng thái xác thực dịch vụ web của người dùng sang thiết bị mới</translation>
 <translation id="5345910753471481870">Không hiện nút Google Ống kính trong hộp tìm kiếm trên trang Thẻ mới.</translation>
 <translation id="5346587320074666194">Chặn quyền sử dụng cảm biến trên các trang web này</translation>
+<translation id="5347735051291224683">Chính sách này kiểm soát việc nội dung trên web chạy nền có bị buộc phải chạy ở
+chế độ ưu tiên nền trước hay không.
+
+Theo mặc định, trình duyệt sẽ tối ưu hoá tài nguyên bằng cách giảm mức độ ưu tiên của nội dung trong
+các thẻ chạy nền. Nếu bạn bật chính sách này, hành vi đó sẽ được ghi đè, khiến
+các thẻ chạy nền được lên lịch giống như thẻ đang hoạt động.
+
+Lưu ý rằng việc buộc nội dung chạy nền chạy ở chế độ ưu tiên nền trước có thể
+ảnh hưởng đôi chút đến khả năng phản hồi của thẻ đang hoạt động.
+
+Nếu bạn đặt chính sách này thành Enabled (Bật), tất cả nội dung trên web sẽ chạy ở chế độ ưu tiên nền trước
+bất kể trạng thái hiển thị của nội dung.
+
+Nếu bạn đặt thành Disabled (Tắt) hoặc không đặt chính sách này, trình duyệt sẽ xác định mức độ ưu tiên
+dựa trên suy đoán tiêu chuẩn (ví dụ: giảm mức độ ưu tiên của nội dung không
+hiển thị, không phát âm thanh, không tham gia cuộc gọi video...).</translation>
 <translation id="534836255587440809">Tắt tính năng tự động nhấp trên màn hình đăng nhập</translation>
 <translation id="5348658899015174540">API <ph name="GET_DISPLAY_MEDIA_SET_NAME" /> cho phép các ứng dụng web chụp nhiều bề mặt cùng lúc.
       Chính sách này mở khoá thuộc tính <ph name="AUTO_SELECT_ALL_SCREENS_NAME" /> cho các ứng dụng web có nguồn gốc xác định.

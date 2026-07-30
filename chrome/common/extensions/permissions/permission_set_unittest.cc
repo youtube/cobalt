@@ -737,7 +737,7 @@ TEST(PermissionsTest, IsPrivilegeIncrease) {
 
 // Tests that swapping out a permission for a less powerful one is not
 // considered a privilege increase.
-// Regression test for https://crbug.com/841938.
+// Regression test for https://crbug.com/40575861.
 TEST(PermissionsTest,
      IsNotPrivilegeIncreaseWhenSwitchingForLowerPrivilegePermission) {
   APIPermissionSet apis1;
@@ -879,6 +879,7 @@ TEST(PermissionsTest, PermissionMessages) {
   skip.insert(APIPermissionID::kMediaPerceptionPrivate);
   skip.insert(APIPermissionID::kMetricsPrivate);
   skip.insert(APIPermissionID::kPdfViewerPrivate);
+  skip.insert(APIPermissionID::kProxyOverrideRulesPrivate);
   skip.insert(APIPermissionID::kImageWriterPrivate);
   skip.insert(APIPermissionID::kResourcesPrivate);
   skip.insert(APIPermissionID::kSafeBrowsingPrivate);
@@ -1342,7 +1343,7 @@ TEST(PermissionsTest, GetWarningMessages_Socket_TwoDomainsOneHostname) {
 
 // Since platform apps always use isolated storage, they can't (silently)
 // access user data on other domains, so there's no need to prompt about host
-// permissions. See crbug.com/255229.
+// permissions. See crbug.com/40323545.
 TEST(PermissionsTest, GetWarningMessages_PlatformAppHosts) {
   scoped_refptr<Extension> extension =
       LoadManifest("permissions", "platform_app_hosts.json");

@@ -93,6 +93,7 @@ class GlicActorTaskManager;
 // preference for changes and cause the UI to respond to it.
 class GlicKeyedService : public KeyedService,
                          public GlicSharingManagerProvider,
+                         public base::SupportsUserData,
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
                          public Host::InstanceDelegate,
 #endif
@@ -114,6 +115,13 @@ class GlicKeyedService : public KeyedService,
   GlicKeyedService& operator=(const GlicKeyedService&) = delete;
   ~GlicKeyedService() override;
 
+#if BUILDFLAG(IS_ANDROID)
+  // Returns a Java object of the type GlicKeyedService for the given
+  // GlicKeyedService.
+  static base::android::ScopedJavaLocalRef<jobject> GetJavaObject(
+      GlicKeyedService* glic_keyed_service);
+#endif  // BUILDFLAG(IS_ANDROID)
+
   // Convenience method, may return nullptr.
   static GlicKeyedService* Get(content::BrowserContext* context);
 
@@ -123,11 +131,14 @@ class GlicKeyedService : public KeyedService,
   // Show, summon or activate the panel, or close it if it's already active and
   // prevent_close is false. If `bwi` is non-null, attach the panel to its
   // Browser.
+  // If `auto_send` is true and `prompt_suggestion` is provided, the prompt will
+  // be automatically submitted after the panel opens.
   // TODO(b:448888544): remove `prevent_close` in favor of a Show method.
   virtual void ToggleUI(BrowserWindowInterface* bwi,
                         bool prevent_close,
                         mojom::InvocationSource source,
-                        std::optional<std::string> prompt_suggestion);
+                        std::optional<std::string> prompt_suggestion,
+                        bool auto_send = false);
   void ToggleUI(BrowserWindowInterface* bwi,
                 bool prevent_close,
                 mojom::InvocationSource source);
@@ -290,7 +301,7 @@ class GlicKeyedService : public KeyedService,
 
 #if !BUILDFLAG(IS_ANDROID)  // Single instance only
   void CaptureRegion(
-      content::WebContents* web_contents,
+      tabs::TabInterface* tab,
       mojo::PendingRemote<mojom::CaptureRegionObserver> observer);
 #endif
 

@@ -33,34 +33,35 @@ public class ShadowTabStoreValidator {
     // LINT.ThenChange(//tools/metrics/histograms/metadata/tab/histograms.xml:TabModelOrchestratorType)
 
     private final TabPersistentStore mAuthoritativeStore;
-    private final PersistentStoreMigrationManager mMigrationManager;
     private final TabPersistentStore mShadowStore;
     private final TabModel mTabModel;
     private final AccumulatingTabCreator mShadowTabCreator;
+    private final PersistentStoreMigrationManager mPersistentStoreMigrationManager;
     private final StoreMetricsObserver mAuthoritativeObserver;
     private final StoreMetricsObserver mShadowObserver;
     private final String mSuffix;
 
     /**
      * @param authoritativeStore The primary store whose timing is used as the baseline.
-     * @param migrationManager The migration manager for the window.
      * @param shadowStore The alternative store being compared against the authoritative one.
      * @param tabModel The {@link TabModel} associated with the authoritative store.
      * @param shadowTabCreator The {@link AccumulatingTabCreator} used by the shadow store.
+     * @param persistentStoreMigrationManager The {@link PersistentStoreMigrationManager} for
+     *     migration.
      * @param orchestratorTag The type of tab model orchestrator this validator is for.
      */
     public ShadowTabStoreValidator(
             TabPersistentStore authoritativeStore,
-            PersistentStoreMigrationManager migrationManager,
             TabPersistentStore shadowStore,
             TabModel tabModel,
             AccumulatingTabCreator shadowTabCreator,
+            PersistentStoreMigrationManager persistentStoreMigrationManager,
             String orchestratorTag) {
         mAuthoritativeStore = authoritativeStore;
-        mMigrationManager = migrationManager;
         mShadowStore = shadowStore;
         mTabModel = tabModel;
         mShadowTabCreator = shadowTabCreator;
+        mPersistentStoreMigrationManager = persistentStoreMigrationManager;
         mSuffix = "." + orchestratorTag;
 
         mAuthoritativeObserver = new StoreMetricsObserver(this);
@@ -93,7 +94,7 @@ public class ShadowTabStoreValidator {
     }
 
     private void recordDiffMetrics() {
-        if (!mMigrationManager.isShadowStoreCaughtUp()) return;
+        if (!mPersistentStoreMigrationManager.isShadowStoreCaughtUp()) return;
 
         int tabCountDelta =
                 mTabModel.getCount() - mShadowTabCreator.createFrozenTabArgumentsList.size();

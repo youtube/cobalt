@@ -1133,7 +1133,8 @@ Node* Element::Clone(Document& factory,
                                         : FocusDelegation::kNone,
           shadow_root->GetSlotAssignmentMode(), shadow_root_registry,
           shadow_root->serializable(),
-          /*clonable*/ true, shadow_root->referenceTarget());
+          /*clonable*/ true, shadow_root->referenceTarget(),
+          shadow_root->marker());
 
       // 6.5 Set copy’s shadow root’s declarative to node’s shadow root’s
       // declarative.
@@ -1516,9 +1517,9 @@ GCedHeapVector<Member<Element>>* Element::GetAttrAssociatedElements(
     String attribute_value = getAttribute(attr).GetString();
 
     // 4.3. Let tokens be contentAttributeValue, split on ASCII whitespace.
-    Vector<String> tokens;
     attribute_value = attribute_value.SimplifyWhiteSpace();
-    attribute_value.Split(' ', tokens);
+    Vector<StringView> tokens =
+        StringView(attribute_value).SplitSkippingEmpty(' ');
 
     for (const auto& id : tokens) {
       // 4.3.1. Let candidate be the first element, in tree order, that meets
@@ -3217,7 +3218,7 @@ bool Element::ScrollFrameTo(const ScrollToOptions* scroll_to_options) {
       cc::ScrollSourceType::kAbsoluteScroll, scroll_behavior);
 }
 
-bool Element::HandleScrollCommand(CommandEventType command) {
+bool Element::HandleScrollByPageCommand(CommandEventType command) {
   DCHECK(RuntimeEnabledFeatures::HTMLCommandForScrollCommandsEnabled());
 
   if (!InActiveDocument()) {
@@ -3839,6 +3840,8 @@ void Element::AttributeChanged(const AttributeModificationParams& params) {
   } else if (name == html_names::kPartAttr) {
     part().DidUpdateAttributeValue(params.old_value, params.new_value);
     GetDocument().GetStyleEngine().PartChangedForElement(*this);
+  } else if (name == html_names::kMarkerAttr) {
+    marker().DidUpdateAttributeValue(params.old_value, params.new_value);
   } else if (name == html_names::kExportpartsAttr) {
     data_ = EnsureRareData().SetPartNamesMap(params.new_value);
     GetDocument().GetStyleEngine().ExportpartsChangedForElement(*this);
@@ -6491,8 +6494,10 @@ void Element::UpdateAncestorWithDirAuto(UpdateAncestorTraversal traversal) {
   }
 }
 
-ShadowRoot& Element::CreateAndAttachShadowRoot(ShadowRootMode type,
-                                               SlotAssignmentMode mode) {
+ShadowRoot& Element::CreateAndAttachShadowRoot(
+    ShadowRootMode type,
+    SlotAssignmentMode mode,
+    const Vector<AtomicString>& markers) {
 #if DCHECK_IS_ON()
   NestingLevelIncrementer slot_assignment_recalc_forbidden_scope(
       GetDocument().SlotAssignmentRecalcForbiddenRecursionDepth());
@@ -6504,7 +6509,7 @@ ShadowRoot& Element::CreateAndAttachShadowRoot(ShadowRootMode type,
   DCHECK(!GetShadowRoot());
 
   auto* shadow_root =
-      MakeGarbageCollected<ShadowRoot>(GetDocument(), type, mode);
+      MakeGarbageCollected<ShadowRoot>(GetDocument(), type, mode, markers);
 
   if (InActiveDocument()) {
     // We need to call child.RemovedFromFlatTree() before setting a shadow
@@ -6547,8 +6552,8 @@ void Element::setEditContext(EditContext* edit_context,
   CHECK(DynamicTo<HTMLElement>(this));
 
   // https://w3c.github.io/edit-context/#extensions-to-the-htmlelement-interface
-  // 1. If this's local name is neither a valid shadow host name nor "canvas",
-  // then throw a "NotSupportedError" DOMException.
+  // Step 1: If this's local name is neither a valid shadow host name nor
+  // "canvas", then throw a "NotSupportedError" DOMException.
   const AtomicString& local_name = localName();
   if (!(IsCustomElement() && CustomElement::IsValidName(local_name)) &&
       !IsValidShadowHostName(local_name) &&
@@ -6559,25 +6564,81 @@ void Element::setEditContext(EditContext* edit_context,
     return;
   }
 
-  if (edit_context && edit_context->attachedElements().size() > 0 &&
-      edit_context->attachedElements()[0] != this) {
-    exception_state.ThrowDOMException(
-        DOMExceptionCode::kNotSupportedError,
-        "An EditContext can be only be associated with a single element");
-    return;
-  }
-
-  // If an element is in focus when being attached to a new EditContext,
-  // its old EditContext, if it has any, will get blurred,
-  // and the new EditContext will automatically get focused.
-  if (auto* old_edit_context = editContext()) {
-    if (IsFocusedElementInDocument()) {
-      old_edit_context->Blur();
+  if (RuntimeEnabledFeatures::EditContextAssignmentAsPerSpecEnabled()) {
+    // Step 2: If edit_context is not null, then:
+    // Step 2.1: If edit_context's associated element is equal to this, then
+    // terminate these steps.
+    // Step 2.2: If edit_context's associated element is not null, then throw a
+    // "NotSupportedError" DOMException.
+    if (edit_context && edit_context->attachedElements().size() > 0) {
+      if (edit_context->attachedElements()[0] != this) {
+        exception_state.ThrowDOMException(
+            DOMExceptionCode::kNotSupportedError,
+            "An EditContext can be only be associated with a single element");
+      }
+      return;
     }
 
-    old_edit_context->DetachElement(DynamicTo<HTMLElement>(this));
+    // Step 3: Let old_edit_context be the value of this's internal
+    // [[EditContext]] slot.
+    auto* old_edit_context = editContext();
+
+    // Step 4: If old_edit_context is not null and old_edit_context is this's
+    // node document's active EditContext, then:
+    if (old_edit_context && IsFocusedElementInDocument()) {
+      // Step 4.1: Deactivate old_edit_context
+      // Note: `Blur` might fire events (like compositionend), which could
+      // modify old_edit_context's associations. This is why we re-check the
+      // associations below.
+      old_edit_context->Blur();
+
+      // Step 4.2: If old_edit_context's associated element is not equal to
+      // this, then terminate these steps.
+      if (!old_edit_context->attachedElements().size() ||
+          old_edit_context->attachedElements()[0] != this) {
+        return;
+      }
+      // Step 4.3: If edit_context is not null, edit_context's associated
+      // element is not null and edit_context's associated element is not equal
+      // to this
+      if (edit_context && edit_context->attachedElements().size() > 0) {
+        if (edit_context->attachedElements()[0] != this) {
+          exception_state.ThrowDOMException(
+              DOMExceptionCode::kNotSupportedError,
+              "An EditContext can be only be associated with a single element");
+        }
+        return;
+      }
+    }
+
+    // Step 5: If old_edit_context is not null, set old_edit_context's
+    // associated element to null.
+    if (old_edit_context) {
+      old_edit_context->DetachElement(DynamicTo<HTMLElement>(this));
+    }
+  } else {
+    if (edit_context && edit_context->attachedElements().size() > 0 &&
+        edit_context->attachedElements()[0] != this) {
+      exception_state.ThrowDOMException(
+          DOMExceptionCode::kNotSupportedError,
+          "An EditContext can be only be associated with a single element");
+      return;
+    }
+
+    // If an element is in focus when being attached to a new EditContext,
+    // its old EditContext, if it has any, will get blurred,
+    // and the new EditContext will automatically get focused.
+    if (auto* old_edit_context = editContext()) {
+      if (IsFocusedElementInDocument()) {
+        old_edit_context->Blur();
+      }
+
+      old_edit_context->DetachElement(DynamicTo<HTMLElement>(this));
+    }
   }
 
+  // Step 6: If edit_context is not null, then set edit_context's associated
+  // element to this.
   if (edit_context) {
     edit_context->AttachElement(DynamicTo<HTMLElement>(this));
 
@@ -7216,16 +7277,16 @@ CustomElementRegistry* Element::customElementRegistry() const {
   if (!RuntimeEnabledFeatures::ScopedCustomElementRegistryEnabled()) {
     return nullptr;
   }
-  // TODO(crbug.com/429140221) Need to evaluate if storing registry
-  // in element whenever needed is too memory consuming. For now
-  // we'll take the naive approach and assume an element using its tree
-  // scope's registry if not explicitly set.
-  if (const ElementRareDataVector* data = RareData()) {
-    if (data->HasCustomElementRegistrySet()) {
-      return data->GetCustomElementRegistry();
+  // If scoped registry is not exercised at all in the document,
+  // we can avoid the rare data lookup and just return the tree scope's
+  // registry.
+  if (GetDocument().ScopedCustomElementRegistryUsed()) {
+    if (const ElementRareDataVector* data = RareData()) {
+      if (data->HasCustomElementRegistrySet()) {
+        return data->GetCustomElementRegistry();
+      }
     }
   }
-
   return GetTreeScope().customElementRegistry();
 }
 
@@ -7241,6 +7302,7 @@ void Element::SetCustomElementRegistry(CustomElementRegistry* registry,
     EnsureRareData().ClearCustomElementRegistry();
   } else {
     data_ = EnsureRareData().SetCustomElementRegistry(registry);
+    GetDocument().SetScopedCustomElementRegistryUsed();
   }
 }
 
@@ -7376,6 +7438,16 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
           ? AtomicString(shadow_root_init_dict->referenceTarget())
           : g_null_atom;
 
+  Vector<AtomicString> marker_list;
+  if (shadow_root_init_dict->hasMarker()) {
+    CHECK(RuntimeEnabledFeatures::DocumentPatchingEnabled());
+    const auto& marker_from_dict = shadow_root_init_dict->marker();
+    marker_list.ReserveInitialCapacity(marker_from_dict.size());
+    for (const auto& marker_string : marker_from_dict) {
+      marker_list.push_back(AtomicString(marker_string));
+    }
+  }
+
   // 1. Let registry be this's custom element registry.
   // 2. If init["customElementRegistry"] exist then set registry to it.
   bool scoped_registry =
@@ -7429,7 +7501,7 @@ ShadowRoot* Element::attachShadow(const ShadowRootInit* shadow_root_init_dict,
 
   ShadowRoot& shadow_root = AttachShadowRootInternal(
       mode, focus_delegation, slot_assignment, registry, serializable, clonable,
-      reference_target);
+      reference_target, marker_list);
 
   // Ensure that the returned shadow root is not marked as declarative so that
   // attachShadow() calls after the first one do not succeed for a shadow host
@@ -7447,7 +7519,8 @@ bool Element::AttachDeclarativeShadowRoot(
     bool clonable,
     const AtomicString& adopted_stylesheets,
     const AtomicString& reference_target,
-    const bool waiting_for_scoped_registry) {
+    const bool waiting_for_scoped_registry,
+    const Vector<AtomicString>& markers) {
   // 12. Run attach a shadow root with shadow host equal to declarative shadow
   // host element, mode equal to declarative shadow mode, and delegates focus
   // equal to declarative shadow delegates focus. If an exception was thrown by
@@ -7477,7 +7550,7 @@ bool Element::AttachDeclarativeShadowRoot(
 
   ShadowRoot& shadow_root = AttachShadowRootInternal(
       mode, focus_delegation, slot_assignment, registry, serializable, clonable,
-      reference_target);
+      reference_target, markers);
   // 10.8.5. Set declarative shadow host element's shadow host's "is declarative
   // shadow root" property to true.
   shadow_root.SetIsDeclarativeShadowRoot(true);
@@ -7500,7 +7573,8 @@ bool Element::AttachDeclarativeShadowRoot(
 ShadowRoot& Element::CreateUserAgentShadowRoot(SlotAssignmentMode mode) {
   DCHECK(!GetShadowRoot());
   GetDocument().SetContainsShadowRoot();
-  return CreateAndAttachShadowRoot(ShadowRootMode::kUserAgent, mode);
+  return CreateAndAttachShadowRoot(ShadowRootMode::kUserAgent, mode,
+                                   Vector<AtomicString>());
 }
 
 ShadowRoot& Element::AttachShadowRootInternal(
@@ -7510,7 +7584,8 @@ ShadowRoot& Element::AttachShadowRootInternal(
     CustomElementRegistry* registry,
     bool serializable,
     bool clonable,
-    const AtomicString& reference_target) {
+    const AtomicString& reference_target,
+    const Vector<AtomicString>& markers) {
   // SVG <use> is a special case for using this API to create a closed shadow
   // root.
   DCHECK(CanAttachShadowRoot() || IsA<SVGUseElement>(*this));
@@ -7535,7 +7610,7 @@ ShadowRoot& Element::AttachShadowRootInternal(
   // 5. Let shadow be a new shadow root whose node document is this’s node
   // document, host is this, and mode is init’s mode.
   ShadowRoot& shadow_root =
-      CreateAndAttachShadowRoot(type, slot_assignment_mode);
+      CreateAndAttachShadowRoot(type, slot_assignment_mode, markers);
   // 6. Set shadow’s delegates focus to init’s delegatesFocus.
   shadow_root.SetDelegatesFocus(focus_delegation ==
                                 FocusDelegation::kDelegateFocus);
@@ -7570,7 +7645,8 @@ ShadowRoot& Element::AttachShadowRootForTesting(ShadowRootMode type) {
                                   /*registry*/ nullptr,
                                   /*serializable*/ false,
                                   /*clonable*/ false,
-                                  /*reference_target*/ g_null_atom);
+                                  /*reference_target*/ g_null_atom,
+                                  /*markers*/ Vector<AtomicString>());
 }
 
 ShadowRoot* Element::OpenShadowRoot() const {
@@ -12119,6 +12195,23 @@ DOMTokenList& Element::part() {
   return *part;
 }
 
+DOMTokenList* Element::GetMarker() const {
+  if (const ElementRareDataVector* data = RareData()) {
+    return data->GetMarker();
+  }
+  return nullptr;
+}
+
+DOMTokenList& Element::marker() {
+  ElementRareDataVector& rare_data = EnsureRareData();
+  DOMTokenList* marker = rare_data.GetMarker();
+  if (!marker) {
+    marker = MakeGarbageCollected<DOMTokenList>(*this, html_names::kMarkerAttr);
+    data_ = rare_data.SetMarker(marker);
+  }
+  return *marker;
+}
+
 bool Element::HasPartNamesMap() const {
   const NamesMap* names_map = PartNamesMap();
   return names_map && names_map->size() > 0;
@@ -13301,7 +13394,7 @@ Element* Element::ImplicitAnchorElement() const {
 }
 
 bool Element::RecalcSelfOrAncestorHasContainerTiming() const {
-  DCHECK(RuntimeEnabledFeatures::ContainerTimingEnabled());
+  DCHECK(RuntimeEnabledFeatures::ContainerTimingEnabled(GetExecutionContext()));
   if (IsHTMLElement()) {
     if (FastHasAttribute(html_names::kContainertimingAttr)) {
       return true;
@@ -13317,7 +13410,7 @@ bool Element::RecalcSelfOrAncestorHasContainerTiming() const {
 }
 
 void Element::UpdateDescendantHasContainerTiming(bool has_container_timing) {
-  DCHECK(RuntimeEnabledFeatures::ContainerTimingEnabled());
+  DCHECK(RuntimeEnabledFeatures::ContainerTimingEnabled(GetExecutionContext()));
   Element* element = ElementTraversal::FirstChild(*this);
   while (element) {
     if (element->IsHTMLElement()) {
@@ -13373,7 +13466,7 @@ bool Element::ShouldAdjustContainerTimingForInsert(
 
 void Element::AdjustContainerTimingIfNeededAfterChildrenChanged(
     const ChildrenChange& change) {
-  if (!RuntimeEnabledFeatures::ContainerTimingEnabled()) {
+  if (!RuntimeEnabledFeatures::ContainerTimingEnabled(GetExecutionContext())) {
     return;
   }
 

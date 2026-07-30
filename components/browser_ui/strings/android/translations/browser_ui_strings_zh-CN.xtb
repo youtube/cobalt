@@ -8,6 +8,7 @@
 <translation id="1073417869336441572">请告诉我们您允许使用第三方 Cookie 的原因，以帮助我们改进 Chrome<ph name="BEGIN_LINK" />发送反馈<ph name="END_LINK" /></translation>
 <translation id="1074758928858737435">您可以查看桌面版网站</translation>
 <translation id="1085696779717592361">默认使用 Chrome</translation>
+<translation id="1126523729897810826">完成下方操作建议，充分利用 Chrome</translation>
 <translation id="113098737392899175">连接到键盘时，使用文本光标浏览网页</translation>
 <translation id="1149644372535087155">在 Chrome 中保存密码</translation>
 <translation id="1178015372320901893">“我的快捷方式”底部动作条</translation>
@@ -39,6 +40,7 @@
 <translation id="1415855080660575082">允许 Chrome 与您的设备分享您近期打开的标签页，以便在设备的应用列表和搜索结果中查看这些标签页。您可以在 Chrome 设置中开启或关闭此功能。</translation>
 <translation id="1420688843103859429">在触控板上用两根手指滑动，即可向后/向前导航</translation>
 <translation id="1432650420699700107">网站可以请求连接到本地网络上的任何设备</translation>
+<translation id="1442081309487427303">打开阅读模式下的链接</translation>
 <translation id="1448064542941920355">缩小</translation>
 <translation id="1464044141348608623">不允许网站了解您何时在主动使用自己的设备</translation>
 <translation id="146867109637325312">{COUNT,plural, =1{<ph name="SITE_COUNT" /> 个网站}other{<ph name="SITE_COUNT" /> 个网站}}</translation>
@@ -52,6 +54,7 @@
 <translation id="1569054338208717605">使用 Chrome 的 V8 引擎加速网站，但 Chrome 的防攻击能力会略微降低</translation>
 <translation id="1593426485665524382">屏幕顶部附近有多项可查看的新操作</translation>
 <translation id="1594521731409209842">在屏幕上张合双指即可调整照片大小</translation>
+<translation id="1599268789440304082">已打开设置工作表</translation>
 <translation id="1601560923496285236">应用</translation>
 <translation id="1615755956145364867">网站可以请求播放受保护内容</translation>
 <translation id="1620510694547887537">摄像头</translation>
@@ -73,6 +76,7 @@
 <translation id="1766455884659449403">接收 Chrome 提示通知</translation>
 <translation id="1777815584158991902">探索信息流底部动作条</translation>
 <translation id="1779089405699405702">图片解码器</translation>
+<translation id="1781533683087883868">关闭阅读模式下的链接</translation>
 <translation id="1785415724048343560">建议勾选此选项以获得最佳体验</translation>
 <translation id="1796588414813960292">所有需要使用声音的功能都将无法正常运行</translation>
 <translation id="1799920918471566157">Chrome 提示</translation>
@@ -293,6 +297,7 @@
 <translation id="3903738175795615004">从顶部拖动或按 Esc 键可退出全屏模式。</translation>
 <translation id="3905475044299942653">停止发送大量通知</translation>
 <translation id="3922092564198021702">打开手机上的“设置”</translation>
+<translation id="3924858949939391676">在阅读模式开启后显示链接</translation>
 <translation id="3933121352599513978">收起不需要的请求（推荐）</translation>
 <translation id="3934905113567851655">双指张合即可调整大小</translation>
 <translation id="3955193568934677022">允许网站播放受保护的内容（推荐）</translation>
@@ -311,6 +316,7 @@
 <translation id="4046123991198612571">下一首</translation>
 <translation id="4077310749977440510">网站通常会读取您的剪贴板内容以实现某些功能，例如保留您所复制文字的格式</translation>
 <translation id="4082080074595021446">由于该 Android 设备的 RAM 不足，因此不允许将特定网站添加为例外网站。</translation>
+<translation id="4089304748532599471">部分 Chrome 设置已更改</translation>
 <translation id="4149890623864272035">确定要删除所有本地数据（包括 Cookie）并重置此网站的所有权限吗？</translation>
 <translation id="4149994727733219643">使用简化版视图查看网页</translation>
 <translation id="4151930093518524179">默认缩放设置</translation>
@@ -346,8 +352,11 @@
 <translation id="4478158430052450698">更轻松地自定义不同网站的缩放级别</translation>
 <translation id="4479647676395637221">在允许网站使用您的摄像头前先询问（推荐）</translation>
 <translation id="4505788138578415521">网址已展开</translation>
+<translation id="4522570452068850558">详情</translation>
 <translation id="4523472416386354622">登录即可开始定制</translation>
+<translation id="4529207923544043455">底部动作条，显示的是已完成和未完成的设置列表任务</translation>
 <translation id="4534723447064627427">若要允许 <ph name="APP_NAME" /> 使用您的麦克风，您还需在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中开启麦克风。</translation>
+<translation id="4545694195887112015">已关闭设置工作表</translation>
 <translation id="4566417217121906555">将麦克风静音</translation>
 <translation id="4570913071927164677">详情</translation>
 <translation id="4578289292431526768">开始查看</translation>
@@ -356,6 +365,7 @@
 <translation id="4644713492825682049">删除并重置</translation>
 <translation id="4645575059429386691">由您父母管理</translation>
 <translation id="4652266463001779298">不允许</translation>
+<translation id="4655846733459137112">点按“是”，即可在下次登录时轻松使用此密码</translation>
 <translation id="4663373278480897665">已允许使用摄像头</translation>
 <translation id="4670064810192446073">虚拟现实</translation>
 <translation id="4672315773691449562">点按“浏览器应用”，然后点按“Chrome”</translation>
@@ -462,6 +472,7 @@
 <translation id="5804241973901381774">权限</translation>
 <translation id="5817042798620209981">网站信息，对话框</translation>
 <translation id="5822675474983796325">自定义新标签页页面底部动作条已全屏打开</translation>
+<translation id="5826403277762134844">用于说明如何在 Chrome 中保存密码的底部动作条</translation>
 <translation id="5833899990800318936">不允许网站使用 JavaScript</translation>
 <translation id="583673505367439042">网站可以请求修改您设备上的文件和文件夹</translation>
 <translation id="5844448279347999754">开启此设置后，网站可以请求查看保存到剪贴板中的文字和图片。关闭此设置后，网站无法查看保存到剪贴板中的文字或图片。</translation>
@@ -641,6 +652,7 @@
 <translation id="775043444390799886">撤消权限</translation>
 <translation id="7758789811447313947">紫罗兰色主题</translation>
 <translation id="7759147511335618829">MIDI 设备控制和重新编程</translation>
+<translation id="7771089277295008211">用于说明如何保存密码的底部动作条已关闭</translation>
 <translation id="7781829728241885113">昨天</translation>
 <translation id="7791543448312431591">添加</translation>
 <translation id="780301667611848630">不用了，谢谢</translation>
@@ -658,6 +670,7 @@
 <translation id="7940722705963108451">提醒我</translation>
 <translation id="7948081750384205628">详细了解“<ph name="SETTING_TITLE" />”</translation>
 <translation id="7952708427581814389">网站可以请求查看您剪贴板中的文字和图片</translation>
+<translation id="7958779728312669715">用于说明如何保存密码的底部动作条已完全打开</translation>
 <translation id="798299424881500862">橙色主题</translation>
 <translation id="7986741934819883144">选择联系人</translation>
 <translation id="7990211076305263060">开启此设置后，网站可以请求使用您的麦克风。关闭此设置后，网站无法使用您的麦克风。</translation>
@@ -678,6 +691,7 @@
 <translation id="8117244575099414087">开启此设置后，网站可以使用设备的传感器。关闭此设置后，网站无法使用传感器。</translation>
 <translation id="813082847718468539">查看网站信息</translation>
 <translation id="8131740175452115882">确认</translation>
+<translation id="8148160259207090265">只要您在 Android 设置中开启高级保护功能，此设置就会保持开启状态。</translation>
 <translation id="8163152278172770963">不允许网站自动进入画中画模式</translation>
 <translation id="8168435359814927499">内容</translation>
 <translation id="818487310457576362">从屏幕边缘拖动即可退出全屏。</translation>
@@ -707,6 +721,7 @@
 <translation id="8441146129660941386">后退</translation>
 <translation id="8444433999583714703">若要允许 <ph name="APP_NAME" /> 获取您的位置信息，您还需在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中开启位置信息服务。</translation>
 <translation id="8447861592752582886">撤消设备权限</translation>
+<translation id="8463843545738141778">此设置已停用，因为您已在 Android 设置中开启高级保护功能。</translation>
 <translation id="8467359479529706065">“新标签页”页面外观底部动作条已按一半高度显示</translation>
 <translation id="8471525937465764768">网站通常会连接到 USB 设备以实现某些功能（例如打印文档或保存到存储设备）</translation>
 <translation id="8473055640493819707">“<ph name="APP_NAME" />”版本过旧。请重新安装该应用。</translation>
@@ -738,6 +753,7 @@
 <translation id="8719283222052720129">在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中为 <ph name="APP_NAME" /> 开启这项权限。</translation>
 <translation id="8721719390026067591">开启此设置后，网站可以请求搜寻蓝牙设备。关闭此设置后，网站无法搜寻蓝牙设备。</translation>
 <translation id="8725066075913043281">重试</translation>
+<translation id="8727043961453758442">充分利用 Chrome</translation>
 <translation id="8730621377337864115">完成</translation>
 <translation id="8737426583868847403">您为其保存了自定义缩放级别的网站将显示在此处</translation>
 <translation id="8748714929822124637">不允许网站访问本地网络中的其他设备</translation>
@@ -754,6 +770,7 @@
 <translation id="8889294078294184559">随着您继续浏览，所访问的网站可从 Chrome 中获取上一个网站提供的相关信息来验证您可能是真实的用户</translation>
 <translation id="8899807382908246773">侵扰性广告</translation>
 <translation id="8903921497873541725">放大</translation>
+<translation id="8919911527569629802">登录任意网站</translation>
 <translation id="8921772741368021346"><ph name="POSITION" /> / <ph name="DURATION" /></translation>
 <translation id="8926389886865778422">不再询问</translation>
 <translation id="8926666909099850184">此设备的 NFC 功能处于关闭状态。请在 <ph name="BEGIN_LINK" />Android 设置<ph name="END_LINK" />中开启此功能。</translation>
@@ -781,6 +798,7 @@
 <translation id="9182556968660520230">不允许网站播放受保护内容</translation>
 <translation id="947156494302904893">您访问的网站可以验证您是真人而非机器人</translation>
 <translation id="959682366969460160">让各项内容井井有条</translation>
+<translation id="960590623979248167">显示超链接</translation>
 <translation id="961930410699694996">这次可以使用位置信息</translation>
 <translation id="967624055006145463">已存储的数据</translation>
 <translation id="969975166333045662">禁止网站使用 V8 优化工具。</translation>

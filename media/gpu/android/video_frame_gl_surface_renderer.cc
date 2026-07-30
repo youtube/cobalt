@@ -230,7 +230,7 @@ EncoderStatus VideoFrameGLSurfaceRenderer::RenderVideoFrame(
     if (auto status = RenderSharedImageVideoFrame(frame); !status.is_ok()) {
       return status;
     }
-  } else if (frame->IsMappable()) {
+  } else if (frame->HasDirectCpuAccess()) {
     switch (frame->format()) {
       case PIXEL_FORMAT_I420:
       case PIXEL_FORMAT_NV12:
@@ -253,7 +253,8 @@ EncoderStatus VideoFrameGLSurfaceRenderer::RenderVideoFrame(
     }
   } else {
     return {EncoderStatus::Codes::kUnsupportedFrameFormat,
-            "Frame is not a SharedImage and is not mappable"};
+            "Frame is not storing a SharedImage and is not directly "
+            "CPU-accessible"};
   }
 
   const GLenum error = api->glGetErrorFn();
@@ -506,8 +507,7 @@ void VideoFrameGLSurfaceRenderer::UpdateTextures(const VideoFrame& frame) {
     return;
   }
 
-  // Mappable frame
-  DCHECK(frame.IsMappable());
+  DCHECK(frame.HasDirectCpuAccess());
   const size_t num_textures = frame.layout().num_planes();
   if (num_textures == 0) {
     return;

@@ -16,7 +16,6 @@
 #import "base/memory/weak_ptr.h"
 #import "base/notimplemented.h"
 #import "base/strings/sys_string_conversions.h"
-#import "components/autofill/core/browser/autofill_progress_dialog_type.h"
 #import "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #import "components/autofill/core/browser/data_model/payments/bnpl_issuer.h"
 #import "components/autofill/core/browser/field_types.h"
@@ -39,6 +38,7 @@
 #import "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/autofill_progress_dialog_controller_impl.h"
+#import "components/autofill/core/browser/ui/payments/autofill_progress_ui_type.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_authentication_selection_dialog_controller_impl.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller.h"
 #import "components/autofill/core/browser/ui/payments/card_unmask_otp_input_dialog_controller_impl.h"
@@ -109,10 +109,11 @@ void IOSChromePaymentsAutofillClient::ConfirmAccountNameFixFlow(
     base::OnceCallback<void(const std::u16string&)> callback) {
   std::u16string account_name = base::UTF8ToUTF16(
       client_->GetIdentityManager()
-          ->FindExtendedAccountInfo(
-              client_->GetIdentityManager()->GetPrimaryAccountInfo(
+          ->FindExtendedAccountInfoByAccountId(
+              client_->GetIdentityManager()->GetPrimaryAccountId(
                   signin::ConsentLevel::kSignin))
-          .full_name);
+          .GetFullName()
+          .value_or(""));
 
   card_name_fix_flow_controller_.Show(
       // CardNameFixFlowViewBridge manages its own lifetime, so
@@ -281,7 +282,7 @@ void IOSChromePaymentsAutofillClient::IbanUploadCompleted(
     bool hit_max_strikes) {}
 
 void IOSChromePaymentsAutofillClient::ShowAutofillProgressDialog(
-    AutofillProgressDialogType autofill_progress_dialog_type,
+    AutofillProgressUiType autofill_progress_dialog_type,
     base::OnceClosure cancel_callback) {
   progress_dialog_controller_ =
       std::make_unique<AutofillProgressDialogControllerImpl>(

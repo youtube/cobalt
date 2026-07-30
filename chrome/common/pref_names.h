@@ -2822,6 +2822,11 @@ inline constexpr char kBasicAuthOverHttpEnabled[] =
 inline constexpr char kIsolatedWebAppInstallForceList[] =
     "profile.isolated_web_app.install.forcelist";
 
+// Boolean pref that specifies whether user installation of
+// Isolated Web Apps is permitted.
+inline constexpr char kIsolatedWebAppUserInstallationEnabled[] =
+    "profile.isolated_web_app.install.user_install_enabled";
+
 // An integer pref that remembers how many force install initializations are
 // pending. If more than `kIsolatedWebAppForceInstallMaxRetryTreshold`
 // initializations are pending, the initialization is delayed for
@@ -4346,6 +4351,14 @@ inline constexpr char kAndroidTipNotificationShownLens[] =
     "android.tips.notifications.lens_shown";
 inline constexpr char kAndroidTipNotificationShownBottomOmnibox[] =
     "android.tips.notifications.bottom_omnibox_shown";
+inline constexpr char kAndroidTipNotificationShownPasswordAutofill[] =
+    "android.tips.notifications.password_autofill_shown";
+inline constexpr char kAndroidTipNotificationShownSignin[] =
+    "android.tips.notifications.signin_shown";
+inline constexpr char kAndroidTipNotificationShownCreateTabGroup[] =
+    "android.tips.notifications.create_tab_group_shown";
+inline constexpr char kAndroidTipNotificationShownCustomizeMVT[] =
+    "android.tips.notifications.customize_mvt_shown";
 // LINT.ThenChange(//chrome/android/java/src/org/chromium/chrome/browser/notifications/tips/TipsUtils.java:TipsShownPrefs)
 #endif  // BUILDFLAG(IS_ANDROID)
 

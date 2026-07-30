@@ -41,6 +41,12 @@ export function getHtml(this: GlicInternalsAppElement) {
           </td>
         </tr>
         <tr>
+          <td>Account is eligible for 'Create Image with Gemini'</td>
+          <td class="status-${!this.data_.enablement.shareImageDisallowed}">
+            ${!this.data_.enablement.shareImageDisallowed ? '✅' : '🚫'}
+          </td>
+        </tr>
+        <tr>
           <td>Actuation eligibility</td>
           <td>
             ${this.getActuationEligibilityString_(
@@ -73,6 +79,11 @@ export function getHtml(this: GlicInternalsAppElement) {
         <input
             id="autopushInput" .value="${this.data_.config.autopushGuestUrl}"
             @change="${this.onAutopushInputChange}">
+        </input>
+        <label for="stagingInput">Staging</label>
+        <input
+            id="stagingInput" .value="${this.data_.config.stagingGuestUrl}"
+            @change="${this.onStagingInputChange}">
         </input>
         <label for="preprodInput">Preprod</label>
         <input

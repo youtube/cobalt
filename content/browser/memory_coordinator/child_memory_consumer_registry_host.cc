@@ -4,58 +4,103 @@
 
 #include "content/browser/memory_coordinator/child_memory_consumer_registry_host.h"
 
+#include <memory>
 #include <utility>
 
+#include "base/check.h"
 #include "base/functional/bind.h"
+#include "base/notreached.h"
+#include "base/scoped_observation.h"
+#include "content/public/browser/render_process_host.h"
+#include "content/public/browser/render_process_host_observer.h"
 #include "mojo/public/cpp/bindings/message.h"
 
 namespace content {
 
-// ChildMemoryConsumerRegistryHost::ChildMemoryConsumer -----------------------
+// ChildMemoryConsumerRegistryHost::RenderProcessExitedObserver ----------------
 
-// An implementation of base::MemoryConsumer that proxy calls to the process's
-// mojom::ChildMemoryCoordinator. This enables uniform handling of local and
-// remote MemoryConsumers.
-class ChildMemoryConsumerRegistryHost::ChildMemoryConsumer
-    : public base::MemoryConsumer {
+// Helper class that observes a `RenderProcessHost` for exit signals.
+//
+// In general, `RenderProcessHost` instances can be reused after shutdown. In
+// a normal configuration, the child process is forcefully terminated and all
+// associated Mojo pipes are closed before a new child is spawned. This
+// ensures a 1:1 mapping between a `ChildProcessId` and an active Mojo
+// connection: an invariant the memory coordinator relies on to track the
+// hosting process of a child `MemoryConsumer`.
+//
+// However, if `ChildProcessLauncher::terminate_child_on_shutdown_` is false,
+// the initial child process may outlive the start of the new one. Because
+// the old Mojo pipe isn't closed immediately, the new process binds its own
+// pipe while the old one is still active, breaking the 1:1 invariant.
+//
+// This class uses `RenderProcessHostObserver` to bridge that gap, as
+// `RenderProcessExited` provides the reliable signal needed to clean up
+// state even when the process outlives its host's initial shutdown phase.
+class ChildMemoryConsumerRegistryHost::RenderProcessExitedObserver
+    : public RenderProcessHostObserver {
  public:
-  ChildMemoryConsumer(ChildMemoryConsumerRegistryHost& host,
-                      std::string consumer_id)
-      : host_(host), consumer_id_(std::move(consumer_id)) {}
-  ~ChildMemoryConsumer() override = default;
+  RenderProcessExitedObserver(RenderProcessHost* host,
+                              base::OnceClosure on_exited)
+      : on_exited_(std::move(on_exited)) {
+    observation_.Observe(host);
+  }
 
-  // base::MemoryConsumer:
-  void OnReleaseMemory() override { host_->NotifyReleaseMemory(consumer_id_); }
-  void OnUpdateMemoryLimit() override {
-    host_->NotifyUpdateMemoryLimit(consumer_id_, memory_limit());
+  void RenderProcessExited(RenderProcessHost* host,
+                           const ChildProcessTerminationInfo& info) override {
+    // Calling `on_exited_` will delete `this`.
+    std::move(on_exited_).Run();
+  }
+
+  void RenderProcessHostDestroyed(RenderProcessHost* host) override {
+    NOTREACHED();
   }
 
  private:
-  const raw_ref<ChildMemoryConsumerRegistryHost> host_;
-  const std::string consumer_id_;
+  base::ScopedObservation<RenderProcessHost, RenderProcessHostObserver>
+      observation_{this};
+  base::OnceClosure on_exited_;
 };
 
 // ChildMemoryConsumerRegistryHost --------------------------------------------
 
 ChildMemoryConsumerRegistryHost::ChildMemoryConsumerRegistryHost(
-    Delegate& delegate,
+    MemoryConsumerGroupController& controller,
     ProcessType process_type,
-    ChildProcessId child_process_id)
-    : delegate_(delegate),
+    ChildProcessId child_process_id,
+    mojo::PendingReceiver<mojom::ChildMemoryConsumerRegistryHost> receiver,
+    base::OnceClosure disconnect_handler)
+    : controller_(controller),
       process_type_(process_type),
-      child_process_id_(child_process_id) {}
+      child_process_id_(child_process_id),
+      receiver_(this, std::move(receiver)),
+      disconnect_handler_(std::move(disconnect_handler)) {
+  CHECK(disconnect_handler_);
 
-ChildMemoryConsumerRegistryHost::~ChildMemoryConsumerRegistryHost() {
-  for (auto& [consumer_id, consumer] : consumers_) {
-    delegate_->RemoveMemoryConsumerFromChildProcess(
-        consumer_id, child_process_id_, consumer.get());
+  controller_->AddMemoryConsumerGroupHost(child_process_id_, this);
+
+  // The use of Unretained is safe here because `this` owns the receiver and
+  // will always outlive it.
+  receiver_.set_disconnect_handler(
+      base::BindOnce(&ChildMemoryConsumerRegistryHost::RunDisconnectHandler,
+                     base::Unretained(this)));
+
+  if (process_type_ == PROCESS_TYPE_RENDERER) {
+    RenderProcessHost* rph = RenderProcessHost::FromID(child_process_id_);
+    CHECK(rph);
+    // The use of Unretained is safe here because `this` owns the observer and
+    // will always outlive it.
+    process_observer_ = std::make_unique<RenderProcessExitedObserver>(
+        rph,
+        base::BindOnce(&ChildMemoryConsumerRegistryHost::RunDisconnectHandler,
+                       base::Unretained(this)));
   }
 }
 
-void ChildMemoryConsumerRegistryHost::SetDisconnectHandler(
-    base::OnceClosure handler) {
-  CHECK(!disconnect_handler_);
-  disconnect_handler_ = std::move(handler);
+ChildMemoryConsumerRegistryHost::~ChildMemoryConsumerRegistryHost() {
+  for (const auto& consumer_id : consumers_) {
+    controller_->OnConsumerGroupRemoved(consumer_id, child_process_id_);
+  }
+  controller_->RemoveMemoryConsumerGroupHost(child_process_id_);
 }
 
 void ChildMemoryConsumerRegistryHost::BindCoordinator(
@@ -64,9 +109,12 @@ void ChildMemoryConsumerRegistryHost::BindCoordinator(
     mojo::ReportBadMessage("BindCoordinator called more than once");
     return;
   }
-  CHECK(disconnect_handler_);
   coordinator_remote_.Bind(std::move(coordinator_remote));
-  coordinator_remote_.set_disconnect_handler(std::move(disconnect_handler_));
+  // The use of Unretained is safe here because `this` owns the remote and will
+  // always outlive it.
+  coordinator_remote_.set_disconnect_handler(
+      base::BindOnce(&ChildMemoryConsumerRegistryHost::RunDisconnectHandler,
+                     base::Unretained(this)));
 }
 
 void ChildMemoryConsumerRegistryHost::Register(
@@ -77,18 +125,14 @@ void ChildMemoryConsumerRegistryHost::Register(
     return;
   }
 
-  auto [it, inserted] = consumers_.try_emplace(consumer_id);
+  auto [_, inserted] = consumers_.insert(consumer_id);
   if (!inserted) {
     mojo::ReportBadMessage("Register called for an existing consumer_id");
     return;
   }
-  std::unique_ptr<ChildMemoryConsumer>& child_memory_consumer = it->second;
 
-  child_memory_consumer =
-      std::make_unique<ChildMemoryConsumer>(*this, consumer_id);
-  delegate_->AddMemoryConsumerFromChildProcess(consumer_id, traits,
-                                               process_type_, child_process_id_,
-                                               child_memory_consumer.get());
+  controller_->OnConsumerGroupAdded(consumer_id, traits, process_type_,
+                                    child_process_id_);
 }
 
 void ChildMemoryConsumerRegistryHost::Unregister(
@@ -99,20 +143,18 @@ void ChildMemoryConsumerRegistryHost::Unregister(
     return;
   }
 
-  delegate_->RemoveMemoryConsumerFromChildProcess(
-      consumer_id, child_process_id_, it->second.get());
+  controller_->OnConsumerGroupRemoved(consumer_id, child_process_id_);
   consumers_.erase(it);
 }
 
-void ChildMemoryConsumerRegistryHost::NotifyReleaseMemory(
-    const std::string& consumer_id) {
-  coordinator_remote_->NotifyReleaseMemory(consumer_id);
+void ChildMemoryConsumerRegistryHost::RunDisconnectHandler() {
+  // Calling `disconnect_handler_` will delete `this`.
+  std::move(disconnect_handler_).Run();
 }
 
-void ChildMemoryConsumerRegistryHost::NotifyUpdateMemoryLimit(
-    const std::string& consumer_id,
-    int percentage) {
-  coordinator_remote_->NotifyUpdateMemoryLimit(consumer_id, percentage);
+void ChildMemoryConsumerRegistryHost::UpdateConsumers(
+    std::vector<MemoryConsumerUpdate> updates) {
+  coordinator_remote_->UpdateConsumers(std::move(updates));
 }
 
 }  // namespace content

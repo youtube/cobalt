@@ -7,7 +7,22 @@ package org.chromium.chrome.browser.autofill.editors.autofill_ai;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.DROPDOWN;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.NOTICE;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.ItemType.TEXT_INPUT;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.IMPORTANT_FOR_ACCESSIBILITY;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.NOTICE_TEXT;
+import static org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.NoticeProperties.SHOW_BACKGROUND;
+import static org.chromium.chrome.browser.autofill.editors.common.dropdown_field.DropdownFieldProperties.DROPDOWN_KEY_VALUE_LIST;
+import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.IS_REQUIRED;
+import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.LABEL;
+import static org.chromium.chrome.browser.autofill.editors.common.field.FieldProperties.VALUE;
+import static org.chromium.chrome.browser.autofill.editors.common.text_field.TextFieldProperties.TEXT_FIELD_TYPE;
 
 import android.app.Activity;
 import android.view.View;
@@ -29,22 +44,41 @@ import org.robolectric.annotation.Config;
 import org.chromium.base.test.BaseRobolectricTestRunner;
 import org.chromium.base.test.util.Batch;
 import org.chromium.chrome.R;
+import org.chromium.chrome.browser.autofill.AutofillProfileBridge;
+import org.chromium.chrome.browser.autofill.AutofillProfileBridgeJni;
+import org.chromium.chrome.browser.autofill.PersonalDataManager;
+import org.chromium.chrome.browser.autofill.PersonalDataManagerFactory;
 import org.chromium.chrome.browser.autofill.editors.autofill_ai.EntityEditorCoordinator.Delegate;
+import org.chromium.chrome.browser.autofill.editors.common.EditorComponentsProperties.EditorItem;
 import org.chromium.chrome.browser.autofill.editors.common.EditorDialogToolbar;
+import org.chromium.chrome.browser.profiles.Profile;
+import org.chromium.chrome.browser.signin.services.IdentityServicesProvider;
+import org.chromium.components.autofill.DropdownKeyValue;
+import org.chromium.components.autofill.FieldType;
+import org.chromium.components.autofill.autofill_ai.AttributeInstance;
+import org.chromium.components.autofill.autofill_ai.AttributeType;
+import org.chromium.components.autofill.autofill_ai.AttributeTypeName;
+import org.chromium.components.autofill.autofill_ai.DataType;
 import org.chromium.components.autofill.autofill_ai.EntityInstance;
 import org.chromium.components.autofill.autofill_ai.EntityType;
 import org.chromium.components.autofill.autofill_ai.EntityTypeName;
 import org.chromium.components.autofill.autofill_ai.RecordType;
+import org.chromium.components.signin.base.CoreAccountInfo;
+import org.chromium.components.signin.identitymanager.IdentityManager;
+import org.chromium.google_apis.gaia.GaiaId;
 import org.chromium.ui.base.TestActivity;
+import org.chromium.ui.modelutil.ListModel;
 import org.chromium.ui.modelutil.PropertyModel;
 
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.List;
 
 @RunWith(BaseRobolectricTestRunner.class)
 @Config(manifest = Config.NONE)
 @Batch(Batch.UNIT_TESTS)
 public class EntityEditorModuleTest {
+    private static final String USER_EMAIL = "example@gmail.com";
     private static final EntityType PASSPORT_TYPE =
             new EntityType(
                     /* typeName= */ EntityTypeName.PASSPORT,
@@ -52,7 +86,23 @@ public class EntityEditorModuleTest {
                     /* typeNameAsString= */ "Passport",
                     /* addEntityTypeString= */ "Add passport",
                     /* editEntityTypeString= */ "Edit passport",
-                    /* deleteEntityTypeString= */ "Delete passport");
+                    /* deleteEntityTypeString= */ "Delete passport",
+                    /* attributeTypes= */ List.of(
+                            new AttributeType(
+                                    /* typeName= */ AttributeTypeName.PASSPORT_NAME,
+                                    /* typeNameAsString= */ "Passport name",
+                                    /* dataType= */ DataType.NAME,
+                                    /* fieldType= */ FieldType.NAME_FULL),
+                            new AttributeType(
+                                    /* typeName= */ AttributeTypeName.PASSPORT_COUNTRY,
+                                    /* typeNameAsString= */ "Passport country",
+                                    /* dataType= */ DataType.COUNTRY,
+                                    /* fieldType= */ FieldType.PASSPORT_ISSUING_COUNTRY),
+                            new AttributeType(
+                                    /* typeName= */ AttributeTypeName.PASSPORT_NUMBER,
+                                    /* typeNameAsString= */ "Passport number",
+                                    /* dataType= */ DataType.STRING,
+                                    /* fieldType= */ FieldType.PASSPORT_NUMBER)));
 
     private static final EntityInstance LOCAL_PASSPORT =
             new EntityInstance.Builder(PASSPORT_TYPE)
@@ -60,6 +110,14 @@ public class EntityEditorModuleTest {
                     .setRecordType(RecordType.LOCAL)
                     .setModifiedDate(LocalDate.now(ZoneId.systemDefault()))
                     .setUseCount(0)
+                    .addAttribute(
+                            new AttributeInstance(
+                                    new AttributeType(
+                                            /* typeName= */ AttributeTypeName.PASSPORT_NUMBER,
+                                            /* typeNameAsString= */ "Passport number",
+                                            /* dataType= */ DataType.STRING,
+                                            /* fieldType= */ FieldType.PASSPORT_NUMBER),
+                                    /* value= */ "AA123456"))
                     .build();
 
     private static final EntityInstance WALLET_PASSPORT =
@@ -68,10 +126,42 @@ public class EntityEditorModuleTest {
                     .setRecordType(RecordType.SERVER_WALLET)
                     .setModifiedDate(LocalDate.now(ZoneId.systemDefault()))
                     .setUseCount(0)
+                    .addAttribute(
+                            new AttributeInstance(
+                                    new AttributeType(
+                                            /* typeName= */ AttributeTypeName.PASSPORT_NAME,
+                                            /* typeNameAsString= */ "Passport name",
+                                            /* dataType= */ DataType.NAME,
+                                            /* fieldType= */ FieldType.NAME_FULL),
+                                    /* value= */ "John Doe"))
+                    .addAttribute(
+                            new AttributeInstance(
+                                    new AttributeType(
+                                            /* typeName= */ AttributeTypeName.PASSPORT_COUNTRY,
+                                            /* typeNameAsString= */ "Passport country",
+                                            /* dataType= */ DataType.COUNTRY,
+                                            /* fieldType= */ FieldType.PASSPORT_ISSUING_COUNTRY),
+                                    /* value= */ "Germany"))
                     .build();
+
+    private final CoreAccountInfo mAccountInfo =
+            CoreAccountInfo.createFromEmailAndGaiaId(USER_EMAIL, new GaiaId("gaia_id"));
+
+    // Note: can't initialize this list statically because of how Robolectric
+    // initializes Android library dependencies.
+    private final List<DropdownKeyValue> mSupportedCountries =
+            List.of(
+                    new DropdownKeyValue("US", "United States"),
+                    new DropdownKeyValue("DE", "Germany"),
+                    new DropdownKeyValue("CU", "Cuba"));
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule().strictness(Strictness.STRICT_STUBS);
     @Mock private Delegate mDelegate;
+    @Mock private Profile mProfile;
+    @Mock private IdentityManager mIdentityManager;
+
+    @Mock private PersonalDataManager mPersonalDataManager;
+    @Mock private AutofillProfileBridge.Natives mAutofillProfileBridgeJni;
 
     private Activity mActivity;
     private EntityEditorCoordinator mCoordinator;
@@ -80,15 +170,20 @@ public class EntityEditorModuleTest {
     @Before
     public void setUp() {
         MockitoAnnotations.openMocks(this);
+
+        IdentityServicesProvider.setIdentityManagerForTesting(mIdentityManager);
+        when(mAutofillProfileBridgeJni.getSupportedCountries()).thenReturn(mSupportedCountries);
+        AutofillProfileBridgeJni.setInstanceForTesting(mAutofillProfileBridgeJni);
+        PersonalDataManagerFactory.setInstanceForTesting(mPersonalDataManager);
+
         mActivity = Robolectric.setupActivity(TestActivity.class);
-        mCoordinator = new EntityEditorCoordinator(mActivity, mDelegate);
-        mContainerView = mCoordinator.getEntityEditorViewForTest().getContainerView();
     }
 
     @Test
     @SmallTest
     public void testShowEditorDialog() {
-        mCoordinator.showEditorDialog(LOCAL_PASSPORT);
+        when(mPersonalDataManager.getDefaultCountryCodeForNewAddress()).thenReturn("US");
+        showEditorDialog(LOCAL_PASSPORT);
         EditorDialogToolbar toolbar = mContainerView.findViewById(R.id.action_bar);
         assertEquals(PASSPORT_TYPE.getAddEntityTypeString(), toolbar.getTitle());
         assertTrue(mCoordinator.getEditorModelForTest().get(EntityEditorProperties.VISIBLE));
@@ -97,7 +192,8 @@ public class EntityEditorModuleTest {
     @Test
     @SmallTest
     public void testClickDoneButton() {
-        mCoordinator.showEditorDialog(LOCAL_PASSPORT);
+        when(mPersonalDataManager.getDefaultCountryCodeForNewAddress()).thenReturn("US");
+        showEditorDialog(LOCAL_PASSPORT);
         mContainerView.findViewById(R.id.editor_dialog_done_button).performClick();
         assertFalse(mCoordinator.getEditorModelForTest().get(EntityEditorProperties.VISIBLE));
     }
@@ -105,7 +201,8 @@ public class EntityEditorModuleTest {
     @Test
     @SmallTest
     public void testClickCancelButton() {
-        mCoordinator.showEditorDialog(LOCAL_PASSPORT);
+        when(mPersonalDataManager.getDefaultCountryCodeForNewAddress()).thenReturn("US");
+        showEditorDialog(LOCAL_PASSPORT);
         mContainerView.findViewById(R.id.payments_edit_cancel_button).performClick();
         assertFalse(mCoordinator.getEditorModelForTest().get(EntityEditorProperties.VISIBLE));
     }
@@ -113,7 +210,8 @@ public class EntityEditorModuleTest {
     @Test
     @SmallTest
     public void testDeleteLocalEntity() {
-        mCoordinator.showEditorDialog(LOCAL_PASSPORT);
+        when(mPersonalDataManager.getDefaultCountryCodeForNewAddress()).thenReturn("US");
+        showEditorDialog(LOCAL_PASSPORT);
         PropertyModel model = mCoordinator.getEditorModelForTest();
         assertTrue(model.get(EntityEditorProperties.ALLOW_DELETE));
         assertEquals(
@@ -134,9 +232,101 @@ public class EntityEditorModuleTest {
     @Test
     @SmallTest
     public void testDeleteWalletEntity() {
-        mCoordinator.showEditorDialog(WALLET_PASSPORT);
+        showEditorDialog(WALLET_PASSPORT);
 
         PropertyModel model = mCoordinator.getEditorModelForTest();
         assertFalse(model.get(EntityEditorProperties.ALLOW_DELETE));
+    }
+
+    @Test
+    @SmallTest
+    public void testEditorFields() {
+        when(mPersonalDataManager.getDefaultCountryCodeForNewAddress()).thenReturn("US");
+        showEditorDialog(LOCAL_PASSPORT);
+
+        PropertyModel model = mCoordinator.getEditorModelForTest();
+        verifyLocalPassportFields(model.get(EntityEditorProperties.EDITOR_FIELDS));
+    }
+
+    @Test
+    @SmallTest
+    public void testLocalEntitySourceNotice() {
+        when(mPersonalDataManager.getDefaultCountryCodeForNewAddress()).thenReturn("US");
+        showEditorDialog(LOCAL_PASSPORT);
+
+        PropertyModel model = mCoordinator.getEditorModelForTest();
+        verifySourceNotice(
+                model.get(EntityEditorProperties.EDITOR_FIELDS),
+                mActivity.getString(R.string.autofill_ai_local_entity_editor_source_notice));
+    }
+
+    @Test
+    @SmallTest
+    public void testWalletEntitySourceNotice() {
+        when(mIdentityManager.getPrimaryAccountInfo(anyInt())).thenReturn(mAccountInfo);
+        showEditorDialog(WALLET_PASSPORT);
+
+        PropertyModel model = mCoordinator.getEditorModelForTest();
+        verifySourceNotice(
+                model.get(EntityEditorProperties.EDITOR_FIELDS),
+                mActivity
+                        .getString(R.string.autofill_ai_wallet_entity_editor_source_notice)
+                        .replace("$1", USER_EMAIL));
+    }
+
+    private void showEditorDialog(EntityInstance entityInstance) {
+        mCoordinator = new EntityEditorCoordinator(mActivity, mDelegate, mProfile, entityInstance);
+        mContainerView = mCoordinator.getEntityEditorViewForTest().getContainerView();
+        mCoordinator.showEditorDialog();
+    }
+
+    private void verifyLocalPassportFields(ListModel<EditorItem> editorFields) {
+        verifyTextFieldContent(
+                editorFields.get(0),
+                /* fieldType= */ FieldType.NAME_FULL,
+                /* label= */ "Passport name",
+                /* value= */ "");
+        // When the country attribute is not set, the country code returned by the
+        // PersonalDataManager should be used.
+        verifyDropdownFieldContent(
+                editorFields.get(1), /* label= */ "Passport country", /* value= */ "US");
+        verifyTextFieldContent(
+                editorFields.get(2),
+                /* fieldType= */ FieldType.PASSPORT_NUMBER,
+                /* label= */ "Passport number",
+                /* value= */ "AA123456");
+    }
+
+    private void verifyTextFieldContent(
+            EditorItem item, @FieldType int fieldType, String label, String value) {
+        assertEquals(TEXT_INPUT, item.type);
+        assertEquals(fieldType, item.model.get(TEXT_FIELD_TYPE));
+        assertEquals(label, item.model.get(LABEL));
+        assertEquals(value, item.model.get(VALUE));
+    }
+
+    private void verifyDropdownFieldContent(EditorItem item, String label, String value) {
+        assertEquals(DROPDOWN, item.type);
+        // Country list gets sorted by the AutofillProfileBridge.
+        assertEquals(
+                List.of(
+                        new DropdownKeyValue("CU", "Cuba"),
+                        new DropdownKeyValue("DE", "Germany"),
+                        new DropdownKeyValue("US", "United States")),
+                item.model.get(DROPDOWN_KEY_VALUE_LIST));
+        assertFalse(item.model.get(IS_REQUIRED));
+        assertEquals(label, item.model.get(LABEL));
+        assertEquals(value, item.model.get(VALUE));
+    }
+
+    private void verifySourceNotice(ListModel<EditorItem> editorFields, String expectedNoticeText) {
+        for (EditorItem item : editorFields) {
+            if (item.type == NOTICE && expectedNoticeText.equals(item.model.get(NOTICE_TEXT))) {
+                assertTrue(item.model.get(SHOW_BACKGROUND));
+                assertTrue(item.model.get(IMPORTANT_FOR_ACCESSIBILITY));
+                return;
+            }
+        }
+        fail("Source notice not found");
     }
 }

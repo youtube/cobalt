@@ -6,16 +6,23 @@
 
 #include <windows.h>
 
+#include <optional>
+
+#include "base/files/file_path.h"
+#include "base/files/file_util.h"
+#include "base/files/scoped_temp_dir.h"
 #include "base/i18n/encoding_detection.h"
 #include "base/i18n/icu_string_conversions.h"
 #include "base/test/run_until.h"
 #include "base/test/scoped_feature_list.h"
 #include "base/test/task_environment.h"
 #include "base/test/test_future.h"
+#include "base/threading/thread_restrictions.h"
 #include "base/win/scoped_hglobal.h"
 #include "testing/platform_test.h"
 #include "ui/base/clipboard/clipboard_monitor.h"
 #include "ui/base/clipboard/clipboard_observer.h"
+#include "ui/base/clipboard/file_info.h"
 #include "ui/base/clipboard/scoped_clipboard_writer.h"
 #include "ui/base/ui_base_features.h"
 #include "ui/gfx/image/image_unittest_util.h"
@@ -100,6 +107,12 @@ TEST_F(ClipboardWinTest, NoDataChangedNotificationOnRead) {
                            &ascii_text_result);
   ASSERT_EQ(data_changed_count(), 0);
 
+  base::test::TestFuture<std::u16string, GURL, uint32_t, uint32_t> html_future;
+  clipboard->ReadHTML(ClipboardBuffer::kCopyPaste, std::nullopt,
+                      html_future.GetCallback());
+  ASSERT_TRUE(html_future.Wait());
+  ASSERT_EQ(data_changed_count(), 0);
+
   std::u16string html;
   std::string src_url;
   uint32_t start;
@@ -117,7 +130,7 @@ TEST_F(ClipboardWinTest, NoDataChangedNotificationOnRead) {
   ASSERT_EQ(data_changed_count(), 0);
 
   base::test::TestFuture<const std::vector<uint8_t>&> png_future;
-  clipboard->ReadPng(ClipboardBuffer::kCopyPaste, nullptr,
+  clipboard->ReadPng(ClipboardBuffer::kCopyPaste, std::nullopt,
                      png_future.GetCallback());
   ASSERT_TRUE(png_future.Wait());
   ASSERT_EQ(data_changed_count(), 0);
@@ -129,6 +142,12 @@ TEST_F(ClipboardWinTest, NoDataChangedNotificationOnRead) {
 
   std::vector<FileInfo> file_infos;
   clipboard->ReadFilenames(ClipboardBuffer::kCopyPaste, nullptr, &file_infos);
+  ASSERT_EQ(data_changed_count(), 0);
+
+  base::test::TestFuture<std::vector<FileInfo>> filenames_future;
+  clipboard->ReadFilenames(ClipboardBuffer::kCopyPaste, std::nullopt,
+                           filenames_future.GetCallback());
+  ASSERT_TRUE(filenames_future.Wait());
   ASSERT_EQ(data_changed_count(), 0);
 
   std::u16string title;
@@ -185,8 +204,8 @@ TEST_F(ClipboardWinTest, InvalidBitmapDoesNotCrash) {
 
   // Reading PNG should not crash.
   base::test::TestFuture<const std::vector<uint8_t>&> png_future;
-  Clipboard::GetForCurrentThread()->ReadPng(ClipboardBuffer::kCopyPaste,
-                                            nullptr, png_future.GetCallback());
+  Clipboard::GetForCurrentThread()->ReadPng(
+      ClipboardBuffer::kCopyPaste, std::nullopt, png_future.GetCallback());
   ASSERT_TRUE(png_future.Wait());
   const auto& png = png_future.Get();
   ASSERT_GE(png.size(), 0u);
@@ -218,6 +237,72 @@ TEST_F(ClipboardWinTest, NormalizeRtfStringToUTF8) {
 
   // Clear data in clipboard.
   Clipboard::GetForCurrentThread()->Clear(ClipboardBuffer::kCopyPaste);
+}
+
+TEST_F(ClipboardWinTest, ReadHTMLAsyncReturnsWrittenData) {
+  auto* clipboard = Clipboard::GetForCurrentThread();
+  {
+    ScopedClipboardWriter writer(ClipboardBuffer::kCopyPaste);
+    writer.WriteHTML(u"html_test", "https://source.com/");
+  }
+
+  base::test::TestFuture<std::u16string, GURL, uint32_t, uint32_t> html_future;
+  clipboard->ReadHTML(ClipboardBuffer::kCopyPaste, std::nullopt,
+                      html_future.GetCallback());
+  ASSERT_TRUE(html_future.Wait());
+  const std::u16string html = html_future.Get<0>();
+  EXPECT_EQ(html_future.Get<1>(), GURL("https://source.com/"));
+  EXPECT_EQ(html.substr(html_future.Get<2>(),
+                        html_future.Get<3>() - html_future.Get<2>()),
+            u"html_test");
+}
+
+TEST_F(ClipboardWinTest, ReadHTMLAsyncEmptyClipboard) {
+  auto* clipboard = Clipboard::GetForCurrentThread();
+  clipboard->Clear(ClipboardBuffer::kCopyPaste);
+
+  base::test::TestFuture<std::u16string, GURL, uint32_t, uint32_t> html_future;
+  clipboard->ReadHTML(ClipboardBuffer::kCopyPaste, std::nullopt,
+                      html_future.GetCallback());
+  ASSERT_TRUE(html_future.Wait());
+  EXPECT_TRUE(html_future.Get<0>().empty());
+  EXPECT_EQ(html_future.Get<1>(), GURL());
+  EXPECT_EQ(html_future.Get<2>(), 0u);
+  EXPECT_EQ(html_future.Get<3>(), 0u);
+}
+
+TEST_F(ClipboardWinTest, ReadFilenamesAsyncReturnsWrittenData) {
+  base::ScopedAllowBlockingForTesting allow_blocking;
+  base::ScopedTempDir temp_dir;
+  ASSERT_TRUE(temp_dir.CreateUniqueTempDir());
+  base::FilePath file;
+  ASSERT_TRUE(base::CreateTemporaryFileInDir(temp_dir.GetPath(), &file));
+
+  auto* clipboard = Clipboard::GetForCurrentThread();
+  {
+    ScopedClipboardWriter writer(ClipboardBuffer::kCopyPaste);
+    writer.WriteFilenames(
+        ui::FileInfosToURIList({ui::FileInfo(file, base::FilePath())}));
+  }
+
+  base::test::TestFuture<std::vector<ui::FileInfo>> filenames_future;
+  clipboard->ReadFilenames(ClipboardBuffer::kCopyPaste, std::nullopt,
+                           filenames_future.GetCallback());
+  ASSERT_TRUE(filenames_future.Wait());
+  const auto& filenames = filenames_future.Get();
+  ASSERT_EQ(1u, filenames.size());
+  EXPECT_EQ(file, filenames[0].path);
+}
+
+TEST_F(ClipboardWinTest, ReadFilenamesAsyncEmptyClipboard) {
+  auto* clipboard = Clipboard::GetForCurrentThread();
+  clipboard->Clear(ClipboardBuffer::kCopyPaste);
+
+  base::test::TestFuture<std::vector<ui::FileInfo>> filenames_future;
+  clipboard->ReadFilenames(ClipboardBuffer::kCopyPaste, std::nullopt,
+                           filenames_future.GetCallback());
+  ASSERT_TRUE(filenames_future.Wait());
+  EXPECT_TRUE(filenames_future.Get().empty());
 }
 
 }  // namespace ui

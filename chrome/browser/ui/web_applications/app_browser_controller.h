@@ -275,9 +275,17 @@ class AppBrowserController : public ui::ColorProviderKey::InitializerSupplier,
   // not been ignored by the user.
   virtual bool HasPendingUpdateNotIgnoredByUser() const;
 
+  // Returns true if there is a pending migration available for this app.
+  virtual bool HasPendingMigration() const;
+
   // Constructs the metadata required for app identity updating and triggers the
   // corresponding dialog.
   virtual void CreateMetadataAndTriggerAppUpdateDialog(
+      base::TimeTicks start_time) const;
+
+  // Constructs the metadata required for app migration and triggers the
+  // corresponding dialog.
+  virtual void CreateMetadataAndTriggerAppMigrationDialog(
       base::TimeTicks start_time) const;
 
   // Returns whether prevent close is enabled.

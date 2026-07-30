@@ -24,7 +24,11 @@
 
 namespace content {
 class WebContents;
-}
+
+namespace webid {
+enum class FederatedLoginResult;
+}  // namespace webid
+}  // namespace content
 
 namespace optimization_guide {
 class OptimizationGuideDecider;
@@ -131,7 +135,9 @@ class IdentityDialogController
       blink::mojom::RpMode rp_mode,
       DismissCallback dismiss_callback) override;
   void CloseModalDialog() override;
-  void OnFlowCompleted(bool success) override;
+  void OnConnectionStatusHeaderReceived(
+      const std::optional<std::string>& account_id) override;
+  void OnFlowCompleted(content::webid::FederatedLoginResult result) override;
   content::WebContents* GetRpWebContents() override;
   void RequestIdPRegistrationPermision(
       const url::Origin& origin,

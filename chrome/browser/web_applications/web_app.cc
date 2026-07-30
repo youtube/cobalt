@@ -20,6 +20,7 @@
 #include "base/containers/flat_set.h"
 #include "base/containers/to_value_list.h"
 #include "base/logging.h"
+#include "base/metrics/histogram_functions.h"
 #include "base/not_fatal_until.h"
 #include "base/notreached.h"
 #include "base/strings/strcat.h"
@@ -27,6 +28,7 @@
 #include "base/strings/string_util.h"
 #include "base/strings/to_string.h"
 #include "base/time/time.h"
+#include "base/types/pass_key.h"
 #include "base/values.h"
 #include "build/build_config.h"
 #include "chrome/browser/web_applications/generated_icon_fix_util.h"
@@ -52,6 +54,7 @@
 #include "chrome/browser/web_applications/web_app_management_type.h"
 #include "chrome/browser/web_applications/web_app_proto_utils.h"
 #include "chrome/browser/web_applications/web_app_scope.h"
+#include "chrome/browser/web_applications/web_app_sync_bridge.h"
 #include "chrome/browser/web_applications/web_app_utils.h"
 #include "components/services/app_service/public/cpp/file_handler.h"
 #include "components/services/app_service/public/cpp/protocol_handler_info.h"
@@ -237,6 +240,24 @@ void CheckValidPendingUpdateInfo(
   }
 }
 
+// Validate all constraints during construction of a web app.
+void RunWebAppConstructionValidations(const webapps::ManifestId& manifest_id,
+                                      const GURL& start_url,
+                                      const GURL& scope) {
+  CHECK(manifest_id.is_valid());
+  CHECK(start_url.is_valid());
+  CHECK(scope.is_valid());
+  CHECK(url::IsSameOriginWith(manifest_id, start_url))
+      << manifest_id.spec() << " vs " << start_url.spec();
+  CHECK(url::IsSameOriginWith(start_url, scope))
+      << start_url.spec() << " vs " << scope.spec();
+  CHECK(!scope.has_ref() && !scope.has_query());
+  CHECK(!manifest_id.has_ref());
+  CHECK(base::StartsWith(start_url.spec(), scope.spec(),
+                         base::CompareCase::SENSITIVE))
+      << "Start URL " << start_url << " must be nested in scope " << scope;
+}
+
 }  // namespace
 
 WebApp::CachedDerivedData::CachedDerivedData() = default;
@@ -263,20 +284,19 @@ WebApp::WebApp(const webapps::AppId& app_id,
                          : std::nullopt),
       manifest_id_(manifest_id),
       parent_app_id_(parent_app_id) {
-  CHECK(manifest_id.is_valid());
-  CHECK(start_url.is_valid());
-  CHECK(scope.is_valid());
-  CHECK(url::IsSameOriginWith(manifest_id_, start_url_))
-      << manifest_id_.spec() << " vs " << start_url_.spec();
-  CHECK(url::IsSameOriginWith(start_url_, scope_))
-      << start_url_.spec() << " vs " << scope_.spec();
-  CHECK(!scope_.has_ref() && !scope_.has_query());
-  CHECK(!manifest_id_.has_ref());
-  CHECK(base::StartsWith(start_url_.spec(), scope_.spec(),
-                         base::CompareCase::SENSITIVE))
-      << "Start URL " << start_url_ << " must be nested in scope " << scope_;
-  // Ensure sync proto is initialized.
-  SetSyncProto(sync_proto_);
+  // Must drop the fragments and queries per `scope` rules
+  // https://w3c.github.io/manifest/#scope-member
+  GURL::Replacements replacements;
+  replacements.ClearRef();
+  replacements.ClearQuery();
+  scope_ = scope.ReplaceComponents(replacements);
+
+  RunWebAppConstructionValidations(manifest_id, start_url, scope_);
+  // Set the correct metadata so that the appropriate fields in the
+  // `sync_proto_` can be initialized accordingly.
+  SetStartUrl(start_url_);
+  SetManifestId(manifest_id_);
+  SetScope(scope_);
 }
 
 WebApp::WebApp(const webapps::ManifestId& manifest_id,
@@ -293,6 +313,35 @@ WebApp::WebApp(const webapps::ManifestId& manifest_id,
     CHECK(!parent_app_id_->empty());
   }
   CHECK(!!parent_app_id == !!parent_manifest_id);
+}
+
+WebApp::WebApp(const sync_pb::WebAppSpecifics& sync_proto)
+    : chromeos_data_(IsChromeOsDataMandatory()
+                         ? std::make_optional<WebAppChromeOsData>()
+                         : std::nullopt),
+      sync_proto_(sync_proto) {
+  CHECK(sync_proto_.has_start_url() && GURL(sync_proto_.start_url()).is_valid())
+      << "Invalid start_url in sync proto: " << sync_proto_.start_url();
+  GURL start_url = GURL(sync_proto_.start_url());
+  SetStartUrl(start_url);
+
+  webapps::ManifestId manifest_id_from_sync =
+      GenerateManifestId(sync_proto_.relative_manifest_id(), start_url);
+  SetManifestId(manifest_id_from_sync);
+  app_id_ = GenerateAppIdFromManifestId(manifest_id_from_sync);
+
+  // If sync_proto_ does not have a valid scope, `SetStartUrl()` will take care
+  // of explicitly setting it to start_url without the filename.
+  if (sync_proto_.has_scope() && GURL(sync_proto_.scope()).is_valid()) {
+    SetScope(GURL(sync_proto_.scope()));
+  } else {
+    sync_proto_.clear_scope();
+  }
+
+  // All other fields of the web app are set by the `Set<Field>()` methods. They
+  // should be sanitizing the fields, but still good to check it here just in
+  // case.
+  RunWebAppConstructionValidations(manifest_id_, start_url_, scope_);
 }
 
 WebApp::~WebApp() = default;
@@ -447,6 +496,7 @@ WebAppManagement::Type WebApp::GetHighestPrioritySource() const {
 
 void WebApp::SetName(const std::string& name) {
   name_ = name;
+  sync_proto_.set_name(name);
 }
 
 void WebApp::SetDescription(const std::string& description) {
@@ -462,13 +512,13 @@ void WebApp::SetStartUrl(const GURL& start_url) {
       << manifest_id().spec() << " " << start_url.spec();
   start_url_ = start_url;
 
-  // Ensure sync proto is initialized and remains consistent. Logic in
-  // `SetSyncProto` will populate an unset `start_url` on the proto.
+  // Ensure that the start_url in the sync proto is set correctly and
+  // consistently.
   sync_proto_.clear_start_url();
-  SetSyncProto(sync_proto_);
-  // Ensure that scope is always set.
+  sync_proto_.set_start_url(start_url_.spec());
+  // Ensure that scope is always set, which in turn, also sets the sync_proto_.
   if (scope_.is_empty()) {
-    scope_ = start_url_.GetWithoutFilename();
+    SetScope(start_url_.GetWithoutFilename());
   }
 }
 
@@ -485,12 +535,24 @@ void WebApp::SetScope(const GURL& scope) {
   scope_replacements.ClearRef();
   scope_replacements.ClearQuery();
   scope_ = scope_for_app.ReplaceComponents(scope_replacements);
+
   // Post-migration check: Scope should never be empty after setting.
   CHECK(!scope_.is_empty());
+
+  // Set up scope for syncing.
+  sync_proto_.clear_scope();
+  sync_proto_.set_scope(scope_.spec());
 }
 
 void WebApp::SetThemeColor(std::optional<SkColor> theme_color) {
   theme_color_ = theme_color;
+
+  // Set up theme color for syncing.
+  if (theme_color) {
+    sync_proto_.set_theme_color(*theme_color);
+  } else {
+    sync_proto_.clear_theme_color();
+  }
 }
 
 void WebApp::SetDarkModeThemeColor(
@@ -549,6 +611,12 @@ void WebApp::SetIsUninstalling(bool is_uninstalling) {
 
 void WebApp::SetManifestIcons(std::vector<apps::IconInfo> manifest_icons) {
   manifest_icons_ = std::move(manifest_icons);
+
+  // Set up manifest icons for syncing.
+  sync_proto_.clear_icon_infos();
+  for (const apps::IconInfo& icon_info : manifest_icons_) {
+    *(sync_proto_.add_icon_infos()) = AppIconInfoToSyncProto(icon_info);
+  }
 }
 
 void WebApp::SetDownloadedIconSizes(IconPurpose purpose, SortedSizesPx sizes) {
@@ -647,55 +715,6 @@ void WebApp::SetRunOnOsLoginMode(RunOnOsLoginMode mode) {
   run_on_os_login_mode_ = mode;
 }
 
-void WebApp::SetSyncProto(sync_pb::WebAppSpecifics sync_proto) {
-  // Populate sync_proto's start_url from this WebApp if missing.
-  if (!start_url().is_empty()) {
-    CHECK(start_url().is_valid());
-    // Note: sync data may have a start_url that does not match the `WebApp`
-    // start_url, but it does not update the app (matching pre-M125 behaviour).
-    if (!sync_proto.has_start_url()) {
-      sync_proto.set_start_url(start_url().spec());
-    }
-  }
-
-  // Sync data must never be set on an app with mismatching manifest_id.
-  CHECK(manifest_id().is_valid());
-  std::string relative_manifest_id_path = RelativeManifestIdPath(manifest_id());
-  if (sync_proto.has_relative_manifest_id()) {
-    CHECK_EQ(sync_proto.relative_manifest_id(), relative_manifest_id_path);
-  } else {
-    sync_proto.set_relative_manifest_id(relative_manifest_id_path);
-  }
-
-  // Clear any invalid less-important fields.
-  if (sync_proto.has_scope() && !GURL(sync_proto.scope()).is_valid()) {
-    DLOG(ERROR) << "SetSyncProto: scope has invalid url: "
-                << sync_proto.scope();
-    sync_proto.clear_scope();
-  }
-  if (!ParseAppIconInfos("SetSyncProto", sync_proto.icon_infos()).has_value()) {
-    sync_proto.clear_icon_infos();
-  }
-  if (sync_proto.has_user_launch_ordinal() &&
-      !syncer::StringOrdinal(sync_proto.user_launch_ordinal()).IsValid()) {
-    sync_proto.clear_user_launch_ordinal();
-  }
-  if (sync_proto.has_user_page_ordinal() &&
-      !syncer::StringOrdinal(sync_proto.user_page_ordinal()).IsValid()) {
-    sync_proto.clear_user_page_ordinal();
-  }
-  if (!ParseAppIconInfos("SetSyncProtoTrustedIcons", sync_proto.trusted_icons())
-           .has_value()) {
-    sync_proto.clear_trusted_icons();
-  }
-  if (sync_proto.has_migrated_from_manifest_id() &&
-      !GURL(sync_proto.migrated_from_manifest_id()).is_valid()) {
-    sync_proto.clear_migrated_from_manifest_id();
-  }
-
-  sync_proto_ = std::move(sync_proto);
-}
-
 void WebApp::SetLaunchQueryParams(
     std::optional<std::string> launch_query_params) {
   launch_query_params_ = std::move(launch_query_params);
@@ -714,10 +733,13 @@ void WebApp::SetManifestId(const webapps::ManifestId& manifest_id) {
   CHECK(!manifest_id.has_ref());
   manifest_id_ = manifest_id;
 
-  // Ensure sync proto is initialized and remains consistent. Logic in
-  // `SetSyncProto` will populate an unset `relative_manifest_id` on the proto.
-  sync_proto_.clear_relative_manifest_id();
-  SetSyncProto(sync_proto_);
+  // Ensure sync proto is initialized and remains consistent.
+  std::string relative_manifest_id_path = RelativeManifestIdPath(manifest_id_);
+  if (sync_proto_.has_relative_manifest_id()) {
+    CHECK_EQ(sync_proto_.relative_manifest_id(), relative_manifest_id_path);
+  } else {
+    sync_proto_.set_relative_manifest_id(relative_manifest_id_path);
+  }
 }
 
 void WebApp::SetWindowControlsOverlayEnabled(bool enabled) {
@@ -889,6 +911,12 @@ void WebApp::SetPendingUpdateInfo(
 
 void WebApp::SetTrustedIcons(std::vector<apps::IconInfo> trusted_icons) {
   trusted_icons_ = std::move(trusted_icons);
+
+  // Set up trusted icons for syncing.
+  sync_proto_.clear_trusted_icons();
+  for (const apps::IconInfo& trusted_icon : trusted_icons_) {
+    *(sync_proto_.add_trusted_icons()) = AppIconInfoToSyncProto(trusted_icon);
+  }
 }
 
 void WebApp::SetStoredTrustedIconSizes(IconPurpose purpose,
@@ -973,6 +1001,109 @@ void WebApp::AddInstalledByInfo(AppInstalledBy installed_by_info) {
     installed_by_.pop_front();
   }
   CHECK(installed_by_.size() <= kMaxInstalledBySize);
+}
+
+void WebApp::SetMigratedFromManifestIdInSyncProto(
+    const webapps::ManifestId& migrated_from_manifest_id) {
+  if (sync_proto_.has_migrated_from_manifest_id() &&
+      !!GURL(sync_proto_.migrated_from_manifest_id()).is_valid()) {
+    sync_proto_.clear_migrated_from_manifest_id();
+  }
+  CHECK(migrated_from_manifest_id.is_valid());
+  sync_proto_.set_migrated_from_manifest_id(migrated_from_manifest_id.spec());
+}
+
+void WebApp::UpdateDefaultUserDisplayModeInSyncProto(
+    sync_pb::WebAppSpecifics::UserDisplayMode display_mode) {
+  sync_proto_.clear_user_display_mode_default();
+  sync_proto_.set_user_display_mode_default(display_mode);
+}
+
+void WebApp::UpdateCrOsUserDisplayModeInSyncProto(
+    sync_pb::WebAppSpecifics::UserDisplayMode display_mode) {
+  sync_proto_.clear_user_display_mode_cros();
+  sync_proto_.set_user_display_mode_cros(display_mode);
+}
+
+void WebApp::SetUserPageOrdinal(syncer::StringOrdinal page_ordinal) {
+  sync_proto_.clear_user_page_ordinal();
+  if (!page_ordinal.IsValid()) {
+    return;
+  }
+  sync_proto_.set_user_page_ordinal(page_ordinal.ToInternalValue());
+}
+
+void WebApp::SetUserLaunchOrdinal(syncer::StringOrdinal launch_ordinal) {
+  sync_proto_.clear_user_launch_ordinal();
+  if (!launch_ordinal.IsValid()) {
+    return;
+  }
+  sync_proto_.set_user_launch_ordinal(launch_ordinal.ToInternalValue());
+}
+
+void WebApp::MergeDataFromSyncSystem(
+    const sync_pb::WebAppSpecifics& incoming_sync,
+    base::PassKey<WebAppSyncBridge>) {
+  AddSource(WebAppManagement::kSync);
+
+  sync_pb::WebAppSpecifics modified_sync_proto = incoming_sync;
+
+  // Verify that the start_url is properly set.
+  CHECK(modified_sync_proto.has_start_url() &&
+        GURL(modified_sync_proto.start_url()).is_valid());
+
+  CHECK(manifest_id().is_valid());
+  std::string relative_manifest_id_path = RelativeManifestIdPath(manifest_id());
+
+  // This should be already set by the WebAppSyncBridge.
+  CHECK(modified_sync_proto.has_relative_manifest_id());
+  if (modified_sync_proto.relative_manifest_id() != relative_manifest_id_path) {
+    modified_sync_proto.set_relative_manifest_id(relative_manifest_id_path);
+    // Record when this happens. When it is rare enough we could remove the
+    // logic here and instead drop incoming sync data with fragment parts in
+    // the manifest_id_path.
+    base::UmaHistogramBoolean("WebApp.ApplySyncDataToApp.ManifestIdMatch",
+                              false);
+  } else {
+    // Record success for comparison.
+    base::UmaHistogramBoolean("WebApp.ApplySyncDataToApp.ManifestIdMatch",
+                              true);
+  }
+
+  // Prevent incoming sync data from clearing recently-added fields in our local
+  // copy. This ensures new sync fields are preserved despite old (pre-M125)
+  // clients incorrectly clearing unknown fields. Any new fields added to the
+  // sync proto should also be added here (if we don't want them to be cleared
+  // by old clients) until this block can be removed. This can be removed when
+  // there are few <M125 clients remaining.
+  if (sync_proto_.has_user_display_mode_cros() &&
+      !modified_sync_proto.has_user_display_mode_cros()) {
+    modified_sync_proto.set_user_display_mode_cros(
+        sync_proto_.user_display_mode_cros());
+  }
+  if (sync_proto_.has_user_display_mode_default() &&
+      !modified_sync_proto.has_user_display_mode_default()) {
+    modified_sync_proto.set_user_display_mode_default(
+        sync_proto_.user_display_mode_default());
+  }
+
+  // Ensure the current platform's UserDisplayMode is set.
+  // Conditional to avoid clobbering an unknown new UDM with a fallback one.
+  if (!HasCurrentPlatformUserDisplayMode(modified_sync_proto)) {
+    auto udm = ResolvePlatformSpecificUserDisplayMode(modified_sync_proto);
+    SetPlatformSpecificUserDisplayMode(udm, &modified_sync_proto);
+  }
+
+  // Ensure that incoming sync proto that does not have the manifest id of the
+  // source app set does not clear the existing metadata stored on disk.
+  if (sync_proto_.has_migrated_from_manifest_id() &&
+      !modified_sync_proto.has_migrated_from_manifest_id()) {
+    modified_sync_proto.set_migrated_from_manifest_id(
+        sync_proto_.migrated_from_manifest_id());
+  }
+
+  sync_proto_ = std::move(modified_sync_proto);
+  CHECK(HasCurrentPlatformUserDisplayMode(sync_proto_));
 }
 
 WebApp::ClientData::ClientData() = default;

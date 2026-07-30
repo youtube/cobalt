@@ -426,12 +426,6 @@ class WTF_EXPORT StringImpl {
 
   bool ContainsOnlyWhitespaceOrEmpty();
 
-  int64_t ToInt64(NumberParsingOptions, bool* ok) const;
-  uint64_t ToUInt64(NumberParsingOptions, bool* ok) const;
-
-  wtf_size_t HexToUIntStrict(bool* ok);
-  uint64_t HexToUInt64Strict(bool* ok);
-
   scoped_refptr<StringImpl> LowerASCII();
   scoped_refptr<StringImpl> UpperASCII();
 
@@ -478,7 +472,7 @@ class WTF_EXPORT StringImpl {
   // platform features.  See crbug.com/40476285.
   wtf_size_t DeprecatedFindIgnoringCase(const StringView&,
                                         wtf_size_t index = 0) const;
-  wtf_size_t FindIgnoringASCIICase(const StringView&,
+  wtf_size_t FindIgnoringAsciiCase(const StringView&,
                                    wtf_size_t index = 0) const;
 
   wtf_size_t ReverseFind(UChar, wtf_size_t index = UINT_MAX) const;
@@ -491,7 +485,7 @@ class WTF_EXPORT StringImpl {
   // platform features.  See crbug.com/40476285.
   bool DeprecatedStartsWithIgnoringCase(const StringView&) const;
   bool StartsWithIgnoringCaseAndAccents(const StringView&) const;
-  bool StartsWithIgnoringASCIICase(const StringView&) const;
+  bool StartsWithIgnoringAsciiCase(const StringView&) const;
 
   bool EndsWith(UChar) const;
   bool EndsWith(const StringView&) const;
@@ -499,7 +493,7 @@ class WTF_EXPORT StringImpl {
   // match to ASCII characters. This function is rarely used to implement web
   // platform features.  See crbug.com/40476285.
   bool DeprecatedEndsWithIgnoringCase(const StringView&) const;
-  bool EndsWithIgnoringASCIICase(const StringView&) const;
+  bool EndsWithIgnoringAsciiCase(const StringView&) const;
 
   // Replace parts of the string.
   scoped_refptr<StringImpl> Replace(UChar pattern, UChar replacement);

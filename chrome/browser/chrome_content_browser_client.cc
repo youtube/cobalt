@@ -571,6 +571,7 @@
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 #if BUILDFLAG(IS_CHROMEOS)
+#include "ash/constants/webui_url_constants.h"
 #include "ash/shell.h"
 #include "base/debug/leak_annotations.h"
 #include "chrome/browser/chromeos/policy/dlp/dlp_scoped_file_access_delegate.h"
@@ -783,6 +784,13 @@ bool g_disable_advanced_protection_caching_for_tests = false;
 // Warm up the ServiceWorker registration for DSE.
 BASE_FEATURE(kPrewarmServiceWorkerRegistrationForDSE,
              base::FEATURE_DISABLED_BY_DEFAULT);
+
+#if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
+// Kill-switch for the request integrity headers support for prefetches
+// initiated by `content::PrefetchContainer`.
+BASE_FEATURE(kPrefetchRequestIntegrityHeaders,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 // Cached version of the locale so we can return the locale on the I/O
 // thread.
@@ -6150,7 +6158,7 @@ bool IsSystemFeatureURLDisabled(const GURL& url) {
 
   // chrome://os-settings/pwa.html shouldn't be replaced to let the settings app
   // installation complete successfully.
-  if (url.DomainIs(chrome::kChromeUIOSSettingsHost) &&
+  if (url.DomainIs(ash::kChromeUIOSSettingsHost) &&
       url.GetPath() != "/pwa.html") {
     return IsSystemFeatureDisabled(policy::SystemFeature::kOsSettings);
   }
@@ -6159,8 +6167,7 @@ bool IsSystemFeatureURLDisabled(const GURL& url) {
     return IsSystemFeatureDisabled(policy::SystemFeature::kBrowserSettings);
   }
 
-#if BUILDFLAG(IS_CHROMEOS)
-  if (url.DomainIs(chrome::kChromeUIUntrustedCroshHost)) {
+  if (url.DomainIs(ash::kChromeUIUntrustedCroshHost)) {
     return IsSystemFeatureDisabled(policy::SystemFeature::kCrosh);
   }
 
@@ -6180,7 +6187,7 @@ bool IsSystemFeatureURLDisabled(const GURL& url) {
     return IsSystemFeatureDisabled(policy::SystemFeature::kGallery);
   }
 
-  if (url.DomainIs(chrome::kChromeUIUntrustedTerminalHost)) {
+  if (url.DomainIs(ash::kChromeUIUntrustedTerminalHost)) {
     return IsSystemFeatureDisabled(policy::SystemFeature::kTerminal);
   }
 
@@ -6195,8 +6202,6 @@ bool IsSystemFeatureURLDisabled(const GURL& url) {
   if (url.DomainIs(ash::kChromeUIRecorderAppHost)) {
     return IsSystemFeatureDisabled(policy::SystemFeature::kRecorder);
   }
-
-#endif
 
   return false;
 }
@@ -7111,7 +7116,7 @@ bool ChromeContentBrowserClient::HandleWebUI(
   }
 
   if (IsSystemFeatureURLDisabled(*url)) {
-    *url = GURL(chrome::kChromeUIAppDisabledURL);
+    *url = GURL(ash::kChromeUIAppDisabledURL);
     return true;
   }
 #endif
@@ -8834,6 +8839,7 @@ std::vector<std::unique_ptr<content::KeepAliveRequestTracker>>
 ChromeContentBrowserClient::MaybeCreateKeepAliveRequestTracker(
     const network::ResourceRequest& request,
     std::optional<ukm::SourceId> ukm_source_id,
+    content::BrowserContext* browser_context,
     content::KeepAliveRequestTracker::IsContextDetachedCallback
         is_context_detached_callback) {
   // Do not need to track non-keepalive requests.
@@ -8849,7 +8855,7 @@ ChromeContentBrowserClient::MaybeCreateKeepAliveRequestTracker(
   }
   std::unique_ptr<SearchPrefetchKeepAliveRequestTracker> search_tracker =
       SearchPrefetchKeepAliveRequestTracker::MaybeCreateKeepAliveRequestTracker(
-          request);
+          request, browser_context);
   if (search_tracker) {
     trackers.push_back(std::move(search_tracker));
   }
@@ -8994,4 +9000,32 @@ bool ChromeContentBrowserClient::ShouldAllowPrefetchRedirection(
             template_url_service->IsSearchResultsPageFromDefaultSearchProvider(
                 url)) ||
            google_util::IsGoogleSearchUrl(url));
+}
+
+void ChromeContentBrowserClient::ModifyRequestHeadersForPrefetch(
+    const GURL& url,
+    std::vector<std::string>& removed_headers,
+    net::HttpRequestHeaders& modified_headers,
+    net::HttpRequestHeaders& modified_cors_exempt_headers) {
+#if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
+  if (base::FeatureList::IsEnabled(kPrefetchRequestIntegrityHeaders) &&
+      request_header_integrity::RequestHeaderIntegrityURLLoaderThrottle::
+          IsFeatureEnabled()) {
+    request_header_integrity::RequestHeaderIntegrityURLLoaderThrottle::
+        ModifyRequestIntegrityHeadersForPrefetch(url, removed_headers,
+                                                 modified_cors_exempt_headers);
+  }
+#endif
+}
+
+void ChromeContentBrowserClient::UpdateCorsExemptHeaderForPrefetch(
+    network::mojom::NetworkContextParams* params) {
+#if BUILDFLAG(ENABLE_REQUEST_HEADER_INTEGRITY)
+  if (base::FeatureList::IsEnabled(kPrefetchRequestIntegrityHeaders) &&
+      request_header_integrity::RequestHeaderIntegrityURLLoaderThrottle::
+          IsFeatureEnabled()) {
+    request_header_integrity::RequestHeaderIntegrityURLLoaderThrottle::
+        UpdateCorsExemptHeaders(params);
+  }
+#endif
 }

@@ -8,6 +8,8 @@
 
 #include "ash/constants/ash_features.h"
 #include "ash/constants/ash_switches.h"
+#include "base/check_deref.h"
+#include "base/check_is_test.h"
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/functional/bind.h"
@@ -29,7 +31,6 @@
 #include "chrome/browser/ash/profiles/profile_helper.h"
 #include "chrome/browser/ash/settings/device_settings_service.h"
 #include "chrome/browser/ash/settings/stats_reporting_controller.h"
-#include "chrome/browser/browser_process.h"
 #include "chrome/browser/consent_auditor/consent_auditor_factory.h"
 #include "chrome/browser/enterprise/util/affiliation.h"
 #include "chrome/browser/enterprise/util/managed_browser_utils.h"
@@ -46,6 +47,7 @@
 #include "chromeos/ash/components/install_attributes/install_attributes.h"
 #include "chromeos/ash/components/osauth/public/auth_session_storage.h"
 #include "chromeos/ash/experiences/arc/arc_prefs.h"
+#include "components/application_locale_storage/application_locale_storage.h"
 #include "components/consent_auditor/consent_auditor.h"
 #include "components/metrics/metrics_service.h"
 #include "components/prefs/pref_service.h"
@@ -90,7 +92,7 @@ static constexpr auto kTermsTypeToUrlAndSwitch =
           {chrome::kPrivacyPolicyOnlineURLPath,
            switches::kPrivacyPolicyHostForTests}}});
 
-std::string GetTosHost(ToS terms_type) {
+std::string GetTosHost(const std::string& application_locale, ToS terms_type) {
   const char* ash_switch = kTermsTypeToUrlAndSwitch.at(terms_type).second;
   if (base::CommandLine::ForCurrentProcess()->HasSwitch(ash_switch)) {
     return base::CommandLine::ForCurrentProcess()->GetSwitchValueASCII(
@@ -98,14 +100,12 @@ std::string GetTosHost(ToS terms_type) {
   }
 
   if (terms_type == ToS::GOOGLE_EULA) {
-    return base::StringPrintf(
-        chrome::kGoogleEulaOnlineURLPath,
-        g_browser_process->GetApplicationLocale().c_str());
+    return base::StringPrintf(chrome::kGoogleEulaOnlineURLPath,
+                              application_locale.c_str());
   }
   if (terms_type == ToS::CROS_EULA) {
-    return base::StringPrintf(
-        chrome::kCrosEulaOnlineURLPath,
-        g_browser_process->GetApplicationLocale().c_str());
+    return base::StringPrintf(chrome::kCrosEulaOnlineURLPath,
+                              application_locale.c_str());
   }
   return kTermsTypeToUrlAndSwitch.at(terms_type).first;
 }
@@ -155,12 +155,19 @@ std::string ConsolidatedConsentScreen::GetResultString(Result result) {
 }
 
 ConsolidatedConsentScreen::ConsolidatedConsentScreen(
+    const ApplicationLocaleStorage* application_locale_storage,
+    ::metrics::MetricsService* metrics_service,
     base::WeakPtr<ConsolidatedConsentScreenView> view,
     const ScreenExitCallback& exit_callback)
     : BaseScreen(ConsolidatedConsentScreenView::kScreenId,
                  OobeScreenPriority::DEFAULT),
+      application_locale_storage_(CHECK_DEREF(application_locale_storage)),
+      metrics_service_(metrics_service),
       view_(std::move(view)),
       exit_callback_(exit_callback) {
+  if (!metrics_service_) {
+    CHECK_IS_TEST();
+  }
   DCHECK(view_);
 }
 
@@ -247,10 +254,11 @@ void ConsolidatedConsentScreen::ShowImpl() {
   data.Set("isTosHidden", enterprise_util::IsProfileAffiliated(profile));
 
   // ToS URLs.
-  data.Set("googleEulaUrl", GetTosHost(ToS::GOOGLE_EULA));
-  data.Set("crosEulaUrl", GetTosHost(ToS::CROS_EULA));
-  data.Set("arcTosUrl", GetTosHost(ToS::ARC));
-  data.Set("privacyPolicyUrl", GetTosHost(ToS::PRIVACY_POLICY));
+  const std::string& locale = application_locale_storage_->Get();
+  data.Set("googleEulaUrl", GetTosHost(locale, ToS::GOOGLE_EULA));
+  data.Set("crosEulaUrl", GetTosHost(locale, ToS::CROS_EULA));
+  data.Set("arcTosUrl", GetTosHost(locale, ToS::ARC));
+  data.Set("privacyPolicyUrl", GetTosHost(locale, ToS::PRIVACY_POLICY));
 
   // Option that controls if Recovery factor opt-in should be shown for the
   // user.
@@ -381,19 +389,17 @@ void ConsolidatedConsentScreen::OnOwnershipStatusCheckDone(
     }
 
     pref_handler_ = std::make_unique<arc::ArcOptInPreferenceHandler>(
-        this, profile->GetPrefs(), g_browser_process->metrics_service());
+        this, profile->GetPrefs(), metrics_service_.get());
     pref_handler_->Start();
   } else if (!is_demo) {
     // Since ARC OOBE Negotiation is not needed, we should avoid using
     // ArcOptInPreferenceHandler, so, we should update the usage opt-in here
     // since OnMetricsModeChanged() will not be called.
-    auto* metrics_service = g_browser_process->metrics_service();
     bool is_enabled = false;
-    if (metrics_service &&
-        metrics_service->GetCurrentUserMetricsConsent().has_value()) {
-      is_enabled = *metrics_service->GetCurrentUserMetricsConsent();
+    if (metrics_service_ &&
+        metrics_service_->GetCurrentUserMetricsConsent().has_value()) {
+      is_enabled = *metrics_service_->GetCurrentUserMetricsConsent();
     } else {
-      DCHECK(g_browser_process->local_state());
       is_enabled = StatsReportingController::Get()->IsEnabled();
     }
 
@@ -494,12 +500,10 @@ void ConsolidatedConsentScreen::ReportUsageOptIn(bool is_enabled) {
     return;
   }
 
-  auto* metrics_service = g_browser_process->metrics_service();
-  DCHECK(metrics_service);
-
   // If user is not eligible for per-user, this will no-op. See details at
   // chrome/browser/metrics/per_user_state_manager_chromeos.h.
-  metrics_service->UpdateCurrentUserMetricsConsent(is_enabled);
+  CHECK(metrics_service_);
+  metrics_service_->UpdateCurrentUserMetricsConsent(is_enabled);
 }
 
 void ConsolidatedConsentScreen::NotifyConsolidatedConsentAcceptForTesting() {

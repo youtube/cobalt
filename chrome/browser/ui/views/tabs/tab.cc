@@ -89,6 +89,7 @@
 #include "ui/resources/grit/ui_resources.h"
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/border.h"
+#include "ui/views/bubble/bubble_border.h"
 #include "ui/views/controls/button/image_button.h"
 #include "ui/views/controls/focus_ring.h"
 #include "ui/views/controls/highlight_path_generator.h"
@@ -926,6 +927,10 @@ const TabRendererData& Tab::data() const {
   return data_;
 }
 
+views::BubbleBorder::Arrow Tab::GetAnchorPosition() const {
+  return views::BubbleBorder::Arrow::TOP_LEFT;
+}
+
 void Tab::ActiveStateChanged() {
   UpdateTabIconAttention();
   UpdateForegroundColors();
@@ -1138,7 +1143,7 @@ void Tab::UpdateIconVisibility() {
 
   if (data().pinned || is_animating_from_pinned_) {
     // When the tab is pinned, we can show one of the two icons; the alert icon
-    // is given priority over the favicon. The close buton is never shown.
+    // is given priority over the favicon. The close button is never shown.
     showing_alert_indicator_ = has_alert_icon;
     showing_icon_ = has_favicon && !has_alert_icon;
     showing_close_button_ = false;

@@ -14,11 +14,11 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
+#include "chrome/browser/tab_list/tab_list_interface.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_commands.h"
 #include "chrome/browser/ui/lens/lens_search_controller.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
-#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
@@ -78,9 +78,16 @@ class MockContextualTasksPage : public contextual_tasks::mojom::Page {
               SetTaskDetails,
               (const base::Uuid&, const std::string&, const std::string&),
               (override));
+  MOCK_METHOD(void, SetAimUrl, (const GURL&), (override));
   MOCK_METHOD(void, ShowErrorPage, (), (override));
   MOCK_METHOD(void, HideErrorPage, (), (override));
   MOCK_METHOD(void, ShowOauthErrorDialog, (), (override));
+  MOCK_METHOD(void,
+              UpdateComposeboxPosition,
+              (contextual_tasks::mojom::ComposeboxPositionPtr),
+              (override));
+  MOCK_METHOD(void, LockInput, (), (override));
+  MOCK_METHOD(void, UnlockInput, (), (override));
 
   mojo::PendingRemote<contextual_tasks::mojom::Page> BindAndGetRemote() {
     return receiver_.BindNewPipeAndPassRemote();

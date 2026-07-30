@@ -44,10 +44,8 @@
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/autofill/glic/actor_form_filling_service_impl.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
-#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service_impl.h"
-#endif
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
@@ -122,7 +120,6 @@ url::Origin OriginOrPrecursorIfOpaque(const url::Origin& origin) {
 
 }  // namespace
 
-#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 ToolDelegate::CredentialWithPermission::CredentialWithPermission() = default;
 ToolDelegate::CredentialWithPermission::CredentialWithPermission(
     const actor_login::Credential& credential,
@@ -139,7 +136,6 @@ ToolDelegate::CredentialWithPermission&
 ToolDelegate::CredentialWithPermission::operator=(CredentialWithPermission&&) =
     default;
 ToolDelegate::CredentialWithPermission::~CredentialWithPermission() = default;
-#endif
 
 // static
 ExecutionEngine::FactoryFunction&
@@ -153,8 +149,8 @@ ExecutionEngine::ExecutionEngine(base::PassKey<ExecutionEngine> pass_key,
     : ExecutionEngine(
           pass_key,
           owner_task,
-          ui::NewUiEventDispatcher(ActorKeyedService::Get(owner_task.profile())
-                                       ->GetActorUiStateManager())) {}
+          ui::NewUiEventDispatcher(
+              owner_task.actor_keyed_service().GetActorUiStateManager())) {}
 
 // Protected constructor without pass key to allow subclassing.
 ExecutionEngine::ExecutionEngine(ActorTask& owner_task)
@@ -165,15 +161,12 @@ ExecutionEngine::ExecutionEngine(
     ActorTask& owner_task,
     std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher)
     : task_(owner_task),
-      journal_(
-          ActorKeyedService::Get(task_->profile())->GetJournal().GetSafeRef()),
+      journal_(task_->actor_keyed_service().GetJournal().GetSafeRef()),
       tool_controller_(std::make_unique<ToolController>(*task_, *this)),
-#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
       actor_login_service_(
           std::make_unique<actor_login::ActorLoginServiceImpl>()),
       actor_form_filling_service_(
           std::make_unique<autofill::ActorFormFillingServiceImpl>()),
-#endif
       ui_event_dispatcher_(std::move(ui_event_dispatcher)) {
   TRACE_EVENT0("actor", "ExecutionEngine::ExecutionEngine");
 }
@@ -380,7 +373,7 @@ void ExecutionEngine::CheckNavigationSensitiveUrlList(
   }
   base::expected<void, DecisionCallback> sensitive_check_result =
       MaybeCheckOptimizationGuideForSensitiveUrl(
-          navigation_url, task_->profile(),
+          navigation_url, task_->GetProfile(),
           base::BindOnce(&ExecutionEngine::OnNavigationSensitiveUrlListChecked,
                          GetWeakPtr(), initiator_origin,
                          url::Origin::Create(navigation_url), skip_prompt,
@@ -731,38 +724,35 @@ void ExecutionEngine::SafetyChecksForNextAction() {
 void ExecutionEngine::OnMayActOnTabDecision(
     const url::Origin& evaluated_origin,
     MayActOnUrlBlockReason block_reason) {
-  switch (block_reason) {
-    case MayActOnUrlBlockReason::kAllowed:
-      DidFinishAsyncSafetyChecks(evaluated_origin, /*may_act=*/true);
-      return;
-    case MayActOnUrlBlockReason::kOptimizationGuideBlock:
-      if (IsNavigationGatingEnabled() &&
-          kGlicPromptUserForSensitiveNavigations.Get()) {
-        SendUserConfirmationDialogRequest(
-            evaluated_origin,
-            /*for_sensitive_origin=*/true,
-            /*timer=*/std::nullopt,
-            base::BindOnce(&ExecutionEngine::DidFinishAsyncSafetyChecks,
-                           GetWeakPtr(), evaluated_origin));
-        return;
-      }
-      [[fallthrough]];
-    case MayActOnUrlBlockReason::kExternalProtocol:
-    case MayActOnUrlBlockReason::kIpAddress:
-    case MayActOnUrlBlockReason::kLookalikeDomain:
-    case MayActOnUrlBlockReason::kSafeBrowsing:
-    case MayActOnUrlBlockReason::kTabIsErrorDocument:
-    case MayActOnUrlBlockReason::kUrlNotInAllowlist:
-    case MayActOnUrlBlockReason::kWrongScheme:
-    case MayActOnUrlBlockReason::kEnterprisePolicy:
-    case MayActOnUrlBlockReason::kBlockedByStaticList:
-      DidFinishAsyncSafetyChecks(evaluated_origin, /*may_act=*/false);
+  if (block_reason == MayActOnUrlBlockReason::kOptimizationGuideBlock &&
+      IsNavigationGatingEnabled() &&
+      kGlicPromptUserForSensitiveNavigations.Get()) {
+    auto response_to_result_code = base::BindOnce(
+        [](MayActOnUrlBlockReason block_reason, bool may_continue) {
+          return may_continue
+                     ? mojom::ActionResultCode::kOk
+                     : BlockReasonToResultCode(block_reason,
+                                               /*for_navigation=*/false);
+        },
+        block_reason);
+    SendUserConfirmationDialogRequest(
+        evaluated_origin,
+        /*for_sensitive_origin=*/true,
+        /*timer=*/std::nullopt,
+        std::move(response_to_result_code)
+            .Then(base::BindOnce(&ExecutionEngine::DidFinishAsyncSafetyChecks,
+                                 GetWeakPtr(), evaluated_origin)));
+    return;
   }
+
+  DidFinishAsyncSafetyChecks(
+      evaluated_origin,
+      BlockReasonToResultCode(block_reason, /*for_navigation=*/false));
 }
 
 void ExecutionEngine::DidFinishAsyncSafetyChecks(
     const url::Origin& evaluated_origin,
-    bool may_act) {
+    mojom::ActionResultCode result_code) {
   TRACE_EVENT0("actor", "ExecutionEngine::DidFinishAsyncSafetyChecks");
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   CHECK(!action_sequence_.empty());
@@ -800,12 +790,12 @@ void ExecutionEngine::DidFinishAsyncSafetyChecks(
     return;
   }
 
-  if (!may_act) {
+  if (!IsOk(result_code)) {
     journal_->Log(
         GetNextAction().GetURLForJournal(), task_id, "Act Failed",
         JournalDetailsBuilder().AddError("URL blocked for actions").Build());
     FailedOnTabBeforeToolCreation();
-    CompleteActions(MakeResult(mojom::ActionResultCode::kUrlBlocked,
+    CompleteActions(MakeResult(result_code,
                                /*requires_page_stabilization=*/false,
                                "URL blocked for actions"),
                     next_action_index_);
@@ -978,36 +968,33 @@ bool ExecutionEngine::HasActionSequence() const {
 
 favicon::FaviconService* ExecutionEngine::GetFaviconService() {
   return FaviconServiceFactory::GetForProfile(
-      task_->profile(), ServiceAccessType::EXPLICIT_ACCESS);
+      task_->GetProfile(), ServiceAccessType::EXPLICIT_ACCESS);
 }
 
 void ExecutionEngine::IsAcceptableNavigationDestination(
     const GURL& url,
     DecisionCallbackWithReason callback) {
-  MayActOnUrl(url, /*allow_insecure_http=*/true, task_->profile(), *journal_,
+  MayActOnUrl(url, /*allow_insecure_http=*/true, task_->GetProfile(), *journal_,
               task_->id(), task_->policy_checker(), std::move(callback));
 }
 
 Profile& ExecutionEngine::GetProfile() {
-  return *task_->profile();
+  return *task_->GetProfile();
 }
 
 AggregatedJournal& ExecutionEngine::GetJournal() {
   return *journal_;
 }
 
-#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 actor_login::ActorLoginService& ExecutionEngine::GetActorLoginService() {
   return *actor_login_service_;
 }
-#endif
 
 autofill::ActorFormFillingService&
 ExecutionEngine::GetActorFormFillingService() {
   return *actor_form_filling_service_;
 }
 
-#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 void ExecutionEngine::PromptToSelectCredential(
     const std::vector<actor_login::Credential>& credentials,
     const base::flat_map<std::string, gfx::Image>& icons,
@@ -1032,7 +1019,7 @@ void ExecutionEngine::SetUserSelectedCredential(
   user_selected_credentials_[origin] = credential_with_permission;
 
   affiliations::AffiliationService* affiliation_service =
-      AffiliationServiceFactory::GetForProfile(task_->profile());
+      AffiliationServiceFactory::GetForProfile(task_->GetProfile());
   // Fetch strongly affiliated domains, in order to be able to reuse the
   // permission for sites that do not have the exact same origin but are
   // strongly affiliated.
@@ -1100,7 +1087,6 @@ ExecutionEngine::GetUserSelectedCredential(
   return std::nullopt;
 }
 
-#endif
 void ExecutionEngine::RequestToShowAutofillSuggestions(
     std::vector<autofill::ActorFormFillingRequest> requests,
     ExecutionEngine::AutofillSuggestionSelectedCallback callback) {

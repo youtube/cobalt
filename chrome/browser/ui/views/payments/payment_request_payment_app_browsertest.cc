@@ -18,8 +18,8 @@
 #include "components/content_settings/core/browser/host_content_settings_map.h"
 #include "components/network_session_configurator/common/network_switches.h"
 #include "components/payments/content/service_worker_payment_app_finder.h"
+#include "components/payments/content/test_payment_manifest_downloader.h"
 #include "components/payments/core/features.h"
-#include "components/payments/core/test_payment_manifest_downloader.h"
 #include "components/permissions/permission_request_manager.h"
 #include "content/public/browser/browser_context.h"
 #include "content/public/browser/storage_partition.h"
@@ -106,10 +106,15 @@ class PaymentRequestPaymentAppTest : public PaymentRequestBrowserTestBase {
   void SetDownloaderAndIgnorePortInOriginComparisonForTesting() {
     content::WebContents* web_contents =
         browser()->tab_strip_model()->GetActiveWebContents();
+    mojo::Remote<network::mojom::URLLoaderFactory> renderer_url_loader_factory;
+    web_contents->GetPrimaryMainFrame()->CreateNetworkServiceDefaultFactory(
+        renderer_url_loader_factory.BindNewPipeAndPassReceiver());
     auto downloader = std::make_unique<TestDownloader>(
-        GetCSPCheckerForTests(), web_contents->GetBrowserContext()
-                                     ->GetDefaultStoragePartition()
-                                     ->GetURLLoaderFactoryForBrowserProcess());
+        GetCSPCheckerForTests(),
+        web_contents->GetBrowserContext()
+            ->GetDefaultStoragePartition()
+            ->GetURLLoaderFactoryForBrowserProcess(),
+        std::move(renderer_url_loader_factory));
     downloader->AddTestServerURL("https://alicepay.test/",
                                  alicepay_.GetURL("alicepay.test", "/"));
     downloader->AddTestServerURL("https://bobpay.test/",

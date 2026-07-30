@@ -238,8 +238,9 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   /// Gallery action state.
   BOOL _galleryActionsDisabled;
   BOOL _galleryActionsHidden;
-  /// The allowed models.
+  /// The allowed and disabled models.
   std::unordered_set<ComposeboxModelOption> _allowedModels;
+  std::unordered_set<ComposeboxModelOption> _disabledModels;
   /// Container for the omnibox.
   UIView* _omniboxContainer;
 
@@ -705,6 +706,14 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self updatePlusButtonItems];
 }
 
+- (void)disableDeepSearchActions:(BOOL)disabled {
+  if (_deepSearchActionsDisabled == disabled) {
+    return;
+  }
+  _deepSearchActionsDisabled = disabled;
+  [self updatePlusButtonItems];
+}
+
 - (void)hideCameraActions:(BOOL)hidden {
   if (_cameraActionsHidden == hidden) {
     return;
@@ -751,6 +760,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     return;
   }
   _allowedModels = allowedModels;
+  [self updatePlusButtonItems];
+}
+
+- (void)setDisabledModels:
+    (std::unordered_set<ComposeboxModelOption>)disabledModels {
+  if (_disabledModels == disabledModels) {
+    return;
+  }
+  _disabledModels = disabledModels;
   [self updatePlusButtonItems];
 }
 
@@ -977,7 +995,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 /// Notifies the mutator to handle the selection of a new model option.
 - (void)handleModelChangeFromToolsMenuWithOption:
     (ComposeboxModelOption)modelOption {
-  [self.mutator setModelOption:modelOption];
+  [self.mutator setModelOption:modelOption explicitUserAction:YES];
 }
 
 /// Updates the visibility of the leading/trailing fade views for the carousel.
@@ -1560,16 +1578,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     [canvasAction setState:UIMenuElementStateOn];
   }
 
-  // TODO(crbug.com/481280186): Replace icon once defined.
-  UIAction* deepSearchAction = [UIAction
-      actionWithTitle:l10n_util::GetNSString(
-                          IDS_IOS_COMPOSEBOX_DEEP_SEARCH_ACTION)
-                image:DefaultSymbolWithPointSize(kFindInPageActionSymbol,
-                                                 kSymbolActionPointSize)
-           identifier:nil
-              handler:^(UIAction* action) {
-                [weakSelf handleDeepSearchTappedFromToolMenu];
-              }];
+  UIAction* deepSearchAction =
+      [UIAction actionWithTitle:l10n_util::GetNSString(
+                                    IDS_IOS_COMPOSEBOX_DEEP_SEARCH_ACTION)
+                          image:CustomSymbolWithPointSize(
+                                    kDeepSearchSymbol, kSymbolActionPointSize)
+                     identifier:nil
+                        handler:^(UIAction* action) {
+                          [weakSelf handleDeepSearchTappedFromToolMenu];
+                        }];
   UIMenuElementAttributes deepSearchAttributes = 0;
   if (_deepSearchActionsHidden) {
     deepSearchAttributes |= UIMenuElementAttributesHidden;
@@ -1607,12 +1624,14 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                                 ComposeboxModelOption::kAuto];
                 }];
 
-    if (_allowedModels.contains(ComposeboxModelOption::kAuto)) {
-      if (_modelOption == ComposeboxModelOption::kAuto) {
-        [autoModelOption setState:UIMenuElementStateOn];
-      }
-    } else {
+    if (!_allowedModels.contains(ComposeboxModelOption::kAuto)) {
+      autoModelOption.attributes |= UIMenuElementAttributesHidden;
+    }
+    if (_disabledModels.contains(ComposeboxModelOption::kAuto)) {
       autoModelOption.attributes |= UIMenuElementAttributesDisabled;
+    }
+    if (_modelOption == ComposeboxModelOption::kAuto) {
+      [autoModelOption setState:UIMenuElementStateOn];
     }
 
     UIAction* thinkingModelOption = [UIAction
@@ -1626,12 +1645,14 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                                 ComposeboxModelOption::kThinking];
                 }];
 
-    if (_allowedModels.contains(ComposeboxModelOption::kThinking)) {
-      if (_modelOption == ComposeboxModelOption::kThinking) {
-        [thinkingModelOption setState:UIMenuElementStateOn];
-      }
-    } else {
+    if (!_allowedModels.contains(ComposeboxModelOption::kThinking)) {
+      thinkingModelOption.attributes |= UIMenuElementAttributesHidden;
+    }
+    if (_disabledModels.contains(ComposeboxModelOption::kThinking)) {
       thinkingModelOption.attributes |= UIMenuElementAttributesDisabled;
+    }
+    if (_modelOption == ComposeboxModelOption::kThinking) {
+      [thinkingModelOption setState:UIMenuElementStateOn];
     }
 
     UIMenu* modelPickerMenu =
@@ -1997,12 +2018,11 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
       forControlEvents:UIControlEventTouchUpInside];
   button.layer.borderWidth = 0;
 
-  // TODO(crbug.com/481280186): Replace icon once defined.
   UIButtonConfiguration* config =
       [self modeIndicatorButtonConfigWithTitle:
                 l10n_util::GetNSString(IDS_IOS_COMPOSEBOX_DEEP_SEARCH_ACTION)
-                                         image:DefaultSymbolWithPointSize(
-                                                   kFindInPageActionSymbol,
+                                         image:CustomSymbolWithPointSize(
+                                                   kDeepSearchSymbol,
                                                    kAIMButtonSymbolPointSize)];
   NSDirectionalEdgeInsets insets = kModeIndicatorButtonInsets;
   insets.trailing = kModeIndicatorButtonInsets.trailing + kXButtonWidthInButton;
@@ -2019,6 +2039,10 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
         constraintGreaterThanOrEqualToConstant:kAIMButtonBaseWidth +
                                                kXButtonWidthInButton]
   ]];
+
+  [button
+      setContentCompressionResistancePriority:UILayoutPriorityRequired
+                                      forAxis:UILayoutConstraintAxisHorizontal];
 
   [self setupXMarkInButton:button];
 

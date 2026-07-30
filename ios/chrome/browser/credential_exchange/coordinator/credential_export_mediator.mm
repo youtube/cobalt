@@ -6,11 +6,15 @@
 
 #import "base/functional/callback_helpers.h"
 #import "base/memory/raw_ptr.h"
+#import "base/strings/sys_string_conversions.h"
 #import "components/favicon_base/favicon_types.h"
 #import "components/password_manager/core/browser/ui/affiliated_group.h"
 #import "components/password_manager/core/browser/ui/saved_passwords_presenter.h"
+#import "components/signin/public/identity_manager/account_info.h"
+#import "components/signin/public/identity_manager/identity_manager.h"
 #import "components/sync/service/sync_service.h"
 #import "components/webauthn/core/browser/passkey_model.h"
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/browser/credential_exchange/model/credential_exporter.h"
 #import "ios/chrome/browser/credential_exchange/ui/credential_group_identifier.h"
 #import "ios/chrome/browser/favicon/model/favicon_loader.h"
@@ -56,8 +60,8 @@ const CGFloat kMinFaviconSize = 16.0;
   // Service to know whether passwords are synced.
   raw_ptr<syncer::SyncService> _syncService;
 
-  // Email of the signed-in user account.
-  NSString* _userEmail;
+  // Used to provide information about the user's account.
+  raw_ptr<signin::IdentityManager> _identityManager;
 }
 
 - (instancetype)initWithWindow:(UIWindow*)window
@@ -68,7 +72,7 @@ const CGFloat kMinFaviconSize = 16.0;
         reauthenticationModule:(id<ReauthenticationProtocol>)reauthModule
                  exportHandler:(id<PasswordExportHandler>)exportHandler
                    syncService:(syncer::SyncService*)syncService
-                     userEmail:(NSString*)userEmail {
+               identityManager:(signin::IdentityManager*)identityManager {
   self = [super init];
   if (self) {
     _window = window;
@@ -77,7 +81,7 @@ const CGFloat kMinFaviconSize = 16.0;
     _faviconLoader = faviconLoader;
     _exportHandler = exportHandler;
     _syncService = syncService;
-    _userEmail = userEmail;
+    _identityManager = identityManager;
     _passwordExporter =
         [[PasswordExporter alloc] initWithReauthenticationModule:reauthModule
                                                         delegate:self];
@@ -124,26 +128,27 @@ const CGFloat kMinFaviconSize = 16.0;
   }
 
   if (passkeysToExport.empty()) {
-    [self startExportWithTrustedVaultKeys:nil
+    [self startExportWithTrustedVaultKeys:{}
                                 passwords:std::move(passwordsToExport)
                                  passkeys:std::move(passkeysToExport)];
   } else {
     __weak __typeof(self) weakSelf = self;
 
-    base::OnceCallback<void(NSArray<NSData*>*)> fetchSecretsCallback =
+    base::OnceCallback<void(webauthn::SharedKeyList)> fetchSecretsCallback =
         base::BindOnce(
             [](__weak CredentialExportMediator* mediator,
                std::vector<password_manager::CredentialUIEntry> passwords,
                std::vector<sync_pb::WebauthnCredentialSpecifics> passkeys,
-               NSArray<NSData*>* trustedVaultKeys) {
-              [mediator startExportWithTrustedVaultKeys:trustedVaultKeys
-                                              passwords:std::move(passwords)
-                                               passkeys:std::move(passkeys)];
+               webauthn::SharedKeyList trustedVaultKeys) {
+              [mediator
+                  startExportWithTrustedVaultKeys:std::move(trustedVaultKeys)
+                                        passwords:std::move(passwords)
+                                         passkeys:std::move(passkeys)];
             },
             weakSelf, std::move(passwordsToExport),
             std::move(passkeysToExport));
 
-    void (^completionBlock)(NSArray<NSData*>*) =
+    void (^completionBlock)(webauthn::SharedKeyList) =
         base::CallbackToBlock(std::move(fetchSecretsCallback));
 
     [self.delegate fetchTrustedVaultKeysWithCompletion:completionBlock];
@@ -188,7 +193,7 @@ const CGFloat kMinFaviconSize = 16.0;
 #pragma mark - Private
 
 - (void)
-    startExportWithTrustedVaultKeys:(NSArray<NSData*>*)trustedVaultKeys
+    startExportWithTrustedVaultKeys:(webauthn::SharedKeyList)trustedVaultKeys
                           passwords:
                               (std::vector<password_manager::CredentialUIEntry>)
                                   passwords
@@ -197,10 +202,13 @@ const CGFloat kMinFaviconSize = 16.0;
                                         passkeys {
   if (@available(iOS 26, *)) {
     _credentialExporter = [[CredentialExporter alloc] initWithWindow:_window];
+    NSString* userEmail = base::SysUTF8ToNSString(
+        _identityManager->GetPrimaryAccountInfo(signin::ConsentLevel::kSignin)
+            .email);
     [_credentialExporter startExportWithPasswords:std::move(passwords)
                                          passkeys:std::move(passkeys)
-                                 trustedVaultKeys:trustedVaultKeys
-                                        userEmail:_userEmail];
+                                 trustedVaultKeys:std::move(trustedVaultKeys)
+                                        userEmail:userEmail];
   }
 }
 

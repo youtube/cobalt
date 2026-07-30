@@ -4,6 +4,7 @@
 
 import 'chrome://skills/skills_dialog_app.js';
 
+import type {CrInputElement} from 'chrome://resources/cr_elements/cr_input/cr_input.js';
 import {PromiseResolver} from 'chrome://resources/js/promise_resolver.js';
 import type {Skill} from 'chrome://skills/skill.mojom-webui.js';
 import {SkillSource} from 'chrome://skills/skill.mojom-webui.js';
@@ -280,7 +281,7 @@ suite('SkillsDialogAppPage', function() {
     assertEquals('⚡', emojiTrigger.value);
   });
 
-  test('EmojiPreventsManualTyping', function() {
+  test('EmojiPreventsManualTyping', async function() {
     const emojiTrigger = skillsDialogApp.$.emojiTrigger;
     const letterEvent = new KeyboardEvent('keydown', {
       key: 'a',
@@ -290,6 +291,25 @@ suite('SkillsDialogAppPage', function() {
     });
     emojiTrigger.dispatchEvent(letterEvent);
     assertTrue(letterEvent.defaultPrevented);
+
+    const tabEvent = new KeyboardEvent('keydown', {
+      key: 'Tab',
+      cancelable: true,
+      bubbles: true,
+      composed: true,
+    });
+    emojiTrigger.dispatchEvent(tabEvent);
+    assertFalse(tabEvent.defaultPrevented);
+
+    const enterEvent = new KeyboardEvent('keydown', {
+      key: 'Enter',
+      cancelable: true,
+      bubbles: true,
+      composed: true,
+    });
+    emojiTrigger.dispatchEvent(enterEvent);
+    assertTrue(enterEvent.defaultPrevented);
+    await dialogHandler.whenCalled('showEmojiPicker');
   });
 
   test('RefineUndoRedoFlow', async function() {
@@ -308,18 +328,22 @@ suite('SkillsDialogAppPage', function() {
     // 3. Mock the refine call and Click Refine
     const refinedMockText = 'AI Refined Prompt';
 
-
     dialogHandler.setResultFor(
         'refineSkill',
         Promise.resolve({refinedSkill: {prompt: refinedMockText}}));
 
     skillsDialogApp.$.iconRefine.click();
-
     await dialogHandler.whenCalled('refineSkill');
-
     await microtasksFinished();
 
-    assertEquals(refinedMockText, skillsDialogApp.$.instructionsText.value);
+    // Accessing the element via the $ map fails here because the element is
+    // conditionally rendered and may be removed from the DOM during the
+    // loading state. Querying shadowRoot directly allows us to safely check
+    // its current state.
+    let instructionsInput =
+        skillsDialogApp.shadowRoot.querySelector('textarea');
+    assertTrue(!!instructionsInput);
+    assertEquals(refinedMockText, instructionsInput.value);
 
     // Check buttons
     assertFalse(skillsDialogApp.$.iconUndo.disabled);
@@ -329,7 +353,9 @@ suite('SkillsDialogAppPage', function() {
     skillsDialogApp.$.iconUndo.click();
     await microtasksFinished();
 
-    assertEquals(originalText, skillsDialogApp.$.instructionsText.value);
+    instructionsInput = skillsDialogApp.shadowRoot.querySelector('textarea');
+    assertTrue(!!instructionsInput);
+    assertEquals(originalText, instructionsInput.value);
     assertTrue(skillsDialogApp.$.iconUndo.disabled);
     assertFalse(skillsDialogApp.$.iconRedo.disabled);
 
@@ -337,7 +363,9 @@ suite('SkillsDialogAppPage', function() {
     skillsDialogApp.$.iconRedo.click();
     await microtasksFinished();
 
-    assertEquals(refinedMockText, skillsDialogApp.$.instructionsText.value);
+    instructionsInput = skillsDialogApp.shadowRoot.querySelector('textarea');
+    assertTrue(!!instructionsInput);
+    assertEquals(refinedMockText, instructionsInput.value);
     assertFalse(skillsDialogApp.$.iconUndo.disabled);
     assertTrue(skillsDialogApp.$.iconRedo.disabled);
 
@@ -369,16 +397,13 @@ suite('SkillsDialogAppPage', function() {
   });
 
   test('RefineShowsErrorOnFailure', async function() {
-    const instructionsInput = skillsDialogApp.$.instructionsText;
     const refineBtn = skillsDialogApp.$.iconRefine;
     // Query these elements dynamically in assertion to ensure freshness
     const textareaWrapper = skillsDialogApp.$.textareaWrapper;
     const errorMessage = skillsDialogApp.$.errorMessage;
 
     // 1. Setup Input
-    instructionsInput.value = 'Start text';
-    instructionsInput.dispatchEvent(new Event('input'));
-    await microtasksFinished();
+    await updateInstructions('Start text');
 
     // 2. Mock Failure
     dialogHandler.setPromiseRejectFor('refineSkill');
@@ -393,7 +418,6 @@ suite('SkillsDialogAppPage', function() {
   });
 
   test('TypingClearsRefineError', async function() {
-    const instructionsInput = skillsDialogApp.$.instructionsText;
     const refineBtn = skillsDialogApp.$.iconRefine;
 
     // Helper functions to get fresh DOM elements
@@ -401,9 +425,7 @@ suite('SkillsDialogAppPage', function() {
     const errorMessage = skillsDialogApp.$.errorMessage;
 
     // 1. Setup Input and Trigger Error
-    instructionsInput.value = 'Start';
-    instructionsInput.dispatchEvent(new Event('input'));
-    await microtasksFinished();
+    await updateInstructions('Start');
     dialogHandler.setPromiseRejectFor('refineSkill');
     refineBtn.click();
     await microtasksFinished();
@@ -413,10 +435,7 @@ suite('SkillsDialogAppPage', function() {
     assertTrue(textareaWrapper.hasAttribute('error'));
 
     // 2. Type in box
-    instructionsInput.value = 'Start Editing';
-    instructionsInput.dispatchEvent(new Event('input'));
-
-    await microtasksFinished();
+    await updateInstructions('Start Editing');
 
     // 3. Assert Error Cleared using fresh getters
     assertTrue(errorMessage.hidden);
@@ -424,24 +443,31 @@ suite('SkillsDialogAppPage', function() {
   });
 
   test('RefineLoadingState', async function() {
-    const instructionsInput = skillsDialogApp.$.instructionsText;
     const refineBtn = skillsDialogApp.$.iconRefine;
 
-    instructionsInput.value = 'Start';
-    instructionsInput.dispatchEvent(new Event('input'));
-    await microtasksFinished();
+    // 1. Setup Input
+    await updateInstructions('Start');
 
     const resolver = new PromiseResolver<{refinedSkill: Skill}>();
     dialogHandler.refineSkill = () => resolver.promise;
 
-    // Click Refine
+    // 2. Click Refine
     refineBtn.click();
     await microtasksFinished();
 
-    // Assert Loading State
+    // 3. ASSERT LOADING STATE
     assertTrue(refineBtn.disabled);
+    assertTrue(skillsDialogApp.$.iconUndo.disabled);
+    assertTrue(skillsDialogApp.$.iconRedo.disabled);
+    assertTrue(skillsDialogApp.$.textareaWrapper.hasAttribute('loading'));
+    const textarea =
+        skillsDialogApp.shadowRoot.querySelector('#instructionsText');
+    assertEquals(null, textarea);
+    const loader =
+        skillsDialogApp.shadowRoot.querySelector('#instructionsLoader');
+    assertTrue(!!loader);
 
-    // Resolve Request
+    // 4. Resolve Request
     resolver.resolve({
       refinedSkill: {
         id: '',
@@ -458,21 +484,26 @@ suite('SkillsDialogAppPage', function() {
 
     await microtasksFinished();
 
-    // Assert Normal State
+    // 5. ASSERT NORMAL STATE
     assertFalse(refineBtn.disabled);
-    assertEquals('Done', instructionsInput.value);
+    assertFalse(skillsDialogApp.$.iconUndo.disabled);
+    assertFalse(skillsDialogApp.$.textareaWrapper.hasAttribute('loading'));
+    const loaderAfter =
+        skillsDialogApp.shadowRoot.querySelector('#instructionsLoader');
+    assertEquals(null, loaderAfter);
+    const textareaAfter =
+        skillsDialogApp.shadowRoot.querySelector('#instructionsText');
+    assertTrue(!!textareaAfter);
+    assertEquals('Done', (textareaAfter as HTMLTextAreaElement).value);
   });
 
   test('LateResponseDoesNotOverwriteError', async function() {
-    const instructionsInput = skillsDialogApp.$.instructionsText;
     const refineBtn = skillsDialogApp.$.iconRefine;
     const textareaWrapper = skillsDialogApp.$.textareaWrapper;
     const errorMessage = skillsDialogApp.$.errorMessage;
 
     // 1. Setup Initial State
-    instructionsInput.value = 'Original Text';
-    instructionsInput.dispatchEvent(new Event('input'));
-    await microtasksFinished();
+    await updateInstructions('Original Text');
 
     // 2. Mock hanging response
     const resolver = new PromiseResolver<{refinedSkill: Skill}>();
@@ -493,6 +524,10 @@ suite('SkillsDialogAppPage', function() {
     // 5. Verify Error UI
     assertFalse(errorMessage.hidden);
     assertTrue(textareaWrapper.hasAttribute('error'));
+    assertFalse(textareaWrapper.hasAttribute('loading'));
+    const textarea =
+        skillsDialogApp.shadowRoot.querySelector('#instructionsText');
+    assertTrue(!!textarea);
 
     // 6. Resolve the "Late" Response
     resolver.resolve({
@@ -512,7 +547,135 @@ suite('SkillsDialogAppPage', function() {
     await microtasksFinished();
 
     // 7. Verify the "Late" response was IGNORED
-    assertEquals('Original Text', instructionsInput.value);
+    assertEquals('Original Text', (textarea as HTMLTextAreaElement).value);
     assertFalse(errorMessage.hidden);
+  });
+
+  test('AutoPopulatesNameAndIconOnLoad', async function() {
+    // 1. Setup the mock response for the auto-population call.
+    const generatedName = 'Auto Generated Name';
+    const generatedIcon = '🤖';
+    dialogHandler.setResultFor('refineSkill', Promise.resolve({
+      refinedSkill: {
+        id: '',
+        sourceSkillId: '',
+        name: generatedName,
+        icon: generatedIcon,
+        prompt: 'refined prompt',
+        description: '',
+        source: SkillSource.kUserCreated,
+        creationTime: {internalValue: 0n},
+        lastUpdateTime: {internalValue: 0n},
+      },
+    }));
+
+    // 2. Initialize a new skill with a prompt but no name/icon.
+    const newSkill: Skill = {
+      id: '',
+      sourceSkillId: '',
+      name: '',
+      icon: '⚡',  // Default
+      prompt: 'Instruction that triggers auto-gen',
+      description: '',
+      source: SkillSource.kUserCreated,
+      creationTime: {internalValue: 0n},
+      lastUpdateTime: {internalValue: 0n},
+    };
+
+    // 3. Mount the component
+    await setupDialogWithSkill(newSkill);
+
+    // 4. Assert that values updated automatically
+    assertEquals(generatedName, skillsDialogApp.$.nameText.value);
+    assertEquals(generatedIcon, skillsDialogApp.$.emojiTrigger.value);
+  });
+
+  test('AutoPopulateDoesNotOverwriteExistingData', async function() {
+    // 1. Setup mock response
+    dialogHandler.setResultFor('refineSkill', Promise.resolve({
+      refinedSkill: {
+        name: 'Should Not Be Used',
+        icon: '❌',
+        prompt: '',
+      },
+    }));
+
+    // 2. Initialize with user-defined name and icon
+    const existingName = 'My Custom Name';
+    const existingIcon = '✅';
+    const customSkill: Skill = {
+      id: '',
+      sourceSkillId: '',
+      name: existingName,
+      icon: existingIcon,
+      prompt: 'Instructions',
+      source: SkillSource.kUserCreated,
+      description: '',
+      creationTime: {internalValue: 0n},
+      lastUpdateTime: {internalValue: 0n},
+    };
+
+    // 3. Mount
+    await setupDialogWithSkill(customSkill);
+
+    // 4. Assert values were preserved
+    assertEquals(existingName, skillsDialogApp.$.nameText.value);
+    assertEquals(existingIcon, skillsDialogApp.$.emojiTrigger.value);
+  });
+
+  test('AutoPopulateLoadingState', async function() {
+    // 1. Control the promise to check loading state
+    const resolver = new PromiseResolver<{refinedSkill: Skill}>();
+    dialogHandler.refineSkill = () => resolver.promise;
+
+    const newSkill: Skill = {
+      id: '',
+      sourceSkillId: '',
+      name: '',
+      icon: '⚡',
+      prompt: 'Instructions',
+      source: SkillSource.kUserCreated,
+      description: '',
+      creationTime: {internalValue: 0n},
+      lastUpdateTime: {internalValue: 0n},
+    };
+
+    // 2. Mount - this triggers the call immediately in connectedCallback
+    await setupDialogWithSkill(newSkill);
+
+    // 3. Assert Loading State: Input should not be visible, Loader should be
+    const nameInput = skillsDialogApp.shadowRoot.querySelector('#nameText');
+    const loader =
+        skillsDialogApp.shadowRoot.querySelector('#nameLoaderContainer');
+
+    assertEquals(null, nameInput);
+    assertTrue(!!loader);
+
+    // 4. Resolve the request
+    resolver.resolve({
+      refinedSkill: {
+        name: 'Done',
+        icon: '🏁',
+        prompt: '',
+        id: '',
+        sourceSkillId: '',
+        description: '',
+        source: SkillSource.kUserCreated,
+        creationTime: {internalValue: 0n},
+        lastUpdateTime: {internalValue: 0n},
+      },
+    });
+
+    await microtasksFinished();
+
+    // 5. Assert Normal State: Input visible, Loader gone
+    const nameInputAfter =
+        skillsDialogApp.shadowRoot.querySelector('#nameText');
+    const loaderAfter =
+        skillsDialogApp.shadowRoot.querySelector('#nameLoaderContainer');
+
+    assertTrue(!!nameInputAfter);
+    assertEquals(null, loaderAfter);
+    assertEquals('Done', (nameInputAfter as CrInputElement).value);
   });
 });

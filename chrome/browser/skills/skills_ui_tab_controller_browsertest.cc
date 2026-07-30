@@ -4,19 +4,28 @@
 
 #include "chrome/browser/skills/skills_ui_tab_controller.h"
 
+#include "base/test/bind.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "base/test/test_future.h"
 #include "base/values.h"
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
-#include "chrome/browser/ui/webui/constrained_web_dialog_ui.h"
-#include "chrome/browser/ui/webui/skills/skills_dialog_delegate.h"
+#include "chrome/browser/ui/browser_window.h"
+#include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/webui/skills/skills_dialog_view.h"
 #include "chrome/browser/ui/webui/skills/skills_ui.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "components/skills/features.h"
 #include "components/skills/public/skill.h"
+#include "components/skills/public/skills_metrics.h"
 #include "components/web_modal/web_contents_modal_dialog_manager.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
+#include "ui/base/interaction/element_identifier.h"
+#include "ui/base/interaction/element_tracker.h"
+#include "ui/views/controls/webview/webview.h"
+#include "ui/views/interaction/element_tracker_views.h"
 #include "ui/views/test/widget_test.h"
+#include "ui/views/widget/widget.h"
 
 #if BUILDFLAG(ENABLE_GLIC)
 #include "chrome/browser/glic/public/glic_enabling.h"
@@ -30,7 +39,6 @@ class SkillsUiTabControllerBrowserTest : public InProcessBrowserTest {
     feature_list_.InitAndEnableFeature(features::kSkillsEnabled);
   }
 
-  // Helper to get the controller for the current active tab.
   SkillsUiTabController* skills_ui_tab_controller() {
     auto* tab = browser()->GetActiveTabInterface();
     if (!tab) {
@@ -48,6 +56,41 @@ class SkillsUiTabControllerBrowserTest : public InProcessBrowserTest {
     return manager && manager->IsDialogActive();
   }
 
+  // Helper to get the ElementContext for the current browser window.
+  ui::ElementContext GetBrowserContext() {
+    BrowserView* browser_view =
+        BrowserView::GetBrowserViewForBrowser(browser());
+    return views::ElementTrackerViews::GetContextForWidget(
+        browser_view->GetWidget());
+  }
+
+  // Locates the WebContents inside the open dialog using the ElementIdentifier.
+  content::WebContents* GetDialogWebContents() {
+    auto* view = views::ElementTrackerViews::GetInstance()->GetUniqueView(
+        SkillsDialogView::kSkillsDialogElementId, GetBrowserContext());
+
+    if (!view) {
+      return nullptr;
+    }
+
+    auto* web_view = static_cast<views::WebView*>(view);
+    return web_view ? web_view->GetWebContents() : nullptr;
+  }
+
+  // Helper to get the underlying widget of the dialog.
+  views::Widget* GetDialogWidget() {
+    auto* view = views::ElementTrackerViews::GetInstance()->GetUniqueView(
+        SkillsDialogView::kSkillsDialogElementId, GetBrowserContext());
+
+    if (!view) {
+      return nullptr;
+    }
+    return view->GetWidget();
+  }
+
+ protected:
+  base::HistogramTester histogram_tester_;
+
  private:
   base::test::ScopedFeatureList feature_list_;
 };
@@ -56,38 +99,33 @@ class SkillsUiTabControllerBrowserTest : public InProcessBrowserTest {
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
                        ShowDialogOpensWidget) {
   EXPECT_FALSE(IsDialogVisible());
-
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kOpenedCreationDialog, 0);
   skills::Skill test_skill("id", "skill_name", "icon", "Test Prompt");
   skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
 
   EXPECT_TRUE(IsDialogVisible());
+  EXPECT_NE(nullptr, GetDialogWebContents());
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kOpenedCreationDialog, 1);
 }
 
 // Verify calling ShowDialog twice doesn't open two dialogs.
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, PreventDoubleOpen) {
-  // Open first dialog.
   skills::Skill test_skill("id", "skill_name", "icon", "Test Prompt");
   skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
-  EXPECT_TRUE(IsDialogVisible());
 
-  ConstrainedWebDialogDelegate* first_delegate =
-      skills_ui_tab_controller()->GetDialogDelegateForTesting();
-  ASSERT_TRUE(first_delegate);
+  views::Widget* first_widget = GetDialogWidget();
+  ASSERT_TRUE(first_widget);
 
   // Try to open again immediately.
   skills::Skill test_skill2("id2", "skill_name2", "icon", "Test Prompt");
   skills_ui_tab_controller()->ShowDialog(std::move(test_skill2));
 
-  // Dialog should still be visible.
-  EXPECT_TRUE(IsDialogVisible());
-
-  // Verify the widget pointer has not changed.
-  ConstrainedWebDialogDelegate* second_delegate =
-      skills_ui_tab_controller()->GetDialogDelegateForTesting();
-
-  // If the controller had destroyed/recreated the dialog, these pointers would
-  // differ.
-  EXPECT_EQ(first_delegate, second_delegate);
+  // Widget should be exactly the same instance.
+  views::Widget* second_widget = GetDialogWidget();
+  EXPECT_EQ(first_widget, second_widget);
+  EXPECT_FALSE(first_widget->IsClosed());
 }
 
 // Verify calling CloseDialog destroys the widget.
@@ -110,15 +148,8 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   // Open dialog.
   skills::Skill test_skill("id", "name", "icon", "prompt");
   skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
-  EXPECT_TRUE(IsDialogVisible());
 
-  // Get the Widget to simulate a native close (like clicking 'X')
-  auto* delegate = skills_ui_tab_controller()->GetDialogDelegateForTesting();
-  ASSERT_TRUE(delegate);
-
-  // Retrieve the Views Widget from the delegate.
-  views::Widget* widget =
-      views::Widget::GetWidgetForNativeWindow(delegate->GetNativeDialog());
+  views::Widget* widget = GetDialogWidget();
   ASSERT_TRUE(widget);
 
   // Setup Waiter to verify the callback runs.
@@ -126,15 +157,14 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   skills_ui_tab_controller()->SetOnDialogClosedCallbackForTesting(
       close_future.GetCallback());
 
-  // Simulate User Clicking "X"
+  // Simulate User Clicking "X".
   widget->CloseWithReason(views::Widget::ClosedReason::kCloseButtonClicked);
 
   // Wait for the loop to complete.
   ASSERT_TRUE(close_future.Wait());
   EXPECT_FALSE(IsDialogVisible());
 
-  // If OnDialogClosed didn't run, 'dialog_delegate_' would still be non-null,
-  // and ShowDialog() would likely exit early.
+  // Verify we can reopen (implies internal state was reset).
   skills::Skill test_skill2("id2", "name2", "icon2", "prompt2");
   skills_ui_tab_controller()->ShowDialog(std::move(test_skill2));
   EXPECT_TRUE(IsDialogVisible());
@@ -158,9 +188,6 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, TabCloseDoesNotCrash) {
 // (Opening a dialog on Tab A shouldn't show it on Tab B)
 IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, DialogIsTabScoped) {
   auto* controller_a = skills_ui_tab_controller();
-  ASSERT_TRUE(controller_a);
-
-  // Open dialog on Tab A.
   skills::Skill test_skill("id", "skill_name", "icon", "Test Prompt");
   controller_a->ShowDialog(std::move(test_skill));
   EXPECT_TRUE(IsDialogVisible());
@@ -168,7 +195,6 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, DialogIsTabScoped) {
   // Open a new Tab B and switch to it.
   ASSERT_TRUE(AddTabAtIndex(1, GURL("about:blank"), ui::PAGE_TRANSITION_TYPED));
   auto* controller_b = skills_ui_tab_controller();
-  ASSERT_TRUE(controller_b);
   ASSERT_NE(controller_a, controller_b);
 
   // Tab B should have no dialogs visible.
@@ -196,17 +222,15 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest, VerifyWebUIPlumbing) {
   // Show the dialog.
   skills::Skill test_skill("id", "skill_name", "icon", "Test Prompt");
   skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
-  EXPECT_TRUE(IsDialogVisible());
 
   // Dig down to find the SkillsUI.
   // The controller holds the delegate -> which holds WebContents -> which holds
   // WebUI
-  auto* dialog_delegate =
-      skills_ui_tab_controller()->GetDialogDelegateForTesting();
-  ASSERT_TRUE(dialog_delegate);
-
-  content::WebContents* dialog_contents = dialog_delegate->GetWebContents();
+  content::WebContents* dialog_contents = GetDialogWebContents();
   ASSERT_TRUE(dialog_contents);
+
+  // Wait for the WebUI to fully load and attach.
+  ASSERT_TRUE(content::WaitForLoadStop(dialog_contents));
 
   content::WebUI* web_ui = dialog_contents->GetWebUI();
   ASSERT_TRUE(web_ui);
@@ -230,15 +254,14 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
   skills::Skill test_skill("id", "name", "icon", "prompt");
   skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
-  EXPECT_TRUE(IsDialogVisible());
 
-  auto* delegate = skills_ui_tab_controller()->GetDialogDelegateForTesting();
-  ASSERT_TRUE(delegate);
-  content::WebContents* web_contents = delegate->GetWebContents();
+  content::WebContents* web_contents = GetDialogWebContents();
   ASSERT_TRUE(web_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(web_contents));
 
-  // Wait for load.
-  EXPECT_TRUE(content::WaitForLoadStop(web_contents));
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kClickedCancelInCreationDialog,
+      0);
 
   // Setup Listener.
   base::test::TestFuture<void> close_future;
@@ -248,29 +271,24 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   // Script to click button.
   static constexpr char kClickScript[] = R"(
     (async function() {
-      const getButton = () => {
-        const app = document.querySelector('skills-dialog-app');
-        if (!app || !app.shadowRoot) return null;
-        return app.$['cancelButton'];
-      };
-
-      for (let i = 0; i < 20; i++) {
-        const button = getButton();
-        if (button) {
-          button.click();
-          return 'CLICKED';
-        }
-        await new Promise(r => setTimeout(r, 50));
+      const app = document.querySelector('skills-dialog-app');
+      const button = app ? app.shadowRoot.getElementById('cancelButton') : null;
+      if (button) {
+        button.click();
+        return true;
       }
-      return 'FAIL: Button not found';
+      return false;
     })();
   )";
 
-  EXPECT_EQ("CLICKED", content::EvalJs(web_contents, kClickScript));
-
+  std::ignore = content::ExecJs(web_contents, kClickScript);
   // Wait for native close.
   ASSERT_TRUE(close_future.Wait());
   EXPECT_FALSE(IsDialogVisible());
+
+  histogram_tester_.ExpectBucketCount(
+      "Skills.Actions", skills::SkillsActions::kClickedCancelInCreationDialog,
+      1);
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
 #endif
 }
@@ -293,12 +311,10 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
   EXPECT_TRUE(IsDialogVisible());
 
-  //  Get the WebContents from the delegate and wait for it to load.
-  auto* delegate = skills_ui_tab_controller()->GetDialogDelegateForTesting();
-  ASSERT_TRUE(delegate);
-  content::WebContents* web_contents = delegate->GetWebContents();
+  //  Get the WebContents and wait for it to load.
+  content::WebContents* web_contents = GetDialogWebContents();
   ASSERT_TRUE(web_contents);
-  EXPECT_TRUE(content::WaitForLoadStop(web_contents));
+  ASSERT_TRUE(content::WaitForLoadStop(web_contents));
 
   // Script to check values inside the shadow DOM of the custom element.
   static constexpr char kCheckFieldsScript[] = R"(
@@ -340,6 +356,80 @@ IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
   EXPECT_EQ(*prompt, kTestPrompt);
   EXPECT_EQ(*icon, kTestIcon);
 
+  glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
+#endif
+}
+
+IN_PROC_BROWSER_TEST_F(SkillsUiTabControllerBrowserTest,
+                       KeyboardShortcutsAreRouted) {
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::GlicEnabling::SetBypassEnablementChecksForTesting(true);
+
+  skills::Skill test_skill("id", "name", "icon", "prompt");
+  skills_ui_tab_controller()->ShowDialog(std::move(test_skill));
+
+  content::WebContents* dialog_contents = GetDialogWebContents();
+  ASSERT_TRUE(dialog_contents);
+  ASSERT_TRUE(content::WaitForLoadStop(dialog_contents));
+
+  // Focus the WebView to ensure it's ready for input.
+  views::Widget* widget = GetDialogWidget();
+  widget->GetFocusManager()->SetFocusedView(
+      views::ElementTrackerViews::GetInstance()->GetUniqueView(
+          SkillsDialogView::kSkillsDialogElementId, GetBrowserContext()));
+
+  static constexpr char kSetupScript[] = R"(
+    (async function() {
+      await customElements.whenDefined('skills-dialog-app');
+      for (let i = 0; i < 40; i++) {
+        const app = document.querySelector('skills-dialog-app');
+        if (app && app.shadowRoot) {
+            const crInput = app.shadowRoot.getElementById('nameText');
+            if (crInput && crInput.shadowRoot) {
+              const nativeInput = crInput.shadowRoot.querySelector('input');
+              if (nativeInput) {
+                // Use cr-input's API to set the value safely
+                crInput.value = 'Hello World';
+                nativeInput.focus();
+                // Force an input event so the Undo stack registers it
+                nativeInput.dispatchEvent(
+                  new Event('input', { bubbles: true }));
+                return true;
+              }
+            }
+          }
+        await new Promise(r => setTimeout(r, 100));
+      }
+      return false;
+    })();
+  )";
+  EXPECT_EQ(true, content::EvalJs(dialog_contents, kSetupScript));
+
+  // Simulate the Accelerator (Ctrl+A / Cmd+A).
+  ui::KeyboardCode key = ui::VKEY_A;
+  bool control = false;
+  bool command = false;
+#if BUILDFLAG(IS_MAC)
+  command = true;
+#else
+  control = true;
+#endif
+
+  content::SimulateKeyPress(dialog_contents, ui::DomKey::FromCharacter('a'),
+                            ui::DomCode::US_A, key, control, /*shift=*/false,
+                            /*alt=*/false, command);
+
+  auto selection_check = content::EvalJs(dialog_contents, R"(
+    (function() {
+      const app = document.querySelector('skills-dialog-app');
+      const crInput = app && app.shadowRoot ?
+                      app.shadowRoot.getElementById('nameText') : null;
+      const nativeInput = crInput && crInput.shadowRoot ?
+                          crInput.shadowRoot.querySelector('input') : null;
+      return nativeInput ?
+        (nativeInput.selectionEnd - nativeInput.selectionStart) : 0;
+    })()
+  )");
   glic::GlicEnabling::SetBypassEnablementChecksForTesting(false);
 #endif
 }

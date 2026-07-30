@@ -122,8 +122,8 @@ source_set("ui_bundled") {
     "//ios/chrome/browser/download/model",
     "//ios/chrome/browser/download/ui:features",
     "//ios/chrome/browser/drive_file_picker/coordinator",
-    "//ios/chrome/browser/enterprise/data_controls/coordinator",
     "//ios/chrome/browser/enterprise/data_controls/model",
+    "//ios/chrome/browser/enterprise/enterprise_dialog/coordinator",
     "//ios/chrome/browser/favicon/model",
     "//ios/chrome/browser/feature_engagement/model",
     "//ios/chrome/browser/file_upload_panel/coordinator",
@@ -377,6 +377,7 @@ source_set("unit_tests") {
     "key_commands_provider_unittest.mm",
   ]
   deps = [
+    ":test_support",
     ":ui_bundled",
     "//components/bookmarks/browser",
     "//components/bookmarks/test",
@@ -463,7 +464,6 @@ source_set("unit_tests") {
     "//ios/chrome/browser/sync/model",
     "//ios/chrome/browser/sync/model:sync_error_browser_agent",
     "//ios/chrome/browser/tab_insertion/model",
-    "//ios/chrome/browser/tab_switcher/tab_strip/coordinator",
     "//ios/chrome/browser/tabs/ui_bundled",
     "//ios/chrome/browser/tips_manager/model:factory",
     "//ios/chrome/browser/toolbar/coordinator",
@@ -496,5 +496,18 @@ source_set("unit_tests") {
     "//third_party/ocmock",
     "//ui/base",
     "//ui/base:test_support",
+  ]
+}
+
+source_set("test_support") {
+  testonly = true
+  sources = [
+    "fake_browser_view_controller.h",
+    "fake_browser_view_controller.mm",
+  ]
+  deps = [
+    "//base",
+    "//ios/chrome/browser/main/ui",
+    "//ui/base",
   ]
 }

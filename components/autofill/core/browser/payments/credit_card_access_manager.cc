@@ -18,10 +18,10 @@
 #include "base/task/sequenced_task_runner.h"
 #include "base/time/time.h"
 #include "build/build_config.h"
-#include "components/autofill/core/browser/autofill_progress_dialog_type.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_model/payments/credit_card.h"
 #include "components/autofill/core/browser/form_import/form_data_importer.h"
+#include "components/autofill/core/browser/form_import/payments/payments_form_data_importer.h"
 #include "components/autofill/core/browser/foundations/autofill_client.h"
 #include "components/autofill/core/browser/foundations/autofill_driver.h"
 #include "components/autofill/core/browser/foundations/browser_autofill_manager.h"
@@ -43,6 +43,7 @@
 #include "components/autofill/core/browser/payments/virtual_card_enrollment_manager.h"
 #include "components/autofill/core/browser/payments/webauthn_callback_types.h"
 #include "components/autofill/core/browser/suggestions/payments/payments_suggestion_generator_util.h"
+#include "components/autofill/core/browser/ui/payments/autofill_progress_ui_type.h"
 #include "components/autofill/core/common/autofill_clock.h"
 #include "components/autofill/core/common/autofill_payments_features.h"
 #include "components/strings/grit/components_strings.h"
@@ -334,8 +335,9 @@ void CreditCardAccessManager::FetchCreditCard(
     OnCreditCardFetchedCallback on_credit_card_fetched) {
   auto* form_data_importer = autofill_client().GetFormDataImporter();
   CHECK(form_data_importer);
-  form_data_importer->fetched_payments_data_context() =
-      FormDataImporter::FetchedPaymentsDataContext();
+  form_data_importer->GetPaymentsFormDataImporter()
+      .fetched_payments_data_context() =
+      payments::PaymentsFormDataImporter::FetchedPaymentsDataContext();
   // Reset the variable in FormDataImporter that denotes if non-interactive
   // authentication happened. This variable will be set to a value if a
   // payments autofill non-interactive flow successfully completes.
@@ -1224,9 +1226,8 @@ void CreditCardAccessManager::FetchMaskedServerCard() {
     payments_autofill_client().ShowAutofillProgressDialog(
         card_->card_info_retrieval_enrollment_state() ==
                 CreditCard::CardInfoRetrievalEnrollmentState::kRetrievalEnrolled
-            ? AutofillProgressDialogType::
-                  kCardInfoRetrievalEnrolledUnmaskProgressDialog
-            : AutofillProgressDialogType::kServerCardUnmaskProgressDialog,
+            ? AutofillProgressUiType::kCardInfoRetrievalEnrolledUnmaskProgressUi
+            : AutofillProgressUiType::kServerCardUnmaskProgressUi,
         /*cancel_callback=*/base::BindOnce(
             &CreditCardRiskBasedAuthenticator::OnUnmaskCancelled,
             payments_autofill_client()
@@ -1287,7 +1288,7 @@ void CreditCardAccessManager::FetchMaskedServerCard() {
 void CreditCardAccessManager::FetchVirtualCard() {
   is_authentication_in_progress_ = true;
   payments_autofill_client().ShowAutofillProgressDialog(
-      AutofillProgressDialogType::kVirtualCardUnmaskProgressDialog,
+      AutofillProgressUiType::kVirtualCardUnmaskProgressUi,
       base::BindOnce(&CreditCardAccessManager::OnVirtualCardUnmaskCancelled,
                      GetWeakPtr()));
   payments_autofill_client().GetRiskBasedAuthenticator()->Authenticate(
@@ -1801,7 +1802,8 @@ void CreditCardAccessManager::OnCreditCardFetched(
     bool card_was_fetched_from_cache) {
   auto* form_data_importer = autofill_client().GetFormDataImporter();
   CHECK(form_data_importer);
-  auto& context = form_data_importer->fetched_payments_data_context();
+  auto& context = form_data_importer->GetPaymentsFormDataImporter()
+                      .fetched_payments_data_context();
   context.fetched_card_instrument_id = card.instrument_id();
   context.card_was_fetched_from_cache = card_was_fetched_from_cache;
   if (on_credit_card_fetched_callback_) {

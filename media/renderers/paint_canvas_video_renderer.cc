@@ -1023,7 +1023,7 @@ void PaintCanvasVideoRenderer::Paint(
   // the video does not need any transform and it is enough to draw the frame
   // directly into the skia canvas
   if (!need_transform && !params.reinterpret_as_srgb &&
-      video_frame->IsMappable() && flags.isOpaque() &&
+      video_frame->HasDirectCpuAccess() && flags.isOpaque() &&
       flags.getBlendMode() == SkBlendMode::kSrc &&
       flags.getFilterQuality() == cc::PaintFlags::FilterQuality::kLow &&
       !pixels.empty() && info.colorType() == kBGRA_8888_SkColorType) {
@@ -1280,7 +1280,7 @@ void PaintCanvasVideoRenderer::ConvertVideoFrameToRGBPixels(
     bool premultiply_alpha,
     FilterMode filter,
     bool disable_threading) {
-  if (!video_frame->IsMappable()) {
+  if (!video_frame->HasDirectCpuAccess()) {
     NOTREACHED() << "Cannot extract pixels from non-CPU frame formats.";
   }
 
@@ -1544,7 +1544,7 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameYUVDataToGLTexture(
   }
 #endif
 
-  if (!video_frame->IsMappable()) {
+  if (!video_frame->HasDirectCpuAccess()) {
     return false;
   }
 
@@ -1613,8 +1613,8 @@ bool PaintCanvasVideoRenderer::CopyVideoFrameYUVDataToGLTexture(
   rgb_shared_image_cache_->UpdateSyncToken(rgb_sync_token);
 
   // video_frame->UpdateReleaseSyncToken is not necessary since the video frame
-  // data we used was CPU-side (IsMappable) to begin with. If there were any
-  // textures, we didn't use them.
+  // data we used was CPU-side to begin with. If there were any textures, we
+  // didn't use them.
 
   // Kick off a timer to release the cache.
   cache_deleting_timer_.Reset();

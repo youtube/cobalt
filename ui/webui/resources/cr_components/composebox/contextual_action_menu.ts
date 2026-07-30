@@ -79,28 +79,24 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
   protected showContextMenuHeaders_: boolean =
       loadTimeData.getBoolean('ShowContextMenuHeaders');
   protected get supportedTools_(): Map<ToolMode, {
-    id: string,
     icon: string,
   }> {
     return new Map([
       [
-        ToolMode.kDeepSearch,
+        ToolMode.kImageGen,
         {
-          id: 'deepSearch',
-          icon: 'composebox:deepSearch',
+          icon: 'composebox:nanoBanana',
         },
       ],
       [
-        ToolMode.kImageGen,
+        ToolMode.kDeepSearch,
         {
-          id: 'createImages',
-          icon: 'composebox:nanoBanana',
+          icon: 'composebox:deepSearch',
         },
       ],
       [
         ToolMode.kCanvas,
         {
-          id: 'canvas',
           icon: 'composebox:canvas',
         },
       ],
@@ -108,28 +104,36 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
   }
 
   protected get supportedModels_(): Map<ModelMode, {
-    id: string,
     icon: string,
   }> {
+    const thinkingIcon =
+        (loadTimeData.getBoolean('thinkingModelIconUpdate') &&
+         this.inputState &&
+         this.inputState.allowedModels.includes(ModelMode.kGeminiProNoGenUi)) ?
+        'composebox:astrophotographyMode' :
+        'composebox:thinkingModel';
     return new Map([
       [
         ModelMode.kGeminiRegular,
         {
-          id: 'geminiModelRegular',
           icon: 'composebox:regularModel',
         },
       ],
       [
         ModelMode.kGeminiProAutoroute,
         {
-          id: 'geminiModelAuto',
           icon: 'composebox:autoModel',
         },
       ],
       [
         ModelMode.kGeminiPro,
         {
-          id: 'geminiModelThinking',
+          icon: thinkingIcon,
+        },
+      ],
+      [
+        ModelMode.kGeminiProNoGenUi,
+        {
           icon: 'composebox:thinkingModel',
         },
       ],
@@ -144,12 +148,15 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
     this.$.menu.close();
   }
 
+  private onWindowBlur_ = this.close.bind(this);
+
   showAt(anchor: HTMLElement) {
     this.$.menu.showAt(anchor, {
       top: anchor.getBoundingClientRect().bottom,
       width: MENU_WIDTH_PX,
       anchorAlignmentX: AnchorAlignment['AFTER_START'],
     });
+    window.addEventListener('blur', this.onWindowBlur_);
   }
 
   protected isToolAllowed_(tool: ToolMode): boolean {
@@ -188,19 +195,49 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
   }
 
   protected getToolLabel_(tool: ToolMode): string {
-    if (!this.inputState) {
-      return '';
+    if (this.inputState) {
+      const config = this.inputState.toolConfigs.find(c => c.tool === tool);
+      if (config && config.menuLabel) {
+        return config.menuLabel;
+      }
     }
-    const config = this.inputState.toolConfigs.find(c => c.tool === tool);
-    return config ? config.menuLabel : '';
+    switch (tool) {
+      case ToolMode.kDeepSearch:
+        return this.i18n('deepSearch');
+      case ToolMode.kImageGen:
+        return this.i18n('createImages');
+      case ToolMode.kCanvas:
+        return this.i18n('canvas');
+      default:
+        return '';
+    }
   }
 
   protected getModelLabel_(model: ModelMode): string {
-    if (!this.inputState) {
-      return '';
+    if (this.inputState) {
+      const config = this.inputState.modelConfigs.find(c => c.model === model);
+      if (config && config.menuLabel) {
+        return config.menuLabel;
+      }
     }
-    const config = this.inputState.modelConfigs.find(c => c.model === model);
-    return config ? config.menuLabel : '';
+    switch (model) {
+      // We don't have a string for the regular model in the client code.
+      case ModelMode.kGeminiRegular:
+        return '';
+      case ModelMode.kGeminiProAutoroute:
+        return this.i18n('geminiModelAuto');
+      case ModelMode.kGeminiPro:
+        return this.i18n('geminiModelThinking');
+      default:
+        return '';
+    }
+  }
+
+  protected get toolHeader_(): string {
+    if (this.inputState && this.inputState.toolsSectionConfig) {
+      return this.inputState.toolsSectionConfig.header;
+    }
+    return '';
   }
 
   protected get modelHeader_(): string {
@@ -208,6 +245,26 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
       return this.inputState.modelSectionConfig.header;
     }
     return '';
+  }
+
+  protected getInputTypeLabel_(inputType: InputType): string {
+    if (this.inputState && this.inputState.inputTypeConfigs) {
+      const config =
+          this.inputState.inputTypeConfigs.find(c => c.inputType === inputType);
+      if (config && config.menuLabel) {
+        return config.menuLabel;
+      }
+    }
+    switch (inputType) {
+      case InputType.kBrowserTab:
+        return this.i18n('addTab');
+      case InputType.kLensImage:
+        return this.i18n('addImage');
+      case InputType.kLensFile:
+        return this.i18n('uploadFile');
+      default:
+        return '';
+    }
   }
 
   // Checks if the image upload item in the context menu should be visible.
@@ -377,10 +434,19 @@ export class ContextualActionMenuElement extends ContextualActionMenuElementBase
   }
 
   protected onMenuClose_() {
+    window.removeEventListener('blur', this.onWindowBlur_);
     this.dispatchEvent(new CustomEvent('close', {
       bubbles: true,
       composed: true,
     }));
+  }
+
+  protected getIconForToolMode_(mode: ToolMode): string|undefined {
+    return this.supportedTools_.get(mode)?.icon;
+  }
+
+  protected getIconForModelMode_(mode: ModelMode): string|undefined {
+    return this.supportedModels_.get(mode)?.icon;
   }
 }
 

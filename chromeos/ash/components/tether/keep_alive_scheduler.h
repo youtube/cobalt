@@ -10,6 +10,7 @@
 
 #include "base/memory/raw_ptr.h"
 #include "base/memory/weak_ptr.h"
+#include "base/scoped_observation.h"
 #include "base/timer/timer.h"
 #include "chromeos/ash/components/tether/active_host.h"
 #include "chromeos/ash/components/tether/device_status_util.h"
@@ -37,7 +38,7 @@ class KeepAliveScheduler : public ActiveHost::Observer,
   KeepAliveScheduler(const KeepAliveScheduler&) = delete;
   KeepAliveScheduler& operator=(const KeepAliveScheduler&) = delete;
 
-  virtual ~KeepAliveScheduler();
+  ~KeepAliveScheduler() override;
 
   // ActiveHost::Observer:
   void OnActiveHostChanged(
@@ -70,6 +71,8 @@ class KeepAliveScheduler : public ActiveHost::Observer,
   std::optional<multidevice::RemoteDeviceRef> active_host_device_;
   std::unique_ptr<KeepAliveOperation> keep_alive_operation_;
 
+  base::ScopedObservation<ActiveHost, ActiveHost::Observer>
+      active_host_observer_{this};
   base::WeakPtrFactory<KeepAliveScheduler> weak_ptr_factory_{this};
 };
 

@@ -353,7 +353,8 @@ class WebViewTest : public testing::Test {
   }
 
   std::string base_url_{"http://www.test.com/"};
-  test::TaskEnvironment task_environment_;
+  test::TaskEnvironment task_environment_{
+      base::test::TaskEnvironment::TimeSource::MOCK_TIME};
   frame_test_helpers::WebViewHelper web_view_helper_;
   scoped_refptr<base::TestMockTimeTaskRunner> test_task_runner_;
 };
@@ -2811,6 +2812,96 @@ static void DragAndDropURL(WebViewImpl* web_view, const std::string& url) {
                          base::DoNothing());
   frame_test_helpers::PumpPendingRequestsForFrameToLoad(
       web_view->MainFrameImpl());
+}
+
+// This test verifies that the pointer event stream is correctly suppressed
+// after a drag starts. Per the HTML spec, to suppress a pointer event stream
+// the UA should send the following events to the drag source: pointercancel,
+// pointerout, pointerleave. See
+// https://w3c.github.io/pointerevents/#suppressing-a-pointer-event-stream
+TEST_F(WebViewTest, MouseDragDropSuppressesPointerStream) {
+  RegisterMockedHttpURLLoad("drag_suppresses_pointer_stream.html");
+  WebViewImpl* web_view = web_view_helper_.InitializeAndLoad(
+      base_url_ + "drag_suppresses_pointer_stream.html");
+  web_view->MainFrameViewWidget()->Resize(gfx::Size(500, 300));
+  UpdateAllLifecyclePhases();
+  RunPendingTasks();
+  WebMouseEvent mouse_event(WebInputEvent::Type::kMouseDown,
+                            WebInputEvent::kNoModifiers,
+                            WebInputEvent::GetStaticTimeStampForTests());
+  const gfx::PointF center = GetElementCenterPoint(
+      web_view->MainFrameImpl()->GetDocument().GetElementById("target"));
+  mouse_event.SetPositionInWidget(center.x(), center.y());
+  mouse_event.button = WebMouseEvent::Button::kLeft;
+  mouse_event.click_count = 1;
+  web_view->MainFrameWidget()->HandleInputEvent(
+      WebCoalescedInputEvent(mouse_event, ui::LatencyInfo()));
+  RunPendingTasks();
+  WebMouseEvent mouse_drag_event(WebInputEvent::Type::kMouseMove,
+                                 WebInputEvent::Modifiers::kNoModifiers,
+                                 WebInputEvent::GetStaticTimeStampForTests());
+  mouse_drag_event.SetPositionInWidget(center.x() + 50, center.y());
+  mouse_drag_event.button = WebMouseEvent::Button::kLeft;
+  web_view->MainFrameWidget()->HandleInputEvent(
+      WebCoalescedInputEvent(mouse_drag_event, ui::LatencyInfo()));
+  UpdateAllLifecyclePhases();
+  RunPendingTasks();
+  auto get_element_text = [&](const WebString id) {
+    return web_view->MainFrameImpl()
+        ->GetDocument()
+        .GetElementById(id)
+        .TextContent();
+  };
+  // When a drag starts, the html will set the text "true" on different <p>
+  // elements when the drag source receives the corresponding event.
+  const WebString true_string = WebString::FromUTF8("true");
+  EXPECT_EQ(true_string, get_element_text("dragstart"));
+  EXPECT_EQ(true_string, get_element_text("pointercancel"));
+  EXPECT_EQ(true_string, get_element_text("pointerout"));
+  EXPECT_EQ(true_string, get_element_text("pointerleave"));
+}
+
+// Similar to MouseDragDropSuppressesPointerStream but with a touch initiated
+// drag.
+TEST_F(WebViewTest, TouchDragDropSuppressesPointerStream) {
+  RegisterMockedHttpURLLoad("drag_suppresses_pointer_stream.html");
+  WebViewImpl* web_view = web_view_helper_.InitializeAndLoad(
+      base_url_ + "drag_suppresses_pointer_stream.html");
+  web_view->SettingsImpl()->SetTouchDragDropEnabled(true);
+  web_view->MainFrameViewWidget()->Resize(gfx::Size(500, 300));
+  UpdateAllLifecyclePhases();
+  RunPendingTasks();
+
+  const WebString target_id = WebString::FromUTF8("target");
+  const gfx::PointF center = GetElementCenterPoint(
+      web_view->MainFrameImpl()->GetDocument().GetElementById(target_id));
+  WebPointerEvent pointer_down(
+      WebInputEvent::Type::kPointerDown,
+      WebPointerProperties(1, WebPointerProperties::PointerType::kTouch), 5, 5);
+  pointer_down.SetPositionInWidget(center.x(), center.y());
+  web_view->MainFrameWidget()->HandleInputEvent(
+      WebCoalescedInputEvent(pointer_down, ui::LatencyInfo()));
+  web_view->MainFrameWidget()->DispatchBufferedTouchEvents();
+
+  // Send long press to start dragging
+  EXPECT_TRUE(SimulateGestureAtElementById(
+      WebInputEvent::Type::kGestureLongPress, target_id));
+
+  UpdateAllLifecyclePhases();
+  RunPendingTasks();
+  auto get_element_text = [&](const WebString id) {
+    return web_view->MainFrameImpl()
+        ->GetDocument()
+        .GetElementById(id)
+        .TextContent();
+  };
+  // When a drag starts, the html will set the text "true" on different <p>
+  // elements when the drag source receives the corresponding event.
+  const WebString true_string = WebString::FromUTF8("true");
+  EXPECT_EQ(true_string, get_element_text("dragstart"));
+  EXPECT_EQ(true_string, get_element_text("pointercancel"));
+  EXPECT_EQ(true_string, get_element_text("pointerout"));
+  EXPECT_EQ(true_string, get_element_text("pointerleave"));
 }
 
 TEST_F(WebViewTest, DragDropURL) {
@@ -7030,6 +7121,9 @@ class WebViewTestAdditionalWindowingControls : public WebViewTest {
     web_view_impl_ = web_view_helper_.Initialize();
   }
   WebViewImpl* WebView() { return web_view_impl_; }
+  void FastForwardBy(base::TimeDelta delta) {
+    task_environment_.FastForwardBy(delta);
+  }
 
  private:
   base::test::ScopedFeatureList feature_list_;
@@ -7117,8 +7211,6 @@ TEST_F(WebViewTestAdditionalWindowingControls,
 }
 
 TEST_F(WebViewTestAdditionalWindowingControls, SetResizableCallbackCalled) {
-  using ui::mojom::blink::WindowShowState;
-
   const std::vector<bool> values_to_test = {true, false};
   for (const bool value_to_test : values_to_test) {
     base::MockOnceCallback<void(bool)> set_resizable_callback;
@@ -7127,6 +7219,53 @@ TEST_F(WebViewTestAdditionalWindowingControls, SetResizableCallbackCalled) {
     WebView()->SetResizable(value_to_test, set_resizable_callback.Get());
     WebView()->OnResizableChanged(/*new_resizable=*/value_to_test);
   }
+}
+
+TEST_F(WebViewTestAdditionalWindowingControls, WindowShowStateChangeTimeout) {
+  using ui::mojom::blink::WindowShowState;
+  static constexpr base::TimeDelta kWindowShowStateChangeTimeout =
+      base::Seconds(5);
+
+  {
+    base::MockOnceCallback<void(bool)> maximize_callback;
+    EXPECT_CALL(maximize_callback, Run(false));
+    WebView()->Maximize(maximize_callback.Get());
+    FastForwardBy(kWindowShowStateChangeTimeout + base::Seconds(1));
+    WebView()->OnWindowShowStateChanged(
+        /*old_state=*/WindowShowState::kNormal,
+        /*new_state=*/WindowShowState::kMaximized);
+  }
+  {
+    base::MockOnceCallback<void(bool)> minimize_callback;
+    EXPECT_CALL(minimize_callback, Run(false));
+    WebView()->Minimize(minimize_callback.Get());
+    FastForwardBy(kWindowShowStateChangeTimeout + base::Seconds(1));
+    WebView()->OnWindowShowStateChanged(
+        /*old_state=*/WindowShowState::kMaximized,
+        /*new_state=*/WindowShowState::kMinimized);
+  }
+  {
+    base::MockOnceCallback<void(bool)> restore_callback;
+    EXPECT_CALL(restore_callback, Run(false));
+    WebView()->Restore(restore_callback.Get());
+    FastForwardBy(kWindowShowStateChangeTimeout + base::Seconds(1));
+    WebView()->OnWindowShowStateChanged(
+        /*old_state=*/WindowShowState::kMinimized,
+        /*new_state=*/WindowShowState::kMaximized);
+  }
+}
+
+TEST_F(WebViewTestAdditionalWindowingControls, SetResizableTimeout) {
+  static constexpr base::TimeDelta kWindowShowStateChangeTimeout =
+      base::Seconds(10);
+  WebView()->SetResizable(/*resizable=*/false, base::DoNothing());
+  WebView()->OnResizableChanged(/*new_resizable=*/false);
+
+  base::MockOnceCallback<void(bool)> set_resizable_callback;
+  EXPECT_CALL(set_resizable_callback, Run(false));
+  WebView()->SetResizable(/*resizable=*/true, set_resizable_callback.Get());
+  FastForwardBy(kWindowShowStateChangeTimeout + base::Seconds(1));
+  WebView()->OnResizableChanged(/*new_resizable=*/true);
 }
 
 #endif  // !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_IOS)

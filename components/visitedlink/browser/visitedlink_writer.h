@@ -129,23 +129,8 @@ class VisitedLinkWriter : public VisitedLinkCommon {
   // Adds a set of URLs to the table.
   void AddURLs(const std::vector<GURL>& urls);
 
-  // See DeleteURLs.
-  class URLIterator {
-   public:
-    // HasNextURL must return true when this is called. Returns the next URL
-    // then advances the iterator. Note that the returned reference is only
-    // valid until the next call of NextURL.
-    virtual const GURL& NextURL() = 0;
-
-    // Returns true if still has URLs to be iterated.
-    virtual bool HasNextURL() const = 0;
-
-   protected:
-    virtual ~URLIterator() = default;
-  };
-
   // Deletes the specified URLs from |rows| from the table.
-  void DeleteURLs(URLIterator* iterator);
+  void DeleteURLs(const std::vector<GURL>& urls);
 
   // Clears the visited links table by deleting the file from disk. Used as
   // part of history clearing.
@@ -196,9 +181,8 @@ class VisitedLinkWriter : public VisitedLinkCommon {
   // thread.
   struct LoadFromFileResult;
 
-  using TableLoadCompleteCallback = base::OnceCallback<void(
-      bool success,
-      scoped_refptr<LoadFromFileResult> load_from_file_result)>;
+  using TableLoadCompleteCallback =
+      base::OnceCallback<void(std::unique_ptr<LoadFromFileResult>)>;
 
   // Object to rebuild the table on the history thread (see the .cc file).
   class TableBuilder;
@@ -257,18 +241,14 @@ class VisitedLinkWriter : public VisitedLinkCommon {
   static void LoadFromFile(const base::FilePath& filename,
                            TableLoadCompleteCallback callback);
 
-  // Load the table from the database file. Returns true on success.
-  // Fills parameter |load_from_file_result| on success. It is called from
-  // the background thread.
-  static bool LoadApartFromFile(
-      const base::FilePath& filename,
-      scoped_refptr<LoadFromFileResult>* load_from_file_result);
+  // Load the table from the database file. Returns the result on success,
+  // nullptr otherwise. It is called from the background thread.
+  static std::unique_ptr<LoadFromFileResult> LoadApartFromFile(
+      const base::FilePath& filename);
 
   // It is called from the background thread and executed on the UI
   // thread.
-  void OnTableLoadComplete(
-      bool success,
-      scoped_refptr<LoadFromFileResult> load_from_file_result);
+  void OnTableLoadComplete(std::unique_ptr<LoadFromFileResult>);
 
   // Reads the header of the link coloring database from disk. Assumes the
   // file pointer is at the beginning of the file and that it is the first
@@ -280,7 +260,7 @@ class VisitedLinkWriter : public VisitedLinkCommon {
   static bool ReadFileHeader(FILE* hfile,
                              int32_t* num_entries,
                              int32_t* used_count,
-                             uint8_t salt[LINK_SALT_LENGTH]);
+                             LinkSalt& salt);
 
   // Fills *filename with the name of the link database filename
   bool GetDatabaseFileName(base::FilePath* filename);
@@ -345,7 +325,7 @@ class VisitedLinkWriter : public VisitedLinkCommon {
   // Structure is filled with 0s and shared header with salt. The result of
   // allocation is saved into |mapped_region|.
   static bool CreateApartURLTable(int32_t num_entries,
-                                  const uint8_t salt[LINK_SALT_LENGTH],
+                                  LinkSalt salt,
                                   base::MappedReadOnlyRegion* memory);
 
   // unallocates the Fingerprint table

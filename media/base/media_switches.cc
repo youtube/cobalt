@@ -335,8 +335,7 @@ namespace media {
 // FFmpegDecodingLoop.
 // For more information, see crbug.com/440616500.
 #if BUILDFLAG(ENABLE_FFMPEG)
-BASE_FEATURE(kAudioDecoderAudioFileReader,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kAudioDecoderAudioFileReader, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif
 
 // Only used for disabling overlay fullscreen (aka SurfaceView) in Clank.
@@ -611,6 +610,7 @@ BASE_FEATURE(kRevokeMediaSourceObjectURLOnAttach,
 
 #if BUILDFLAG(ENABLE_SYMPHONIA)
 BASE_FEATURE(kSymphoniaAudioDecoding, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kSymphoniaMp3Decoding, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif
 
 BASE_FEATURE(kD3D11VideoDecoderUseSharedHandle,
@@ -954,7 +954,7 @@ const base::FeatureParam<bool>
 
 // Enables hardware secure AV1 decoding if supported by the hardware
 // and the OS Content Decryption Module (CDM).
-BASE_FEATURE(kHardwareSecureDecryptionAv1, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kHardwareSecureDecryptionAv1, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables hardware secure VP9 decoding if supported by the hardware
 // and the OS Content Decryption Module (CDM).
@@ -1036,6 +1036,11 @@ BASE_FEATURE(kBrowserInitiatedAutomaticPictureInPictureDryRun,
 BASE_FEATURE(kMatchSourceAudioChannelLayout, base::FEATURE_DISABLED_BY_DEFAULT);
 
 #if BUILDFLAG(IS_ANDROID)
+// Allows media playback to start when the audio focus request is delayed
+// (e.g. during a phone call).
+BASE_FEATURE(kAllowDelayedAudioFocusGainAndroid,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Allows the enhanced picture-in-picture transition animation that depend on
 // the sourceRectHint PictureInPictureParam.
 BASE_FEATURE(kAllowEnhancedPipTransition, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -1453,8 +1458,28 @@ BASE_FEATURE(kCastStreamingAv1, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the new exponential bitrate calculate logic is used, or
 // the legacy linear algorithm.
+// TODO(crbug.com/302584587): This is the V2 implementation of this experiment,
+// following the failure of the initial experiment.
 BASE_FEATURE(kCastStreamingExponentialVideoBitrateAlgorithm,
              base::FEATURE_DISABLED_BY_DEFAULT);
+const base::FeatureParam<int>
+    kCastStreamingExponentialVideoBitrateAlgorithmWindowSize{
+        &kCastStreamingExponentialVideoBitrateAlgorithm, "window_size", 30};
+const base::FeatureParam<int>
+    kCastStreamingExponentialVideoBitrateAlgorithmDropThreshold{
+        &kCastStreamingExponentialVideoBitrateAlgorithm, "drop_threshold", 1};
+const base::FeatureParam<double>
+    kCastStreamingExponentialVideoBitrateAlgorithmIncreaseFactor{
+        &kCastStreamingExponentialVideoBitrateAlgorithm, "increase_factor",
+        1.05};
+const base::FeatureParam<double>
+    kCastStreamingExponentialVideoBitrateAlgorithmDecreaseFactor{
+        &kCastStreamingExponentialVideoBitrateAlgorithm, "decrease_factor",
+        0.9};
+const base::FeatureParam<double>
+    kCastStreamingExponentialVideoBitrateAlgorithmDynamicWindowMultiplier{
+        &kCastStreamingExponentialVideoBitrateAlgorithm,
+        "dynamic_window_multiplier", 0.0};
 
 BASE_FEATURE(kCastStreamingHardwareHevc, base::FEATURE_DISABLED_BY_DEFAULT);
 
