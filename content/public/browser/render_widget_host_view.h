@@ -340,8 +340,18 @@ class CONTENT_EXPORT RenderWidgetHostView {
   // Returns true if this view has a saved compositor frame.
   virtual bool HasSavedCompositorFrame() const = 0;
 
+<<<<<<< HEAD
   // Tells the View if it should use default deadline policy when resizing.
   virtual void SetShouldUseDefaultDeadlineOnResize(bool enable) = 0;
+=======
+#if BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
+  // Whether to prevent UpdateFrameBounds() from updating the reported view
+  // bounds. This is required when displaying the native search bar, otherwise
+  // Kabuki will resize its contents to respond to the smaller viewport and the
+  // page will appear smaller.
+  virtual void SetAllowAutomaticViewBoundsUpdates(bool allowed) = 0;
+#endif  // BUILDFLAG(IS_COBALT) && BUILDFLAG(IS_IOS_TVOS)
+>>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 };
 
 }  // namespace content

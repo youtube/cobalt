@@ -9780,6 +9780,7 @@ crbug.com/508429093 http/tests/devtools/elements/styles-4/styles-update-links-1.
 crbug.com/508429093 http/tests/devtools/elements/styles-4/styles-update-links-2.js [ Failure Pass ]
 crbug.com/508429093 http/tests/devtools/elements/styles-4/styles-update-links-3.js [ Failure Pass ]
 
+<<<<<<< HEAD
 # Gardener 2026-05-05
 crbug.com/509675206 [ Debug Linux ] webaudio/OfflineAudioContext/onstatechange.html [ Failure ]
 crbug.com/448806999 [ Mac12 ] external/wpt/content-security-policy/report-hash/reportonly-script-src-none.https.window.html [ Failure ]
@@ -9808,3 +9809,17 @@ crbug.com/502696520 http/tests/inspector-protocol/page/subframe-navigation.js [ 
 
 # Gardener 2026-05-12
 crbug.com/512358723 [ Mac ] external/wpt/css/css-overscroll-behavior/overscroll-behavior.html [ Failure Pass Timeout ]
+=======
+# Cobalt bug: b/461834934.
+wpt_internal/cobalt/HTMLVideoElementExtension/getAndSetMaxVideoCapabilities.html [ Timeout ]
+
+# Cobalt bug: b/405993906.
+wpt_internal/cobalt/h5vcc-runtime/* [ Failure ]
+
+# Cobalt bug: b/405997906.
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-advertisingId.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-exit.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-limitAdTracking.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-trackingAuthorizationStatus.https.any.html [ Failure Timeout ]
+wpt_internal/cobalt/h5vcc-system/h5vcc-system-userOnExitStrategy.https.any.html [ Failure Timeout ]
+>>>>>>> parent of 2b1eb717c87 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
