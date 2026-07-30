@@ -15,6 +15,10 @@
 #include "components/update_client/patcher.h"
 #include "components/update_client/update_client.h"
 
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
+
 namespace base {
 class FilePath;
 }
@@ -33,8 +37,13 @@ base::OnceClosure XzOperation(
     std::unique_ptr<Unzipper> unzipper,
     base::RepeatingCallback<void(base::Value::Dict)> event_adder,
     base::RepeatingCallback<void(ComponentState)> state_tracker,
+#if BUILDFLAG(IS_STARBOARD)
+    const OperationResult& in_file_result,
+    base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+#else
     const base::FilePath& in_file,
     base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
+#endif
         callback);
 
 }  // namespace update_client

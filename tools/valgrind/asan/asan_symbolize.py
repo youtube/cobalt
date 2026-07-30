@@ -249,7 +249,17 @@ def main():
       help='Path to program executable. Used on OSX swarming bots to locate '
            'dSYM bundles for associated frameworks and bundles.')
   parser.add_argument('--sysroot', help='Root directory for symbol files')
+  # Cobalt customizations
+  parser.add_argument('--extra-binary', default=None,
+      help='Path to a dynamically loaded binary for which to symbolize '
+           'stack traces.')
+  # End Cobalt customizations
   args = parser.parse_args()
+
+  # Cobalt customizations
+  if args.extra_binary and not os.path.exists(args.extra_binary):
+    raise ValueError(f"Extra binary not found at: {args.extra_binary}\n")
+  # End Cobalt customizations
 
   disable_buffering()
   set_symbolizer_path()
@@ -270,7 +280,9 @@ def main():
       plugin_proxy.add_plugin(macos_filter)
 
     loop = asan_symbolize.SymbolizationLoop(
-        plugin_proxy=plugin_proxy, dsym_hint_producer=chrome_dsym_hints)
+        plugin_proxy=plugin_proxy,
+        dsym_hint_producer=chrome_dsym_hints,
+        extra_binary_path=args.extra_binary)
 
     if args.test_summary_json_file:
       symbolize_snippets_in_json(args.test_summary_json_file, loop)

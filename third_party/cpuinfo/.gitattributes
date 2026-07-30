@@ -1,0 +1,2 @@
+# src/ is an imported subtree; keep upstream line endings byte-for-byte.
+src/** -text

@@ -446,6 +446,7 @@ AudioContext* AudioContext::Create(ExecutionContext* context,
   // The empty string means the default audio device.
   auto frame_token = window.GetLocalFrameToken();
   WebAudioSinkDescriptor sink_descriptor(g_empty_string, frame_token);
+
   // In order to not break echo cancellation of PeerConnection audio, we must
   // not update the echo cancellation reference unless the sink ID is explicitly
   // specified.
@@ -631,6 +632,15 @@ AudioContext::AudioContext(LocalDOMWindow& window,
   }
 
   Initialize();
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "Cobalt AudioContext Initialized:"
+            << " SampleRate=" << sampleRate() << " Hz,"
+            << " SinkType="
+            << (sink_descriptor_.Type() == WebAudioSinkDescriptor::kAudible
+                    ? "Audible"
+                    : "Silent");
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   // Compute the base latency now and cache the value since it doesn't change
   // once the context is constructed.  We need the destination to be initialized

@@ -6,6 +6,8 @@
 
 #include <utility>
 
+#include "build/build_config.h"
+
 namespace base::sequence_manager {
 
 namespace {
@@ -91,7 +93,11 @@ SequenceManager::PrioritySettings& SequenceManager::PrioritySettings::operator=(
 
 SequenceManager::Settings::Settings() = default;
 
+#if BUILDFLAG(BUILD_BASE_WITH_CPP17)
+SequenceManager::Settings::Settings(Settings&& move_from) = default;
+#else
 SequenceManager::Settings::Settings(Settings&& move_from) noexcept = default;
+#endif
 
 SequenceManager::Settings::~Settings() = default;
 

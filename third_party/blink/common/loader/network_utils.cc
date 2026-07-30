@@ -36,6 +36,7 @@ bool AlwaysAccessNetwork(
 }
 
 const char* ImageAcceptHeader() {
+<<<<<<< HEAD
 #if BUILDFLAG(ENABLE_JXL_DECODER) && BUILDFLAG(ENABLE_AV1_DECODER)
   if (base::FeatureList::IsEnabled(features::kJXLImageFormat)) {
     return "image/jxl,image/avif,image/webp,image/apng,image/svg+xml,image/*,*/"
@@ -48,6 +49,9 @@ const char* ImageAcceptHeader() {
   }
   return "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
 #elif BUILDFLAG(ENABLE_AV1_DECODER)
+=======
+#if BUILDFLAG(ENABLE_DAV1D_DECODER)
+>>>>>>> parent of b18dee92a65 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
   return "image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
 #else
   return "image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8";
