@@ -417,8 +417,7 @@ base::WeakPtr<PrefetchContainer> PrefetchService::AddPrefetchRequestInternal(
       return Action::kReplaceOldWithNew;
     }
 
-    switch (
-        prefetch_container_old.GetServableState(PrefetchCacheableDuration())) {
+    switch (prefetch_container_old.GetServableState()) {
       case PrefetchServableState::kNotServable:
         return Action::kReplaceOldWithNew;
       case PrefetchServableState::kShouldBlockUntilEligibilityGot:
@@ -606,8 +605,7 @@ bool PrefetchService::IsPrefetchStale(
   }
 
   // `PrefetchServableState` check.
-  PrefetchServableState servable_state =
-      prefetch_container->GetServableState(PrefetchCacheableDuration());
+  PrefetchServableState servable_state = prefetch_container->GetServableState();
   if (servable_state == PrefetchServableState::kNotServable) {
     return true;
   }
@@ -983,13 +981,13 @@ void PrefetchService::OnGotServiceWorkerResult(
     case ServiceWorkerCapability::NO_SERVICE_WORKER:
       break;
     case ServiceWorkerCapability::SERVICE_WORKER_NO_FETCH_HANDLER:
-      if (base::FeatureList::IsEnabled(
-              features::kPrefetchServiceWorkerNoFetchHandlerFix)) {
-        std::move(params).Finish(
-            PreloadingEligibility::kUserHasServiceWorkerNoFetchHandler);
-        return;
-      }
-      break;
+      // We still don't use ServiceWorker-ineligible prefetch results if there
+      // is a controlling service worker at the time of navigation even if it
+      // doesn't have fetch handlers. So we prevent prefetching here as well, to
+      // avoid useless prefetches.
+      std::move(params).Finish(
+          PreloadingEligibility::kUserHasServiceWorkerNoFetchHandler);
+      return;
     case ServiceWorkerCapability::SERVICE_WORKER_WITH_FETCH_HANDLER: {
       std::move(params).Finish(
           params.is_redirect ? PreloadingEligibility::kRedirectToServiceWorker
@@ -1519,7 +1517,7 @@ void PrefetchService::ResetPrefetchContainersAndProgressAsync(
 }
 
 void PrefetchService::RemoveFromSchedulerAndProgressAsync(
-    PrefetchContainer& prefetch_container) {
+    const PrefetchContainer& prefetch_container) {
   CHECK(UsePrefetchScheduler());
 
   scheduler_->RemoveAndProgressAsync(prefetch_container);
@@ -1943,17 +1941,18 @@ PrefetchService::OnPrefetchResponseStarted(
   return std::nullopt;
 }
 
-void PrefetchService::OnWillBeDestroyed(PrefetchContainer& prefetch_container) {
-}
+void PrefetchService::OnWillBeDestroyed(
+    const PrefetchContainer& prefetch_container) {}
 
 void PrefetchService::OnGotInitialEligibility(
-    PrefetchContainer& prefetch_container,
+    const PrefetchContainer& prefetch_container,
     PreloadingEligibility eligibility) {}
 
-void PrefetchService::OnDeterminedHead(PrefetchContainer& prefetch_container) {}
+void PrefetchService::OnDeterminedHead(
+    const PrefetchContainer& prefetch_container) {}
 
 void PrefetchService::OnPrefetchCompletedOrFailed(
-    PrefetchContainer& prefetch_container,
+    const PrefetchContainer& prefetch_container,
     const network::URLLoaderCompletionStatus& completion_status,
     const std::optional<int>& response_code) {
   TRACE_EVENT("loading", "PrefetchService::OnPrefetchCompletedOrFailed",
@@ -1971,13 +1970,8 @@ void PrefetchService::OnPrefetchCompletedOrFailed(
 }
 
 void PrefetchService::CopyIsolatedCookies(
-    const PrefetchServingHandle& serving_handle) {
+    PrefetchServingHandle& serving_handle) {
   DCHECK(serving_handle);
-
-  if (!serving_handle.GetCurrentNetworkContextToServe()) {
-    // Not set in unit tests.
-    return;
-  }
 
   // We only need to copy cookies if the prefetch used an isolated network
   // context.
@@ -1986,6 +1980,13 @@ void PrefetchService::CopyIsolatedCookies(
   }
 
   serving_handle.OnIsolatedCookieCopyStart();
+
+  if (!serving_handle.GetCurrentNetworkContextToServe()) {
+    // Not set in unit tests.
+    CHECK_IS_TEST();
+    return;
+  }
+
   net::CookieOptions options = net::CookieOptions::MakeAllInclusive();
   serving_handle.GetCurrentNetworkContextToServe()
       ->GetCookieManager()

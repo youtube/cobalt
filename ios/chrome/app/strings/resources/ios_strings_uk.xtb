@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Скасувати синхронізацію</translation>
 <translation id="3144126448740580210">ГОТОВО</translation>
 <translation id="3148052723910099040">Сітка звичайних вкладок</translation>
+<translation id="3148237711805373460">Перейти</translation>
 <translation id="3157387275655328056">Додати в список читання</translation>
 <translation id="315778507796115851">Історія</translation>
 <translation id="31652791196570636">Закрити</translation>
@@ -1523,6 +1524,7 @@
 <translation id="6556866813142980365">Повторити</translation>
 <translation id="6559301491397835130">{count,plural, =1{Закладку збережено в папці "{title}". Вона зберігається лише на поточному пристрої.}one{Закладки збережено в папці "{title}". Вони зберігаються лише на поточному пристрої.}few{Закладки збережено в папці "{title}". Вони зберігаються лише на поточному пристрої.}many{Закладки збережено в папці "{title}". Вони зберігаються лише на поточному пристрої.}other{Закладки збережено в папці "{title}". Вони зберігаються лише на поточному пристрої.}}</translation>
 <translation id="656065428026159829">Показати більше</translation>
+<translation id="6565899972286925956">Створюйте що завгодно</translation>
 <translation id="6571070086367343653">Редагувати дані кредитної картки</translation>
 <translation id="6574092468346088891">Увімкнути сповіщення для перевірки безпеки</translation>
 <translation id="6579867704846662339">Ви можете відкривати вхідні URL-адреси з інших додатків у режимі анонімного перегляду.</translation>
@@ -1633,6 +1635,7 @@
 <translation id="6930799952781667037">Натисніть, щоб змінити на цю мову.</translation>
 <translation id="693761253105515415">Налаштуйте код доступу</translation>
 <translation id="6945221475159498467">Вибрати</translation>
+<translation id="6946722113367118030">Думає</translation>
 <translation id="6950522403736391608">Приховано</translation>
 <translation id="6962809930976936328">Отримуйте інформацію за допомогою Gemini</translation>
 <translation id="6964300328304469089">Зараз вибрано: <ph name="NAME" /> (<ph name="EMAIL" />). Виберіть обліковий запис.</translation>
@@ -1975,6 +1978,7 @@
 <translation id="8205564605687841303">Скасувати</translation>
 <translation id="8206354486702514201">Це налаштування застосовується вашим адміністратором.</translation>
 <translation id="8209050860603202033">Відкрити зображення</translation>
+<translation id="8209237163365258530">Моделі Gemini <ph name="VERSION_NUMBER" /></translation>
 <translation id="8211030355252954494">Ви отримали паролі для сайту <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">З’єднання безпечне</translation>
 <translation id="8214293972734702249">Вкладку "<ph name="TAB_TITLE" />" закріплено</translation>

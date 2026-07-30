@@ -32,7 +32,6 @@ import org.chromium.base.CallbackController;
 import org.chromium.base.CommandLine;
 import org.chromium.base.ObserverList;
 import org.chromium.base.TraceEvent;
-import org.chromium.base.UserData;
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.metrics.TimingMetric;
@@ -241,10 +240,12 @@ class LocationBarMediator
     private @Nullable SearchEngineUtils mSearchEngineUtils;
     private @Nullable AddToHomescreenCoordinator mAddToHomescreenCoordinatorForTesting;
     private final Supplier<@Nullable ModalDialogManager> mModalDialogManagerSupplier;
-    private final SettableNonNullObservableSupplier<@AutocompleteRequestType Integer>
-            mAutocompleteRequestTypeSupplier;
     private final FuseboxCoordinator mFuseboxCoordinator;
     private final boolean mPersistEditingState;
+    private @Nullable AutocompleteInput mCurrentInput;
+    private final Callback<@AutocompleteRequestType Integer> mAutocompleteRequestTypeObserver =
+            this::onAutocompleteRequestTypeChanged;
+    private @Nullable Callback<Boolean> mOnSpecializedFuseboxModeActivatedCallback;
 
     private final ButtonToolbarWidthConsumer mBookmarkButtonToolbarWidthConsumer;
     private final ButtonToolbarWidthConsumer mInstallButtonToolbarWidthConsumer;
@@ -252,6 +253,7 @@ class LocationBarMediator
     private final ButtonToolbarWidthConsumer mLensButtonToolbarWidthConsumer;
     private final ButtonToolbarWidthConsumer mZoomButtonToolbarWidthConsumer;
     private final @Nullable MultiInstanceManager mMultiInstanceManager;
+    private final @Nullable OmniboxChipManager mOmniboxChipManager;
 
     /*package */ LocationBarMediator(
             Context context,
@@ -272,12 +274,11 @@ class LocationBarMediator
             MonotonicObservableSupplier<TabModelSelector> tabModelSelectorSupplier,
             @Nullable BrowserControlsStateProvider browserControlsStateProvider,
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
-            SettableNonNullObservableSupplier<@AutocompleteRequestType Integer>
-                    autocompleteRequestTypeSupplier,
             @Nullable PageZoomIndicatorCoordinator pageZoomIndicatorCoordinator,
             FuseboxCoordinator fuseboxCoordinator,
             @Nullable MultiInstanceManager multiInstanceManager,
-            LocationBarEmbedder locationBarEmbedder) {
+            LocationBarEmbedder locationBarEmbedder,
+            @Nullable OmniboxChipManager omniboxChipManager) {
         mContext = context;
         mLocationBarLayout = locationBarLayout;
         mLocationBarDataProvider = locationBarDataProvider;
@@ -303,9 +304,6 @@ class LocationBarMediator
         mTabModelSelectorSupplier = tabModelSelectorSupplier;
         mBrowserControlsStateProvider = browserControlsStateProvider;
         mModalDialogManagerSupplier = modalDialogManagerSupplier;
-        mAutocompleteRequestTypeSupplier = autocompleteRequestTypeSupplier;
-        mAutocompleteRequestTypeSupplier.addSyncObserver(
-                mCallbackController.makeCancelable(this::onAutocompleteRequestTypeChanged));
         mPageZoomIndicatorCoordinator = pageZoomIndicatorCoordinator;
         if (mPageZoomIndicatorCoordinator != null) {
             mPageZoomIndicatorCoordinator.setOnDismissCallbacks(this::updateZoomButtonVisibility);
@@ -353,6 +351,7 @@ class LocationBarMediator
                 .getFuseboxStateSupplier()
                 .addObserver(mCallbackController.makeCancelable(this::onFuseboxStateChanged));
         mFuseboxCoordinator.addAttachmentChangeListener(this);
+        mOmniboxChipManager = omniboxChipManager;
     }
 
     /**
@@ -654,8 +653,7 @@ class LocationBarMediator
         // need to communicate with other coordinators like this.
         String userText = mUrlCoordinator.getTextWithoutAutocomplete();
         mStatusCoordinator.onDefaultMatchClassified(
-                !FuseboxCoordinator.isConventionalFulfillmentType(
-                                mAutocompleteRequestTypeSupplier.get())
+                (mCurrentInput != null && !mCurrentInput.isConventionalRequestType())
                         ||
                         // Zero suggest is always considered Search.
                         TextUtils.isEmpty(userText)
@@ -997,6 +995,41 @@ class LocationBarMediator
     }
 
     /**
+     * Begins a new Omnibox input session.
+     *
+     * @param input The input state for the new session. The input may be replaced without going
+     *     through the endInput() (valid -> valid). This is the case for tab switching.
+     */
+    private void beginInput(AutocompleteInput input) {
+        mCurrentInput = input;
+        mCurrentInput.getRequestTypeSupplier().addObserver(mAutocompleteRequestTypeObserver);
+        mAutocompleteCoordinator.beginInput(input);
+        mFuseboxCoordinator.beginInput(input);
+    }
+
+    /** Ends the current Omnibox input session. */
+    private void endInput() {
+        if (mCurrentInput == null) return;
+        mAutocompleteCoordinator.endInput();
+        mFuseboxCoordinator.endInput();
+        mCurrentInput.getRequestTypeSupplier().removeObserver(mAutocompleteRequestTypeObserver);
+        var state = FuseboxSessionState.from(mLocationBarDataProvider.getTab());
+        if (state != null) state.setSessionActive(false);
+        mCurrentInput = null;
+    }
+
+    /**
+     * Sets a listener to be notified when a specialized Fusebox mode is activated.
+     *
+     * @param onSpecializedFuseboxModeActivatedCallback The callback to be invoked with a boolean
+     *     indicating whether a specialized mode is active.
+     */
+    /* package */ void setOnSpecializedFuseboxModeActivatedListener(
+            @Nullable Callback<Boolean> onSpecializedFuseboxModeActivatedCallback) {
+        mOnSpecializedFuseboxModeActivatedCallback = onSpecializedFuseboxModeActivatedCallback;
+    }
+
+    /**
      * Handle and run any necessary animations that are triggered off focusing the UrlBar.
      *
      * @param hasFocus Whether focus was gained.
@@ -1015,14 +1048,9 @@ class LocationBarMediator
         // This call is permitted to happen before anyone else is activated, and
         // must be called before everyone else cleans up.
         if (hasFocus) {
-            var input = getAutocompleteInputForCurrentTab();
-            mAutocompleteCoordinator.beginInput(input);
-            mFuseboxCoordinator.beginInput(input);
+            beginInput(getAutocompleteInputForCurrentTab());
         } else {
-            var state = LocationBarState.from(mLocationBarDataProvider.getTab());
-            if (state != null && !state.isUrlBarFocused) state.autocompleteInput.reset();
-            mAutocompleteCoordinator.endInput();
-            mFuseboxCoordinator.endInput();
+            endInput();
         }
 
         for (UrlFocusChangeListener listener : mUrlFocusChangeListeners) {
@@ -1074,13 +1102,14 @@ class LocationBarMediator
      * @return A new {@link AutocompleteInput} instance.
      */
     private AutocompleteInput getAutocompleteInputForCurrentTab() {
-        // Maybe restore persisted state; create a new one otherwise.
-        var state = LocationBarState.from(mLocationBarDataProvider.getTab());
+        // Maybe restore persisted session state; create a new one otherwise.
+        var state = FuseboxSessionState.from(mLocationBarDataProvider.getTab());
         var input = state != null ? state.autocompleteInput : new AutocompleteInput();
         input.setPageClassification(mLocationBarDataProvider.getPageClassification(false));
-        input.setRequestType(mAutocompleteRequestTypeSupplier.get());
+        input.setRequestType(AutocompleteRequestType.SEARCH);
         input.setPageUrl(mLocationBarDataProvider.getCurrentGurl());
         input.setPageTitle(mLocationBarDataProvider.getTitle());
+        input.setUrlFocusTime(System.currentTimeMillis());
         return input;
     }
 
@@ -1587,7 +1616,8 @@ class LocationBarMediator
 
     @VisibleForTesting
     boolean shouldShowMicButton() {
-        if (mAutocompleteRequestTypeSupplier.get() != AutocompleteRequestType.SEARCH) {
+        if (mCurrentInput != null
+                && mCurrentInput.getRequestType() != AutocompleteRequestType.SEARCH) {
             return false;
         }
 
@@ -1613,7 +1643,8 @@ class LocationBarMediator
 
     @VisibleForTesting
     boolean shouldShowLensButton() {
-        if (mAutocompleteRequestTypeSupplier.get() != AutocompleteRequestType.SEARCH) {
+        if (mCurrentInput != null
+                && mCurrentInput.getRequestType() != AutocompleteRequestType.SEARCH) {
             return false;
         }
 
@@ -1663,6 +1694,10 @@ class LocationBarMediator
     }
 
     private void onAutocompleteRequestTypeChanged(@AutocompleteRequestType int type) {
+        if (mOnSpecializedFuseboxModeActivatedCallback != null) {
+            mOnSpecializedFuseboxModeActivatedCallback.onResult(
+                    type != AutocompleteRequestType.SEARCH);
+        }
         updateButtonVisibility();
         onSearchBoxHintTextChanged();
     }
@@ -1764,47 +1799,14 @@ class LocationBarMediator
         updateButtonTints();
     }
 
-    @VisibleForTesting
-    /* package */ static class LocationBarState implements UserData {
-        // TODO(crbug.com/475620206): consolidate this to AutocompleteInput and remove.
-        // For some bizarre reason the session restoration gets canceled as we're
-        // seeing notification of UrlBar focus lost, which incorrectly suppresses
-        // resumption of editing session, making the LocationBar currently propagate
-        // invalid state information to listening components (url is de-facto focused,
-        // while the LBM tells it is not).
-        // Once that issue is addressed, it should be possible to fully remove this
-        // and replace with AutocompleteInput.
-        public final AutocompleteInput autocompleteInput = new AutocompleteInput();
-        public boolean isUrlBarFocused;
-
-        static @Nullable LocationBarState from(@Nullable Tab tab) {
-            if (tab == null || tab.isDestroyed()) {
-                return null;
-            }
-            LocationBarState state = tab.getUserDataHost().getUserData(LocationBarState.class);
-            if (state == null) {
-                state = new LocationBarState();
-                tab.getUserDataHost().setUserData(LocationBarState.class, state);
-            }
-            return state;
-        }
-    }
-
-    private boolean isLocationBarStateValid(@Nullable LocationBarState state) {
-        return mIsTablet
-                && state != null
-                && state.isUrlBarFocused
-                && state.autocompleteInput != null;
-    }
-
     @Override
     public void onTabChanged(@Nullable Tab previousTab) {
         // Save the previous tab state.
         if (previousTab != null) {
-            LocationBarState previousState = LocationBarState.from(previousTab);
+            FuseboxSessionState previousState = FuseboxSessionState.from(previousTab);
             if (previousState != null) {
                 // No need to apply text, as AutocompleteInput readily tracks that.
-                previousState.isUrlBarFocused = isUrlBarFocused();
+                previousState.setSessionActive(isUrlBarFocused());
 
                 if (mPersistEditingState) {
                     previousState.autocompleteInput.setSelection(
@@ -1815,16 +1817,15 @@ class LocationBarMediator
 
         // Restore the saved tab state.
         Tab currentTab = mLocationBarDataProvider.getTab();
-        LocationBarState currentState = LocationBarState.from(currentTab);
-        if (isLocationBarStateValid(currentState)) {
-            assert currentState != null;
-            clearOmniboxFocus();
+        FuseboxSessionState currentState = FuseboxSessionState.from(currentTab);
+        if (currentState != null && currentState.isSessionActive()) {
+            beginInput(assumeNonNull(currentState).autocompleteInput);
             setUrlBarFocus(
                     /* shouldBeFocused= */ true,
                     currentState.autocompleteInput.getUserText(),
                     /* selectText= */ false,
                     OmniboxFocusReason.LOCATION_BAR_STATE_RESTORATION,
-                    AutocompleteRequestType.SEARCH);
+                    currentState.autocompleteInput.getRequestType());
             if (mPersistEditingState) {
                 // Need to post this as the url will not apply the text instantly.
                 PostTask.postTask(
@@ -1846,10 +1847,10 @@ class LocationBarMediator
     public void onUrlChanged(boolean isTabChanging) {
         if (isTabChanging) {
             Tab currentTab = mLocationBarDataProvider.getTab();
-            LocationBarState currentState = LocationBarState.from(currentTab);
+            FuseboxSessionState currentState = FuseboxSessionState.from(currentTab);
             // No need to update URL if the location bar state was already restored in
             // onTabChanged().
-            if (!isLocationBarStateValid(currentState)) {
+            if (currentState == null || !currentState.isSessionActive()) {
                 updateUrl();
 
                 // Ensure the URL bar loses focus if the tab it was interacting with is changed from
@@ -2228,16 +2229,18 @@ class LocationBarMediator
                         mContext, mWindowAndroid, mProfileSupplier.get());
     }
 
-    public NonNullObservableSupplier<@AutocompleteRequestType Integer>
-            getAutocompleteRequestTypeSupplier() {
-        return mAutocompleteRequestTypeSupplier;
-    }
-
     @Override
     public void onSearchBoxHintTextChanged() {
+        // Edge case / SearchActivity could be triggering focus before Profile (and by proxy -
+        // SearchEngineUtils) is available.
+        if (mSearchEngineUtils == null) return;
+
         mUrlCoordinator.setUrlBarHintText(
                 assertNonNull(mSearchEngineUtils)
-                        .getOmniboxHintText(mAutocompleteRequestTypeSupplier.get()));
+                        .getOmniboxHintText(
+                                mCurrentInput == null
+                                        ? AutocompleteRequestType.SEARCH
+                                        : mCurrentInput.getRequestType()));
     }
 
     /* package */ ToolbarWidthConsumer getBookmarkButtonToolbarWidthConsumer() {
@@ -2258,6 +2261,10 @@ class LocationBarMediator
 
     /* package */ ToolbarWidthConsumer getZoomButtonToolbarWidthConsumer() {
         return mZoomButtonToolbarWidthConsumer;
+    }
+
+    /* package */ @Nullable ToolbarWidthConsumer getOmniboxChipToolbarWidthConsumer() {
+        return mOmniboxChipManager;
     }
 
     private static class ButtonToolbarWidthConsumer implements ToolbarWidthConsumer {

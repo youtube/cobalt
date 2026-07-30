@@ -281,6 +281,12 @@ void CheckDownloadUrlDone(
 }
 #endif  // SAFE_BROWSING_DOWNLOAD_PROTECTION
 
+// Returns true if the danger type is either FORCE_SAVE_TO_ONEDRIVE or
+// FORCE_SAVE_TO_GDrive.
+bool IsForceSaveToCloud(download::DownloadDangerType danger_type) {
+  return danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_ONEDRIVE ||
+         danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE;
+}
 // Called asynchronously to determine the MIME type for |path|.
 std::string GetMimeType(const base::FilePath& path) {
 #if BUILDFLAG(IS_ANDROID)
@@ -563,7 +569,7 @@ actor::ExecutionEngine* GetExecutionEngineForDownloadItem(
 
   if (const actor::ActorTask* actor_task =
           actor_service->GetActingActorTaskForWebContents(web_contents)) {
-    return actor_task->GetExecutionEngine();
+    return &actor_task->GetExecutionEngine();
   }
 
   return nullptr;
@@ -939,7 +945,7 @@ bool ChromeDownloadManagerDelegate::IsDownloadReadyForCompletion(
             // Specifying a dangerous type here would take precedence over the
             // blocking of the file.
             download::DOWNLOAD_DANGER_TYPE_NOT_DANGEROUS,
-            danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE
+            IsForceSaveToCloud(danger_type)
                 ? download::DOWNLOAD_INTERRUPT_REASON_LOCAL_DOWNLOAD_BLOCKED
                 : download::DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED);
       } else {
@@ -1856,7 +1862,7 @@ void ChromeDownloadManagerDelegate::CheckClientDownloadDone(
       }
       item->OnContentCheckCompleted(
           danger_type,
-          danger_type == download::DOWNLOAD_DANGER_TYPE_FORCE_SAVE_TO_GDRIVE
+          IsForceSaveToCloud(danger_type)
               ? download::DOWNLOAD_INTERRUPT_REASON_LOCAL_DOWNLOAD_BLOCKED
               : download::DOWNLOAD_INTERRUPT_REASON_FILE_BLOCKED);
     } else {

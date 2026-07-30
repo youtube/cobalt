@@ -837,7 +837,12 @@ BASE_FEATURE_PARAM(base::TimeDelta,
 // sites, with an additional restriction that a process may only be reused while
 // the number of main frames in that process stays below a threshold.
 BASE_FEATURE(kProcessPerSiteUpToMainFrameThreshold,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // Specifies the threshold for `kProcessPerSiteUpToMainFrameThreshold` feature.
 constexpr base::FeatureParam<int> kProcessPerSiteMainFrameThreshold{
@@ -941,7 +946,7 @@ BASE_FEATURE(kUserMediaCaptureOnFocus, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // A feature to enabled updating installed PWAs more predictably by considering
 // changes in icon urls.
-BASE_FEATURE(kWebAppPredictableAppUpdating, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kWebAppPredictableAppUpdating, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // This is intended as a kill switch for the WebOTP Service feature. To enable
 // this feature, the experimental web platform features flag should be set.
@@ -1047,7 +1052,12 @@ const base::FeatureParam<int> kTouchDragMovementThresholdDip{
 // when a new renderer process is needed. Currently, only background renderer
 // processes are considered for reuse.
 BASE_FEATURE(kTrackEmptyRendererProcessesForReuse,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // This feature is for a reverse Origin Trial, enabling SharedArrayBuffer for
 // sites as they migrate towards requiring cross-origin isolation for these
@@ -1247,7 +1257,6 @@ BASE_FEATURE(kAccessibilityExtendedSelection,
 // When this feature is enabled, the InputConnection will request
 // formatted text from the TextInputState.
 BASE_FEATURE(kAccessibilityImeGetFormattedText,
-             "AccessibilityImeGetFormattedText",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, WINDOW_CONTENT_CHANGED events will be sent for each
@@ -1263,7 +1272,14 @@ BASE_FEATURE(kAccessibilityImproveLiveRegionAnnounce,
 // particular this will be used to determine whether or not a node is clickable
 // or not.
 BASE_FEATURE(kAccessibilityRequestLayoutBasedActions,
-             "AccessibilityRequestLayoutBasedActions",
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
+// When this feature is enabled, the accessibility tree will be requested to
+// signal content changed events next to a boolean value that will determine if
+// this event should cause a nodes's children to be rerendered if there've been
+// structural changes.
+BASE_FEATURE(kAccessibilityRequestScopedContentChangedEvents,
+             "AccessibilityRequestScopedContentChangedEvents",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, supports atomic announcements, meaning that when
@@ -1363,10 +1379,6 @@ BASE_FEATURE(kKeyboardLockApiOnAndroid, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Sets IO threads to kInteractive all the time.
 BASE_FEATURE(kIOThreadInteractiveThreadType, base::FEATURE_DISABLED_BY_DEFAULT);
-
-// Boosts IO threads and Browser main to kInteractive during input scenarios.
-BASE_FEATURE(kBoostThreadsPriorityDuringInputScenario,
-             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Default amount of days after which the global navigation capturing IPH
 // guardrails are cleared from storage.

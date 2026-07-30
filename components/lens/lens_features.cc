@@ -122,6 +122,9 @@ BASE_FEATURE(kLensOverlayOptimizationFilter, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kLensOverlayNonBlockingPrivacyNotice,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+BASE_FEATURE(kLensUseSeparateRequestIdForViewportImages,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 constexpr base::FeatureParam<int> kLensUpdatedFeedbackToastTimeoutMs{
     &kLensUpdatedFeedbackEntrypoint, "feedback-toast-timeout-ms", 8000};
 const base::FeatureParam<int> kLensOverlayMinRamMb{&kLensOverlay, "min_ram_mb",
@@ -522,6 +525,15 @@ const base::FeatureParam<bool> kLensOverlayEduActionChipDisabledByGlic{
 
 const base::FeatureParam<int> kLensOverlayEduActionChipMaxShownCount{
     &kLensOverlayEduActionChip, "max-shown-count", 3};
+
+const base::FeatureParam<base::TimeDelta> kLensOverlayEduActionChipShowInterval{
+    &kLensOverlayEduActionChip, "lens-action-chip-show-interval",
+    base::Hours(0)};
+
+const base::FeatureParam<base::TimeDelta>
+    kLensOverlayEduActionChipShowDebounceInterval{
+        &kLensOverlayEduActionChip, "lens-action-chip-show-debounce-interval",
+        base::Seconds(1)};
 
 constexpr base::FeatureParam<std::string> kLensOverlayStraightToSrpQuery{
     &kLensOverlayStraightToSrp, "query", ""};
@@ -1228,6 +1240,14 @@ bool IsLensOverlayEduActionChipDisabledByGlic() {
 
 int GetLensOverlayEduActionChipMaxShownCount() {
   return kLensOverlayEduActionChipMaxShownCount.Get();
+}
+
+base::TimeDelta GetLensOverlayEduActionChipShowInterval() {
+  return kLensOverlayEduActionChipShowInterval.Get();
+}
+
+base::TimeDelta GetLensOverlayEduActionChipShowDebounceInterval() {
+  return kLensOverlayEduActionChipShowDebounceInterval.Get();
 }
 
 bool IsLensOverlayKeyboardSelectionEnabled() {

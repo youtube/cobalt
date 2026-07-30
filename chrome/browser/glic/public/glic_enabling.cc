@@ -29,7 +29,6 @@
 #include "chrome/browser/startup_data.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service.h"
 #include "chrome/browser/subscription_eligibility/subscription_eligibility_service_factory.h"
-#include "chrome/browser/ui/ui_features.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/chrome_switches.h"
 #include "chrome/common/pref_names.h"
@@ -341,22 +340,27 @@ GlicGlobalEnabling::GlicGlobalEnabling(Delegate& delegate) {
 GlicGlobalEnabling::~GlicGlobalEnabling() = default;
 
 bool GlicGlobalEnabling::IsEnabledByFlags() {
+  // It is important that this value not change at runtime in production. Any
+  // future updates to this function must maintain that property.
   bool is_enabled = base::FeatureList::IsEnabled(features::kGlic) &&
-                    features::HasTabSearchToolbarButton() &&
                     locale_enablement_.value_or(true) &&
                     country_enablement_.value_or(true);
 #if BUILDFLAG(IS_CHROMEOS)
-  constexpr base::ByteCount kMinimumMemoryThreshold = base::GiB(8);
+  static const bool supported_system_requirements = [] {
+    constexpr base::ByteCount kMinimumMemoryThreshold = base::GiB(8);
 
-  // TODO(b:468055370): Remove the bypassing once the glic is fully launched.
-  const bool bypass_cbx_requirement =
-      base::FeatureList::IsEnabled(
-          chromeos::features::kGlicEnableFor8GbDevices) &&
-      base::SysInfo::AmountOfPhysicalMemory() >= kMinimumMemoryThreshold;
+    // TODO(b:468055370): Remove the bypassing once the glic is fully launched.
+    const bool bypass_cbx_requirement =
+        base::FeatureList::IsEnabled(
+            chromeos::features::kGlicEnableFor8GbDevices) &&
+        base::SysInfo::AmountOfPhysicalMemory() >= kMinimumMemoryThreshold;
 
-  is_enabled = is_enabled && (bypass_cbx_requirement ||
-                              base::FeatureList::IsEnabled(
-                                  chromeos::features::kFeatureManagementGlic));
+    return (bypass_cbx_requirement ||
+            base::FeatureList::IsEnabled(
+                chromeos::features::kFeatureManagementGlic));
+  }();
+
+  is_enabled = is_enabled && supported_system_requirements;
 #endif  // BUILDFLAG(IS_CHROMEOS)
   return is_enabled;
 }
@@ -440,7 +444,8 @@ mojom::ProfileReadyState GlicEnabling::GetProfileReadyState(Profile* profile) {
     return mojom::ProfileReadyState::kIneligible;
   }
 
-  if (enablement.not_consented && !IsTrustFirstOnboardingEnabled()) {
+  if (enablement.not_consented &&
+      !IsTrustFirstOnboardingEnabledForProfile(profile)) {
     return mojom::ProfileReadyState::kIneligible;
   }
 
@@ -477,8 +482,8 @@ bool GlicEnabling::IsUnifiedFreEnabled(Profile* profile) {
          base::FeatureList::IsEnabled(features::kGlicUnifiedFreScreen);
 }
 
-bool GlicEnabling::IsTrustFirstOnboardingEnabled() {
-  return IsMultiInstanceEnabled() &&
+bool GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(Profile* profile) {
+  return IsMultiInstanceEnabled() && !HasConsentedForProfile(profile) &&
          base::FeatureList::IsEnabled(features::kGlicTrustFirstOnboarding);
 }
 

@@ -84,6 +84,7 @@
 #define IDC_MOVE_TAB_TO_NEW_WINDOW      34054
 #define IDC_NEW_SPLIT_TAB               34055
 #define IDC_TOGGLE_VERTICAL_TABS        34056
+#define IDC_VERTICAL_TABS_SEND_FEEDBACK 34057
 
 // Web app window commands
 #define IDC_COPY_URL                    34060
@@ -606,6 +607,9 @@
 #define IDC_OMNIBOX_CONTEXT_ADD_FILE                          54011
 #define IDC_OMNIBOX_CONTEXT_CREATE_IMAGES                     54012
 #define IDC_OMNIBOX_CONTEXT_DEEP_RESEARCH                     54013
+#define IDC_OMNIBOX_CONTEXT_CANVAS                            54014
+#define IDC_OMNIBOX_CONTEXT_SET_MODEL_AUTO                    54015
+#define IDC_OMNIBOX_CONTEXT_SET_MODEL_THINKING                54016
 
 // NOTE: The last valid command value is 57343 (0xDFFF)
 // See http://msdn.microsoft.com/en-us/library/t2zechd4(VS.71).aspx

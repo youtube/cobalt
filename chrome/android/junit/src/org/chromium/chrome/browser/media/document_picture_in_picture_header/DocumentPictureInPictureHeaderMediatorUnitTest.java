@@ -41,7 +41,12 @@ import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.browser_ui.desktop_windowing.AppHeaderState;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
+import org.chromium.components.omnibox.SecurityStatusIcon;
+import org.chromium.components.security_state.ConnectionMaliciousContentStatus;
+import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.ui.modelutil.PropertyModel;
+import org.chromium.url.GURL;
+import org.chromium.url.JUnitTestGURLs;
 
 import java.util.List;
 
@@ -57,6 +62,10 @@ public class DocumentPictureInPictureHeaderMediatorUnitTest {
 
     private static final int DEFAULT_THEME_COLOR = Color.BLUE;
     private static final ColorStateList DEFAULT_FOCUS_TINT = ColorStateList.valueOf(Color.RED);
+    private static final @BrandedColorScheme int DEFAULT_BRANDED_COLOR_SCHEME =
+            BrandedColorScheme.LIGHT_BRANDED_THEME;
+    private static final GURL HTTPS_URL = JUnitTestGURLs.EXAMPLE_URL;
+    private static final GURL LOCAL_FILE_URL = new GURL("file:///android_asset/index.html");
 
     private Context mContext;
     private PropertyModel mModel;
@@ -72,6 +81,7 @@ public class DocumentPictureInPictureHeaderMediatorUnitTest {
         when(mDesktopWindowStateManager.getAppHeaderState()).thenReturn(null);
         when(mThemeColorProvider.getThemeColor()).thenReturn(DEFAULT_THEME_COLOR);
         when(mThemeColorProvider.getActivityFocusTint()).thenReturn(DEFAULT_FOCUS_TINT);
+        when(mThemeColorProvider.getBrandedColorScheme()).thenReturn(DEFAULT_BRANDED_COLOR_SCHEME);
     }
 
     private void createMediator() {
@@ -85,7 +95,10 @@ public class DocumentPictureInPictureHeaderMediatorUnitTest {
                         mDesktopWindowStateManager,
                         mThemeColorProvider,
                         mDelegate,
-                        isBackToTabShown);
+                        isBackToTabShown,
+                        ConnectionSecurityLevel.SECURE,
+                        ConnectionMaliciousContentStatus.NONE,
+                        HTTPS_URL);
     }
 
     @Test
@@ -105,10 +118,20 @@ public class DocumentPictureInPictureHeaderMediatorUnitTest {
         assertEquals(
                 DEFAULT_FOCUS_TINT,
                 mModel.get(DocumentPictureInPictureHeaderProperties.TINT_COLOR_LIST));
+        assertEquals(
+                DEFAULT_BRANDED_COLOR_SCHEME,
+                (int) mModel.get(DocumentPictureInPictureHeaderProperties.BRANDED_COLOR_SCHEME));
         assertNotNull(
                 mModel.get(DocumentPictureInPictureHeaderProperties.ON_BACK_TO_TAB_CLICK_LISTENER));
         assertNotNull(
                 mModel.get(DocumentPictureInPictureHeaderProperties.ON_LAYOUT_CHANGE_LISTENER));
+        assertNotNull(
+                mModel.get(
+                        DocumentPictureInPictureHeaderProperties.ON_SECURITY_ICON_CLICK_LISTENER));
+        assertTrue(mModel.containsKey(DocumentPictureInPictureHeaderProperties.SECURITY_ICON));
+        assertEquals(
+                HTTPS_URL.getHost(),
+                mModel.get(DocumentPictureInPictureHeaderProperties.URL_STRING));
     }
 
     @Test
@@ -138,25 +161,42 @@ public class DocumentPictureInPictureHeaderMediatorUnitTest {
 
     @Test
     @SmallTest
+    public void testOnSecurityIconClickListener() {
+        createMediator();
+        View.OnClickListener listener =
+                mModel.get(
+                        DocumentPictureInPictureHeaderProperties.ON_SECURITY_ICON_CLICK_LISTENER);
+        listener.onClick(new View(mContext));
+        verify(mDelegate).onSecurityIconClicked();
+    }
+
+    @Test
+    @SmallTest
     public void testOnLayoutChangeListener() {
         createMediator();
         View.OnLayoutChangeListener listener =
                 mModel.get(DocumentPictureInPictureHeaderProperties.ON_LAYOUT_CHANGE_LISTENER);
 
-        // Create a view hierarchy with the button.
+        // Create a view hierarchy with the buttons.
         FrameLayout parent = new FrameLayout(mContext);
-        View button = new View(mContext);
-        button.setId(R.id.document_picture_in_picture_header_back_to_tab);
-        // Set layout so getHitRect works.
-        button.layout(10, 10, 30, 30);
-        parent.addView(button);
+
+        View backButton = new View(mContext);
+        backButton.setId(R.id.document_picture_in_picture_header_back_to_tab);
+        backButton.layout(10, 10, 30, 30);
+        parent.addView(backButton);
+
+        View securityIcon = new View(mContext);
+        securityIcon.setId(R.id.document_picture_in_picture_header_security_icon);
+        securityIcon.layout(40, 10, 60, 30);
+        parent.addView(securityIcon);
 
         listener.onLayoutChange(parent, 0, 0, 100, 100, 0, 0, 0, 0);
 
         List<Rect> rects = mModel.get(DocumentPictureInPictureHeaderProperties.NON_DRAGGABLE_AREAS);
         assertNotNull(rects);
-        assertEquals(1, rects.size());
+        assertEquals(2, rects.size());
         assertEquals(new Rect(10, 10, 30, 30), rects.get(0));
+        assertEquals(new Rect(40, 10, 60, 30), rects.get(1));
     }
 
     @Test
@@ -216,10 +256,14 @@ public class DocumentPictureInPictureHeaderMediatorUnitTest {
     public void testTintChanged() {
         createMediator();
         ColorStateList focusTint = ColorStateList.valueOf(Color.GREEN);
-        mMediator.onTintChanged(/* tint= */ null, focusTint, BrandedColorScheme.APP_DEFAULT);
+        @BrandedColorScheme int brandedColorScheme = BrandedColorScheme.DARK_BRANDED_THEME;
+        mMediator.onTintChanged(/* tint= */ null, focusTint, brandedColorScheme);
 
         assertEquals(
                 focusTint, mModel.get(DocumentPictureInPictureHeaderProperties.TINT_COLOR_LIST));
+        assertEquals(
+                brandedColorScheme,
+                (int) mModel.get(DocumentPictureInPictureHeaderProperties.BRANDED_COLOR_SCHEME));
     }
 
     @Test
@@ -239,5 +283,53 @@ public class DocumentPictureInPictureHeaderMediatorUnitTest {
                 .set(eq(DocumentPictureInPictureHeaderProperties.HEADER_HEIGHT), anyInt());
         verify(mModel, never())
                 .set(eq(DocumentPictureInPictureHeaderProperties.HEADER_SPACING), any());
+    }
+
+    @Test
+    @SmallTest
+    public void testSecurityIconUpdates() {
+        int securityLevel = ConnectionSecurityLevel.DANGEROUS;
+        int maliciousContentStatus = ConnectionMaliciousContentStatus.NONE;
+        mMediator =
+                new DocumentPictureInPictureHeaderMediator(
+                        mModel,
+                        mDesktopWindowStateManager,
+                        mThemeColorProvider,
+                        mDelegate,
+                        /* isBackToTabShown= */ true,
+                        securityLevel,
+                        maliciousContentStatus,
+                        HTTPS_URL);
+
+        int expectedIcon =
+                SecurityStatusIcon.getSecurityIconResource(
+                        securityLevel,
+                        () -> maliciousContentStatus,
+                        /* isSmallDevice= */ false,
+                        /* skipIconForNeutralState= */ false,
+                        /* useLockIconForSecureState= */ false);
+
+        assertEquals(
+                expectedIcon,
+                (int) mModel.get(DocumentPictureInPictureHeaderProperties.SECURITY_ICON));
+    }
+
+    @Test
+    @SmallTest
+    public void testLocalFileUrl() {
+        mMediator =
+                new DocumentPictureInPictureHeaderMediator(
+                        mModel,
+                        mDesktopWindowStateManager,
+                        mThemeColorProvider,
+                        mDelegate,
+                        /* isBackToTabShown= */ true,
+                        ConnectionSecurityLevel.SECURE,
+                        ConnectionMaliciousContentStatus.NONE,
+                        LOCAL_FILE_URL);
+
+        assertEquals(
+                LOCAL_FILE_URL.getPath(),
+                mModel.get(DocumentPictureInPictureHeaderProperties.URL_STRING));
     }
 }

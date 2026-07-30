@@ -4,6 +4,7 @@
 
 #import "ios/chrome/browser/composebox/coordinator/composebox_tab_picker_coordinator.h"
 
+#import "ios/chrome/browser/composebox/debugger/composebox_debugger_logger.h"
 #import "ios/chrome/browser/composebox/public/composebox_theme.h"
 #import "ios/chrome/browser/composebox/ui/composebox_tab_picker_view_controller.h"
 #import "ios/chrome/browser/shared/public/commands/composebox_tab_picker_commands.h"
@@ -46,6 +47,7 @@
         initWithGridConsumer:_viewController.gridViewController
            tabPickerConsumer:_viewController
       tabsAttachmentDelegate:self];
+  _mediator.debugLogger = self.debugLogger;
   _mediator.browser = self.browser;
 
   _viewController.mutator = _mediator;
@@ -65,12 +67,20 @@
                                         animated:YES
                                       completion:nil];
   self.started = YES;
+  [self.debugLogger
+      logEvent:[ComposeboxDebuggerEvent
+                   composeboxGeneralEvent:composebox_debugger::event::
+                                              Composebox::kTabPickerShown]];
 }
 
 - (void)stop {
   if (!self.started) {
     return;
   }
+  [self.debugLogger
+      logEvent:[ComposeboxDebuggerEvent
+                   composeboxGeneralEvent:composebox_debugger::event::
+                                              Composebox::kTabPickerHidden]];
   [_navigationController.presentingViewController
       dismissViewControllerAnimated:YES
                          completion:nil];

@@ -41,11 +41,13 @@ static constexpr base::FeatureParam<DisableBoostPriorityExemption>::Option
         {DisableBoostPriorityExemption::kGpuBrowserNetwork,
          "GpuBrowserNetwork"},
         {DisableBoostPriorityExemption::kLoadingBrowserNetwork,
-         "LoadingBrowserNetwork"}};
+         "LoadingBrowserNetwork"},
+        {DisableBoostPriorityExemption::kForegroundBrowserNetwork,
+         "ForegroundBrowserNetwork"}};
 constinit const base::FeatureParam<DisableBoostPriorityExemption>
     kDisableBoostPriorityExemption{
         &kDisableBoostPriority, "exempt_processes",
-        DisableBoostPriorityExemption::kLoadingBrowserNetwork,
+        DisableBoostPriorityExemption::kForegroundBrowserNetwork,
         &kDisableBoostPriorityOptions};
 #endif  // BUILDFLAG(IS_WIN)
 
@@ -266,7 +268,11 @@ BASE_FEATURE(kForcedAppRelaunchOnPlaceholderUpdate,
 BASE_FEATURE(kGeoLanguage, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls whether the actor component of Glic is enabled.
+#if BUILDFLAG(IS_ANDROID)
+BASE_FEATURE(kGlicActor, base::FEATURE_DISABLED_BY_DEFAULT);
+#else
 BASE_FEATURE(kGlicActor, base::FEATURE_ENABLED_BY_DEFAULT);
+#endif
 
 const base::FeatureParam<base::TimeDelta> kGlicActorPageToolTimeout{
     &kGlicActor, "glic-actor-page-tool-timeout", base::Seconds(30)};
@@ -276,10 +282,6 @@ const base::FeatureParam<base::TimeDelta> kGlicActorClickDelay{
 
 // Controls whether the Actor UI components are enabled.
 BASE_FEATURE(kGlicActorUi, base::FEATURE_ENABLED_BY_DEFAULT);
-// Controls whether the new icon UI is enabled.
-BASE_FEATURE(kGlicActorUiTaskIconV2, base::FEATURE_ENABLED_BY_DEFAULT);
-// Controls whether the task nudge UI fixes are enabled.
-BASE_FEATURE(kGlicActorUiTaskNudgeUiFix, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls whether the global task indicator and related features are enabled.
 BASE_FEATURE(kGlicActorUiGlobalTaskIndicator, base::FEATURE_ENABLED_BY_DEFAULT);
 // Controls whether we ignore users preference of reduced motion enabled and
@@ -310,6 +312,11 @@ BASE_FEATURE(kGlicHandoffButtonHideWhenOmniboxPopupOpened,
 
 // If enabled, the magic cursor in the actor overlay is shown.
 BASE_FEATURE(kGlicActorUiOverlayMagicCursor, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// If enabled, the actor splits up the validation and execution portion of
+// invoking a tool.
+BASE_FEATURE(kGlicActorSplitValidateAndExecute,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kGlicActorUiTaskIconName[] = "glic-actor-ui-task-icon";
 const char kGlicActorUiOverlayName[] = "glic-actor-ui-overlay";
@@ -412,7 +419,7 @@ const base::FeatureParam<base::TimeDelta> kGlicActorTypeToolEnterDelay{
     &kGlicActor, "glic-actor-type-tool-enter-delay", base::Milliseconds(600)};
 
 constexpr base::FeatureParam<std::string> kGlicActorEligibleTiers{
-    &kGlicActor, "glic-actor-eligible-tiers", ""};
+    &kGlicActor, "glic-actor-eligible-tiers", "1,2"};
 
 constexpr base::FeatureParam<GlicActorEnterprisePrefDefault>::Option
     kGlicActorEnterprisePrefDefaultOptions[] = {
@@ -473,6 +480,11 @@ BASE_FEATURE(kGlicLocaleFiltering, base::FEATURE_DISABLED_BY_DEFAULT);
 // Controls whether the Glic FRE dialog is displayed in the same window as the
 // main app.
 BASE_FEATURE(kGlicUnifiedFreScreen, base::FEATURE_DISABLED_BY_DEFAULT);
+
+// Controls the bugfix where the unified FRE synchronizes cookies to the wrong
+// storage partition.
+BASE_FEATURE(kGlicUseMainPartitionForUnifiedFre,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Controls the Glic Trust First Onboarding experience.
 BASE_FEATURE(kGlicTrustFirstOnboarding, base::FEATURE_DISABLED_BY_DEFAULT);
@@ -1574,7 +1586,7 @@ BASE_FEATURE(kSitePerProcess,
 // The default behavior to opt devtools users out of
 // kProcessPerSiteUpToMainFrameThreshold.
 BASE_FEATURE(kProcessPerSiteSkipDevtoolsUsers,
-             base::FEATURE_ENABLED_BY_DEFAULT);
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // The default behavior to opt enterprise users out of
 // kProcessPerSiteUpToMainFrameThreshold.
@@ -1585,7 +1597,14 @@ BASE_FEATURE(kProcessPerSiteSkipEnterpriseUsers,
 // engine. Has no effect if "ProcessPerSiteUpToMainFrameThreshold" is disabled.
 // Note: The "ProcessPerSiteUpToMainFrameThreshold" feature is defined in
 // //content.
-BASE_FEATURE(kProcessPerSiteForDSE, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kProcessPerSiteForDSE,
+#if BUILDFLAG(IS_ANDROID)
+             base::FEATURE_DISABLED_BY_DEFAULT
+#else
+             base::FEATURE_ENABLED_BY_DEFAULT
+#endif
+);
 
 // Consider the default search engine (DSE) warmup page as a search results page
 // (SRP), for the purpose of applying the "process per site for DSE SRP" policy
@@ -1884,6 +1903,10 @@ const base::FeatureParam<base::TimeDelta>
 // chrome://webui-toolbar.top-chrome.
 // crbug.com/470039098
 BASE_FEATURE(kWebUISplitTabsButton, base::FEATURE_DISABLED_BY_DEFAULT);
+// When enabled, the home button will be replaced with WebUI loaded from
+// chrome://webui-toolbar.top-chrome.
+// crbug.com/470039765
+BASE_FEATURE(kWebUIHomeButton, base::FEATURE_DISABLED_BY_DEFAULT);
 #endif  // !BUILDFLAG(IS_ANDROID)
 
 // Enables the User-Agent override fix for SearchPrefetch. This will work only
@@ -1938,6 +1961,6 @@ BASE_FEATURE(kDisableShortcutsEnableDiy, base::FEATURE_ENABLED_BY_DEFAULT);
 // A feature to enabled updating policy and default management installed PWAs to
 // happen silently without prompting an updating dialog.
 BASE_FEATURE(kSilentPolicyAndDefaultAppUpdating,
-             base::FEATURE_DISABLED_BY_DEFAULT);
+             base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace features

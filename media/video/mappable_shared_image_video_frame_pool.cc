@@ -194,10 +194,11 @@ class MappableSharedImageVideoFramePool::PoolImpl
   // in the front of |frame_copy_requests_| queue.
   void StartCopy();
 
-  // Copy |video_frame| data into |frame_resource| and calls |frame_ready_cb|
-  // when done.
-  void CopyVideoFrameToGpuMemoryBuffer(scoped_refptr<VideoFrame> video_frame,
-                                       FrameResource* frame_resource);
+  // Copy |video_frame| data into the mappable SharedImage stored in
+  // |frame_resource| and calls |frame_ready_cb| when done.
+  void CopyVideoFrameToMappableSharedImage(
+      scoped_refptr<VideoFrame> video_frame,
+      FrameResource* frame_resource);
 
   // Called when all the data has been copied.
   void OnCopiesDone(bool copy_failed,
@@ -253,14 +254,20 @@ class MappableSharedImageVideoFramePool::PoolImpl
   void CompleteCopyRequestAndMaybeStartNextCopy(
       scoped_refptr<VideoFrame> video_frame);
 
+  // Called when `frame_resource` has become permanently unusable. This has to
+  // be called on the thread where |media_task_runner_| is current. Removes the
+  // resource from the pool and deletes it.
+  void DestroyFailedResource(FrameResource* frame_resource);
+
   // Callback called when a VideoFrame generated with GetOrCreateFrameResource
   // is no longer referenced.
   void SharedImageReleased(FrameResource* frame_resource,
                            const gpu::SyncToken& sync_token);
 
-  // Delete resource. This has to be called on the thread where |task_runner|
-  // is current.
-  static void DeleteFrameResource(
+  // Sets the destruction token of `frame_resource`'s ClientSharedImage to be
+  // the resource's sync token. This has to be called on the thread where
+  // |task_runner| is current.
+  static void UpdateSharedImageDestructionTokenForResource(
       GpuVideoAcceleratorFactories* const gpu_factories,
       FrameResource* frame_resource);
 
@@ -820,10 +827,11 @@ void MappableSharedImageVideoFramePool::PoolImpl::OnCopiesDone(
     bool copy_failed,
     scoped_refptr<VideoFrame> video_frame,
     FrameResource* frame_resource) {
-  TRACE_EVENT_END("media",
-                  /*"CopyVideoFrameToGpuMemoryBuffer"*/ perfetto::NamedTrack(
-                      "CopyVideoFrameToGpuMemoryBuffer",
-                      video_frame->timestamp().InNanoseconds()));
+  TRACE_EVENT_END(
+      "media",
+      /*"CopyVideoFrameToMappableSharedImage"*/ perfetto::NamedTrack(
+          "CopyVideoFrameToMappableSharedImage",
+          video_frame->timestamp().InNanoseconds()));
 
   media_task_runner_->PostTask(
       FROM_HERE,
@@ -856,7 +864,11 @@ void MappableSharedImageVideoFramePool::PoolImpl::StartCopy() {
         !(frame_resource->scoped_mapping =
               frame_resource->shared_image->Map())) {
       if (frame_resource) {
+        // Note: Failure to create or map the SharedImage means that the frame
+        // resource is a permanent error, so drop the FrameResource rather than
+        // simply marking it unused.
         DLOG(ERROR) << "Could not get or map buffer.";
+        DestroyFailedResource(frame_resource);
       }
       std::move(request.frame_ready_cb).Run(std::move(request.video_frame));
       frame_copy_requests_.pop_front();
@@ -864,18 +876,19 @@ void MappableSharedImageVideoFramePool::PoolImpl::StartCopy() {
     }
 
     worker_task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&PoolImpl::CopyVideoFrameToGpuMemoryBuffer,
-                                  this, request.video_frame, frame_resource));
+        FROM_HERE,
+        base::BindOnce(&PoolImpl::CopyVideoFrameToMappableSharedImage, this,
+                       request.video_frame, frame_resource));
     break;
   }
 }
 
-// Copies |video_frame| into |frame_resource| asynchronously, posting n tasks
-// that will be synchronized by a barrier.
+// Copies |video_frame| into the mappable SharedImage stored in |frame_resource|
+// asynchronously, posting n tasks that will be synchronized by a barrier.
 // After the barrier is passed OnCopiesDone will be called.
 void MappableSharedImageVideoFramePool::PoolImpl::
-    CopyVideoFrameToGpuMemoryBuffer(scoped_refptr<VideoFrame> video_frame,
-                                    FrameResource* frame_resource) {
+    CopyVideoFrameToMappableSharedImage(scoped_refptr<VideoFrame> video_frame,
+                                        FrameResource* frame_resource) {
   CHECK(frame_resource);
   CHECK(frame_resource->shared_image);
   CHECK(frame_resource->scoped_mapping);
@@ -884,8 +897,8 @@ void MappableSharedImageVideoFramePool::PoolImpl::
       base::BindOnce(&PoolImpl::OnCopiesDone, this, /*copy_failed=*/false,
                      video_frame, frame_resource);
   TRACE_EVENT_BEGIN(
-      "media", "CopyVideoFrameToGpuMemoryBuffer",
-      perfetto::NamedTrack("CopyVideoFrameToGpuMemoryBuffer",
+      "media", "CopyVideoFrameToMappableSharedImage",
+      perfetto::NamedTrack("CopyVideoFrameToMappableSharedImage",
                            video_frame->timestamp().InNanoseconds()));
 
   // Compute the number of tasks to post and create the barrier.
@@ -1014,7 +1027,8 @@ void MappableSharedImageVideoFramePool::PoolImpl::OnCopiesDoneOnMediaThread(
       resources_pool_.erase(it);
     }
 
-    DeleteFrameResource(gpu_factories_, frame_resource);
+    UpdateSharedImageDestructionTokenForResource(gpu_factories_,
+                                                 frame_resource);
     delete frame_resource;
 
     CompleteCopyRequestAndMaybeStartNextCopy(std::move(video_frame));
@@ -1173,8 +1187,9 @@ void MappableSharedImageVideoFramePool::PoolImpl::Shutdown() {
     }
 
     media_task_runner_->PostTask(
-        FROM_HERE, base::BindOnce(&PoolImpl::DeleteFrameResource,
-                                  gpu_factories_, base::Owned(frame_resource)));
+        FROM_HERE,
+        base::BindOnce(&PoolImpl::UpdateSharedImageDestructionTokenForResource,
+                       gpu_factories_, base::Owned(frame_resource)));
   }
   resources_pool_.clear();
 }
@@ -1202,7 +1217,8 @@ MappableSharedImageVideoFramePool::PoolImpl::GetOrCreateFrameResource(
         return frame_resource;
       } else {
         resources_pool_.erase(it++);
-        DeleteFrameResource(gpu_factories_, frame_resource);
+        UpdateSharedImageDestructionTokenForResource(gpu_factories_,
+                                                     frame_resource);
         delete frame_resource;
       }
     } else {
@@ -1285,9 +1301,10 @@ void MappableSharedImageVideoFramePool::PoolImpl::
 }
 
 // static
-void MappableSharedImageVideoFramePool::PoolImpl::DeleteFrameResource(
-    GpuVideoAcceleratorFactories* const gpu_factories,
-    FrameResource* frame_resource) {
+void MappableSharedImageVideoFramePool::PoolImpl::
+    UpdateSharedImageDestructionTokenForResource(
+        GpuVideoAcceleratorFactories* const gpu_factories,
+        FrameResource* frame_resource) {
   // TODO(dcastagna): As soon as the context lost is dealt with in media,
   // make sure that we won't execute this callback (use a weak pointer to
   // the old context).
@@ -1299,6 +1316,15 @@ void MappableSharedImageVideoFramePool::PoolImpl::DeleteFrameResource(
     frame_resource->shared_image->UpdateDestructionSyncToken(
         frame_resource->sync_token);
   }
+}
+
+void MappableSharedImageVideoFramePool::PoolImpl::DestroyFailedResource(
+    FrameResource* frame_resource) {
+  DCHECK(media_task_runner_->RunsTasksInCurrentSequence());
+  frame_resource->MarkUnused(tick_clock_->NowTicks());
+  resources_pool_.erase(std::find(resources_pool_.begin(),
+                                  resources_pool_.end(), frame_resource));
+  delete frame_resource;
 }
 
 // Called when a VideoFrame is no longer referenced. Put back the resource in
@@ -1315,7 +1341,8 @@ void MappableSharedImageVideoFramePool::PoolImpl::SharedImageReleased(
   frame_resource->sync_token = release_sync_token;
 
   if (in_shutdown_) {
-    DeleteFrameResource(gpu_factories_, frame_resource);
+    UpdateSharedImageDestructionTokenForResource(gpu_factories_,
+                                                 frame_resource);
     delete frame_resource;
     return;
   }
@@ -1330,7 +1357,7 @@ void MappableSharedImageVideoFramePool::PoolImpl::SharedImageReleased(
     if (!resource->is_used() &&
         now - resource->last_use_time() > kStaleFrameLimit) {
       resources_pool_.erase(it++);
-      DeleteFrameResource(gpu_factories_, resource);
+      UpdateSharedImageDestructionTokenForResource(gpu_factories_, resource);
       delete resource;
     } else {
       it++;

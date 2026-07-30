@@ -23,6 +23,7 @@
 #include "base/synchronization/condition_variable.h"
 #include "base/time/time.h"
 #include "base/values.h"
+#include "build/build_config.h"
 #include "net/base/connection_endpoint_metadata.h"
 #include "net/base/ip_endpoint.h"
 #include "net/dns/dns_client.h"
@@ -30,12 +31,17 @@
 #include "net/dns/dns_response.h"
 #include "net/dns/dns_transaction.h"
 #include "net/dns/dns_util.h"
-#include "net/dns/opt_record_rdata.h"
 #include "net/dns/public/dns_over_https_server_config.h"
 #include "net/dns/public/dns_protocol.h"
 #include "net/dns/public/secure_dns_mode.h"
 #include "net/socket/socket_test_util.h"
 #include "url/scheme_host_port.h"
+
+#if BUILDFLAG(IS_WIN)
+#include <iphlpapi.h>
+
+#include "base/containers/heap_array.h"
+#endif  // BUILDFLAG(IS_WIN)
 
 namespace net {
 
@@ -368,9 +374,6 @@ class MockDnsTransactionFactory : public DnsTransactionFactory {
   std::unique_ptr<DnsProbeRunner> CreateDohProbeRunner(
       ResolveContext* resolve_context) override;
 
-  void AddEDNSOption(std::unique_ptr<OptRecordRdata::Opt> opt) override;
-  OptRecordRdata* GetOptRdataForTest() override;
-
   SecureDnsMode GetSecureDnsModeForTest() override;
 
   void CompleteDelayedTransactions();
@@ -564,6 +567,21 @@ class MockHostResolverProc : public HostResolverProc {
   base::ConditionVariable requests_waiting_;
   base::ConditionVariable slots_available_;
 };
+
+#if BUILDFLAG(IS_WIN)
+
+struct AdapterInfo {
+  IFTYPE if_type;
+  IF_OPER_STATUS oper_status;
+  const WCHAR* dns_suffix;
+  std::string dns_server_addresses[4];  // Empty string indicates end.
+  uint16_t ports[4];
+};
+
+std::unique_ptr<IP_ADAPTER_ADDRESSES, base::FreeDeleter> CreateAdapterAddresses(
+    const std::vector<AdapterInfo>& infos);
+
+#endif  // BUILDFLAG(IS_WIN)
 
 }  // namespace net
 

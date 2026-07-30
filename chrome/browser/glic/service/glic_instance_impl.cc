@@ -13,6 +13,7 @@
 #include "base/notimplemented.h"
 #include "base/notreached.h"
 #include "base/task/sequenced_task_runner.h"
+#include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/browser_process.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service.h"
 #include "chrome/browser/contextual_cueing/contextual_cueing_service_factory.h"
@@ -41,6 +42,7 @@
 #include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/public/global_browser_collection.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
+#include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/browser/ui/user_education/browser_user_education_interface.h"
 #include "chrome/common/actor_webui.mojom.h"
 #include "chrome/common/chrome_features.h"
@@ -64,11 +66,11 @@
 #include "chrome/browser/glic/widget/glic_inactive_side_panel_ui_android.h"
 #include "chrome/browser/glic/widget/glic_side_panel_ui_android.h"
 #else
+#include "chrome/browser/glic/common/local_hotkey_manager.h"
 #include "chrome/browser/glic/host/context/glic_focused_tab_manager.h"
 #include "chrome/browser/glic/widget/glic_floating_ui.h"
 #include "chrome/browser/glic/widget/glic_inactive_side_panel_ui.h"
 #include "chrome/browser/glic/widget/glic_side_panel_ui.h"
-#include "chrome/browser/glic/widget/local_hotkey_manager.h"
 #include "chrome/browser/ui/browser_list.h"
 #include "chrome/browser/ui/tabs/tab_strip_model.h"
 #endif
@@ -107,8 +109,7 @@ EmbedderKey CreateSidePanelEmbedderKey(tabs::TabInterface* tab) {
 }
 
 bool IsTrustFirstOnboardingPending(Profile* profile) {
-  return GlicEnabling::IsTrustFirstOnboardingEnabled() &&
-         !GlicEnabling::HasConsentedForProfile(profile);
+  return GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile);
 }
 }  // namespace
 
@@ -205,9 +206,14 @@ GlicInstanceImpl::GlicInstanceImpl(
               &sharing_manager(),
               this,
               contextual_cueing_service)),
-      actor_task_manager_(std::make_unique<GlicActorTaskManager>(profile)),
       last_activation_timestamp_(base::Time::Now()),
       last_deactivation_timestamp_(base::TimeTicks::Now()) {
+  if (auto* actor_keyed_service =
+          actor::ActorKeyedServiceFactory::GetActorKeyedService(profile_)) {
+    actor_task_manager_ =
+        std::make_unique<GlicActorTaskManager>(profile, actor_keyed_service);
+  }
+
   browser_collection_observation_.Observe(
       GlobalBrowserCollection::GetInstance());
   host_.SetDelegate(&empty_embedder_delegate_);
@@ -343,7 +349,7 @@ void GlicInstanceImpl::Close(EmbedderKey key, const CloseOptions& options) {
   if (!embedder) {
     return;
   }
-  if (GlicEnabling::IsTrustFirstOnboardingEnabled()) {
+  if (GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile_)) {
     service_->metrics()->OnTrustFirstOnboardingDismissed();
   }
   instance_metrics_.OnClose();
@@ -354,8 +360,7 @@ bool GlicInstanceImpl::Toggle(ShowOptions&& options,
                               bool prevent_close,
                               glic::mojom::InvocationSource source,
                               std::optional<std::string> prompt_suggestion) {
-  if (GlicEnabling::IsTrustFirstOnboardingEnabled() &&
-      !service_->enabling().HasConsentedForProfile(profile_)) {
+  if (GlicEnabling::IsTrustFirstOnboardingEnabledForProfile(profile_)) {
     service_->metrics()->OnTrustFirstOnboardingShown();
   }
 
@@ -396,8 +401,10 @@ GlicSharingManager& GlicInstanceImpl::sharing_manager() {
 }
 
 void GlicInstanceImpl::CloseInstanceAndShutdown() {
-  // We have to do this here before the ActorKeyedService is shutdown.
-  actor_task_manager_->CancelTask();
+  if (actor_task_manager_) {
+    // We have to do this here before the ActorKeyedService is shutdown.
+    actor_task_manager_->CancelTask();
+  }
 }
 
 void GlicInstanceImpl::RegisterConversation(
@@ -476,6 +483,11 @@ void GlicInstanceImpl::CreateTask(
     base::WeakPtr<actor::ActorTaskDelegate> delegate,
     actor::webui::mojom::TaskOptionsPtr options,
     mojom::WebClientHandler::CreateTaskCallback callback) {
+  if (!actor_task_manager_) {
+    std::move(callback).Run(
+        base::unexpected(mojom::CreateTaskErrorReason::kTaskSystemUnavailable));
+    return;
+  }
   instance_metrics_.OnCreateTask();
   actor_task_manager_->CreateTask(weak_ptr_factory_.GetWeakPtr(),
                                   std::move(options), std::move(callback));
@@ -484,6 +496,7 @@ void GlicInstanceImpl::CreateTask(
 void GlicInstanceImpl::PerformActions(
     const std::vector<uint8_t>& actions_proto,
     mojom::WebClientHandler::PerformActionsCallback callback) {
+  CHECK(actor_task_manager_);
   instance_metrics_.OnPerformActions();
   actor_task_manager_->PerformActions(actions_proto, std::move(callback));
 }
@@ -491,11 +504,13 @@ void GlicInstanceImpl::PerformActions(
 void GlicInstanceImpl::CancelActions(
     actor::TaskId task_id,
     mojom::WebClientHandler::CancelActionsCallback callback) {
+  CHECK(actor_task_manager_);
   actor_task_manager_->CancelActions(task_id, std::move(callback));
 }
 
 void GlicInstanceImpl::StopActorTask(actor::TaskId task_id,
                                      mojom::ActorTaskStopReason stop_reason) {
+  CHECK(actor_task_manager_);
   instance_metrics_.OnStopActorTask();
   actor_task_manager_->StopActorTask(task_id, stop_reason);
 }
@@ -503,6 +518,7 @@ void GlicInstanceImpl::StopActorTask(actor::TaskId task_id,
 void GlicInstanceImpl::PauseActorTask(actor::TaskId task_id,
                                       mojom::ActorTaskPauseReason pause_reason,
                                       tabs::TabInterface::Handle tab_handle) {
+  CHECK(actor_task_manager_);
   instance_metrics_.OnPauseActorTask();
   actor_task_manager_->PauseActorTask(task_id, pause_reason, tab_handle);
 }
@@ -511,17 +527,20 @@ void GlicInstanceImpl::ResumeActorTask(
     actor::TaskId task_id,
     const mojom::GetTabContextOptions& context_options,
     glic::mojom::WebClientHandler::ResumeActorTaskCallback callback) {
+  CHECK(actor_task_manager_);
   instance_metrics_.OnResumeActorTask();
   actor_task_manager_->ResumeActorTask(task_id, context_options,
                                        std::move(callback));
 }
 
 void GlicInstanceImpl::InterruptActorTask(actor::TaskId task_id) {
+  CHECK(actor_task_manager_);
   instance_metrics_.InterruptActorTask();
   actor_task_manager_->InterruptActorTask(task_id);
 }
 
 void GlicInstanceImpl::UninterruptActorTask(actor::TaskId task_id) {
+  CHECK(actor_task_manager_);
   instance_metrics_.UninterruptActorTask();
   actor_task_manager_->UninterruptActorTask(task_id);
 }
@@ -532,6 +551,7 @@ void GlicInstanceImpl::CreateActorTab(
     const std::optional<int32_t>& initiator_tab_id,
     const std::optional<int32_t>& initiator_window_id,
     glic::mojom::WebClientHandler::CreateActorTabCallback callback) {
+  CHECK(actor_task_manager_);
   actor_task_manager_->CreateActorTab(task_id, open_in_background,
                                       initiator_tab_id, initiator_window_id,
                                       std::move(callback));
@@ -699,7 +719,8 @@ void GlicInstanceImpl::OnBrowserActivated(BrowserWindowInterface* browser) {
   if (!ShouldDoAutomaticActivation()) {
     return;
   }
-  tabs::TabInterface* active_tab = GetActiveTabInterface(browser);
+  tabs::TabInterface* active_tab =
+      TabListInterface::From(browser)->GetActiveTab();
   if (!active_tab) {
     return;
   }
@@ -1062,9 +1083,11 @@ void GlicInstanceImpl::MaybeActivateForegroundEmbedder() {
 
 void GlicInstanceImpl::OnAllEmbeddersInactive() {
   NotifyInstanceActivationChanged(false);
-  // Attempt to show toast on UI deactivated (and not replaced by anything
-  // else).
-  actor_task_manager_->MaybeShowDeactivationToastUi();
+  if (actor_task_manager_) {
+    // Attempt to show toast on UI deactivated (and not replaced by anything
+    // else).
+    actor_task_manager_->MaybeShowDeactivationToastUi();
+  }
   // This call might delete `this`.
   remove_blank_instance_timer_.Start(
       FROM_HERE, kRemoveBlankInstanceDelay.Get(), this,
@@ -1217,7 +1240,9 @@ void GlicInstanceImpl::NotifyPanelWillOpen(
 }
 
 void GlicInstanceImpl::OnWebClientCleared() {
-  actor_task_manager_->CancelTask();
+  if (actor_task_manager_) {
+    actor_task_manager_->CancelTask();
+  }
   NotifyPanelWillOpen(mojom::InvocationSource::kDefaultValue, std::nullopt);
 }
 

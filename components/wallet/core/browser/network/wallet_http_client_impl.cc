@@ -10,6 +10,7 @@
 #include "base/check_deref.h"
 #include "base/functional/bind.h"
 #include "base/json/json_writer.h"
+#include "base/notimplemented.h"
 #include "base/uuid.h"
 #include "base/values.h"
 #include "components/signin/public/base/consent_level.h"
@@ -86,7 +87,33 @@ std::string BuildTransitTicketRequest(const TransitTicket& ticket) {
   return std::string();
 }
 
+std::string BuildPassportRequest(const Passport& passport) {
+  // TODO(crbug.com/478783796): Implement Passport request building.
+  return std::string();
+}
+
+std::string BuildDriverLicenseRequest(const DriverLicense& license) {
+  // TODO(crbug.com/478783796): Implement DriverLicense request building.
+  return std::string();
+}
+
+std::string BuildNationalIdentityCardRequest(const NationalIdentityCard& card) {
+  // TODO(crbug.com/478783796): Implement NationalIdentityCard request building.
+  return std::string();
+}
+
+std::string BuildKTNRequest(const KTN& ktn) {
+  // TODO(crbug.com/478783796): Implement KTN request building.
+  return std::string();
+}
+
+std::string BuildRedressNumberRequest(const RedressNumber& number) {
+  // TODO(crbug.com/478783796): Implement RedressNumber request building.
+  return std::string();
+}
+
 std::string BuildSavePassRequest(const WalletPass& pass) {
+  // TODO(crbug.com/468916773): Remove non private passes for now.
   return std::visit(
       absl::Overload{
           [](const LoyaltyCard& card) { return BuildLoyaltyCardRequest(card); },
@@ -96,6 +123,19 @@ std::string BuildSavePassRequest(const WalletPass& pass) {
           },
           [](const TransitTicket& ticket) {
             return BuildTransitTicketRequest(ticket);
+          },
+          [](const Passport& passport) {
+            return BuildPassportRequest(passport);
+          },
+          [](const DriverLicense& license) {
+            return BuildDriverLicenseRequest(license);
+          },
+          [](const NationalIdentityCard& card) {
+            return BuildNationalIdentityCardRequest(card);
+          },
+          [](const KTN& ktn) { return BuildKTNRequest(ktn); },
+          [](const RedressNumber& number) {
+            return BuildRedressNumberRequest(number);
           }},
       pass.pass_data);
 }
@@ -109,13 +149,19 @@ WalletHttpClientImpl::WalletHttpClientImpl(
 
 WalletHttpClientImpl::~WalletHttpClientImpl() = default;
 
-void WalletHttpClientImpl::SavePass(const WalletPass& pass,
-                                    SavePassCallback callback) {
+void WalletHttpClientImpl::UpsertPass(const WalletPass& pass,
+                                      UpsertPassCallback callback) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   SendRequest(
       kSavePassRequestPath, BuildSavePassRequest(pass),
-      base::BindOnce(&WalletHttpClientImpl::OnSavePassResponse,
+      base::BindOnce(&WalletHttpClientImpl::OnUpsertPassResponse,
                      weak_ptr_factory_.GetWeakPtr(), std::move(callback)));
+}
+
+void WalletHttpClientImpl::GetUnmaskedPass(std::string_view pass_id,
+                                           GetUnmaskedPassCallback callback) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  NOTIMPLEMENTED();
 }
 
 void WalletHttpClientImpl::SendRequest(
@@ -184,7 +230,7 @@ void WalletHttpClientImpl::SendRequestInternal(
 
   std::unique_ptr<network::ResourceRequest> resource_request =
       std::make_unique<network::ResourceRequest>();
-  GURL base_url(kWalletablePassSaveUrl.Get());
+  GURL base_url(kWalletSaveUrl.Get());
   resource_request->url = base_url.Resolve(request_path);
   resource_request->method = "POST";
   resource_request->credentials_mode = network::mojom::CredentialsMode::kOmit;
@@ -258,17 +304,23 @@ void WalletHttpClientImpl::OnSimpleLoaderComplete(
   std::move(response_callback).Run(std::move(*response_body));
 }
 
-void WalletHttpClientImpl::OnSavePassResponse(SavePassCallback callback,
-                                              HttpResponse http_response) {
+void WalletHttpClientImpl::OnUpsertPassResponse(UpsertPassCallback callback,
+                                                HttpResponse http_response) {
   DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
   if (!http_response.has_value()) {
     std::move(callback).Run(base::unexpected(http_response.error()));
     return;
   }
 
-  // TODO(crbug.com/468916773): Parse the response body to extract pass_id.
-  std::move(callback).Run(
-      WalletHttpClient::SavePassResult{.pass_id = "dummy_pass_id"});
+  // TODO(crbug.com/468916773): Parse the response body to extract the pass.
+  std::move(callback).Run(WalletPass{});
+}
+
+void WalletHttpClientImpl::OnGetUnmaskedPassResponse(
+    GetUnmaskedPassCallback callback,
+    HttpResponse http_response) {
+  DCHECK_CALLED_ON_VALID_SEQUENCE(sequence_checker_);
+  NOTIMPLEMENTED();
 }
 
 }  // namespace wallet

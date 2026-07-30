@@ -930,7 +930,7 @@ config("compiler") {
 
     # TODO(crbug.com/40182783): investigate why this isn't effective on
     # arm32.
-    if (!is_android || current_cpu == "arm64") {
+    if (!is_android || current_cpu != "arm") {
       cflags += [ "-fwhole-program-vtables" ]
 
       if (toolchain_supports_rust_thin_lto) {
@@ -1624,7 +1624,9 @@ config("compiler_codegen") {
     # This can be removed once https://bugs.llvm.org/show_bug.cgi?id=40348
     # has been resolved, and -mno-outline is obeyed by the linker during
     # ThinLTO.
-    ldflags += [ "-Wl,-mllvm,-enable-machine-outliner=never" ]
+    if (use_thin_lto && use_lld) {
+      ldflags += [ "-Wl,-mllvm,-enable-machine-outliner=never" ]
+    }
   }
 
   asmflags = cflags

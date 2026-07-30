@@ -152,10 +152,9 @@ chromium-metrics-reviews@google.com.
   <variant name="ReadEntryData"/>
   <variant name="RunEviction"/>
   <variant name="RunEvictionOnIdleTime"/>
-  <variant name="UpdateEntryHeaderAndLastUsed"/>
   <variant name="UpdateEntryLastUsedByKey"/>
-  <variant name="UpdateEntryLastUsedByResId"/>
   <variant name="WriteEntryData"/>
+  <variant name="WriteEntryDataAndMetadata"/>
 </variants>
 
 <!-- LINT.IfChange(StreamSocketCloseReason) -->
@@ -538,7 +537,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Crypto.UnexportableKeys.BackgroundTaskQueueWaitDuration{Priority}"
-    units="ms" expires_after="2026-05-30">
+    units="ms" expires_after="2026-08-02">
   <owner>alexilin@chromium.org</owner>
   <owner>drubery@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
@@ -1851,21 +1850,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Net.CertVerifier.QueuedRequestsWhenReady" units="requests"
-    expires_after="2026-02-01">
-  <owner>hchao@chromium.org</owner>
-  <owner>mattm@chromium.org</owner>
-  <summary>
-    Number of queued requests present when the Cert Verifier is finally marked
-    as ready when user-added certificates are enabled.
-
-    This only applies for platforms where the Chrome Cert Verifier is used (not
-    iOS).
-
-    This will be emitted at most once for every CertVerifierService created.
-  </summary>
-</histogram>
-
 <histogram name="Net.CertVerifier.Qwac.1Qwac" enum="NetCertVerifier1QwacResult"
     expires_after="2026-03-18">
   <owner>mattm@chromium.org</owner>
@@ -1908,21 +1892,6 @@ chromium-metrics-reviews@google.com.
     VerifyQWACs feature flag is enabled and Chrome Root Store is being used.
     (Notably, it is not recorded for same-page navigations, nor are Link headers
     on main-frame redirects processed or histogrammed.)
-  </summary>
-</histogram>
-
-<histogram name="Net.CertVerifier.TimeUntilReady" units="ms"
-    expires_after="2026-02-01">
-  <owner>hchao@chromium.org</owner>
-  <owner>mattm@chromium.org</owner>
-  <summary>
-    Time needed to provide the first update to the Cert Verifier when user-added
-    certificates are enabled.
-
-    This only applies for platforms where the Chrome Cert Verifier is used (not
-    iOS).
-
-    This will be emitted at most once for every CertVerifierService created.
   </summary>
 </histogram>
 
@@ -2370,7 +2339,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DeviceBoundSessions.{RequestType}.Network.Result"
-    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-05-31">
+    enum="CombinedHttpResponseAndNetErrorCode" expires_after="2026-08-02">
   <owner>thefrog@chromium.org</owner>
   <owner>chrome-counter-abuse-alerts@google.com</owner>
   <summary>
@@ -3179,7 +3148,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.UpgradeConfig.DotUpgradeSucceeded" enum="Boolean"
-    expires_after="2026-05-14">
+    expires_after="2026-08-02">
   <owner>awillia@chromium.org</owner>
   <owner>src/net/dns/OWNERS</owner>
   <summary>
@@ -3234,7 +3203,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.DNS.UpgradeConfig.InsecureUpgradeWithFallbackSucceeded"
-    enum="Boolean" expires_after="2026-05-31">
+    enum="Boolean" expires_after="2026-08-02">
   <owner>kaklilu@chromium.org</owner>
   <owner>awillia@chromium.org</owner>
   <owner>src/net/dns/OWNERS</owner>
@@ -3707,7 +3676,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.HttpStreamPool.Existing{Protocol}SessionFoundTime"
-    units="ms" expires_after="2026-05-31">
+    units="ms" expires_after="2026-08-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -4066,6 +4035,34 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram
+    name="Net.NetworkChangeNotifier.ConnectionTypePollsWin.{NotificationType}"
+    units="polls" expires_after="2026-08-12">
+  <owner>mmenke@chromium.org</owner>
+  <owner>net-dev@chromium.org</owner>
+  <summary>
+    The number of times that network state is polled before invoking
+    ConnectionTypeObserver::OnConnectionTypeChanged on Windows. Each
+    IPAddressChange event results repeatedly polling the network, with polls 1
+    second apart, and a subset of those result in sending notifications,
+    depending on network state. This is because the change OS change
+    notification often happens before the modified network connections can
+    actually be observed.
+
+    This records how many times the network state is polled before a particular
+    connection type change notification is sent. Note that the
+    NetworkChangeNotifier may continue to poll after sending a connection type
+    change notification.
+
+    The logic to report changes is fairly complicated. See logging code to
+    better understand the values.
+  </summary>
+  <token key="NotificationType">
+    <variant name="Offline" summary="Offline notification sent"/>
+    <variant name="Online" summary="Online notification sent"/>
+  </token>
+</histogram>
+
 <histogram name="Net.NetworkChangeNotifier.NewConnectionCost"
     enum="NetworkConnectionCost" expires_after="2023-11-12">
   <owner>fbeaufort@chromium.org</owner>
@@ -4202,7 +4199,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.NetworkTransaction.NegotiatedProtocol{HostType}"
-    enum="SSLNegotiatedAlpnProtocol" expires_after="2026-06-02">
+    enum="SSLNegotiatedAlpnProtocol" expires_after="2026-08-02">
   <owner>bashi@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -7382,7 +7379,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="Net.SessionCreate.GoogleSearch.Preconnect2.{ProtocolType}.IsSessionReused"
-    enum="Boolean" expires_after="2026-05-31">
+    enum="Boolean" expires_after="2026-08-02">
   <owner>suzukikeita@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>
@@ -8109,7 +8106,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{CheckpointType}.{ResultType}"
-    units="pages" expires_after="2026-05-31">
+    units="pages" expires_after="2026-08-02">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8125,7 +8122,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SqlDiskCache.Backend.{CheckpointType}.{TimeType}"
-    units="microseconds" expires_after="2026-05-31">
+    units="microseconds" expires_after="2026-08-02">
   <owner>horo@chromium.org</owner>
   <owner>src/net/OWNERS</owner>
   <summary>
@@ -8317,7 +8314,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.SSL.TrustAnchorIDsResult" enum="SSLTrustAnchorIDsResult"
-    expires_after="2026-06-01">
+    expires_after="2026-08-02">
   <owner>davidben@chromium.org</owner>
   <owner>estark@chromium.org</owner>
   <owner>trusty-transport@chromium.org</owner>
@@ -9056,7 +9053,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Net.WebTransport.NegotiatedWebTransportVersion"
-    enum="NegotiatedWebTransportVersion" expires_after="2026-06-02">
+    enum="NegotiatedWebTransportVersion" expires_after="2026-08-02">
   <owner>bashi@chromium.org</owner>
   <owner>blink-network-stack@google.com</owner>
   <summary>

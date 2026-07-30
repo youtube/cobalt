@@ -343,6 +343,7 @@ chromium_luci.configure_targets(
             # they are used by the angle pyl files
             "chromium-tester-service-account": targets.IGNORE_UNUSED,
             "gpu_linux_gce_stable": targets.IGNORE_UNUSED,
+            "gpu_win_gce_stable": targets.IGNORE_UNUSED,
             "gpu-swarming-pool": targets.IGNORE_UNUSED,
             "limited_capacity_bot": targets.IGNORE_UNUSED,
             "linux-jammy": targets.IGNORE_UNUSED,
@@ -364,8 +365,8 @@ chromium_luci.configure_targets(
             "CROS_GPU_BRYA_RELEASE_LKGM": True,
             "CROS_GPU_CORSOLA_RELEASE_LKGM": True,
             "CROS_GPU_SKYRIM_RELEASE_LKGM": True,
+            "CROS_LKGM": True,
             "CROS_JACUZZI_RELEASE_LKGM": True,
-            "CROS_RELEASE_LKGM": True,
             "INTEL_UHD_630_OR_770": True,
             "IPHONE_13": True,
             "NVIDIA_GEFORCE_GTX_1660": True,

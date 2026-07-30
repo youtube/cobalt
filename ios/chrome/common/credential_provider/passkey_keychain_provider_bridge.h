@@ -6,6 +6,7 @@
 #define IOS_CHROME_COMMON_CREDENTIAL_PROVIDER_PASSKEY_KEYCHAIN_PROVIDER_BRIDGE_H_
 
 #import "base/ios/block_types.h"
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/common/credential_provider/passkey_keychain_provider.h"
 
 @protocol Credential;
@@ -19,15 +20,11 @@ typedef void (^FetchTrustedVaultKeysCompletionBlock)(
 // Asks the user to reauthenticate if needed and calls the the completion block.
 - (void)performUserVerificationIfNeeded:(ProceduralBlock)completion;
 
-// Presents the passkey enrollment welcome screen.
-- (void)showEnrollmentWelcomeScreen:(ProceduralBlock)enrollBlock;
-
-// Presents the passkey "fix degraded recoverability state" welcome screen.
-- (void)showFixDegradedRecoverabilityWelcomeScreen:
-    (ProceduralBlock)fixDegradedRecoverabilityBlock;
-
-// Presents the passkey reauthentication welcome screen.
-- (void)showReauthenticationWelcomeScreen:(ProceduralBlock)reauthenticateBlock;
+// Presents the passkey welcome screen for `purpose`.
+- (void)showWelcomeScreenWithPurpose:
+            (webauthn::PasskeyWelcomeScreenPurpose)purpose
+                          completion:
+                              (webauthn::PasskeyWelcomeScreenAction)completion;
 
 // Informs the delegate that the user completed a reauthentication facilitated
 // by the provider.
@@ -42,8 +39,6 @@ typedef void (^FetchTrustedVaultKeysCompletionBlock)(
 // Default initializer. `enableLogging` indicates whether metrics logging should
 // be enabled in the Credential Provider Extension.
 - (instancetype)initWithEnableLogging:(BOOL)enableLogging
-                 navigationController:
-                     (UINavigationController*)navigationController
               navigationItemTitleView:(UIView*)navigationItemTitleView
     NS_DESIGNATED_INITIALIZER;
 

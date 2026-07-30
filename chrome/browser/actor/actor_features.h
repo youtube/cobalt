@@ -15,8 +15,6 @@ namespace actor {
 
 BASE_DECLARE_FEATURE(kGlicActionAllowlist);
 
-BASE_DECLARE_FEATURE(kActorEnableAndroid);
-
 BASE_DECLARE_FEATURE_PARAM(std::string, kAllowlist);
 BASE_DECLARE_FEATURE_PARAM(std::string, kAllowlistExact);
 BASE_DECLARE_FEATURE_PARAM(bool, kAllowlistOnly);
@@ -103,6 +101,8 @@ BASE_DECLARE_FEATURE(kActorRestartObservationDelayControllerOnNavigate);
 // Kill switch to disable sending a browser signal (which is used for user
 // interaction) before sending action to renderer.
 BASE_DECLARE_FEATURE(kActorSendBrowserSignalForAction);
+
+BASE_DECLARE_FEATURE(kGlicActorLoadAndExtractContentTool);
 
 }  // namespace actor
 

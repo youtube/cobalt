@@ -16,7 +16,7 @@
 #include "components/omnibox/browser/autocomplete_controller.h"
 #include "components/omnibox/browser/autocomplete_input.h"
 #include "content/public/browser/browser_context.h"
-#include "third_party/omnibox_proto/aim_tools.pb.h"
+#include "third_party/omnibox_proto/tool_mode.pb.h"
 
 class AutocompleteResult;
 class ChromeAutocompleteProviderClient;
@@ -211,7 +211,7 @@ class AutocompleteControllerAndroid : public AutocompleteController::Observer,
   // destroyed.
   std::unique_ptr<AutocompleteController> autocomplete_controller_;
 
-  // The ComposeBoxQueryController instance related to the same input session.
+  // The ComposeboxQueryController instance related to the same input session.
   // This may and often will be unset.
   base::WeakPtr<ComposeboxQueryControllerBridge>
       composebox_query_controller_bridge_;

@@ -59,6 +59,8 @@ using testing::Property;
 using testing::SizeIs;
 using testing::UnorderedElementsAre;
 
+using syncer::ModelError;
+
 const char kBookmarkBarTag[] = "bookmark_bar";
 const char kOtherBookmarksTag[] = "other_bookmarks";
 const char kMobileBookmarksTag[] = "synced_bookmarks";
@@ -87,6 +89,10 @@ MATCHER_P(CommitRequestDataMatchesGuid, uuid, "") {
 MATCHER_P(TrackedEntityCorrespondsToBookmarkNode, bookmark_node, "") {
   const SyncedBookmarkTrackerEntity* entity = arg;
   return entity->bookmark_node() == bookmark_node;
+}
+
+MATCHER_P(ModelErrorHasType, type, "") {
+  return arg.type() == type;
 }
 
 syncer::UpdateResponseData CreateUpdateResponseData(
@@ -504,10 +510,9 @@ TEST_F(BookmarkDataTypeProcessorTest,
   EXPECT_LE(timestamp, now - base::Days(23));
 
   EXPECT_CALL(*error_handler(),
-              Run(Property(
-                  &syncer::ModelError::type,
-                  Eq(syncer::ModelError::Type::
-                         kBookmarksRemoteCountExceededLimitLastInitialMerge))));
+              Run(ModelErrorHasType(
+                  ModelError::Type::
+                      kBookmarksRemoteCountExceededLimitLastInitialMerge)));
   SimulateOnSyncStartingNoWait();
   EXPECT_FALSE(processor()->IsTrackingMetadata());
   EXPECT_FALSE(processor()->IsConnectedForTest());
@@ -987,9 +992,8 @@ TEST_F(BookmarkDataTypeProcessorTest,
 
   // Now simulate sync starting.
   EXPECT_CALL(*error_handler(),
-              Run(testing::Property(
-                  &syncer::ModelError::type,
-                  syncer::ModelError::Type::
+              Run(ModelErrorHasType(
+                  ModelError::Type::
                       kBookmarksRemoteCountExceededLimitLastInitialMerge)));
 
   SimulateOnSyncStartingNoWait();
@@ -1386,7 +1390,7 @@ TEST_F(BookmarkDataTypeProcessorTest, ShouldReuploadLegacyBookmarksOnStart) {
 TEST_F(BookmarkDataTypeProcessorTest,
        ShouldReportErrorIfIncrementalLocalCreationCrossesMaxCountLimit) {
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
   // Expect failure when adding new bookmark.
   EXPECT_CALL(*error_handler(), Run);
@@ -1395,18 +1399,22 @@ TEST_F(BookmarkDataTypeProcessorTest,
   SimulateOnSyncStarting();
   SimulateConnectSync();
 
-  const std::string kNodeId = "node_id1";
   const std::string kTitle = "title1";
   const std::string kUrl = "http://www.url1.com";
-  const std::string kIconUrl = "http://www.url1.com/favicon";
 
   ASSERT_TRUE(processor()->IsConnectedForTest());
   // Add a new bookmark to exceed the limit.
   const bookmarks::BookmarkNode* bookmark_bar_node =
       bookmark_model()->bookmark_bar_node();
+  base::HistogramTester histogram_tester;
   bookmark_model()->AddURL(
       /*parent=*/bookmark_bar_node, /*index=*/0, base::UTF8ToUTF16(kTitle),
       GURL(kUrl));
+  // The limit is 3, and we added 1 more, so total is 4.
+  // 3 permanent nodes + 1 new node = 4.
+  histogram_tester.ExpectUniqueSample(
+      "Sync.BookmarksCountAtLimitExceeded.Local", /*sample=*/4,
+      /*expected_bucket_count=*/1);
 
   EXPECT_FALSE(processor()->IsConnectedForTest());
   // Expect tracking to still be enabled.
@@ -1417,7 +1425,7 @@ TEST_F(
     BookmarkDataTypeProcessorTest,
     ShouldReportErrorIfBookmarksCountExceedsLimitOnStartupWhenMetadataMatchesModel) {
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
   // Expect error twice. First, when new bookmark is added. Next after restart.
   EXPECT_CALL(*error_handler(), Run).Times(2);
@@ -1451,7 +1459,7 @@ TEST_F(
 
   // Simulate browser restart.
   ResetDataTypeProcessor();
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
   processor()->ModelReadyToSync(metadata_str, schedule_save_closure()->Get(),
                                 bookmark_model());
   // Metadata matches model, so tracker should be not null.
@@ -1470,7 +1478,7 @@ TEST_F(
     BookmarkDataTypeProcessorTest,
     ShouldReportErrorIfBookmarksCountExceedsLimitOnStartupWhenMetadataDoesNotMatchModel) {
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
   // Expect error twice. First, when new bookmark is added. Next after restart.
   EXPECT_CALL(*error_handler(), Run).Times(2);
@@ -1493,7 +1501,7 @@ TEST_F(
 
   // Simulate browser restart.
   ResetDataTypeProcessor();
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
   SimulateModelReadyToSyncWithoutLocalMetadata();
 
   // Metadata does not match model, so tracker should be null.
@@ -1512,7 +1520,7 @@ TEST_F(
   // when max count limit is crossed.
 
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
   SimulateModelReadyToSyncWithInitialSyncDone();
   SimulateOnSyncStarting();
@@ -1555,7 +1563,7 @@ TEST_F(
 
   // Simulate browser restart.
   ResetDataTypeProcessor();
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
   processor()->ModelReadyToSync(metadata_str, base::DoNothing(),
                                 bookmark_model());
   // Should lead to error_handler::Run.
@@ -1569,7 +1577,7 @@ TEST_F(BookmarkDataTypeProcessorTest,
        ShouldReportErrorIfBookmarksCountExceedsLimitAfterInitialUpdate) {
   // Set a limit of 4 bookmarks: 3 permanent nodes and 1 additional node which
   // is different from the remote.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(4);
+  processor()->SetLocalBookmarksLimitForTesting(4);
 
   const std::string kTitle1 = "title1";
   const std::string kUrl1 = "http://www.url1.com";
@@ -1582,9 +1590,12 @@ TEST_F(BookmarkDataTypeProcessorTest,
 
   // Expect failure after initial update is merged.
   bool error_reported = false;
-  EXPECT_CALL(*error_handler(), Run).Times(1).WillRepeatedly([&]() {
-    error_reported = true;
-  });
+  EXPECT_CALL(*error_handler(),
+              Run(ModelErrorHasType(
+                  ModelError::Type::
+                      kBookmarksLocalCountExceededLimitAfterInitialMerge)))
+      .Times(1)
+      .WillRepeatedly([&]() { error_reported = true; });
 
   SimulateModelReadyToSyncWithoutLocalMetadata();
   SimulateOnSyncStarting();
@@ -1628,7 +1639,7 @@ TEST_F(BookmarkDataTypeProcessorTest,
 TEST_F(BookmarkDataTypeProcessorTest,
        ShouldReportErrorIfBookmarksCountExceedsLimitAfterIncrementalUpdate) {
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
   // Expect failure after initial update is merged.
   bool error_reported = false;
@@ -1675,15 +1686,18 @@ TEST_F(BookmarkDataTypeProcessorTest,
 }
 
 TEST_F(BookmarkDataTypeProcessorTest,
-       ShouldReportErrorIfInitialUpdatesCrossMaxCountLimit) {
+       ShouldReportErrorIfInitialUpdatesCrossRemoteLimitButBelowLocalLimit) {
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
   // Expect failure when initial update of count 4 is received.
   bool error_reported = false;
-  EXPECT_CALL(*error_handler(), Run).Times(1).WillRepeatedly([&]() {
-    error_reported = true;
-  });
+  EXPECT_CALL(*error_handler(),
+              Run(ModelErrorHasType(
+                  ModelError::Type::
+                      kBookmarksLocalCountExceededLimitAfterInitialMerge)))
+      .Times(1)
+      .WillRepeatedly([&]() { error_reported = true; });
   EXPECT_CALL(*mock_commit_queue(), NudgeForCommit()).Times(0);
 
   SimulateModelReadyToSyncWithoutLocalMetadata();
@@ -1727,15 +1741,162 @@ TEST_F(BookmarkDataTypeProcessorTest,
                                 /*gc_directive=*/std::nullopt);
   EXPECT_TRUE(error_reported);
   EXPECT_FALSE(processor()->IsConnectedForTest());
-  // Tracker should remain null and bookmark model unchanged.
+  // Tracker should be initialized and bookmark model populated. This is
+  // required so that the user can delete bookmarks to recover from the error
+  // state.
+  EXPECT_TRUE(processor()->IsTrackingMetadata());
+  EXPECT_FALSE(bookmark_bar->children().empty());
+}
+
+TEST_F(BookmarkDataTypeProcessorTest,
+       ShouldReportErrorIfInitialUpdatesCrossRemoteLimit) {
+  // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
+  processor()->SetLocalBookmarksLimitForTesting(3);
+
+  // Expect failure when initial update of count 7 is received (exceeds 2 * 3 =
+  // 6).
+  bool error_reported = false;
+  EXPECT_CALL(
+      *error_handler(),
+      Run(ModelErrorHasType(
+          ModelError::Type::kBookmarksRemoteCountExceededLimitInitialMerge)))
+      .Times(1)
+      .WillRepeatedly([&]() { error_reported = true; });
+  EXPECT_CALL(*mock_commit_queue(), NudgeForCommit()).Times(0);
+
+  SimulateModelReadyToSyncWithoutLocalMetadata();
+  SimulateOnSyncStarting();
+  SimulateConnectSync();
+
+  const syncer::UniquePosition kRandomPosition =
+      syncer::UniquePosition::InitialPosition(
+          syncer::UniquePosition::RandomSuffix());
+
+  syncer::UpdateResponseDataList updates =
+      CreateUpdateResponseDataListForPermanentNodes();
+
+  // Entry for the root folder. The server may or may not send a root node, but
+  // the current implementation still handles it.
+  updates.push_back(CreateUpdateResponseData(
+      {kBookmarksRootId, std::string(), std::string(), std::string(),
+       syncer::DataTypeToProtocolRootTag(syncer::BOOKMARKS)},
+      kRandomPosition, /*response_version=*/0));
+
+  // Add 3 updates to exceed the local limit (which is 2 * 3 = 6).
+  // 3 permanent + 1 root + 3 new = 7.
+  updates.push_back(CreateUpdateResponseData(
+      {"node_id_1", "title1", "http://url1.com", kBookmarkBarId,
+       /*server_tag=*/std::string()},
+      kRandomPosition, /*response_version=*/0));
+  updates.push_back(CreateUpdateResponseData(
+      {"node_id_2", "title2", "http://url2.com", kBookmarkBarId,
+       /*server_tag=*/std::string()},
+      kRandomPosition, /*response_version=*/0));
+  updates.push_back(CreateUpdateResponseData(
+      {"node_id_3", "title3", "http://url3.com", kBookmarkBarId,
+       /*server_tag=*/std::string()},
+      kRandomPosition, /*response_version=*/0));
+
+  // Ensures that OnInitialUpdateReceived will be called.
+  ASSERT_FALSE(processor()->IsTrackingMetadata());
+  ASSERT_TRUE(processor()->IsConnectedForTest());
+
+  ASSERT_FALSE(error_reported);
+  base::HistogramTester histogram_tester;
+  processor()->OnUpdateReceived(CreateDataTypeState(), std::move(updates),
+                                /*gc_directive=*/std::nullopt);
+  histogram_tester.ExpectUniqueSample(
+      "Sync.BookmarksCountAtLimitExceeded.Remote", /*sample=*/7,
+      /*expected_bucket_count=*/1);
+  EXPECT_TRUE(error_reported);
+  EXPECT_FALSE(processor()->IsConnectedForTest());
+  // Metadata tracking should remain disabled.
   EXPECT_FALSE(processor()->IsTrackingMetadata());
-  EXPECT_TRUE(bookmark_bar->children().empty());
+
+  // Metadata should contain the relevant field.
+  sync_pb::BookmarkModelMetadata model_metadata;
+  std::string metadata_str = processor()->EncodeSyncMetadata();
+  ASSERT_FALSE(metadata_str.empty());
+  ASSERT_TRUE(model_metadata.ParseFromString(metadata_str));
+  EXPECT_TRUE(
+      model_metadata
+          .has_initial_merge_remote_updates_exceeded_limit_timestamp_windows_epoch_micros());
+}
+
+TEST_F(
+    BookmarkDataTypeProcessorTest,
+    ShouldMergeButReportErrorIfInitialUpdatesAboveLocalLimitButBelowRemoteLimit) {
+  // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
+  processor()->SetLocalBookmarksLimitForTesting(3);
+
+  SimulateModelReadyToSyncWithoutLocalMetadata();
+  SimulateOnSyncStarting();
+  SimulateConnectSync();
+
+  const syncer::UniquePosition kRandomPosition =
+      syncer::UniquePosition::InitialPosition(
+          syncer::UniquePosition::RandomSuffix());
+
+  syncer::UpdateResponseDataList updates =
+      CreateUpdateResponseDataListForPermanentNodes();
+
+  // Entry for the root folder. The server may or may not send a root node, but
+  // the current implementation still handles it.
+  updates.push_back(CreateUpdateResponseData(
+      {kBookmarksRootId, std::string(), std::string(), std::string(),
+       syncer::DataTypeToProtocolRootTag(syncer::BOOKMARKS)},
+      kRandomPosition, /*response_version=*/0));
+
+  // Add more updates for the permanent nodes to increase the remote count
+  // with actual entities.
+  // Total updates = 3 (permanent) + 1 (root) + 2 extra = 6.
+  // Limit is 3. 2 * Limit = 6.
+  // So 6 <= 6. We are exactly at 2*Limit.
+  // It should merge (track metadata) but report error (disconnect).
+  updates.push_back(
+      CreateUpdateResponseData({"node_id_1", "title1", "http://url1.com",
+                                kBookmarkBarId, /*server_tag=*/std::string()},
+                               kRandomPosition, /*response_version=*/0));
+  updates.push_back(
+      CreateUpdateResponseData({"node_id_2", "title2", "http://url2.com",
+                                kBookmarkBarId, /*server_tag=*/std::string()},
+                               kRandomPosition, /*response_version=*/0));
+
+  // Expect failure when initial update of count 6 is received.
+  bool error_reported = false;
+  EXPECT_CALL(*error_handler(),
+              Run(ModelErrorHasType(
+                  ModelError::Type::
+                      kBookmarksLocalCountExceededLimitAfterInitialMerge)))
+      .Times(1)
+      .WillRepeatedly([&]() { error_reported = true; });
+
+  // Ensures that OnInitialUpdateReceived will be called.
+  ASSERT_FALSE(processor()->IsTrackingMetadata());
+  ASSERT_TRUE(processor()->IsConnectedForTest());
+
+  processor()->OnUpdateReceived(CreateDataTypeState(), std::move(updates),
+                                /*gc_directive=*/std::nullopt);
+
+  EXPECT_TRUE(error_reported);
+  EXPECT_TRUE(processor()->IsTrackingMetadata());
+  EXPECT_FALSE(processor()->IsConnectedForTest());
+
+  sync_pb::BookmarkModelMetadata model_metadata;
+  std::string metadata_str = processor()->EncodeSyncMetadata();
+  ASSERT_FALSE(metadata_str.empty());
+  ASSERT_TRUE(model_metadata.ParseFromString(metadata_str));
+  EXPECT_FALSE(
+      model_metadata.has_last_initial_merge_remote_updates_exceeded_limit());
+  EXPECT_FALSE(
+      model_metadata
+          .has_initial_merge_remote_updates_exceeded_limit_timestamp_windows_epoch_micros());
 }
 
 TEST_F(BookmarkDataTypeProcessorTest,
        ShouldSaveRemoteUpdatesCountExceedingLimitResultDuringInitialMerge) {
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
   SimulateModelReadyToSyncWithoutLocalMetadata();
   SimulateOnSyncStarting();
@@ -1765,6 +1926,16 @@ TEST_F(BookmarkDataTypeProcessorTest,
                                 /*server_tag=*/std::string()},
                                kRandomPosition, /*response_version=*/0));
 
+  // Add two more updates to exceed the limit (which is 2 * 3 = 6).
+  updates.push_back(
+      CreateUpdateResponseData({"node_id_2", kTitle, kUrl, kBookmarkBarId,
+                                /*server_tag=*/std::string()},
+                               kRandomPosition, /*response_version=*/0));
+  updates.push_back(
+      CreateUpdateResponseData({"node_id_3", kTitle, kUrl, kBookmarkBarId,
+                                /*server_tag=*/std::string()},
+                               kRandomPosition, /*response_version=*/0));
+
   // Ensures that OnInitialUpdateReceived will be called.
   ASSERT_FALSE(processor()->IsTrackingMetadata());
   ASSERT_TRUE(processor()->IsConnectedForTest());
@@ -1788,9 +1959,9 @@ TEST_F(BookmarkDataTypeProcessorTest,
 TEST_F(BookmarkDataTypeProcessorTest,
        ShouldReportErrorIfRemoteBookmarksCountExceededLimitOnLastTry) {
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
-  // Expect failure when initial update of count 4 is received.
+  // Expect failure when initial update of count > 6 is received.
   bool error_reported = false;
   EXPECT_CALL(*error_handler(), Run).Times(2).WillRepeatedly([&]() {
     error_reported = true;
@@ -1821,6 +1992,16 @@ TEST_F(BookmarkDataTypeProcessorTest,
 
   updates.push_back(
       CreateUpdateResponseData({kNodeId, kTitle, kUrl, kBookmarkBarId,
+                                /*server_tag=*/std::string()},
+                               kRandomPosition, /*response_version=*/0));
+
+  // Add two more updates to exceed the limit (which is 2 * 3 = 6).
+  updates.push_back(
+      CreateUpdateResponseData({"node_id_2", kTitle, kUrl, kBookmarkBarId,
+                                /*server_tag=*/std::string()},
+                               kRandomPosition, /*response_version=*/0));
+  updates.push_back(
+      CreateUpdateResponseData({"node_id_3", kTitle, kUrl, kBookmarkBarId,
                                 /*server_tag=*/std::string()},
                                kRandomPosition, /*response_version=*/0));
 
@@ -1865,9 +2046,9 @@ TEST_F(BookmarkDataTypeProcessorTest,
 TEST_F(BookmarkDataTypeProcessorTest,
        ShouldPersistRemoteBookmarksCountExceedingLimitAcrossBrowserRestarts) {
   // Set a limit of 3 bookmarks, i.e. limit it to the 3 permanent nodes.
-  processor()->SetMaxBookmarksTillSyncEnabledForTest(3);
+  processor()->SetLocalBookmarksLimitForTesting(3);
 
-  // Expect failure when initial update of count 4 is received.
+  // Expect failure when initial update of count > 6 is received.
   bool error_reported = false;
   EXPECT_CALL(*error_handler(), Run).Times(3).WillRepeatedly([&]() {
     error_reported = true;
@@ -1897,6 +2078,16 @@ TEST_F(BookmarkDataTypeProcessorTest,
 
   updates.push_back(
       CreateUpdateResponseData({kNodeId, kTitle, kUrl, kBookmarkBarId,
+                                /*server_tag=*/std::string()},
+                               kRandomPosition, /*response_version=*/0));
+
+  // Add two more updates to exceed the limit (which is 2 * 3 = 6).
+  updates.push_back(
+      CreateUpdateResponseData({"node_id_2", kTitle, kUrl, kBookmarkBarId,
+                                /*server_tag=*/std::string()},
+                               kRandomPosition, /*response_version=*/0));
+  updates.push_back(
+      CreateUpdateResponseData({"node_id_3", kTitle, kUrl, kBookmarkBarId,
                                 /*server_tag=*/std::string()},
                                kRandomPosition, /*response_version=*/0));
 

@@ -18,6 +18,7 @@
 #import "base/strings/sys_string_conversions.h"
 #import "ios/chrome/browser/bubble/ui_bundled/gesture_iph/gesture_in_product_help_view.h"
 #import "ios/chrome/browser/bubble/ui_bundled/gesture_iph/gesture_in_product_help_view_delegate.h"
+#import "ios/chrome/browser/intelligence/bwg/utils/bwg_constants.h"
 #import "ios/chrome/browser/keyboard/ui_bundled/UIKeyCommand+Chrome.h"
 #import "ios/chrome/browser/menu/ui_bundled/action_factory.h"
 #import "ios/chrome/browser/shared/model/web_state_list/tab_utils.h"
@@ -1358,7 +1359,10 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
     return;
   }
 
-  [self.geminiHandler showFloatyIfInvokedAnimated:YES];
+  [self.geminiHandler
+      updateFloatyVisibilityIfEligibleAnimated:NO
+                                    fromSource:gemini::FloatyUpdateSource::
+                                                   ViewTransition];
 }
 
 #pragma mark - UIGestureRecognizerDelegate
@@ -1448,11 +1452,14 @@ NSUInteger GetPageIndexFromPage(TabGridPage page) {
 // Calculates the proper insets for a Tab Grid panel to accommodate for the safe
 // area and toolbar.
 - (UIEdgeInsets)calculateInsetsForGridView {
-  // The content inset of the tab grids must be modified so that the toolbars
-  // do not obscure the tabs. This may change depending on orientation.
-  CGFloat bottomInset = self.configuration == TabGridConfigurationBottomToolbar
-                            ? self.bottomToolbar.intrinsicContentSize.height
-                            : 0;
+  CGFloat bottomInset = 0;
+  if (!IsChromeNextIaEnabled()) {
+    // The content inset of the tab grids must be modified so that the toolbars
+    // do not obscure the tabs. This may change depending on orientation.
+    bottomInset = self.configuration == TabGridConfigurationBottomToolbar
+                      ? self.bottomToolbar.intrinsicContentSize.height
+                      : 0;
+  }
 
   CGFloat topInset = self.topToolbar.intrinsicContentSize.height;
   UIEdgeInsets inset = UIEdgeInsetsMake(topInset, 0, bottomInset, 0);

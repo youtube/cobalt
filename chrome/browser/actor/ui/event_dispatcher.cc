@@ -63,14 +63,19 @@ constexpr absl::Overload PreToolEventsFn{
           ComputedMouseMove(tr.GetTabHandle(), tr.GetTarget()),
           MouseClick(tr.GetTabHandle(), tr.GetClickType(), tr.GetClickCount())};
     },
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
     NoUiEvents<ActivateTabToolRequest>,
     NoUiEvents<ActivateWindowToolRequest>,
     NoUiEvents<CloseTabToolRequest>,
     NoUiEvents<CloseWindowToolRequest>,
     NoUiEvents<CreateTabToolRequest>,
     NoUiEvents<CreateWindowToolRequest>,
+#endif
     NoUiEvents<DragAndReleaseToolRequest>,
     NoUiEvents<HistoryToolRequest>,
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+    NoUiEvents<LoadAndExtractContentToolRequest>,
+#endif
     NoUiEvents<MediaControlToolRequest>,
     [](const MoveMouseToolRequest& tr) {
       return EventSequence<AsyncUiEvent>{
@@ -84,21 +89,28 @@ constexpr absl::Overload PreToolEventsFn{
           ComputedMouseMove(tr.GetTabHandle(), tr.GetTarget())};
     },
     NoUiEvents<WaitToolRequest>,
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
     NoUiEvents<AttemptLoginToolRequest>,
+#endif
     NoUiEvents<AttemptFormFillingToolRequest>,
     NoUiEvents<ScriptToolRequest>,
     NoUiEvents<ScrollToToolRequest>};
 
 constexpr absl::Overload PostToolEventsFn{
     NoUiEvents<ClickToolRequest>,
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
     NoUiEvents<ActivateTabToolRequest>,
     NoUiEvents<ActivateWindowToolRequest>,
     NoUiEvents<CloseTabToolRequest>,
     NoUiEvents<CloseWindowToolRequest>,
     NoUiEvents<CreateTabToolRequest>,
     NoUiEvents<CreateWindowToolRequest>,
+#endif
     NoUiEvents<DragAndReleaseToolRequest>,
     NoUiEvents<HistoryToolRequest>,
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+    NoUiEvents<LoadAndExtractContentToolRequest>,
+#endif
     NoUiEvents<MediaControlToolRequest>,
     NoUiEvents<MoveMouseToolRequest>,
     NoUiEvents<NavigateToolRequest>,
@@ -106,7 +118,9 @@ constexpr absl::Overload PostToolEventsFn{
     NoUiEvents<SelectToolRequest>,
     NoUiEvents<TypeToolRequest>,
     NoUiEvents<WaitToolRequest>,
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
     NoUiEvents<AttemptLoginToolRequest>,
+#endif
     NoUiEvents<AttemptFormFillingToolRequest>,
     NoUiEvents<ScriptToolRequest>,
     NoUiEvents<ScrollToToolRequest>};

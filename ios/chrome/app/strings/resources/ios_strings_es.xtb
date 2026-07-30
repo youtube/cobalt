@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Cancelar sincronización</translation>
 <translation id="3144126448740580210">HECHO</translation>
 <translation id="3148052723910099040">Cuadrícula de pestañas normales</translation>
+<translation id="3148237711805373460">Ir</translation>
 <translation id="3157387275655328056">Añadir a lista de lectura</translation>
 <translation id="315778507796115851">Historial</translation>
 <translation id="31652791196570636">Cerrar</translation>
@@ -875,7 +876,7 @@
 <translation id="4302061870579014542">Establecer posición</translation>
 <translation id="4304713468139749426">Gestor de contraseñas</translation>
 <translation id="4309403553630140242">Toca dos veces para consultar más información</translation>
-<translation id="4310738531374808763">Personalizar tu página principal</translation>
+<translation id="4310738531374808763">Personaliza tu página principal</translation>
 <translation id="4320848494125124980">Recientes</translation>
 <translation id="4322394346347055525">Cerrar las demás pestañas</translation>
 <translation id="4324735664183300693">Activar notificaciones</translation>
@@ -1523,6 +1524,7 @@ Handoff también debe estar habilitado en la sección General de Ajustes del sis
 <translation id="6556866813142980365">Rehacer</translation>
 <translation id="6559301491397835130">{count,plural, =1{Marcador guardado en {title}. Solo se guarda en este dispositivo.}other{Marcadores guardados en {title}. Solo se guardan en este dispositivo.}}</translation>
 <translation id="656065428026159829">Ver más</translation>
+<translation id="6565899972286925956">Crea cualquier cosa</translation>
 <translation id="6571070086367343653">Editar tarjeta de crédito</translation>
 <translation id="6574092468346088891">Activar notificaciones de Comprobación de tu estado</translation>
 <translation id="6579867704846662339">Puedes abrir URLs entrantes desde otras aplicaciones en Incógnito.</translation>
@@ -1633,6 +1635,7 @@ Handoff también debe estar habilitado en la sección General de Ajustes del sis
 <translation id="6930799952781667037">Toca para cambiar a este idioma.</translation>
 <translation id="693761253105515415">Establece una contraseña</translation>
 <translation id="6945221475159498467">Seleccionar</translation>
+<translation id="6946722113367118030">Pensando</translation>
 <translation id="6950522403736391608">Ocultas</translation>
 <translation id="6962809930976936328">Obtén información valiosa con Gemini</translation>
 <translation id="6964300328304469089">Se ha seleccionado <ph name="NAME" />, <ph name="EMAIL" />. Elige una cuenta.</translation>
@@ -1975,6 +1978,7 @@ Handoff también debe estar habilitado en la sección General de Ajustes del sis
 <translation id="8205564605687841303">Cancelar</translation>
 <translation id="8206354486702514201">El administrador aplica esta opción.</translation>
 <translation id="8209050860603202033">Abrir imagen</translation>
+<translation id="8209237163365258530">Modelos de Gemini <ph name="VERSION_NUMBER" /></translation>
 <translation id="8211030355252954494">Has recibido contraseñas de <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">La conexión es segura</translation>
 <translation id="8214293972734702249"><ph name="TAB_TITLE" /> fijada</translation>

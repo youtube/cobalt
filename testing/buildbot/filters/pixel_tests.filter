@@ -10,6 +10,7 @@ AccessCodeCastDialogBrowserTest.*
 AccountSettingsPagePixelBrowserTest.*
 ActorUiDomNodeGeometryBrowserTest.*
 ActorUiHandoffButtonControllerPixelTest.*
+*AutofillAiLocalSaveNotificationViewBrowsertest.*
 AddNewAddressProfileTest.*
 AppInfoDialogBrowserTest.*
 AppMenuBrowserTest*.InvokeUi_*
@@ -144,6 +145,7 @@ SearchEngineChoiceUIPixelTest.*
 SecurePaymentConfirmationDialogViewTest.InvokeUi_*
 *SendTabToSelfBubbleTest.*
 SessionCrashedBubbleViewTest.*
+SettingsOverriddenExplicitChoiceDialogBrowserTest.*
 *SharedPasswordsNotificationBubbleInteractiveUiTest.*
 SharedTabGroupInteractiveUiTest.SharedTabGroupIn*
 SingleBookmarkUploadDialogPixelTest.InvokeUi

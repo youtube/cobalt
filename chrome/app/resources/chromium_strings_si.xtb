@@ -279,7 +279,6 @@
 <translation id="4023601594785368013">මුල් භාෂාව: <ph name="LANGUAGE" /></translation>
 <translation id="4023845192681161785">ඕනෑම යෙදුමකින් Chromium හි සබැඳි විවෘත කරන්න. ඊට අමතරව පහසු ප්‍රවේශය සඳහා, එය ඔබේ කාර්ය තීරුවට අමුණනු ලැබේ.</translation>
 <translation id="4036079820698952681"><ph name="BEGIN_LINK" />වත්මන් සැකසීම්<ph name="END_LINK" /> වාර්තා කිරීමෙන් Chromium වඩා යහපත් කිරීමට උදවු වන්න</translation>
-<translation id="4039097928859803404">සැම විට ම AI මාදිලි කෙටිමං පෙන්වන්න</translation>
 <translation id="4050175100176540509">වැදගත් ආරක්ෂක වැඩිදියුණු කිරීම් සහ නව විශේෂාංග නවතම අනුවාදය තුළ ලද හැකිය.</translation>
 <translation id="4055805654398742145">මුරපද කළමනාකරු</translation>
 <translation id="4061696872429826774">ඔබේ පරිගණකයේ ඇති වෙනත් වැඩසටහනක් දිගුවක් එක් කර ඇති අතර එයින් Chromium ක්‍රියා කරන ආකරය වෙනස් විය හැක.
@@ -374,6 +373,7 @@
 <translation id="5289287148052354622">Chromium යෙදුම ලබා ගන්න</translation>
 <translation id="5294316920224716406">අප්‍රකට ප්‍රකාරයේ බ්‍රවුස් කරන විට, අනාරක්ෂිත සම්බන්ධතාවයක් භාවිතයෙන් අඩවියක් පූරණය කිරීමට පෙර Chromium ඔබට අනතුරු අඟවනු ඇත</translation>
 <translation id="5313228254328109263">Chromium යාවත්කාලීන අභ්‍යන්තර සේවාව</translation>
+<translation id="5346059693449184483">ඔබේ සිතෙහි ඇත්තේ කුමක් ද?</translation>
 <translation id="5346389065299425353">බහු පටිති, ගොනු සහ මෙවලම් එක් කිරීමෙන් ඔබේ සෙවීම ගැඹුරු කරන්න</translation>
 <translation id="5352264705793813212">Chromium ඔබේ සමාලෝචනය සඳහා ආරක්ෂක නිර්දේශ කිහිපයක් සොයා ගෙන ඇත</translation>
 <translation id="5352361688875342522">වෙනත් Chromium පැතිකඩ</translation>
@@ -483,6 +483,7 @@
 <translation id="6450948450282634257">මිල ගණන් නිරීක්ෂණය කිරීමට සහ ඕනෑම වෙබ් අඩවියක මිල පහත වැටෙන විට ඇඟවීම් ලබා ගැනීමට ඔබේ දුරකථනයට Chromium බාගන්න</translation>
 <translation id="645458117210240797">අක්‍රිය • Chromium හට මෙම දිගුව එන තැන සත්‍යාපන කළ නොහැක</translation>
 <translation id="6455857529632101747">Chromium පැතිකඩවල් වෙත සාදරයෙන් පිළිගනිමු</translation>
+<translation id="6460614424172581323">මීළඟ වතාවේ ඔබ ඔබේ <ph name="DEVICE_TYPE" /> මත Chromium විවෘත කරන විට, පටිති සමූහ භාවිත කිරීමට ප්‍රේරකයක් ඔබට පෙනෙනු ඇත.</translation>
 <translation id="6466344609055215035">Chromium වෙතින් ගිණුම ඉවත් කරන්න</translation>
 <translation id="6475912303565314141">ඔබ Chromium ආරම්භ කරන විට කුමන පිටුව පෙන්වන්නේද යන්නද එමගින් පාලනය කෙරේ.</translation>
 <translation id="648319183876919572">ඉහළ නැංවූ සුරක්ෂිත පිරික්සුම භයානක වෙබ් අඩවි සහ බාගැනීම්වලින් ඔබව ආරක්ෂා කිරීමට බොහෝ දේ කරයි</translation>
@@ -612,7 +613,6 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="7872446069773932638">බාගනිමින්... තත්පර <ph name="SECONDS" />ක් ඉතිරිව ඇත</translation>
 <translation id="7873537467422636035">ඔබට ඔබේ මුර වැකිකඩ අමතක වුවහොත් හෝ මෙම සැකසීම වෙනස් කිරීමට අවශ්‍ය නම්, <ph name="BEGIN_LINK" />ඔබේ ගිණුමේ ඇති Chromium දත්ත මකන්න<ph name="END_LINK" /></translation>
 <translation id="7877212753140190672">මෙම රූපය ගැන විමසන්න</translation>
-<translation id="7887929410013642057">සැම විට ම AI මාදිලි කෙටිමං පෙන්වන්න</translation>
 <translation id="7888981273428720788">Chromium ඔබේ පෙරනිමිය ලෙස සකසන්න</translation>
 <translation id="7934340546140346950">Chromium හැකි විට ස්වයංක්‍රීයව HTTPS වෙත අනාරක්ෂිත සම්බන්ධතා උත්ශ්‍රේණි කරයි</translation>
 <translation id="7937630085815544518">ඔබ Chromiumට සයින් ඉන් වී ඇත්තේ <ph name="USER_EMAIL_ADDRESS" /> ලෙසය. නැවත සයින් ඉන් වීමට එම ගිණුමම භාවිතා කරන්න.</translation>
@@ -629,6 +629,7 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="8086881907087796310">ඔබේ පරිගණකය අවම දෘඪාංග අවශ්‍යතා සපුරා නොමැති නිසා ස්ථාපනය අසමත් විය.</translation>
 <translation id="8096472344908884505"><ph name="PAGE_TITLE" /> - පරීක්ෂණය සඳහා Google Chrome</translation>
 <translation id="8105840573057009683">මෙම අඩවිය සඳහා Chromium හට ස්ථාන අවසරය අවශ්‍යයි</translation>
+<translation id="8107060931443639922">මීළඟ වතාවේ ඔබ ඔබේ <ph name="DEVICE_TYPE" /> මත Chromium විවෘත කරන විට, මිල ලුහුබැඳීමේ ඇඟවීම් සබල කිරීමට ප්‍රේරකයක් ඔබට පෙනෙනු ඇත.</translation>
 <translation id="8118331347066725040">Lens සමග සෙවීම සඳහා ප්‍රතිපෝෂණය යවන්න</translation>
 <translation id="8133124826068723441">ඔබගේ වසම සඳහා සමමුහුර්තකරණය ලබා ගත නොහැකි නිසා ChromiumOS හට ඔබගේ දත්ත සමමුහුර්ත කළ නොහැකි විය.</translation>
 <translation id="813913629614996137">මුල පුරමින්…</translation>
@@ -637,6 +638,7 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="8177472873527554730">පිටුවේ අන්තර්ගතය සොයාගත නොහැක</translation>
 <translation id="8200109504272824693">ඔබේ ගිණුමේ, <ph name="USER_EMAIL" /> Chromium දත්ත භාවිතා කිරීමට සහ සුරැකීමට ඔබේ මුර-වැකිකඩ ඇතුළු කරන්න</translation>
 <translation id="8221491193165283816">ඔබ සාමාන්‍යයෙන් දැනුම් දීම් අවහිර කරයි. මෙම වෙබ් අඩවියට ඔබට දැනුම්දීමට ඉඩ දීමට, මෙහි ක්ලික් කරන්න.</translation>
+<translation id="8223142476690844338">ආයුබෝවන් <ph name="USER_NAME" />, ඔබේ සිතෙහි ඇත්තේ කුමක් ද?</translation>
 <translation id="8223363452568144035">ඔබේ කැමරාව භාවිත කිරීමට, <ph name="BEGIN_LINK" />පද්ධති සැකසීම්<ph name="END_LINK" /> තුළ Chromium හට ප්‍රවේශය දෙන්න</translation>
 <translation id="8232193495299001329">Chromium හට මෙම දිගුව පැමිණියේ කොහෙන් දැයි සත්‍යාපනය කළ නොහැකි අතර එය අනාරක්ෂිත විය හැක. එයට පුද්ගලික තතු ඇතුළුව, ඔබ පිවිසෙන අඩවිවල ඔබේ දත්ත තවදුරටත් දැකීමට සහ වෙනස් කිරීමට නොහැකි වන පරිදි එය Chromium වෙතින් ඉවත් කරන්න.</translation>
 <translation id="8248265253516264921">රූපයකට ප්‍රයෝජනවත් විස්තරයක් නොමැති නම්, Chromium ඔබට විස්තරයක් ලබා දීමට උත්සාහ කරයි. විස්තර නිර්මාණ කිරීමට, රූප Google වෙත යවනු ලැබේ. ඔබට ඕනෑම වේලාවක සැකසීම් තුළින් මෙය අක්‍රිය කළ හැක.</translation>
@@ -705,6 +707,7 @@ Chromium හට ඔබගේ සැකසුම් ප්‍රතිසාධ�
 <translation id="897581876605952338">Chromium Enterprise ලාංඡනය</translation>
 <translation id="8981150672034878610">ඔබේ පැතිකඩ විවෘත කරන විට යමක් වැරදී ඇති නිසා Chromium ආරම්භ කළ නොහැක. Chromium යළි ඇරඹීමට උත්සාහ කරන්න.</translation>
 <translation id="8988036198400390003">Chromium පැතිකඩවල් කළමනා කරන්න</translation>
+<translation id="9003988359820989654">මගේ පරිගණකය ආරම්භ වන විට Chromium විවෘත කරන්න</translation>
 <translation id="9019929317751753759">Chromium වඩාත් ආරක්ෂිත කිරීම සඳහා, අප විසින් <ph name="IDS_EXTENSION_WEB_STORE_TITLE" /> ලැයිස්තුගත කර නොමැති හා ඔබේ දැනුමෙන් තොරව එක් කර ඇති ඇතැම් දිගු අබල කර ඇත.</translation>
 <translation id="904366664621834601">ලේඛනාරක්ෂිත ගොනුවේ අනිෂ්ට මෘදුකාංග සැඟවිය හැකි වෙනත් ගොනු ඇතුළත් නිසා Chromium මෙම බාගැනීම අවහිර කර ඇත</translation>
 <translation id="9062666675513499497">ඔබ වෙනත් Google සේවාවලට පුරන විට Chromium වෙත පුරන්න</translation>

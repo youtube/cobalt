@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 import './composebox.js';
+import './error_dialog.js';
 import './error_page.js';
 import './ghost_loader.js';
 import './top_toolbar.js';
@@ -16,9 +17,16 @@ import type {Uuid} from 'chrome://resources/mojo/mojo/public/mojom/base/uuid.moj
 import {getCss} from './app.css.js';
 import {getHtml} from './app.html.js';
 import type {ContextualTasksComposeboxElement} from './composebox.js';
+import type {ContextualTasksErrorDialogElement} from './error_dialog.js';
 import type {BrowserProxy} from './contextual_tasks_browser_proxy.js';
 import {BrowserProxyImpl} from './contextual_tasks_browser_proxy.js';
 import {PostMessageHandler} from './post_message_handler.js';
+
+declare global {
+  interface HTMLElementEventMap {
+    'newwindow': chrome.webviewTag.NewWindowEvent;
+  }
+}
 
 type ChromeEventFunctionType<T> =
     T extends ChromeEvent<infer ListenerType>? ListenerType : never;
@@ -33,6 +41,8 @@ export interface ContextualTasksAppElement {
     composebox: ContextualTasksComposeboxElement,
     composeboxHeaderWrapper: HTMLElement,
     composeboxHeader: HTMLElement,
+    errorDialog: ContextualTasksErrorDialogElement,
+    flexCenterContainer: HTMLElement,
   };
 }
 
@@ -124,15 +134,23 @@ export class ContextualTasksAppElement extends CrLitElement {
       isAiPage_: {type: Boolean, reflect: true},
       isLensOverlayShowing_: {type: Boolean},
       isGhostLoaderVisible_: {type: Boolean, reflect: true},
+      isErrorDialogVisible_: {type: Boolean},
+      enableNativeZeroStateSuggestions: {
+        type: Boolean,
+        reflect: true,
+      },
     };
   }
 
+  accessor enableNativeZeroStateSuggestions: boolean =
+      loadTimeData.getBoolean('enableNativeZeroStateSuggestions');
   private browserProxy_: BrowserProxy = BrowserProxyImpl.getInstance();
   protected accessor isAiPage_: boolean = true;
   protected accessor isLensOverlayShowing_: boolean = false;
   // Indicates if in tab mode. Most start in a tab.
   protected accessor isShownInTab_: boolean = true;
   protected accessor darkMode_: boolean = loadTimeData.getBoolean('darkMode');
+  protected accessor isErrorDialogVisible_: boolean = false;
   private pendingUrl_: string = '';
   protected accessor threadTitle_: string = '';
   protected accessor isInBasicMode_: boolean = false;
@@ -218,6 +236,10 @@ export class ContextualTasksAppElement extends CrLitElement {
       }),
       callbackRouter.hideErrorPage.addListener(() => {
         this.isErrorPageVisible_ = false;
+      }),
+      callbackRouter.showOauthErrorDialog.addListener(() => {
+        this.isErrorDialogVisible_ = true;
+        this.$.errorDialog.showDialog();
       }),
     ];
 
@@ -379,6 +401,14 @@ export class ContextualTasksAppElement extends CrLitElement {
         },
         ['blocking']);
 
+    // Allow downloading files. This is necessary since aim can generate images
+    // for download.
+    this.$.threadFrame.addEventListener('permissionrequest', (e: any) => {
+      if (e.permission === 'download') {
+        e.request.allow();
+      }
+    });
+
     // Sets the user agent to the default user agent + the contextual tasks
     // custom suffix.
     const userAgent = this.$.threadFrame.getUserAgent();
@@ -429,6 +459,10 @@ export class ContextualTasksAppElement extends CrLitElement {
 
   getThreadUrlForTesting() {
     return this.$.threadFrame.src;
+  }
+
+  protected onErrorDialogClose_() {
+    this.isErrorDialogVisible_ = false;
   }
 
   private setIsGhostLoaderVisible(isVisible: boolean) {

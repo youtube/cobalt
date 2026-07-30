@@ -73,7 +73,7 @@ const NSDirectionalEdgeInsets kImageGenerationButtonInsets = {5, 8, 5, 28};
 const CGFloat kButtonsCompactSpacing = 4.0f;
 const CGFloat kButtonsStackViewSpacing = 6.0f;
 /// The spacing between the Lens and Voice buttons.
-const CGFloat kShortcutsSpacing = 16.0f;
+const CGFloat kShortcutsSpacing = 10.0f;
 /// The spacing for the main vertical input plate stack view.
 const CGFloat kInputPlateStackViewSpacing = 6.0f;
 /// The default vertical padding for the input plate. When the text view is the
@@ -91,7 +91,8 @@ const NSDirectionalEdgeInsets kInputPlateStackViewPadding = {.leading = 0.0f,
 /// toolbar).
 const NSDirectionalEdgeInsets kInputPlatePadding = {.leading = 8.0,
                                                     .trailing = 5.0};
-
+/// The spacing added after the Lens and Voice buttons in compact mode.
+const CGFloat kShortcutsTrailingPaddingCompact = 3.0f;
 /// The padding of the toolbar and carousel elements.
 ///
 /// Note: While padding is offset to visually align the clear button's visual
@@ -224,6 +225,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   BOOL _createImageActionsHidden;
   BOOL _createImageActionsDisabled;
   /// Canvas action state.
+  BOOL _canvasActionsDisabled;
   BOOL _canvasActionsHidden;
   /// Camera action state.
   BOOL _cameraActionsDisabled;
@@ -231,6 +233,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   /// Gallery action state.
   BOOL _galleryActionsDisabled;
   BOOL _galleryActionsHidden;
+  /// The allowed models.
+  std::unordered_set<ComposeboxModelOption> _allowedModels;
   /// Container for the omnibox.
   UIView* _omniboxContainer;
 
@@ -490,6 +494,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self animateButton:_imageGenerationButton hidden:!(controls & kCreateImage)];
   [self animateButton:_canvasButton hidden:!(controls & kCanvas)];
   [self animateLeadingImageHidden:!(controls & kLeadingImage)];
+
+  [self updateInputPlateStackViewPadding];
 }
 
 - (void)animateReveal:(void (^)(void))animations {
@@ -678,6 +684,14 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self updatePlusButtonItems];
 }
 
+- (void)disableCanvasActions:(BOOL)disabled {
+  if (_canvasActionsDisabled == disabled) {
+    return;
+  }
+  _canvasActionsDisabled = disabled;
+  [self updatePlusButtonItems];
+}
+
 - (void)disableCameraActions:(BOOL)disabled {
   if (_cameraActionsDisabled == disabled) {
     return;
@@ -702,6 +716,15 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   [self updatePlusButtonItems];
 }
 
+- (void)setAllowedModels:
+    (std::unordered_set<ComposeboxModelOption>)allowedModels {
+  if (_allowedModels == allowedModels) {
+    return;
+  }
+  _allowedModels = allowedModels;
+  [self updatePlusButtonItems];
+}
+
 - (void)setRemainingAttachmentCapacity:(NSUInteger)capacity {
   _remainingAttachmentCapacity = capacity;
 }
@@ -709,6 +732,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 - (void)setModelOption:(ComposeboxModelOption)modelOption {
   _modelOption = modelOption;
   [self updatePlusButtonItems];
+  [self updateCreateImageTitle];
 }
 
 #pragma mark - Actions
@@ -1112,17 +1136,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 /// Creates the AI Mode button.
 - (UIButton*)createAIMButton {
   UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
-  button.configurationUpdateHandler = ^(UIButton* updatedButton) {
-    BOOL isHighlighted = updatedButton.state == UIControlStateHighlighted;
-    CGFloat scale = isHighlighted ? 0.95 : 1.0;
-    CGFloat alpha = isHighlighted ? 0.85 : 1.0;
-    [UIView animateWithDuration:0.1
-                     animations:^{
-                       updatedButton.alpha = alpha;
-                       updatedButton.transform =
-                           CGAffineTransformMakeScale(scale, scale);
-                     }];
-  };
+  button.configurationUpdateHandler =
+      [self configurationUpdateHandlerForModeIndicator];
   button.translatesAutoresizingMaskIntoConstraints = NO;
   [button addTarget:self
                 action:@selector(aimButtonTapped)
@@ -1405,8 +1420,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   }
 
   UIAction* createImageAction =
-      [UIAction actionWithTitle:l10n_util::GetNSString(
-                                    IDS_IOS_COMPOSEBOX_CREATE_IMAGE_ACTION)
+      [UIAction actionWithTitle:[self createImageActionTitle]
                           image:[self bananaIcon]
                      identifier:nil
                         handler:^(UIAction* action) {
@@ -1481,27 +1495,34 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                      galleryAction, fileAction
                    ]];
 
-  NSMutableArray<UIMenuElement*>* availableModes =
-      [[NSMutableArray alloc] initWithArray:@[ aimAction, createImageAction ]];
-  if (!_canvasActionsHidden) {
-    CHECK(ShowComposeboxAdditionalAdvancedTools());
-    // TODO(crbug.com/477243979): Replace icon once defined.
-    UIAction* canvasAction = [UIAction
-        actionWithTitle:l10n_util::GetNSString(IDS_IOS_COMPOSEBOX_CANVAS_ACTION)
-                  image:DefaultSymbolWithPointSize(kEditActionSymbol,
-                                                   kSymbolActionPointSize)
-             identifier:nil
-                handler:^(UIAction* action) {
-                  [weakSelf handleCanvasTappedFromToolMenu];
-                }];
-    [availableModes addObject:canvasAction];
+  // TODO(crbug.com/477243979): Replace icon once defined.
+  UIAction* canvasAction = [UIAction
+      actionWithTitle:l10n_util::GetNSString(IDS_IOS_COMPOSEBOX_CANVAS_ACTION)
+                image:DefaultSymbolWithPointSize(kEditActionSymbol,
+                                                 kSymbolActionPointSize)
+           identifier:nil
+              handler:^(UIAction* action) {
+                [weakSelf handleCanvasTappedFromToolMenu];
+              }];
+  UIMenuElementAttributes canvasAttributes = 0;
+  if (_canvasActionsHidden) {
+    canvasAttributes |= UIMenuElementAttributesHidden;
+  }
+  if (_canvasActionsDisabled) {
+    canvasAttributes |= UIMenuElementAttributesDisabled;
+  }
+  canvasAction.attributes = canvasAttributes;
+
+  if (_canvasEnabled) {
+    [canvasAction setState:UIMenuElementStateOn];
   }
 
-  UIMenu* modeMenu = [UIMenu menuWithTitle:@""
-                                     image:nil
-                                identifier:nil
-                                   options:UIMenuOptionsDisplayInline
-                                  children:availableModes];
+  UIMenu* modeMenu =
+      [UIMenu menuWithTitle:@""
+                      image:nil
+                 identifier:nil
+                    options:UIMenuOptionsDisplayInline
+                   children:@[ aimAction, createImageAction, canvasAction ]];
 
   NSMutableArray<UIMenuElement*>* sections =
       [[NSMutableArray alloc] initWithArray:@[ attachmentMenu, modeMenu ]];
@@ -1517,8 +1538,13 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                   [weakSelf handleModelChangeFromToolsMenuWithOption:
                                 ComposeboxModelOption::kAuto];
                 }];
-    if (_modelOption == ComposeboxModelOption::kAuto) {
-      [autoModelOption setState:UIMenuElementStateOn];
+
+    if (_allowedModels.contains(ComposeboxModelOption::kAuto)) {
+      if (_modelOption == ComposeboxModelOption::kAuto) {
+        [autoModelOption setState:UIMenuElementStateOn];
+      }
+    } else {
+      autoModelOption.attributes |= UIMenuElementAttributesDisabled;
     }
 
     UIAction* thinkingModelOption = [UIAction
@@ -1532,8 +1558,12 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
                                 ComposeboxModelOption::kThinking];
                 }];
 
-    if (_modelOption == ComposeboxModelOption::kThinking) {
-      [thinkingModelOption setState:UIMenuElementStateOn];
+    if (_allowedModels.contains(ComposeboxModelOption::kThinking)) {
+      if (_modelOption == ComposeboxModelOption::kThinking) {
+        [thinkingModelOption setState:UIMenuElementStateOn];
+      }
+    } else {
+      thinkingModelOption.attributes |= UIMenuElementAttributesDisabled;
     }
 
     UIMenu* modelPickerMenu =
@@ -1685,13 +1715,6 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     [_inputPlateStackView setCustomSpacing:kShortcutsSpacing
                                  afterView:_micButton];
     _bottomPaddingConstraint.constant = -kInputPlateStackViewVerticalPadding;
-    _inputPlateStackView.layoutMarginsRelativeArrangement = YES;
-    // Ensure we do not lose the margins on the sides when in compact mode.
-    _inputPlateStackView.layoutMargins = UIEdgeInsetsMake(
-        0, kInputPlatePadding.leading, 0, kInputPlatePadding.trailing);
-    // Margins are applied on the input plate, remove the margins on the
-    // omnibox.
-    _omniboxContainer.directionalLayoutMargins = NSDirectionalEdgeInsetsZero;
   } else {
     _toolbarView = [self createToolbarView];
     [_inputPlateStackView insertArrangedSubview:_carouselContainer atIndex:0];
@@ -1703,10 +1726,36 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
     _inputPlateContainerView.layer.cornerRadius = kInputPlateCornerRadius;
     _inputPlateInternalContainerView.layer.cornerRadius =
         kInputPlateCornerRadius;
+  }
+
+  [self updateInputPlateStackViewPadding];
+  [self updateInputPlateStackViewTopConstraint];
+}
+
+// Updates the side paddings of the input plate stack view.
+- (void)updateInputPlateStackViewPadding {
+  if (self.compact) {
+    CGFloat trailingPadding = kInputPlatePadding.trailing;
+    ComposeboxInputPlateControls shortcuts =
+        ComposeboxInputPlateControls::kLens |
+        ComposeboxInputPlateControls::kVoice;
+    BOOL shortcutsVisible =
+        (_visibleControls & shortcuts) != ComposeboxInputPlateControls::kNone;
+    if (shortcutsVisible) {
+      trailingPadding += kShortcutsTrailingPaddingCompact;
+    }
+
+    _inputPlateStackView.layoutMarginsRelativeArrangement = YES;
+    // Ensure we do not lose the margins on the sides when in compact mode.
+    _inputPlateStackView.layoutMargins =
+        UIEdgeInsetsMake(0, kInputPlatePadding.leading, 0, trailingPadding);
+    // Margins are applied on the input plate, remove the margins on the
+    // omnibox.
+    _omniboxContainer.directionalLayoutMargins = NSDirectionalEdgeInsetsZero;
+  } else {
     _inputPlateStackView.layoutMarginsRelativeArrangement = NO;
     _omniboxContainer.directionalLayoutMargins = kInputPlatePadding;
   }
-  [self updateInputPlateStackViewTopConstraint];
 }
 
 /// Animates the transition of the input plate stack view between compact and
@@ -1781,6 +1830,8 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 
 - (UIButton*)createImageGenerationButton {
   UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
+  button.configurationUpdateHandler =
+      [self configurationUpdateHandlerForModeIndicator];
   button.translatesAutoresizingMaskIntoConstraints = NO;
   button.accessibilityIdentifier =
       kComposeboxImageGenerationButtonAccessibilityIdentifier;
@@ -1790,8 +1841,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   button.layer.borderWidth = 0;
 
   UIButtonConfiguration* config =
-      [self modeIndicatorButtonConfigWithTitle:
-                l10n_util::GetNSString(IDS_IOS_COMPOSEBOX_CREATE_IMAGE_ACTION)
+      [self modeIndicatorButtonConfigWithTitle:[self createImageActionTitle]
                                          image:[self bananaIcon]];
   config.contentInsets = kImageGenerationButtonInsets;
   config.background.backgroundColor =
@@ -1805,9 +1855,34 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   return button;
 }
 
+// Uptates the create image nudge button title.
+- (void)updateCreateImageTitle {
+  UIButtonConfiguration* config = _imageGenerationButton.configuration;
+
+  NSString* createImageTitle = [self createImageActionTitle];
+  UIFont* font = [UIFont systemFontOfSize:kAIMButtonFontSize
+                                   weight:UIFontWeightMedium];
+  NSDictionary* attributes = @{NSFontAttributeName : font};
+
+  config.attributedTitle =
+      [[NSAttributedString alloc] initWithString:createImageTitle
+                                      attributes:attributes];
+
+  _imageGenerationButton.configuration = config;
+}
+
+- (NSString*)createImageActionTitle {
+  BOOL isPro = _modelOption == ComposeboxModelOption::kThinking;
+  return l10n_util::GetNSString(isPro
+                                    ? IDS_IOS_COMPOSEBOX_CREATE_IMAGE_PRO_ACTION
+                                    : IDS_IOS_COMPOSEBOX_CREATE_IMAGE_ACTION);
+}
+
 // Creates a new canvas button to be displayed in the input plate.
 - (UIButton*)createCanvasButton {
   UIButton* button = [UIButton buttonWithType:UIButtonTypeSystem];
+  button.configurationUpdateHandler =
+      [self configurationUpdateHandlerForModeIndicator];
   button.translatesAutoresizingMaskIntoConstraints = NO;
   [button addTarget:self
                 action:@selector(canvasButtonTapped)
@@ -1841,6 +1916,23 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   return button;
 }
 
+// Returns the configuration update handler animating the button on tap.
+- (UIButtonConfigurationUpdateHandler)
+    configurationUpdateHandlerForModeIndicator {
+  return ^(UIButton* updatedButton) {
+    BOOL isHighlighted = updatedButton.state == UIControlStateHighlighted;
+    CGFloat scale = isHighlighted ? 0.95 : 1.0;
+    CGFloat alpha = isHighlighted ? 0.85 : 1.0;
+    [UIView animateWithDuration:0.1
+                     animations:^{
+                       updatedButton.alpha = alpha;
+                       updatedButton.transform =
+                           CGAffineTransformMakeScale(scale, scale);
+                     }];
+  };
+}
+
+/// Called when a drop session ends.
 - (void)dropSessionDidEnd:(id<UIDropSession>)session {
   CHECK(self.delegate);
 
@@ -1988,6 +2080,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   CHECK(self.mutator);
   CHECK(tabInfo);
   CHECK_EQ(tabInfo.incognito, _theme.incognito);
+
   web::WebState* webState =
       [self.delegate webStateForTabOnCurrentProfile:tabInfo];
 
@@ -2004,11 +2097,6 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
   CHECK(
       [itemProvider hasItemConformingToTypeIdentifier:UTTypeImage.identifier]);
 
-  // TODO(crbug.com/475203545): Prevent duplicate items being added. The file
-  // picker and the drag-and-drop interfaces have different schemes for
-  // generating asset IDs. They should be common, in order to prevent the same
-  // file being added several times. This should be updated so that asset IDs
-  // generated during drag-and-drop match for the same image being dropped.
   [self.mutator processImageItemProvider:itemProvider
                                  assetID:[NSUUID UUID].UUIDString];
 }
@@ -2029,11 +2117,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 - (void)handleTextDrop:(NSString*)text error:(NSError*)error {
   CHECK(self.mutator);
 
-  if (!text) {
-    return;
-  }
-
-  if (error) {
+  if (error || !text) {
     return;
   }
 
@@ -2047,11 +2131,7 @@ UIImage* SendButtonImage(BOOL highlighted, ComposeboxTheme* theme) {
 - (void)handlePDFDrop:(NSURL*)url error:(NSError*)error {
   CHECK(self.mutator);
 
-  if (!url) {
-    return;
-  }
-
-  if (error) {
+  if (error || !url) {
     return;
   }
 

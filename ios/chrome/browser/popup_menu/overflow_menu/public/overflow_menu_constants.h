@@ -54,8 +54,9 @@ enum class ActionType {
   AskBWG,
   HideToolbars,
   TabGroup,
+  ShareThisPage,
 };
-// LINT.ThenChange(overflow_menu_metrics.h:actionType)
+// LINT.ThenChange(ios/chrome/browser/popup_menu/overflow_menu/ui/overflow_menu_metrics.h:actionType)
 
 // Ingests `destination` string representation and returns corresponding
 // overflow_menu::Destination enum.

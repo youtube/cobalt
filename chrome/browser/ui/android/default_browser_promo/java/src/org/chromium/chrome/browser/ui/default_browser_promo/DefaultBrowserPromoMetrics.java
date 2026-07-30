@@ -6,11 +6,40 @@ package org.chromium.chrome.browser.ui.default_browser_promo;
 
 import org.chromium.base.metrics.RecordHistogram;
 import org.chromium.build.annotations.NullMarked;
+import org.chromium.chrome.browser.ui.default_browser_promo.DefaultBrowserPromoUtils.DefaultBrowserPromoEntryPoint;
 import org.chromium.chrome.browser.util.DefaultBrowserInfo.DefaultBrowserState;
 
 /** Helper class to record histograms related to the default browser promo. */
 @NullMarked
 class DefaultBrowserPromoMetrics {
+
+    private static String getSourceSuffix(@DefaultBrowserPromoEntryPoint int source) {
+        if (source == DefaultBrowserPromoEntryPoint.APP_MENU) {
+            return "AppMenu";
+        } else if (source == DefaultBrowserPromoEntryPoint.SETTINGS) {
+            return "Settings";
+        }
+        return "";
+    }
+
+    /**
+     * Record the click event on an entry point.
+     *
+     * @param source The source of the click ("AppMenu" or "Settings").
+     * @param currentState The state of the browser (OTHER_DEFAULT, CHROME_DEFAULT, etc.) at the
+     *     moment of the click.
+     */
+    static void recordEntrypointClick(
+            @DefaultBrowserPromoEntryPoint int source, @DefaultBrowserState int currentState) {
+        String suffix = getSourceSuffix(source);
+        if (suffix.isEmpty()) return;
+
+        RecordHistogram.recordEnumeratedHistogram(
+                "Android.DefaultBrowserPromo.EntryPoint." + suffix,
+                currentState,
+                DefaultBrowserState.NUM_ENTRIES);
+    }
+
     /**
      * Record {@link DefaultBrowserState} when role manager dialog is shown.
      *
@@ -21,6 +50,23 @@ class DefaultBrowserPromoMetrics {
         RecordHistogram.recordEnumeratedHistogram(
                 "Android.DefaultBrowserPromo.RoleManagerShown",
                 currentState,
+                DefaultBrowserState.NUM_ENTRIES);
+    }
+
+    /**
+     * Record the outcome of the default browser promo for a specific source.
+     *
+     * @param newState The {@link DefaultBrowserState} after the user changes the default.
+     * @param source The source of the promo (e.g. "AppMenu").
+     */
+    static void recordOutcome(
+            @DefaultBrowserState int newState, @DefaultBrowserPromoEntryPoint int source) {
+        String suffix = getSourceSuffix(source);
+        if (suffix.isEmpty()) return;
+
+        RecordHistogram.recordEnumeratedHistogram(
+                "Android.DefaultBrowserPromo.Outcome." + suffix,
+                newState,
                 DefaultBrowserState.NUM_ENTRIES);
     }
 

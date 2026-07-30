@@ -157,26 +157,6 @@ void OnOpenWindowFinished(
   std::move(callback).Run(success, std::move(client_info), error_msg);
 }
 
-void DidShowPaymentHandlerWindow(
-    const GURL& url,
-    const blink::StorageKey& key,
-    const base::WeakPtr<ServiceWorkerContextCore>& context,
-    blink::mojom::ServiceWorkerHost::OpenPaymentHandlerWindowCallback callback,
-    bool success,
-    int render_process_id,
-    int render_frame_id) {
-  if (success) {
-    service_worker_client_utils::DidNavigate(
-        context, url, key,
-        base::BindOnce(&OnOpenWindowFinished, std::move(callback)),
-        GlobalRenderFrameHostId(render_process_id, render_frame_id));
-  } else {
-    OnOpenWindowFinished(std::move(callback),
-                         blink::ServiceWorkerStatusCode::kErrorFailed,
-                         nullptr /* client_info */);
-  }
-}
-
 void DidNavigateClient(
     blink::mojom::ServiceWorkerHost::NavigateClientCallback callback,
     const GURL& url,
@@ -1767,11 +1747,37 @@ void ServiceWorkerVersion::OpenPaymentHandlerWindow(
 
   PaymentHandlerSupport::ShowPaymentHandlerWindow(
       url, context_.get(),
-      base::BindOnce(&DidShowPaymentHandlerWindow, url, key_, context_),
+      base::BindOnce(&ServiceWorkerVersion::DidShowPaymentHandlerWindow,
+                     weak_factory_.GetWeakPtr(), url, key_, context_),
       base::BindOnce(
           &ServiceWorkerVersion::OpenWindow, weak_factory_.GetWeakPtr(), url,
           service_worker_client_utils::WindowType::PAYMENT_HANDLER_WINDOW),
       std::move(callback));
+}
+
+void ServiceWorkerVersion::DidShowPaymentHandlerWindow(
+    const GURL& url,
+    const blink::StorageKey& key,
+    const base::WeakPtr<ServiceWorkerContextCore>& context,
+    blink::mojom::ServiceWorkerHost::OpenPaymentHandlerWindowCallback callback,
+    bool success,
+    int render_process_id,
+    int render_frame_id) {
+  if (success) {
+    payment_handler_connected_ = true;
+    service_worker_client_utils::DidNavigate(
+        context, url, key,
+        base::BindOnce(&OnOpenWindowFinished, std::move(callback)),
+        GlobalRenderFrameHostId(render_process_id, render_frame_id));
+  } else {
+    OnOpenWindowFinished(std::move(callback),
+                         blink::ServiceWorkerStatusCode::kErrorFailed,
+                         nullptr /* client_info */);
+  }
+}
+
+void ServiceWorkerVersion::OnPaymentHandlerDisconnect() {
+  payment_handler_connected_ = false;
 }
 
 void ServiceWorkerVersion::PostMessageToClient(
@@ -2168,11 +2174,12 @@ ServiceWorkerVersion::BuildClientSecurityState() const {
 
   const PolicyContainerPolicies& policies = policy_container_host_->policies();
 
-  network::mojom::PrivateNetworkRequestPolicy private_network_request_policy =
-      DeriveLocalNetworkAccessRequestPolicy(
-          policies.ip_address_space, policies.is_web_secure_context,
-          policies.allow_non_secure_local_network_access,
-          LocalNetworkAccessRequestContext::kWorker);
+  network::mojom::LocalNetworkAccessRequestPolicy
+      local_network_access_request_policy =
+          DeriveLocalNetworkAccessRequestPolicy(
+              policies.ip_address_space, policies.is_web_secure_context,
+              policies.allow_non_secure_local_network_access,
+              LocalNetworkAccessRequestContext::kWorker);
 
   // Check for policy overrides on LNA. For service workers, we apply
   // policy overrides based on the storage key's origin (which should be the
@@ -2191,8 +2198,8 @@ ServiceWorkerVersion::BuildClientSecurityState() const {
           policy_override =
               client->ShouldOverrideLocalNetworkAccessRequestPolicy(
                   browser_context, origin);
-      private_network_request_policy = OverrideLocalNetworkAccessPolicy(
-          private_network_request_policy, policy_override);
+      local_network_access_request_policy = OverrideLocalNetworkAccessPolicy(
+          local_network_access_request_policy, policy_override);
     }
   }
 
@@ -2200,7 +2207,7 @@ ServiceWorkerVersion::BuildClientSecurityState() const {
   // DeriveClientSecurityState
   return network::mojom::ClientSecurityState::New(
       policies.cross_origin_embedder_policy, policies.is_web_secure_context,
-      policies.ip_address_space, private_network_request_policy,
+      policies.ip_address_space, local_network_access_request_policy,
       policies.document_isolation_policy);
 }
 
@@ -2487,7 +2494,7 @@ void ServiceWorkerVersion::StartWorkerInternal() {
         policy_container_host_->ip_address_space();
     client_security_state_->is_web_secure_context =
         policy_container_host_->policies().is_web_secure_context;
-    client_security_state_->private_network_request_policy =
+    client_security_state_->local_network_access_request_policy =
         DeriveLocalNetworkAccessRequestPolicy(
             policy_container_host_->policies(),
             LocalNetworkAccessRequestContext::kWorker);
@@ -2546,6 +2553,13 @@ void ServiceWorkerVersion::OnTimeoutTimer() {
       << static_cast<int>(running_status());
 
   if (!context_) {
+    return;
+  }
+
+  // Suppress timeout while a Payment Handler window is open.
+  if (base::FeatureList::IsEnabled(
+          features::kServiceWorkerSuppressTimeoutWhenPaymentWindowOpen) &&
+      payment_handler_connected_) {
     return;
   }
 

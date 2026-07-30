@@ -10,9 +10,9 @@
 #include "base/time/time.h"
 #include "build/build_config.h"
 #include "chrome/browser/actor/actor_features.h"
+#include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_test_util.h"
-#include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager_prefs.h"
 #include "chrome/browser/devtools/devtools_window_testing.h"
 #include "chrome/browser/glic/host/glic_actor_interactive_uitest_common.h"
@@ -429,6 +429,32 @@ IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest, WaitObserveTabFirstAction) {
         return last_execution_result()->tabs().at(0).id() == tab1.raw_value();
       })
   );
+  // clang-format on
+}
+
+IN_PROC_BROWSER_TEST_F(GlicActorGeneralUiTest,
+                       CreateMultipleTasksInSingleInstanceFails) {
+  actor::TaskId first_task_id;
+  actor::TaskId second_task_id;
+  // clang-format off
+  RunTestSequence(
+      DeprecatedOpenGlicWindow(GlicWindowMode::kAttached),
+      CreateTask(first_task_id, ""),
+
+      // Attempting to create a second task should fail and it shouldn't affect
+      // the existing task.
+      CreateTask(second_task_id, "",
+        mojom::CreateTaskErrorReason::kExistingActiveTask),
+      Check([&](){return second_task_id.is_null();}),
+      CheckActorTaskState(first_task_id, actor::ActorTask::State::kCreated),
+
+      // Stop the actor task.
+      StopActorTaskAndWait(first_task_id),
+
+      // Creating a new task now should succeed.
+      CreateTask(second_task_id, ""),
+      Check([&](){return !second_task_id.is_null();})
+    );
   // clang-format on
 }
 

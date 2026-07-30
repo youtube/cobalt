@@ -53,7 +53,6 @@
 #include "third_party/blink/renderer/platform/geometry/float_rounded_rect.h"
 #include "third_party/blink/renderer/platform/geometry/path.h"
 #include "third_party/blink/renderer/platform/geometry/path_builder.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_high_entropy_op_type.h"
 #include "third_party/blink/renderer/platform/heap/collection_support/heap_vector.h"
 #include "third_party/blink/renderer/platform/heap/member.h"
 #include "third_party/blink/renderer/platform/instrumentation/use_counter.h"
@@ -454,7 +453,6 @@ void CanvasPath::arc(double double_x,
   }
 
   UpdatePathFromLineOrArcIfNecessaryForMutation();
-  high_entropy_path_op_types_ |= HighEntropyCanvasOpType::kArc;
 
   if (!radius || start_angle == end_angle) [[unlikely]] {
     // The arc is empty but we still need to draw the connecting line.
@@ -534,7 +532,6 @@ void CanvasPath::ellipse(double double_x,
     return;
   }
 
-  high_entropy_path_op_types_ |= HighEntropyCanvasOpType::kEllipse;
   path_builder_.AddEllipse(gfx::PointF(x, y), radius_x, radius_y, rotation,
                            start_angle, adjusted_end_angle);
 }

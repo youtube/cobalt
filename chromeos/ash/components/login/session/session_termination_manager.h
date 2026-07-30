@@ -24,6 +24,13 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_SESSION)
    public:
     // Occurs when the session will be terminated.
     virtual void OnSessionWillBeTerminated() {}
+
+    // Bridged to browser_shutdown::NotifyAppTerminating().
+    // For historical reasons, the callback here is "slightly" different from
+    // the one above.
+    // TODO(crbug.com/479113713): Consider to migrate into
+    // OnSessionWillBeTerminated().
+    virtual void OnAppTerminating() {}
   };
 
   SessionTerminationManager();
@@ -56,12 +63,27 @@ class COMPONENT_EXPORT(CHROMEOS_ASH_COMPONENTS_LOGIN_SESSION)
 
   void RemoveObserver(Observer* observer);
 
+  // Returns a callback notifying Observer::OnAppTerminating.
+  // This should be used only for bridging with Chrome app termination
+  // callback.
+  base::OnceClosure GetClosureNotifyingAppTerminating();
+
+  // Returns true if we sent or are planning to send a stop session request to
+  // session manager.
+  static bool IsSendingStopRequestToSessionManager();
+
+  // Sets the flag to send a stop request to session manager instead of
+  // shutting down/restarting Chrome in place.
+  static void SetSendStopRequestToSessionManager(
+      bool should_send_request = true);
+
  private:
   void DidWaitForServiceToBeAvailable(bool service_is_available);
   void ProcessCryptohomeLoginStatusReply(
       const std::optional<user_data_auth::GetLoginStatusReply>& reply);
   void RebootIfNecessaryProcessReply(
       std::optional<user_data_auth::GetLoginStatusReply> reply);
+  void OnAppTerminating();
 
   base::ObserverList<Observer> observers_;
   bool is_locked_to_single_user_ = false;

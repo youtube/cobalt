@@ -13,6 +13,7 @@
 #include "chrome/browser/flags/android/chrome_feature_list.h"
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_interface.h"
+#include "chrome/browser/ui/browser_window/public/browser_window_interface_iterator.h"
 #include "chrome/browser/ui/browser_window/test/android/browser_window_android_browsertest_base.h"
 #include "chrome/browser/ui/tabs/tab_list_interface.h"
 #include "chrome/test/base/android/android_browser_test.h"
@@ -21,22 +22,29 @@
 #include "components/prefs/pref_service.h"
 #include "content/public/test/browser_test.h"
 #include "testing/gtest/include/gtest/gtest.h"
+#include "ui/base/mojom/window_show_state.mojom.h"
 
 namespace {
 BrowserWindowInterface* CreateBrowserWindowSync(
     BrowserWindowInterface::Type type,
-    Profile* profile) {
+    Profile* profile,
+    ui::mojom::WindowShowState initial_show_state =
+        ui::mojom::WindowShowState::kDefault) {
   BrowserWindowCreateParams create_params =
       BrowserWindowCreateParams(type, *profile, /*from_user_gesture=*/false);
+  create_params.initial_show_state = initial_show_state;
 
   return CreateBrowserWindow(std::move(create_params));
 }
 
 BrowserWindowInterface* CreateBrowserWindowAsync(
     BrowserWindowInterface::Type type,
-    Profile* profile) {
+    Profile* profile,
+    ui::mojom::WindowShowState initial_show_state =
+        ui::mojom::WindowShowState::kDefault) {
   BrowserWindowCreateParams create_params =
       BrowserWindowCreateParams(type, *profile, /*from_user_gesture=*/false);
+  create_params.initial_show_state = initial_show_state;
 
   base::test::TestFuture<BrowserWindowInterface*> future;
   CreateBrowserWindow(std::move(create_params), future.GetCallback());
@@ -128,6 +136,20 @@ IN_PROC_BROWSER_TEST_F(
 
 IN_PROC_BROWSER_TEST_F(
     CreateBrowserWindowAndroidBrowserTest,
+    CreateBrowserWindowSync_UnsupportedInitialShowState_ReturnsNull) {
+  auto type = BrowserWindowInterface::Type::TYPE_NORMAL;
+  Profile* profile = GetProfile();
+  auto initial_show_state =
+      ui::mojom::WindowShowState::kFullscreen;  // not supported on Android
+
+  BrowserWindowInterface* new_browser_window =
+      CreateBrowserWindowSync(type, profile, initial_show_state);
+
+  EXPECT_EQ(new_browser_window, nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    CreateBrowserWindowAndroidBrowserTest,
     CreateBrowserWindowAsync_RegularProfile_TriggersCallbackWithRegularBrowserWindow) {
   auto type = BrowserWindowInterface::Type::TYPE_NORMAL;
   Profile* profile = GetProfile();
@@ -193,6 +215,20 @@ IN_PROC_BROWSER_TEST_F(
   EXPECT_EQ(new_browser_window, nullptr);
 }
 
+IN_PROC_BROWSER_TEST_F(
+    CreateBrowserWindowAndroidBrowserTest,
+    CreateBrowserWindowAsync_UnsupportedInitialShowState_TriggersCallbackWithNull) {
+  auto type = BrowserWindowInterface::Type::TYPE_NORMAL;
+  Profile* profile = GetProfile();
+  auto initial_show_state =
+      ui::mojom::WindowShowState::kFullscreen;  // not supported on Android
+
+  BrowserWindowInterface* new_browser_window =
+      CreateBrowserWindowAsync(type, profile, initial_show_state);
+
+  EXPECT_EQ(new_browser_window, nullptr);
+}
+
 IN_PROC_BROWSER_TEST_F(CreateBrowserWindowAndroidBrowserTest,
                        CreateBrowserWindowSync_IncognitoDisabled_ReturnsNull) {
   Profile* incognito_profile =
@@ -224,4 +260,24 @@ IN_PROC_BROWSER_TEST_F(
       CreateBrowserWindowAsync(type, incognito_profile);
 
   EXPECT_EQ(new_browser_window, nullptr);
+}
+
+IN_PROC_BROWSER_TEST_F(
+    CreateBrowserWindowAndroidBrowserTest,
+    CreateBrowserWindowAsync_ReturnsBrowserWindowAsLastActivatedWindow) {
+  auto type = BrowserWindowInterface::Type::TYPE_NORMAL;
+  Profile* profile = GetProfile();
+
+  // 1. Create a new browser window asynchronously.
+  BrowserWindowInterface* new_browser_window =
+      CreateBrowserWindowAsync(type, profile);
+
+  // 2. Obtain the last active browser window.
+  // This call would have crashed without the fix, as it sorts windows by their
+  // activation time.
+  BrowserWindowInterface* last_active_browser_window =
+      GetLastActiveBrowserWindowInterfaceWithAnyProfile();
+
+  // 3. Verify the newly created window is the last active window.
+  EXPECT_EQ(new_browser_window, last_active_browser_window);
 }

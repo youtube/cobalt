@@ -370,6 +370,7 @@
 <translation id="2306265833370324042">Прикажи детаље за <ph name="SEARCH_ENGINE_NAME" /></translation>
 <translation id="2309265394777270359">Затвори картицу</translation>
 <translation id="2311077293164383652">Затвори закачену картицу</translation>
+<translation id="2313392466694008052">Измените слику помоћу Gemini-ја</translation>
 <translation id="2316129865977710310">Не, хвала</translation>
 <translation id="2320166752086256636">Сакриј тастатуру</translation>
 <translation id="2321086116217818302">Припремају се лозинке...</translation>
@@ -521,6 +522,7 @@
 <translation id="288655811176831528">Затвори картицу</translation>
 <translation id="2888631381369839306">Обавештења о праћењу цена су укључена</translation>
 <translation id="2893168226686371498">Подразумевани прегледач</translation>
+<translation id="2893791155497534382">Лозинке и друге активности могу да се бришу у одговарајућим подешавањима управљања</translation>
 <translation id="2894757982205307093">Нова картица у групи</translation>
 <translation id="2902312830803030883">Још радњи</translation>
 <translation id="2904788871580817212">Пад цене на отвореној картици, са <ph name="PREVIOUS_PRICE" /> на <ph name="PRICE" />, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
@@ -580,6 +582,7 @@
 <translation id="3143515551205905069">Откажи синхронизацију</translation>
 <translation id="3144126448740580210">ГОТОВО</translation>
 <translation id="3148052723910099040">Мрежа уобичајених картица</translation>
+<translation id="3148237711805373460">Води ме тамо</translation>
 <translation id="3157387275655328056">Додај на листу за читање</translation>
 <translation id="315778507796115851">Историја</translation>
 <translation id="31652791196570636">Одбаци</translation>
@@ -1297,6 +1300,7 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="5768870767339201169">Наставите тамо где сте стали</translation>
 <translation id="5779117921996157216">{count,plural, =1{Имате {count} угрожену лозинку која може да угрози безбедност. Решите проблем одмах да бисте били безбедни.}one{Имате {count} угрожену лозинку која може да угрози безбедност. Решите проблеме одмах да бисте били безбедни.}few{Имате {count} угрожене лозинке које могу да угрозе безбедност. Решите проблеме одмах да бисте били безбедни.}other{Имате {count} угрожених лозинки које могу да угрозе безбедност. Решите проблеме одмах да бисте били безбедни.}}</translation>
 <translation id="5791632441210678828">Дугме Сортирај за фид Пратите.</translation>
+<translation id="5799263916847593256">Отворите да бисте видели историју цена</translation>
 <translation id="5803566855766646066">Желите ли стварно да одбаците ову нову картицу?</translation>
 <translation id="5804241973901381774">Дозволе</translation>
 <translation id="58081802114142635">Ваше активности побољшавају Google вештачку интелигенцију</translation>
@@ -1523,6 +1527,7 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="6556866813142980365">Понови</translation>
 <translation id="6559301491397835130">{count,plural, =1{Обележивач је сачуван у: {title}. Чува се само на овом уређају.}one{Обележивачи су сачувани у: {title}. Чувају се само на овом уређају.}few{Обележивачи су сачувани у: {title}. Чувају се само на овом уређају.}other{Обележивачи су сачувани у: {title}. Чувају се само на овом уређају.}}</translation>
 <translation id="656065428026159829">Прикажи још</translation>
+<translation id="6565899972286925956">Направите било шта</translation>
 <translation id="6571070086367343653">Измена кредитне картице</translation>
 <translation id="6574092468346088891">Укључите обавештења за Проверу безбедности</translation>
 <translation id="6579867704846662339">Можете да одаберете да се долазни URL-ови из других апликација отварају у режиму без архивирања.</translation>
@@ -1633,11 +1638,13 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="6930799952781667037">Додирните да бисте променили језик на овај.</translation>
 <translation id="693761253105515415">Подесите шифру</translation>
 <translation id="6945221475159498467">Изабери</translation>
+<translation id="6946722113367118030">Размишља</translation>
 <translation id="6950522403736391608">Скривено</translation>
 <translation id="6962809930976936328">Стекните увид помоћу Gemini-ја</translation>
 <translation id="6964300328304469089">Тренутно је изабрано <ph name="NAME" />, <ph name="EMAIL" />. Одаберите налог.</translation>
 <translation id="6964760285928603117">Уклони из групе</translation>
 <translation id="6965382102122355670">Потврди</translation>
+<translation id="6967355534157677591">Направите слику Pro</translation>
 <translation id="6973630695168034713">Директоријуми</translation>
 <translation id="6979158407327259162">Google диск</translation>
 <translation id="6979737339423435258">Одувек</translation>
@@ -1975,6 +1982,7 @@ Handoff треба да се омогући у одељку General (Опште)
 <translation id="8205564605687841303">Откажи</translation>
 <translation id="8206354486702514201">Ово подешавање примењује администратор.</translation>
 <translation id="8209050860603202033">Отвори слику</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> модели</translation>
 <translation id="8211030355252954494">Примили сте лозинке за <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">Веза је безбедна</translation>
 <translation id="8214293972734702249">Закачено, <ph name="TAB_TITLE" /></translation>

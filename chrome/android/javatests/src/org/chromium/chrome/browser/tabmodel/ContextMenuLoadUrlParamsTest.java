@@ -34,7 +34,6 @@ import org.chromium.base.lifetime.Destroyable;
 import org.chromium.base.supplier.OneshotSupplier;
 import org.chromium.base.test.util.Batch;
 import org.chromium.base.test.util.CommandLineFlags;
-import org.chromium.base.test.util.DisableIf;
 import org.chromium.base.test.util.Feature;
 import org.chromium.chrome.browser.app.tabmodel.AsyncTabParamsManagerSingleton;
 import org.chromium.chrome.browser.app.tabwindow.TabWindowManagerSingleton;
@@ -57,7 +56,6 @@ import org.chromium.chrome.test.transit.ChromeTransitTestRules;
 import org.chromium.chrome.test.transit.page.WebPageStation;
 import org.chromium.chrome.test.util.browser.contextmenu.ContextMenuUtils;
 import org.chromium.content_public.browser.LoadUrlParams;
-import org.chromium.ui.base.DeviceFormFactor;
 import org.chromium.ui.modaldialog.ModalDialogManager;
 
 import java.util.concurrent.TimeoutException;
@@ -115,6 +113,7 @@ public class ContextMenuLoadUrlParamsTest {
                     AsyncTabParamsManagerSingleton.getInstance(),
                     false,
                     ActivityType.TABBED,
+                    TabModelType.STANDARD,
                     false);
         }
     }
@@ -143,7 +142,9 @@ public class ContextMenuLoadUrlParamsTest {
 
                     @Override
                     public Pair<TabModelSelector, Destroyable> buildHeadlessSelector(
-                            @WindowId int windowId, Profile profile) {
+                            @WindowId int windowId,
+                            Profile profile,
+                            PersistentStoreMigrationManager migrationManager) {
                         return Pair.create(null, null);
                     }
                 });
@@ -202,7 +203,6 @@ public class ContextMenuLoadUrlParamsTest {
     @Test
     @MediumTest
     @Feature({"Browser"})
-    @DisableIf.Device(DeviceFormFactor.DESKTOP) // crbug.com/376168546
     public void testOpenInIncognitoTabNoReferrer() throws TimeoutException {
         Intents.init();
 

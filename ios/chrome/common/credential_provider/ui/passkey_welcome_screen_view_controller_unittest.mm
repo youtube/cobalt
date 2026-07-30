@@ -11,6 +11,10 @@
 #import "testing/gtest_mac.h"
 #import "testing/platform_test.h"
 
+namespace {
+
+using ::webauthn::PasskeyWelcomeScreenPurpose;
+
 class PasskeyWelcomeScreenViewControllerTest : public PlatformTest {
  public:
   PasskeyWelcomeScreenStrings* strings = [[PasskeyWelcomeScreenStrings alloc]
@@ -97,3 +101,5 @@ TEST_F(PasskeyWelcomeScreenViewControllerTest,
   EXPECT_NSEQ(controller.view.backgroundColor,
               [UIColor colorNamed:kPrimaryBackgroundColor]);
 }
+
+}  // namespace

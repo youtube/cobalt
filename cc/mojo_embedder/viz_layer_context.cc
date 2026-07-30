@@ -245,6 +245,7 @@ void ComputePropertyTreeNodeUpdate(
   wire->may_have_backdrop_effect = new_node.may_have_backdrop_effect;
   wire->needs_effect_for_2d_scale_transform =
       new_node.needs_effect_for_2d_scale_transform;
+  wire->only_draws_visible_content = new_node.only_draws_visible_content;
 
   container.push_back(std::move(wire));
 }
@@ -875,10 +876,7 @@ void SerializeLayer(LayerImpl& layer,
   wire.clip_tree_index = layer.clip_tree_index();
   wire.effect_tree_index = layer.effect_tree_index();
   wire.scroll_tree_index = layer.scroll_tree_index();
-  // TODO(crbug.com/476891734): force full sync until we pin down the root
-  // cause of this bug.
-  const bool force_full_sync = true;
-  if (needs_full_sync || force_full_sync ||
+  if (needs_full_sync ||
       layer.GetChangeFlag(LayerImpl::kChangedGeneralProperty)) {
     auto general = viz::mojom::LayerGeneralProperties::New();
     general->element_id = layer.element_id();
@@ -1005,9 +1003,6 @@ void SerializeLayer(LayerImpl& layer,
             picture_layer.TakeProposedTilingScalesForDeletion();
         general->layer_extra = viz::mojom::LayerExtra::NewTileDisplayLayerExtra(
             std::move(tile_display_extra));
-        SerializePictureLayerTileUpdates(picture_layer, resource_provider,
-                                         shared_image_interface, update.tilings,
-                                         needs_full_sync);
         break;
       }
       case mojom::LayerType::kTexture: {
@@ -1042,6 +1037,13 @@ void SerializeLayer(LayerImpl& layer,
         // TODO(zmo): handle other types of LayerImpl.
     }
     wire.general_properties = std::move(general);
+  }
+  if (layer.GetLayerType() == mojom::LayerType::kPicture &&
+      (needs_full_sync || layer.GetChangeFlag(LayerImpl::kChangedTile))) {
+    auto& picture_layer = static_cast<PictureLayerImpl&>(layer);
+    SerializePictureLayerTileUpdates(picture_layer, resource_provider,
+                                     shared_image_interface, update.tilings,
+                                     needs_full_sync);
   }
 }
 

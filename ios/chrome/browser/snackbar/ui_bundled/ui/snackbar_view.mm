@@ -71,6 +71,8 @@ const CGFloat kTextSpacing = 2.0;
   NSArray<NSLayoutConstraint*>* _compactWidthConstraints;
   // The horizontal constraints for a regular layout.
   NSArray<NSLayoutConstraint*>* _regularWidthConstraints;
+  // Whether the message’s action was tapped.
+  BOOL _actionTapped;
 }
 
 - (instancetype)initWithMessage:(SnackbarMessage*)message {
@@ -502,15 +504,16 @@ const CGFloat kTextSpacing = 2.0;
 
 // Handles the action button tap.
 - (void)handleButtonTap {
-  if (self.message.action.handler) {
+  if (self.message.action.handler && !_actionTapped) {
     self.message.action.handler();
+    _actionTapped = YES;
   }
   [self.delegate snackbarViewDidTapActionButton:self];
 }
 
 // Handles the view tap.
 - (void)handleViewTap {
-  [self.delegate snackbarViewDidRequestDismissal:self animated:YES];
+  [self.delegate snackbarViewDidRequestDismissal:self];
 }
 
 // If another view becomes focused, the focus is forced back to the title view.
@@ -550,8 +553,7 @@ const CGFloat kTextSpacing = 2.0;
   dispatch_after(dispatch_time(DISPATCH_TIME_NOW,
                                (int64_t)(self.message.duration * NSEC_PER_SEC)),
                  dispatch_get_main_queue(), ^{
-                   [weakSelf.delegate snackbarViewDidRequestDismissal:weakSelf
-                                                             animated:YES];
+                   [weakSelf.delegate snackbarViewDidRequestDismissal:weakSelf];
                  });
 }
 

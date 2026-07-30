@@ -79,11 +79,14 @@ chromium-metrics-reviews@google.com.
 
 <variants name="ContextType">
   <variant name="" summary="Aggregated across all request sources"/>
+  <variant name=".AutoModel" summary=""/>
+  <variant name=".Canvas" summary=""/>
   <variant name=".DeepResearch" summary=""/>
   <variant name=".File" summary=""/>
   <variant name=".Image" summary=""/>
   <variant name=".ImageGen" summary=""/>
   <variant name=".Tab" summary=""/>
+  <variant name=".ThinkingModel" summary=""/>
 </variants>
 
 <!-- LINT.ThenChange(chrome/browser/ui/omnibox/omnibox_context_menu_controller.h:ContextType) -->
@@ -2156,7 +2159,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.JustDeletedText" enum="Boolean"
-    expires_after="2026-05-03">
+    expires_after="2026-08-02">
   <owner>jdonnelly@chromium.org</owner>
   <owner>mpearson@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
@@ -2172,7 +2175,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.KeywordCount{KeywordType}" units="count"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>mahmadi@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <summary>
@@ -2926,8 +2929,59 @@ Keep consistent with active providers. Doesn't need to include every provider in
   </summary>
 </histogram>
 
+<histogram name="Omnibox.Popup.Aim.ConstructionToFirstShownDuration" units="ms"
+    expires_after="2026-12-22">
+  <owner>mahmadi@chromium.org</owner>
+  <owner>kylixrd@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Records the time between the AI Mode WebUI page load which happens when the
+    popup presenter is constructed and the first time the popup widget is shown.
+    Given that the AI Mode WebUI page begins the asynchronous process of loading
+    its resources, initialization, and binding immediately after it is loaded,
+    this metric can be seen as a time budget for the AI Mode WebUI page remote
+    to be bound and ready to receive calls. Recorded at most once per browser
+    window.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.Aim.CrashRecovery" enum="Boolean"
+    expires_after="2026-12-22">
+  <owner>avivkiss@chromium.org</owner>
+  <owner>kylixrd@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records whether the renderer process has crashed and the contents is being
+    reloaded before showing the WebUI AI Mode popup.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.Aim.PresenterShowLatency.ToPaint" units="ms"
+    expires_after="2026-12-22">
+  <owner>mahmadi@chromium.org</owner>
+  <owner>kylixrd@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Record the time between the request of the AIM popup widget to show and when
+    the first frame is painted by the widget on the screen.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.Aim.RendererProcessGoneStatus"
+    enum="OmniboxWebUIRendererProcessGoneStatus" expires_after="2026-12-22">
+  <owner>avivkiss@chromium.org</owner>
+  <owner>kylixrd@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <summary>
+    Records the termination status of the AI Mode Popup WebUI renderer process
+    when it goes away. This helps monitor crash rates and types.
+  </summary>
+</histogram>
+
 <histogram name="Omnibox.Popup.WebUI.ConstructionToFirstShownDuration"
-    units="ms" expires_after="2026-11-12">
+    units="ms" expires_after="2026-12-22">
   <owner>mahmadi@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -2959,6 +3013,18 @@ Keep consistent with active providers. Doesn't need to include every provider in
     Records whether WebUI page remote is bound and ready to receive calls when
     the WebUI Handler attempts to make its first call to the WebUI Page.
     Recorded at most once per browser window.
+  </summary>
+</histogram>
+
+<histogram name="Omnibox.Popup.WebUI.PresenterShowLatency.ToPaint" units="ms"
+    expires_after="2026-11-12">
+  <owner>mahmadi@chromium.org</owner>
+  <owner>kylixrd@chromium.org</owner>
+  <owner>chrome-desktop-search@google.com</owner>
+  <improvement direction="LOWER_IS_BETTER"/>
+  <summary>
+    Record the time between the request of the classic popup widget to show and
+    when the first frame is painted by the widget on the screen.
   </summary>
 </histogram>
 
@@ -3236,7 +3302,7 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SearchPrefetch.DuplicateSearchTermsAge" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>lingqi@chromium.org</owner>
   <owner>nhiroki@chromium.org</owner>
   <owner>chrome-prerendering@google.com</owner>
@@ -3545,7 +3611,9 @@ Keep consistent with active providers. Doesn't need to include every provider in
 </histogram>
 
 <histogram name="Omnibox.SuggestionUsed.Pedal" enum="SuggestionPedalType"
-    expires_after="2026-11-12">
+    expires_after="never">
+<!-- expires-never: part of vital metric ChromeSearch.Actions -->
+
   <owner>jdonnelly@chromium.org</owner>
   <owner>orinj@chromium.org</owner>
   <owner>chrome-desktop-search@google.com</owner>

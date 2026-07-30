@@ -143,9 +143,10 @@ void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
   layer_impl->has_non_animated_image_update_rect_ =
       has_non_animated_image_update_rect_;
 
-  // This hs to be cached before calling LayerImpl::PushPropertiesTo because it
+  // This has to be cached before calling LayerImpl::PushPropertiesTo because it
   // reset the flag.
   bool changed_other_props = GetChangeFlag(kChangedGeneralProperty);
+  bool changed_tiles = GetChangeFlag(kChangedTile);
 
   LayerImpl::PushPropertiesTo(base_layer);
 
@@ -163,7 +164,7 @@ void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
     // Move tile updates over to the active layer so they get pushed to the
     // display tree. Note that the active layer after this point can also
     // accumulate their own tile updates into its |updated_tiles_|.
-    {
+    if (changed_tiles) {
       // Deep merge logic.
       auto& dst = layer_impl->updated_tiles_;
       auto& src = updated_tiles_;
@@ -179,6 +180,8 @@ void PictureLayerImpl::PushPropertiesTo(LayerImpl* base_layer) {
         }
       }
       src.clear();
+    } else {
+      DCHECK(updated_tiles_.empty()) << "kChangedTile flag should be set!";
     }
 
     // Since the layer has been activated, all the active tree tile updates
@@ -824,25 +827,27 @@ void PictureLayerImpl::NotifyTileStateChanged(const Tile* tile,
     }
   }
 
-  if (layer_tree_impl()->settings().TreesInVizInClientProcess() &&
-      should_batch_updated_tiles_) {
-    bool update_damage_in_viz = false;
-    if (update_damage && layer_tree_impl()->IsActiveTree()) {
-      update_damage_in_viz = true;
+  if (layer_tree_impl()->settings().TreesInVizInClientProcess()) {
+    if (should_batch_updated_tiles_) {
+      bool update_damage_in_viz = false;
+      if (update_damage && layer_tree_impl()->IsActiveTree()) {
+        update_damage_in_viz = true;
+      }
+      // This layer's tile updates are being batched. For a pending layer, this
+      // is always true. For an active layer, this means it was just activated
+      // and is waiting for its state to be sent to Viz via UpdateDisplayTree.
+      // The accumulated updates are pushed to the active tree on activation and
+      // active layer can continue to accumulate the tile updates until
+      // UpdateDisplayTree.
+      auto result = updated_tiles_[tile->contents_scale_key()].emplace(
+          tile->tiling_i_index(), tile->tiling_j_index(), update_damage_in_viz);
+      // If there is {i,j,false} in the set already, we want to switch it to
+      // true if |update_damage_in_viz| is true.
+      if (!result.second && update_damage_in_viz) {
+        result.first->update_damage = true;
+      }
     }
-    // This layer's tile updates are being batched. For a pending layer, this is
-    // always true. For an active layer, this means it was just activated and is
-    // waiting for its state to be sent to Viz via UpdateDisplayTree. The
-    // accumulated updates are pushed to the active tree on activation and
-    // active layer can continue to accumulate the tile updates until
-    // UpdateDisplayTree.
-    auto result = updated_tiles_[tile->contents_scale_key()].emplace(
-        tile->tiling_i_index(), tile->tiling_j_index(), update_damage_in_viz);
-    // If there is {i,j,false} in the set already, we want to switch it to
-    // true if |update_damage_in_viz| is true.
-    if (!result.second && update_damage_in_viz) {
-      result.first->update_damage = true;
-    }
+    SetNeedsPushProperties(kChangedTile);
   }
 }
 
@@ -993,11 +998,6 @@ ScrollOffsetMap PictureLayerImpl::GetRasterInducingScrollOffsets() const {
 const GlobalStateThatImpactsTilePriority& PictureLayerImpl::global_tile_state()
     const {
   return layer_tree_impl()->global_tile_state();
-}
-
-gfx::Rect PictureLayerImpl::GetEnclosingVisibleRectInTargetSpace() const {
-  return GetScaledEnclosingVisibleRectInTargetSpace(
-      MaximumTilingContentsScale());
 }
 
 bool PictureLayerImpl::ShouldAnimate(PaintImage::Id paint_image_id) const {
@@ -2198,7 +2198,7 @@ DamageReasonSet PictureLayerImpl::GetDamageReasons() const {
   return reasons;
 }
 
-float PictureLayerImpl::GetMaximumContentsScaleForUseInAppendQuads() {
+float PictureLayerImpl::GetMaximumContentsScaleForUseInAppendQuads() const {
   // If we don't have tilings, we're likely going to append a checkerboard quad
   // the size of the layer. In that case, use scale 1 for more stable
   // to-screen-space mapping.

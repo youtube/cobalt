@@ -635,6 +635,22 @@ EVENT_TYPE(SSL_CONNECT)
 // }
 EVENT_TYPE(SSL_ECH_CONFIG_LIST)
 
+// Emitted in a TLS client handshake when a client is configured to send a list
+// of trust anchor IDs. The following parameters are attached:
+// {
+//   "trust_anchor_ids": <trust anchor ID relative OIDs converted to strings and
+//                        joined with commas.>,
+// }
+EVENT_TYPE(SSL_CLIENT_TRUST_ANCHOR_IDS_LIST)
+
+// Emitted in a TLS handshake when the client receives a list of trust anchor
+// IDs from the server. The following parameters are attached:
+// {
+//   "trust_anchor_ids": <trust anchor ID relative OIDs converted to strings and
+//                        joined with commas.>,
+// }
+EVENT_TYPE(SSL_CLIENT_RECEIVED_TRUST_ANCHOR_IDS)
+
 // The start/end of an SSL server handshake (aka "accept").
 EVENT_TYPE(SSL_SERVER_HANDSHAKE)
 
@@ -922,6 +938,14 @@ EVENT_TYPE(TRANSPORT_CONNECT_JOB_CONNECT_ATTEMPT)
 //   {
 //     "ech_enabled": <True when ECH is enabled>,
 //     "ech_config_list": <The binary representation of ECH config list>,
+//     "trust_anchor_ids_from_dns": <Optional: comma-separated trust anchor IDs
+//                                   advertised in the server's DNS record>,
+//     "selected_trust_anchor_ids": <Optional: comma-separated trust anchor IDs
+//                                   sent in the TLS ClientHello on first
+//                                   connection attempt>,
+//     "selected_trust_anchor_ids_for_retry": <Optional: comma-separated trust
+//                                             anchor IDs sent in the TLS
+//                                             ClientHello on retry>,
 //   }
 EVENT_TYPE(SSL_CONNECT_JOB_SSL_CONNECT)
 
@@ -1043,10 +1067,22 @@ EVENT_TYPE(TLS_STREAM_ATTEMPT_ALIVE)
 EVENT_TYPE(TLS_STREAM_ATTEMPT_WAIT_FOR_SERVICE_ENDPOINT)
 
 // Measures the time TlsStreamAttempt took to connect (TLS handshake).
-// For the END phase, if there was an error, the following parameters are
+// For the BEGIN phase, the following parameters are optionally attached:
+//   {
+//      "trust_anchor_ids_from_dns": <trust anchor IDs advertised in the
+//                                    server's DNS record>,
+//      "selected_trust_anchor_ids": <trust anchor IDs sent in the TLS
+//                                    ClientHello on first connection attempt>,
+//      "selected_trust_anchor_ids_for_retry": <trust anchor IDs sent in the TLS
+//                                              ClientHello on a retry>,
+//   }
+// For the END phase, the following parameters are attached:
 // attached:
 //   {
-//      "net_error": <Net error code of the failure>,
+//      "net_error": <Optional: net error code of the failure>,
+//      "server_available_trust_anchor_ids":
+//          <Optional: trust anchor IDs sent by the server in the handshake,
+//           converted to strings and joined with commas>,
 //   }
 EVENT_TYPE(TLS_STREAM_ATTEMPT_CONNECT)
 
@@ -2371,6 +2407,10 @@ EVENT_TYPE(QUIC_SESSION_POOL_JOB_RESULT)
 //                              empty>,
 //     "ech_config_list": <optional, The ECH config list if not empty>,
 //     "source_dependency": <Source identifier for the attached Job>,
+//     "trust_anchor_ids_from_dns": <trust anchor IDs advertised in the server's
+//                                   DNS record>,
+//     "selected_trust_anchor_ids": <trust anchor IDs sent in the TLS
+//                                   ClientHello>,
 //   }
 EVENT_TYPE(QUIC_SESSION)
 
@@ -2389,12 +2429,18 @@ EVENT_TYPE(QUIC_SESSION_CLOSE_ON_ERROR)
 
 // Session verification of a certificate from the server failed.
 //   {
+//     "server_available_trust_anchors_ids":
+//         <Optional: trust anchor IDs sent by the server in the handshake,
+//          converted to strings and joined with commas>,
 //   }
 EVENT_TYPE(QUIC_SESSION_CERTIFICATE_VERIFY_FAILED)
 
 // Session verified a certificate from the server.
 //   {
 //     "subjects": <list of DNS names that the certificate is valid for>,
+//     "server_available_trust_anchors_ids":
+//         <Optional: trust anchor IDs sent by the server in the handshake,
+//          converted to strings and joined with commas>,
 //   }
 EVENT_TYPE(QUIC_SESSION_CERTIFICATE_VERIFIED)
 
@@ -3506,9 +3552,6 @@ EVENT_TYPE(NETWORK_CHANGED)
 //                             been changed>,
 //     "net_interface_key":   <Boolean indicating whether SCEntNetInterface
 //                             entry has been changed>,
-//     "reduce_notification": <Boolean indicating whether
-//                             ReduceIPAddressChangeNotification feature is
-//                             enabled>,
 //     "old_ipv4_interface":  <The IPv4 primary interface name obtained before
 //                             the dynamic store entry change event>,
 //     "old_ipv6_interface":  <The IPv6 primary interface name obtained before

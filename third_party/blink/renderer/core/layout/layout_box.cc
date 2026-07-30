@@ -753,7 +753,7 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
     if (old_style->OverflowClipMargin() != new_style.OverflowClipMargin())
       SetNeedsPaintPropertyUpdate();
 
-    if (IsInLayoutNGInlineFormattingContext() && IsAtomicInlineLevel() &&
+    if (IsInLayoutNGInlineFormattingContext() && IsInline() &&
         old_style->Direction() != new_style.Direction()) {
       SetNeedsCollectInlines();
     }
@@ -780,9 +780,6 @@ void LayoutBox::StyleDidChange(StyleDifference diff,
   // Update the script style map, from the new computed style.
   if (IsCustomItem())
     GetCustomLayoutChild()->styleMap()->UpdateStyle(GetDocument(), StyleRef());
-
-  // Non-atomic inlines should be LayoutInline or LayoutText, not LayoutBox.
-  DCHECK(!IsInline() || IsAtomicInlineLevel());
 }
 
 void LayoutBox::UpdateShapeOutsideInfoAfterStyleChange(
@@ -2033,10 +2030,30 @@ bool LayoutBox::HitTestOverflowControl(
              NodeForHitTest(), hit_test_location) == kStopHitTesting;
 }
 
+namespace {
+
+bool HitTestClippedOutByBorderShape(const LayoutBox& box,
+                                    const HitTestLocation& hit_test_location,
+                                    const PhysicalOffset& border_box_location) {
+  PhysicalRect border_rect = box.PhysicalBorderBoxRect();
+  border_rect.Move(border_box_location);
+  Path hit_shape =
+      ComputeBorderShapeOuterPath(box.StyleRef(), border_rect, &box);
+  return !hit_test_location.Intersects(hit_shape);
+}
+
+}  // namespace
+
 bool LayoutBox::HitTestClippedOutByBorder(
     const HitTestLocation& hit_test_location,
     const PhysicalOffset& border_box_location) const {
   NOT_DESTROYED();
+
+  if (StyleRef().HasBorderShape()) {
+    return HitTestClippedOutByBorderShape(*this, hit_test_location,
+                                          border_box_location);
+  }
+
   PhysicalRect border_rect = PhysicalBorderBoxRect();
   border_rect.Move(border_box_location);
   return !hit_test_location.Intersects(
@@ -2270,6 +2287,12 @@ void LayoutBox::LocationChanged() {
   // this object for paint invalidation.
   if (!NeedsLayout())
     SetShouldCheckForPaintInvalidation();
+
+  if (RuntimeEnabledFeatures::OffsetPathTransformUpdateFixEnabled()) {
+    if (HasLayer() && StyleRef().HasOffset()) {
+      Layer()->UpdateTransform();
+    }
+  }
 }
 
 void LayoutBox::SizeChanged() {
@@ -3151,25 +3174,14 @@ PhysicalRect LayoutBox::LocalCaretRect(int caret_offset,
   // They never refer to children.
   // FIXME: Paint the carets inside empty blocks differently than the carets
   // before/after elements.
-  LayoutUnit caret_width = GetFrameView()->BarCaretWidth();
-  LogicalSize size(LogicalWidth(), LogicalHeight());
 
-  LayoutUnit caret_block_size = size.block_size;
-  // If height of box is smaller than font height, use the latter one,
-  // otherwise the caret might become invisible.
-  //
-  // Also, if the box is not an atomic inline-level element, always use the font
-  // height. This prevents the "big caret" bug described in:
-  // <rdar://problem/3777804> Deleting all content in a document can result in
-  // giant tall-as-window insertion point
-  //
-  // FIXME: ignoring :first-line, missing good reason to take care of
   const SimpleFontData* font_data = StyleRef().GetFont()->PrimaryFont();
-  LayoutUnit font_height =
-      LayoutUnit(font_data ? font_data->GetFontMetrics().Height() : 0);
-  if (font_height > size.block_size || (!IsAtomicInlineLevel() && !IsTable())) {
-    caret_block_size = font_height;
-  }
+  const LayoutUnit font_height =
+      font_data ? LayoutUnit(font_data->GetFontMetrics().Height())
+                : LayoutUnit();
+
+  // FIXME: ignoring :first-line, missing good reason to take care of
+  const LogicalSize caret_size = {GetFrameView()->BarCaretWidth(), font_height};
 
   // FIXME: Border/padding should be added for all elements but this workaround
   // is needed because we use offsets inside an "atomic" element to represent
@@ -3180,7 +3192,7 @@ PhysicalRect LayoutBox::LocalCaretRect(int caret_offset,
 
   WritingDirectionMode writing_direction = Style()->GetWritingDirection();
   LogicalOffset offset;
-  LayoutUnit content_inline_size = size.inline_size;
+  LayoutUnit content_inline_size = LogicalWidth();
   if (apply_border_padding) {
     BoxStrut border_padding = (BorderOutsets() + PaddingOutsets())
                                   .ConvertToLogical(writing_direction);
@@ -3189,12 +3201,11 @@ PhysicalRect LayoutBox::LocalCaretRect(int caret_offset,
     content_inline_size -= border_padding.InlineSum();
   }
   if (caret_offset) {
-    offset.inline_offset += content_inline_size - caret_width;
+    offset.inline_offset += content_inline_size - caret_size.inline_size;
   }
 
-  LogicalRect rect(offset, LogicalSize(caret_width, caret_block_size));
   return WritingModeConverter(writing_direction, StitchedSize())
-      .ToPhysical(rect);
+      .ToPhysical({offset, caret_size});
 }
 
 PositionWithAffinity LayoutBox::PositionForPointInFragments(
@@ -3727,8 +3738,8 @@ bool LayoutBox::IsMonolithic() const {
   // TODO(almaher): Don't consider a writing mode root monolitic if
   // IsFlexibleBox(). The breakability should be handled at the item
   // level. (Likely same for Table and Grid).
-  if (IsAtomicInlineLevel() || IsSemiReplaced() ||
-      HasUnsplittableScrollingOverflow() || (Parent() && IsWritingModeRoot()) ||
+  if (IsInline() || IsSemiReplaced() || HasUnsplittableScrollingOverflow() ||
+      (Parent() && IsWritingModeRoot()) ||
       (IsFixedPositioned() && GetDocument().Printing() &&
        IsA<LayoutView>(Container())) ||
       ShouldApplySizeContainment() || IsFrameSet() ||
@@ -4028,8 +4039,7 @@ RasterEffectOutset LayoutBox::VisualRectOutsetForRasterEffects() const {
 
 TextDirection LayoutBox::ResolvedDirection() const {
   NOT_DESTROYED();
-  if (IsInline() && IsAtomicInlineLevel() &&
-      IsInLayoutNGInlineFormattingContext()) {
+  if (IsInLayoutNGInlineFormattingContext() && IsInline()) {
     InlineCursor cursor;
     cursor.MoveTo(*this);
     if (cursor) {

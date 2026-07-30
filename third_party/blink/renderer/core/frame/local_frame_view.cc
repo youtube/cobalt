@@ -1129,10 +1129,10 @@ LocalFrameView::NaturalSizeLayoutScope::~NaturalSizeLayoutScope() {
 }
 
 bool LocalFrameView::RecordNaturalDimensions() {
-  if (natural_height_ == layout_overflow_size_.height()) {
+  if (natural_size_ == layout_overflow_size_) {
     return false;
   }
-  natural_height_ = layout_overflow_size_.height();
+  natural_size_ = layout_overflow_size_;
   return true;
 }
 
@@ -1177,14 +1177,14 @@ std::optional<NaturalSizingInfo> LocalFrameView::GetNaturalDimensions() const {
   if (LayoutSVGRoot* content_layout_object = EmbeddedReplacedContent()) {
     return content_layout_object->UnscaledNaturalSizingInfo();
   }
-  if (!natural_height_) {
+  if (!natural_size_) {
     return std::nullopt;
   }
   const LayoutView* layout_view = GetLayoutView();
   DCHECK(layout_view);
-  const float unscaled_natural_height =
-      AdjustForAbsoluteZoom::AdjustFloat(*natural_height_, *layout_view);
-  return NaturalSizingInfo::MakeHeight(unscaled_natural_height);
+  const gfx::SizeF unscaled_natural_size = AdjustForAbsoluteZoom::AdjustSize(
+      gfx::SizeF{*natural_size_}, layout_view->StyleRef());
+  return NaturalSizingInfo::MakeSize(unscaled_natural_size);
 }
 
 void LocalFrameView::UpdateGeometry() {
@@ -2322,9 +2322,18 @@ cc::PropertyChangeForcesCommitCriteria LocalFrameView::ForceCommitCriteria()
     const {
   cc::PropertyChangeForcesCommitCriteria criteria =
       cc::PropertyChangeForcesCommitCriteria::kNone;
-  if (HasActiveIntersectionObservations() ||
-      HasRunningAnchorTransformAnimation()) {
-    criteria = NeedsOcclusionTracking() && HasActiveIntersectionObservations()
+  if (!base::FeatureList::IsEnabled(
+          features::kCompositedAnimationsForceMainFrames)) {
+    return criteria;
+  }
+  bool force_for_intersection_observer =
+      HasActiveIntersectionObservations() &&
+      features::kForceMainFramesForIntersectionObserver.Get();
+  bool force_for_anchor_transform =
+      HasRunningAnchorTransformAnimation() &&
+      features::kForceMainFramesForAnchorTransform.Get();
+  if (force_for_intersection_observer || force_for_anchor_transform) {
+    criteria = force_for_intersection_observer && NeedsOcclusionTracking()
                    ? cc::PropertyChangeForcesCommitCriteria::kAny
                    : cc::PropertyChangeForcesCommitCriteria::kTransform;
   }

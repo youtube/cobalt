@@ -7,8 +7,8 @@
 
 class PrefService;
 
-// Returns whether the lens overlay is enabled.
-bool IsLensOverlayAvailable(const PrefService* prefs);
+// Returns whether the lens overlay is allowed by policy.
+bool IsLensOverlayAllowedByPolicy(const PrefService* prefs);
 
 // Whether the landscape orientation is allowed for Lens Overlay.
 bool IsLensOverlayLandscapeOrientationEnabled(const PrefService* prefs);
@@ -16,9 +16,6 @@ bool IsLensOverlayLandscapeOrientationEnabled(const PrefService* prefs);
 // Returns whether the lens overlay should open navigation in the same tab
 // instead of new tab.
 bool IsLensOverlaySameTabNavigationEnabled(const PrefService* prefs);
-
-// Returns whether LVF unified experience is enabled.
-bool IsLVFUnifiedExperienceEnabled(const PrefService* prefs);
 
 // Returns whether the escape hatch to LVF is enabled.
 bool IsLVFEscapeHatchEnabled(const PrefService* prefs);

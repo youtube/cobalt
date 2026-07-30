@@ -286,6 +286,10 @@ class WTF_EXPORT StringView {
   wtf_size_t Find(CharacterMatchFunctionPtr match_function,
                   wtf_size_t start = 0) const;
 
+  // Find the last occurrence of a character. Returns the index of the match, or
+  // `kNotFound`.
+  wtf_size_t rfind(UChar ch, wtf_size_t start = kNotFound) const;
+
   // Returns `true` if this StringView contains the specified character.
   bool contains(UChar ch) const;
 
@@ -295,6 +299,10 @@ class WTF_EXPORT StringView {
   bool starts_with(UChar c) const { return !empty() && (*this)[0] == c; }
   // Returns `true` if `this` string ends with `other`.
   bool ends_with(const StringView& other) const;
+  // Returns `true` if `this` string ends with `c`.
+  bool ends_with(UChar c) const {
+    return !empty() && (*this)[length() - 1] == c;
+  }
 
   template <bool isSpecialCharacter(UChar)>
   bool IsAllSpecialCharacters() const;

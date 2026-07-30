@@ -996,6 +996,7 @@
 <translation id="1652326691684645429">تفعيل ميزة "المشاركة عن قرب"</translation>
 <translation id="1652862280638399816">‏لاستخدام "مدير كلمات المرور" مع تطبيق macOS Keychain، يُرجى إعادة تشغيل Chromium والسماح بالوصول إلى التطبيق. وستتم إعادة فتح علامات التبويب بعد إعادة التشغيل.</translation>
 <translation id="1653958716132599769">تجميع علامات التبويب ذات الصلة</translation>
+<translation id="165448107578581061">‏يعمل Gemini على تنفيذ مهمتك...</translation>
 <translation id="1654580009054503925">غير مسموح للإضافة بعرض الطلبات</translation>
 <translation id="1654713139320245449">لم يتم العثور على وجهات بثّ. هل تحتاج إلى مساعدة؟</translation>
 <translation id="1656528038316521561">درجة تعتيم الخلفية</translation>
@@ -2579,6 +2580,7 @@
 <translation id="2724841811573117416">‏سجلات WebRTC</translation>
 <translation id="272488616838512378">تحويل الوحدات</translation>
 <translation id="2725200716980197196">تمت استعادة اتصال الشبكة</translation>
+<translation id="2725312032345042618">سجلّ الأحداث</translation>
 <translation id="2726776862643824793">تقليل سطوع الشاشة</translation>
 <translation id="272741954544380994">البحث عن الصورة باستخدام "<ph name="VISUAL_SEARCH_PROVIDER" />"</translation>
 <translation id="2727633948226935816">لا تذكرني مرة أخرى</translation>
@@ -2920,6 +2922,7 @@
 <translation id="2950666755714083615">اشتراك</translation>
 <translation id="2953210795988451570">‏لم تعُد تحديثات الأمان متوفّرة لهذا الجهاز. عليك الترقية إلى جهاز Chromebook جديد.</translation>
 <translation id="2953218713108551165">غير مسموح للموقع الإلكتروني <ph name="SITE" /> بإرسال إشعارات. سيُطلب منك مجددًا منح الإذن في زيارتك القادمة إلى هذا الموقع الإلكتروني.</translation>
+<translation id="2954777802959138493">تعذَّر معرفة حالة أداة التحديث.</translation>
 <translation id="2955048943983973430">‏خدمات Google ذات الصلة</translation>
 <translation id="2956070239128776395">تم دمج القسم في المجموعة: <ph name="ERROR_LINE" /></translation>
 <translation id="2957124229512318478">‏يمكنك تفعيل "وضع مطور البرامج" لاستخدام هذه الإضافة التي لا يمكن مراجعتها من قِبل "سوق Chrome الإلكتروني".</translation>
@@ -3370,7 +3373,6 @@
 <translation id="3269689705184377744">{COUNT,plural, =1{ملف واحد}zero{# ملف}two{ملفّان}few{# ملفّات}many{# ملفًّا}other{# ملف}}</translation>
 <translation id="3270965368676314374">التعرّف على الصور، والموسيقى، والوسائط الأخرى من الكمبيوتر وتغييرها وحذفها</translation>
 <translation id="3275464924531706548">تصغير "<ph name="HEADER" />"</translation>
-<translation id="3275778809241512831">مفتاح الأمان الداخلي غير آمن حاليًا. يُرجى إزالته من أي خدمة استخدمته معها. ولحل المشكلة، يُرجى إعادة ضبط مفتاح الأمان.</translation>
 <translation id="3275778913554317645">فتح كنافذة</translation>
 <translation id="3277214528693754078">التنقُّل في الصفحة باستخدام مؤشر النص (ميزة "التصفُّح النصي بالمؤشر")</translation>
 <translation id="3277594800340743211">ظل كبير</translation>
@@ -3573,7 +3575,6 @@
 <translation id="3417835166382867856">البحث في علامات التبويب</translation>
 <translation id="3417836307470882032">التوقيت العسكري</translation>
 <translation id="3418798368381485936">لا يمكنك تسجيل الدخول باستخدام هذا الحساب</translation>
-<translation id="3420501302812554910">يتطلب مفتاح الأمان الداخلي إعادة ضبط</translation>
 <translation id="3421387094817716717">المفتاح العام لمنحنى ناقص المقطع</translation>
 <translation id="3422989558057853751">تم اختيار آخر عنصر، وسيؤدي إلغاء اختياره إلى الخروج من وضع الاختيار</translation>
 <translation id="3423111258700187173">تم العثور على نتائج في "<ph name="FOLDER_TITLE" />"</translation>
@@ -3654,6 +3655,7 @@
 <translation id="3468298837301810372">الاسم</translation>
 <translation id="3468999815377931311">‏هاتف Android</translation>
 <translation id="3469583217479686109">أداة التحديد</translation>
+<translation id="3471687177769494956">تعديل اختصار التنقّل</translation>
 <translation id="3471876058939596279">‏لا يمكن استخدام منافذ USB من نوع C وHDMI لهذا الفيديو في الوقت نفسه. عليك استخدام منفذ فيديو مختلف.</translation>
 <translation id="3472469028191701821">يتم فتح الرابط في علامة تبويب جديدة.</translation>
 <translation id="3473241910002674503">يمكنك الانتقال إلى الصفحة الرئيسية والصفحة السابقة والتبديل بين التطبيقات باستخدام أزرار التنقل في وضع الجهاز اللوحي.</translation>
@@ -3879,6 +3881,7 @@
 <translation id="3619294456800709762">يمكن للمواقع الإلكترونية فتح النوافذ في وضع "نافذة ضمن النافذة" تلقائيًا</translation>
 <translation id="3620136223548713675">رصد الموقع الجغرافي</translation>
 <translation id="3621202678540785336">الإدخال</translation>
+<translation id="3621841019087952625">الضبط لاحقًا</translation>
 <translation id="362266093274784978">{COUNT,plural, =1{تطبيق واحد}zero{# تطبيق}two{تطبيقان}few{# تطبيقات}many{# تطبيقًا}other{# تطبيق}}</translation>
 <translation id="3622820753353315928">لون وميض الشاشة</translation>
 <translation id="3623318122257816196">يمكن للمواقع الإلكترونية التي تنتقل إليها تضمين محتوى من مواقع إلكترونية أخرى، مثل الصور والإعلانات والنصوص. وقد تطلب هذه المواقع الإلكترونية الأخرى إذنًا لاستخدام المعلومات التي تم حفظها عنك أثناء تصفُّح الموقع الإلكتروني.</translation>
@@ -4281,6 +4284,7 @@
 <translation id="3856096718352044181">يُرجى إثبات صلاحية مقدّم الخدمة أو المحاولة مجددًا.</translation>
 <translation id="3856470183388031602">‏استخدام حسابك على Google على جهاز "<ph name="DEVICE_TYPE" />"</translation>
 <translation id="3856800405688283469">اختيار منطقة زمنية</translation>
+<translation id="3856902135796972992">يتطلّب هذا الموقع الإلكتروني اتخاذ إجراء إضافي. يُرجى إكماله في الصفحة للتمكّن من إتمام عملية تغيير كلمة المرور.</translation>
 <translation id="3857807444929313943">ارفع الإصبع، ثم المس أداة الاستشعار مرة أخرى</translation>
 <translation id="3858860766373142691">الاسم</translation>
 <translation id="385939467708172187">استخدام كلمة مرور قوية</translation>
@@ -4545,6 +4549,7 @@
 <translation id="4036778507053569103">السياسة المُنزَّلة من الخادم غير صالحة.</translation>
 <translation id="4037084878352560732">حصان</translation>
 <translation id="403725336528835653">إجراء تجربة أولاً</translation>
+<translation id="4039835815168788100">حاولت الإضافة "<ph name="EXTENSION_NAME" />" تغيير محرك البحث إلى <ph name="SEARCH_PROVIDER" />. يُرجى تأكيد خيارك أدناه</translation>
 <translation id="4039966970282098406">يمكنك إدارة خصوصيتك من خلال التحكّم في إمكانية الوصول إلى الميكروفون والكاميرا وغير ذلك</translation>
 <translation id="4040041015953651705">لغة النص المطلوب ترجمته</translation>
 <translation id="4042863763121826131">{NUM_PAGES,plural, =1{الخروج من الصفحة}zero{الخروج من صفحة}two{الخروج من الصفحتين}few{الخروج من صفحات}many{الخروج من صفحة}other{الخروج من صفحة}}</translation>
@@ -6249,6 +6254,7 @@
 <translation id="5228704301508740018">{GROUP_COUNT,plural, =1{هل تريد إلغاء تجميع مجموعة علامات التبويب؟}zero{هل تريد إلغاء تجميع مجموعات علامات التبويب؟}two{هل تريد إلغاء تجميع مجموعتَي علامات التبويب؟}few{هل تريد إلغاء تجميع مجموعات علامات التبويب؟}many{هل تريد إلغاء تجميع مجموعات علامات التبويب؟}other{هل تريد إلغاء تجميع مجموعات علامات التبويب؟}}</translation>
 <translation id="5230190638672215545">‏اكتب uow لإظهار ươ</translation>
 <translation id="5230516054153933099">نافذة</translation>
+<translation id="5231255476752743708">‏يحتاج Chrome إلى المساعدة في تغيير كلمة المرور</translation>
 <translation id="5232714764496316200">‏واجباتك المنزلية أصبحت أسهل مع "عدسة Google"</translation>
 <translation id="5233231016133573565">معرِّف العملية</translation>
 <translation id="5233638681132016545">علامة تبويب جديدة</translation>
@@ -6757,7 +6763,7 @@
     <ph name="BEGIN_PARAGRAPH2" />لن يؤثر إيقاف هذه الميزة في قدرة جهازك على إرسال المعلومات المطلوبة للحصول على خدمات أساسية، مثل تحديثات النظام والأمان.<ph name="END_PARAGRAPH2" />
     <ph name="BEGIN_PARAGRAPH3" />يمكن للمالك التحكُّم في هذه الميزة من "الإعدادات" &gt; "إعدادات متقدمة" &gt; إرسال بيانات التشخيص والاستخدام إلى Google تلقائيًا.<ph name="END_PARAGRAPH3" />
     <ph name="BEGIN_PARAGRAPH4" />في حال تفعيل إعداد "النشاط على الويب وفي التطبيقات" الإضافي، قد يتم حفظ هذه البيانات في حسابك على Google. ويمكنك الاطّلاع على بياناتك وحذفها وتغيير إعدادات حسابك على account.google.com.<ph name="END_PARAGRAPH4" /></translation>
-<translation id="5585019845078534178">بطاقات</translation>
+<translation id="5585019845078534178">البطاقات</translation>
 <translation id="5585118885427931890">تعذر إنشاء مجلد إشارة.</translation>
 <translation id="558563010977877295">فتح صفحة محددة أو مجموعة صفحات</translation>
 <translation id="5585898376467608182">مساحة التخزين في جهازك منخفضة. يجب توفير <ph name="MINIMUM_SPACE" /> على الأقل من المساحة الخالية لاستخدام تطبيق <ph name="APP_NAME" />. ولزيادة المساحة الخالية، يجب حذف ملفات من الجهاز.</translation>
@@ -6866,6 +6872,7 @@
 <translation id="5659593005791499971">البريد الإلكتروني</translation>
 <translation id="5659964844710667266">إنشاء كلمة مرور لجهاز <ph name="DEVICE_TYPE" /> هذا</translation>
 <translation id="5662513737565158057">‏تغيير طريقة عمل تطبيقات نظام التشغيل Linux</translation>
+<translation id="5663317829633858516">تم تغييره مؤخرًا بواسطة <ph name="EXTENSION_NAME" /></translation>
 <translation id="5663459693447872156">الانتقال تلقائيًا إلى منتصف العرض</translation>
 <translation id="5663653125349867535">قائمة القراءة</translation>
 <translation id="5663918299073387939">‏تطلب المواقع الإلكترونية عادةً التحكُّم في أجهزة MIDI وإعادة برمجتها لإنشاء المقاطع الموسيقية أو تعديلها أو تحديث البرامج الثابتة للجهاز.</translation>
@@ -7087,6 +7094,7 @@
 <translation id="5828181959764767444">غروب</translation>
 <translation id="5828545842856466741">إضافة ملف شخصي...</translation>
 <translation id="5828633471261496623">الطباعة جارية...</translation>
+<translation id="5829544019044013776">‏طُرق الدفع في "محفظة Google"</translation>
 <translation id="5830205393314753525">يتعذّر فتح <ph name="APP_NAME" /></translation>
 <translation id="5830512293931520102">كلمة المرور مشفَّرة ولا يمكن لأي شخص الاطّلاع عليها</translation>
 <translation id="5830720307094128296">حفظ &amp;صفحة باسم...</translation>
@@ -7652,6 +7660,7 @@
 <translation id="6212168817037875041">إيقاف الشاشة</translation>
 <translation id="6212752530110374741">إرسال الرابط عبر البريد الإلكتروني</translation>
 <translation id="6214106213498203737">ألوان مائية</translation>
+<translation id="6214157047210274853">‏التعديل في "محفظة Google"</translation>
 <translation id="621470880408090483">عدم السماح للمواقع الإلكترونية بالاتصال بأجهزة تتضمّن بلوتوث</translation>
 <translation id="6215039389782910006">{1,plural, =1{للحفاظ على أمان كلمات المرور، يتم قفل "<ph name="BRAND" />" بعد مرور دقيقة واحدة من عدم النشاط.}zero{للحفاظ على أمان كلمات المرور، يتم قفل "<ph name="BRAND" />" بعد مرور # دقيقة من عدم النشاط.}two{للحفاظ على أمان كلمات المرور، يتم قفل "<ph name="BRAND" />" بعد مرور دقيقتين من عدم النشاط.}few{للحفاظ على أمان كلمات المرور، يتم قفل "<ph name="BRAND" />" بعد مرور # دقائق من عدم النشاط.}many{للحفاظ على أمان كلمات المرور، يتم قفل "<ph name="BRAND" />" بعد مرور # دقيقة من عدم النشاط.}other{للحفاظ على أمان كلمات المرور، يتم قفل "<ph name="BRAND" />" بعد مرور # دقيقة من عدم النشاط.}}</translation>
 <translation id="6216154119179790291">الانتقال إلى علامة التبويب الأولى</translation>
@@ -8316,6 +8325,7 @@
 <translation id="6677527809400770913">تم تخصيص الإيماءة "<ph name="GESTURE" />" إلى "<ph name="ACTION" />"</translation>
 <translation id="6678604587151240716">أمواج كبيرة تتصادم في البحر، مع أرض في الخلفية البعيدة وخيوط من الضوء البرتقالي فوق الأفق، في سماء مظلمة</translation>
 <translation id="6678717876183468697">‏عنوان URL للاستعلام</translation>
+<translation id="6678974601734442817">‏يحتاج Chromium إلى المساعدة في تغيير كلمة المرور</translation>
 <translation id="6679947539429331601">إخفاء لمدة 12 ساعة</translation>
 <translation id="6680442031740878064">المساحة المتاحة: <ph name="AVAILABLE_SPACE" /></translation>
 <translation id="6680650203439190394">تقييم</translation>
@@ -8905,6 +8915,7 @@
 <translation id="7074703793383805632">مجموعة <ph name="GROUP_NAME" />‏ <ph name="SHARED_STATE" /> - <ph name="OPENED_STATE" /></translation>
 <translation id="7075513071073410194">‏PKCS #1 MD5 مع ترميز RSA</translation>
 <translation id="7075625805486468288">‏إدارة إعدادات وشهادات HTTPS/طبقة المقابس الآمنة</translation>
+<translation id="707772989579681711">خيارك السابق</translation>
 <translation id="7077751457066325012">عرض اختصارات لوحة المفاتيح وتخصيصها</translation>
 <translation id="7077829361966535409">تعذّر تحميل صفحة تسجيل الدخول باستخدام إعدادات الخادم الوكيل الحالية. يُرجى <ph name="GAIA_RELOAD_LINK_START" />إعادة محاولة تسجيل الدخول<ph name="GAIA_RELOAD_LINK_END" />، أو استخدام <ph name="PROXY_SETTINGS_LINK_START" />إعدادات خادم وكيل<ph name="PROXY_SETTINGS_LINK_END" /> مختلفة.</translation>
 <translation id="7078120482318506217">جميع الشبكات</translation>
@@ -9131,6 +9142,7 @@
 <translation id="7243092385765551741">هل تريد حذف مفتاح المرور؟</translation>
 <translation id="7245628041916450754">‏<ph name="WIDTH" /> x <ph name="HEIGHT" /> (الأفضل)</translation>
 <translation id="7246230585855757313">أعِد إدخال مفتاح الأمان وحاول مجددًا</translation>
+<translation id="7248671827512403053">تطبيق</translation>
 <translation id="7249197363678284330">يمكنك تغيير هذا الإعداد في شريط العناوين.</translation>
 <translation id="7249764475759804559">إضافة هذا التطبيق كخيار لفتح الملفات</translation>
 <translation id="7249885578105575587">‏طرح سؤال على Google حول علامة التبويب هذه: "<ph name="TAB_TITLE" />"</translation>
@@ -9484,7 +9496,7 @@
 <translation id="7478658909253570368">عدم السماح للمواقع الإلكترونية بالاتصال بمنافذ تسلسلية</translation>
 <translation id="7479221278376295180">نظرة عامة على استخدام مساحة التخزين</translation>
 <translation id="747981547666531654">تم الاتصال بالجهازين <ph name="FIRST_DEVICE" /> و<ph name="SECOND_DEVICE" /> اللذين يتضمّنان بلوتوث</translation>
-<translation id="7481213027396403996">‏الحصول على أعلى مستوى من الأمان في متصفِّح Chrome</translation>
+<translation id="7481213027396403996">‏احصل على أعلى مستويات الأمان في Chrome</translation>
 <translation id="7481312909269577407">إلى الأمام</translation>
 <translation id="7481358317100446445">جاهزة</translation>
 <translation id="748138892655239008">القيود الأساسية على الشهادة</translation>
@@ -10276,7 +10288,6 @@
 <translation id="8010312870936510509">‏تم تشفير البيانات باستخدام عبارة مرور المزامنة في <ph name="TIME" />. ولا يتضمَّن ذلك طرق الدفع والعناوين من Google Pay.</translation>
 <translation id="8011372169388649948">تم نقل الإشارة المرجعية "<ph name="BOOKMARK_TITLE" />".</translation>
 <translation id="8012188750847319132">Caps Lock</translation>
-<translation id="8012463809859447963">تفاصيل نقطة الاتصال الفورية</translation>
 <translation id="8013181884974864006">المهام السياقية</translation>
 <translation id="8013534738634318212">تندرج هذه المواقع الإلكترونية ضمن مجموعة حدّدها "<ph name="RWS_OWNER" />". يمكن للمواقع الإلكترونية المُدرَجة في إحدى المجموعات الاطّلاع على نشاطك في هذه المجموعة.</translation>
 <translation id="8013993649590906847">‏في حال لم تتضمن صورة ما وصفًا مفيدًا، سيحاول Chrome توفير وصف لك. لإنشاء الأوصاف، سيتم إرسال الصور إلى Google.</translation>
@@ -10553,6 +10564,7 @@
 <translation id="8195854162863398249">إيقاف ميزة "<ph name="FEATURE_NAME" />"</translation>
 <translation id="8195920051450756553">المهلة التي يتم بعد انقضائها تفعيل المفتاح نفسه مرة أخرى</translation>
 <translation id="8197673340773315084">يُرجى إضافة اسم أو تصنيف، مثل "مخصّص للعمل" أو "شخصي".</translation>
+<translation id="8198043456018523011">تأكيد محرك البحث التلقائي</translation>
 <translation id="8198181050118789419">المظهر: <ph name="THEME_NAME" /></translation>
 <translation id="8198456017687137612">جارٍ إرسال محتوى علامة التبويب</translation>
 <translation id="8199300056570174101">خصائص الشبكة (الخدمة) والجهاز</translation>
@@ -11306,6 +11318,7 @@
 <translation id="8703346390800944767">تخطّي الإعلان</translation>
 <translation id="8703372953981978786">هذا الرابط لا يعمل</translation>
 <translation id="8703766890819308134">عرض اختصارات طلبات البحث</translation>
+<translation id="8704248383043944131">تعديل اختصار لوحة المفاتيح</translation>
 <translation id="8704662571571150811">النطاقات</translation>
 <translation id="8705331520020532516">الرقم التسلسلي</translation>
 <translation id="870536819717176711">‏عند مشاركة علامة التبويب الحالية مع Gemini، يتم إرسال محتواها بالكامل والوسائط وعنوان URL الخاص بها إلى Google.</translation>
@@ -11494,7 +11507,6 @@
 <translation id="8820817407110198400">الإشارات المرجعية</translation>
 <translation id="8821045908425223359">‏ضبط عنوان IP تلقائيًا</translation>
 <translation id="8821268776955756404"><ph name="APP_NAME" /> جاهز للاستخدام.</translation>
-<translation id="8821647731831124007">ما مِن نقاط اتصال متوفّرة</translation>
 <translation id="882204272221080310">يمكنك تحديث البرامج الثابتة لمزيد من الأمان.</translation>
 <translation id="8822690627597552656">يتم إبطاء سرعة بعض المواقع الإلكترونية غير المألوفة لحظر الهجمات الشائعة</translation>
 <translation id="8823514049557262177">نسخ &amp;نص الرابط</translation>
@@ -11630,6 +11642,7 @@
 <translation id="8911914282056933784">إخفاء المشاريع</translation>
 <translation id="8912362522468806198">‏حساب Google‏</translation>
 <translation id="8912810933860534797">تفعيل المسح التلقائي</translation>
+<translation id="8913485523736543337">أداة التحديث</translation>
 <translation id="8914030287343429787">‏يمكنك عرض كلمات المرور حتى عند عدم استخدام Chrome أو Android من خلال تسجيل الدخول إلى <ph name="BEGIN_LINK" />passwords.google.com<ph name="END_LINK" /></translation>
 <translation id="8914504000324227558">‏إعادة تشغيل Chrome</translation>
 <translation id="8915307125957890427">انقر بزر الماوس الأيمن على علامة تبويب واختَر "إضافة علامة تبويب إلى مجموعة"، ثم اختَر "مجموعة جديدة".</translation>
@@ -11770,6 +11783,7 @@
 <translation id="8999560016882908256">خطأ في بنية القسم: <ph name="ERROR_LINE" /></translation>
 <translation id="8999651235576960439">الحدّ من الحركة على الشاشة</translation>
 <translation id="9000185763019430629">المِس أداة استشعار بصمة الإصبع في الجانب الأيمن من جهاز <ph name="DEVICE_TYPE" />. يتم تخزين بيانات بصمة الإصبع بشكل آمن وتظلّ محفوظة على جهاز <ph name="DEVICE_TYPE" /> فقط.</translation>
+<translation id="9000529821022336229">تعذَّر العثور على أي عمليات تثبيت في أداة التحديث.</translation>
 <translation id="900267527532832868">لم يعُد مفتاح المرور هذا صالحًا، وسيتم حذفه قريبًا من "<ph name="GOOGLE_PASSWORD_MANAGER" />".</translation>
 <translation id="9003031149571024583">‏أدخِل الرقم <ph name="NUM_DIGIT" /> من رقم التعريف الشخصي المكوَّن من 6 أرقام. استخدِم مفتاح Backspace أو Delete لإزالة آخر رقم.</translation>
 <translation id="9003185744423389627">تعذّر الاتصال بخادم إدارة الأجهزة - حالة العملية "<ph name="STATUS_TEXT" />" الوقت <ph name="FAILURE_TIME" /></translation>

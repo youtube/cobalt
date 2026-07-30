@@ -153,6 +153,7 @@ public class TabContextMenuCoordinatorUnitTest {
                     NUM_INCOGNITO_TABS,
                     /* isIncognitoSelected= */ false,
                     LAST_ACCESSED_TIME,
+                    /* closureTime= */ 0,
                     /* markedForDeletion= */ false);
 
     private static final InstanceInfo INSTANCE_INFO_2 =
@@ -167,6 +168,7 @@ public class TabContextMenuCoordinatorUnitTest {
                     NUM_INCOGNITO_TABS,
                     /* isIncognitoSelected= */ false,
                     LAST_ACCESSED_TIME,
+                    /* closureTime= */ 0,
                     /* markedForDeletion= */ false);
 
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
@@ -1151,8 +1153,12 @@ public class TabContextMenuCoordinatorUnitTest {
                         Collections.singletonList(TAB_OUTSIDE_OF_GROUP_ID)));
         StripLayoutContextMenuCoordinatorTestUtils.clickMoveToNewWindow(modelList, 1, mView);
         verify(mMultiInstanceManager, times(1))
-                .moveTabsToNewWindow(
-                        Collections.singletonList(mTabOutsideOfGroup), NewWindowAppSource.MENU);
+                .moveTabsToWindow(
+                        /* destWindowId= */ MultiInstanceManager.INVALID_WINDOW_ID,
+                        Collections.singletonList(mTabOutsideOfGroup),
+                        /* destTabIndex= */ TabList.INVALID_TAB_INDEX,
+                        /* destGroupTabId= */ TabList.INVALID_TAB_INDEX,
+                        NewWindowAppSource.MENU);
     }
 
     @Test
@@ -1354,6 +1360,7 @@ public class TabContextMenuCoordinatorUnitTest {
                         NUM_INCOGNITO_TABS,
                         /* isIncognitoSelected= */ false,
                         LAST_ACCESSED_TIME,
+                        /* closureTime= */ 0,
                         /* markedForDeletion= */ false);
 
         MultiWindowUtils.setInstanceCountForTesting(2);

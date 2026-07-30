@@ -16,7 +16,6 @@
 #include "chrome/browser/optimization_guide/optimization_guide_keyed_service_factory.h"
 #include "chrome/browser/password_manager/account_password_store_factory.h"
 #include "chrome/browser/password_manager/chrome_password_manager_client.h"
-#include "chrome/browser/password_manager/password_change/change_password_form_filling_submission_helper.h"
 #include "chrome/browser/password_manager/password_change/change_password_form_finder.h"
 #include "chrome/browser/password_manager/password_change/change_password_form_waiter.h"
 #include "chrome/browser/password_manager/password_change/cross_origin_navigation_observer.h"
@@ -63,6 +62,8 @@ namespace {
 using ::password_manager::BrowserSavePasswordProgressLogger;
 using FlowStep = ModelQualityLogsUploader::FlowStep;
 using QualityStatus = ModelQualityLogsUploader::QualityStatus;
+using SubmissionResult =
+    ChangePasswordFormFillingSubmissionHelper::SubmissionResult;
 
 constexpr base::TimeDelta kToastDisplayTime = base::Seconds(8);
 
@@ -510,6 +511,17 @@ void PasswordChangeDelegateImpl::OpenPasswordChangeTab() {
   } else {
     FocusPasswordChangeTab(web_contents);
   }
+
+  // If the feature is enabled and the user manually takes over the task
+  // the new password is saved to avoid data losses.
+  if (current_state_ == State::kOtpDetected &&
+      base::FeatureList::IsEnabled(
+          password_manager::features::kUserInterventionForPasswordChange)) {
+    CHECK(submission_verifier_);
+    submission_verifier_->SavePassword(username_);
+    submission_verifier_.reset();
+  }
+
   password_change_hats_->MaybeLaunchSurvey(
       kHatsSurveyTriggerPasswordChangeError,
       /*password_change_duration=*/base::Time::Now() - flow_start_time_,
@@ -652,30 +664,62 @@ void PasswordChangeDelegateImpl::UpdateState(State new_state) {
   }
 }
 
-void PasswordChangeDelegateImpl::OnChangeFormSubmissionVerified(bool result) {
-  if (auto logger = GetLoggerIfAvailable(executor())) {
-    logger->LogBoolean(BrowserSavePasswordProgressLogger::
-                           STRING_AUTOMATED_PASSWORD_CHANGE_SUBMISSION_VERIFIED,
-                       result);
-  }
-  base::Time time_now = base::Time::Now();
-  base::TimeDelta password_change_duration_overall =
-      time_now - flow_start_time_;
+void PasswordChangeDelegateImpl::OnChangeFormSubmissionVerified(
+    SubmissionResult result) {
+  switch (result) {
+    case SubmissionResult::kUserInterventionNeeded:
+      // If the feature is enabled, handle the User Intervention state.
+      // We set the state to UI to prompt the user to complete the flow.
+      // The new password is saved only if the user takes over, this is done in
+      // `OpenPasswordChangeTab`.
+      if (base::FeatureList::IsEnabled(
+              password_manager::features::kUserInterventionForPasswordChange)) {
+        if (auto logger = GetLoggerIfAvailable(executor())) {
+          logger->LogBoolean(
+              BrowserSavePasswordProgressLogger::
+                  STRING_AUTOMATED_PASSWORD_CHANGE_USER_INTERVENTION_AFTER_SUBMISSION,
+              /*truth_value=*/true);
+        }
+        UpdateState(State::kOtpDetected);
+        return;
+      }
+      // If the feature is not enabled, fallthrough to the failure case.
+      [[fallthrough]];
+    case SubmissionResult::kFailure:
+      if (auto logger = GetLoggerIfAvailable(executor())) {
+        logger->LogBoolean(
+            BrowserSavePasswordProgressLogger::
+                STRING_AUTOMATED_PASSWORD_CHANGE_SUBMISSION_VERIFIED,
+            /*truth_value=*/false);
+      }
+      UpdateState(State::kPasswordChangeFailed);
+      submission_verifier_.reset();
+      break;
 
-  if (!result) {
-    UpdateState(State::kPasswordChangeFailed);
-  } else {
-    // Password change was successful. Save new password with an original
-    // username.
-    submission_verifier_->SavePassword(username_);
-    NotifyPasswordChangeFinishedSuccessfully(originator_);
-    UpdateState(State::kPasswordSuccessfullyChanged);
-    password_change_hats_->MaybeLaunchSurvey(
-        kHatsSurveyTriggerPasswordChangeSuccess,
-        password_change_duration_overall, blocking_challenge_detected_,
-        originator_);
+    case SubmissionResult::kSuccess:
+      if (auto logger = GetLoggerIfAvailable(executor())) {
+        logger->LogBoolean(
+            BrowserSavePasswordProgressLogger::
+                STRING_AUTOMATED_PASSWORD_CHANGE_SUBMISSION_VERIFIED,
+            /*truth_value=*/true);
+      }
+
+      base::Time time_now = base::Time::Now();
+      base::TimeDelta password_change_duration_overall =
+          time_now - flow_start_time_;
+
+      // Password change was successful. Save new password with an original
+      // username.
+      submission_verifier_->SavePassword(username_);
+      NotifyPasswordChangeFinishedSuccessfully(originator_);
+      UpdateState(State::kPasswordSuccessfullyChanged);
+      password_change_hats_->MaybeLaunchSurvey(
+          kHatsSurveyTriggerPasswordChangeSuccess,
+          password_change_duration_overall, blocking_challenge_detected_,
+          originator_);
+      submission_verifier_.reset();
+      break;
   }
-  submission_verifier_.reset();
 }
 
 bool PasswordChangeDelegateImpl::IsPrivacyNoticeAcknowledged() const {
@@ -715,7 +759,7 @@ void PasswordChangeDelegateImpl::OnCrossOriginNavigationDetected() {
   // Navigation happened when submitting the form. Terminate flow with a failure
   // message.
   if (submission_verifier_) {
-    OnChangeFormSubmissionVerified(false);
+    OnChangeFormSubmissionVerified(SubmissionResult::kFailure);
     return;
   }
 

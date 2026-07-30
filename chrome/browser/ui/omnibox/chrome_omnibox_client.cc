@@ -413,16 +413,10 @@ void ChromeOmniboxClient::OnKeywordModeChanged(bool entered,
 
   TemplateURL* template_url =
       GetTemplateURLService()->GetTemplateURLForKeyword(keyword);
-  if (!template_url || template_url->starter_pack_id() !=
-                           template_url_starter_pack_data::kPage) {
+  if (!template_url ||
+      template_url->starter_pack_id() !=
+          template_url_starter_pack_data::StarterPackId::kPage) {
     return;
-  }
-
-  if (LensSearchController* lens_search_controller =
-          GetLensSearchController(location_bar_->GetWebContents())) {
-    // TODO(crbug.com/408073216): Create and use new dismissal source.
-    lens_search_controller->CloseLensAsync(
-        lens::LensOverlayDismissalSource::kEscapeKeyPress);
   }
 }
 
@@ -941,8 +935,6 @@ void ChromeOmniboxClient::DoPrerender(const AutocompleteMatch& match) {
     return;
   }
 
-  // TODO(crbug.com/40208255): Refactor relevant code to reuse common
-  // code, and ensure metrics are correctly recorded.
   DCHECK(!AutocompleteMatch::IsSearchType(match.type));
 
   predictors::AutocompleteActionPredictorFactory::GetForProfile(profile_)

@@ -42,12 +42,15 @@ chromium-metrics-reviews@google.com.
 <variants name="LogAiDataRequestFeature">
   <variant name="BlingPrototyping" summary="Bling Prototyping"/>
   <variant name="Compose" summary="Compose"/>
+  <variant name="ContextualTasksContext" summary="Contextual Tasks Context"/>
   <variant name="Default" summary="Default"/>
   <variant name="EnhancedCalendar" summary="Enhanced Calendar"/>
   <variant name="FeatureNotSet" summary="Feature not set"/>
   <variant name="FormsAnnotations" summary="Forms Annotations"/>
   <variant name="FormsClassifications" summary="Forms Classifications"/>
   <variant name="FormsPredictions" summary="Forms Predictions"/>
+  <variant name="GeminiAntiscamProtection"
+      summary="Gemini Antiscam Protection"/>
   <variant name="HistoryAnswer" summary="History Answer"/>
   <variant name="HistoryQuery" summary="History Query"/>
   <variant name="HistoryQueryIntent" summary="History Query Intent"/>
@@ -1177,6 +1180,17 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram
+    name="OptimizationGuide.ModelExecution.OnDeviceModelInstallCriteria.AtRegistration.InstallMode"
+    enum="OptimizationGuideOnDeviceModelInstallMode" expires_after="2026-07-05">
+  <owner>holte@chromium.org</owner>
+  <owner>jingyun@google.com</owner>
+  <summary>
+    Records the mode in which the on-device model was first registered. Recorded
+    shortly after startup, if the on-device model installation is initiated.
+  </summary>
+</histogram>
+
+<histogram
     name="OptimizationGuide.ModelExecution.OnDeviceModelInstallCriteria.{Event}.{Criteria}"
     enum="Boolean" expires_after="2026-07-05">
   <owner>holte@chromium.org</owner>
@@ -1246,7 +1260,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecution.OnDeviceModelToBeInstalledReason.{ModelExecutionFeature}"
-    enum="OptimizationGuideOnDeviceModelStatus" expires_after="2026-05-31">
+    enum="OptimizationGuideOnDeviceModelStatus" expires_after="2026-08-02">
   <owner>holte@chromium.org</owner>
   <owner>andysjlim@chromium.org</owner>
   <summary>
@@ -1517,7 +1531,7 @@ chromium-metrics-reviews@google.com.
 
 <histogram
     name="OptimizationGuide.ModelExecutor.ModelLoadingDuration2.{OptimizationTarget}"
-    units="ms" expires_after="2026-05-31">
+    units="ms" expires_after="2026-08-02">
   <owner>wittman@chromium.org</owner>
   <owner>rajendrant@chromium.org</owner>
   <summary>

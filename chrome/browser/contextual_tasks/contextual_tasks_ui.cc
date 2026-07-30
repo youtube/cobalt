@@ -116,6 +116,11 @@ std::string GetEncodedHandshakeMessage() {
           contextual_tasks::kContextualTasksContextLibrary)) {
     ping->add_capabilities(lens::FeatureCapability::THREAD_CONTEXT_LIBRARY);
   }
+  if (base::FeatureList::IsEnabled(
+          contextual_tasks::kEnableNotifyZeroStateRenderedCapability)) {
+    ping->add_capabilities(lens::FeatureCapability::NOTIFY_ZERO_STATE_RENDERED);
+  }
+
   const size_t size = message.ByteSizeLong();
   std::vector<uint8_t> serialized_message(size);
   message.SerializeToArray(&serialized_message[0], size);
@@ -213,6 +218,10 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
        IDS_CONTEXTUAL_TASKS_FIRST_RUN_EXPERIENCE_ACCEPT_BUTTON},
       {"permissionError", IDS_NEW_TAB_VOICE_PERMISSION_ERROR},
       {"listening", IDS_NEW_TAB_VOICE_LISTENING},
+      {"oauthErrorDialogTitle", IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_TITLE},
+      {"oauthErrorDialogBody", IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_BODY},
+      {"oauthErrorDialogReloadButton",
+       IDS_CONTEXTUAL_TASKS_OAUTH_ERROR_DIALOG_RELOAD_BUTTON},
   };
   source->AddLocalizedStrings(kLocalizedStrings);
   source->AddLocalizedString(
@@ -288,6 +297,9 @@ ContextualTasksUI::ContextualTasksUI(content::WebUI* web_ui)
                         .input_placeholder_text());
   source->AddBoolean("composeboxSmartComposeEnabled",
                      contextual_tasks::GetEnableContextualTasksSmartCompose());
+  source->AddBoolean("enableNativeZeroStateSuggestions",
+                     contextual_tasks::GetEnableNativeZeroStateSuggestions());
+
   AddContextMenuItemEligibilityLoadTimeData(source, Profile::FromWebUI(web_ui));
   source->AddBoolean("composeboxShowLensSearchChip", false);
   source->AddBoolean("composeboxShowRecentTabChip", false);
@@ -460,6 +472,10 @@ BrowserWindowInterface* ContextualTasksUI::GetBrowser() {
   return FromWebContents(web_ui()->GetWebContents());
 }
 
+Profile* ContextualTasksUI::GetProfile() {
+  return Profile::FromWebUI(web_ui());
+}
+
 content::WebContents* ContextualTasksUI::GetWebUIWebContents() {
   return web_ui()->GetWebContents();
 }
@@ -548,7 +564,8 @@ ContextualTasksUI::GetOrCreateContextualSessionHandle() {
       // of this call, or move this call to a different location.
       session_handle->CheckSearchContentSharingSettings(
           Profile::FromWebUI(web_ui())->GetPrefs());
-      helper->SetTaskSession(std::nullopt, std::move(session_handle));
+      helper->SetTaskSession(std::nullopt, std::move(session_handle),
+                             /*input_state_model=*/nullptr);
       return helper->session_handle();
     }
   }
@@ -573,6 +590,12 @@ void ContextualTasksUI::PostMessageToWebview(
     const lens::ClientToAimMessage& message) {
   CHECK(page_handler_);
   page_handler_->PostMessageToWebview(message);
+}
+
+void ContextualTasksUI::ShowOauthErrorDialog() {
+  if (page_) {
+    page_->ShowOauthErrorDialog();
+  }
 }
 
 void ContextualTasksUI::OnInnerWebContentsCreated(
@@ -781,6 +804,11 @@ void ContextualTasksUI::PushTaskDetailsToPage() {
                         thread_id_.value_or(""), thread_turn_id_.value_or(""));
 }
 
+mojo::Remote<contextual_tasks::mojom::Page>&
+ContextualTasksUI::GetPageRemote() {
+  return page_;
+}
+
 contextual_tasks::ContextualTasksSidePanelCoordinator*
 ContextualTasksUI::GetSidePanelCoordinator() {
   if (!web_ui()->GetWebContents()) {
@@ -799,7 +827,7 @@ ContextualTasksUI::FrameNavObserver::FrameNavObserver(
     content::WebContents* web_contents,
     contextual_tasks::ContextualTasksUiService* ui_service,
     contextual_tasks::ContextualTasksService* contextual_tasks_service,
-    TaskInfoDelegate* task_info_delegate)
+    contextual_tasks::TaskInfoDelegate* task_info_delegate)
     : content::WebContentsObserver(web_contents),
       ui_service_(ui_service),
       contextual_tasks_service_(contextual_tasks_service),
@@ -828,7 +856,11 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
   // Set whether this navigation is to a zero state so the UI can adjust
   // accordingly.
   const bool is_zero_state = ContextualTasksUI::IsZeroState(url, ui_service_);
-  task_info_delegate_->OnZeroStateChange(is_zero_state);
+
+  if (!base::FeatureList::IsEnabled(
+          contextual_tasks::kEnableNotifyZeroStateRenderedCapability)) {
+    task_info_delegate_->OnZeroStateChange(is_zero_state);
+  }
 
   bool is_url_changed = false;
   if (url != last_committed_url_) {
@@ -844,7 +876,10 @@ void ContextualTasksUI::FrameNavObserver::DidFinishNavigation(
     return;
   }
 
-  if (is_zero_state) {
+  if (is_zero_state &&
+      (!base::FeatureList::IsEnabled(
+           contextual_tasks::kEnableNotifyZeroStateRenderedCapability) ||
+       navigation_handle->IsSameDocument())) {
     // Create a new task for zero state, since there's no thread to associate
     // this with yet.
     contextual_tasks::ContextualTask task =

@@ -9,6 +9,7 @@
 #include "base/files/file_util.h"
 #include "base/files/scoped_temp_dir.h"
 #include "base/rand_util.h"
+#include "base/test/metrics/histogram_tester.h"
 #include "net/disk_cache/basic_cache_file.h"
 #include "net/disk_cache/cache_encryption_delegate.h"
 #include "testing/gmock/include/gmock/gmock.h"
@@ -124,6 +125,7 @@ TEST_F(EncryptedCacheFileTest, EncryptionWithDefaultKey) {
 }
 
 TEST_F(EncryptedCacheFileTest, SimpleReadWrite) {
+  base::HistogramTester histogram_tester;
   auto encrypted_file = CreateEncryptedFile();
 
   std::string data = "Testing data!";
@@ -131,11 +133,20 @@ TEST_F(EncryptedCacheFileTest, SimpleReadWrite) {
   ASSERT_TRUE(write_res.has_value());
   EXPECT_EQ(data.size(), write_res.value());
 
+  // Init happens on first IO (Write).
+  histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                     EncryptionError::kSuccess, 1);
+  histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Write.Result",
+                                     EncryptionError::kSuccess, 1);
+
   std::vector<uint8_t> buffer(data.size());
   auto read_res = encrypted_file->Read(0, base::span(buffer));
   ASSERT_TRUE(read_res.has_value());
   EXPECT_EQ(data.size(), read_res.value());
   EXPECT_EQ(data, std::string(buffer.begin(), buffer.end()));
+
+  histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Read.Result",
+                                     EncryptionError::kSuccess, 1);
 
   // Test reading past EOF but within the same chunk.
   auto past_eof_res = encrypted_file->Read(100, base::span(buffer));
@@ -166,16 +177,22 @@ TEST_F(EncryptedCacheFileTest, Persistence) {
 
   // Re-open and verify that it reads back correctly.
   {
+    base::HistogramTester histogram_tester;
     auto encrypted_file = OpenEncryptedFile();
     std::string expected_data = "Persistent Data";
     std::vector<uint8_t> buffer(expected_data.size());
     auto read_res = encrypted_file->Read(0, base::span(buffer));
     ASSERT_TRUE(read_res.has_value());
     EXPECT_EQ(expected_data, std::string(buffer.begin(), buffer.end()));
+
+    // Open success (header parsed).
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kSuccess, 1);
   }
 
   // Re-opening with the wrong key should fail.
   {
+    base::HistogramTester histogram_tester;
     SetWrongProcessBoundKey();
     auto encrypted_file = OpenEncryptedFile();
 
@@ -183,6 +200,15 @@ TEST_F(EncryptedCacheFileTest, Persistence) {
     auto read_res = encrypted_file->Read(0, base::span(read_buf));
 
     EXPECT_FALSE(read_res.has_value()) << "Should fail with wrong key";
+
+    // Open success.
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kSuccess, 1);
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kInvalidKey, 0);
+    // Read failure (decryption failed).
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Read.Result",
+                                       EncryptionError::kDecryptionFailed, 1);
   }
 }
 
@@ -300,11 +326,14 @@ TEST_F(EncryptedCacheFileTest, DeepCorruptionTest) {
   }
 
   {
+    base::HistogramTester histogram_tester;
     // Read should fail.
     auto encrypted_file = OpenEncryptedFile();
     std::vector<uint8_t> buf(data.size());
     auto res = encrypted_file->Read(0, base::span(buf));
     EXPECT_FALSE(res.has_value());
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kInvalidHeader, 1);
   }
 
   // Restore file for next check.
@@ -330,10 +359,16 @@ TEST_F(EncryptedCacheFileTest, DeepCorruptionTest) {
 
   // Read should fail.
   {
+    base::HistogramTester histogram_tester;
     auto encrypted_file = OpenEncryptedFile();
     std::vector<uint8_t> buf(data.size());
     auto res = encrypted_file->Read(0, base::span(buf));
     EXPECT_FALSE(res.has_value());
+
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Open.Result",
+                                       EncryptionError::kSuccess, 1);
+    histogram_tester.ExpectBucketCount("Enterprise.EncryptedCache.Read.Result",
+                                       EncryptionError::kDecryptionFailed, 1);
   }
 }
 

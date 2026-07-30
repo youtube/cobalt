@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Анулиране на синхронизирането</translation>
 <translation id="3144126448740580210">ГОТОВО</translation>
 <translation id="3148052723910099040">Табличен изглед с обикновени раздели</translation>
+<translation id="3148237711805373460">Към Google Мениджър на пароли</translation>
 <translation id="3157387275655328056">Добавяне към списъка за четене</translation>
 <translation id="315778507796115851">История</translation>
 <translation id="31652791196570636">Отхвърляне</translation>
@@ -1523,6 +1524,7 @@
 <translation id="6556866813142980365">Възстановяване</translation>
 <translation id="6559301491397835130">{count,plural, =1{Отметката е запазена в(ъв) „{title}“. Тя е запазена само на това устройство.}other{Отметките са запазени в(ъв) „{title}“. Те са запазени само на това устройство.}}</translation>
 <translation id="656065428026159829">Вижте още</translation>
+<translation id="6565899972286925956">Създавайте всякакви неща</translation>
 <translation id="6571070086367343653">Редактиране на кредитната карта</translation>
 <translation id="6574092468346088891">Включване на известията за „Проверка на безопасността“</translation>
 <translation id="6579867704846662339">Можете да изберете входящите URL адреси от други приложения да се отварят в режим „инкогнито“.</translation>
@@ -1633,6 +1635,7 @@
 <translation id="6930799952781667037">Докоснете за използване на съответния език.</translation>
 <translation id="693761253105515415">Задаване на код за достъп</translation>
 <translation id="6945221475159498467">Избиране</translation>
+<translation id="6946722113367118030">Замислено лице</translation>
 <translation id="6950522403736391608">Скрити</translation>
 <translation id="6962809930976936328">Получаване на статистика с Gemini</translation>
 <translation id="6964300328304469089">Понастоящем сте избрали: <ph name="NAME" /> (<ph name="EMAIL" />). Изберете профил.</translation>
@@ -1975,6 +1978,7 @@
 <translation id="8205564605687841303">Отказ</translation>
 <translation id="8206354486702514201">Тази настройка е наложена от администратора ви.</translation>
 <translation id="8209050860603202033">Отваряне на изображението</translation>
+<translation id="8209237163365258530">Модели на Gemini <ph name="VERSION_NUMBER" /></translation>
 <translation id="8211030355252954494">Получихте пароли за <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">Връзката е защитена</translation>
 <translation id="8214293972734702249">Фиксирано, <ph name="TAB_TITLE" /></translation>

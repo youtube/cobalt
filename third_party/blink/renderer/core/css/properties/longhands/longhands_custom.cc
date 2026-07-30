@@ -5113,6 +5113,14 @@ const CSSValue* FieldSizing::CSSValueFromComputedStyleInternal(
   return CSSIdentifierValue::Create(style.FieldSizing());
 }
 
+const CSSValue* FrameSizing::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.FrameSizing());
+}
+
 void InternalVisitedColor::ApplyInitial(StyleResolverState& state) const {
   ComputedStyleBuilder& builder = state.StyleBuilder();
   builder.SetInternalVisitedColor(builder.InitialColorForColorScheme());
@@ -5631,6 +5639,14 @@ const CSSValue* ImageOrientation::CSSValueFromComputedStyleInternal(
                                ? CSSValueID::kFromImage
                                : CSSValueID::kNone;
   return CSSIdentifierValue::Create(value);
+}
+
+const CSSValue* ImageAnimation::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject*,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return CSSIdentifierValue::Create(style.ImageAnimation());
 }
 
 const CSSValue* ImageRendering::CSSValueFromComputedStyleInternal(

@@ -499,6 +499,8 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.FieldSizing() == b.FieldSizing();
     case CSSPropertyID::kFlowTolerance:
       return a.GetFlowTolerance() == b.GetFlowTolerance();
+    case CSSPropertyID::kFrameSizing:
+      return a.FrameSizing() == b.FrameSizing();
     case CSSPropertyID::kGridAutoColumns:
       return a.GridAutoColumns() == b.GridAutoColumns();
     case CSSPropertyID::kGridAutoFlow:
@@ -536,6 +538,8 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
       return a.HyphenateLimitChars() == b.HyphenateLimitChars();
     case CSSPropertyID::kHyphens:
       return a.GetHyphens() == b.GetHyphens();
+    case CSSPropertyID::kImageAnimation:
+      return a.ImageAnimation() == b.ImageAnimation();
     case CSSPropertyID::kImageOrientation:
       return a.ImageOrientation() == b.ImageOrientation();
     case CSSPropertyID::kImageRendering:
@@ -1393,6 +1397,7 @@ bool CSSPropertyEquality::PropertiesEqual(const PropertyHandle& property,
     case CSSPropertyID::kRuleBreak:
     case CSSPropertyID::kRuleColor:
     case CSSPropertyID::kRuleInset:
+    case CSSPropertyID::kRuleVisibilityItems:
     case CSSPropertyID::kRuleWidth:
     case CSSPropertyID::kRuleStyle:
     case CSSPropertyID::kScrollMargin:

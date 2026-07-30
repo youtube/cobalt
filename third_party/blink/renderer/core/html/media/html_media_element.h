@@ -167,6 +167,8 @@ class CORE_EXPORT HTMLMediaElement
   // Whether the media element has encrypted audio or video streams.
   bool IsEncrypted() const;
 
+  virtual void OnEncryptedMediaInitData() {}
+
   bool SupportsSave() const;
   bool SupportsLoop() const;
 
@@ -534,6 +536,7 @@ class CORE_EXPORT HTMLMediaElement
   bool CanStartSelection() const override { return false; }
 
   bool IsInteractiveContent() const final;
+  FocusgroupFlags NativeArrowKeyAxes() const final;
 
   // ExecutionContextLifecycleStateObserver functions.
   void ContextLifecycleStateChanged(mojom::blink::FrameLifecycleState) override;

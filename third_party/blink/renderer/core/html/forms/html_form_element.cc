@@ -164,11 +164,14 @@ bool HTMLFormElement::MatchesToolFormActivePseudoClass() const {
 void HTMLFormElement::HTMLFormMcpTool::ExecuteTool(
     String input_arguments,
     base::OnceCallback<void(McpToolCallbackResult)> done_callback) {
+  bool require_submit_button =
+      !form_->FastHasAttribute(html_names::kToolautosubmitAttr);
   HTMLFormControlElement* submit_button = nullptr;
-  if (!FillFormControls(input_arguments, &submit_button)) {
-    return std::move(done_callback)
-        .Run(base::unexpected(
-            WebDocument::ScriptToolError::kInvalidInputArguments));
+  std::optional<WebDocument::ScriptToolError> error =
+      FillFormControls(input_arguments, require_submit_button, &submit_button);
+
+  if (error.has_value()) {
+    return std::move(done_callback).Run(base::unexpected(error.value()));
   }
 
   // Success. Now we can either submit the form or focus the submit button.
@@ -182,34 +185,48 @@ void HTMLFormElement::HTMLFormMcpTool::ExecuteTool(
     submit_button->PseudoStateChanged(CSSSelector::kPseudoToolSubmitActive);
   }
   done_callback_ = std::move(done_callback);
-  form_->PrepareForSubmission(/*event*/ nullptr, submit_button);
+
+  if (require_submit_button) {
+    // Without `toolautosubmit`, we focus the submit button, tell the agent to
+    // allow user input, and wait for the user to submit it.
+    submit_button->Focus();
+    // TODO(khushal) Let the agent know we need to unblock input here.
+  } else {
+    // With the `toolautosubmit` attribute, we immediately submit the form.
+    form_->PrepareForSubmission(/*event*/ nullptr, submit_button);
+  }
 }
 
-bool HTMLFormElement::HTMLFormMcpTool::FillFormControls(
+std::optional<WebDocument::ScriptToolError>
+HTMLFormElement::HTMLFormMcpTool::FillFormControls(
     const String& input_arguments,
+    bool require_submit_button,
     HTMLFormControlElement** submit_button) {
+  *submit_button = nullptr;
   std::unique_ptr<JSONValue> json = ParseJSON(input_arguments);
   if (!json) {
-    return false;
+    return WebDocument::ScriptToolError::kInvalidInputArguments;
   }
 
   std::unique_ptr<JSONObject> json_obj = JSONObject::From(std::move(json));
   if (!json_obj) {
-    return false;
+    return WebDocument::ScriptToolError::kInvalidInputArguments;
   }
 
   HeapHashMap<String, Member<HTMLFormControlElement>> controls_map;
-  *submit_button = nullptr;
   for (ListedElement* element : form_->ListedElements()) {
     if (auto* form_control = DynamicTo<HTMLFormControlElement>(element)) {
       if (form_control->SupportsWebMCP()) {
         controls_map.insert(form_control->GetWebMCPParameterName(),
                             form_control);
       }
-      if (form_control->IsSuccessfulSubmitButton()) {
+      if (form_control->IsSuccessfulSubmitButton() && !*submit_button) {
         *submit_button = form_control;
       }
     }
+  }
+  if (!*submit_button && require_submit_button) {
+    return WebDocument::ScriptToolError::kMissingRequiredSubmitButton;
   }
 
   // For each entry in `json_obj`, we find the corresponding form control
@@ -226,16 +243,22 @@ bool HTMLFormElement::HTMLFormMcpTool::FillFormControls(
     blink::JSONValue* contents = entry.second;
     auto it = controls_map.find(parameter_name);
     if (it == controls_map.end()) {
-      return false;
+      return WebDocument::ScriptToolError::kInvalidInputArguments;
     }
     // TODO(crbug.com/475992364): Maybe validate the data here.
+    if (auto* input = DynamicTo<HTMLInputElement>(it->value.Get())) {
+      String value_str = input->GetMCPJSONValue(*contents);
+      if (!value_str.empty() && input->SanitizeValue(value_str).empty()) {
+        return WebDocument::ScriptToolError::kInvalidInputArguments;
+      }
+    }
     controls_to_fill.push_back(std::make_pair(it->value, contents));
   }
 
   for (const auto& [form_control, json_value] : controls_to_fill) {
     form_control->FillWebMCPData(*json_value);
   }
-  return true;
+  return std::nullopt;
 }
 
 void HTMLFormElement::HTMLFormMcpTool::CallDoneCallback(
@@ -254,34 +277,43 @@ void HTMLFormElement::HTMLFormMcpTool::CallDoneCallback(
 }
 
 String HTMLFormElement::HTMLFormMcpTool::ComputeInputSchema() {
-  // Hard-coded schema for now - this is temporary.
-  return R"json({
-    "type": "object",
-    "properties": {
-      "origin": {
-        "type": "string",
-        "description": "The origin city for the flight"
-      },
-      "destination": {
-        "type": "string",
-        "description": "The destination city for the flight"
-      },
-      "departureDate": {
-        "type": "string",
-        "description": "The departure date in YYYY-MM-DD format"
-      },
-      "returnDate": {
-        "type": "string",
-        "description": "The return date in YYYY-MM-DD format. Only required for round-trip flights. Omit for one-way trips."
-      },
-      "passengers": {
-        "type": "number",
-        "description": "The number of passengers (1-8)"
+  JSONObject out;
+  out.SetString("type", "object");
+
+  auto required = std::make_unique<JSONArray>();
+  auto properties = std::make_unique<JSONObject>();
+
+  for (ListedElement* element : form_->ListedElements()) {
+    if (auto* form_control = DynamicTo<HTMLFormControlElement>(element)) {
+      if (form_control->SupportsWebMCP()) {
+        String name = form_control->GetWebMCPParameterName();
+        std::unique_ptr<JSONObject> parameter_schema =
+            form_control->GetWebMCPParameterSchema();
+        CHECK(parameter_schema);
+
+        if (String title =
+                form_control->FastGetAttribute(html_names::kToolparamtitleAttr);
+            !title.empty()) {
+          parameter_schema->SetString("title", title);
+        }
+
+        if (String description = form_control->GetWebMCPParameterDescription();
+            !description.empty()) {
+          parameter_schema->SetString("description", description);
+        }
+
+        properties->SetObject(name, std::move(parameter_schema));
+        if (form_control->IsRequired()) {
+          required->PushString(name);
+        }
       }
-    },
-    "required": [
-      "origin", "destination", "departureDate", "passengers"]
-  })json";
+    }
+  }
+
+  out.SetObject("properties", std::move(properties));
+  out.SetArray("required", std::move(required));
+
+  return out.ToJSONString();
 }
 
 void HTMLFormElement::HTMLFormMcpTool::Trace(Visitor* visitor) const {
@@ -289,9 +321,14 @@ void HTMLFormElement::HTMLFormMcpTool::Trace(Visitor* visitor) const {
   visitor->Trace(active_submit_button_);
 }
 
-void HTMLFormElement::RespondWithHandler::React(ScriptState* script_state,
-                                                ScriptValue value) {
-  if (resolved_) {
+void HTMLFormElement::HandleWebMcpToolResponse(HTMLFormMcpTool* tool,
+                                               bool resolved,
+                                               ScriptState* script_state,
+                                               ScriptValue value) {
+  if (!tool->CurrentlyRunning()) {
+    return;
+  }
+  if (resolved) {
     String result;
     if (value.IsObject()) {
       v8::Local<v8::String> json_string;
@@ -305,19 +342,14 @@ void HTMLFormElement::RespondWithHandler::React(ScriptState* script_state,
     if (result.IsNull()) {
       value.ToString(result);
     }
-    tool_->CallDoneCallback(result);
+    tool->CallDoneCallback(result);
   } else {
     // Promise rejected - error.
     V8ScriptRunner::ReportException(script_state->GetIsolate(),
                                     value.V8Value());
-    tool_->CallDoneCallback(
+    tool->CallDoneCallback(
         base::unexpected(WebDocument::ScriptToolError::kToolInvocationFailed));
   }
-}
-
-void HTMLFormElement::RespondWithHandler::Trace(Visitor* visitor) const {
-  visitor->Trace(tool_);
-  ThenCallable<IDLAny, RespondWithHandler>::Trace(visitor);
 }
 
 // This gets called when a <form> is added or removed from the document, or
@@ -616,31 +648,22 @@ void HTMLFormElement::PrepareForSubmission(
       should_submit =
           DispatchEvent(*submit_event) == DispatchEventResult::kNotCanceled;
       if (declarative_webmcp_call) {
-        if (auto promise_and_script_state = submit_event->RespondWithPromise();
-            promise_and_script_state.has_value()) {
-          auto promise = promise_and_script_state->first;
-          auto script_state = promise_and_script_state->second;
-          auto* resolved = MakeGarbageCollected<RespondWithHandler>(
-              active_webmcp_tool_, /*resolved=*/true);
-          auto* rejected = MakeGarbageCollected<RespondWithHandler>(
-              active_webmcp_tool_, /*resolved=*/false);
-          if (should_submit) {
-            // preventDefault was *not* called on the event, but respondWith was
-            // called. This is an error.
-            GetDocument().AddConsoleMessage(
-                MakeGarbageCollected<ConsoleMessage>(
-                    mojom::blink::ConsoleMessageSource::kJavaScript,
-                    mojom::blink::ConsoleMessageLevel::kError,
-                    "The respondWith() function was called, but the event was "
-                    "not preventDefaulted. This is an error."));
-            // Act like it was rejected either way.
-            rejected = MakeGarbageCollected<RespondWithHandler>(
-                active_webmcp_tool_, /*resolved=*/false);
-          }
+        if (auto promise = submit_event->TakeRespondWithPromise()) {
+          // Since we have a promise, respondWith() was called. That should only
+          // work if `preventDefault()` was already called. So we should never
+          // be submitting the form here.
+          CHECK(!should_submit);
           // Wait for the provided promise to resolve or reject, and then call
           // the active_webmcp_tool_'s callback with the result.
-          ScriptState::Scope scope(script_state);
-          promise.Unwrap().Then(script_state, resolved, rejected);
+          std::move(*promise).Then(
+              BindOnce(&HTMLFormElement::HandleWebMcpToolResponse,
+                       WrapWeakPersistent(this),
+                       WrapPersistent(active_webmcp_tool_.Get()),
+                       /*resolved=*/true),
+              BindOnce(&HTMLFormElement::HandleWebMcpToolResponse,
+                       WrapWeakPersistent(this),
+                       WrapPersistent(active_webmcp_tool_.Get()),
+                       /*resolved=*/false));
         }
       }
     }

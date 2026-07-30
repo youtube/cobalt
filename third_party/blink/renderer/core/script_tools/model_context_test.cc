@@ -4,8 +4,11 @@
 
 #include "third_party/blink/renderer/core/script_tools/model_context.h"
 
+#include <optional>
+
 #include "base/run_loop.h"
 #include "base/test/bind.h"
+#include "base/test/run_until.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "third_party/blink/public/platform/web_string.h"
 #include "third_party/blink/public/web/web_script_source.h"
@@ -22,6 +25,22 @@ namespace blink {
 class ModelContextTest : public SimTest {
  public:
   ModelContextTest() = default;
+
+  bool EvalJsBoolean(const char* script) {
+    return MainFrame()
+        .ExecuteScriptAndReturnValue(
+            WebScriptSource(WebString::FromUTF8(script)))
+        .As<v8::Boolean>()
+        ->Value();
+  }
+
+  String EvalJsString(const char* script) {
+    return ToCoreString(Window().GetIsolate(),
+                        MainFrame()
+                            .ExecuteScriptAndReturnValue(
+                                WebScriptSource(WebString::FromUTF8(script)))
+                            .As<v8::String>());
+  }
 
  private:
   ScopedWebMCPForTest scoped_webmcp_{true};
@@ -139,7 +158,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_Navigation) {
   LoadURL("https://example.com/");
   main_resource.Complete(R"(
     <body>
-      <form toolname="search_tool" tooldescription="Search the web" action="/search">
+      <form toolautosubmit toolname="search_tool" tooldescription="Search the web" action="/search">
         <input type="text" name="query">
       </form>
     </body>
@@ -167,7 +186,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_InvalidInput) {
   LoadURL("https://example.com/");
   main_resource.Complete(R"(
     <body>
-      <form toolname="search_tool" tooldescription="Search the web" action="/search">
+      <form toolautosubmit toolname="search_tool" tooldescription="Search the web" action="/search">
         <input type="text" name="query">
       </form>
     </body>
@@ -199,7 +218,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA) {
       ToScriptStateForMainWorld(Window().GetFrame()));
   main_resource.Complete(R"(
     <body>
-      <form toolname="search_tool" tooldescription="Search the web" action="/search">
+      <form toolautosubmit toolname="search_tool" tooldescription="Search the web" action="/search">
         <input type=text name=query>
         <button type=submit>Submit</button>
       </form>
@@ -232,17 +251,8 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA) {
   run_loop.Run();
 
   EXPECT_TRUE(got_result);
-  EXPECT_TRUE(MainFrame()
-                  .ExecuteScriptAndReturnValue(
-                      WebScriptSource("window.submit_event_fired"))
-                  .As<v8::Boolean>()
-                  ->Value());
-  EXPECT_EQ(ToCoreString(Window().GetIsolate(),
-                         MainFrame()
-                             .ExecuteScriptAndReturnValue(
-                                 WebScriptSource("window.input_value"))
-                             .As<v8::String>()),
-            "testing");
+  EXPECT_TRUE(EvalJsBoolean("window.submit_event_fired"));
+  EXPECT_EQ(EvalJsString("window.input_value"), "testing");
 }
 
 TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_Reject) {
@@ -253,7 +263,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_Reject) {
       ToScriptStateForMainWorld(Window().GetFrame()));
   main_resource.Complete(R"(
     <body>
-      <form toolname="search_tool" tooldescription="Search the web" action="/search">
+      <form toolautosubmit toolname="search_tool" tooldescription="Search the web" action="/search">
         <input type=text name=query>
         <button type=submit>Submit</button>
       </form>
@@ -286,11 +296,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_Reject) {
   run_loop.Run();
 
   EXPECT_TRUE(got_result);
-  EXPECT_TRUE(MainFrame()
-                  .ExecuteScriptAndReturnValue(
-                      WebScriptSource("window.submit_event_fired"))
-                  .As<v8::Boolean>()
-                  ->Value());
+  EXPECT_TRUE(EvalJsBoolean("window.submit_event_fired"));
 }
 
 TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoPreventDefault) {
@@ -303,7 +309,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoPreventDefault) {
       ToScriptStateForMainWorld(Window().GetFrame()));
   main_resource.Complete(R"(
     <body>
-      <form toolname="search_tool" tooldescription="Search the web" action="/search">
+      <form toolautosubmit toolname="search_tool" tooldescription="Search the web" action="/search">
         <input type=text name=query>
         <button type=submit>Submit</button>
       </form>
@@ -338,12 +344,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoPreventDefault) {
   run_loop.Run();
   EXPECT_TRUE(got_result);
 
-  EXPECT_EQ(ToCoreString(Window().GetIsolate(),
-                         MainFrame()
-                             .ExecuteScriptAndReturnValue(
-                                 WebScriptSource("window.respond_with_error"))
-                             .As<v8::String>()),
-            "InvalidStateError");
+  EXPECT_EQ(EvalJsString("window.respond_with_error"), "InvalidStateError");
   search_resource.Complete("");
 }
 
@@ -377,17 +378,8 @@ TEST_F(ModelContextTest, ManualSubmit_RespondWithThrows) {
   MainFrame().ExecuteScript(
       WebScriptSource("document.querySelector('form').requestSubmit();"));
 
-  EXPECT_FALSE(
-      MainFrame()
-          .ExecuteScriptAndReturnValue(WebScriptSource("window.agent_invoked"))
-          .As<v8::Boolean>()
-          ->Value());
-  EXPECT_EQ(ToCoreString(Window().GetIsolate(),
-                         MainFrame()
-                             .ExecuteScriptAndReturnValue(
-                                 WebScriptSource("window.error_name"))
-                             .As<v8::String>()),
-            "InvalidStateError");
+  EXPECT_FALSE(EvalJsBoolean("window.agent_invoked"));
+  EXPECT_EQ(EvalJsString("window.error_name"), "InvalidStateError");
 }
 
 TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_LateRespondWithThrows) {
@@ -398,7 +390,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_LateRespondWithThrows) {
       ToScriptStateForMainWorld(Window().GetFrame()));
   main_resource.Complete(R"(
     <body>
-      <form toolname="search_tool" tooldescription="Search the web" action="/search">
+      <form toolautosubmit toolname="search_tool" tooldescription="Search the web" action="/search">
         <input type=text name=query>
       </form>
       <script>
@@ -427,16 +419,14 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_LateRespondWithThrows) {
           }));
   run_loop.Run();
 
-  v8::Local<v8::Value> error_name =
-      MainFrame().ExecuteScriptAndReturnValue(WebScriptSource(R"(
+  EXPECT_EQ(EvalJsString(R"(
         try {
           window.saved_event.respondWith(Promise.resolve("late"));
           "no error";
         } catch (err) {
           err.name;
         }
-      )"));
-  EXPECT_EQ(ToCoreString(Window().GetIsolate(), error_name.As<v8::String>()),
+      )"),
             "InvalidStateError");
 }
 
@@ -452,7 +442,7 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_PseudoClasses) {
         form:tool-form-active { background-color: rgb(0, 255, 0); }
         button:tool-submit-active { color: rgb(255, 0, 0); }
       </style>
-      <form toolname="search_tool" tooldescription="Search the web" action="/search">
+      <form toolautosubmit toolname="search_tool" tooldescription="Search the web" action="/search">
         <input type=text name=query>
         <button type=submit>Submit</button>
       </form>
@@ -488,56 +478,130 @@ TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_PseudoClasses) {
           }));
   run_loop.Run();
 
-  EXPECT_TRUE(
-      MainFrame()
-          .ExecuteScriptAndReturnValue(WebScriptSource("window.form_active"))
-          .As<v8::Boolean>()
-          ->Value());
-  EXPECT_FALSE(MainFrame()
-                   .ExecuteScriptAndReturnValue(
-                       WebScriptSource("window.form_submit_active"))
-                   .As<v8::Boolean>()
-                   ->Value());
-  EXPECT_TRUE(
-      MainFrame()
-          .ExecuteScriptAndReturnValue(WebScriptSource("window.button_active"))
-          .As<v8::Boolean>()
-          ->Value());
-  EXPECT_FALSE(MainFrame()
-                   .ExecuteScriptAndReturnValue(
-                       WebScriptSource("window.input_form_active"))
-                   .As<v8::Boolean>()
-                   ->Value());
-  EXPECT_FALSE(MainFrame()
-                   .ExecuteScriptAndReturnValue(
-                       WebScriptSource("window.input_submit_active"))
-                   .As<v8::Boolean>()
-                   ->Value());
-  EXPECT_EQ(ToCoreString(Window().GetIsolate(),
-                         MainFrame()
-                             .ExecuteScriptAndReturnValue(
-                                 WebScriptSource("window.form_bg"))
-                             .As<v8::String>()),
-            "rgb(0, 255, 0)");
-  EXPECT_EQ(ToCoreString(Window().GetIsolate(),
-                         MainFrame()
-                             .ExecuteScriptAndReturnValue(
-                                 WebScriptSource("window.button_color"))
-                             .As<v8::String>()),
-            "rgb(255, 0, 0)");
+  EXPECT_TRUE(EvalJsBoolean("window.form_active"));
+  EXPECT_FALSE(EvalJsBoolean("window.form_submit_active"));
+  EXPECT_TRUE(EvalJsBoolean("window.button_active"));
+  EXPECT_FALSE(EvalJsBoolean("window.input_form_active"));
+  EXPECT_FALSE(EvalJsBoolean("window.input_submit_active"));
+  EXPECT_EQ(EvalJsString("window.form_bg"), "rgb(0, 255, 0)");
+  EXPECT_EQ(EvalJsString("window.button_color"), "rgb(255, 0, 0)");
+  EXPECT_FALSE(EvalJsBoolean(
+      "document.querySelector('form').matches(':tool-form-active')"));
+  EXPECT_FALSE(EvalJsBoolean(
+      "document.querySelector('button').matches(':tool-submit-active')"));
+}
 
-  EXPECT_FALSE(
-      MainFrame()
-          .ExecuteScriptAndReturnValue(WebScriptSource(
-              "document.querySelector('form').matches(':tool-form-active')"))
-          .As<v8::Boolean>()
-          ->Value());
-  EXPECT_FALSE(MainFrame()
-                   .ExecuteScriptAndReturnValue(
-                       WebScriptSource("document.querySelector('button')."
-                                       "matches(':tool-submit-active')"))
-                   .As<v8::Boolean>()
-                   ->Value());
+TEST_F(ModelContextTest, ExecuteDeclarativeFormTool_SPA_NoAutoSubmit) {
+  SimRequest main_resource("https://example.com/", "text/html");
+  LoadURL("https://example.com/");
+  v8::HandleScope handle_scope(Window().GetIsolate());
+  ScriptState::Scope script_scope(
+      ToScriptStateForMainWorld(Window().GetFrame()));
+  main_resource.Complete(R"(
+    <body>
+      <form toolname="search_tool" tooldescription="Search the web" action="/search">
+        <input type=text name=query>
+        <button type=submit>Submit</button>
+      </form>
+      <script>
+        window.submit_event_fired = false;
+        document.querySelector('form').addEventListener('submit', e => {
+          window.submit_event_fired = true;
+          e.preventDefault();
+          e.respondWith(Promise.resolve("result value"));
+        });
+      </script>
+    </body>
+  )");
+
+  auto* model_context =
+      ModelContextSupplement::modelContext(*Window().navigator());
+  ASSERT_TRUE(model_context);
+
+  base::RunLoop run_loop;
+  bool got_result = false;
+  model_context->ExecuteTool(
+      "search_tool", "{\"query\": \"testing\"}",
+      base::BindLambdaForTesting(
+          [&](base::expected<WebString, WebDocument::ScriptToolError> res) {
+            got_result = true;
+            ASSERT_TRUE(res.has_value());
+            EXPECT_EQ(*res, "result value");
+            run_loop.Quit();
+          }));
+
+  // Run until the tool fills the form and focuses the button.
+  EXPECT_TRUE(base::test::RunUntil([&]() {
+    return EvalJsBoolean(
+        "document.activeElement === document.querySelector('button')");
+  }));
+
+  EXPECT_FALSE(got_result) << "No toolautosubmit means no automatic submission";
+  EXPECT_TRUE(EvalJsBoolean(
+      "document.querySelector('form').matches(':tool-form-active')"));
+
+  EXPECT_FALSE(EvalJsBoolean("window.submit_event_fired"));
+
+  // Manually click to submit
+  MainFrame().ExecuteScript(
+      WebScriptSource("document.querySelector('button').click()"));
+
+  run_loop.Run();
+
+  EXPECT_TRUE(got_result);
+  EXPECT_TRUE(EvalJsBoolean("window.submit_event_fired"));
+
+  EXPECT_FALSE(EvalJsBoolean(
+      "document.querySelector('form').matches(':tool-form-active')"));
+}
+
+TEST_F(ModelContextTest, CancelTool) {
+  SimRequest main_resource("https://example.com/", "text/html");
+  LoadURL("https://example.com/");
+
+  main_resource.Complete(R"(
+<body>
+    <script>
+    async function echo(obj) {
+      return obj.text;
+    }
+
+    navigator.modelContext.registerTool({
+      execute: echo,
+      name: "echo",
+      description: "echo input",
+      inputSchema: {
+          type: "object",
+          properties: {
+              "text": {
+                  description: "Value to echo",
+                  type: "string",
+              }
+          },
+          required: ["text"]
+      },
+    });
+  </script>
+  </body>
+)");
+
+  auto* model_context =
+      ModelContextSupplement::modelContext(*Window().navigator());
+  ASSERT_TRUE(model_context);
+
+  base::RunLoop run_loop;
+
+  std::optional<uint32_t> execution_id = model_context->ExecuteTool(
+      "echo", "{\"text\": \"hello\"}",
+      base::BindLambdaForTesting(
+          [&](base::expected<WebString, WebDocument::ScriptToolError> res) {
+            ASSERT_FALSE(res.has_value());
+            run_loop.Quit();
+          }));
+
+  ASSERT_TRUE(execution_id.has_value());
+  model_context->CancelTool(execution_id.value());
+  run_loop.Run();
 }
 
 }  // namespace blink

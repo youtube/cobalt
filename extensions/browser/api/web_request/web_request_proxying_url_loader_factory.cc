@@ -35,6 +35,7 @@
 #include "content/public/browser/network_service_instance.h"
 #include "content/public/browser/render_frame_host.h"
 #include "content/public/browser/storage_partition.h"
+#include "content/public/common/child_process_id_util.h"
 #include "content/public/common/url_utils.h"
 #include "extensions/browser/api/web_request/extension_web_request_event_router.h"
 #include "extensions/browser/api/web_request/permission_helper.h"
@@ -1269,16 +1270,7 @@ void WebRequestProxyingURLLoaderFactory::InProgressRequest::
       ->OnBeforeRedirect(factory_->browser_context_, &info_.value(),
                          redirect_info.new_url);
   target_client_->OnReceiveRedirect(redirect_info, current_response_.Clone());
-  request_.url = redirect_info.new_url;
-  request_.method = redirect_info.new_method;
-  request_.site_for_cookies = redirect_info.new_site_for_cookies;
-  request_.referrer = GURL(redirect_info.new_referrer);
-  request_.referrer_policy = redirect_info.new_referrer_policy;
-  if (request_.trusted_params) {
-    request_.trusted_params->isolation_info =
-        request_.trusted_params->isolation_info.CreateForRedirect(
-            url::Origin::Create(redirect_info.new_url));
-  }
+  request_.UpdateOnRedirect(redirect_info);
 
   // The request method can be changed to "GET". In this case we need to
   // reset the request body manually.
@@ -1578,7 +1570,9 @@ void WebRequestProxyingURLLoaderFactory::CreateLoaderAndStart(
     // Requests with a request ID of 0 therefore do not support
     // dispatching |WebRequest.onAuthRequired| events.
     proxies_->AssociateProxyWithRequestId(
-        this, content::GlobalRequestID(render_process_id_, request_id));
+        this, content::GlobalRequestID(
+                  content::ToOriginatingProcessUnsafe(render_process_id_),
+                  request_id));
     network_request_id_to_web_request_id_.emplace(request_id, web_request_id);
   }
 
@@ -1681,8 +1675,9 @@ void WebRequestProxyingURLLoaderFactory::RemoveRequest(
   requests_.erase(request_id);
   if (network_service_request_id) {
     proxies_->DisassociateProxyWithRequestId(
-        this, content::GlobalRequestID(render_process_id_,
-                                       network_service_request_id));
+        this, content::GlobalRequestID(
+                  content::ToOriginatingProcessUnsafe(render_process_id_),
+                  network_service_request_id));
   }
 
   MaybeRemoveProxy();

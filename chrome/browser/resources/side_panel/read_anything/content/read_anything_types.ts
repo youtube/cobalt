@@ -123,6 +123,8 @@ export enum ToolbarEvent {
   OPEN_SETTINGS_SUBMENU = 'open-settings-submenu',
   PRESENTATION_CHANGE = 'presentation-change',
   CLOSE_SUBMENU_REQUESTED = 'close-submenu-requested',
+  SETTINGS_OPENED = 'settings-opened',
+  SETTINGS_CLOSED = 'settings-closed',
 }
 
 // The available menu items in Reading mode
@@ -135,6 +137,7 @@ export enum SettingsOption {
   LINE_FOCUS = 'line-focus',
   LINE_SPACING = 'line-spacing',
   LINKS = 'links',
+  PINNED_TO_TOOLBAR = 'pinned-to-toolbar',
   PRESENTATION = 'presentation',
   VOICE_HIGHLIGHT = 'voice-highlight',
   VOICE_SELECTION = 'voice-selection',

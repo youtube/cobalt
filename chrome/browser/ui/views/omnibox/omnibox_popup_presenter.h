@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <optional>
+#include <string_view>
 
 #include "chrome/browser/ui/views/omnibox/omnibox_popup_presenter_base.h"
 
@@ -24,6 +25,7 @@ class OmniboxPopupPresenter : public OmniboxPopupPresenterBase {
   ~OmniboxPopupPresenter() override;
 
   void Hide() override;
+  std::string_view GetPopupMetricPrefix() const override;
 
  protected:
   // OmniboxPopupPresenterBase overrides:

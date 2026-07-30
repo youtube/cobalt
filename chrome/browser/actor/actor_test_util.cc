@@ -12,6 +12,7 @@
 #include "base/check_op.h"
 #include "base/command_line.h"
 #include "base/values.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/shared_types.h"
 #include "chrome/browser/actor/tools/attempt_login_tool_request.h"
@@ -678,6 +679,31 @@ void ExecutionEngineStateWaiter::OnStateChanged(
   if (new_state == target_state_) {
     std::move(callback_).Run();
   }
+}
+
+ScopedExecutionEngineFactory::ScopedExecutionEngineFactory(
+    ExecutionEngine::FactoryFunction factory) {
+  CHECK(ExecutionEngine::GetFactoryFunctionForTesting().is_null());
+  ExecutionEngine::GetFactoryFunctionForTesting() = factory;
+}
+
+ScopedExecutionEngineFactory::~ScopedExecutionEngineFactory() {
+  ExecutionEngine::GetFactoryFunctionForTesting().Reset();
+}
+
+MockPolicyChecker::MockPolicyChecker(EnterprisePolicyBlockReason reason)
+    : reason_(reason) {}
+MockPolicyChecker::~MockPolicyChecker() = default;
+
+bool MockPolicyChecker::CanActOnWeb() const {
+  return true;
+}
+EnterprisePolicyChecker::CannotActReason
+MockPolicyChecker::CannotActOnWebReason() const {
+  return EnterprisePolicyChecker::CannotActReason::kNone;
+}
+EnterprisePolicyBlockReason MockPolicyChecker::Evaluate(const GURL& url) const {
+  return reason_;
 }
 
 }  // namespace actor

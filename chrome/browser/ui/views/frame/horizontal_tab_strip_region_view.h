@@ -6,10 +6,12 @@
 #define CHROME_BROWSER_UI_VIEWS_FRAME_HORIZONTAL_TAB_STRIP_REGION_VIEW_H_
 
 #include "base/memory/raw_ptr.h"
+#include "build/buildflag.h"
 #include "chrome/browser/ui/tabs/tab_renderer_data.h"
 #include "chrome/browser/ui/views/frame/tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/tab_search_container.h"
 #include "chrome/browser/ui/views/tabs/tab_strip.h"
+#include "chrome/common/buildflags.h"
 #include "ui/base/metadata/metadata_header_macros.h"
 #include "ui/base/pointer/touch_ui_controller.h"
 #include "ui/views/accessible_pane_view.h"
@@ -28,6 +30,12 @@ class TabStripScrollContainer;
 class ProductSpecificationsButton;
 class TabSearchPositionMetricsLogger;
 class TabStripControlButton;
+
+#if BUILDFLAG(ENABLE_GLIC)
+namespace glic {
+class GlicButton;
+}
+#endif  // BUILDFLAG(ENABLE_GLIC)
 
 // Container for the tabstrip and the other views sharing space with it -
 // with the exception of the caption buttons.
@@ -95,6 +103,10 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
 
   TabStrip* tab_strip() { return tab_strip_; }
 
+#if BUILDFLAG(ENABLE_GLIC)
+  glic::GlicButton* GetGlicButton();
+#endif  // BUILDFLAG(ENABLE_GLIC)
+
   // TabStripRegionView:
   void InitializeTabStrip() override;
   void ResetTabStrip() override;
@@ -102,10 +114,8 @@ class HorizontalTabStripRegionView final : public TabStripRegionView {
   gfx::Size CalculatePreferredSize(
       const views::SizeBounds& available_size) const override;
   bool IsTabStripEditable() const override;
-  void DisableTabStripEditingForTesting() const override;
+  void DisableTabStripEditingForTesting() override;
   bool IsTabStripCloseable() const override;
-  bool IsAnimating() const override;
-  void StopAnimating() override;
   void UpdateLoadingAnimations(const base::TimeDelta& elapsed_time) override;
   std::optional<int> GetFocusedTabIndex() const override;
   const TabRendererData& GetTabRendererData(int tab_index) override;

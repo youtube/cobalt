@@ -6,21 +6,21 @@
 
 #include <map>
 #include <set>
+#include <string>
+#include <string_view>
 #include <vector>
 
 #include "components/contextual_search/contextual_search_session_handle.h"
 #include "components/contextual_search/contextual_search_types.h"
+#include "components/contextual_search/pref_names.h"
 #include "components/lens/contextual_input.h"
-#include "third_party/omnibox_proto/aim_input_types.pb.h"
-#include "third_party/omnibox_proto/searchbox_config_constraints.pb.h"
+#include "components/prefs/pref_service.h"
+#include "third_party/omnibox_proto/input_type.pb.h"
+#include "third_party/omnibox_proto/rule_set.pb.h"
 
 namespace contextual_search {
 
 using omnibox::SearchboxConfig;
-
-InputState::InputState() = default;
-InputState::InputState(const InputState&) = default;
-InputState::~InputState() = default;
 
 namespace {
 
@@ -129,10 +129,23 @@ InputStateModel::InputStateModel(
   updateDisabledState();
 }
 
+InputStateModel::InputStateModel(
+    const InputStateModel& new_input_state_model,
+    contextual_search::ContextualSearchSessionHandle& new_session_handle)
+    : session_handle_(new_session_handle) {
+  state_ = new_input_state_model.state_;
+  rule_set_ = new_input_state_model.rule_set_;
+}
+
 InputStateModel::~InputStateModel() = default;
 
 void InputStateModel::Initialize() {
   notifySubscribers();
+}
+
+void InputStateModel::SetPrefService(const PrefService* pref_service) {
+  pref_service_ = pref_service;
+  updateDisabledState();
 }
 
 base::CallbackListSubscription InputStateModel::subscribe(Subscriber callback) {
@@ -216,6 +229,14 @@ void InputStateModel::setActiveModel(ModelMode model) {
   updateSelectedState(state_.active_tool, model);
 }
 
+void InputStateModel::OnContextChanged() {
+  // Update the disabled state based on the new inputs uploaded.
+  updateDisabledState();
+
+  // Notify subscribers once `state_` is updated.
+  notifySubscribers();
+}
+
 void InputStateModel::updateSelectedState(ToolMode tool, ModelMode model) {
   state_.active_model = model;
   state_.active_tool = tool;
@@ -226,6 +247,24 @@ void InputStateModel::updateSelectedState(ToolMode tool, ModelMode model) {
 
   // Notify subscribers once `state_` is updated.
   notifySubscribers();
+}
+
+// Helper to check if search content sharing is enabled based on the
+// user preference.
+bool InputStateModel::IsSearchContentSharingEnabled() const {
+  if (!pref_service_) {
+    // Default behavior: if no `PrefService` default to allowed.
+    return true;
+  }
+
+  // Read the pref value.
+  int value = pref_service_->GetInteger(
+      contextual_search::kSearchContentSharingSettings);
+
+  // Comparison logic: must cast the enum class to an int for comparison.
+  return value ==
+         static_cast<int>(
+             contextual_search::SearchContentSharingSettingsValue::kEnabled);
 }
 
 void InputStateModel::UpdateDisabledTools() {
@@ -294,15 +333,37 @@ void InputStateModel::UpdateDisabledModels() {
 
 void InputStateModel::UpdateDisabledInputTypes() {
   // Disable an input type if:
+  // - Enterprise policy disallows content sharing.
   // - Input type limit is reached.
   // - Total input limit is reached.
   // - Incompatible with the active model.
   // - Incompatible with the active tool.
   state_.disabled_input_types.clear();
 
+  if (!IsSearchContentSharingEnabled()) {
+    std::erase_if(state_.allowed_input_types, [](auto input_type) {
+      return input_type == omnibox::InputType::INPUT_TYPE_LENS_IMAGE ||
+             input_type == omnibox::InputType::INPUT_TYPE_LENS_FILE ||
+             input_type == omnibox::InputType::INPUT_TYPE_BROWSER_TAB;
+    });
+  }
+
+  const auto current_inputs = GetCurrentInputTypes(session_handle_.get());
+
+  // Check max inputs reached.
+  bool input_limit_reached =
+      rule_set_.has_max_total_inputs() && rule_set_.max_total_inputs() > 0 &&
+      current_inputs.size() >=
+          static_cast<size_t>(rule_set_.max_total_inputs());
+
+  if (input_limit_reached) {
+    state_.disabled_input_types = state_.allowed_input_types;
+    return;
+  }
+
   std::map<omnibox::InputType, int> limits = GetInputTypeLimits();
   std::map<omnibox::InputType, int> current_input_counts;
-  for (const auto& input_type : GetCurrentInputTypes(session_handle_.get())) {
+  for (const auto& input_type : current_inputs) {
     current_input_counts[input_type]++;
   }
 
@@ -312,7 +373,6 @@ void InputStateModel::UpdateDisabledInputTypes() {
       GetToolRule(rule_set_, state_.active_tool);
 
   for (const auto& input_type : state_.allowed_input_types) {
-    bool input_limit_reached = false;
     if (limits.count(input_type)) {
       int limit = limits.at(input_type);
       if (limit > 0 && current_input_counts.count(input_type) &&

@@ -323,6 +323,7 @@ source_set("impl") {
       "//chrome/browser/ui/tabs",
       "//chrome/browser/ui/tabs:tab_strip",
       "//chrome/browser/ui/tabs/organization",
+      "//chrome/browser/ui/tabs/projects:impl",
       "//chrome/browser/ui/tabs/saved_tab_groups",
       "//chrome/browser/ui/views/side_panel",
       "//chrome/browser/user_education",
@@ -372,10 +373,10 @@ source_set("impl") {
   }
 
   if (enable_glic) {
-    deps += [ "//chrome/browser/glic" ]
-    if (!is_android) {
-      deps += [ "//chrome/browser/background/glic" ]
-    }
+    deps += [
+      "//chrome/browser/background/glic",
+      "//chrome/browser/glic",
+    ]
   }
 
   if (!is_android && !is_chromeos) {

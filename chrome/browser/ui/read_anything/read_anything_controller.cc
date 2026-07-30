@@ -8,7 +8,6 @@
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_window/public/browser_window_features.h"
-#include "chrome/browser/ui/read_anything/read_anything_immersive_overlay_view.h"
 #include "chrome/browser/ui/read_anything/read_anything_omnibox_controller.h"
 #include "chrome/browser/ui/read_anything/read_anything_service.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
@@ -78,6 +77,16 @@ ReadAnythingControllerGlue::ReadAnythingControllerGlue(
     : content::WebContentsUserData<ReadAnythingControllerGlue>(*contents),
       controller_(controller) {}
 
+// static
+bool ReadAnythingController::freeze_distillation_for_testing_ = false;
+
+// static
+void ReadAnythingController::
+    SetFreezeDistillationOnCreationForTesting(  // IN-TEST
+        bool locked) {
+  freeze_distillation_for_testing_ = locked;
+}
+
 ReadAnythingController* ReadAnythingController::From(tabs::TabInterface* tab) {
   return Get(tab->GetUnownedUserDataHost());
 }
@@ -90,7 +99,8 @@ ReadAnythingController::ReadAnythingController(
       read_anything_side_panel_controller_(
           std::make_unique<ReadAnythingSidePanelController>(
               tab,
-              side_panel_registry)) {
+              side_panel_registry)),
+      distillation_state_locked_for_testing_(freeze_distillation_for_testing_) {
   // This controller should only be instantiated if
   // IsImmersiveReadAnythingEnabled is enabled
   CHECK(features::IsImmersiveReadAnythingEnabled());
@@ -98,10 +108,6 @@ ReadAnythingController::ReadAnythingController(
   tab_subscriptions_.push_back(
       tab_->RegisterWillDetach(base::BindRepeating(
           &ReadAnythingController::TabWillDetach, weak_factory_.GetWeakPtr())));
-  tab_subscriptions_.push_back(tab_->RegisterDidActivate(base::BindRepeating(
-      &ReadAnythingController::OnTabActivated, weak_factory_.GetWeakPtr())));
-  tab_subscriptions_.push_back(tab_->RegisterWillDeactivate(base::BindRepeating(
-      &ReadAnythingController::OnTabBackgrounded, weak_factory_.GetWeakPtr())));
 
   main_page_observer_ = std::make_unique<WebContentsObserverInstance>(
       /*web_contents=*/tab_->GetContents(),
@@ -131,11 +137,6 @@ ReadAnythingController::~ReadAnythingController() {
   // this here too.
   ReleaseMainContentsCapture();
 
-  // In case this is in an odd state where this controller is getting destructed
-  // while we've set the main webpage as inaccessibile, reset the webpage to be
-  // accessible.
-  SetMainContentsAccessible(/*should_be_accessible=*/true);
-
   // This method is transiently used to reset features that do not handle tab
   // discarding themselves.
   read_anything_side_panel_controller_->ResetForTabDiscard();
@@ -154,48 +155,16 @@ void ReadAnythingController::RemoveObserver(Observer* observer) {
   observers_.RemoveObserver(observer);
 }
 
-void ReadAnythingController::OnEntryShown(
-    std::optional<ReadAnythingOpenTrigger> trigger) {
-  observers_.Notify(&Observer::Activate, true, trigger);
+void ReadAnythingController::AddImmersiveActivationObserver(
+    ReadAnythingImmersiveActivationObserver* observer) {
+  // There should only be one observer at a time. There should never be two
+  // components responsible for showing and hiding the same IRM UI.
+  CHECK(immersive_activation_observers_.empty());
 
-  auto* service =
-      ReadAnythingService::Get(tab_->GetBrowserWindowInterface()->GetProfile());
-  // At the moment, services are created for normal, guest, and incognito
-  // profiles but not unusual profile types. On the other hand,
-  // ReadAnythingController is created for all tabs. Thus we need a
-  // nullptr check.
-  if (service) {
-    service->OnReadAnythingShown();
-  }
-}
+  immersive_activation_observers_.AddObserver(observer);
 
-void ReadAnythingController::OnEntryHidden() {
-  observers_.Notify(&Observer::Activate, false,
-                    std::optional<ReadAnythingOpenTrigger>());
-
-  auto* service =
-      ReadAnythingService::Get(tab_->GetBrowserWindowInterface()->GetProfile());
-  // At the moment, services are created for normal, guest, and incognito
-  // profiles but not unusual profile types. On the other hand,
-  // ReadAnythingController is created for all tabs. Thus we need a
-  // nullptr check.
-  if (service) {
-    service->OnReadAnythingHidden();
-  }
-}
-
-void ReadAnythingController::TabWillDetach(
-    tabs::TabInterface* tab,
-    tabs::TabInterface::DetachReason reason) {
-  observers_.Notify(&Observer::OnTabWillDetach);
-}
-
-
-void ReadAnythingController::OnTabActivated(tabs::TabInterface* tab) {
-    // TODO(crbug.com/462754391): Check whether we should show IRM if tab is
-    // visible as part of a split view, even if it's not the active tab.
-    // Similarly, make sure not to hide IRM if the tab is visible in a split
-    // view, even it's become inactive.
+  // Now that a tab potentially reattached and was potentially previously
+  // showing IRM, we should check if we should show IRM again.
   if (should_show_immersive_on_tab_reactivate_) {
     ShowImmersiveUI(ReadAnythingOpenTrigger::kTabSwitch);
     // Reset value now that the tab is active
@@ -203,10 +172,44 @@ void ReadAnythingController::OnTabActivated(tabs::TabInterface* tab) {
   }
 }
 
-void ReadAnythingController::OnTabBackgrounded(tabs::TabInterface* tab) {
+void ReadAnythingController::RemoveImmersiveActivationObserver(
+    ReadAnythingImmersiveActivationObserver* observer) {
+  // If the observer detaches, we need to close IRM if showing
   if (GetPresentationState() == PresentationState::kInImmersiveOverlay) {
     CloseImmersiveUI(/*closed_by_tab_switch=*/true);
   }
+
+  immersive_activation_observers_.RemoveObserver(observer);
+}
+
+void ReadAnythingController::OnEntryShown(
+    std::optional<ReadAnythingOpenTrigger> trigger) {
+  observers_.Notify(&Observer::Activate, true, trigger);
+  active_service_ =
+      ReadAnythingService::Get(tab_->GetBrowserWindowInterface()->GetProfile());
+  // At the moment, services are created for normal, guest, and incognito
+  // profiles but not unusual profile types. On the other hand,
+  // ReadAnythingController is created for all tabs. Thus we need a
+  // nullptr check.
+  if (active_service_) {
+    active_service_->OnReadAnythingShown();
+  }
+}
+
+void ReadAnythingController::OnEntryHidden() {
+  observers_.Notify(&Observer::Activate, false,
+                    std::optional<ReadAnythingOpenTrigger>());
+
+  if (active_service_) {
+    active_service_->OnReadAnythingHidden();
+    active_service_ = nullptr;
+  }
+}
+
+void ReadAnythingController::TabWillDetach(
+    tabs::TabInterface* tab,
+    tabs::TabInterface::DetachReason reason) {
+  observers_.Notify(&Observer::OnTabWillDetach);
 }
 
 // Returns the SidePanelUI for the active tab if the tab is active and has a
@@ -217,26 +220,6 @@ SidePanelUI* ReadAnythingController::GetSidePanelUI() {
   CHECK(tab_->GetBrowserWindowInterface());
 
   return tab_->GetBrowserWindowInterface()->GetFeatures().side_panel_ui();
-}
-
-ReadAnythingImmersiveOverlayView*
-ReadAnythingController::GetImmersiveOverlayView() {
-  if (!tab_) {
-    return nullptr;
-  }
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(tab_->GetBrowserWindowInterface());
-
-  if (!browser_view) {
-    return nullptr;
-  }
-  ContentsContainerView* contents_container_view =
-      browser_view->GetContentsContainerViewFor(tab_->GetContents());
-  if (!contents_container_view) {
-    return nullptr;
-  }
-  return static_cast<ReadAnythingImmersiveOverlayView*>(
-      contents_container_view->read_anything_immersive_overlay_view());
 }
 
 // Lazily creates and returns the WebUIContentsWrapper for Reading Mode.
@@ -335,14 +318,11 @@ void ReadAnythingController::ShowImmersiveUI(ReadAnythingOpenTrigger trigger) {
     CHECK(!has_shown_ui_ || web_ui_wrapper_);
   }
 
-  auto* immersive_overlay_view = GetImmersiveOverlayView();
-  if (!immersive_overlay_view) {
-    return;
-  }
-  active_overlay_view_ = immersive_overlay_view;
+  immersive_activation_observers_.Notify(
+      &ReadAnythingImmersiveActivationObserver::OnShowImmersive, trigger);
 
-  immersive_overlay_view->ShowUI(
-      GetOrCreateWebUIWrapper(PresentationState::kInImmersiveOverlay), trigger);
+  // Ensure the observer took the web_ui_wrapper_
+  CHECK(!web_ui_wrapper_);
 }
 
 void ReadAnythingController::ShowSidePanelUI(SidePanelOpenTrigger trigger) {
@@ -363,26 +343,18 @@ void ReadAnythingController::CloseImmersiveUI(bool closed_by_tab_switch) {
     return;
   }
 
-  auto* immersive_overlay_view = active_overlay_view_
-                                     ? active_overlay_view_.get()
-                                     : GetImmersiveOverlayView();
+  immersive_activation_observers_.Notify(
+      &ReadAnythingImmersiveActivationObserver::OnCloseImmersive);
 
-  if (!immersive_overlay_view) {
-    return;
-  }
-
-  std::unique_ptr<WebUIContentsWrapperT<ReadAnythingUntrustedUI>> wrapper =
-      immersive_overlay_view->CloseUI();
-  active_overlay_view_ = nullptr;
   // If a tab switch is the reason we're closing immersive mode, we want to
   // set should_show_immersive_on_tab_reactivate_ so we know to activate
   // immersive mode again if the tab becomes active.
   if (closed_by_tab_switch) {
     should_show_immersive_on_tab_reactivate_ = true;
   }
-  if (wrapper) {
-    TransferWebUiOwnership(std::move(wrapper));
-  }
+
+  // Ensure the observer returned the web_ui_wrapper_
+  CHECK(web_ui_wrapper_);
 }
 
 void ReadAnythingController::ToggleUI(ReadAnythingOpenTrigger trigger) {
@@ -451,17 +423,10 @@ void ReadAnythingController::OnReadAnythingVisibilityChanged(
     // again after being occluded, we tell the renderer that the main webpage
     // needs to be treated as visible even though it's occluded, so it can
     // generate accessibility events we need for RM to function.
-    // We also set the underlying web contents to be not accessible while IRM is
-    // open, so that it won't receive screen reader focus or be navigatable by
-    // keyboard.
     if (GetPresentationState() == PresentationState::kInImmersiveOverlay) {
-      SetMainContentsAccessible(/*should_be_accessible=*/false);
       CaptureMainContentsAsVisible();
     }
   } else {
-    // We want the main web contents to be accessible again if IRM is closed and
-    // the main webpage is now visible.
-    SetMainContentsAccessible(/*should_be_accessible=*/true);
     // We don't need the main web contents treated as visible anymore because
     // Reading Mode is hidden or occluded.
     ReleaseMainContentsCapture();
@@ -487,35 +452,7 @@ void ReadAnythingController::ReleaseMainContentsCapture() {
   main_contents_capturer_handle_.RunAndReset();
 }
 
-void ReadAnythingController::SetMainContentsAccessible(
-    bool should_be_accessible) {
-  if (!tab_) {
-    return;
-  }
-  BrowserView* browser_view =
-      BrowserView::GetBrowserViewForBrowser(tab_->GetBrowserWindowInterface());
-  if (!browser_view) {
-    return;
-  }
-  ContentsContainerView* contents_container_view =
-      browser_view->GetContentsContainerViewFor(tab_->GetContents());
-  if (!contents_container_view) {
-    return;
-  }
 
-  // The contents view is the main web contents view, which is the child of the
-  // ContentsContainerView, and a sibling of the Immersive Overlay.
-  views::View* contents_view =
-      contents_container_view->GetViewByID(VIEW_ID_TAB_CONTAINER);
-  if (contents_view) {
-    // Enable/disable accessibility technology for the main web contents.
-    contents_view->GetViewAccessibility().SetIsIgnored(!should_be_accessible);
-    // Enable/disable keyboard focusability for the main web contents.
-    contents_view->SetFocusBehavior(should_be_accessible
-                                        ? views::View::FocusBehavior::ALWAYS
-                                        : views::View::FocusBehavior::NEVER);
-  }
-}
 
 void ReadAnythingController::OnDistillationStateChanged(
     DistillationState new_state) {
@@ -530,8 +467,8 @@ void ReadAnythingController::OnDistillationStateChanged(
   distillation_state_ = new_state;
 }
 
-void ReadAnythingController::LockDistillationStateForTesting() {
-  distillation_state_locked_for_testing_ = true;
+void ReadAnythingController::UnlockDistillationStateForTesting() {
+  distillation_state_locked_for_testing_ = false;
 }
 
 void ReadAnythingController::SetDwellTimeForTesting(base::TimeTicks test_time) {

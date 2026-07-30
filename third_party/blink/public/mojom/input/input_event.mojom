@@ -31,6 +31,7 @@ enum DispatchType {
 };
 
 // Enumerates the different types of Input Events.
+// LINT.IfChange(EventType)
 enum EventType {
   kUndefined = -1,
   kTypeFirst = kUndefined,
@@ -146,4 +147,14 @@ enum EventType {
   kPointerTypeLast = kPointerCausedUaAction,
 
   kTypeLast = kPointerTypeLast
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/input/enums.xml:WebInputEventType)
+
+// The rail mode for a wheel event specifies the axis on which scrolling is
+// expected to stick. If this axis is set to Free, then scrolling is not
+// stuck to any axis.
+enum RailsMode {
+  kRailsModeFree = 0,
+  kRailsModeHorizontal = 1,
+  kRailsModeVertical = 2,
 };

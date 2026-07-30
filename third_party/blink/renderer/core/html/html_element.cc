@@ -3336,13 +3336,13 @@ void HTMLElement::AddHTMLBackgroundImageToStyle(
     HeapVector<CSSPropertyValue, 8>& style,
     const String& url_value,
     const AtomicString& initiator_name) {
-  String url = StripLeadingAndTrailingHTMLSpaces(url_value);
+  StringView url = StripLeadingAndTrailingHtmlSpaces(url_value);
   if (url.empty()) {
     return;
   }
   auto* image_value =
       MakeGarbageCollected<CSSImageValue>(*MakeGarbageCollected<CSSUrlData>(
-          AtomicString(url), GetDocument().CompleteURL(url),
+          url.ToAtomicString(), GetDocument().CompleteURL(url),
           Referrer(GetExecutionContext()->OutgoingReferrer(),
                    GetExecutionContext()->GetReferrerPolicy()),
           /*origin_clean=*/true, /*is_ad_related=*/false));
@@ -3361,6 +3361,14 @@ LabelsNodeList* HTMLElement::labels() {
 
 bool HTMLElement::IsInteractiveContent() const {
   return false;
+}
+
+FocusgroupFlags HTMLElement::NativeArrowKeyAxes() const {
+  // Contenteditable uses arrow keys for cursor movement in both axes.
+  if (isContentEditableForBinding()) {
+    return FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
+  }
+  return Element::NativeArrowKeyAxes();
 }
 
 void HTMLElement::DefaultEventHandler(Event& event) {
@@ -3958,6 +3966,18 @@ void HTMLElement::OnRoleAttrChanged(const AttributeModificationParams& params) {
   } else if (EqualIgnoringASCIICase(params.new_value, "treeitem")) {
     UseCounter::Count(GetDocument(), WebFeature::kRoleAttributeTreeitem);
   }
+}
+
+bool HTMLElement::IsRenderedInTopLayer() const {
+  if (FastHasAttribute(html_names::kPopoverAttr) && popoverOpen()) {
+    return true;
+  }
+  if (auto* dialog = DynamicTo<HTMLDialogElement>(this)) {
+    if (dialog->IsModal()) {
+      return true;
+    }
+  }
+  return false;
 }
 
 }  // namespace blink

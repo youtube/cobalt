@@ -9,8 +9,11 @@ import android.view.View;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.chrome.browser.theme.ThemeColorProvider;
 import org.chromium.components.browser_ui.desktop_windowing.DesktopWindowStateManager;
+import org.chromium.components.security_state.ConnectionMaliciousContentStatus;
+import org.chromium.components.security_state.ConnectionSecurityLevel;
 import org.chromium.ui.modelutil.PropertyModel;
 import org.chromium.ui.modelutil.PropertyModelChangeProcessor;
+import org.chromium.url.GURL;
 
 /**
  * Coordinator for the Document Picture-in-Picture (PiP) header.
@@ -36,7 +39,10 @@ public class DocumentPictureInPictureHeaderCoordinator {
             DesktopWindowStateManager desktopWindowStateManager,
             ThemeColorProvider themeColorProvider,
             DocumentPictureInPictureHeaderDelegate delegate,
-            boolean isBackToTabShown) {
+            boolean isBackToTabShown,
+            @ConnectionSecurityLevel int securityLevel,
+            @ConnectionMaliciousContentStatus int maliciousContentStatus,
+            GURL url) {
         PropertyModel model =
                 new PropertyModel.Builder(DocumentPictureInPictureHeaderProperties.ALL_KEYS)
                         .build();
@@ -46,7 +52,10 @@ public class DocumentPictureInPictureHeaderCoordinator {
                         desktopWindowStateManager,
                         themeColorProvider,
                         delegate,
-                        isBackToTabShown);
+                        isBackToTabShown,
+                        securityLevel,
+                        maliciousContentStatus,
+                        url);
         mPropertyModelChangeProcessor =
                 PropertyModelChangeProcessor.create(
                         model, view, DocumentPictureInPictureHeaderViewBinder::bind);

@@ -3251,12 +3251,9 @@ CSSValue* ConsumeAxis(CSSParserTokenStream& stream,
 CSSValue* ConsumeIntrinsicSizeLonghand(CSSParserTokenStream& stream,
                                        const CSSParserContext& context,
                                        CSSParserLocalContext& local_context) {
-  // `[ auto | from-element ]? [ none | <length [0,∞]> ]`
+  // `auto? [ none | <length [0,∞]> ]`
   CSSIdentifierValue* option =
-      RuntimeEnabledFeatures::ResponsiveIframesEnabled()
-          ? css_parsing_utils::ConsumeIdent<CSSValueID::kAuto,
-                                            CSSValueID::kFromElement>(stream)
-          : css_parsing_utils::ConsumeIdent<CSSValueID::kAuto>(stream);
+      css_parsing_utils::ConsumeIdent<CSSValueID::kAuto>(stream);
   CSSValue* length_or_none = css_parsing_utils::ConsumeLength(
       stream, context, local_context,
       CSSPrimitiveValue::ValueRange::kNonNegative);
@@ -4284,7 +4281,8 @@ CSSValue* ConsumeAnimationIterationCount(CSSParserTokenStream& stream,
 }
 
 bool IsValidIdentAnimationName(const AtomicString& name) {
-  return !EqualIgnoringASCIICase(name, "none") &&
+  return !EqualIgnoringASCIICase(name, "") &&
+         !EqualIgnoringASCIICase(name, "none") &&
          !EqualIgnoringASCIICase(name, "default") && !IsCSSWideKeyword(name);
 }
 
@@ -4297,13 +4295,18 @@ CSSValue* ConsumeAnimationName(CSSParserTokenStream& stream,
 
   if (stream.Peek().GetType() == kStringToken) {
     context.Count(WebFeature::kOBSOLETE_QuotedAnimationName);
-
     const CSSParserToken& token = stream.ConsumeIncludingWhitespace();
-    if (IsValidIdentAnimationName(token.Value().ToAtomicString())) {
-      return MakeGarbageCollected<CSSCustomIdentValue>(
-          token.Value().ToAtomicString());
+
+    // Empty string is not a valid animation name.
+    // https://github.com/w3c/csswg-drafts/issues/7762
+    if (token.Value().empty()) {
+      return nullptr;
     }
-    return MakeGarbageCollected<CSSStringValue>(token.Value().ToString());
+    const AtomicString& name = token.Value().ToAtomicString();
+    if (IsValidIdentAnimationName(name)) {
+      return MakeGarbageCollected<CSSCustomIdentValue>(name);
+    }
+    return MakeGarbageCollected<CSSStringValue>(name);
   }
 
   return ConsumeCustomIdent(stream, context, local_context);
@@ -7007,7 +7010,8 @@ CSSValue* ConsumeGridTrackList(CSSParserTokenStream& stream,
   auto HasMoreGridLanesValues = [](CSSParserTokenStream& stream,
                                    bool is_grid_lanes_shorthand) -> bool {
     return (is_grid_lanes_shorthand &&
-            IsGridLanesDirectionKeyword(stream.Peek().Id()));
+            (IsGridLanesDirectionKeyword(stream.Peek().Id()) ||
+             stream.Peek().GetType() == kStringToken));
   };
 
   do {
@@ -7252,14 +7256,112 @@ bool ConsumeGridTemplateShorthand(bool important,
   return false;
 }
 
+bool ConsumeGridLanesShorthand(bool important,
+                               CSSParserTokenStream& stream,
+                               const CSSParserContext& context,
+                               CSSParserLocalContext& local_context,
+                               const CSSValue*& grid_lanes_direction,
+                               const CSSValue*& template_columns,
+                               const CSSValue*& template_rows,
+                               const CSSValue*& template_areas) {
+  DCHECK(!grid_lanes_direction);
+  DCHECK(!template_columns);
+  DCHECK(!template_rows);
+  String grid_lanes_template_areas;
+  const CSSValue* grid_lanes_template_tracks = nullptr;
+  bool is_for_columns = true;
+
+  // Parse `grid-lanes` shorthand: <track-listing> || <string>+ ||
+  // <'grid-lanes-direction'>. The || combinator means all components are
+  // optional and can appear in any order.
+  do {
+    if (grid_lanes_template_areas.empty() &&
+        stream.Peek().GetType() == kStringToken) {
+      grid_lanes_template_areas =
+          stream.ConsumeIncludingWhitespace().Value().ToString();
+      continue;
+    }
+
+    if (!grid_lanes_direction &&
+        IdentMatches<CSSValueID::kNormal, CSSValueID::kRow,
+                     CSSValueID::kColumn>(stream.Peek().Id())) {
+      // The 'normal' keyword is treated as 'column' in the shorthand.
+      if (IdentMatches<CSSValueID::kRow>(stream.Peek().Id())) {
+        is_for_columns = false;
+      }
+      grid_lanes_direction = ParseGridLanesDirection(stream);
+      continue;
+    }
+
+    if (!grid_lanes_template_tracks) {
+      CSSParserTokenStream::State savepoint = stream.Save();
+      grid_lanes_template_tracks =
+          ConsumeGridTemplatesRowsOrColumns(stream, context, local_context,
+                                            /*is_grid_lanes_shorthand=*/true);
+      if (grid_lanes_template_tracks) {
+        stream.ConsumeWhitespace();
+        continue;
+      }
+      stream.Restore(savepoint);
+    }
+
+    // If we reach here, nothing was consumed in this iteration.
+    break;
+  } while (!stream.AtEnd());
+
+  // At this point, we should be at the end of the stream or at an !important
+  // token. If not, we should return false.
+  if (!stream.AtEnd() && !(stream.Peek().GetType() == kDelimiterToken &&
+                           stream.Peek().Delimiter() == '!')) {
+    return false;
+  }
+
+  if (!grid_lanes_direction) {
+    CSSValueList* list = CSSValueList::CreateSpaceSeparated();
+    list->Append(*CSSIdentifierValue::Create(CSSValueID::kColumn));
+    grid_lanes_direction = list;
+  }
+
+  if (!grid_lanes_template_tracks) {
+    grid_lanes_template_tracks = CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+
+  template_columns = is_for_columns
+                         ? grid_lanes_template_tracks
+                         : CSSIdentifierValue::Create(CSSValueID::kNone);
+  template_rows = is_for_columns ? CSSIdentifierValue::Create(CSSValueID::kNone)
+                                 : grid_lanes_template_tracks;
+
+  // Parse `grid_lanes_template_areas` into the appropriate
+  // `grid-template-areas` value.
+  // - `grid_lanes_template_areas` is a single space-separated string.
+  // - If `grid-lanes-direction` is column, use the string as a single row
+  // (e.g., "a b c d" -> "a b c d").
+  // - If `grid-lanes-direction` is row, split the string into multiple rows,
+  // one per area name (e.g., "a b c d" -> "a" "b" "c" "d"). This ensures the
+  // correct mapping to the CSS `grid-template-areas` syntax based on the
+  // `grid-lanes-direction`.
+  if (!grid_lanes_template_areas.ContainsOnlyWhitespaceOrEmpty()) {
+    template_areas = ParseGridLanesTemplateAreasValue(grid_lanes_template_areas,
+                                                      is_for_columns);
+    if (!template_areas) {
+      return false;
+    }
+  } else {
+    template_areas = CSSIdentifierValue::Create(CSSValueID::kNone);
+  }
+
+  return true;
+}
+
 CSSValue* ParseGridLanesTemplateAreasValue(
     const String& grid_lanes_template_areas,
-    bool is_template_columns) {
+    bool is_for_columns) {
   NamedGridAreaMap grid_area_map;
   wtf_size_t row_count = 0;
   wtf_size_t column_count = 0;
 
-  if (is_template_columns) {
+  if (is_for_columns) {
     // For template-columns, we treat the `grid_lanes_template_areas` string
     // as a single row of grid areas and use the function below to construct the
     // `grid_area_map`.

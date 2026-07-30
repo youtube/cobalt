@@ -33,6 +33,25 @@ enum class EntryPoint {
 };
 // LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiEntryPoint)
 
+// The different update sources for the Gemini floaty.
+// Logged as IOSGeminiFloatyUpdateSource enum for the
+// IOS.Gemini.Floaty.HiddenFromSource and IOS.Gemini.Floaty.ShownFromSource
+// histogram.
+// LINT.IfChange(FloatyUpdateSource)
+enum class FloatyUpdateSource {
+  Unknown = 0,
+  ViewTransition = 1,
+  WebNavigation = 2,
+  TabGrid = 3,
+  ContextMenu = 4,
+  WebContextMenu = 5,
+  ForcedFromFullscreen = 6,
+  Overlay = 7,
+  IneligibleSite = 8,
+  kMaxValue = IneligibleSite,
+};
+// LINT.ThenChange(/tools/metrics/histograms/metadata/ios/enums.xml:IOSGeminiFloatyUpdateSource)
+
 }  // namespace gemini
 
 // BWG UI sheet detent identifier.

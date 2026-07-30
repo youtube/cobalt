@@ -27,6 +27,7 @@
 #include "chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h"
 #include "chrome/browser/ui/views/tabs/alert_indicator_button.h"
 #include "chrome/browser/ui/views/tabs/glow_hover_controller.h"
+#include "chrome/browser/ui/views/tabs/tab_accessibility.h"
 #include "chrome/browser/ui/views/tabs/tab_close_button.h"
 #include "chrome/browser/ui/views/tabs/tab_icon.h"
 #include "chrome/browser/ui/views/tabs/vertical/tab_collection_node.h"
@@ -71,7 +72,7 @@ constexpr int kIconDesignWidth = 16;
 constexpr int kTitleMinWidth = 10;
 constexpr int kHorizontalInset = 7;
 constexpr int kDefaultPadding = 4;
-constexpr int kFocusRingInset = -2.0f;
+constexpr int kFocusRingInset = 0.0f;
 
 class VerticalTabHighlightPathGenerator : public views::HighlightPathGenerator {
  public:
@@ -253,7 +254,7 @@ void VerticalTabView::Layout(PassKey) {
 }
 
 bool VerticalTabView::OnKeyPressed(const ui::KeyEvent& event) {
-  if (event.key_code() == ui::VKEY_RETURN && selected_) {
+  if (event.key_code() == ui::VKEY_RETURN && !selected_) {
     collection_node_->GetController()->SelectTab(GetTabInterface(),
                                                  GetGestureDetail(event));
     return true;
@@ -262,7 +263,7 @@ bool VerticalTabView::OnKeyPressed(const ui::KeyEvent& event) {
 }
 
 bool VerticalTabView::OnKeyReleased(const ui::KeyEvent& event) {
-  if (event.key_code() == ui::VKEY_SPACE && selected_) {
+  if (event.key_code() == ui::VKEY_SPACE && !selected_) {
     collection_node_->GetController()->SelectTab(GetTabInterface(),
                                                  GetGestureDetail(event));
     return true;
@@ -273,6 +274,8 @@ bool VerticalTabView::OnKeyReleased(const ui::KeyEvent& event) {
 bool VerticalTabView::OnMousePressed(const ui::MouseEvent& event) {
   auto* controller = collection_node_->GetController();
   shift_pressed_on_mouse_down_ = event.IsShiftDown();
+
+  controller->OnTabMousePressed();
 
   if (event.IsOnlyLeftMouseButton() ||
       (event.IsOnlyRightMouseButton() && event.flags() & ui::EF_FROM_TOUCH)) {
@@ -354,6 +357,28 @@ bool VerticalTabView::OnMouseDragged(const ui::MouseEvent& event) {
   return controller->GetDragHandler().ContinueDrag(*this, event);
 }
 
+void VerticalTabView::OnGestureEvent(ui::GestureEvent* event) {
+  auto* controller = collection_node_->GetController();
+  CHECK(controller);
+
+  switch (event->type()) {
+    case ui::EventType::kGestureTapDown: {
+      // TAP_DOWN is only dispatched for the first touch point.
+      CHECK_EQ(1, event->details().touch_points());
+
+      if (!selected_) {
+        controller->SelectTab(GetTabInterface(), GetGestureDetail(*event));
+      }
+
+      event->SetHandled();
+      break;
+    }
+
+    default:
+      break;
+  }
+}
+
 void VerticalTabView::OnPaint(gfx::Canvas* canvas) {
   std::optional<SkColor> background_color = GetBackgroundColor();
   // Split pinned tabs have a merged background that is rendered in
@@ -374,6 +399,10 @@ void VerticalTabView::AddedToWidget() {
           &VerticalTabView::UpdateColors, base::Unretained(this)));
 
   OnDataChanged();
+
+  // Recompute accessible name when the structure changes.
+  UpdateAccessibleName();
+
   // Recompute the hovered state as mouse events are not processed if a view
   // removed from the widget and added.
   if (!split_) {
@@ -554,8 +583,19 @@ void VerticalTabView::ResetCollectionNode() {
   collection_node_ = nullptr;
 }
 
+void VerticalTabView::UpdateAccessibleName() {
+  std::u16string name =
+      tabs::GetAccessibleTabLabel(GetTabInterface(), /*is_for_tab=*/true);
+  if (!name.empty()) {
+    GetViewAccessibility().SetName(name);
+  } else {
+    GetViewAccessibility().SetName(
+        std::string(), ax::mojom::NameFrom::kAttributeExplicitlyEmpty);
+  }
+}
+
 void VerticalTabView::OnDataChanged() {
-  const tabs::TabInterface* tab = GetTabInterface();
+  tabs::TabInterface* tab = const_cast<tabs::TabInterface*>(GetTabInterface());
   CHECK(tab);
 
   const TabStripModel* tab_strip_model =
@@ -564,10 +604,33 @@ void VerticalTabView::OnDataChanged() {
   CHECK(index != TabStripModel::kNoTab);
 
   active_ = tab_strip_model->IsTabInForeground(index);
-  selected_ = tab->IsSelected();
   split_ = tab->IsSplit();
   pinned_ = tab->IsPinned();
-  tab_data_ = TabRendererData::FromTabInModel(tab_strip_model, index);
+
+  SetSelection(tab->IsSelected());
+  UpdateTabData(tab);
+
+  UpdateColors();
+  InvalidateLayout();
+}
+
+void VerticalTabView::SetSelection(bool selected) {
+  if (selected_ == selected) {
+    return;
+  }
+
+  selected_ = selected;
+  GetViewAccessibility().SetIsSelected(selected_);
+}
+
+void VerticalTabView::UpdateTabData(tabs::TabInterface* tab) {
+  TabRendererData new_data = TabRendererData::FromTabInterface(tab);
+  TabRendererData old_data = std::move(tab_data_);
+  tab_data_ = std::move(new_data);
+
+  if (tabs::ShouldUpdateAccessibleName(old_data, tab_data_)) {
+    UpdateAccessibleName();
+  }
 
   icon_->SetData(tab_data_);
   icon_->SetActiveState(tab->IsActivated());
@@ -580,9 +643,6 @@ void VerticalTabView::OnDataChanged() {
 
   alert_indicator_->TransitionToAlertState(
       tabs::TabAlertController::GetAlertStateToShow(tab_data_.alert_state));
-
-  UpdateColors();
-  InvalidateLayout();
 }
 
 void VerticalTabView::UpdateTitle() {

@@ -22,16 +22,25 @@ class MockAutofillAiImportDataController
               ShowPrompt,
               (EntityInstance,
                std::optional<EntityInstance>,
+               bool,
                AutofillClient::EntityImportPromptResultCallback),
               (override));
+  MOCK_METHOD(void, ShowLocalSaveNotification, (), (override));
   MOCK_METHOD(base::optional_ref<const EntityInstance>,
               GetAutofillAiData,
               (),
               (const override));
   MOCK_METHOD(void, OnSaveButtonClicked, (), (override));
-  MOCK_METHOD(std::u16string, GetDialogTitle, (), (const override));
+  MOCK_METHOD(std::u16string,
+              GetSaveUpdateDialogPrimaryButtonText,
+              (),
+              (const override));
+  MOCK_METHOD(std::u16string, GetSaveUpdateDialogTitle, (), (const override));
+  MOCK_METHOD((int),
+              GetSaveUpdateDialogTitleImagesResourceId,
+              (),
+              (const override));
   MOCK_METHOD(std::u16string, GetPrimaryAccountEmail, (), (const override));
-  MOCK_METHOD(std::u16string, GetDialogPrimaryButtonText, (), (const override));
   MOCK_METHOD(std::vector<EntityAttributeUpdateDetails>,
               GetUpdatedAttributesDetails,
               (),
@@ -39,7 +48,7 @@ class MockAutofillAiImportDataController
   MOCK_METHOD(bool, IsWalletableEntity, (), (const override));
   MOCK_METHOD(bool, IsSavePrompt, (), (const override));
   MOCK_METHOD(void, OnGoToWalletLinkClicked, (), (override));
-  MOCK_METHOD((int), GetTitleImagesResourceId, (), (const override));
+  MOCK_METHOD(bool, CloseOnAccept, (), (const override));
   MOCK_METHOD(void,
               OnBubbleClosed,
               (AutofillClient::AutofillAiBubbleResult),

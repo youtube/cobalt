@@ -2094,9 +2094,6 @@
   <message name="IDS_TETHER_NOTIFICATION_CONNECTION_FAILED_TITLE" desc="Title of the notification shown to the user when an attempt to tether to another device has failed.">
     Instant hotspot connection failed
   </message>
-  <message name="IDS_TETHER_NOTIFICATION_CONNECTION_FAILED_TITLE_LEGACY" desc="Title of the notification shown to the user when an attempt to tether to another device has failed.">
-    Instant hotspot connection failed
-  </message>
   <message name="IDS_TETHER_NOTIFICATION_CONNECTION_FAILED_MESSAGE" desc="Message shown as part of the notification shown to the user when an attempt to tether to another device has failed which gives the user instructions about how to configure tethering.">
     Tap to configure
   </message>
@@ -2970,17 +2967,6 @@
   </message>
   <message name="IDS_TPM_FIRMWARE_UPDATE_NOTIFICATION_MESSAGE" desc="Notification shown to inform the user that there is a pending TPM firmware update for the device.">
     Reset your <ph name="DEVICE_TYPE">$1<ex>Chromebook</ex></ph> to upgrade your security.
-  </message>
-
-  <!-- U2F Notification Strings -->
-  <message name="IDS_U2F_INSECURE_NOTIFICATION_TITLE" desc="Notification title shown to inform the user that the legacy U2F feature is insecure.">
-    Internal security key requires reset
-  </message>
-  <message name="IDS_U2F_INSECURE_NOTIFICATION_MESSAGE" desc="Notification shown to inform the user that the legacy U2F feature is insecure.">
-    Your internal security key is currently insecure. Please remove it from any services that you used it with. In order to resolve the issue, please reset the security key.
-  </message>
-  <message name="IDS_U2F_INSECURE_NOTIFICATION_RESET" desc="Label for the reset button in the notification shown to inform the user that the legacy U2F feature is insecure.">
-    Reset
   </message>
 
   <!-- Update Required Screen Strings-->

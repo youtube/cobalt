@@ -157,6 +157,7 @@ Chrome'дун ишин жакшыртуу үчүн маалыматтарды к
 <translation id="164269334534774161">Бул барактын оффлайн көчүрмөсү <ph name="CREATION_TIME" /> түзүлгөн</translation>
 <translation id="1644574205037202324">Таржымал</translation>
 <translation id="1645262572857218659"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> менен кирүү</translation>
+<translation id="1650979352027263879">Сырткы көрүнүш параметрлери өчүрүлдү</translation>
 <translation id="1671236975893690980">Жүктөп алуу күтүлүүдө…</translation>
 <translation id="1672586136351118594">Экинчи көрүнбөсүн</translation>
 <translation id="1680919990519905526">Google Lens аркылуу соода кылуу <ph name="BEGIN_NEW" />Жаңы<ph name="END_NEW" /></translation>
@@ -425,6 +426,7 @@ Chrome'дун ишин жакшыртуу үчүн маалыматтарды к
 <translation id="2854916915045135148">Жашыруун режимге өтүү үчүн коё бербей басып туруңуз</translation>
 <translation id="2860954141821109167">Телефон колдонмосу бул түзмөктө иштетилгенин текшериңиз</translation>
 <translation id="2861923151411510142">Айрым Chrome функциялары мындан ары иштебейт</translation>
+<translation id="286473047976978798">Сырткы көрүнүш параметрлери колдонулсунбу?</translation>
 <translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> жана дагы 1 өтмөк}other{<ph name="URL" /> жана дагы <ph name="TAB_COUNT_MANY" /> өтмөк}}</translation>
 <translation id="2869430948265924908">Унааңызда купуя контентти коргоо үчүн унаа профилинин кулпусун түзүшүңүз керек.  Ал үчүн пин код, код же сырсөздү колдоно аласыз.</translation>
 <translation id="2870560284913253234">Сайт</translation>
@@ -1372,6 +1374,7 @@ Google аккаунтуңуздун башка Google кызматтарынан
 <translation id="6811034713472274749">Барак карап чыгууга даяр</translation>
 <translation id="6813359536773993594">{FILE_COUNT,plural, =1{Сүрөттөр, тизмеде 1 сүрөт}other{Сүрөттөр, тизмеде # сүрөт}}</translation>
 <translation id="6813446258015311409">Chrome'го кириңиз. Ачылды.</translation>
+<translation id="6815692190508268848">Сырткы көрүнүш параметрлери колдонулду</translation>
 <translation id="6817747507826986771">Бул баракты ыкчам бөлүшүү. Бул ыкчам баскычты түзөтүү үчүн коё бербей басып туруңуз.</translation>
 <translation id="6820686453637990663">CVC</translation>
 <translation id="6820942662346226299">Сырсөздөрдү башкаргычты жаңыртуу жабылды</translation>
@@ -1572,6 +1575,7 @@ Google аккаунтуңуздун башка Google кызматтарынан
 <translation id="7523960634226602883">Камераны иштетип, Google Lens'те колдонуңуз</translation>
 <translation id="7525248386620136756"><ph name="TAB_GROUPS_AND_TABS_PART" /> жабылды жана сакталды</translation>
 <translation id="7545347190366646170">Кирүү мүмкүнчүлүгү бар адамдар</translation>
+<translation id="7553482318994371148">Жабылган өтмөктөрдү кайра ачуу</translation>
 <translation id="7554643625247105821">Chrome версиясын текшерүү мүмкүн болбой жатат</translation>
 <translation id="7557508262441527045">Аккаунтуңуздан чыктыңыз</translation>
 <translation id="7573665567024262965">Демейки колдонмолоруңузду тандаңыз</translation>
@@ -1892,6 +1896,7 @@ Google аккаунтуңуздун башка Google кызматтарынан
 <translation id="8856931513242997049">Билдирмелерге уруксат берүү агымы жабылды</translation>
 <translation id="8863714995118816041"><ph name="SITE_NAME" /> сайтына уруксаттар кайра берилди</translation>
 <translation id="8865415417596392024">Аккаунтуңуздагы Chrome дайын-даректери</translation>
+<translation id="8872506776304248286">Колдонмосунда ачуу</translation>
 <translation id="8890668505403261809">Жашыруун өтмөктөрдөн издеңиз</translation>
 <translation id="8894890673032951011"><ph name="TAB_TITLE" />, тандалган жашыруун өтмөктө медиа жаздырылууда</translation>
 <translation id="8898822736010347272">Сиз баш баккан айрым барактардын URL даректерин, чектелген тутум маалыматын жана айрым барактардын мазмунун бардык колдонуучулар үчүн мүмкүн болгон коркунучтарды аныктап, бөгөттөө үчүн Google'га жөнөтөт.</translation>

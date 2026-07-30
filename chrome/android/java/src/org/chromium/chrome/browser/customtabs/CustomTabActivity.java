@@ -67,7 +67,6 @@ import org.chromium.chrome.browser.page_info.ChromePageInfoHighlight;
 import org.chromium.chrome.browser.tab.Tab;
 import org.chromium.chrome.browser.tab.TrustedCdn;
 import org.chromium.chrome.browser.ui.google_bottom_bar.GoogleBottomBarCoordinator;
-import org.chromium.chrome.browser.ui.web_app_header.WebAppHeaderUtils;
 import org.chromium.components.browser_ui.util.motion.MotionEventInfo;
 import org.chromium.components.page_info.PageInfoController.OpenedFromSource;
 import org.chromium.content_public.browser.LoadUrlParams;
@@ -296,8 +295,14 @@ public class CustomTabActivity extends BaseCustomTabActivity {
     }
 
     @Override
+    public void onStart() {
+        super.onStart();
+        if (mTimeoutHandler != null) mTimeoutHandler.onStart();
+    }
+
+    @Override
     public void onResume() {
-        if (mTimeoutHandler != null) mTimeoutHandler.onResume();
+        if (mTimeoutHandler != null) mTimeoutHandler.onResume(this);
         super.onResume();
     }
 
@@ -320,8 +325,13 @@ public class CustomTabActivity extends BaseCustomTabActivity {
     }
 
     @Override
+    public void onStop() {
+        super.onStop();
+        if (mTimeoutHandler != null) mTimeoutHandler.onStop(this);
+    }
+
+    @Override
     protected void onUserLeaveHint() {
-        if (mTimeoutHandler != null) mTimeoutHandler.onUserLeaveHint();
         if (mOpenTimeRecorder != null) mOpenTimeRecorder.onUserLeaveHint();
         super.onUserLeaveHint();
     }
@@ -392,14 +402,8 @@ public class CustomTabActivity extends BaseCustomTabActivity {
                             mRootUiCoordinator.getMerchantTrustSignalsCoordinatorSupplier()::get,
                             mRootUiCoordinator.getEphemeralTabCoordinatorSupplier(),
                             getTabCreator(getCurrentTabModel().isIncognito()));
-            boolean isMinimalUiVisible =
-                    WebAppHeaderUtils.isMinimalUiVisible(
-                            getIntentDataProvider(),
-                            getBaseCustomTabRootUiCoordinator().getDesktopWindowStateManager());
             boolean isTWA = getIntentDataProvider().isTrustedWebActivity();
-            if (ChromeFeatureList.sAndroidWebAppMenuButton.isEnabled()
-                    && isTWA
-                    && isMinimalUiVisible) {
+            if (isTWA) {
                 String packageName = getIntentDataProvider().getClientPackageName();
                 pageInfo.show(tab, ChromePageInfoHighlight.noHighlight(), packageName);
                 return true;
@@ -575,5 +579,13 @@ public class CustomTabActivity extends BaseCustomTabActivity {
     public static void setOnFinishCallbackForTesting(Runnable callback) {
         sOnFinishCallbackForTesting = callback;
         ResettersForTesting.register(() -> sOnFinishCallbackForTesting = null);
+    }
+
+    /**
+     * Called by InterceptNavigationDelegateImpl when a navigation is intercepted to launch an
+     * external intent.
+     */
+    public void setIntentLaunchedByNavigation() {
+        if (mTimeoutHandler != null) mTimeoutHandler.setLaunchingExternalActivity(true);
     }
 }

@@ -141,6 +141,7 @@ uploading your change for review.  These are checked by presubmit scripts.
       label="Launched from ChromeOS Projector App for re-authentication"/>
   <int value="18" label="Turn on sync menu item in Chrome app menu"/>
   <int value="19" label="Account addition flow triggered from a Sign-in promo"/>
+  <int value="20" label="Gemini in Chrome asked to reauthenticate"/>
 </enum>
 
 <enum name="AccountManagerAccountUpsertionResultStatus">
@@ -4365,6 +4366,7 @@ shown properly on the user-facing crash UI.
   <int value="45" label="Boca App"/>
   <int value="46" label="Tracking Protections"/>
   <int value="47" label="Split View"/>
+  <int value="48" label="Vertical Tabs"/>
 </enum>
 
 <!--LINT.ThenChange(//chrome/browser/feedback/public/feedback_source.h:FeedbackSource) -->
@@ -5353,6 +5355,24 @@ shown properly on the user-facing crash UI.
       label="elevation_service::Elevator::kErrorUnsupportedProtectionLevel"/>
   <int value="-2147180533"
       label="elevation_service::Elevator::kErrorInvalidValidationData"/>
+  <int value="-2147180532"
+      label="elevation_service::Elevator::kErrorCouldNotObtainThreadToken"/>
+  <int value="-2147180531"
+      label="elevation_service::Elevator::kErrorCouldNotCreatePrimaryToken"/>
+  <int value="-2147180530"
+      label="elevation_service::Elevator::kErrorCouldNotObtainSidString"/>
+  <int value="-2147180529"
+      label="elevation_service::Elevator::kErrorCouldCreateSecurityDescriptor"/>
+  <int value="-2147180528"
+      label="elevation_service::Elevator::kErrorCouldAssignDefaultDacl"/>
+  <int value="-2147180527"
+      label="elevation_service::Elevator::kErrorCouldNotLaunchBrowser"/>
+  <int value="-2147180526"
+      label="elevation_service::Elevator::kErrorCouldNotDuplicateHandle"/>
+  <int value="-2147180525"
+      label="elevation_service::Elevator::kErrorChromePathNotFound"/>
+  <int value="-2147180524"
+      label="elevation_service::Elevator::kErrorCouldNotObtainUserEnvironment"/>
   <int value="-2147180287" label="os_crypt::kErrorWrongData"/>
   <int value="-2147174395"
       label="MSPR_E_PRO_HEADER_BYTES_NOT_SET (0x8004B805)"/>
@@ -6278,7 +6298,7 @@ shown properly on the user-facing crash UI.
   <int value="3" label="Both"/>
 </enum>
 
-<!-- LINT.ThenChange(//content/browser/renderer_host/navigator.cc:InputStartPresence) -->
+<!-- LINT.ThenChange(//third_party/blink/public/common/navigation/navigation_policy.h:InputStartPresence) -->
 
 <enum name="InstallableStatusCode">
   <int value="0" label="No error"/>
@@ -8073,6 +8093,7 @@ from previous Chrome versions.
   <int value="-2140371146" label="DrawCutoutEdgeToEdge:disabled"/>
   <int value="-2140007754" label="HomepageSettingsUIConversion:disabled"/>
   <int value="-2139889252" label="AllowCrossDeviceFeatureSuite:disabled"/>
+  <int value="-2139768690" label="FedCmInAuthenticator:enabled"/>
   <int value="-2139379065" label="StoragePressureUI:enabled"/>
   <int value="-2139096597" label="HubBackButton:enabled"/>
   <int value="-2138883960" label="AutofillRejectCompanyBirthyearName:disabled"/>
@@ -8658,6 +8679,7 @@ from previous Chrome versions.
   <int value="-1957328398" label="MacSystemShareMenu:disabled"/>
   <int value="-1956747298" label="LayeredAPI:enabled"/>
   <int value="-1956656203" label="ShowForceRespectUiGainsToggle:disabled"/>
+  <int value="-1956530654" label="FedCmInAuthenticator:disabled"/>
   <int value="-1956349722" label="disable-smooth-scrolling"/>
   <int value="-1956231275" label="ForceSpectreVariant2Mitigation:enabled"/>
   <int value="-1955923385" label="EnableGamepadButtonAxisEvents:enabled"/>
@@ -8914,6 +8936,7 @@ from previous Chrome versions.
   <int value="-1871034583" label="EnablePixPayments:disabled"/>
   <int value="-1870961970" label="enable-filemanager-mtp"/>
   <int value="-1869845022" label="force-show-update-menu-item"/>
+  <int value="-1869767210" label="CCTResetTimeoutAllowed:disabled"/>
   <int value="-1869700024" label="DisableDnsProxy:enabled"/>
   <int value="-1869432243" label="GoogleBrandedContextMenu:disabled"/>
   <int value="-1868978829" label="spurious-power-button-accel-count"/>
@@ -9552,6 +9575,7 @@ from previous Chrome versions.
   <int value="-1643224308"
       label="OmniboxMostVisitedTilesTitleWrapAround:disabled"/>
   <int value="-1642482834" label="AutofillEnableBuyNowPayLater:disabled"/>
+  <int value="-1642043665" label="SearchEngineUnconditionalDialog:disabled"/>
   <int value="-1641832607" label="DragToPinTabs:enabled"/>
   <int value="-1641656402"
       label="RTCDisallowPlanBOutsideDeprecationTrial:disabled"/>
@@ -9898,6 +9922,8 @@ from previous Chrome versions.
   <int value="-1526740682"
       label="EnableHistorySyncOptinExpansionPill:disabled"/>
   <int value="-1525432906" label="AllowLegacyMV2Extensions:disabled"/>
+  <int value="-1525286543"
+      label="DeviceBoundSessionsForRestrictedSites:enabled"/>
   <int value="-1525129540"
       label="OmniboxUIExperimentRevealSteadyStateUrlPathQueryAndRefOnHover:disabled"/>
   <int value="-1524510718"
@@ -10676,6 +10702,7 @@ from previous Chrome versions.
   <int value="-1266934701" label="AccessibilityAXModes:enabled"/>
   <int value="-1265863577"
       label="EnableBookmarksSelectedTypeOnSigninForTesting:enabled"/>
+  <int value="-1265739179" label="SearchEngineExplicitChoiceDialog:enabled"/>
   <int value="-1265627803" label="WebAppEnableManifestId:enabled"/>
   <int value="-1265374554" label="CctSignInPrompt:disabled"/>
   <int value="-1264634670" label="HideTabOnTabSwitcher:disabled"/>
@@ -11217,7 +11244,6 @@ from previous Chrome versions.
   <int value="-1080893507" label="MessagesForAndroidStackingAnimation:enabled"/>
   <int value="-1080700029" label="ShowFeaturedEnterpriseSiteSearch:disabled"/>
   <int value="-1080220553" label="PrinterSettingsRevamp:enabled"/>
-  <int value="-1078892725" label="ReduceAcceptLanguage:enabled"/>
   <int value="-1078746384" label="MemoryUsageInHovercards:enabled"/>
   <int value="-1078093206" label="ash-debug-shortcuts"/>
   <int value="-1077767597" label="IwaKeyDistributionComponent:disabled"/>
@@ -11459,6 +11485,8 @@ from previous Chrome versions.
   <int value="-997185008" label="LensFullscreenSearch:disabled"/>
   <int value="-996868396" label="SmartDimNewMlAgent:enabled"/>
   <int value="-996673716" label="enable-web-app-frame"/>
+  <int value="-996374397"
+      label="DeviceBoundSessionsForRestrictedSitesExperimentId:disabled"/>
   <int value="-996231379" label="SideBySide:enabled"/>
   <int value="-995361761" label="ReloadTabUiResourcesIfChanged:enabled"/>
   <int value="-995224626" label="BatchTabRestore:enabled"/>
@@ -12434,6 +12462,7 @@ from previous Chrome versions.
       label="AutofillEnableSaveCardInfoBarAccountIndicationFooter:disabled"/>
   <int value="-662064703" label="MediaSessionService:enabled"/>
   <int value="-661978438" label="enable-data-reduction-proxy-lo-fi"/>
+  <int value="-660611514" label="fedcm-in-authenticator:enabled"/>
   <int value="-660569428"
       label="ProfileCreationFrictionReductionExperimentSkipCustomizeProfile:enabled"/>
   <int value="-660160292" label="enable-apps-show-on-first-paint"/>
@@ -12507,6 +12536,8 @@ from previous Chrome versions.
   <int value="-637647384" label="MigrateAccountPrefs:disabled"/>
   <int value="-637297943" label="WebAuthenticationCableSecondFactor:disabled"/>
   <int value="-637215276" label="QuickAnswersOnEditableText:enabled"/>
+  <int value="-636963126"
+      label="DeviceBoundSessionsForRestrictedSites:disabled"/>
   <int value="-636701420"
       label="AutofillEnableAmountExtractionDesktop:disabled"/>
   <int value="-636062300" label="BlinkExtensionDiagnostics:disabled"/>
@@ -13200,6 +13231,8 @@ from previous Chrome versions.
       label="OmniboxUIExperimentHideSteadyStateUrlPathQueryAndRefOnInteraction:enabled"/>
   <int value="-389601101" label="HelpAppAutoTriggerInstallDialog:enabled"/>
   <int value="-389283574" label="IPH_PasswordsAccountStorage:disabled"/>
+  <int value="-388869173"
+      label="AccessibilityRequestScopedContentChangedEvents:enabled"/>
   <int value="-387606010" label="ArcBootCompletedBroadcast:enabled"/>
   <int value="-387341308" label="ParentAccessJelly:disabled"/>
   <int value="-387217874" label="LinkCapturingInfoBar:enabled"/>
@@ -13749,6 +13782,8 @@ from previous Chrome versions.
   <int value="-197862414" label="PrivacyIndicators:enabled"/>
   <int value="-197413324" label="GlicBindPinnedUnboundTab:disabled"/>
   <int value="-196110497" label="force-text-direction"/>
+  <int value="-195307538"
+      label="EnableActivitylessSigninAllEntryPoint:enabled"/>
   <int value="-195242003"
       label="PrivateNetworkAccessRespectPreflightResults:disabled"/>
   <int value="-195161821" label="ScrollUpdateOptimizations:disabled"/>
@@ -15036,6 +15071,7 @@ from previous Chrome versions.
   <int value="251266195" label="CapturedSurfaceControl:disabled"/>
   <int value="251367892" label="PersistentQuotaIsTemporaryQuota:disabled"/>
   <int value="251764234" label="AccessibilityPerformanceFiltering:disabled"/>
+  <int value="254486701" label="CCTResetTimeoutAllowed:enabled"/>
   <int value="254497185" label="VideoPlayerJsModules:enabled"/>
   <int value="255027960" label="AdaptiveButtonInTopToolbarTranslate:disabled"/>
   <int value="255274700" label="Canvas2dStaysGPUOnReadback:enabled"/>
@@ -15154,9 +15190,12 @@ from previous Chrome versions.
       label="ReadAnythingReadAloudTSTextSegmentation:enabled"/>
   <int value="289408715" label="MacImeLiveConversionFix:enabled"/>
   <int value="289465857" label="ClipboardHistorySimpleRender:disabled"/>
+  <int value="290029236"
+      label="GeminiAntiscamProtectionForMetricsCollection:disabled"/>
   <int value="290559997" label="LinkCapturingUiUpdate:disabled"/>
   <int value="291389947" label="PercentBasedScrolling:disabled"/>
   <int value="291482671" label="ExperimentalFlingAnimation:disabled"/>
+  <int value="291587400" label="CADisplayLinkInBrowser:disabled"/>
   <int value="291866104" label="WebAuthenticationPhoneSupport:enabled"/>
   <int value="291968978" label="HomepagePromoCard:enabled"/>
   <int value="291998717" label="AccessibilitySnapshotStressTests:disabled"/>
@@ -15323,6 +15362,7 @@ from previous Chrome versions.
   <int value="346406287" label="EnableWebAppUninstallFromOsSettings:disabled"/>
   <int value="346430505" label="SidePanel:enabled"/>
   <int value="346711293" label="enable-save-password-bubble"/>
+  <int value="347273804" label="fedcm-in-authenticator:disabled"/>
   <int value="347577245" label="WebBluetoothConfirmPairingSupport:enabled"/>
   <int value="347807274" label="UseSharedImageInOOPVDProcess:enabled"/>
   <int value="347948074" label="WebFeedSort:disabled"/>
@@ -15437,6 +15477,8 @@ from previous Chrome versions.
   <int value="378948081"
       label="AutofillEnableInfoBarAccountIndicationFooter:disabled"/>
   <int value="378994579" label="Previews:enabled"/>
+  <int value="379062542"
+      label="EnableActivitylessSigninAllEntryPoint:disabled"/>
   <int value="379190682" label="ReorderBookmarks:enabled"/>
   <int value="379326303" label="enable-add-to-shelf"/>
   <int value="379397486" label="WebViewSupervisedUserSiteBlock:disabled"/>
@@ -15591,6 +15633,7 @@ from previous Chrome versions.
   <int value="428631746" label="BackGestureActivityTabProvider:disabled"/>
   <int value="430776375" label="TextureLayerSkipWaitForActivation:disabled"/>
   <int value="430959979" label="SyncStandaloneTransport:disabled"/>
+  <int value="431610096" label="SearchEngineUnconditionalDialog:enabled"/>
   <int value="431691805" label="MediaDocumentDownloadButton:enabled"/>
   <int value="432772847"
       label="AutofillEnableVcnGrayOutForMerchantOptOut:disabled"/>
@@ -15946,6 +15989,7 @@ from previous Chrome versions.
   <int value="564355877" label="OopRasterizationDDL:disabled"/>
   <int value="564452531" label="SystemEmojiPickerExtension:enabled"/>
   <int value="564522013" label="Av1Decoder:disabled"/>
+  <int value="564811711" label="PersistAcrossRebootsDebugLogs:disabled"/>
   <int value="565002365" label="QuickOfficeForceFileDownload:disabled"/>
   <int value="565254510" label="LensRegionSearchStaticPage:disabled"/>
   <int value="565406673" label="EnableVirtualKeyboardMdUi:enabled"/>
@@ -16323,7 +16367,6 @@ from previous Chrome versions.
   <int value="690901353" label="WindowsSystemTracing:enabled"/>
   <int value="691020108" label="NTPCondensedTileLayout:disabled"/>
   <int value="691523087" label="GlicPanelResetOnStart:disabled"/>
-  <int value="691913191" label="ReduceAcceptLanguageHTTP:enabled"/>
   <int value="691982483" label="WifiConnectMacAddressRandomization:disabled"/>
   <int value="693012666" label="QuickUnlockPin:disabled"/>
   <int value="693480759" label="PageInfoAboutThisSiteEn:disabled"/>
@@ -16643,7 +16686,6 @@ from previous Chrome versions.
   <int value="788130042" label="PrivacySandboxSettings2:enabled"/>
   <int value="789384500"
       label="AutofillEnableSeparatePixPreferenceItem:enabled"/>
-  <int value="789521140" label="ReduceAcceptLanguageHTTP:disabled"/>
   <int value="789654228" label="ExternalNavigationDebugLogs:disabled"/>
   <int value="789778745" label="EwalletPayments:disabled"/>
   <int value="790411499" label="PageInfoStoreInfo:disabled"/>
@@ -17375,6 +17417,8 @@ from previous Chrome versions.
   <int value="1057337924" label="RestartToGainAccessToKeychain:disabled"/>
   <int value="1057709415" label="DeprecateAltBasedSixPack:disabled"/>
   <int value="1057887829" label="AutofillScanThemeDialog:disabled"/>
+  <int value="1058089810"
+      label="AccessibilityRequestScopedContentChangedEvents:disabled"/>
   <int value="1059007599" label="enable-gpu-appcontainer"/>
   <int value="1059595064" label="GlicPanelResetOnStart:enabled"/>
   <int value="1059698271" label="EnableZeroStateSuggestions:disabled"/>
@@ -17404,6 +17448,7 @@ from previous Chrome versions.
   <int value="1069325321" label="CrostiniGpuSupport:enabled"/>
   <int value="1069628859" label="MostVisitedTilesCustomization:disabled"/>
   <int value="1070164693" label="MidiManagerDynamicInstantiation:disabled"/>
+  <int value="1070266809" label="ReaderModeToggleLinks:enabled"/>
   <int value="1070300488" label="disable-webgl"/>
   <int value="1070449228" label="ContextualSuggestionsCarousel:enabled"/>
   <int value="1070840417" label="ChromeColors:enabled"/>
@@ -17737,7 +17782,10 @@ from previous Chrome versions.
   <int value="1187692916" label="TheoraVideoCodec:enabled"/>
   <int value="1187868655" label="FloatingWorkspaceV2:disabled"/>
   <int value="1188109510" label="AssistantAudioEraser:enabled"/>
+  <int value="1189717061" label="ReaderModeToggleLinks:disabled"/>
   <int value="1190035852" label="MediaRemoting:enabled"/>
+  <int value="1190296804"
+      label="DeviceBoundSessionsForRestrictedSitesExperimentId:enabled"/>
   <int value="1190803434"
       label="AccessibilityReducedAnimationsInKiosk:disabled"/>
   <int value="1191078225" label="UseRunningCompact:enabled"/>
@@ -18177,6 +18225,7 @@ from previous Chrome versions.
   <int value="1319537010"
       label="PolicyProvidedTrustAnchorsAllowedAtLockScreen:disabled"/>
   <int value="1319638975" label="UseWallpaperStagingUrl:disabled"/>
+  <int value="1319697431" label="PersistAcrossRebootsDebugLogs:enabled"/>
   <int value="1319725131" label="enable-distance-field-text"/>
   <int value="1319804064" label="YourSavedInfoSettingsPage:disabled"/>
   <int value="1320201920" label="enable-touchpad-three-finger-click"/>
@@ -18737,6 +18786,8 @@ from previous Chrome versions.
   <int value="1514119870" label="enable-file-manager-touch-mode"/>
   <int value="1514158607" label="NearbySharingDeviceContacts:enabled"/>
   <int value="1514409186" label="PasswordGenerationBottomSheet:disabled"/>
+  <int value="1514707844"
+      label="GeminiAntiscamProtectionForMetricsCollection:enabled"/>
   <int value="1514951731" label="ReduceGpuPriorityOnBackground:disabled"/>
   <int value="1515005753"
       label="UncredentialedFilteringFallbackForSupervisedUsers:enabled"/>
@@ -19054,6 +19105,7 @@ from previous Chrome versions.
   <int value="1629289109" label="EnableBloom:disabled"/>
   <int value="1629497607" label="CertDualVerificationTrial:disabled"/>
   <int value="1629523329" label="WebUiSystemFont:enabled"/>
+  <int value="1630108932" label="SearchEngineExplicitChoiceDialog:disabled"/>
   <int value="1630159957" label="SharingSendViaSync:disabled"/>
   <int value="1630283072" label="CrOSAutoSelect:enabled"/>
   <int value="1630988998" label="VrBrowsingExperimentalRendering:disabled"/>
@@ -19929,7 +19981,6 @@ from previous Chrome versions.
   <int value="1918410646" label="enable-model-quality-dogfood-logging"/>
   <int value="1918984253"
       label="OmniboxUIExperimentBlueSearchLoopAndSearchQuery:disabled"/>
-  <int value="1919380242" label="ReduceAcceptLanguage:disabled"/>
   <int value="1919786756" label="FedCmDisconnect:disabled"/>
   <int value="1919917329" label="ImplicitRootScroller:disabled"/>
   <int value="1919955548" label="GlanceablesTimeManagementTasksView:disabled"/>
@@ -20562,6 +20613,7 @@ from previous Chrome versions.
   <int value="2135540885" label="PrintPreviewCrosApp:disabled"/>
   <int value="2135687747" label="DelayMediaSinkDiscovery:disabled"/>
   <int value="2135800674" label="ConchExpandTranscriptionLanguage:disabled"/>
+  <int value="2136307406" label="CADisplayLinkInBrowser:enabled"/>
   <int value="2137294324" label="zero-copy-video-capture"/>
   <int value="2137347307" label="enable-drive-apps-in-app-list"/>
   <int value="2137440054" label="SyncSessionOnVisibilityChanged:enabled"/>
@@ -22386,6 +22438,42 @@ Called by update_net_error_codes.py.-->
   <int value="6" label="View Transition Timeout"/>
   <int value="7" label="Widget swapped"/>
 </enum>
+
+<!-- LINT.IfChange(PasskeysParsingError) -->
+
+<enum name="PasskeysParsingError">
+  <int value="0" label="MissingFrameId"/>
+  <int value="1" label="EmptyFrameId"/>
+  <int value="2" label="MissingRequestId"/>
+  <int value="3" label="EmptyRequestId"/>
+  <int value="4" label="MissingRequest"/>
+  <int value="5" label="MissingChallenge"/>
+  <int value="6" label="EmptyChallenge"/>
+  <int value="7" label="MalformedChallenge"/>
+  <int value="8" label="MissingRpEntity"/>
+  <int value="9" label="MissingRpId"/>
+  <int value="10" label="EmptyRpId"/>
+  <int value="11" label="MissingConditional"/>
+  <int value="12" label="MissingUserEntity"/>
+  <int value="13" label="MissingUserId"/>
+  <int value="14" label="EmptyUserId"/>
+  <int value="15" label="MalformedUserId"/>
+  <int value="16" label="MissingCredentialType"/>
+  <int value="17" label="MissingCredentialId"/>
+  <int value="18" label="EmptyCredentialId"/>
+  <int value="19" label="MalformedCredentialId"/>
+  <int value="20" label="MissingExtensions"/>
+  <int value="21" label="EvalByCredentialOnCreate"/>
+  <int value="22" label="MissingEvalByCredential"/>
+  <int value="23" label="MalformedEvalByCredential"/>
+  <int value="24" label="EvalByCredentialNotAllowed"/>
+  <int value="25" label="MissingFirstPRFInput"/>
+  <int value="26" label="MalformedFirstPRFInput"/>
+  <int value="27" label="MalformedSecondPRFInput"/>
+  <int value="28" label="PRFInputTooLarge"/>
+</enum>
+
+<!-- LINT.ThenChange(//components/webauthn/ios/passkey_request_parser.h:PasskeysParsingError) -->
 
 <enum name="PasswordBubbleDismissalReason">
   <int value="0" label="Unknown"/>
@@ -25089,6 +25177,7 @@ Called by update_net_error_codes.py.-->
   <int value="11" label="OptimizationGuidePushNotification"/>
   <int value="12" label="SendTabToSelfPushNotification"/>
   <int value="13" label="DesktopToMobilePromoPushNotification"/>
+  <int value="14" label="OneTimeTokenBackendTickle"/>
 </enum>
 
 <enum name="SharingScreenshotAction">
@@ -25536,10 +25625,8 @@ Called by update_net_error_codes.py.-->
 <enum name="SqliteErrorCode">
   <summary>Error codes returned by SQLite - see sqlite3.h</summary>
   <int value="0" label="SQLITE_OK">Successful result</int>
-  <int value="1" label="SQLITE_ERROR">SQL error or missing database</int>
-  <int value="2" label="SQLITE_INTERNAL">
-    NOT USED. Internal logic error in SQLite
-  </int>
+  <int value="1" label="SQLITE_ERROR">Generic error</int>
+  <int value="2" label="SQLITE_INTERNAL">Internal logic error in SQLite</int>
   <int value="3" label="SQLITE_PERM">Access permission denied</int>
   <int value="4" label="SQLITE_ABORT">Callback routine requested an abort</int>
   <int value="5" label="SQLITE_BUSY">The database file is locked</int>
@@ -25558,20 +25645,18 @@ Called by update_net_error_codes.py.-->
     The database disk image is malformed
   </int>
   <int value="12" label="SQLITE_NOTFOUND">
-    NOT USED. Table or record not found
+    Unknown opcode in sqlite3_file_control()
   </int>
   <int value="13" label="SQLITE_FULL">
     Insertion failed because database is full
   </int>
   <int value="14" label="SQLITE_CANTOPEN">Unable to open the database file</int>
-  <int value="15" label="SQLITE_PROTOCOL">
-    NOT USED. Database lock protocol error
-  </int>
-  <int value="16" label="SQLITE_EMPTY">Database is empty</int>
+  <int value="15" label="SQLITE_PROTOCOL">Database lock protocol error</int>
+  <int value="16" label="SQLITE_EMPTY">Internal use only</int>
   <int value="17" label="SQLITE_SCHEMA">The database schema changed</int>
   <int value="18" label="SQLITE_TOOBIG">String or BLOB exceeds size limit</int>
   <int value="19" label="SQLITE_CONSTRAINT">
-    Abort due to contraint violation
+    Abort due to constraint violation
   </int>
   <int value="20" label="SQLITE_MISMATCH">Data type mismatch</int>
   <int value="21" label="SQLITE_MISUSE">Library used incorrectly</int>
@@ -25579,9 +25664,9 @@ Called by update_net_error_codes.py.-->
     Uses OS features not supported on host
   </int>
   <int value="23" label="SQLITE_AUTH">Authorization denied</int>
-  <int value="24" label="SQLITE_FORMAT">Auxiliary database format error</int>
+  <int value="24" label="SQLITE_FORMAT">Not used</int>
   <int value="25" label="SQLITE_RANGE">
-    2nd parameter to sqlite3_bind() out of range
+    2nd parameter to sqlite3_bind out of range
   </int>
   <int value="26" label="SQLITE_NOTADB">
     File opened that is not a database file
@@ -25592,6 +25677,8 @@ Called by update_net_error_codes.py.-->
   <int value="101" label="SQLITE_DONE">
     sqlite3_step() has finished executing
   </int>
+  <int value="256" label="SQLITE_OK_LOAD_PERMANENTLY">TBD</int>
+  <int value="257" label="SQLITE_ERROR_MISSING_COLLSEQ">TBD</int>
   <int value="261" label="SQLITE_BUSY_RECOVERY">TBD</int>
   <int value="262" label="SQLITE_LOCKED_SHAREDCACHE">TBD</int>
   <int value="264" label="SQLITE_READONLY_RECOVERY">TBD</int>
@@ -25602,8 +25689,11 @@ Called by update_net_error_codes.py.-->
   <int value="279" label="SQLITE_AUTH_USER">TBD</int>
   <int value="283" label="SQLITE_NOTICE_RECOVER_WAL">TBD</int>
   <int value="284" label="SQLITE_WARNING_AUTOINDEX">TBD</int>
+  <int value="512" label="SQLITE_OK_SYMLINK">TBD</int>
+  <int value="513" label="SQLITE_ERROR_RETRY">TBD</int>
   <int value="516" label="SQLITE_ABORT_ROLLBACK">TBD</int>
   <int value="517" label="SQLITE_BUSY_SNAPSHOT">TBD</int>
+  <int value="518" label="SQLITE_LOCKED_VTAB">TBD</int>
   <int value="520" label="SQLITE_READONLY_CANTLOCK">TBD</int>
   <int value="522" label="SQLITE_IOERR_SHORT_READ">Short read from file</int>
   <int value="526" label="SQLITE_CANTOPEN_ISDIR">
@@ -25611,29 +25701,37 @@ Called by update_net_error_codes.py.-->
   </int>
   <int value="531" label="SQLITE_CONSTRAINT_COMMITHOOK">TBD</int>
   <int value="539" label="SQLITE_NOTICE_RECOVER_ROLLBACK">TBD</int>
+  <int value="769" label="SQLITE_ERROR_SNAPSHOT">TBD</int>
+  <int value="773" label="SQLITE_BUSY_TIMEOUT">TBD</int>
   <int value="776" label="SQLITE_READONLY_ROLLBACK">
     Cannot rollback due to readonly file
   </int>
   <int value="778" label="SQLITE_IOERR_WRITE">
     Error writing to file (other than SQLITE_FULL)
   </int>
+  <int value="779" label="SQLITE_CORRUPT_INDEX">TBD</int>
   <int value="782" label="SQLITE_CANTOPEN_FULLPATH">TBD</int>
   <int value="787" label="SQLITE_CONSTRAINT_FOREIGNKEY">
     Constraint failure due to foreign key violation
   </int>
+  <int value="795" label="SQLITE_NOTICE_RBU">TBD</int>
   <int value="1032" label="SQLITE_READONLY_DBMOVED">
     Readonly because database file was moved or unlinked while open
   </int>
   <int value="1034" label="SQLITE_IOERR_FSYNC">Error syncing to disk</int>
   <int value="1038" label="SQLITE_CANTOPEN_CONVPATH">TBD</int>
   <int value="1043" label="SQLITE_CONSTRAINT_FUNCTION">TBD</int>
+  <int value="1288" label="SQLITE_READONLY_CANTINIT">TBD</int>
   <int value="1290" label="SQLITE_IOERR_DIR_FSYNC">
     Error syncing directory changes to disk
   </int>
+  <int value="1294" label="SQLITE_CANTOPEN_DIRTYWAL">TBD</int>
   <int value="1299" label="SQLITE_CONSTRAINT_NOTNULL">
     NOTNULL constraint violated
   </int>
+  <int value="1544" label="SQLITE_READONLY_DIRECTORY">TBD</int>
   <int value="1546" label="SQLITE_IOERR_TRUNCATE">Error truncating file</int>
+  <int value="1550" label="SQLITE_CANTOPEN_SYMLINK">TBD</int>
   <int value="1555" label="SQLITE_CONSTRAINT_PRIMARYKEY">
     Primary key not unique
   </int>
@@ -25654,7 +25752,9 @@ Called by update_net_error_codes.py.-->
   <int value="2826" label="SQLITE_IOERR_BLOCKED">
     Deadlock due to other process access to SQLite files
   </int>
+  <int value="2835" label="SQLITE_CONSTRAINT_PINNED">TBD</int>
   <int value="3082" label="SQLITE_IOERR_NOMEM">Error mapping shared memory</int>
+  <int value="3091" label="SQLITE_CONSTRAINT_DATATYPE">TBD</int>
   <int value="3338" label="SQLITE_IOERR_ACCESS">
     Error getting file attributes (other than not found)
   </int>
@@ -25675,6 +25775,14 @@ Called by update_net_error_codes.py.-->
   <int value="6154" label="SQLITE_IOERR_MMAP">TBD</int>
   <int value="6410" label="SQLITE_IOERR_GETTEMPPATH">TBD</int>
   <int value="6666" label="SQLITE_IOERR_CONVPATH">TBD</int>
+  <int value="6922" label="SQLITE_IOERR_VNODE">TBD</int>
+  <int value="7178" label="SQLITE_IOERR_AUTH">TBD</int>
+  <int value="7434" label="SQLITE_IOERR_BEGIN_ATOMIC">TBD</int>
+  <int value="7690" label="SQLITE_IOERR_COMMIT_ATOMIC">TBD</int>
+  <int value="7946" label="SQLITE_IOERR_ROLLBACK_ATOMIC">TBD</int>
+  <int value="8202" label="SQLITE_IOERR_DATA">TBD</int>
+  <int value="8458" label="SQLITE_IOERR_CORRUPTFS">TBD</int>
+  <int value="8714" label="SQLITE_IOERR_IN_PAGE">TBD</int>
 </enum>
 
 <enum name="SqliteLoggedResultCode">
@@ -25748,6 +25856,7 @@ Called by update_net_error_codes.py.-->
   <int value="56" label="kIoCommitAtomic">SQLITE_IOERR_COMMIT_ATOMIC</int>
   <int value="57" label="kIoRollbackAtomic">SQLITE_IOERR_ROLLBACK_ATOMIC</int>
   <int value="58" label="kIoCorruptFileSystem">SQLITE_IOERR_CORRUPTFS</int>
+  <int value="59" label="kIoInPage">SQLITE_IOERR_IN_PAGE</int>
 </enum>
 
 <enum name="SSLCipherSuite">

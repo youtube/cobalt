@@ -49,15 +49,12 @@ ExtensionsToolbarDesktopViewController::ExtensionsToolbarDesktopViewController(
     Browser* browser,
     ExtensionsToolbarDesktop* extensions_container)
     : browser_(browser), extensions_container_(extensions_container) {
-  permissions_manager_observation_.Observe(
-      extensions::PermissionsManager::Get(browser_->profile()));
   browser_->tab_strip_model()->AddObserver(this);
 }
 
 ExtensionsToolbarDesktopViewController::
     ~ExtensionsToolbarDesktopViewController() {
   extensions_container_ = nullptr;
-  permissions_manager_observation_.Reset();
 }
 
 void ExtensionsToolbarDesktopViewController::
@@ -83,6 +80,12 @@ void ExtensionsToolbarDesktopViewController::
 void ExtensionsToolbarDesktopViewController::MaybeShowIPH() {
   // Extensions menu IPH, with priority order. These depend on the new access
   // control feature.
+  content::WebContents* web_contents =
+      extensions_container_->GetCurrentWebContents();
+  if (!web_contents) {
+    return;
+  }
+
   if (base::FeatureList::IsEnabled(
           extensions_features::kExtensionsMenuAccessControl)) {
     ExtensionsRequestAccessButton* request_access_button =
@@ -97,10 +100,8 @@ void ExtensionsToolbarDesktopViewController::MaybeShowIPH() {
           std::move(params));
     }
 
-    content::WebContents* web_contents =
-        extensions_container_->GetCurrentWebContents();
     if (extensions_container_->GetToolbarViewModel()->GetButtonState(
-            web_contents) ==
+            *web_contents) ==
         ExtensionsToolbarViewModel::ExtensionsToolbarButtonState::
             kAnyExtensionHasAccess) {
       BrowserUserEducationInterface::From(browser_)->MaybeShowFeaturePromo(
@@ -125,18 +126,6 @@ void ExtensionsToolbarDesktopViewController::MaybeShowIPH() {
           feature_engagement::kIPHExtensionsZeroStatePromoFeature);
     }
   }
-}
-
-void ExtensionsToolbarDesktopViewController::UpdateRequestAccessButton() {
-  CHECK(extensions_container_);
-
-  if (!base::FeatureList::IsEnabled(
-          extensions_features::kExtensionsMenuAccessControl)) {
-    return;
-  }
-
-  auto* web_contents = extensions_container_->GetCurrentWebContents();
-  extensions_container_->UpdateRequestAccessButton(web_contents);
 }
 
 void ExtensionsToolbarDesktopViewController::OnTabStripModelChanged(
@@ -194,72 +183,4 @@ void ExtensionsToolbarDesktopViewController::OnTabChangedAt(
   }
 
   MaybeShowIPH();
-}
-
-void ExtensionsToolbarDesktopViewController::OnUserPermissionsSettingsChanged(
-    const extensions::PermissionsManager::UserPermissionsSettings& settings) {
-  CHECK(extensions_container_);
-  extensions_container_->UpdateControlsVisibility();
-  // TODO(crbug.com/40857356): Update request access button hover card. This
-  // will be slightly different than 'OnToolbarActionUpdated' since site
-  // settings update are not tied to a specific action.
-}
-
-void ExtensionsToolbarDesktopViewController::
-    OnShowAccessRequestsInToolbarChanged(
-        const extensions::ExtensionId& extension_id,
-        bool can_show_requests) {
-  CHECK(extensions_container_);
-  extensions_container_->UpdateControlsVisibility();
-  // TODO(crbug.com/40857356): Update requests access button hover card. This is
-  // tricky because it would need to change the items in the dialog. Another
-  // option is to close the hover card if its shown whenever request access
-  // button is updated.
-}
-
-void ExtensionsToolbarDesktopViewController::OnHostAccessRequestDismissedByUser(
-    const extensions::ExtensionId& extension_id,
-    const url::Origin& origin) {
-  UpdateRequestAccessButton();
-}
-
-void ExtensionsToolbarDesktopViewController::OnHostAccessRequestAdded(
-    const extensions::ExtensionId& extension_id,
-    int tab_id) {
-  int current_tab_id = extensions::ExtensionTabUtil::GetTabId(
-      extensions_container_->GetCurrentWebContents());
-  if (tab_id != current_tab_id) {
-    return;
-  }
-
-  UpdateRequestAccessButton();
-}
-
-void ExtensionsToolbarDesktopViewController::OnHostAccessRequestUpdated(
-    const extensions::ExtensionId& extension_id,
-    int tab_id) {
-  UpdateRequestAccessButton();
-}
-
-void ExtensionsToolbarDesktopViewController::OnHostAccessRequestRemoved(
-    const extensions::ExtensionId& extension_id,
-    int tab_id) {
-  int current_tab_id = extensions::ExtensionTabUtil::GetTabId(
-      extensions_container_->GetCurrentWebContents());
-  if (tab_id != current_tab_id) {
-    return;
-  }
-
-  UpdateRequestAccessButton();
-}
-
-void ExtensionsToolbarDesktopViewController::OnHostAccessRequestsCleared(
-    int tab_id) {
-  int current_tab_id = extensions::ExtensionTabUtil::GetTabId(
-      extensions_container_->GetCurrentWebContents());
-  if (tab_id != current_tab_id) {
-    return;
-  }
-
-  UpdateRequestAccessButton();
 }

@@ -444,9 +444,14 @@ StringKeyframeVector ProcessKeyframesRule(
               MediaValues::CreateDynamicIfFrameExists(document.GetFrame());
           timing_function = CSSToStyleMap::MapAnimationTimingFunction(
               *media_values, value_list->Item(0));
-        } else {
-          DCHECK(value.IsCSSWideKeyword());
+        } else if (value.IsCSSWideKeyword()) {
           timing_function = CSSTimingData::InitialTimingFunction();
+        } else {
+          // Values like var() may be represented as unparsed at this stage and
+          // cannot be mapped to a TimingFunction yet; fall back to the default.
+          timing_function = default_timing_function
+                                ? default_timing_function
+                                : CSSTimingData::InitialTimingFunction();
         }
         keyframe->SetEasing(std::move(timing_function));
       } else if (!CSSAnimations::IsAnimationAffectingProperty(property)) {
@@ -1422,6 +1427,11 @@ ScrollSnapshotTimeline* CSSAnimations::FindAncestorTimeline(
 
   Element* parent_element = ParentElementForTimelineTraversal(*node);
   if (!parent_element) {
+    if (RuntimeEnabledFeatures::CSSTimelineScopeGlobalEnabled()) {
+      return &node->GetDocument()
+                  .GetDocumentAnimations()
+                  .GetGlobalDeferredTimeline(name);
+    }
     return nullptr;
   }
   return FindAncestorTimeline(name, parent_element,
@@ -1443,6 +1453,11 @@ DeferredTimeline* CSSAnimations::FindAncestorDeferredTimeline(
   }
   Element* parent_element = ParentElementForTimelineTraversal(*element);
   if (!parent_element) {
+    if (RuntimeEnabledFeatures::CSSTimelineScopeGlobalEnabled()) {
+      return &element->GetDocument()
+                  .GetDocumentAnimations()
+                  .GetGlobalDeferredTimeline(name);
+    }
     return nullptr;
   }
   return FindAncestorDeferredTimeline(
@@ -2324,8 +2339,7 @@ void CSSAnimations::MaybeApplyPendingUpdate(Element* element) {
     Animation& animation =
         *running_animations_[cancelled_indices[i]]->animation;
     animation.ClearOwningElement();
-    if (animation.IsCSSAnimation() &&
-        !DynamicTo<CSSAnimation>(animation)->GetIgnoreCSSPlayState()) {
+    if (animation.IsCSSAnimation()) {
       animation.cancel();
     }
     animation.Update(kTimingUpdateOnDemand);
@@ -2945,7 +2959,7 @@ const ComputedStyle& CSSAnimations::CalculateBeforeChangeStyle(
   // to the base computed style.
   const ComputedStyle* base_style =
       state.old_style.GetBaseComputedStyleOrThis();
-  if (is_starting_style) {
+  if (is_starting_style && state.style_recalc_context.has_animating_ancestor) {
     // before-change style for @starting-style inherits from the after-change
     // style of the parent.
     if (const ComputedStyle* after_change_style =

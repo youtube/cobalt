@@ -18,6 +18,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <string_view>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -34,6 +35,7 @@
 #include "base/memory/scoped_refptr.h"
 #include "base/run_loop.h"
 #include "base/sequence_checker.h"
+#include "base/strings/cstring_view.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_view_util.h"
 #include "base/strings/stringprintf.h"
@@ -55,6 +57,7 @@
 #include "sql/statement_id.h"
 #include "sql/test/scoped_error_expecter.h"
 #include "sql/test/test_helpers.h"
+#include "sql/test/test_vfs.h"
 #include "sql/transaction.h"
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
@@ -69,7 +72,20 @@ namespace sql {
 
 namespace {
 
-using sql::test::ExecuteWithResult;
+using ::sql::test::ExecuteWithResult;
+using ::sql::test::TestVfs;
+using ::testing::Bool;
+using ::testing::Combine;
+using ::testing::Contains;
+using ::testing::ElementsAre;
+using ::testing::Eq;
+using ::testing::Field;
+using ::testing::IsEmpty;
+using ::testing::Not;
+using ::testing::Optional;
+using ::testing::Test;
+using ::testing::Values;
+using ::testing::WithParamInterface;
 
 // Helper to return the count of items in sqlite_schema.  Return -1 in
 // case of error.
@@ -120,8 +136,7 @@ int64_t CheckedGetFileSize(const base::FilePath& file_path) {
 }  // namespace
 
 // We use the parameter to run all tests with WAL mode on and off.
-class SQLDatabaseTest : public testing::Test,
-                        public testing::WithParamInterface<bool> {
+class SQLDatabaseTest : public Test, public WithParamInterface<bool> {
  public:
   enum class OverwriteType {
     kTruncate,
@@ -513,7 +528,7 @@ TEST_P(SQLDatabaseTest, ResetErrorCallback) {
 // Regression test for https://crbug.com/1522873
 TEST_P(SQLDatabaseTest, ErrorCallbackThatClosesDb) {
   for (const bool reopen_db : {false, true}) {
-    SCOPED_TRACE(::testing::Message() << "reopen_db: " << reopen_db);
+    SCOPED_TRACE(testing::Message() << "reopen_db: " << reopen_db);
     // Ensure that `db_` is fresh in this iteration.
     CreateFreshDB();
     static constexpr char kCreateSql[] =
@@ -1800,7 +1815,7 @@ TEST_P(SQLDatabaseTest, FullIntegrityCheck) {
     std::vector<std::string> messages;
     EXPECT_TRUE(db_->FullIntegrityCheck(&messages))
         << "FullIntegrityCheck() failed before database was corrupted";
-    EXPECT_THAT(messages, testing::ElementsAre("ok"))
+    EXPECT_THAT(messages, ElementsAre("ok"))
         << "FullIntegrityCheck() should report ok before database is corrupted";
   }
 
@@ -1812,7 +1827,7 @@ TEST_P(SQLDatabaseTest, FullIntegrityCheck) {
     std::vector<std::string> messages;
     EXPECT_TRUE(db_->FullIntegrityCheck(&messages))
         << "FullIntegrityCheck() failed on corrupted database";
-    EXPECT_THAT(messages, testing::Not(testing::ElementsAre("ok")))
+    EXPECT_THAT(messages, Not(ElementsAre("ok")))
         << "FullIntegrityCheck() should not report ok for a corrupted database";
   }
 }
@@ -2102,7 +2117,7 @@ TEST_P(SQLDatabaseTest, ReOpenWithDifferentJournalMode) {
     // The Rollback journal should have a zero size when pending operations
     // are completed.
     std::optional<int64_t> journal_size = GetFileSize(journal_path);
-    EXPECT_THAT(journal_size, testing::Optional(0));
+    EXPECT_THAT(journal_size, Optional(0));
   }
 
   // Re-open the database with a different mode (Rollback vs WAL).
@@ -2134,8 +2149,8 @@ TEST_P(SQLDatabaseTest, ReOpenWithDifferentJournalMode) {
 #if BUILDFLAG(IS_WIN)
 
 class SQLDatabaseTestExclusiveFileLockMode
-    : public testing::Test,
-      public testing::WithParamInterface<::testing::tuple<bool, bool>> {
+    : public Test,
+      public WithParamInterface<std::tuple<bool, bool>> {
  public:
   ~SQLDatabaseTestExclusiveFileLockMode() override = default;
 
@@ -2178,7 +2193,7 @@ TEST_P(SQLDatabaseTestExclusiveFileLockMode, BasicStatement) {
 INSTANTIATE_TEST_SUITE_P(
     All,
     SQLDatabaseTestExclusiveFileLockMode,
-    ::testing::Combine(::testing::Bool(), ::testing::Bool()),
+    Combine(Bool(), Bool()),
     [](const auto& info) {
       return base::StrCat(
           {std::get<0>(info.param) ? "WALEnabled" : "WALDisabled",
@@ -2186,8 +2201,8 @@ INSTANTIATE_TEST_SUITE_P(
     });
 
 class SQLDatabaseTestExclusiveFileLockWithSpecialChars
-    : public testing::Test,
-      public testing::WithParamInterface<base::FilePath::StringViewType> {
+    : public Test,
+      public WithParamInterface<base::FilePath::StringViewType> {
  public:
   ~SQLDatabaseTestExclusiveFileLockWithSpecialChars() override = default;
 
@@ -2213,24 +2228,24 @@ TEST_P(SQLDatabaseTestExclusiveFileLockWithSpecialChars, OpenDb) {
 
 INSTANTIATE_TEST_SUITE_P(All,
                          SQLDatabaseTestExclusiveFileLockWithSpecialChars,
-                         ::testing::Values(FILE_PATH_LITERAL("!"),
-                                           FILE_PATH_LITERAL("#"),
-                                           FILE_PATH_LITERAL("$"),
-                                           FILE_PATH_LITERAL("&"),
-                                           FILE_PATH_LITERAL("'"),
-                                           FILE_PATH_LITERAL("()"),
-                                           FILE_PATH_LITERAL("+"),
-                                           FILE_PATH_LITERAL(","),
-                                           FILE_PATH_LITERAL(";"),
-                                           FILE_PATH_LITERAL("="),
-                                           FILE_PATH_LITERAL("@"),
-                                           FILE_PATH_LITERAL("[]"),
-                                           FILE_PATH_LITERAL("%"),
-                                           FILE_PATH_LITERAL("%21"),
-                                           FILE_PATH_LITERAL("%23"),
-                                           FILE_PATH_LITERAL("%3f"),
-                                           FILE_PATH_LITERAL("_"),
-                                           FILE_PATH_LITERAL(" ")));
+                         Values(FILE_PATH_LITERAL("!"),
+                                FILE_PATH_LITERAL("#"),
+                                FILE_PATH_LITERAL("$"),
+                                FILE_PATH_LITERAL("&"),
+                                FILE_PATH_LITERAL("'"),
+                                FILE_PATH_LITERAL("()"),
+                                FILE_PATH_LITERAL("+"),
+                                FILE_PATH_LITERAL(","),
+                                FILE_PATH_LITERAL(";"),
+                                FILE_PATH_LITERAL("="),
+                                FILE_PATH_LITERAL("@"),
+                                FILE_PATH_LITERAL("[]"),
+                                FILE_PATH_LITERAL("%"),
+                                FILE_PATH_LITERAL("%21"),
+                                FILE_PATH_LITERAL("%23"),
+                                FILE_PATH_LITERAL("%3f"),
+                                FILE_PATH_LITERAL("_"),
+                                FILE_PATH_LITERAL(" ")));
 #else
 
 TEST(SQLInvalidDatabaseFlagsDeathTest, ExclusiveDatabaseLock) {
@@ -2248,8 +2263,8 @@ TEST(SQLInvalidDatabaseFlagsDeathTest, ExclusiveDatabaseLock) {
 
 #endif  // BUILDFLAG(IS_WIN)
 
-class SQLDatabaseTestExclusiveMode : public testing::Test,
-                                     public testing::WithParamInterface<bool> {
+class SQLDatabaseTestExclusiveMode : public Test,
+                                     public WithParamInterface<bool> {
  public:
   ~SQLDatabaseTestExclusiveMode() override = default;
 
@@ -2444,14 +2459,13 @@ TEST_P(SQLDatabaseTest, WalAutocheckpoint) {
   }
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Sql.Database.AutoCheckpoint.Time.Test"),
-      testing::Not(testing::IsEmpty()));
+      Not(IsEmpty()));
   EXPECT_THAT(
       histogram_tester.GetAllSamples("Sql.Database.AutoCheckpoint.Result.Test"),
-      testing::Contains(
-          testing::Field(&base::Bucket::min, testing::Eq(SQLITE_OK))));
+      Contains(Field(&base::Bucket::min, Eq(SQLITE_OK))));
   EXPECT_THAT(histogram_tester.GetAllSamples(
                   "Sql.Database.AutoCheckpoint.FrameCount.Test"),
-              testing::Not(testing::IsEmpty()));
+              Not(IsEmpty()));
 }
 
 #if BUILDFLAG(IS_WIN)
@@ -2553,7 +2567,7 @@ TEST_P(SQLDatabaseTest, OpenFailsAfterCorruptSizeInHeader) {
 
 TEST_P(SQLDatabaseTest, OpenWithRecoveryHandlesCorruption) {
   for (const bool corrupt_after_recovery : {false, true}) {
-    SCOPED_TRACE(::testing::Message()
+    SCOPED_TRACE(testing::Message()
                  << "corrupt_after_recovery: " << corrupt_after_recovery);
     // Ensure that `db_` is fresh in this iteration.
     CreateFreshDB();
@@ -2686,20 +2700,18 @@ TEST(SQLEmptyPathDatabaseTest, EmptyPathTest) {
 
 // WAL mode is currently not supported on Fuchsia.
 #if !BUILDFLAG(IS_FUCHSIA)
-INSTANTIATE_TEST_SUITE_P(JournalMode, SQLDatabaseTest, testing::Bool());
-INSTANTIATE_TEST_SUITE_P(JournalMode,
-                         SQLDatabaseTestExclusiveMode,
-                         testing::Bool());
+INSTANTIATE_TEST_SUITE_P(JournalMode, SQLDatabaseTest, Bool());
+INSTANTIATE_TEST_SUITE_P(JournalMode, SQLDatabaseTestExclusiveMode, Bool());
 #else
-INSTANTIATE_TEST_SUITE_P(JournalMode, SQLDatabaseTest, testing::Values(false));
+INSTANTIATE_TEST_SUITE_P(JournalMode, SQLDatabaseTest, Values(false));
 INSTANTIATE_TEST_SUITE_P(JournalMode,
                          SQLDatabaseTestExclusiveMode,
-                         testing::Values(false));
+                         Values(false));
 #endif
 
 class ReadOnlySQLDatabaseTest
-    : public testing::Test,
-      public testing::WithParamInterface<std::tuple<bool, bool, bool>> {
+    : public Test,
+      public WithParamInterface<std::tuple<bool, bool, bool>> {
  protected:
   void SetUp() override {
     ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
@@ -2806,8 +2818,65 @@ TEST_P(ReadOnlySQLDatabaseTest, CreateAndSelect) {
 
 INSTANTIATE_TEST_SUITE_P(LockingMode,
                          ReadOnlySQLDatabaseTest,
-                         testing::Combine(testing::Bool(),
-                                          testing::Bool(),
-                                          testing::Bool()));
+                         Combine(Bool(), Bool(), Bool()));
+
+// An SQLite VFS for testing the Database class.
+class DatabaseTestVfs : public TestVfs {
+ public:
+  int Write(sqlite3_file* file,
+            const void* buffer,
+            int size,
+            sqlite3_int64 offset) override {
+    if (drive_full_) {
+      return SQLITE_FULL;
+    }
+    return TestVfs::Write(file, buffer, size, offset);
+  }
+
+  void set_drive_full(bool drive_full) { drive_full_ = drive_full; }
+
+ private:
+  bool drive_full_ = false;
+};
+
+std::optional<std::vector<int>> ReadInts(Database& db,
+                                         base::cstring_view query) {
+  std::vector<int> result;
+  Statement statement(db.GetUniqueStatement(query));
+  while (statement.Step()) {
+    result.push_back(statement.ColumnInt(0));
+  }
+  if (!statement.Succeeded()) {
+    return std::nullopt;
+  }
+  return result;
+}
+
+class DatabaseDiskFullTest : public Test {
+ public:
+  void SetUp() override {
+    ASSERT_TRUE(temp_dir_.CreateUniqueTempDir());
+    db_path_ = temp_dir_.GetPath().AppendASCII("main.db");
+  }
+
+ protected:
+  DatabaseTestVfs vfs_;
+  base::ScopedTempDir temp_dir_;
+  base::FilePath db_path_;
+};
+
+// Checks that `Database::Raze()` is a no-op when the disk is full.
+TEST_F(DatabaseDiskFullTest, RazeFailsWhenDiskIsFull) {
+  Database db(test::kTestTag);
+  ASSERT_TRUE(db.Open(db_path_));
+  ASSERT_TRUE(db.Execute("CREATE TABLE foo(i)"));
+  ASSERT_TRUE(db.Execute("INSERT INTO foo(i) VALUES(42)"));
+
+  // Force any further writes to fail.
+  vfs_.set_drive_full(true);
+
+  EXPECT_FALSE(db.Raze());
+  EXPECT_THAT(ReadInts(db, "SELECT i FROM foo"), Optional(ElementsAre(42)));
+}
 
 }  // namespace sql

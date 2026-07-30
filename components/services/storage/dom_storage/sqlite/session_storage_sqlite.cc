@@ -6,24 +6,12 @@
 
 #include "base/types/expected_macros.h"
 #include "components/services/storage/dom_storage/sqlite/map_entries_table.h"
+#include "components/services/storage/dom_storage/sqlite/sqlite_database_macros.h"
 #include "components/services/storage/dom_storage/sqlite/sqlite_database_utils.h"
 #include "sql/meta_table.h"
 #include "sql/statement.h"
 #include "sql/transaction.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_map.h"
-
-// Returns a `DbStatus` if the passed expression evaluates to false.
-#define RETURN_STATUS_ON_ERROR(expr)            \
-  if (!expr) {                                  \
-    return storage::FromSqliteCode(*database_); \
-  }
-
-// Returns a `base::unexpected<DbStatus>` if the passed expression evaluates to
-// false.
-#define RETURN_UNEXPECTED_ON_ERROR(expr)                          \
-  if (!expr) {                                                    \
-    return base::unexpected(storage::FromSqliteCode(*database_)); \
-  }
 
 namespace storage {
 namespace {
@@ -59,15 +47,15 @@ DbStatus CreateSchema(sql::Database& database) {
 // `storage_key` cannot be deserialized.
 StatusOr<DomStorageDatabase::MapMetadata> ParseMapMetadata(
     sql::Statement& statement) {
-  std::optional<blink::StorageKey> storage_key =
-      blink::StorageKey::Deserialize(statement.ColumnBlobAsString(1));
-  if (!storage_key) {
-    return base::unexpected(DbStatus::Corruption("invalid storage key"));
-  }
+  ASSIGN_OR_RETURN(
+      blink::StorageKey storage_key,
+      blink::StorageKey::Deserialize(statement.ColumnBlobAsString(1)),
+      []() { return DbStatus::Corruption("invalid storage key"); });
+
   return DomStorageDatabase::MapMetadata{
       .map_locator{
           /*session_id=*/statement.ColumnString(0),
-          *std::move(storage_key),
+          std::move(storage_key),
           /*map_id=*/statement.ColumnInt(2),
       },
   };
@@ -101,23 +89,31 @@ DbStatus SessionStorageSqlite::Open(
 
 StatusOr<std::map<DomStorageDatabase::Key, DomStorageDatabase::Value>>
 SessionStorageSqlite::ReadMapKeyValues(MapLocator map_locator) {
-  // TODO(crbug.com/377242771): Fully implement `DomStorageDatabase` interface
-  // using SQLite.
-  return base::unexpected(DbStatus::NotSupported(""));
+  int64_t map_id = map_locator.map_id().value();
+  return map_entries_table_->GetMapKeyValues(map_id);
 }
 
 DbStatus SessionStorageSqlite::UpdateMaps(
     std::vector<MapBatchUpdate> map_updates) {
-  // TODO(crbug.com/377242771): Fully implement `DomStorageDatabase` interface
-  // using SQLite.
-  return DbStatus::NotSupported("");
+  sql::Transaction transaction(database_.get());
+  RETURN_STATUS_ON_ERROR(transaction.Begin());
+
+  for (MapBatchUpdate& map_update : map_updates) {
+    // Session storage does not record map usage metadata.
+    CHECK(!map_update.map_usage.has_value());
+
+    DB_RETURN_IF_ERROR(map_entries_table_->UpdateMap(std::move(map_update)));
+  }
+
+  RETURN_STATUS_ON_ERROR(transaction.Commit());
+  return DbStatus::OK();
 }
 
 DbStatus SessionStorageSqlite::CloneMap(MapLocator source_map,
                                         MapLocator target_map) {
-  // TODO(crbug.com/377242771): Fully implement `DomStorageDatabase` interface
-  // using SQLite.
-  return DbStatus::NotSupported("");
+  // Copy all key/value pairs from the source map to the target map.
+  return map_entries_table_->CloneMap(source_map.map_id().value(),
+                                      target_map.map_id().value());
 }
 
 StatusOr<DomStorageDatabase::Metadata> SessionStorageSqlite::ReadAllMetadata() {
@@ -144,7 +140,7 @@ DbStatus SessionStorageSqlite::PutMetadata(Metadata metadata) {
 
   const char kPutMapMetadata[] =
       "INSERT OR REPLACE INTO session_metadata "
-      "(storage_key,map_id,session_id) VALUES (?,?,?)";
+      "(storage_key, map_id, session_id) VALUES (?, ?, ?)";
 
   sql::Statement statement(
       database_->GetCachedStatement(SQL_FROM_HERE, kPutMapMetadata));
@@ -176,23 +172,76 @@ DbStatus SessionStorageSqlite::DeleteStorageKeysFromSession(
     std::string session_id,
     std::vector<blink::StorageKey> metadata_to_delete,
     std::vector<MapLocator> maps_to_delete) {
-  // TODO(crbug.com/377242771): Fully implement `DomStorageDatabase` interface
-  // using SQLite.
-  return DbStatus::NotSupported("");
+  sql::Transaction transaction(database_.get());
+  RETURN_STATUS_ON_ERROR(transaction.Begin());
+
+  // Delete each storage key's metadata from the session.
+  constexpr const char kDeleteSessionMetadata[] =
+      "DELETE FROM session_metadata WHERE session_id = ? AND storage_key = ?";
+
+  sql::Statement delete_metadata_statement(
+      database_->GetCachedStatement(SQL_FROM_HERE, kDeleteSessionMetadata));
+
+  for (const blink::StorageKey& storage_key : metadata_to_delete) {
+    delete_metadata_statement.BindString(0, session_id);
+    delete_metadata_statement.BindBlob(1, storage_key.Serialize());
+    RETURN_STATUS_ON_ERROR(delete_metadata_statement.Run());
+    delete_metadata_statement.Reset(/*clear_bound_vars=*/true);
+  }
+
+  // Delete the key/value pairs in `maps_to_delete`.
+  for (const MapLocator& map_locator : maps_to_delete) {
+    // The map's storage key must be in `metadata_to_delete`.
+    DCHECK(
+        std::ranges::contains(metadata_to_delete, map_locator.storage_key()));
+
+    // The map must be unreferenced with no sessions remaining.
+    CHECK(map_locator.session_ids().empty());
+
+    DB_RETURN_IF_ERROR(
+        map_entries_table_->DeleteMap(map_locator.map_id().value()));
+  }
+
+  RETURN_STATUS_ON_ERROR(transaction.Commit());
+  return DbStatus::OK();
 }
 
 DbStatus SessionStorageSqlite::DeleteSessions(
     std::vector<std::string> session_ids,
     std::vector<MapLocator> maps_to_delete) {
-  // TODO(crbug.com/377242771): Fully implement `DomStorageDatabase` interface
-  // using SQLite.
-  return DbStatus::NotSupported("");
+  sql::Transaction transaction(database_.get());
+  RETURN_STATUS_ON_ERROR(transaction.Begin());
+
+  // Delete each session's metadata.
+  constexpr const char kDeleteSessionMetadata[] =
+      "DELETE FROM session_metadata WHERE session_id = ?";
+
+  sql::Statement delete_metadata_statement(
+      database_->GetCachedStatement(SQL_FROM_HERE, kDeleteSessionMetadata));
+
+  for (const std::string& session_id : session_ids) {
+    delete_metadata_statement.BindString(0, session_id);
+    RETURN_STATUS_ON_ERROR(delete_metadata_statement.Run());
+    delete_metadata_statement.Reset(/*clear_bound_vars=*/true);
+  }
+
+  // Delete the key/value pairs in `maps_to_delete`.
+  for (const MapLocator& map_locator : maps_to_delete) {
+    // The map must be unreferenced with no sessions remaining.
+    CHECK(map_locator.session_ids().empty());
+
+    DB_RETURN_IF_ERROR(
+        map_entries_table_->DeleteMap(map_locator.map_id().value()));
+  }
+
+  RETURN_STATUS_ON_ERROR(transaction.Commit());
+  return DbStatus::OK();
 }
 
 DbStatus SessionStorageSqlite::PurgeOrigins(std::set<url::Origin> origins) {
-  // TODO(crbug.com/377242771): Fully implement `DomStorageDatabase` interface
-  // using SQLite.
-  return DbStatus::NotSupported("");
+  // Origins aren't explicitly purged from session storage on shutdown because
+  // all session storage (generally) is cleared on shutdown already.
+  NOTREACHED();
 }
 
 DbStatus SessionStorageSqlite::RewriteDB() {
@@ -236,7 +285,7 @@ SessionStorageSqlite::ReadAllMapMetadata() const {
   absl::flat_hash_map</*map_id=*/int64_t, MapMetadata> all_metadata;
 
   const char kSelectAllMetadata[] =
-      "SELECT session_id,storage_key,map_id FROM session_metadata";
+      "SELECT session_id, storage_key, map_id FROM session_metadata";
 
   sql::Statement statement(
       database_->GetCachedStatement(SQL_FROM_HERE, kSelectAllMetadata));

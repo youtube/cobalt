@@ -186,7 +186,7 @@ BASE_FEATURE(kUserScriptUserExtensionToggle, base::FEATURE_ENABLED_BY_DEFAULT);
 BASE_FEATURE(kDebuggerAPIRestrictedToDevMode,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kExtensionBrowserNamespaceAlternative,
+BASE_FEATURE(kExtensionBrowserNamespaceAndPolyfillSupport,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kOptimizeServiceWorkerStartRequests,
@@ -201,10 +201,7 @@ BASE_FEATURE(kExtensionContentVerificationUsesExtensionRoot,
 BASE_FEATURE(kContentVerifyJobUseJobVersionForHashing,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-BASE_FEATURE(kRuntimeOnMessageWebExtensionPolyfillSupport,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kEnableShouldShowPromotion, base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kEnableShouldShowPromotion, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kSearchEngineExplicitChoiceDialog,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -213,6 +210,9 @@ BASE_FEATURE(kSearchEngineUnconditionalDialog,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kWebRequestPersistFilteredEvents,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kWebRequestAlternativeAddListener,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 }  // namespace extensions_features

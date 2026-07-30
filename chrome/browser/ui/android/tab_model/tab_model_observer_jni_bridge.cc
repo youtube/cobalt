@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/android/tab_model/tab_model.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_jni_bridge.h"
 #include "chrome/browser/ui/android/tab_model/tab_model_observer.h"
+#include "chrome/browser/ui/tabs/tab_removed_reason.h"
 #include "components/tab_groups/tab_group_id.h"
 
 // Must come after all headers that specialize FromJniType() / ToJniType().
@@ -64,7 +65,7 @@ void TabModelObserverJniBridge::DidRemoveTabForClosure(JNIEnv* env,
     observer.DidRemoveTabForClosure(tab);
   }
   for (auto& observer : interface_observers_) {
-    observer.OnTabRemoved(tab);
+    observer.OnTabRemoved(tab, TabRemovedReason::kDeleted);
   }
 }
 
@@ -170,13 +171,19 @@ void TabModelObserverJniBridge::AllTabsClosureCommitted(JNIEnv* env) {
   }
 }
 
+void TabModelObserverJniBridge::AllTabsAreClosing(JNIEnv* env) {
+  for (auto& observer : model_observers_) {
+    observer.AllTabsAreClosing();
+  }
+}
+
 void TabModelObserverJniBridge::TabRemoved(JNIEnv* env, TabAndroid* tab) {
   CHECK(tab);
   for (auto& observer : model_observers_) {
     observer.TabRemoved(tab);
   }
   for (auto& observer : interface_observers_) {
-    observer.OnTabRemoved(tab);
+    observer.OnTabRemoved(tab, TabRemovedReason::kInsertedIntoOtherTabStrip);
   }
 }
 

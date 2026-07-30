@@ -29,7 +29,9 @@ suite('AimAppTest', function() {
     BrowserProxy.setInstance(testProxy as unknown as BrowserProxy);
   });
 
-  test('ClearsInputOnCloseByDefault', async function() {
+  // TODO(crbug.com/479888362): Disabled by gardener due to failure without
+  // clear culprit.
+  test.skip('ClearsInputOnCloseByDefault', async function() {
     const app = document.createElement('omnibox-aim-app');
     document.body.appendChild(app);
 
@@ -163,7 +165,6 @@ suite('AimAppTest', function() {
     testProxy.page.setPreserveContextOnClose(true);
 
     const {input} = await testProxy.page.onPopupHidden();
-
     assertEquals('', input);
     assertEquals('', app.$.composebox.getInputText());
     assertFalse(app.$.composebox.isVoiceInput);

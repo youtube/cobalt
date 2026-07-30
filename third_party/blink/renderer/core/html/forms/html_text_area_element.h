@@ -114,6 +114,7 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   bool IsEnumeratable() const override { return true; }
   bool IsInteractiveContent() const override;
   bool IsLabelable() const override { return true; }
+  FocusgroupFlags NativeArrowKeyAxes() const final;
 
   mojom::blink::FormControlType FormControlType() const override;
   const AtomicString& FormControlTypeAsString() const override;
@@ -155,6 +156,11 @@ class CORE_EXPORT HTMLTextAreaElement final : public TextControlElement {
   bool TooShort(const String*, NeedsToCheckDirtyFlag) const;
 
   void DidChangeIsCanvasOrInCanvasSubtree() final;
+
+  // Used for the (experimental) declarative WebMCP prototype.
+  bool SupportsWebMCP() const final { return true; }
+  std::unique_ptr<JSONObject> GetWebMCPParameterSchema() const final;
+  void FillWebMCPData(JSONValue& data) final;
 
   unsigned rows_;
   unsigned cols_;

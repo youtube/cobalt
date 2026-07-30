@@ -416,8 +416,7 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
         // Transfer the WebContents from tab 4 to the side panel.
         std::unique_ptr<content::WebContents> contextual_task_contents =
             tab_strip_model->DetachWebContentsAtForInsertion(
-                detach_index,
-                TabStripModelChange::RemoveReason::kInsertedIntoSidePanel);
+                detach_index, TabRemovedReason::kInsertedIntoSidePanel);
         tab_web_contents = contextual_task_contents.get();
 
         coordinator->TransferWebContentsFromTab(
@@ -487,8 +486,7 @@ IN_PROC_BROWSER_TEST_F(
         // Transfer the WebContents from tab 4 to the side panel.
         std::unique_ptr<content::WebContents> contextual_task_contents =
             tab_strip_model->DetachWebContentsAtForInsertion(
-                detach_index,
-                TabStripModelChange::RemoveReason::kInsertedIntoSidePanel);
+                detach_index, TabRemovedReason::kInsertedIntoSidePanel);
         tab_web_contents = contextual_task_contents.get();
 
         coordinator->TransferWebContentsFromTab(
@@ -712,12 +710,13 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
       }),
       WaitForShow(kContextualTasksSidePanelWebViewElementId), Do([&]() {
         // Switch to tab 1 ->task 2.
-        browser()->tab_strip_model()->ActivateTabAt(1);
+        TabListInterface* tab_list = TabListInterface::From(browser());
+        tab_list->ActivateTab(tab_list->GetTab(1)->GetHandle());
         content::WebContents* web_contents =
             coordinator->GetActiveWebContents();
         EXPECT_NE(nullptr, coordinator->GetActiveWebContents());
         // Switch to tab 0 -> task 1.
-        browser()->tab_strip_model()->ActivateTabAt(0);
+        tab_list->ActivateTab(tab_list->GetTab(0)->GetHandle());
         EXPECT_NE(nullptr, coordinator->GetActiveWebContents());
         // Update timestamp of task 2 side panel WebContents to simulate
         // expiration.
@@ -728,11 +727,11 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
                           100);
         // Switch to tab 2 -> task 1. This should trigger logic to clean up the
         // side panel WebContents of task 2.
-        browser()->tab_strip_model()->ActivateTabAt(2);
+        tab_list->ActivateTab(tab_list->GetTab(2)->GetHandle());
         EXPECT_NE(nullptr, coordinator->GetActiveWebContents());
         // Switch to tab 1, verify the side panel WebContents is no longer
         // there.
-        browser()->tab_strip_model()->ActivateTabAt(1);
+        tab_list->ActivateTab(tab_list->GetTab(1)->GetHandle());
         EXPECT_EQ(nullptr, coordinator->GetActiveWebContents());
       }));
 }
@@ -813,6 +812,42 @@ IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
           sessions::SessionTabHelper::IdForTab(web_contents));
   ASSERT_TRUE(task2.has_value());
   ASSERT_EQ(task1->GetTaskId(), task2->GetTaskId());
+}
+
+IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,
+                       DoNotOpenSidePanelOnTabChanged) {
+  SetUpTasks();
+
+  TabListInterface* tab_list = TabListInterface::From(browser());
+  ContextualTasksSidePanelCoordinator* coordinator =
+      ContextualTasksSidePanelCoordinator::From(browser());
+
+  // Set Customize Chrome side panel not to override.
+  // Customize Chrome side panel is much easier to setup and always available.
+  coordinator->SetSidePanelIdNotToOverrideForTesting(
+      SidePanelEntry::Id::kCustomizeChrome);
+
+  // Show next side panel.
+  coordinator->Show();
+  EXPECT_TRUE(coordinator->IsSidePanelOpenForContextualTask());
+
+  // Show Customize Chrome side panel.
+  chrome::ExecuteCommand(browser(), IDC_SHOW_CUSTOMIZE_CHROME_SIDE_PANEL);
+
+  // Verify next side panel is closed.
+  EXPECT_FALSE(coordinator->IsSidePanelOpenForContextualTask());
+
+  // Add a new foreground tab not associated with a task.
+  chrome::AddTabAt(browser(), GURL(chrome::kChromeUISettingsURL), -1, true);
+
+  // Verify the side panel is closed.
+  EXPECT_FALSE(coordinator->IsSidePanelOpenForContextualTask());
+
+  // Activate the previous tab.
+  // Verify the next side panel is still closed because Customize Chrome side
+  // panel is open.
+  tab_list->ActivateTab(tab_list->GetTab(0)->GetHandle());
+  EXPECT_FALSE(coordinator->IsSidePanelOpenForContextualTask());
 }
 
 IN_PROC_BROWSER_TEST_F(ContextualTasksSidePanelCoordinatorInteractiveUiTest,

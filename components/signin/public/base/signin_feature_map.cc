@@ -20,6 +20,7 @@ namespace {
 // Array of features exposed through the Java SigninFeatures API.
 const base::Feature* const kFeaturesExposedToJava[] = {
     &switches::kCctSignInPrompt,
+    &switches::kEnableActivitylessSigninAllEntryPoint,
     &switches::kEnableAddSessionRedirect,
     &switches::kEnableSeamlessSignin,
     &switches::kForceStartupSigninPromo,
@@ -34,10 +35,12 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &switches::kFRESignInAlternativeSecondaryButtonText,
     &switches::kChromeAndroidIdentitySurveyFirstRun,
     &switches::kChromeAndroidIdentitySurveyWeb,
-    &switches::kChromeAndroidIdentitySurveyNtpAvatar,
+    &switches::kChromeAndroidIdentitySurveyNtpSigninButton,
+    &switches::kChromeAndroidIdentitySurveyNtpAccountAvatarTap,
     &switches::kChromeAndroidIdentitySurveyNtpPromo,
     &switches::kChromeAndroidIdentitySurveyBookmarkPromo,
     &switches::kSigninLevelUpButton,
+    &switches::kSigninManagerSeedingFix,
 };
 
 // static

@@ -18,15 +18,22 @@ function getRateButtonHtml(this: ReadAnythingToolbarElement) {
     </cr-button>`;
 }
 
-function getToolbarAudioControlsHtml(this: ReadAnythingToolbarElement) {
-  let audioState = 'inactive';
-  if (this.isImmersiveEnabled_) {
-    audioState = 'immersive-enabled';
-  } else if (this.isSpeechActive) {
-    audioState = 'speech-active';
+function getCloseButton(this: ReadAnythingToolbarElement) {
+  if (this.isImmersiveMode) {
+    return html`
+  <cr-icon-button id="close" tabindex="0"
+      aria-label="$i18n{readingModeLanguageMenuClose}"
+      title="$i18n{readingModeLanguageMenuClose}"
+      iron-icon="cr:close"
+      @click="${this.onCloseClick_}">
+  </cr-icon-button>`;
   }
+  return html``;
+}
 
+function getToolbarAudioControlsHtml(this: ReadAnythingToolbarElement) {
   const shouldBeActive = this.isSpeechActive || this.isImmersiveEnabled_;
+  const audioState = shouldBeActive ? 'active' : 'inactive';
   const prevNextAreDisabled = !this.isReadAloudPlayable ||
       (this.isImmersiveEnabled_ && !this.isSpeechActive);
 
@@ -191,15 +198,19 @@ function getImmersiveToolbarHtml(this: ReadAnythingToolbarElement) {
   return html`<!--_html_template_start_-->
 ${getToolbarAudioControlsHtml.call(this)}
 ${renderTextStyleOptions.call(this)}
-<cr-icon-button id="more" tabindex="0" aria-label="$i18n{moreOptionsLabel}"
+<cr-icon-button id="more" tabindex="-1" aria-label="$i18n{moreOptionsLabel}"
+    class="toolbar-button"
     title="$i18n{moreOptionsLabel}"
     aria-haspopup="menu"
-    iron-icon="cr:settings_icon"
+    iron-icon="read-anything:settings"
     @click="${this.onMoreOptionsClick_}">
 </cr-icon-button>
+${getCloseButton.call(this)}
 <settings-menu
   id="settingsMenu"
   .settingsPrefs="${this.settingsPrefs}"
+  .isImmersiveMode="${this.isImmersiveMode}"
+  .isReadAnythingPinned="${this.isReadAnythingPinned}"
   @close-submenu-requested="${this.onCloseSubmenuRequested_}"
   @close-all-menus="${this.onCloseAllMenus_}"
   @open-settings-submenu="${this.onOpenSettingsSubmenu_}">

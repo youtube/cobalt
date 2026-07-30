@@ -42,6 +42,7 @@
 #include "chrome/browser/ui/intent_picker_tab_helper.h"
 #include "chrome/browser/ui/layout_constants.h"
 #include "chrome/browser/ui/omnibox/omnibox_view.h"
+#include "chrome/browser/ui/tab_search_feature.h"
 #include "chrome/browser/ui/tabs/public/tab_features.h"
 #include "chrome/browser/ui/tabs/tab_strip_prefs.h"
 #include "chrome/browser/ui/toolbar/chrome_labs/chrome_labs_prefs.h"
@@ -122,6 +123,7 @@
 #include "ui/views/accessibility/view_accessibility.h"
 #include "ui/views/background.h"
 #include "ui/views/cascading_property.h"
+#include "ui/views/controls/separator.h"
 #include "ui/views/layout/fill_layout.h"
 #include "ui/views/layout/flex_layout.h"
 #include "ui/views/layout/proposed_layout.h"
@@ -283,8 +285,6 @@ void ToolbarView::Init() {
   };
 
   PrefService* const prefs = browser_->profile()->GetPrefs();
-  std::unique_ptr<HomeButton> home = std::make_unique<HomeButton>(
-      browser_, base::BindRepeating(callback, browser_, IDC_HOME));
 
   std::unique_ptr<ExtensionsToolbarDesktop> extensions_container;
   std::unique_ptr<views::View> toolbar_divider;
@@ -324,7 +324,10 @@ void ToolbarView::Init() {
         browser_->profile(), browser_->command_controller(),
         InitialWebUIWindowMetricsManager::From(browser_)));
   }
-  home_ = AddChildView(std::move(home));
+  if (!features::IsWebUIHomeButtonEnabled()) {
+    home_ = AddChildView(std::make_unique<HomeButton>(
+        browser_, base::BindRepeating(callback, browser_, IDC_HOME)));
+  }
   std::unique_ptr<SplitTabsToolbarButton> split =
       std::make_unique<SplitTabsToolbarButton>(browser_);
   split_tabs_ = AddChildView(std::move(split));
@@ -467,7 +470,9 @@ void ToolbarView::Init() {
       base::BindRepeating(&ToolbarView::OnShowHomeButtonChanged,
                           base::Unretained(this)));
 
-  home_->SetVisible(show_home_button_.GetValue());
+  if (home_) {
+    home_->SetVisible(show_home_button_.GetValue());
+  }
 
   InitLayout();
 
@@ -506,7 +511,7 @@ void ToolbarView::Update(WebContents* tab) {
   }
 
   if (ReloadControl* reload_control = GetReloadButton(); reload_control) {
-    reload_control->SetMenuEnabled(
+    reload_control->SetDevToolsStatus(
         chrome::IsDebuggerAttachedToCurrentTab(browser_));
   }
 }
@@ -617,6 +622,26 @@ void ToolbarView::ShowBookmarkBubble(const GURL& url, bool already_bookmarked) {
   BookmarkBubbleView::ShowBubble(anchor_view, GetWebContents(),
                                  bookmark_star_icon, browser_, url,
                                  already_bookmarked);
+}
+
+bool ToolbarView::IsPositionInWindowCaption(
+    const gfx::Point& test_point) const {
+  // Only points above the centerline are considered candidates for the caption
+  // area.
+  if (test_point.y() > GetLocalBounds().CenterPoint().y()) {
+    return false;
+  }
+
+  // Check each visible child to see if the point is in the child.
+  for (auto& child : children()) {
+    if (child->GetVisible() && !views::IsViewClass<views::Separator>(child) &&
+        child->bounds().Contains(test_point)) {
+      return false;
+    }
+  }
+
+  // If it's not in a child, the point is in the caption area.
+  return true;
 }
 
 views::Button* ToolbarView::GetChromeLabsButton() const {
@@ -1164,7 +1189,9 @@ void ToolbarView::OnShowForwardButtonChanged() {
 }
 
 void ToolbarView::OnShowHomeButtonChanged() {
-  home_->SetVisible(show_home_button_.GetValue());
+  if (home_) {
+    home_->SetVisible(show_home_button_.GetValue());
+  }
 }
 
 void ToolbarView::OnTouchUiChanged() {

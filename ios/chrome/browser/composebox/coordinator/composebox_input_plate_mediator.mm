@@ -10,6 +10,7 @@
 #import <queue>
 #import <set>
 #import <unordered_map>
+#import <unordered_set>
 #import <utility>
 
 #import "base/apple/foundation_util.h"
@@ -30,6 +31,7 @@
 #import "components/contextual_search/contextual_search_context_controller.h"
 #import "components/contextual_search/contextual_search_service.h"
 #import "components/contextual_search/contextual_search_session_handle.h"
+#import "components/contextual_search/input_state_model.h"
 #import "components/lens/contextual_input.h"
 #import "components/lens/lens_bitmap_processing.h"
 #import "components/lens/lens_url_utils.h"
@@ -45,6 +47,7 @@
 #import "ios/chrome/browser/composebox/coordinator/composebox_constants.h"
 #import "ios/chrome/browser/composebox/coordinator/composebox_url_loader.h"
 #import "ios/chrome/browser/composebox/coordinator/web_state_deferred_executor.h"
+#import "ios/chrome/browser/composebox/debugger/composebox_debugger_logger.h"
 #import "ios/chrome/browser/composebox/public/composebox_constants.h"
 #import "ios/chrome/browser/composebox/public/composebox_input_plate_controls.h"
 #import "ios/chrome/browser/composebox/public/composebox_model_option.h"
@@ -76,6 +79,9 @@
 #import "mojo/public/cpp/base/big_buffer.h"
 #import "net/base/apple/url_conversions.h"
 #import "net/base/url_util.h"
+#import "third_party/omnibox_proto/model_mode.pb.h"
+#import "third_party/omnibox_proto/searchbox_config.pb.h"
+#import "third_party/omnibox_proto/tool_mode.pb.h"
 #import "ui/base/page_transition_types.h"
 #import "ui/gfx/favicon_size.h"
 #import "url/gurl.h"
@@ -152,7 +158,8 @@ CreateInputDataFromAnnotatedPageContent(
 
 @interface ComposeboxInputPlateMediator () <
     SearchEngineObserving,
-    ComposeboxInputItemCollectionDelegate>
+    ComposeboxInputItemCollectionDelegate,
+    WebStateDeferredExecutorDelegate>
 @end
 
 @implementation ComposeboxInputPlateMediator {
@@ -202,6 +209,8 @@ CreateInputDataFromAnnotatedPageContent(
   BOOL _isIncognito;
   // Whether the mediator is currently updating the compact mode.
   BOOL _isUpdatingCompactMode;
+  // Whether it is in compact mode.
+  BOOL _compact;
   // Whether the omnibox has text inputted.
   BOOL _hasText;
   // Whether a successful navigation has started.
@@ -210,6 +219,12 @@ CreateInputDataFromAnnotatedPageContent(
   int _imageUploadCount;
   // The currrent choice of model.
   ComposeboxModelOption _modelOption;
+
+  // The state reflecting the availbale modes and models.
+  std::unique_ptr<contextual_search::InputStateModel> _inputStateModel;
+  contextual_search::InputState _inputState;
+  // The subscription for updates on the input state.
+  base::CallbackListSubscription _inputStateSubscription;
 }
 
 - (instancetype)
@@ -241,6 +256,7 @@ CreateInputDataFromAnnotatedPageContent(
     _webStateList = webStateList;
     _faviconLoader = faviconLoader;
     _webStateDeferredExecutor = [[WebStateDeferredExecutor alloc] init];
+    _webStateDeferredExecutor.delegate = self;
     _persistTabContextAgent = persistTabContextAgent;
     _isIncognito = isIncognito;
     _modeHolder = modeHolder;
@@ -254,8 +270,11 @@ CreateInputDataFromAnnotatedPageContent(
       _aimEligibilitySubscription =
           _aimEligibilityService->RegisterEligibilityChangedCallback(
               base::BindRepeating(^{
-                [weakSelf commitUIUpdates];
+                [weakSelf didUpdateAimEligiblity];
               }));
+
+      [self createInputStateModel];
+      [self startInputStateObservation];
     }
   }
   return self;
@@ -272,7 +291,9 @@ CreateInputDataFromAnnotatedPageContent(
   _searchEngineObserver.reset();
   _templateURLService = nullptr;
   _aimEligibilitySubscription = {};
+  [self invalidateInputStateSubscription];
   _aimEligibilityService = nullptr;
+  _inputStateModel = nullptr;
   _composeboxObserverBridge.reset();
   if (_contextualSearchSession) {
     if (!_inNavigation) {
@@ -337,8 +358,18 @@ CreateInputDataFromAnnotatedPageContent(
 
 #pragma mark - ComposeboxInputPlateMutator
 
+// Removes an item from the collection.
 - (void)removeItem:(ComposeboxInputItem*)item {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+
+  [self.debugLogger
+      logEvent:[ComposeboxDebuggerEvent
+                   queryAttachmentEvent:composebox_debugger::event::
+                                            QueryAttachment::kRemoved
+                               withType:[self attachmentEventTypeForItem:item]
+                                  title:[self
+                                            attachmentEventTitleForItem:item]]];
+
   [_items removeItem:item];
 
   if (_contextualSearchSession) {
@@ -359,15 +390,16 @@ CreateInputDataFromAnnotatedPageContent(
 - (void)sendText:(NSString*)text
     additionalParams:(std::map<std::string, std::string>)additionalParams {
   DCHECK_CALLED_ON_VALID_SEQUENCE(_sequenceChecker);
+  auto advancedToolsParams = _inputStateModel->GetAdditionalQueryParams();
+  additionalParams.insert(advancedToolsParams.begin(),
+                          advancedToolsParams.end());
+
   std::unique_ptr<ComposeboxQueryController::CreateSearchUrlRequestInfo>
       search_url_request_info = std::make_unique<
           ComposeboxQueryController::CreateSearchUrlRequestInfo>();
   search_url_request_info->query_text = base::SysNSStringToUTF8(text);
   search_url_request_info->query_start_time = base::Time::Now();
   search_url_request_info->additional_params = additionalParams;
-  if (_modeHolder.mode == ComposeboxMode::kImageGeneration) {
-    search_url_request_info->additional_params["imgn"] = "1";
-  }
 
   __weak __typeof(self) weakSelf = self;
   auto callback =
@@ -422,7 +454,7 @@ CreateInputDataFromAnnotatedPageContent(
                                           kComposeboxInputItemTypeFile
                               assetID:assetID];
   item.title = base::SysUTF8ToNSString(PDFFileURL.ExtractFileName());
-  [_items addItem:item];
+  [self addItem:item];
   base::UnguessableToken identifier = item.identifier;
 
   // Read the data in the background then call `onDataReadForItem`.
@@ -444,10 +476,6 @@ CreateInputDataFromAnnotatedPageContent(
   BOOL unableToLoadUIImage =
       ![itemProvider canLoadObjectOfClass:[UIImage class]];
 
-  // TODO(crbug.com/475203545): Prevent duplicate items being added. The file
-  // picker and the drag-and-drop interfaces have different schemes for
-  // generating asset IDs. They should be common, in order to prevent the same
-  // file being added several times.
   BOOL assetAlreadyLoaded = [_items assetAlreadyLoaded:assetID];
   if (unableToLoadUIImage || assetAlreadyLoaded) {
     return;
@@ -457,7 +485,7 @@ CreateInputDataFromAnnotatedPageContent(
       initWithComposeboxInputItemType:ComposeboxInputItemType::
                                           kComposeboxInputItemTypeImage
                               assetID:assetID];
-  [_items addItem:item];
+  [self addItem:item];
   __block base::UnguessableToken identifier = item.identifier;
 
   __weak __typeof(self) weakSelf = self;
@@ -484,8 +512,28 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)setModelOption:(ComposeboxModelOption)modelOption {
   using enum ComposeboxModelOption;
+
+  if (_modelOption == modelOption) {
+    return;
+  }
+
   _modelOption = modelOption;
   [_consumer setModelOption:modelOption];
+  switch (modelOption) {
+    case kNone:
+      _inputStateModel->setActiveModel(
+          omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR);
+      break;
+    case kAuto:
+      _inputStateModel->setActiveModel(
+          omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE);
+      break;
+    case kThinking:
+      _inputStateModel->setActiveModel(
+          omnibox::ModelMode::MODEL_MODE_GEMINI_PRO);
+      break;
+  }
+
   if (modelOption == kNone) {
     return;
   }
@@ -494,6 +542,42 @@ CreateInputDataFromAnnotatedPageContent(
   // modes based on server-side logic.
   if (_modeHolder.isRegularSearch) {
     _modeHolder.mode = ComposeboxMode::kAIM;
+  }
+}
+
+// Returns the model option required by the given input state.
+- (ComposeboxModelOption)requiredModelOptionForInputState:
+    (const contextual_search::InputState&)inputState {
+  using enum ComposeboxModelOption;
+  switch (inputState.active_model) {
+    case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE:
+      return ComposeboxModelOption::kAuto;
+    case omnibox::ModelMode::MODEL_MODE_GEMINI_PRO:
+      return ComposeboxModelOption::kThinking;
+    case omnibox::ModelMode::MODEL_MODE_GEMINI_REGULAR:
+    default:
+      return ComposeboxModelOption::kNone;
+  }
+}
+
+- (void)changeModeForInputState:
+    (const contextual_search::InputState&)inputState {
+  using enum ComposeboxMode;
+  switch (inputState.active_tool) {
+    case omnibox::ToolMode::TOOL_MODE_CANVAS:
+      _modeHolder.mode = ComposeboxMode::kCanvas;
+      return;
+    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN:
+    case omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD:
+      _modeHolder.mode = ComposeboxMode::kImageGeneration;
+      return;
+    case omnibox::ToolMode::TOOL_MODE_UNSPECIFIED:
+    default:
+      if (_modeHolder.mode == ComposeboxMode::kAIM ||
+          _modeHolder.isRegularSearch) {
+        return;
+      }
+      _modeHolder.mode = ComposeboxMode::kRegularSearch;
   }
 }
 
@@ -518,22 +602,26 @@ CreateInputDataFromAnnotatedPageContent(
       }
       [_items clearItems];
       _imageUploadCount = 0;
+      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_UNSPECIFIED);
       break;
     case ComposeboxMode::kAIM:
       if (![self isEligibleToAIM]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
+      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_UNSPECIFIED);
       break;
     case ComposeboxMode::kImageGeneration:
       if (![self isEligibleToCreateImages]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
       [self cleanAttachmentsForImageGeneration];
+      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_IMAGE_GEN);
       break;
     case ComposeboxMode::kCanvas:
       if (![self isEligibleToCanvas]) {
         _modeHolder.mode = ComposeboxMode::kRegularSearch;
       }
+      _inputStateModel->setActiveTool(omnibox::TOOL_MODE_CANVAS);
       break;
   }
 
@@ -616,7 +704,7 @@ CreateInputDataFromAnnotatedPageContent(
   base::UnguessableToken identifier = item.identifier;
   _latestTabSelectionMapping[identifier] = webState->GetUniqueIdentifier();
 
-  [_items addItem:item];
+  [self addItem:item];
 
   if (_faviconLoader) {
     __weak __typeof(self) weakSelf = self;
@@ -821,7 +909,7 @@ CreateInputDataFromAnnotatedPageContent(
 
   switch (fileUploadStatus) {
     case contextual_search::FileUploadStatus::kUploadSuccessful:
-      item.state = ComposeboxInputItemState::kLoaded;
+      [self setState:ComposeboxInputItemState::kLoaded onItem:item];
       break;
     case contextual_search::FileUploadStatus::kUploadFailed:
     case contextual_search::FileUploadStatus::kValidationFailed:
@@ -842,6 +930,65 @@ CreateInputDataFromAnnotatedPageContent(
 }
 
 #pragma mark - Private
+
+// Adds an item to the collection.
+- (void)addItem:(ComposeboxInputItem*)item {
+  [self.debugLogger
+      logEvent:[ComposeboxDebuggerEvent
+                   queryAttachmentEvent:composebox_debugger::event::
+                                            QueryAttachment::kAdded
+                               withType:[self attachmentEventTypeForItem:item]
+                                  title:[self
+                                            attachmentEventTitleForItem:item]]];
+  [_items addItem:item];
+}
+
+// Sets the state for a given item.
+- (void)setState:(ComposeboxInputItemState)state
+          onItem:(ComposeboxInputItem*)item {
+  item.state = state;
+
+  composebox_debugger::event::QueryAttachment eventType;
+  switch (state) {
+    case ComposeboxInputItemState::kUploading:
+      eventType = composebox_debugger::event::QueryAttachment::kAdded;
+      break;
+    case ComposeboxInputItemState::kLoaded:
+      eventType = composebox_debugger::event::QueryAttachment::
+          kUploadCompletedSuccessfully;
+      break;
+    case ComposeboxInputItemState::kError:
+      eventType = composebox_debugger::event::QueryAttachment::kUploadFailed;
+      break;
+    default:
+      return;
+  }
+
+  [self.debugLogger
+      logEvent:[ComposeboxDebuggerEvent
+                   queryAttachmentEvent:eventType
+                               withType:[self attachmentEventTypeForItem:item]
+                                  title:[self
+                                            attachmentEventTitleForItem:item]]];
+}
+
+// Returns the attachment evewnt title for a given item.
+- (NSString*)attachmentEventTitleForItem:(ComposeboxInputItem*)item {
+  return base::SysUTF8ToNSString(item.identifier.ToString());
+}
+
+// Returns the attachment type for a given item.
+- (composebox_debugger::AttachmentType)attachmentEventTypeForItem:
+    (ComposeboxInputItem*)item {
+  switch (item.type) {
+    case ComposeboxInputItemType::kComposeboxInputItemTypeImage:
+      return composebox_debugger::AttachmentType::kImage;
+    case ComposeboxInputItemType::kComposeboxInputItemTypeFile:
+      return composebox_debugger::AttachmentType::kFile;
+    case ComposeboxInputItemType::kComposeboxInputItemTypeTab:
+      return composebox_debugger::AttachmentType::kTab;
+  }
+}
 
 // Helper for `-attachSelectedTabsWithWebStateIDs:cachedWebStateIDs:`. Attaches
 // the selected tabs. `cachedWebStateIDs` contains the IDs of the tabs that have
@@ -1081,7 +1228,7 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   if (!image) {
-    item.state = ComposeboxInputItemState::kError;
+    [self setState:ComposeboxInputItemState::kError onItem:item];
     [self.consumer updateState:item.state
          forItemWithIdentifier:item.identifier];
     return;
@@ -1106,7 +1253,7 @@ CreateInputDataFromAnnotatedPageContent(
     return;
   }
 
-  item.state = ComposeboxInputItemState::kUploading;
+  [self setState:ComposeboxInputItemState::kUploading onItem:item];
   [self.consumer updateState:item.state forItemWithIdentifier:item.identifier];
 
   if (!item.previewImage) {
@@ -1221,14 +1368,14 @@ CreateInputDataFromAnnotatedPageContent(
   }
 
   if (!data) {
-    item.state = ComposeboxInputItemState::kError;
+    [self setState:ComposeboxInputItemState::kError onItem:item];
     [self.consumer updateState:item.state
          forItemWithIdentifier:item.identifier];
     return;
   }
 
   // Start the file upload immediately.
-  item.state = ComposeboxInputItemState::kUploading;
+  [self setState:ComposeboxInputItemState::kUploading onItem:item];
   [self.consumer updateState:item.state forItemWithIdentifier:item.identifier];
 
   if (_contextualSearchSession) {
@@ -1310,6 +1457,49 @@ CreateInputDataFromAnnotatedPageContent(
     return NO;
   }
   return _aimEligibilityService->IsPdfUploadEligible();
+}
+
+// Whether Canvas is in the list of allowed tools.
+// If restricted, the tool will persist in the UI with a 'disabled' status,
+// pending a change in state.
+- (BOOL)imageToolAllowed {
+  BOOL allowedToGenerateImage =
+      [self allowedToUseMode:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN] &&
+      [self allowedToUseMode:omnibox::ToolMode::TOOL_MODE_IMAGE_GEN_UPLOAD];
+  BOOL hasTabOrFile = _items.hasTabOrFile;
+  return allowedToGenerateImage && !hasTabOrFile;
+}
+
+// Whether Canvas is in the list of allowed tools.
+// If restricted, the tool will persist in the UI with a 'disabled' status,
+// pending a change in state.
+- (BOOL)canvasToolAllowed {
+  return [self allowedToUseMode:omnibox::ToolMode::TOOL_MODE_CANVAS];
+}
+
+- (BOOL)allowedToUseMode:(omnibox::ToolMode)toolMode {
+  return std::find(_inputState.allowed_tools.begin(),
+                   _inputState.allowed_tools.end(),
+                   toolMode) != _inputState.allowed_tools.end();
+}
+
+// The list of model options available based on the input model.
+- (std::unordered_set<ComposeboxModelOption>)allowedModels {
+  std::unordered_set<ComposeboxModelOption> allowed = {
+      ComposeboxModelOption::kNone};
+  if (!ShowComposeboxAdditionalAdvancedTools()) {
+    return allowed;
+  }
+  for (auto modelType : _inputState.allowed_models) {
+    if (modelType == omnibox::ModelMode::MODEL_MODE_GEMINI_PRO) {
+      allowed.insert(ComposeboxModelOption::kThinking);
+    } else if (modelType ==
+               omnibox::ModelMode::MODEL_MODE_GEMINI_PRO_AUTOROUTE) {
+      allowed.insert(ComposeboxModelOption::kAuto);
+    }
+  }
+
+  return allowed;
 }
 
 - (BOOL)isDSEGoogle {
@@ -1425,7 +1615,16 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)handleFailedAttachment:(base::UnguessableToken)identifier {
   [self.delegate showSnackbarForItemUploadDidFail];
-  [self removeItem:[_items itemForIdentifier:identifier]];
+  ComposeboxInputItem* item = [_items itemForIdentifier:identifier];
+  [self.debugLogger
+      logEvent:[ComposeboxDebuggerEvent
+                   queryAttachmentEvent:composebox_debugger::event::
+                                            QueryAttachment::kUploadFailed
+                               withType:[self attachmentEventTypeForItem:item]
+                                  title:[self
+                                            attachmentEventTitleForItem:item]]];
+
+  [self removeItem:item];
 }
 
 - (void)updateButtonsVisibility {
@@ -1501,7 +1700,6 @@ CreateInputDataFromAnnotatedPageContent(
 
 /// Updates the consumer actions enabled/disable state.
 - (void)updateConsumerActionsState {
-  BOOL hasTabOrFile = _items.hasTabOrFile;
   BOOL canUploadFiles = [self isEligibleToUploadPdf];
   BOOL canCreateImage = [self isEligibleToCreateImages];
   BOOL canSearchWithAI = [self isEligibleToAIM];
@@ -1515,16 +1713,18 @@ CreateInputDataFromAnnotatedPageContent(
   BOOL canAddMoreAttachments = [self canAddMoreAttachments];
 
   // Image generation action.
-  [self.consumer disableCreateImageActions:hasTabOrFile];
+  [self.consumer disableCreateImageActions:![self imageToolAllowed]];
   [self.consumer hideCreateImageActions:!canCreateImage];
 
   // Canvas action.
+  [self.consumer disableCanvasActions:![self canvasToolAllowed]];
   [self.consumer hideCanvasActions:!canUseCanvas];
 
   // Model picker.
   // TODO(crbug.com/477888273): Handle attachment incompatibility based on
   // server-side logic.
   [self.consumer allowModelPicker:ShowComposeboxAdditionalAdvancedTools()];
+  [self.consumer setAllowedModels:[self allowedModels]];
 
   // Add tabs action.
   [self.consumer
@@ -1568,7 +1768,18 @@ CreateInputDataFromAnnotatedPageContent(
 /// Updates the consumer whether to show in compact mode.
 - (void)updateCompactMode {
   BOOL compact = [self compactModeRequired];
+  if (compact != _compact) {
+    [self.debugLogger
+        logEvent:[ComposeboxDebuggerEvent
+                     composeboxGeneralEvent:
+                         compact ? composebox_debugger::event::Composebox::
+                                       kCompactModeEnabled
+                                 : composebox_debugger::event::Composebox::
+                                       kCompactModeDisabled]];
+  }
+
   [self.consumer setCompact:compact];
+  _compact = compact;
 }
 
 // Pushes the batched UI updates to the consumer.
@@ -1582,6 +1793,106 @@ CreateInputDataFromAnnotatedPageContent(
   [self updateCompactMode];
 
   _isUpdatingCompactMode = NO;
+}
+
+#pragma mark - AIM eligibility observing.
+
+// Called when the AIM eligibility service is updated.
+- (void)didUpdateAimEligiblity {
+  contextual_search::InputState previousInputState = _inputState;
+  [self createInputStateModel];
+
+  // Try maintaining the same options if there was no change in their
+  // availability.
+  __weak __typeof(self) weakSelf = self;
+  [self preselectPreferencesIfAvailable:previousInputState
+                             completion:^{
+                               [weakSelf startInputStateObservation];
+                             }];
+
+  [self commitUIUpdates];
+}
+
+#pragma mark - Input State Subscription
+
+// Creates a new input state model based on the config from the AIM eligibility
+// service.
+- (void)createInputStateModel {
+  const omnibox::SearchboxConfig* config =
+      _aimEligibilityService->GetSearchboxConfig();
+  contextual_search::ContextualSearchSessionHandle* sessionHandle =
+      _contextualSearchSession.get();
+  _inputStateModel = std::make_unique<contextual_search::InputStateModel>(
+      *sessionHandle, *config);
+}
+
+- (void)preselectPreferencesIfAvailable:
+            (const contextual_search::InputState&)preselectionState
+                             completion:(ProceduralBlock)completion {
+  __weak __typeof(self) weakSelf = self;
+  _inputStateSubscription = _inputStateModel->subscribe(
+      base::BindRepeating(^(const contextual_search::InputState& inputState) {
+        // Make sure the preselection sequence happens only once by invalidating
+        // the subscription as soon as the initial input state is determined;
+        // Otherwise subsequent updates will cause it to loop.
+        [weakSelf invalidateInputStateSubscription];
+        [weakSelf applyPreselection:preselectionState
+                  forReferenceState:inputState];
+
+        if (completion) {
+          completion();
+        }
+      }));
+  _inputStateModel->Initialize();
+}
+
+// Attempts to prepopulate the input state after an environment change.
+// This is subject to restriction based on the reference state.
+- (void)applyPreselection:
+            (const contextual_search::InputState&)preselectionState
+        forReferenceState:(const contextual_search::InputState&)referenceState {
+  bool allows_model = std::find(referenceState.allowed_models.begin(),
+                                referenceState.allowed_models.end(),
+                                preselectionState.active_model) !=
+                      referenceState.allowed_models.end();
+  if (allows_model) {
+    _inputStateModel->setActiveModel(preselectionState.active_model);
+  }
+
+  bool allows_tool = std::find(referenceState.allowed_tools.begin(),
+                               referenceState.allowed_tools.end(),
+                               preselectionState.active_tool) !=
+                     referenceState.allowed_tools.end();
+
+  if (allows_tool) {
+    _inputStateModel->setActiveTool(preselectionState.active_tool);
+  }
+}
+
+- (void)invalidateInputStateSubscription {
+  _inputStateSubscription = {};
+}
+
+// Starts observing changes in the input state. Emits the initial state
+// immediately after starting.
+- (void)startInputStateObservation {
+  __weak __typeof(self) weakSelf = self;
+  _inputStateSubscription = _inputStateModel->subscribe(
+      base::BindRepeating(^(const contextual_search::InputState& inputState) {
+        [weakSelf didUpdateInputState:inputState];
+      }));
+  _inputStateModel->Initialize();
+}
+
+// Called when the input state is updated.
+- (void)didUpdateInputState:(contextual_search::InputState)inputState {
+  _inputState = inputState;
+  ComposeboxModelOption requiredModel =
+      [self requiredModelOptionForInputState:inputState];
+  [self setModelOption:requiredModel];
+  [self changeModeForInputState:inputState];
+
+  [self commitUIUpdates];
 }
 
 #pragma mark - SearchEngineObserving
@@ -1620,6 +1931,48 @@ CreateInputDataFromAnnotatedPageContent(
 
 - (void)voiceSearchDidReceiveSearchQuery:(NSString*)query {
   [self sendText:query];
+}
+
+#pragma mark - WebStateDeferredExecutorDelegate
+
+- (void)webStateDeferredExecutor:(WebStateDeferredExecutor*)executor
+                willLoadWebState:(web::WebState*)webState {
+  ComposeboxDebuggerEvent* event = [ComposeboxDebuggerEvent
+       tabEvent:composebox_debugger::event::Tabs::kWillLoadTab
+      withTitle:base::SysUTF16ToNSString(webState->GetTitle())
+          tabID:webState->GetUniqueIdentifier().identifier()];
+  [self.debugLogger logEvent:event];
+}
+
+- (void)webStateDeferredExecutor:(WebStateDeferredExecutor*)executor
+                 didLoadWebState:(web::WebState*)webState
+                         success:(BOOL)success {
+  composebox_debugger::event::Tabs tabEvent =
+      success ? composebox_debugger::event::Tabs::kDidLoadTab
+              : composebox_debugger::event::Tabs::kFailedToLoadTab;
+  ComposeboxDebuggerEvent* event = [ComposeboxDebuggerEvent
+       tabEvent:tabEvent
+      withTitle:base::SysUTF16ToNSString(webState->GetTitle())
+          tabID:webState->GetUniqueIdentifier().identifier()];
+  [self.debugLogger logEvent:event];
+}
+
+- (void)webStateDeferredExecutor:(WebStateDeferredExecutor*)executor
+        willForceRealizeWebState:(web::WebState*)webState {
+  ComposeboxDebuggerEvent* event = [ComposeboxDebuggerEvent
+       tabEvent:composebox_debugger::event::Tabs::kWillRealizeTab
+      withTitle:base::SysUTF16ToNSString(webState->GetTitle())
+          tabID:webState->GetUniqueIdentifier().identifier()];
+  [self.debugLogger logEvent:event];
+}
+
+- (void)webStateDeferredExecutor:(WebStateDeferredExecutor*)executor
+         didForceRealizeWebState:(web::WebState*)webState {
+  ComposeboxDebuggerEvent* event = [ComposeboxDebuggerEvent
+       tabEvent:composebox_debugger::event::Tabs::kDidRealizeTab
+      withTitle:base::SysUTF16ToNSString(webState->GetTitle())
+          tabID:webState->GetUniqueIdentifier().identifier()];
+  [self.debugLogger logEvent:event];
 }
 
 @end

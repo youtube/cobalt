@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">ยกเลิกการซิงค์</translation>
 <translation id="3144126448740580210">เสร็จสิ้น</translation>
 <translation id="3148052723910099040">ตารางกริดของแท็บปกติ</translation>
+<translation id="3148237711805373460">นำฉันไป</translation>
 <translation id="3157387275655328056">เพิ่มไปยังเรื่องรออ่าน</translation>
 <translation id="315778507796115851">ประวัติ</translation>
 <translation id="31652791196570636">ปิด</translation>
@@ -1634,6 +1635,7 @@
 <translation id="6930799952781667037">แตะเพื่อเปลี่ยนเป็นภาษานี้</translation>
 <translation id="693761253105515415">ตั้งรหัสผ่าน</translation>
 <translation id="6945221475159498467">เลือก</translation>
+<translation id="6946722113367118030">ใช้ความคิด</translation>
 <translation id="6950522403736391608">ซ่อนอยู่</translation>
 <translation id="6962809930976936328">รับข้อมูลเชิงลึกด้วย Gemini</translation>
 <translation id="6964300328304469089">เลือก <ph name="NAME" />, <ph name="EMAIL" /> อยู่ เลือกบัญชี</translation>
@@ -1976,6 +1978,7 @@
 <translation id="8205564605687841303">ยกเลิก</translation>
 <translation id="8206354486702514201">ผู้ดูแลระบบของคุณกำหนดให้ใช้การตั้งค่านี้</translation>
 <translation id="8209050860603202033">เปิดรูปภาพ</translation>
+<translation id="8209237163365258530">Gemini 3 โมเดล <ph name="VERSION_NUMBER" /></translation>
 <translation id="8211030355252954494">คุณได้รับรหัสผ่านสำหรับ <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">การเชื่อมต่อปลอดภัย</translation>
 <translation id="8214293972734702249">ปักหมุดอยู่, <ph name="TAB_TITLE" /></translation>

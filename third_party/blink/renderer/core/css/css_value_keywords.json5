@@ -787,8 +787,12 @@
     "max-content",
     "fit-content",
 
-    // contain-intrinsic-size
-    "from-element",
+    // frame-sizing
+    // "auto",
+    "content-width",
+    "content-height",
+    "content-block-size",
+    "content-inline-size",
 
     //
     // text-autospace
@@ -1297,16 +1301,14 @@
     "column-over-row",
 
     // column-rule-break
-    // auto
     // none
     "intersection",
-    "spanning-item",
+    // normal
 
     // row-rule-break
-    // auto
     // none
     // intersection
-    // spanning-item
+    // normal
 
     // column-rule-visibility-items
     // all

@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Sinxronizasiyanı ləğv edin</translation>
 <translation id="3144126448740580210">TAMAMDIR</translation>
 <translation id="3148052723910099040">Normal tab toru</translation>
+<translation id="3148237711805373460">Keçin</translation>
 <translation id="3157387275655328056">Oxu Siyahısına əlavə edin</translation>
 <translation id="315778507796115851">Tarixçə</translation>
 <translation id="31652791196570636">İmtina edin</translation>
@@ -1523,6 +1524,7 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="6556866813142980365">Yenidən edin</translation>
 <translation id="6559301491397835130">{count,plural, =1{Əlfəcin "{title}" bölməsində yadda saxlandı. O, yalnız bu cihazda yadda saxlanır.}other{Əlfəcinlər "{title}" bölməsində yadda saxlandı. Onlar yalnız bu cihazda yadda saxlanır.}}</translation>
 <translation id="656065428026159829">Daha çoxuna baxın</translation>
+<translation id="6565899972286925956">İstənilən şeyi yaradın</translation>
 <translation id="6571070086367343653">Kredit kartına düzəliş edin</translation>
 <translation id="6574092468346088891">Təhlükəsizlik yoxlanışı üçün Bildirişləri aktiv edin</translation>
 <translation id="6579867704846662339">Digər tətbiqlərdən əldə edilən URL-ləri Anonim rejimdə aça bilərsiniz.</translation>
@@ -1633,6 +1635,7 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="6930799952781667037">Bu dilə dəyişmək üçün toxunun.</translation>
 <translation id="693761253105515415">Giriş kodu ayarlayın</translation>
 <translation id="6945221475159498467">Seçin</translation>
+<translation id="6946722113367118030">Düşünmə</translation>
 <translation id="6950522403736391608">Gizli</translation>
 <translation id="6962809930976936328">Gemini ilə statistik məlumatlar əldə edin</translation>
 <translation id="6964300328304469089">Seçilib: <ph name="NAME" /> (<ph name="EMAIL" />). Hesab seçin.</translation>
@@ -1975,6 +1978,7 @@ Handoff Ayarların Ümumi bölməsindən də aktiv edilə bilər və cihazların
 <translation id="8205564605687841303">Ləğv edin</translation>
 <translation id="8206354486702514201">Bu ayar administratorunuz tərəfindən icra olunur.</translation>
 <translation id="8209050860603202033">Şəkli açın</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> modelləri</translation>
 <translation id="8211030355252954494"><ph name="WEBSITE" /> üçün parollar qəbul etmisiniz</translation>
 <translation id="8211406090763984747">Bağlantı təhlükəsizdir</translation>
 <translation id="8214293972734702249">Bərkidilib, <ph name="TAB_TITLE" /></translation>

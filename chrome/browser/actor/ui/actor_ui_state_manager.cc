@@ -164,7 +164,7 @@ void ActorUiStateManager::OnActorTaskStateChange(
     case ActorTask::State::kFailed:
     case ActorTask::State::kCancelled:
     case ActorTask::State::kFinished:
-      if (base::FeatureList::IsEnabled(
+       if (base::FeatureList::IsEnabled(
               features::kGlicActorUiGlobalTaskIndicator)) {
         LOG(FATAL) << "Stopped states should be processed via StopTask event.";
       } else {
@@ -229,6 +229,9 @@ void ActorUiStateManager::OnUiEvent(AsyncUiEvent event,
     base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
         FROM_HERE, base::BindOnce(std::move(callback), MakeOkResult()));
   }
+#else
+  base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, base::BindOnce(std::move(callback), MakeOkResult()));
 #endif
 }
 

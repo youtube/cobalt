@@ -22,10 +22,6 @@ BASE_DECLARE_FEATURE(kNtpComposebox);
 
 // The serialized base64 encoded `omnibox::NTPComposeboxConfig`.
 extern const base::FeatureParam<std::string> kConfigParam;
-// Whether or not to use separate request ids for viewport images if the
-// multi-context input flow is enabled.
-extern const base::FeatureParam<bool>
-    kUseSeparateRequestIdsForMultiContextViewportImages;
 // Whether to show zps suggestions under the composebox.
 extern const base::FeatureParam<bool> kShowComposeboxZps;
 // Whether to show typed suggestions under the composebox.
@@ -57,17 +53,11 @@ extern const base::FeatureParam<bool> kShowContextMenuDescription;
 extern const base::FeatureParam<bool> kEnableEphemeralContextMenuDescription;
 // Whether or not to enable viewport images with page context uploads.
 extern const base::FeatureParam<bool> kEnableViewportImages;
-// Whether to show the tools and models in the composebox.
-extern const base::FeatureParam<bool> kShowToolsAndModels;
-// Whether to show canvas in the composebox.
-extern const base::FeatureParam<bool> kShowCanvas;
 // Whether to show the model picker in the composebox.
 extern const base::FeatureParam<bool> kShowModelPicker;
 // Whether to allow drag and drop files on composebox
 extern const base::FeatureParam<bool> kEnableContextDragAndDrop;
 
-// Whether to show the submit button in the composebox.
-extern const base::FeatureParam<bool> kShowSubmit;
 // Whether to show the smart compose in the composebox.
 extern const base::FeatureParam<bool> kShowSmartCompose;
 // Whether to show the voice search button in steady state composebox.
@@ -135,9 +125,6 @@ extern const base::FeatureParam<PlaceholderText> kSteadyPlaceholder;
 
 // Whether to show a series of cycling placeholder texts on the search input UI.
 extern const base::FeatureParam<bool> kCyclingPlaceholders;
-
-// Whether to show the voice search button in the realbox.
-extern const base::FeatureParam<bool> kShowVoiceSearchInExpandedRealbox;
 
 // Enum for `kRealboxLayoutMode`.
 enum class RealboxLayoutMode {

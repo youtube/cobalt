@@ -6,37 +6,273 @@
 #define REMOTING_PROTOCOL_JINGLE_MESSAGES_H_
 
 #include <list>
+#include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <variant>
+#include <vector>
 
+#include "remoting/base/authentication_method.h"
 #include "remoting/protocol/errors.h"
 #include "remoting/signaling/signaling_address.h"
-#include "third_party/libjingle_xmpp/xmllite/xmlelement.h"
 #include "third_party/webrtc/api/candidate.h"
+
+namespace jingle_xmpp {
+class XmlElement;
+}  // namespace jingle_xmpp
 
 namespace remoting::protocol {
 
 class ContentDescription;
 
-struct JingleMessage {
-  enum ActionType {
-    UNKNOWN_ACTION,
-    SESSION_INITIATE,
-    SESSION_ACCEPT,
-    SESSION_TERMINATE,
-    SESSION_INFO,
-    TRANSPORT_INFO,
+// Defines the set of fields needed to form a JabberId.
+// See https://datatracker.ietf.org/doc/html/rfc7622
+struct JabberId {
+  JabberId();
+  JabberId(const JabberId&);
+  JabberId(JabberId&&);
+  JabberId& operator=(const JabberId&);
+  JabberId& operator=(JabberId&&);
+  ~JabberId();
+
+  // Represents a user or machine (e.g., a username or UUID). Although this is
+  // optional in the spec, it is required for routing in our use case.
+  std::string local_part;
+
+  // Represents the domain of the service which is handling the message.
+  // For example: corp.google.com is a Google Corp server.
+  std::string domain_part;
+
+  // Represents a specific user or connection. For FTL this is the registration
+  // id which is associated with a specific machine or browser tab on the client
+  // machine.
+  std::string resource_part;
+};
+
+// WebRTC ICE candidate details.
+// https://www.w3.org/TR/webrtc/#rtcicecandidate-interface
+struct IceCandidate {
+  IceCandidate();
+  IceCandidate(const IceCandidate&);
+  IceCandidate(IceCandidate&&);
+  IceCandidate& operator=(const IceCandidate&);
+  IceCandidate& operator=(IceCandidate&&);
+  ~IceCandidate();
+
+  // The ICE candidate string, containing foundation, component, priority,
+  // address, port, type, etc.
+  std::string candidate;
+
+  // If present, identifies the media stream ("mid") associated with the
+  // candidate.
+  std::string sdp_mid;
+
+  // If present, indicates the zero-based index of the m-line in the SDP
+  // associated with the candidate.
+  std::optional<int> sdp_m_line_index;
+};
+
+// WebRTC session description (SDP).
+// https://www.w3.org/TR/webrtc/#rtcsessiondescription-class
+struct SessionDescription {
+  SessionDescription();
+  SessionDescription(const SessionDescription&);
+  SessionDescription(SessionDescription&&);
+  SessionDescription& operator=(const SessionDescription&);
+  SessionDescription& operator=(SessionDescription&&);
+  ~SessionDescription();
+
+  // WebRTC SDP Type as defined in https://www.w3.org/TR/webrtc/#rtcsdptype.
+  enum class Type {
+    kUnspecified = 0,
+    kOffer = 1,
+    kAnswer = 2,
+  };
+  Type type = Type::kUnspecified;
+
+  // A serialized string representation of the sdp.
+  std::string sdp;
+
+  // Base64-encoded HMAC of the SDP description, for validation.
+  std::vector<uint8_t> signature;
+};
+
+// The authentication payload used in session-initiate, session-accept, and
+// session-info messages.
+struct JingleAuthentication {
+  JingleAuthentication();
+  JingleAuthentication(const JingleAuthentication&);
+  JingleAuthentication(JingleAuthentication&&);
+  JingleAuthentication& operator=(const JingleAuthentication&);
+  JingleAuthentication& operator=(JingleAuthentication&&);
+  ~JingleAuthentication();
+
+  // The supported authentication methods.
+  std::vector<remoting::AuthenticationMethod> supported_methods;
+
+  // The current auth method.
+  std::optional<remoting::AuthenticationMethod> method;
+
+  // Base64-encoded SPAKE message.
+  std::vector<uint8_t> spake_message;
+
+  // Base64-encoded verification hash.
+  std::vector<uint8_t> verification_hash;
+
+  // SessionAuthz host token.
+  std::vector<uint8_t> session_authz_host_token;
+
+  // SessionAuthz session token.
+  std::vector<uint8_t> session_authz_session_token;
+};
+
+struct IceTransportInfo {
+  IceTransportInfo();
+  ~IceTransportInfo();
+  struct NamedCandidate {
+    NamedCandidate();
+    NamedCandidate(const std::string& name, const webrtc::Candidate& candidate);
+    ~NamedCandidate();
+
+    std::string name;
+    webrtc::Candidate candidate;
   };
 
-  enum Reason {
-    UNKNOWN_REASON,
-    SUCCESS,
-    DECLINE,
-    CANCEL,
-    EXPIRED,
-    GENERAL_ERROR,
-    FAILED_APPLICATION,
-    INCOMPATIBLE_PARAMETERS,
+  struct IceCredentials {
+    IceCredentials();
+    IceCredentials(std::string channel,
+                   std::string ufrag,
+                   std::string password);
+    ~IceCredentials();
+
+    std::string channel;
+    std::string ufrag;
+    std::string password;
+  };
+
+  // Caller keeps ownership of |stanza|. |error| is set to debug error
+  // message when parsing fails.
+  bool ParseXml(const jingle_xmpp::XmlElement* stanza);
+  std::unique_ptr<jingle_xmpp::XmlElement> ToXml() const;
+
+  std::list<IceCredentials> ice_credentials;
+  std::list<NamedCandidate> candidates;
+};
+
+struct JingleTransportInfo {
+  JingleTransportInfo();
+  JingleTransportInfo(const JingleTransportInfo&);
+  JingleTransportInfo(JingleTransportInfo&&);
+  JingleTransportInfo& operator=(const JingleTransportInfo&);
+  JingleTransportInfo& operator=(JingleTransportInfo&&);
+  ~JingleTransportInfo();
+
+  std::vector<IceTransportInfo::IceCredentials> ice_credentials;
+  std::vector<IceCandidate> candidates;
+};
+
+struct HostAttributesAttachment {
+  HostAttributesAttachment();
+  HostAttributesAttachment(const HostAttributesAttachment&);
+  HostAttributesAttachment(HostAttributesAttachment&&);
+  HostAttributesAttachment& operator=(const HostAttributesAttachment&);
+  HostAttributesAttachment& operator=(HostAttributesAttachment&&);
+  ~HostAttributesAttachment();
+
+  std::vector<std::string> attribute;
+};
+
+struct HostConfigAttachment {
+  HostConfigAttachment();
+  HostConfigAttachment(const HostConfigAttachment&);
+  HostConfigAttachment(HostConfigAttachment&&);
+  HostConfigAttachment& operator=(const HostConfigAttachment&);
+  HostConfigAttachment& operator=(HostConfigAttachment&&);
+  ~HostConfigAttachment();
+
+  std::map<std::string, std::string> settings;
+};
+
+struct Attachment {
+  Attachment();
+  Attachment(const Attachment&);
+  Attachment(Attachment&&);
+  Attachment& operator=(const Attachment&);
+  Attachment& operator=(Attachment&&);
+  ~Attachment();
+
+  std::optional<HostAttributesAttachment> host_attributes;
+  std::optional<HostConfigAttachment> host_config;
+};
+
+struct SessionInitiate {
+  SessionInitiate();
+  SessionInitiate(const SessionInitiate&);
+  SessionInitiate(SessionInitiate&&);
+  SessionInitiate& operator=(const SessionInitiate&);
+  SessionInitiate& operator=(SessionInitiate&&);
+  ~SessionInitiate();
+
+  std::optional<JingleAuthentication> authentication;
+};
+
+struct SessionAccept {
+  SessionAccept();
+  SessionAccept(const SessionAccept&);
+  SessionAccept(SessionAccept&&);
+  SessionAccept& operator=(const SessionAccept&);
+  SessionAccept& operator=(SessionAccept&&);
+  ~SessionAccept();
+
+  std::optional<JingleAuthentication> authentication;
+};
+
+struct SessionInfo {
+  SessionInfo();
+  SessionInfo(const SessionInfo&);
+  SessionInfo(SessionInfo&&);
+  SessionInfo& operator=(const SessionInfo&);
+  SessionInfo& operator=(SessionInfo&&);
+  ~SessionInfo();
+
+  std::optional<JingleAuthentication> authentication;
+};
+
+struct SessionTerminate {
+  SessionTerminate();
+  SessionTerminate(const SessionTerminate&);
+  SessionTerminate(SessionTerminate&&);
+  SessionTerminate& operator=(const SessionTerminate&);
+  SessionTerminate& operator=(SessionTerminate&&);
+  ~SessionTerminate();
+
+  enum class Reason {
+    kUnspecified,
+    kSuccess,
+    kDecline,
+    kCancel,
+    kExpired,
+    kGeneralError,
+    kFailedApplication,
+    kIncompatibleParameters,
+    kUnknownReason,
+  };
+
+  Reason reason = Reason::kUnspecified;
+  std::string error_code;
+  std::string error_details;
+  std::string error_location;
+};
+
+struct JingleMessage {
+  enum class ActionType {
+    kUnknownAction,
+    kSessionInitiate,
+    kSessionAccept,
+    kSessionTerminate,
+    kSessionInfo,
+    kTransportInfo,
   };
 
   JingleMessage();
@@ -62,26 +298,32 @@ struct JingleMessage {
 
   SignalingAddress from;
   SignalingAddress to;
-  ActionType action = UNKNOWN_ACTION;
+  // TODO: joedow - Replace `action` with a helper based on the `payload` type.
+  ActionType action = ActionType::kUnknownAction;
   std::string sid;
 
   std::string initiator;
 
   std::unique_ptr<ContentDescription> description;
 
-  std::unique_ptr<jingle_xmpp::XmlElement> transport_info;
+  // Structured data replacements for XML payloads.
+  using Payload = std::variant<std::monostate,
+                               SessionInitiate,
+                               SessionAccept,
+                               SessionInfo,
+                               JingleTransportInfo,
+                               SessionTerminate>;
+  Payload payload;
 
-  // Content of session-info messages.
-  std::unique_ptr<jingle_xmpp::XmlElement> info;
-
-  // Content of plugin message. The node is read or written by all plugins, and
-  // ActionType independent.
-  std::unique_ptr<jingle_xmpp::XmlElement> attachments;
+  // Legacy XML-based payloads, maintained for backward compatibility.
+  std::unique_ptr<jingle_xmpp::XmlElement> transport_info_legacy;
+  std::unique_ptr<jingle_xmpp::XmlElement> info_legacy;
+  std::unique_ptr<jingle_xmpp::XmlElement> attachments_legacy;
 
   // Value from the <reason> tag if it is present in the
   // message. Useful mainly for session-terminate messages, but Jingle
   // spec allows it in any message.
-  Reason reason = UNKNOWN_REASON;
+  SessionTerminate::Reason reason = SessionTerminate::Reason::kUnspecified;
 
   // Value from the <google:remoting:error-code> tag if it is present in the
   // message. Useful mainly for session-terminate messages. If it's UNKNOWN,
@@ -127,37 +369,6 @@ struct JingleMessageReply {
   ReplyType type;
   ErrorType error_type;
   std::string text;
-};
-
-struct IceTransportInfo {
-  IceTransportInfo();
-  ~IceTransportInfo();
-  struct NamedCandidate {
-    NamedCandidate() = default;
-    NamedCandidate(const std::string& name, const webrtc::Candidate& candidate);
-
-    std::string name;
-    webrtc::Candidate candidate;
-  };
-
-  struct IceCredentials {
-    IceCredentials() = default;
-    IceCredentials(std::string channel,
-                   std::string ufrag,
-                   std::string password);
-
-    std::string channel;
-    std::string ufrag;
-    std::string password;
-  };
-
-  // Caller keeps ownership of |stanza|. |error| is set to debug error
-  // message when parsing fails.
-  bool ParseXml(const jingle_xmpp::XmlElement* stanza);
-  std::unique_ptr<jingle_xmpp::XmlElement> ToXml() const;
-
-  std::list<IceCredentials> ice_credentials;
-  std::list<NamedCandidate> candidates;
 };
 
 }  // namespace remoting::protocol

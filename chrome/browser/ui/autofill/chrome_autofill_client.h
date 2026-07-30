@@ -180,7 +180,8 @@ class ChromeAutofillClient : public ContentAutofillClient {
   void UpdateAutofillSuggestions(
       const std::vector<Suggestion>& suggestions,
       FillingProduct main_filling_product,
-      AutofillSuggestionTriggerSource trigger_source) final;
+      AutofillSuggestionTriggerSource trigger_source,
+      AutofillSuggestionsIgnoreFocusLoss ignore_focus_loss) final;
   void HideAutofillSuggestions(SuggestionHidingReason reason) final;
   void TriggerUserPerceptionOfAutofillSurvey(
       FillingProduct filling_product,
@@ -235,8 +236,10 @@ class ChromeAutofillClient : public ContentAutofillClient {
   void ShowEntityImportBubble(
       EntityInstance new_entity,
       std::optional<EntityInstance> old_entity,
-      EntityImportPromptResultCallback prompt_result_callback) override;
-  void CloseEntityImportBubble() override;
+      bool save_is_synchronous,
+      EntityImportPromptResultCallback prompt_result_callback) final;
+  void CloseEntityImportBubble() final;
+  void ShowAutofillAiLocalSaveNotification() final;
   void ShowEmailVerifiedToast() final;
 
   // TODO(crbug.com/407666146): Create a test API.

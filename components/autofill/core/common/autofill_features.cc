@@ -369,6 +369,11 @@ BASE_FEATURE(kAutofillAndroidKeyboardAccessoryDynamicPositioning,
 BASE_FEATURE(kAutofillBetterLocalHeuristicPlaceholderSupport,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, our `FormEventLogger` will start emitting events for fields
+// annotated with an unrecognized HTML "autocomplete" attribute.
+BASE_FEATURE(kAutofillConsiderAutocompleteUnrecognizedFieldsInMetrics,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Same as `kAutofillAddressUserPerceptionSurvey` but for credit card forms.
 BASE_FEATURE(kAutofillCreditCardUserPerceptionSurvey,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -734,6 +739,11 @@ BASE_FEATURE_PARAM(int,
 BASE_FEATURE(kAutofillMoveSmallFormLogicToClient,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
+// If enabled, more patterns are added to the PHONE_COUNTRY_CODE regex.
+// TODO(crbug.com/479503511): Remove once launched.
+BASE_FEATURE(kAutofillNewRegexForPhoneCountryCode,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // If enabled, the new suggestion generation logic is used.
 // TODO(crbug.com/409962888): Remove once launched.
 BASE_FEATURE(kAutofillNewSuggestionGeneration,
@@ -924,6 +934,11 @@ BASE_FEATURE(kAutofillUseNegativePatternForAllAttributes,
 BASE_FEATURE(kAutofillUseStructuralSignatureInsteadOfSecondary,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
+// Kill switch for a race-condition fix to make it a safer merge.
+// TODO(crbug.com/474706752): Clean up after M146 branchpoint (Feb 10 2026).
+BASE_FEATURE(kAutofillWebDataBackendImplRaceConditionFix,
+             base::FEATURE_ENABLED_BY_DEFAULT);
+
 // When enabled, the field classification model uses runtime caching to not run
 // models on the same inputs multiple times.
 // TODO(crbug.com/371933424). Clean up when launched, if not used for Autofill
@@ -1007,6 +1022,12 @@ BASE_FEATURE(kPlusAddressUserDidChoosePlusAddressOverEmailSurvey,
 // autocomplete attribute if they are already autofilled.
 BASE_FEATURE(kShowSugesstionsOnAlreadyAutofilledUnrecognized,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+// When enabled, "Manage information" menu item for enhanced autofill will
+// redirect user either to "/travel" or "/identityDocs" pages instead of
+// "/yourSavedInfo" always.
+BASE_FEATURE(kSuggestionManageButtonSplitForEnhancedAutofill,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 // When enabled, the address add/edit editor in the payments request would be
 // removed and instead, the address editor from the settings will be used.

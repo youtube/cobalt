@@ -688,6 +688,7 @@ _CONFIG = [
             'cc::EventListenerClass',
             'cc::EventListenerProperties',
             'cc::HitTestOpaqueness',
+            'cc::WebVitalMetricType',
             'cc::HORIZONTAL',
             'cc::THUMB',
             'cc::TRACK_BUTTONS_TICKMARKS',
@@ -852,10 +853,6 @@ _CONFIG = [
             'net::CookiePriority',
             'net::CookieSameSite',
             'net::CookieSourceScheme',
-
-            # Cookie prefix feature flags.
-            'net::features::kPrefixCookieHttp',
-            'net::features::kPrefixCookieHostHttp',
 
             # Net error codes
             'net::OK',

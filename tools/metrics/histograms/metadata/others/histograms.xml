@@ -70,7 +70,7 @@ chromium-metrics-reviews@google.com.
   <variant name=".TransportSecurityPersister"
       summary="TransportSecurity state file"/>
   <variant name=".TrustedVault" summary="Trusted Vault file"/>
-  <variant name=".VariationsSeedsV1" summary="Variations seeds data files"/>
+  <variant name=".VariationsSeedsV2" summary="Variations seeds files"/>
 </variants>
 
 <variants name="InterestGroupRequestType">
@@ -3138,7 +3138,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ComponentUpdater.Calls" enum="ComponentUpdaterCalls"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>sorin@chromium.org</owner>
   <owner>src/components/component_updater/OWNERS</owner>
   <summary>
@@ -3394,7 +3394,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DirectSockets.TCPReadableStreamError" enum="NetErrorCodes"
-    expires_after="2026-04-26">
+    expires_after="2026-08-02">
   <owner>greengrape@google.com</owner>
   <owner>iwa-team@google.com</owner>
   <summary>How often tcp socket readable stream is errored.</summary>
@@ -3473,7 +3473,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="DocumentScan.ScanFailed" enum="DocumentScanSaneBackend"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>bmgordon@chromium.org</owner>
   <owner>project-bolton@google.com</owner>
   <summary>
@@ -3609,7 +3609,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.AppStream.LaunchAttempt" enum="AppStreamLaunchEntryPoint"
-    expires_after="2026-05-30">
+    expires_after="2026-08-02">
   <owner>crisrael@google.com</owner>
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3667,7 +3667,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.MultiDeviceFeatureState" enum="MultiDevice_FeatureState"
-    expires_after="2026-05-30">
+    expires_after="2026-08-02">
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
   <summary>
@@ -3700,7 +3700,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.Onboarding.UserAction" enum="OnboardingUserActionMetric"
-    expires_after="2026-05-30">
+    expires_after="2026-08-02">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>samchiu@google.com</owner>
@@ -3711,7 +3711,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.StreamEvent" enum="StreamState"
-    expires_after="2026-05-30">
+    expires_after="2026-08-02">
   <owner>crisrael@google.com</owner>
   <owner>exo-core-eng@google.com</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -3811,7 +3811,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Eche.UniqueAppsStreamed.PerDay" units="count"
-    expires_after="2026-05-30">
+    expires_after="2026-08-02">
   <owner>crisrael@google.com</owner>
   <owner>jonmann@chromium.org</owner>
   <owner>chromeos-cross-device-eng@google.com</owner>
@@ -4190,7 +4190,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Feedback.HappinessTrackingSurvey.{SurveyName}"
-    enum="HappinessTrackingSurvey" expires_after="2026-01-04">
+    enum="HappinessTrackingSurvey" expires_after="2026-07-26">
   <owner>zhouzj@google.com</owner>
   <owner>msramek@google.com</owner>
   <summary>
@@ -4198,6 +4198,7 @@ chromium-metrics-reviews@google.com.
     survey and when a user answers any question on a HaTS survey.
   </summary>
   <token key="SurveyName">
+    <variant name="BeforeFirstRunDesktopRefreshSurvey"/>
     <variant name="PerformanceControlsPPMSurvey"/>
     <variant name="PrivacySandboxSentimentSurvey"/>
   </token>
@@ -4828,6 +4829,17 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
+<histogram name="Gamepad.UsbDeviceOpenMacResult"
+    enum="GamepadUsbDeviceOpenMacResult" expires_after="2027-01-12">
+  <owner>robpitkin@google.com</owner>
+  <owner>mattreynolds@google.com</owner>
+  <owner>deviceapi-team@google.com</owner>
+  <summary>
+    Records the result of opening a USB Xbox gamepad on macOS. This helps
+    diagnose issues where Chrome fails to get exclusive access to the device.
+  </summary>
+</histogram>
+
 <histogram name="Gamepad.ValidSharedMemoryHandle" enum="HandleValidity"
     expires_after="2024-05-12">
   <owner>mattreynolds@google.com</owner>
@@ -5314,7 +5326,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Mojo.Channel.WriteToReadLatencyUs" units="microseconds"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>lizeb@chromium.org</owner>
   <owner>rockot@google.com</owner>
   <improvement direction="LOWER_IS_BETTER"/>
@@ -6026,6 +6038,19 @@ chromium-metrics-reviews@google.com.
     retrieval, recording an enum of whether the item was found, not found, or an
     error occurred. In the case of an error occurring, the actual error returned
     by the API will be recorded in OSCrypt.Mac.FindGenericPasswordError.
+  </summary>
+</histogram>
+
+<histogram name="OSCrypt.Mac.SuccessAfterPreviousError"
+    enum="MacSecurityFrameworkOSStatus" expires_after="2026-06-07">
+  <owner>thestig@chromium.org</owner>
+  <owner>thomasanderson@chromium.org</owner>
+  <owner>wfh@chromium.org</owner>
+  <summary>
+    Logged when a Keychain operation successfully retrieves or adds a password
+    after a previous operation in the same browser lifetime resulted in an
+    error. The logged value is the OSStatus of the *previous* error. This helps
+    track which errors are transient and can be successfully recovered from.
   </summary>
 </histogram>
 
@@ -6858,7 +6883,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ReadingList.Read.Number" units="count"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
   <summary>Number of read entries in reading list.</summary>
@@ -8031,7 +8056,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SSORecallPromo.PromoAction" enum="SSOPromoUserAction"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -8040,7 +8065,7 @@ useful for Chirp alerts (go/crca-alerts). -->
 </histogram>
 
 <histogram name="SSORecallPromo.PromoSeenCount" units="units"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>jlebel@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -8583,7 +8608,7 @@ should be kept until we use this API.  -->
 </histogram>
 
 <histogram name="UpdateClient.Component.Updated" enum="Boolean"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>noahrose@google.com</owner>
   <owner>sorin@chromium.org</owner>
   <owner>waffles@chromium.org</owner>

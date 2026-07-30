@@ -370,6 +370,7 @@
 <translation id="2306265833370324042"><ph name="SEARCH_ENGINE_NAME" />-ის დეტალური ინფორმაციის ჩვენება</translation>
 <translation id="2309265394777270359">ჩანართის დახურვა</translation>
 <translation id="2311077293164383652">ჩამაგრებული ჩანართის დახურვა</translation>
+<translation id="2313392466694008052">სურათის რედაქტირება Gemini-ს მეშვეობით</translation>
 <translation id="2316129865977710310">არა, გმადლობთ</translation>
 <translation id="2320166752086256636">კლავიატურის დამალვა</translation>
 <translation id="2321086116217818302">მიმდინარეობს პაროლების მომზადება…</translation>
@@ -521,6 +522,7 @@
 <translation id="288655811176831528">ჩანართის დახურვა</translation>
 <translation id="2888631381369839306">ფასისთვის თვალის მიდევნების შეტყობინებები ჩართულია</translation>
 <translation id="2893168226686371498">ნაგულისხმევი ბრაუზერი</translation>
+<translation id="2893791155497534382">პაროლებისა და სხვა აქტივობის წაშლა შესაძლებელია მათი მართვის პარამეტრებიდან</translation>
 <translation id="2894757982205307093">ახალი ჩანართი ჯგუფში</translation>
 <translation id="2902312830803030883">სხვა ქმედებები</translation>
 <translation id="2904788871580817212">ფასის დაწევა თქვენს გახსნილ ჩანართში, <ph name="PREVIOUS_PRICE" />-დან <ph name="PRICE" />-მდე, <ph name="PRODUCT_NAME" />, <ph name="DOMAIN" /></translation>
@@ -580,6 +582,7 @@
 <translation id="3143515551205905069">სინქრონიზაციის გაუქმება</translation>
 <translation id="3144126448740580210">მზადაა</translation>
 <translation id="3148052723910099040">ჩვეულებრივი ჩანართის ბადე</translation>
+<translation id="3148237711805373460">გადასვლა</translation>
 <translation id="3157387275655328056">საკითხავ სიაში დამატება</translation>
 <translation id="315778507796115851">ისტორია</translation>
 <translation id="31652791196570636">დახურვა</translation>
@@ -1297,6 +1300,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="5768870767339201169">გააგრძელეთ იქიდან, სადაც შეჩერდით</translation>
 <translation id="5779117921996157216">{count,plural, =1{{count} გატეხილი პაროლი გაქვთ, რაც თქვენი უსაფრთხოებისთვის რისკის შემცველია. უსაფრთხოების მიზნით, გამოასწორეთ ეს პრობლემა.}other{{count} გატეხილი პაროლი გაქვთ, რაც თქვენი უსაფრთხოებისთვის რისკის შემცველია. უსაფრთხოების მიზნით, გამოასწორეთ ეს პრობლემა.}}</translation>
 <translation id="5791632441210678828">დალაგების ღილაკი თვალმიდევნებულთა არხისთვის.</translation>
+<translation id="5799263916847593256">გახსენით ფასების ისტორიის სანახავად</translation>
 <translation id="5803566855766646066">ნამდვილად გსურთ ამ ახალი ბარათის გაუქმება?</translation>
 <translation id="5804241973901381774">ნებართვები</translation>
 <translation id="58081802114142635">თქვენი აქტივობა ხელს უწყობს Google-ის ხელოვნური ინტელექტის გაუმჯობესებას</translation>
@@ -1523,6 +1527,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="6556866813142980365">გამეორება</translation>
 <translation id="6559301491397835130">{count,plural, =1{სანიშნე შენახულია „{title}“-ში. ის შენახულია მხოლოდ ამ მოწყობილობაზე.}other{სანიშნეები შენახულია „{title}“-ში. ისინი შენახულია მხოლოდ ამ მოწყობილობაზე.}}</translation>
 <translation id="656065428026159829">მეტის ნახვა</translation>
+<translation id="6565899972286925956">შექმენით ნებისმიერი რამ</translation>
 <translation id="6571070086367343653">საკრედიტო ბარათის რედაქტირება</translation>
 <translation id="6574092468346088891">უსაფრთხოების შემოწმების შეტყობინებების ჩართვა</translation>
 <translation id="6579867704846662339">სურვილისამებრ, შეგიძლიათ აირჩიოთ სხვა აპებიდან შემომავალი URL-ების გახსნა ინკოგნიტო რეჟიმში.</translation>
@@ -1633,11 +1638,13 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="6930799952781667037">შეეხეთ ამ ენის შესაცვლელად.</translation>
 <translation id="693761253105515415">დააყენეთ საიდუმლო კოდი</translation>
 <translation id="6945221475159498467">არჩევა</translation>
+<translation id="6946722113367118030">ფიქრი</translation>
 <translation id="6950522403736391608">დამალული</translation>
 <translation id="6962809930976936328">მიიღეთ ანალიზი Gemini-ს გამოყენებით</translation>
 <translation id="6964300328304469089"><ph name="NAME" />, ამჟამად არჩეულია <ph name="EMAIL" />. აირჩიეთ ანგარიში.</translation>
 <translation id="6964760285928603117">ჯგუფიდან ამოშლა</translation>
 <translation id="6965382102122355670">კარგი</translation>
+<translation id="6967355534157677591">სურათის შექმნა პროფესიონალურად</translation>
 <translation id="6973630695168034713">ფოლდერები</translation>
 <translation id="6979158407327259162">Google Drive</translation>
 <translation id="6979737339423435258">ყველა დროის</translation>
@@ -1975,6 +1982,7 @@ Handoff ასევე უნდა იყოს ჩართული პა�
 <translation id="8205564605687841303">გაუქმება</translation>
 <translation id="8206354486702514201">ეს პარამეტრი იძულებითაა დაყენებული თქვენი ადმინისტრატორის მიერ.</translation>
 <translation id="8209050860603202033">გამოსახულების გახსნა</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> მოდელები</translation>
 <translation id="8211030355252954494">თქვენ მიიღეთ პაროლები <ph name="WEBSITE" />-ისთვის</translation>
 <translation id="8211406090763984747">კავშირი დაცულია</translation>
 <translation id="8214293972734702249">ჩამაგრებული, <ph name="TAB_TITLE" /></translation>

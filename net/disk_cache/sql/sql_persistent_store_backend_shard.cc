@@ -26,8 +26,13 @@ SqlPersistentStore::BackendShard::BackendShard(
     ShardId shard_id,
     const base::FilePath& path,
     net::CacheType type,
+    scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor,
     scoped_refptr<base::SequencedTaskRunner> background_task_runner)
-    : backend_(background_task_runner, shard_id, path, type) {}
+    : backend_(background_task_runner,
+               shard_id,
+               path,
+               type,
+               std::move(read_cache_memory_monitor)) {}
 
 SqlPersistentStore::BackendShard::~BackendShard() = default;
 
@@ -192,41 +197,32 @@ void SqlPersistentStore::BackendShard::UpdateEntryLastUsedByKey(
       .Then(WrapCallback(std::move(callback)));
 }
 
-void SqlPersistentStore::BackendShard::UpdateEntryLastUsedByResId(
-    ResId res_id,
-    base::Time last_used,
-    ErrorCallback callback) {
-  backend_.AsyncCall(&SqlPersistentStore::Backend::UpdateEntryLastUsedByResId)
-      .WithArgs(res_id, last_used, base::TimeTicks::Now())
-      .Then(WrapCallback(std::move(callback)));
-}
-
-void SqlPersistentStore::BackendShard::UpdateEntryHeaderAndLastUsed(
+void SqlPersistentStore::BackendShard::WriteEntryDataAndMetadata(
     const CacheEntryKey& key,
     ResId res_id,
+    std::optional<int64_t> old_body_end,
+    EntryWriteBuffer buffer,
     base::Time last_used,
     const std::optional<MemoryEntryDataHints>& new_hints,
-    scoped_refptr<net::IOBuffer> buffer,
+    scoped_refptr<net::IOBuffer> head_buffer,
     int64_t header_size_delta,
     ErrorCallback callback) {
-  backend_.AsyncCall(&SqlPersistentStore::Backend::UpdateEntryHeaderAndLastUsed)
-      .WithArgs(key, res_id, last_used, new_hints, std::move(buffer),
-                header_size_delta, base::TimeTicks::Now())
+  backend_.AsyncCall(&SqlPersistentStore::Backend::WriteEntryDataAndMetadata)
+      .WithArgs(key, res_id, old_body_end, std::move(buffer), last_used,
+                new_hints, std::move(head_buffer), header_size_delta,
+                base::TimeTicks::Now())
       .Then(WrapCallbackWithStoreStatus(std::move(callback)));
 }
 
-void SqlPersistentStore::BackendShard::WriteEntryData(
-    const CacheEntryKey& key,
-    ResId res_id,
-    int64_t old_body_end,
-    int64_t offset,
-    scoped_refptr<net::IOBuffer> buffer,
-    int buf_len,
-    bool truncate,
-    ErrorCallback callback) {
+void SqlPersistentStore::BackendShard::WriteEntryData(const CacheEntryKey& key,
+                                                      ResId res_id,
+                                                      int64_t old_body_end,
+                                                      EntryWriteBuffer buffer,
+                                                      bool truncate,
+                                                      ErrorCallback callback) {
   backend_.AsyncCall(&SqlPersistentStore::Backend::WriteEntryData)
-      .WithArgs(key, res_id, old_body_end, offset, std::move(buffer), buf_len,
-                truncate, base::TimeTicks::Now())
+      .WithArgs(key, res_id, old_body_end, std::move(buffer), truncate,
+                base::TimeTicks::Now())
       .Then(WrapCallbackWithStoreStatus(std::move(callback)));
 }
 
@@ -238,7 +234,7 @@ void SqlPersistentStore::BackendShard::ReadEntryData(
     int buf_len,
     int64_t body_end,
     bool sparse_reading,
-    SqlPersistentStore::IntOrErrorCallback callback) {
+    SqlPersistentStore::ReadResultOrErrorCallback callback) {
   backend_.AsyncCall(&SqlPersistentStore::Backend::ReadEntryData)
       .WithArgs(key, res_id, offset, std::move(buffer), buf_len, body_end,
                 sparse_reading, base::TimeTicks::Now())

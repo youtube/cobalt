@@ -19,6 +19,7 @@ import org.chromium.chrome.browser.tabmodel.NextTabPolicy;
 import org.chromium.chrome.browser.tabmodel.NextTabPolicy.NextTabPolicySupplier;
 import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabModelSelectorImpl;
+import org.chromium.chrome.browser.tabmodel.TabModelType;
 import org.chromium.chrome.browser.tabmodel.TabPersistencePolicy;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStore;
 import org.chromium.chrome.browser.tabmodel.TabPersistentStoreImpl;
@@ -32,7 +33,7 @@ import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
     public CustomTabsTabModelOrchestrator() {}
 
-    public static final String CUSTOM_WINDOW_PREFIX =
+    private static final String CUSTOM_WINDOW_PREFIX =
             TabPersistentStoreImpl.CLIENT_TAG_CUSTOM + "_";
 
     /** Creates the TabModelSelector and the TabPersistentStore. */
@@ -57,6 +58,7 @@ public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
                         asyncTabParamsManager,
                         false,
                         activityType,
+                        TabModelType.STANDARD,
                         false);
 
         TabWindowManager tabWindowManager = TabWindowManagerSingleton.getInstance();
@@ -68,10 +70,12 @@ public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
         mTabPersistentStore =
                 buildAuthoritativeStore(
                         TabPersistentStoreImpl.CLIENT_TAG_CUSTOM,
+                        /* migrationManager= */ null,
                         mTabPersistencePolicy,
                         mTabModelSelector,
                         tabCreatorManager,
                         tabWindowManager,
+                        getCustomTabsWindowTag(activity.getTaskId()),
                         cipherFactory,
                         /* recordLegacyTabCountMetrics= */ true);
 
@@ -85,5 +89,14 @@ public class CustomTabsTabModelOrchestrator extends TabModelOrchestrator {
         TabWindowManagerSingleton.getInstance()
                 .unregisterCustomTabsTabModelSelector(mTabModelSelector);
         super.destroy();
+    }
+
+    /**
+     * Get the window tag for a custom tab.
+     *
+     * @param taskId The task ID for the activity the orchestrator is associated with.
+     */
+    public static String getCustomTabsWindowTag(int taskId) {
+        return CUSTOM_WINDOW_PREFIX + taskId;
     }
 }

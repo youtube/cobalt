@@ -18,9 +18,13 @@ String GetToolErrorMessage(WebDocument::ScriptToolError error) {
       return "Tool was not executed due to invalid name.";
     case WebDocument::ScriptToolError::kInvalidInputArguments:
       return "Tool was not executed due to invalid input arguments.";
+    case WebDocument::ScriptToolError::kMissingRequiredSubmitButton:
+      return "Tool was not executed due to missing required submit button.";
     case WebDocument::ScriptToolError::kToolInvocationFailed:
       return "Tool was executed but the invocation failed. For example, the "
              "script function threw an error.";
+    case WebDocument::ScriptToolError::kToolCancelled:
+      return "Tool was cancelled.";
   }
   NOTREACHED();
 }
@@ -88,6 +92,29 @@ void ModelContextTesting::registerToolsChangedCallback(
   tools_changed_callback_ = callback;
   model_context_->SetToolsChangedCallback(blink::BindRepeating(
       &ModelContextTesting::OnToolsChanged, WrapWeakPersistent(this)));
+}
+
+ScriptPromise<IDLString> ModelContextTesting::getCrossDocumentScriptToolResult(
+    ScriptState* script_state) {
+  auto* resolver =
+      MakeGarbageCollected<ScriptPromiseResolver<IDLString>>(script_state);
+
+  ScriptPromise promise = resolver->Promise();
+
+  auto callback = [](ScriptPromiseResolver<IDLString>* resolver,
+                     String result) {
+    if (!resolver->GetScriptState() ||
+        !resolver->GetScriptState()->ContextIsValid()) {
+      return;
+    }
+
+    resolver->Resolve(result);
+  };
+
+  model_context_->GetCrossDocumentScriptToolResult(
+      blink::BindOnce(callback, WrapPersistent(resolver)));
+
+  return promise;
 }
 
 void ModelContextTesting::OnToolsChanged() {

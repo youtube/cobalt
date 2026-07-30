@@ -902,7 +902,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="ProfilePicker.FirstRun.OrganizationAvailableTiming" units="ms"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>dgn@chromium.org</owner>
   <owner>chrome-signin-team@google.com</owner>
   <summary>
@@ -1071,6 +1071,17 @@ chromium-metrics-reviews@google.com.
     Records the total flow duration. The value is emitted when the flow is
     completed or aborted.
 
+    {ProfilePickerFlowType}
+  </summary>
+</histogram>
+
+<histogram name="ProfilePicker.{ProfilePickerFlowType}.SignInError"
+    enum="SigninUIErrorType" expires_after="2026-08-01">
+  <owner>anthie@google.com</owner>
+  <owner>rsult@google.com</owner>
+  <owner>chrome-signin-team@google.com</owner>
+  <summary>
+    Records the error type when there is an error during the sign-in flow.
     {ProfilePickerFlowType}
   </summary>
 </histogram>

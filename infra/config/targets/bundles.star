@@ -553,6 +553,29 @@ targets.bundle(
     },
 )
 
+# Android desktop tests that run on a Linux host. These are necessary for now
+# as some junit tests are behind desktop GN args, e.g. gated on
+# enable_extensions_core.
+targets.bundle(
+    name = "android_desktop_junit_tests",
+    targets = [
+        "chrome_junit_tests",
+    ],
+    mixins = [
+        "has_native_resultdb_integration",
+        "junit-swarming-emulator",
+        "linux-jammy",
+        "x86-64",
+    ],
+    per_test_modifications = {
+        "chrome_junit_tests": targets.mixin(
+            swarming = targets.swarming(
+                shards = 10,
+            ),
+        ),
+    },
+)
+
 targets.bundle(
     name = "android_emulator_specific_chrome_public_tests",
     targets = [
@@ -1874,6 +1897,7 @@ targets.bundle(
             ],
             mixins = [
                 targets.mixin(
+                    ci_only = True,
                     swarming = targets.swarming(
                         shards = 10,
                     ),
@@ -6800,6 +6824,101 @@ targets.bundle(
     targets = [
         "test_traffic_annotation_auditor",
     ],
+)
+
+targets.bundle(
+    name = "trees_in_viz_disabled_tests",
+    targets = [
+        "cc_unittests",
+        "viz_unittests",
+        "blink_web_tests",
+        "content_browsertests",
+        "browser_tests",
+    ],
+    per_test_modifications = {
+        "cc_unittests": targets.mixin(
+            args = ["--disable-features=TreesInViz"],
+        ),
+        "viz_unittests": targets.mixin(
+            args = ["--disable-features=TreesInViz"],
+        ),
+        "blink_web_tests": targets.mixin(
+            args = ["--additional-driver-flag=--disable-features=TreesInViz"],
+        ),
+        "content_browsertests": targets.mixin(
+            args = ["--disable-features=TreesInViz"],
+            swarming = targets.swarming(
+                shards = 8,
+            ),
+        ),
+        "browser_tests": targets.mixin(
+            args = ["--disable-features=TreesInViz"],
+            swarming = targets.swarming(
+                shards = 20,
+            ),
+        ),
+    },
+)
+
+targets.bundle(
+    name = "trees_in_viz_enabled_tests",
+    targets = [
+        "cc_unittests",
+        "viz_unittests",
+        "blink_web_tests",
+        "content_browsertests",
+        "browser_tests",
+    ],
+    per_test_modifications = {
+        "cc_unittests": targets.mixin(
+            args = ["--enable-features=TreesInViz"],
+        ),
+        "viz_unittests": targets.mixin(
+            args = ["--enable-features=TreesInViz"],
+        ),
+        "blink_web_tests": targets.mixin(
+            args = ["--additional-driver-flag=--enable-features=TreesInViz"],
+        ),
+        "content_browsertests": targets.mixin(
+            args = ["--enable-features=TreesInViz"],
+            swarming = targets.swarming(
+                shards = 8,
+            ),
+        ),
+        "browser_tests": targets.mixin(
+            args = ["--enable-features=TreesInViz"],
+            swarming = targets.swarming(
+                shards = 20,
+            ),
+        ),
+    },
+)
+
+targets.bundle(
+    name = "trees_in_viz_enabled_tests_android",
+    targets = [
+        "cc_unittests",
+        "viz_unittests",
+        "content_browsertests",
+        "android_browsertests",
+    ],
+    mixins = [
+        targets.mixin(
+            args = ["--enable-features=TreesInViz"],
+        ),
+    ],
+    per_test_modifications = {
+        "android_browsertests": targets.mixin(
+            swarming = targets.swarming(
+                shards = 20,
+            ),
+        ),
+        "content_browsertests": targets.mixin(
+            swarming = targets.swarming(
+                shards = 8,
+            ),
+        ),
+    },
 )
 
 targets.bundle(

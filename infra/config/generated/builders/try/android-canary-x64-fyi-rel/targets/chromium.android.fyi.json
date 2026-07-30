@@ -3906,6 +3906,7 @@
         "args": [
           "--avd-config=../../tools/android/avd/proto/android_canary_google_apis_x64.textpb"
         ],
+        "ci_only": true,
         "description": "Run with android_canary_google_apis_x64",
         "merge": {
           "script": "//testing/merge_scripts/standard_isolated_script_merge.py"

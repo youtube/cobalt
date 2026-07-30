@@ -32,17 +32,13 @@ BASE_FEATURE(kContextualTasksContextLibrary, base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kContextualTasksContextLogging, base::FEATURE_DISABLED_BY_DEFAULT);
 
 // Enables context menu settings for contextual tasks.
-BASE_FEATURE(kContextualTasksContextMenu,
-             "ContextualTasksContextMenu",
-             base::FEATURE_ENABLED_BY_DEFAULT);
+BASE_FEATURE(kContextualTasksContextMenu, base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Enables suggestions for contextual tasks.
 BASE_FEATURE(kContextualTasksSuggestionsEnabled,
-             "ContextualTasksSuggestionsEnabled",
              base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kContextualTasksShowOnboardingTooltip,
-             "ContextualTasksShowOnboardingTooltip",
              base::FEATURE_ENABLED_BY_DEFAULT);
 
 // Overrides the value of EntryPointEligibilitymanager::IsEligible to true.
@@ -55,6 +51,9 @@ BASE_FEATURE(kContextualTasksForceCountryCodeUS,
 
 BASE_FEATURE(kContextualTasksRemoveTasksWithoutThreadsOrTabAssociations,
              base::FEATURE_ENABLED_BY_DEFAULT);
+
+BASE_FEATURE(kEnableNotifyZeroStateRenderedCapability,
+             base::FEATURE_DISABLED_BY_DEFAULT);
 
 const base::FeatureParam<bool> kOnlyUseTitlesForSimilarity(
     &kContextualTasksContext,
@@ -184,6 +183,11 @@ const base::FeatureParam<bool> kEnableContextualTasksSmartCompose(
     "ContextualTasksEnableContextualTasksSmartCompose",
     true);
 
+const base::FeatureParam<bool> kContextualTasksEnableNativeZeroStateSuggestions(
+    &kContextualTasks,
+    "ContextualTasksEnableNativeZeroStateSuggestions",
+    false);
+
 int GetContextualTasksShowOnboardingTooltipSessionImpressionCap() {
   if (!base::FeatureList::IsEnabled(kContextualTasksShowOnboardingTooltip)) {
     return 0;
@@ -311,6 +315,10 @@ std::string GetContextualTasksHelpUrl() {
 bool GetEnableContextualTasksSmartCompose() {
   return base::FeatureList::IsEnabled(kContextualTasks) &&
          kEnableContextualTasksSmartCompose.Get();
+}
+
+bool GetEnableNativeZeroStateSuggestions() {
+  return kContextualTasksEnableNativeZeroStateSuggestions.Get();
 }
 
 bool ShouldUseSearchResultsScope() {

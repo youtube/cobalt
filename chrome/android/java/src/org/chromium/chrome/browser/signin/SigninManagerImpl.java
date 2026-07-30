@@ -140,9 +140,12 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         mAccountManagerFacade = AccountManagerFacadeProvider.getInstance();
         mAccountManagerFacade.addObserver(this);
         var accountsPromise = mAccountManagerFacade.getAccounts();
-        if (accountsPromise.isFulfilled()
-                && (mAccountManagerFacade.didAccountFetchSucceed()
-                        || !accountsPromise.getResult().isEmpty())) {
+        if (SigninFeatureMap.isEnabled(SigninFeatures.SIGNIN_MANAGER_SEEDING_FIX)) {
+            if (accountsPromise.isFulfilled()) {
+                onCoreAccountInfosChanged();
+            }
+        } else if (accountsPromise.isFulfilled()
+                && (didAccountFetchSucceed() || !accountsPromise.getResult().isEmpty())) {
             seedThenReloadAllAccountsFromSystem(
                     mAccountManagerFacade.getAccounts().getResult(),
                     CoreAccountInfo.getIdFrom(
@@ -170,7 +173,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
         var accountsPromise = mAccountManagerFacade.getAccounts();
         assert accountsPromise.isFulfilled();
         List<AccountInfo> accounts = accountsPromise.getResult();
-        if (!mAccountManagerFacade.didAccountFetchSucceed() && accounts.isEmpty()) {
+        if (!didAccountFetchSucceed() && accounts.isEmpty()) {
             // If the account fetch did not succeed, the AccountManagerFacade falls back to an empty
             // list. Do nothing when this is the case.
             return;
@@ -193,6 +196,7 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
             runAfterOperationInProgress(this::onCoreAccountInfosChanged);
         } else {
             // Sign out if the current primary account is no longer on the device.
+            // {@link #signOut} will trigger the re-seeding in this case.
             signOut(SignoutReason.ACCOUNT_REMOVED_FROM_DEVICE);
         }
     }
@@ -532,6 +536,15 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
 
         mIdentityMutator.removePrimaryAccountButKeepTokens(signoutSource);
 
+        if (SigninFeatureMap.isEnabled(SigninFeatures.SIGNIN_MANAGER_SEEDING_FIX)) {
+            var accountsPromise = mAccountManagerFacade.getAccounts();
+            if (accountsPromise.isFulfilled()) {
+                // If accounts are already available - we might need to re-seed them. If the primary
+                // account disappears - we trigger a sign-out instead of re-seeding immediately.
+                seedThenReloadAllAccountsFromSystem(accountsPromise.getResult(), null);
+            }
+        }
+
         notifySignOutAllowedChanged();
         disableSyncAndWipeData(this::finishSignOut);
     }
@@ -679,6 +692,11 @@ class SigninManagerImpl implements SigninManager, AccountsChangeObserver {
     public boolean getUserAcceptedAccountManagement() {
         return SigninManagerImplJni.get()
                 .getUserAcceptedAccountManagement(mNativeSigninManagerAndroid);
+    }
+
+    @Override
+    public boolean didAccountFetchSucceed() {
+        return mAccountManagerFacade.didAccountFetchSucceed();
     }
 
     private void fetchAndApplyCloudPolicy(CoreAccountInfo account, final Runnable callback) {

@@ -31,9 +31,9 @@ import org.chromium.base.CallbackController;
 import org.chromium.base.metrics.RecordUserAction;
 import org.chromium.base.supplier.MonotonicObservableSupplier;
 import org.chromium.base.supplier.NonNullObservableSupplier;
+import org.chromium.base.supplier.NullableObservableSupplier;
 import org.chromium.base.supplier.ObservableSuppliers;
 import org.chromium.base.supplier.OneshotSupplierImpl;
-import org.chromium.base.supplier.SettableNonNullObservableSupplier;
 import org.chromium.build.annotations.NullMarked;
 import org.chromium.build.annotations.Nullable;
 import org.chromium.chrome.browser.back_press.BackPressManager;
@@ -76,7 +76,6 @@ import org.chromium.components.browser_ui.accessibility.PageZoomManager;
 import org.chromium.components.browser_ui.accessibility.PageZoomUtils;
 import org.chromium.components.browser_ui.widget.gesture.BackPressHandler;
 import org.chromium.components.omnibox.AutocompleteMatch;
-import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.OmniboxFeatures;
 import org.chromium.components.omnibox.action.OmniboxActionDelegate;
 import org.chromium.components.search_engines.TemplateUrlService;
@@ -193,6 +192,7 @@ public class LocationBarCoordinator
      *     soft keyboard is not visible.
      * @param onLongClickListener for the url bar.
      * @param pageZoomManager The {@link PageZoomManager} for managing the page zoom.
+     * @param omniboxChipManager The {@link OmniboxChipManager} to show chips in the omnibox.
      */
     public LocationBarCoordinator(
             View locationBarLayout,
@@ -201,7 +201,7 @@ public class LocationBarCoordinator
             LocationBarDataProvider locationBarDataProvider,
             ActionMode.@Nullable Callback actionModeCallback,
             WindowAndroid windowAndroid,
-            Supplier<@Nullable Tab> activityTabSupplier,
+            NullableObservableSupplier<Tab> activityTabSupplier,
             Supplier<@Nullable ModalDialogManager> modalDialogManagerSupplier,
             @Nullable Supplier<ShareDelegate> shareDelegateSupplier,
             @Nullable IncognitoStateProvider incognitoStateProvider,
@@ -234,7 +234,8 @@ public class LocationBarCoordinator
             Function<Tab, @Nullable Bitmap> tabFaviconFunction,
             @Nullable MultiInstanceManager multiInstanceManager,
             SnackbarManager snackbarManager,
-            View bottomContainerView) {
+            View bottomContainerView,
+            @Nullable OmniboxChipManager omniboxChipManager) {
         mLocationBarLayout = (LocationBarLayout) locationBarLayout;
         mWindowAndroid = windowAndroid;
         mActivityLifecycleDispatcher = activityLifecycleDispatcher;
@@ -258,9 +259,6 @@ public class LocationBarCoordinator
         final boolean isIncognito =
                 incognitoStateProvider != null && incognitoStateProvider.isIncognitoSelected();
         OmniboxResourceProvider.setTabFaviconFactory(tabFaviconFunction);
-        SettableNonNullObservableSupplier<@AutocompleteRequestType Integer>
-                autocompleteRequestTypeSupplier =
-                        ObservableSuppliers.createNonNull(AutocompleteRequestType.SEARCH);
         mFuseboxCoordinator =
                 new FuseboxCoordinator(
                         context,
@@ -269,7 +267,6 @@ public class LocationBarCoordinator
                         profileObservableSupplier,
                         tabModelSelectorSupplier,
                         templateUrlServiceSupplier,
-                        autocompleteRequestTypeSupplier,
                         snackbarManager);
         NonNullObservableSupplier<Integer> fuseboxStateSupplier;
         if (OmniboxFeatures.sOmniboxMultimodalInput.isEnabled()) {
@@ -325,11 +322,11 @@ public class LocationBarCoordinator
                         tabModelSelectorSupplier,
                         browserControlsStateProvider,
                         modalDialogManagerSupplier,
-                        autocompleteRequestTypeSupplier,
                         mPageZoomIndicatorCoordinator,
                         mFuseboxCoordinator,
                         multiInstanceManager,
-                        locationBarEmbedder);
+                        locationBarEmbedder,
+                        omniboxChipManager);
         if (backPressManager != null) {
             backPressManager.addHandler(mLocationBarMediator, BackPressHandler.Type.LOCATION_BAR);
         }
@@ -875,7 +872,7 @@ public class LocationBarCoordinator
     }
 
     private void onFuseboxStateChange(@FuseboxState int state) {
-        if (!mUrlCoordinator.hasFocus()) return;
+        if (mUrlCoordinator == null || !mUrlCoordinator.hasFocus()) return;
         View addButton = mLocationBarLayout.findViewById(R.id.location_bar_attachments_add);
         if (addButton == null) return;
 
@@ -1090,9 +1087,10 @@ public class LocationBarCoordinator
         mLocationBarMediator.updateButtonBackground(backgroundResId);
     }
 
-    public NonNullObservableSupplier<@AutocompleteRequestType Integer>
-            getAutocompleteRequestTypeSupplier() {
-        return mLocationBarMediator.getAutocompleteRequestTypeSupplier();
+    public void setOnSpecializedFuseboxModeActivatedListener(
+            @Nullable Callback<Boolean> onSpecializedFuseboxModeActivatedCallback) {
+        mLocationBarMediator.setOnSpecializedFuseboxModeActivatedListener(
+                onSpecializedFuseboxModeActivatedCallback);
     }
 
     public NonNullObservableSupplier<@FuseboxState Integer> getFuseboxStateSupplier() {

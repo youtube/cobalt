@@ -61,7 +61,8 @@ class CanvasResource;
 class CanvasResourceSharedImage;
 class Canvas2DResourceProviderBitmap;
 class CanvasResourceProviderSharedImage;
-class CanvasResourceProviderSharedImageNon2D;
+class CanvasNon2DResourceProviderSharedImage;
+class Canvas2DResourceProviderSharedImage;
 class MemoryManagedPaintCanvas;
 class OffscreenCanvasRenderingContext2D;
 class StaticBitmapImage;
@@ -154,29 +155,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
                             gpu::SharedImageUsageSet shared_image_usage_flags,
                             Delegate* delegate = nullptr);
 
-  static std::unique_ptr<CanvasResourceProviderSharedImageNon2D>
-  CreateSharedImageProviderNon2D(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      ShouldInitialize initialize_provider,
-      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
-      RasterMode raster_mode,
-      gpu::SharedImageUsageSet shared_image_usage_flags,
-      Delegate* delegate = nullptr);
-
-  // Used for WebGPU-specific CanvasResourceProviders. Not for usage with
-  // Canvas2D.
-  static std::unique_ptr<CanvasResourceProviderSharedImageNon2D>
-  CreateWebGPUImageProvider(
-      gfx::Size size,
-      viz::SharedImageFormat format,
-      SkAlphaType alpha_type,
-      const gfx::ColorSpace& color_space,
-      gpu::SharedImageUsageSet shared_image_usage_flags = {},
-      Delegate* delegate = nullptr);
-
   static std::unique_ptr<CanvasResourceProviderSharedImage>
   CreateSharedImageProviderForSoftwareCompositor(
       gfx::Size size,
@@ -193,12 +171,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
                             RasterMode raster_mode,
                             gpu::SharedImageUsageSet shared_image_usage_flags,
                             Delegate* delegate = nullptr);
-
-  static std::unique_ptr<CanvasResourceProvider> CreateWebGPUImageProvider(
-      gfx::Size size,
-      const Canvas2DColorParams& color_params,
-      gpu::SharedImageUsageSet shared_image_usage_flags = {},
-      Delegate* delegate = nullptr);
 
   // The ImageOrientationEnum conveys the desired orientation of the image, and
   // should be derived from the source of the bitmap data.
@@ -224,7 +196,7 @@ class PLATFORM_EXPORT CanvasResourceProvider
     return base::ByteSize(format_.EstimatedSizeInBytes(size_));
   }
 
-  // This is supported only by CanvasResourceProviderSharedImageNon2D.
+  // This is supported only by CanvasNon2DResourceProviderSharedImage.
   scoped_refptr<StaticBitmapImage> DoExternalDrawAndSnapshot(
       base::FunctionRef<void(MemoryManagedPaintCanvas&)> draw_callback,
       ImageOrientation orientation) override {
@@ -303,9 +275,6 @@ class PLATFORM_EXPORT CanvasResourceProvider
 
   void EnsureSkiaCanvas();
 
- private:
-  friend class FlushForImageListener;
-
   template <class T>
   static std::unique_ptr<T> CreateSharedImageProviderBase(
       gfx::Size size,
@@ -317,6 +286,9 @@ class PLATFORM_EXPORT CanvasResourceProvider
       RasterMode raster_mode,
       gpu::SharedImageUsageSet shared_image_usage_flags,
       Delegate* delegate = nullptr);
+
+ private:
+  friend class FlushForImageListener;
 
   virtual sk_sp<SkSurface> CreateSkSurface() const = 0;
 
@@ -631,11 +603,22 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImage
 };
 
 // * Subclass of CanvasResourceProviderSharedImage that is specialized for usage
-// * by non-Canvas2D clients.
-class PLATFORM_EXPORT CanvasResourceProviderSharedImageNon2D
+// * by Canvas2D.
+class PLATFORM_EXPORT Canvas2DResourceProviderSharedImage
     : public CanvasResourceProviderSharedImage {
  public:
-  CanvasResourceProviderSharedImageNon2D(
+  static std::unique_ptr<Canvas2DResourceProviderSharedImage> Create(
+      gfx::Size size,
+      viz::SharedImageFormat format,
+      SkAlphaType alpha_type,
+      const gfx::ColorSpace& color_space,
+      ShouldInitialize initialize_provider,
+      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
+      RasterMode raster_mode,
+      gpu::SharedImageUsageSet shared_image_usage_flags,
+      Delegate* delegate = nullptr);
+
+  Canvas2DResourceProviderSharedImage(
       gfx::Size,
       viz::SharedImageFormat,
       SkAlphaType,
@@ -644,7 +627,43 @@ class PLATFORM_EXPORT CanvasResourceProviderSharedImageNon2D
       bool is_accelerated,
       gpu::SharedImageUsageSet shared_image_usage_flags,
       Delegate*);
-  ~CanvasResourceProviderSharedImageNon2D() override = default;
+  ~Canvas2DResourceProviderSharedImage() override = default;
+};
+
+// * Subclass of CanvasResourceProviderSharedImage that is specialized for usage
+// * by non-Canvas2D clients.
+class PLATFORM_EXPORT CanvasNon2DResourceProviderSharedImage
+    : public CanvasResourceProviderSharedImage {
+ public:
+  static std::unique_ptr<CanvasNon2DResourceProviderSharedImage> Create(
+      gfx::Size size,
+      viz::SharedImageFormat format,
+      SkAlphaType alpha_type,
+      const gfx::ColorSpace& color_space,
+      ShouldInitialize initialize_provider,
+      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
+      RasterMode raster_mode,
+      gpu::SharedImageUsageSet shared_image_usage_flags,
+      Delegate* delegate = nullptr);
+
+  static std::unique_ptr<CanvasNon2DResourceProviderSharedImage>
+  CreateForWebGPU(gfx::Size size,
+                  viz::SharedImageFormat format,
+                  SkAlphaType alpha_type,
+                  const gfx::ColorSpace& color_space,
+                  gpu::SharedImageUsageSet shared_image_usage_flags = {},
+                  Delegate* delegate = nullptr);
+
+  CanvasNon2DResourceProviderSharedImage(
+      gfx::Size,
+      viz::SharedImageFormat,
+      SkAlphaType,
+      const gfx::ColorSpace&,
+      base::WeakPtr<WebGraphicsContext3DProviderWrapper>,
+      bool is_accelerated,
+      gpu::SharedImageUsageSet shared_image_usage_flags,
+      Delegate*);
+  ~CanvasNon2DResourceProviderSharedImage() override = default;
 
   // Drops the cached snapshot (if any) and invokes `draw_callback` on this
   // instance's canvas.

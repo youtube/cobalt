@@ -433,7 +433,7 @@ class NdkVideoEncoderAcceleratorTest
   std::unique_ptr<VideoEncodeAccelerator> MakeNdkAccelerator() {
     auto runner = task_environment_.GetMainThreadTaskRunner();
     return base::WrapUnique<VideoEncodeAccelerator>(
-        new NdkVideoEncodeAccelerator(runner));
+        new NdkVideoEncodeAccelerator(runner, gpu::GpuDriverBugWorkarounds()));
   }
 
   void SetCommandBufferHelper() {
@@ -673,6 +673,26 @@ TEST_P(NdkVideoEncoderAcceleratorTest, InitializeAndDestroy) {
   EXPECT_FALSE(error_status_.has_value());
 }
 
+TEST_P(NdkVideoEncoderAcceleratorTest, WorkaroundDisablesZeroCopy) {
+  if (!GetParam().use_shared_image || GetParam().use_gl_surface) {
+    GTEST_SKIP() << "Test only relevant for shared image input without surface";
+  }
+
+  std::vector<int32_t> workaround_list;
+  workaround_list.push_back(gpu::DISABLE_ANDROID_ZERO_COPY_VIDEO_CAPTURE);
+  gpu::GpuDriverBugWorkarounds workarounds(workaround_list);
+
+  auto runner = task_environment_.GetMainThreadTaskRunner();
+  auto accelerator =
+      std::make_unique<NdkVideoEncodeAccelerator>(runner, workarounds);
+
+  auto profiles = accelerator->GetSupportedProfiles();
+  for (const auto& profile : profiles) {
+    EXPECT_FALSE(profile.supports_gpu_shared_images);
+    EXPECT_TRUE(profile.gpu_supported_pixel_formats.empty());
+  }
+}
+
 TEST_P(NdkVideoEncoderAcceleratorTest, HandleEncodingError) {
   auto config = GetDefaultConfig();
   accelerator_ = MakeNdkAccelerator();
@@ -736,6 +756,58 @@ TEST_P(NdkVideoEncoderAcceleratorTest, EncodeSeveralFrames) {
   // has a keyframe flag set to true, but because MediaCodec
   // is unreliable in inserting keyframes at our request we can't test
   // for it. In practice it usually works, just not always.
+
+  std::vector<uint8_t> stream;
+  for (auto& output : outputs_) {
+    auto& mapping = id_to_buffer_[output.id]->GetMapping();
+    EXPECT_GE(mapping.size(), output.md.payload_size_bytes);
+    EXPECT_GT(output.md.payload_size_bytes, 0u);
+    auto span =
+        mapping.GetMemoryAsSpan<uint8_t>().first(output.md.payload_size_bytes);
+    stream.insert(stream.end(), span.begin(), span.end());
+  }
+  ValidateStream(stream);
+}
+
+TEST_P(NdkVideoEncoderAcceleratorTest, ResizeOnEncode) {
+  auto config = GetDefaultConfig();
+  config.input_visible_size = gfx::Size(720, 576);
+  const std::vector<gfx::Size> frame_sizes = {
+      {320, 200}, {640, 480}, {720, 576}, {800, 600}, {1280, 720}};
+  const size_t total_frames_count = frame_sizes.size();
+
+  accelerator_ = MakeNdkAccelerator();
+  EXPECT_CALL(*this, OnRequireBuffer()).WillOnce(Return(false));
+  EXPECT_CALL(*this, OnBufferReady())
+      .WillRepeatedly([this, total_frames_count]() {
+        if (outputs_.size() < total_frames_count) {
+          return true;
+        }
+        return false;
+      });
+
+  auto status = accelerator_->Initialize(config, this, NullLog());
+  ASSERT_TRUE(status.is_ok())
+      << EncoderStatusCodeToString(status.code()) << " " << status.message();
+  SetCommandBufferHelper();
+  Run();
+
+  auto duration = base::Milliseconds(16);
+  for (auto frame_index = 0u; frame_index < total_frames_count; frame_index++) {
+    auto timestamp = frame_index * duration;
+    uint32_t color = random_color_.Rand() & 0x00FFFFFF;
+    auto frame =
+        CreateFrame(frame_sizes[frame_index], pixel_format_, timestamp, color);
+    if (GetParam().use_shared_image) {
+      frame = WrapInSharedImageFrame(frame);
+    }
+
+    accelerator_->Encode(frame, /*force_keyframe=*/false);
+  }
+
+  Run();
+  EXPECT_FALSE(error_status_.has_value());
+  EXPECT_GE(outputs_.size(), total_frames_count);
 
   std::vector<uint8_t> stream;
   for (auto& output : outputs_) {

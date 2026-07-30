@@ -63,12 +63,6 @@ BASE_FEATURE(kIOSDockingPromoPreventDeregistrationKillswitch,
 BASE_FEATURE(kEnableLensInOmniboxCopiedImage,
              base::FEATURE_DISABLED_BY_DEFAULT);
 
-BASE_FEATURE(kEnableLensOverlay, base::FEATURE_ENABLED_BY_DEFAULT);
-
-// Update to the correct milestone after launch.
-// Also update in components/omnibox/browser/autocomplete_result.cc.
-const base::NotFatalUntil kLensOverlayNotFatalUntil = base::NotFatalUntil::M200;
-
 BASE_FEATURE(kLensLoadAIMInLensResultPage, base::FEATURE_DISABLED_BY_DEFAULT);
 
 BASE_FEATURE(kLensOverlayEnableLandscapeCompatibility,
@@ -265,16 +259,6 @@ DownloadListUIType CurrentDownloadListUIType() {
 
 BASE_FEATURE(kDownloadList, base::FEATURE_DISABLED_BY_DEFAULT);
 
-// Key for NSUserDefaults containing a bool indicating whether the next run
-// should enable feed background refresh capability. This is used because
-// registering for background refreshes must happen early in app initialization
-// and FeatureList is not yet available. Enabling or disabling background
-// refresh features will always take effect after two cold starts after the
-// feature has been changed on the server (once for the Finch configuration, and
-// another for reading the stored value from NSUserDefaults).
-NSString* const kEnableFeedBackgroundRefreshCapabilityForNextColdStart =
-    @"EnableFeedBackgroundRefreshCapabilityForNextColdStart";
-
 const char kEnableServerDrivenBackgroundRefreshSchedule[] =
     "EnableServerDrivenBackgroundRefreshSchedule";
 const char kEnableRecurringBackgroundRefreshSchedule[] =
@@ -454,6 +438,8 @@ bool IsLiquidGlassEffectEnabled() {
   return false;
 }
 
+BASE_FEATURE(kIOSEnhancedAutofill, base::FEATURE_DISABLED_BY_DEFAULT);
+
 BASE_FEATURE(kIOSKeyboardAccessoryDefaultView,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -466,6 +452,13 @@ BASE_FEATURE(kIOSKeyboardAccessoryTwoBubble, base::FEATURE_DISABLED_BY_DEFAULT);
 bool IsIOSKeyboardAccessoryTwoBubbleEnabled() {
   return base::FeatureList::IsEnabled(kIOSKeyboardAccessoryTwoBubble);
 }
+
+// Feature parameter for kIOSKeyboardAccessoryTwoBubble.
+BASE_FEATURE_PARAM(bool,
+                   kIOSKeyboardAccessoryTwoBubbleKeyboardIconParam,
+                   &kIOSKeyboardAccessoryTwoBubble,
+                   kIOSKeyboardAccessoryTwoBubbleKeyboardIconParamName,
+                   false);
 
 BASE_FEATURE(kInactiveNavigationAfterAppLaunchKillSwitch,
              "kInactiveNavigationAfterAppLaunchKillSwitch",
@@ -620,9 +613,6 @@ bool IsRefactorToolbarsSize() {
 }
 
 BASE_FEATURE(kIPHAblation, base::FEATURE_DISABLED_BY_DEFAULT);
-
-BASE_FEATURE(kLensOverlayDisableIPHPanGesture,
-             base::FEATURE_ENABLED_BY_DEFAULT);
 
 bool IsIPHAblationEnabled() {
   return base::FeatureList::IsEnabled(kIPHAblation);
@@ -889,13 +879,6 @@ bool IsMultilineBrowserOmniboxEnabled() {
   return base::FeatureList::IsEnabled(kMultilineBrowserOmnibox);
 }
 
-BASE_FEATURE(kIOSAutoOpenRemoteTabGroupsSettings,
-             base::FEATURE_DISABLED_BY_DEFAULT);
-
-bool IsAutoOpenRemoteTabGroupsSettingsFeatureEnabled() {
-  return base::FeatureList::IsEnabled(kIOSAutoOpenRemoteTabGroupsSettings);
-}
-
 BASE_FEATURE(kDisableKeyboardAccessory, base::FEATURE_DISABLED_BY_DEFAULT);
 
 const char kDisableKeyboardAccessoryParam[] = "kDisableKeyboardAccessoryParam";
@@ -960,6 +943,12 @@ bool IsTabGroupColorOnSurfaceEnabled() {
   return base::FeatureList::IsEnabled(kTabGroupColorOnSurface);
 }
 
+BASE_FEATURE(kOmniboxCrashFixKillSwitch, base::FEATURE_DISABLED_BY_DEFAULT);
+
+bool IsOmniboxCrashFixKillSwitchEnabled() {
+  return base::FeatureList::IsEnabled(kOmniboxCrashFixKillSwitch);
+}
+
 BASE_FEATURE(kAIMEligibilityServiceStartWithProfile,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
@@ -1016,8 +1005,25 @@ bool IsComposeboxAIMDisabled() {
   return base::FeatureList::IsEnabled(kComposeboxAIMDisabled);
 }
 
+NSString* const kNewStartupFlowKey = @"IsEnableNewStartupFlowEnabled";
+
 BASE_FEATURE(kEnableNewStartupFlow, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsEnableNewStartupFlowEnabled() {
-  return base::FeatureList::IsEnabled(kEnableNewStartupFlow);
+  // Save the value to ensure this is constant during the session.
+  static const bool is_new_startup_flow_available =
+      [[NSUserDefaults standardUserDefaults] boolForKey:kNewStartupFlowKey];
+  return is_new_startup_flow_available;
 }
+
+void SaveEnableNewStartupFlowForNextStart() {
+  const bool enabled = base::FeatureList::IsEnabled(kEnableNewStartupFlow);
+  [[NSUserDefaults standardUserDefaults] setBool:enabled
+                                          forKey:kNewStartupFlowKey];
+}
+
+// Flags for Share Ablation study.
+BASE_FEATURE(kDisableShareButton, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kShareInOmniboxLongPress, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kShareInOverflowMenu, base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kShareInVerbatimMatch, base::FEATURE_DISABLED_BY_DEFAULT);

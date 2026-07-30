@@ -7,15 +7,16 @@
 //! message.
 
 chromium::import! {
-    "//mojo/public/rust:mojo_rust_system_api";
+    "//mojo/public/rust/system";
     "//mojo/public/rust/sequences:sequences";
 }
 
-use mojo_rust_system_api::message_pipe::{MessageEndpoint, RawMojoMessage};
-use mojo_rust_system_api::mojo_types::{HandleSignals, MojoResult, UntypedHandle};
-use mojo_rust_system_api::raw_trap::TriggerCondition;
-use mojo_rust_system_api::trap::{ArmingPolicyForBlockingEvents, Trap, TrapError, TrapEvent};
 use sequences::SequencedTaskRunnerHandle;
+use system::message::RawMojoMessage;
+use system::message_pipe::MessageEndpoint;
+use system::mojo_types::MojoResult;
+use system::raw_trap::{HandleSignals, TriggerCondition};
+use system::trap::{ArmingPolicyForBlockingEvents, Trap, TrapError, TrapEvent};
 
 // TODO(crbug.com/477584253): Replace std::sync with std::nonpoison if there are
 // any non-sequenced versions remaining.
@@ -90,12 +91,12 @@ impl ResponseSender {
 /// 2. A (weak) reference to the endpoint in question, so the handler can send a
 ///    response if it wishes.
 pub trait MessagePipeWatcherHandler:
-    FnMut((Vec<u8>, Vec<UntypedHandle>), ResponseSender) + Send + 'static
+    FnMut(RawMojoMessage, ResponseSender) + Send + 'static
 {
 }
 
 impl<T> MessagePipeWatcherHandler for T where
-    T: FnMut((Vec<u8>, Vec<UntypedHandle>), ResponseSender) + Send + 'static
+    T: FnMut(RawMojoMessage, ResponseSender) + Send + 'static
 {
 }
 
@@ -105,7 +106,7 @@ impl MessagePipeWatcher {
     pub fn new(
         endpoint: MessageEndpoint,
         message_handler: impl MessagePipeWatcherHandler,
-    ) -> Result<Self, MojoResult> {
+    ) -> MojoResult<Self> {
         Self::new_with_runner(
             endpoint,
             message_handler,
@@ -129,7 +130,7 @@ impl MessagePipeWatcher {
         endpoint: MessageEndpoint,
         message_handler: impl MessagePipeWatcherHandler,
         runner: SequencedTaskRunnerHandle,
-    ) -> Result<Self, MojoResult> {
+    ) -> MojoResult<Self> {
         // The main goal of this function is to construct a closure which reads
         // from the `endpoint` and schedules `message_handler` on `runner`.
 
@@ -160,7 +161,7 @@ impl MessagePipeWatcher {
 
         // Define when we trigger the trap (whenever we get a new message)
         let trigger_signals: HandleSignals = HandleSignals::NEW_DATA_READABLE;
-        let trigger_condition: TriggerCondition = TriggerCondition::SignalsSatisfied;
+        let trigger_condition: TriggerCondition = TriggerCondition::TriggerWhenSatisfied;
 
         let trap = Trap::new()?;
 
@@ -197,7 +198,7 @@ impl MessagePipeWatcher {
 
     /// Send a message through the underlying pipe. This function just forwards
     /// MessageEndpoint::write from the underlying endpoint.
-    pub fn send_message(&self, msg: RawMojoMessage) -> Result<(), MojoResult> {
+    pub fn send_message(&self, msg: RawMojoMessage) -> MojoResult<()> {
         self.shared_state.endpoint.write(msg)
     }
 

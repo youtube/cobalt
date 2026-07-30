@@ -10,12 +10,14 @@
 
 namespace wallet {
 
+BASE_DECLARE_FEATURE(kWalletApiPrivatePassesEnabled);
+
+BASE_DECLARE_FEATURE_PARAM(std::string, kWalletSaveUrl);
+
 BASE_DECLARE_FEATURE(kWalletablePassDetection);
 
-extern const base::FeatureParam<std::string>
-    kWalletablePassDetectionCountryAllowlist;
-
-extern const base::FeatureParam<std::string> kWalletablePassSaveUrl;
+BASE_DECLARE_FEATURE_PARAM(std::string,
+                           kWalletablePassDetectionCountryAllowlist);
 
 // This is a test only flag, and should be removed before starting the rollout.
 BASE_DECLARE_FEATURE(kWalletablePassSave);

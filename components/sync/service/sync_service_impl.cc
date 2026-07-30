@@ -90,12 +90,6 @@ namespace {
 BASE_FEATURE(kSyncUnsubscribeFromTypesWithPermanentErrors,
              base::FEATURE_ENABLED_BY_DEFAULT);
 
-// Delay before downloading device statistics and recording related metrics. The
-// exact number is somewhat arbitrary, chosen to ensure that refresh tokens are
-// loaded, the local cache GUID is up to date, and to avoid interfering with
-// general (sync or browser) startup.
-constexpr base::TimeDelta kDeviceStatisticsTrackerDelay = base::Seconds(30);
-
 #if BUILDFLAG(IS_ANDROID)
 constexpr int kMinGmsVersionCodeWithCustomPassphraseApi = 235204000;
 
@@ -441,7 +435,7 @@ void SyncServiceImpl::Initialize(DataTypeController::TypeVector controllers) {
         FROM_HERE,
         base::BindOnce(&SyncServiceImpl::MaybeStartDeviceStatisticsTracker,
                        weak_factory_.GetWeakPtr()),
-        kDeviceStatisticsTrackerDelay);
+        kSyncRecordDeviceStatisticsMetricsDelay.Get());
   }
 }
 
@@ -988,14 +982,13 @@ SyncService::UserActionableError SyncServiceImpl::GetUserActionableError()
 
   // This error should ideally be the last one to be checked. Any new identity
   // errors should be handled before this.
-  if (base::FeatureList::IsEnabled(kSyncShowBookmarksLimitExceededError)) {
-    const DataTypeStatusTable::TypeErrorMap data_type_errors =
-        data_type_manager_->GetDataTypeErrors();
-    auto it = data_type_errors.find(BOOKMARKS);
-    if (it != data_type_errors.end() &&
-        bookmark_sync_error_state_.IsActionableError(it->second)) {
-      return UserActionableError::kBookmarksLimitExceeded;
-    }
+  const DataTypeStatusTable::TypeErrorMap data_type_errors =
+      data_type_manager_->GetDataTypeErrors();
+  auto it = data_type_errors.find(BOOKMARKS);
+  if (it != data_type_errors.end() &&
+      bookmark_sync_error_state_.IsActionableError(it->second) &&
+      base::FeatureList::IsEnabled(kSyncShowBookmarksLimitExceededError)) {
+    return UserActionableError::kBookmarksLimitExceeded;
   }
 
   return UserActionableError::kNone;
@@ -2539,7 +2532,13 @@ void SyncServiceImpl::MaybeStartDeviceStatisticsTracker() {
 
   if (!auth_manager_->IsActiveAccountInfoFullyLoaded()) {
     // It shouldn't happen in practice that the account info (refresh tokens)
-    // still aren't fully loaded at this point.
+    // still aren't fully loaded at this point. But if it does, attempt starting
+    // the tracker again in a little while.
+    base::SequencedTaskRunner::GetCurrentDefault()->PostDelayedTask(
+        FROM_HERE,
+        base::BindOnce(&SyncServiceImpl::MaybeStartDeviceStatisticsTracker,
+                       weak_factory_.GetWeakPtr()),
+        base::Seconds(1));
     return;
   }
 

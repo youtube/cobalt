@@ -71,6 +71,11 @@ class MockUiServiceForUrlIntercept : public ContextualTasksUiService {
   ~MockUiServiceForUrlIntercept() override = default;
 
   MOCK_METHOD(void,
+              SetInitialEntryPointForTask,
+              (const base::Uuid& task_id,
+               omnibox::ChromeAimEntryPoint entry_point),
+              (override));
+  MOCK_METHOD(void,
               OnNavigationToAiPageIntercepted,
               (const GURL& url,
                base::WeakPtr<tabs::TabInterface> tab,
@@ -90,7 +95,7 @@ class MockUiServiceForUrlIntercept : public ContextualTasksUiService {
   MOCK_METHOD(void,
               OnSearchResultsNavigationInSidePanel,
               (content::OpenURLParams url_params,
-               ContextualTasksUI* webui_controller),
+               ContextualTasksUIInterface* web_ui_interface),
               (override));
   MOCK_METHOD(bool, IsUrlForPrimaryAccount, (const GURL& url), (override));
   MOCK_METHOD(bool, IsSignedInToBrowserWithValidCredentials, (), (override));
@@ -203,7 +208,7 @@ TEST_P(ContextualTasksUiServiceTestParameterized, GetAccessToken_Success) {
   identity_test_env_->MakePrimaryAccountAvailable(
       "test@example.com", signin::ConsentLevel::kSignin);
   base::test::TestFuture<const std::string&> token_future;
-  real_service_->GetAccessToken(token_future.GetCallback());
+  real_service_->GetAccessToken(token_future.GetCallback(), nullptr);
 
   identity_test_env_->WaitForAccessTokenRequestIfNecessaryAndRespondWithToken(
       "access_token", base::Time::Now() + base::Hours(1));
@@ -212,7 +217,7 @@ TEST_P(ContextualTasksUiServiceTestParameterized, GetAccessToken_Success) {
 
 TEST_P(ContextualTasksUiServiceTestParameterized, GetAccessToken_NotSignedIn) {
   base::test::TestFuture<const std::string&> token_future;
-  real_service_->GetAccessToken(token_future.GetCallback());
+  real_service_->GetAccessToken(token_future.GetCallback(), nullptr);
   EXPECT_EQ(token_future.Get(), "");
 }
 
@@ -233,7 +238,7 @@ TEST_P(ContextualTasksUiServiceTestParameterized,
   identity_test_env_->MakePrimaryAccountAvailable(
       "test@example.com", signin::ConsentLevel::kSignin);
   base::test::TestFuture<const std::string&> token_future;
-  real_service_->GetAccessToken(token_future.GetCallback());
+  real_service_->GetAccessToken(token_future.GetCallback(), nullptr);
 
   // First request fails with a transient error.
   identity_test_env_->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
@@ -255,7 +260,7 @@ TEST_P(ContextualTasksUiServiceTestParameterized,
   identity_test_env_->MakePrimaryAccountAvailable(
       "test@example.com", signin::ConsentLevel::kSignin);
   base::test::TestFuture<const std::string&> token_future;
-  real_service_->GetAccessToken(token_future.GetCallback());
+  real_service_->GetAccessToken(token_future.GetCallback(), nullptr);
 
   // First request fails with a persistent error.
   identity_test_env_->WaitForAccessTokenRequestIfNecessaryAndRespondWithError(
@@ -714,6 +719,24 @@ TEST_F(ContextualTasksUiServiceTest, OnNavigationToAiPageIntercepted_SameTab) {
       "https://google.com/search?udm=50&q=test+query&cs=0&gsc=2&hl=en");
   EXPECT_EQ(service.GetInitialUrlForTask(task.GetTaskId()),
             expected_initial_url);
+}
+
+TEST_F(ContextualTasksUiServiceTest,
+       GetContextualTaskUrlForTask_WithEntryPoint) {
+  ContextualTasksUiService service(nullptr, contextual_tasks_service_.get(),
+                                   nullptr, aim_eligibility_service_.get());
+  base::Uuid task_id = base::Uuid::GenerateRandomV4();
+  omnibox::ChromeAimEntryPoint entry_point =
+      omnibox::ChromeAimEntryPoint::DESKTOP_CHROME_COBROWSE_TOOLBAR_BUTTON;
+
+  // Set the entry point for the task.
+  service.SetInitialEntryPointForTask(task_id, entry_point);
+
+  // Get the URL and verify it contains the `aep` parameter.
+  GURL url = service.GetContextualTaskUrlForTask(task_id);
+  std::string aep_value;
+  EXPECT_TRUE(net::GetValueForKeyInQuery(url, "aep", &aep_value));
+  EXPECT_EQ(aep_value, base::NumberToString(static_cast<int>(entry_point)));
 }
 
 TEST_F(ContextualTasksUiServiceTest, SrpHomepage_Intercepted) {

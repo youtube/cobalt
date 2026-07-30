@@ -9729,6 +9729,15 @@ Keep your key file in a safe place. You will need it to create new versions of y
       <message name="IDS_READING_MODE_ENABLE_IMAGES_BUTTON_LABEL" desc="Accessibility label for the button that enables showing images in reading mode content.">
         Enable images
       </message>
+      <message name="IDS_READING_MODE_PIN_LABEL" desc="Accessibility label for the pin reading mode menu item in reading mode.">
+        Pin reading mode
+      </message>
+      <message name="IDS_READING_MODE_DISABLE_PIN_BUTTON_LABEL" desc="Accessibility label for the button that unpins reading mode from the toolbar.">
+        Pin to toolbar
+      </message>
+      <message name="IDS_READING_MODE_ENABLE_PIN_BUTTON_LABEL" desc="Accessibility label for the button that pins reading mode to the toolbar.">
+        Unpin from toolbar
+      </message>
       <message name="IDS_READING_MODE_COLORS_COMBOBOX_LABEL" desc="Accessibility label for the colors combobox of the reading mode feature.">
         Color theme
       </message>
@@ -10408,6 +10417,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
           <message name="IDS_VERTICAL_TAB_GROUP_MORE_OPTIONS" is_accessibility_with_no_ui="true" desc="In Title Case: The accessibility label for the button in the tab group header that opens the editor bubble.">
             More Options
           </message>
+          <message name="IDS_VERTICAL_TABS_SEND_FEEDBACK" translateable="false" desc="In Title Case: The button in context menu that allows users to send feedback about vertical tabs.">
+            Send Feedback About Vertical Tabs
+          </message>
         </then>
         <else>
           <message name="IDS_SWITCH_TO_VERTICAL_TAB" desc="The button in context menu that switches to vertical tab view.">
@@ -10422,8 +10434,11 @@ Keep your key file in a safe place. You will need it to create new versions of y
           <message name="IDS_EXPAND_VERTICAL_TABS" desc="The tooltip for the button in the top container that expands the vertical tab strip.">
             Expand vertical tabs
           </message>
-          <message name="IDS_VERTICAL_TAB_GROUP_MORE_OPTIONS" is_accessibility_with_no_ui="true"  desc="In Title Case: The accessibility label for the button in the tab group header that opens the editor bubble.">
+          <message name="IDS_VERTICAL_TAB_GROUP_MORE_OPTIONS" is_accessibility_with_no_ui="true"  desc="The accessibility label for the button in the tab group header that opens the editor bubble.">
             More options
+          </message>
+          <message name="IDS_VERTICAL_TABS_SEND_FEEDBACK" translateable="false" desc="The button in context menu that allows users to send feedback about vertical tabs.">
+            Send feedback about vertical tabs
           </message>
         </else>
       </if>
@@ -10460,6 +10475,9 @@ Keep your key file in a safe place. You will need it to create new versions of y
           </message>
         </else>
       </if>
+      <message name="IDS_TAB_GROUPS_NO_TAB_GROUPS" desc="Text indicating the user has no Tab groups.">
+        Organize your tabs by grouping them together and label them with a custom name and color
+      </message>
       <!-- /Projects Panel Strings -->
 
       <!-- Strings for intent picker -->
@@ -12595,6 +12613,14 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
           Your tab groups now automatically save
         </message>
 
+        <message name="IDS_RESUMPTION_RAIL_IPH_TITLE" desc="The title text of an IPH that shows up to educate users about the Resumption Rail feature entrypoint.">
+          Continue your tasks
+        </message>
+
+        <message name="IDS_RESUMPTION_RAIL_IPH_BODY" desc="The text of an IPH that shows up to educate users about the Resumption Rail feature entrypoint.">
+          Quickly switch between your tab groups and your recent AI conversations without losing your place.
+        </message>
+
       <!-- Saved Tab Group Error -->
       <message name="IDS_SAVED_TAB_GROUPS_UNSUPPORTED_ERROR" desc="The text on an error page showing that the URL from the remote device is not supported by the saved tab griups feature and cannot be synced.">
           The URL from the remote device is not supported
@@ -13617,6 +13643,12 @@ Check your passwords anytime in <ph name="GOOGLE_PASSWORD_MANAGER">$1<ex>Google 
       </message>
       <message name="IDS_DEFAULT_BROWSER_CHANGED_NO_THANKS_BUTTON" desc="Label of the no button on the notification shown when the default browser setting changes.">
         No, thanks
+      </message>
+      <message name="IDS_DEFAULT_BROWSER_MODAL_CONFIRM_BUTTON" desc="Label for the button to confirm setting the default browser.">
+        Open settings
+      </message>
+      <message name="IDS_DEFAULT_BROWSER_MODAL_CANCEL_BUTTON" desc="Label for the button to cancel setting the default browser.">
+        Set later
       </message>
 
       <!-- chrome://help -->
@@ -19366,6 +19398,10 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_COPIED_TO_CLIPBOARD_TOAST_BODY" desc="Text on a toast notification that is shown when an item has been copied to clipboard.">
         Copied to clipboard
       </message>
+      <!-- TODO(crbug.com/477845712): Add translation when the string is finalized. -->
+      <message name="IDS_AUTOFILL_AI_TOAST_BUTTON" desc="Button text on a toast notification that allows a user to open the 'Your saved info' page in settings." translateable="false">
+        Manage
+      </message>
     </if>
 
     <if expr="is_android">
@@ -19848,11 +19884,17 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_APP" desc="In Title Case: Title of the chip which filters logs by application (e.g. 'Google Chrome').">
         App
       </message>
+      <message name="IDS_UPDATER_APP_COLUMN" desc="Title of a column in a table displaying the list of applications managed by Chrome's updater which displays the application's name or identifier string.">
+        Application
+      </message>
       <message name="IDS_UPDATER_APPLY" desc="Label on a button to apply the selected filters.">
         Apply
       </message>
       <message name="IDS_UPDATER_APP_NAME_OR_ID" desc="Placeholder text in a search box asking the user to enter an application name or identifier string.">
         App Name or ID
+      </message>
+      <message name="IDS_UPDATER_APP_STATES_QUERY_FAILED" desc="An error message indicating that the list of installed applications could not be retrieved from Chrome's updater.">
+        Failed to query installed applications.
       </message>
       <message name="IDS_UPDATER_CANCEL" desc="Label on a button to cancel the current action or close a menu.">
         Cancel
@@ -19962,6 +20004,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       <message name="IDS_UPDATER_INSTALL_SUMMARY" desc="Summary of an event in which software was installed, including the version.">
         Installed version <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
       </message>
+      <message name="IDS_UPDATER_INSTALLED_APPS_TITLE" desc="Title for a section of the chrome://updater page which displays a table of applications known to the updater on the user's system.">
+        Installed Applications
+      </message>
       <message name="IDS_UPDATER_INTERNAL" desc="Label used to indicate that a logged Chrome Updater event pertains to the updater itself and not an app managed by the updater (e.g. Google Chrome).">
         Internal
       </message>
@@ -19970,6 +20015,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_UPDATER_LAST_STARTED_LABEL" desc="A label for a timestamp indicating the last time the Chrome Updater performed its periodic tasks.">
         Last Periodic Task Run:
+      </message>
+      <message name="IDS_UPDATER_NO_APPS_FOUND" desc="A message indicating that Chrome's updater is not managing any applications on the user's system.">
+        No applications are installed.
       </message>
       <message name="IDS_UPDATER_NO_UPDATER_FOUND" desc="A message indicating that Chrome's updater does not appear to be installed on the user's machine.">
         No updater installations could be found.
@@ -20048,6 +20096,9 @@ Please help our engineers fix this problem. Tell us what happened right before y
       </message>
       <message name="IDS_UPDATER_UPDATER_VERSION" desc="Label indicating the version of the updater itself.">
         Updater version: <ph name="VERSION">$1<ex>1.2.3.4</ex></ph>
+      </message>
+      <message name="IDS_UPDATER_VERSION_COLUMN" desc="Title of the column in a table presenting the list of applications installed and managed by Chrome's updater.">
+        Version
       </message>
       <message name="IDS_UPDATER_VERSION_LABEL" desc="A label for the version of the updater.">
         Version:

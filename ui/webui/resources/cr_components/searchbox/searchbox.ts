@@ -414,9 +414,6 @@ export class SearchboxElement extends SearchboxElementBase implements
         type: String,
       },
       errorMessage_: {type: String},
-      showCanvas: {
-        type: Boolean,
-      },
       showModelPicker_: {
         type: Boolean,
       },
@@ -444,7 +441,6 @@ export class SearchboxElement extends SearchboxElementBase implements
   accessor contextMenuGlifAnimationState: GlifAnimationState =
       GlifAnimationState.INELIGIBLE;
   accessor cyclingPlaceholders: boolean = false;
-  accessor showCanvas: boolean = false;
   accessor composeboxEnabled: boolean = false;
   accessor composeButtonEnabled: boolean = false;
   accessor showThumbnail: boolean = false;
@@ -481,13 +477,7 @@ export class SearchboxElement extends SearchboxElementBase implements
   private accessor useWebkitSearchIcons_: boolean = false;
   protected accessor tabSuggestions_: TabInfo[] = [];
   protected accessor recentTabForChip_: TabInfo|null = null;
-  protected showVoiceSearchInExpandedRealbox: boolean =
-      loadTimeData.getBoolean('expandedSearchboxShowVoiceSearch') ?? false;
   protected accessor inputState_: InputState|null = null;
-
-  protected get shouldShowVoiceSearch_(): boolean {
-    return this.dropdownIsVisible && this.showVoiceSearchInExpandedRealbox;
-  }
 
   private pageHandler_: PageHandlerInterface;
   private callbackRouter_: PageCallbackRouter;
@@ -497,7 +487,6 @@ export class SearchboxElement extends SearchboxElementBase implements
   private autocompleteResultChangedListenerId_: number|null = null;
   private inputTextChangedListenerId_: number|null = null;
   private thumbnailChangedListenerId_: number|null = null;
-  private onTabStripChangedListenerId_: number|null = null;
   private onInputStateChangedListenerId_: number|null = null;
   private placeholderCycler_: PlaceholderTextCycler|null = null;
 
@@ -520,9 +509,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.thumbnailChangedListenerId_ =
         this.callbackRouter_.setThumbnail.addListener(
             this.onSetThumbnail_.bind(this));
-    this.onTabStripChangedListenerId_ =
-        this.callbackRouter_.onTabStripChanged.addListener(
-            this.refreshTabSuggestions_.bind(this));
     this.onInputStateChangedListenerId_ =
         this.callbackRouter_.onInputStateChanged.addListener(
             this.onInputStateChanged_.bind(this));
@@ -543,7 +529,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     if (this.ntpRealboxNextEnabled) {
       this.dragAndDropHandler =
           new DragAndDropHandler(this, this.dragAndDropEnabled_);
-      this.refreshTabSuggestions_();
     }
   }
 
@@ -557,8 +542,6 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.callbackRouter_.removeListener(this.inputTextChangedListenerId_);
     assert(this.thumbnailChangedListenerId_);
     this.callbackRouter_.removeListener(this.thumbnailChangedListenerId_);
-    assert(this.onTabStripChangedListenerId_);
-    this.callbackRouter_.removeListener(this.onTabStripChangedListenerId_);
     assert(this.onInputStateChangedListenerId_);
     this.callbackRouter_.removeListener(this.onInputStateChangedListenerId_);
 
@@ -593,12 +576,6 @@ export class SearchboxElement extends SearchboxElementBase implements
 
     if (changedPrivateProperties.has('thumbnailUrl_')) {
       this.showThumbnail = !!this.thumbnailUrl_;
-    }
-
-    if (this.ntpRealboxNextEnabled) {
-      if (changedPrivateProperties.has('inputFocused_')) {
-        this.fire('searchbox-input-focus-changed', {value: this.inputFocused_});
-      }
     }
 
     if (changedPrivateProperties.has('tabSuggestions_')) {
@@ -753,6 +730,9 @@ export class SearchboxElement extends SearchboxElementBase implements
     this.inputFocused_ = true;
     this.pageHandler_.onFocusChanged(true);
     this.placeholderCycler_?.stop();
+    if (this.ntpRealboxNextEnabled) {
+      this.refreshTabSuggestions_();
+    }
   }
 
   protected onInputFocusout_() {
@@ -1265,27 +1245,27 @@ export class SearchboxElement extends SearchboxElementBase implements
   }
 
   protected setDeepSearchMode_() {
-    this.pageHandler_.setActiveToolMode(ToolMode.kDeepSearch);
     this.openComposebox_([], ToolMode.kDeepSearch);
   }
 
   protected setCreateImageMode_() {
-    this.pageHandler_.setActiveToolMode(ToolMode.kImageGen);
     this.openComposebox_([], ToolMode.kImageGen);
   }
 
   protected setCanvasMode_() {
-    this.pageHandler_.setActiveToolMode(ToolMode.kCanvas);
     this.openComposebox_([], ToolMode.kCanvas);
   }
 
   protected onModelClick_(e: CustomEvent<{model: ModelMode}>) {
-    this.pageHandler_.setActiveModelMode(e.detail.model);
+    this.openComposebox_([], ToolMode.kUnspecified, e.detail.model);
   }
 
   protected openComposebox_(
       uploads: ContextualUpload[] = [], mode: ToolMode = ToolMode.kUnspecified,
       model: ModelMode = ModelMode.kUnspecified) {
+    if (this.ntpRealboxNextEnabled) {
+      this.$.context.closeMenu();
+    }
     this.dispatchEvent(new CustomEvent('open-composebox', {
       detail: {
         searchboxText: this.$.input.value,

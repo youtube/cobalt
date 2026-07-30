@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Cancelar sincronización</translation>
 <translation id="3144126448740580210">LISTO</translation>
 <translation id="3148052723910099040">Cuadrícula de pestañas regulares</translation>
+<translation id="3148237711805373460">Ir ahora</translation>
 <translation id="3157387275655328056">Agregar a la Lista de lectura</translation>
 <translation id="315778507796115851">Historial</translation>
 <translation id="31652791196570636">Descartar</translation>
@@ -592,7 +593,7 @@
 <translation id="3190736958609431397">Dejar de realizar el seguimiento</translation>
 <translation id="3208260410153224535">Tu organización desactivó el acceso. Los favoritos, las contraseñas y otros elementos nuevos se guardarán solo en este dispositivo.</translation>
 <translation id="3211969308836412674">Dejar de fijar el sitio</translation>
-<translation id="3213807041830307252">Compra, identifica y traduce lo que ves con la cámara y la galería de fotos.</translation>
+<translation id="3213807041830307252">Compra, identifica y traduce lo que ves con la cámara y en la galería de fotos.</translation>
 <translation id="3214379938835224220">Saliste de tu cuenta como parte del restablecimiento de tu iPad. Presiona Continuar para acceder.</translation>
 <translation id="3218296450292600703">Acceder con tu cuenta administrada te ayuda a mantener la navegación relacionada con tu organización (incluidas las pestañas, el historial y las contraseñas) separada de la que realizas en otras plataformas</translation>
 <translation id="3224075676564434205">Las pestañas permanecerán abiertas en este dispositivo, pero se borrará el grupo de todos los dispositivos en los que accediste a <ph name="USER_EMAIL" />.</translation>
@@ -1523,6 +1524,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="6556866813142980365">Rehacer</translation>
 <translation id="6559301491397835130">{count,plural, =1{El favorito se guardó en "{title}". Solo se guarda en este dispositivo.}other{Los favoritos se guardaron en "{title}". Solo se guardan en este dispositivo.}}</translation>
 <translation id="656065428026159829">Ver más</translation>
+<translation id="6565899972286925956">Crea lo que quieras</translation>
 <translation id="6571070086367343653">Editar tarjeta de crédito</translation>
 <translation id="6574092468346088891">Activar las notificaciones de la Verificación de seguridad</translation>
 <translation id="6579867704846662339">Puedes abrir las URLs entrantes de otras apps en el modo Incógnito.</translation>
@@ -1633,6 +1635,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="6930799952781667037">Presiona aquí para cambiar a este idioma.</translation>
 <translation id="693761253105515415">Establece una contraseña</translation>
 <translation id="6945221475159498467">Seleccionar</translation>
+<translation id="6946722113367118030">Pensando</translation>
 <translation id="6950522403736391608">Ocultos</translation>
 <translation id="6962809930976936328">Obtén estadísticas con Gemini</translation>
 <translation id="6964300328304469089">Selección actual: <ph name="NAME" />, <ph name="EMAIL" />. Elige una cuenta.</translation>
@@ -1975,6 +1978,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="8205564605687841303">Cancelar</translation>
 <translation id="8206354486702514201">El administrador controla esta configuración.</translation>
 <translation id="8209050860603202033">Abrir imagen</translation>
+<translation id="8209237163365258530">Modelos de Gemini <ph name="VERSION_NUMBER" /></translation>
 <translation id="8211030355252954494">Recibiste contraseñas de <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">La conexión es segura</translation>
 <translation id="8214293972734702249">Se fijó <ph name="TAB_TITLE" /></translation>
@@ -2235,7 +2239,7 @@ Handoff también debe estar habilitado en la sección General de la configuraci�
 <translation id="9107664647686727385">Verifica si hay contraseñas hackeadas</translation>
 <translation id="9119764377203471454">No se pueden agregar archivos adjuntos</translation>
 <translation id="9124387962554796433">Es posible que Google use tu historial para personalizar la Búsqueda y otros servicios de Google.</translation>
-<translation id="9124978074365039456">Compra, identifica y traduce lo que ves con la cámara y la galería de fotos</translation>
+<translation id="9124978074365039456">Compra, identifica y traduce lo que ves con la cámara y en la galería de fotos</translation>
 <translation id="9130317582644834675">Ocultar la opción Hacer zoom en el texto</translation>
 <translation id="913036870884277353">Abre vínculos en otras apps fácilmente.</translation>
 <translation id="9137013805542155359">Mostrar original</translation>

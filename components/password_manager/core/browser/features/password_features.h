@@ -17,9 +17,9 @@ namespace password_manager::features {
 // alongside the definition of their values in the .cc file.
 
 #if !BUILDFLAG(IS_IOS)
-// Filling on pageload is disabled if an actor task is active on the tab.
-BASE_DECLARE_FEATURE(kActorActiveDisablesFillingOnPageLoad);
 BASE_DECLARE_FEATURE(kActorLogin);
+// Enables FedCM support for Actor Login.
+BASE_DECLARE_FEATURE(kActorLoginFederatedLoginSupport);
 // Enables Actor Login form finding with async check
 BASE_DECLARE_FEATURE(kActorLoginFieldVisibilityCheck);
 // Ensures that `GetCredentials` differentiates between no saved credentials
@@ -128,10 +128,6 @@ BASE_DECLARE_FEATURE(kImprovedPasswordChangeService);
 // pipeline is broken because the pipeline is waiting for password suggestions
 // that are never provided.
 BASE_DECLARE_FEATURE(kIosCleanupHangingPasswordFormExtractionRequests);
-
-// Allows filling from a secondary recovery password saved as a backup on iOS.
-// Acts as an iOS kill switch for the `kImprovedPasswordChangeService` feature.
-BASE_DECLARE_FEATURE(kIOSFillRecoveryPassword);
 
 // The feature parameter that determines the minimal period of time in
 // milliseconds before the form extraction request times out.

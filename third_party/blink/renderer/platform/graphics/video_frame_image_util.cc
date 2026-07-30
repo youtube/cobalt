@@ -17,8 +17,8 @@
 #include "media/base/wait_and_replace_sync_token_client.h"
 #include "media/renderers/paint_canvas_video_renderer.h"
 #include "third_party/blink/renderer/platform/graphics/accelerated_static_bitmap_image.h"
+#include "third_party/blink/renderer/platform/graphics/canvas_non2d_snapshot_provider_bitmap.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_snapshot_provider_external_bitmap.h"
 #include "third_party/blink/renderer/platform/graphics/gpu/shared_gpu_context.h"
 #include "third_party/blink/renderer/platform/graphics/skia/skia_utils.h"
 #include "third_party/blink/renderer/platform/graphics/static_bitmap_image.h"
@@ -231,10 +231,10 @@ std::unique_ptr<CanvasSnapshotProvider> CreateSnapshotProviderForVideo(
   constexpr auto kShouldInitialize =
       CanvasResourceProvider::ShouldInitialize::kNo;
   if (!ShouldCreateAcceleratedImages(raster_context_provider)) {
-    return CanvasSnapshotProviderExternalBitmap::Create(info);
+    return CanvasNon2DSnapshotProviderBitmap::Create(info);
   }
 
-  return CanvasResourceProvider::CreateSharedImageProviderNon2D(
+  return CanvasNon2DResourceProviderSharedImage::Create(
       info.size, info.format, info.alpha_type, info.color_space,
       kShouldInitialize, SharedGpuContext::ContextProviderWrapper(),
       RasterMode::kGPU, gpu::SHARED_IMAGE_USAGE_DISPLAY_READ);

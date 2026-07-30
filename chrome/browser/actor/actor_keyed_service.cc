@@ -18,11 +18,11 @@
 #include "chrome/browser/actor/actor_keyed_service_factory.h"
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_policy_checker.h"
+#include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_tab_data.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_task_metadata.h"
 #include "chrome/browser/actor/aggregated_journal.h"
-#include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/execution_engine.h"
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/ui/actor_ui_state_manager.h"
@@ -114,7 +114,11 @@ using ui::ActorUiStateManagerInterface;
 
 ActorKeyedService::ActorKeyedService(Profile* profile) : profile_(profile) {
   actor_ui_state_manager_ = std::make_unique<ui::ActorUiStateManager>(*this);
-  policy_checker_ = std::make_unique<ActorPolicyChecker>(*this);
+  policy_checker_ = std::make_unique<ActorPolicyChecker>(
+      *profile,
+      base::BindRepeating(&ActorKeyedService::OnActOnWebCapabilityChanged,
+                          base::Unretained(this)),
+      GetJournal());
   profile_observation_.Observe(profile_);
 }
 
@@ -285,18 +289,6 @@ base::WeakPtr<ActorKeyedService> ActorKeyedService::GetWeakPtr() {
   return weak_ptr_factory_.GetWeakPtr();
 }
 
-TaskId ActorKeyedService::AddActiveTask(std::unique_ptr<ActorTask> task) {
-  TRACE_EVENT0("actor", "ActorKeyedService::AddActiveTask");
-  const TaskId task_id = next_task_id_.GenerateNextId();
-  task->SetId(base::PassKey<ActorKeyedService>(), task_id);
-  task->GetExecutionEngine()->SetOwner(task.get());
-
-  const ActorTask::State task_state = task->GetState();
-  active_tasks_[task_id] = std::move(task);
-  NotifyTaskStateChanged(task_id, task_state);
-  return task_id;
-}
-
 const std::map<TaskId, const ActorTask*> ActorKeyedService::GetActiveTasks()
     const {
   std::map<TaskId, const ActorTask*> active_tasks;
@@ -321,6 +313,22 @@ TaskId ActorKeyedService::CreateTask() {
 TaskId ActorKeyedService::CreateTaskWithOptions(
     webui::mojom::TaskOptionsPtr options,
     base::WeakPtr<ActorTaskDelegate> delegate) {
+  return CreateTaskImpl(ui::NewUiEventDispatcher(GetActorUiStateManager()),
+                        std::move(options), std::move(delegate));
+}
+
+TaskId ActorKeyedService::CreateTaskForTesting(
+    std::unique_ptr<actor::ui::UiEventDispatcher> ui_event_dispatcher,
+    webui::mojom::TaskOptionsPtr options,
+    base::WeakPtr<ActorTaskDelegate> delegate) {
+  return CreateTaskImpl(std::move(ui_event_dispatcher), std::move(options),
+                        std::move(delegate));
+}
+
+TaskId ActorKeyedService::CreateTaskImpl(
+    std::unique_ptr<actor::ui::UiEventDispatcher> ui_event_dispatcher,
+    webui::mojom::TaskOptionsPtr options,
+    base::WeakPtr<ActorTaskDelegate> delegate) {
   TRACE_EVENT0("actor", "ActorKeyedService::CreateTask");
   if (!policy_checker_->CanActOnWeb()) {
     RecordActorTaskCreated(false);
@@ -330,13 +338,20 @@ TaskId ActorKeyedService::CreateTaskWithOptions(
                          .Build());
     return TaskId();
   }
+
+  GetJournal().Log(GURL(), TaskId(), "ActorKeyedService::CreateTask", {});
+
   RecordActorTaskCreated(true);
-  auto execution_engine = std::make_unique<ExecutionEngine>(profile_.get());
+  const TaskId task_id = next_task_id_.GenerateNextId();
   auto actor_task = std::make_unique<ActorTask>(
-      profile_.get(), std::move(execution_engine),
-      ui::NewUiEventDispatcher(GetActorUiStateManager()), std::move(options),
+      base::PassKey<ActorKeyedService>(), profile_.get(), task_id,
+      std::move(ui_event_dispatcher), std::move(options), policy_checker_.get(),
       std::move(delegate));
-  return AddActiveTask(std::move(actor_task));
+
+  const ActorTask::State task_state = actor_task->GetState();
+  active_tasks_[task_id] = std::move(actor_task);
+  NotifyTaskStateChanged(task_id, task_state);
+  return task_id;
 }
 
 base::CallbackListSubscription ActorKeyedService::AddTaskStateChangedCallback(
@@ -498,7 +513,7 @@ void ActorKeyedService::PerformActions(
     return;
   }
 
-  task->GetExecutionEngine()->AddWritableMainframeOrigins(
+  task->GetExecutionEngine().AddWritableMainframeOrigins(
       task_metadata.added_writable_mainframe_origins());
   task->Act(
       std::move(actions),

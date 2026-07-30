@@ -2,8 +2,8 @@ Name: Metrics Protos
 Short Name: metrics_proto
 URL: This is the canonical public repository
 Update Mechanism: Manual
-Version: 862162327
-Date: 2026-01-28
+Version: 864257935
+Date: 2026-02-02
 License: BSD-3-Clause
 License File: LICENSE
 Shipped: yes
@@ -11,6 +11,7 @@ Security Critical: Yes
 
 Description:
 This package contains the protos that are used to upload metrics data to Google.
+
 Updates to this code should be made by changing the internal copies, and then
 running the export script.
 

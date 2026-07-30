@@ -23,6 +23,7 @@ namespace {
 // in other locations in the code base (e.g. content_features.h).
 const base::Feature* const kFeaturesExposedToJava[] = {
     &blink::features::kAndroidDesktopWebPrefsLargeDisplays,
+    &blink::features::kAndroidSpellcheckFullApiBlink,
     &blink::features::kDevicePosture,
     &blink::features::kSecurePaymentConfirmationBrowserBoundKeys,
     &blink::features::kSecurePaymentConfirmationUxRefresh,
@@ -40,6 +41,7 @@ const base::Feature* const kFeaturesExposedToJava[] = {
     &features::kAccessibilityImproveLiveRegionAnnounce,
     &features::kAccessibilityMagnificationFollowsFocus,
     &features::kAccessibilityRequestLayoutBasedActions,
+    &features::kAccessibilityRequestScopedContentChangedEvents,
     &features::kAccessibilityPageZoomV2,
     &features::kAccessibilityPopulateSupplementalDescriptionApi,
     &features::kAccessibilitySequentialFocus,

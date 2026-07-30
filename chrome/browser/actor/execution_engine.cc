@@ -23,6 +23,7 @@
 #include "base/notimplemented.h"
 #include "base/state_transitions.h"
 #include "base/trace_event/trace_event.h"
+#include "base/types/expected.h"
 #include "base/types/id_type.h"
 #include "base/types/optional_ref.h"
 #include "base/types/pass_key.h"
@@ -30,9 +31,9 @@
 #include "chrome/browser/actor/actor_keyed_service.h"
 #include "chrome/browser/actor/actor_metrics.h"
 #include "chrome/browser/actor/actor_policy_checker.h"
+#include "chrome/browser/actor/actor_proto_conversion.h"
 #include "chrome/browser/actor/actor_task.h"
 #include "chrome/browser/actor/actor_util.h"
-#include "chrome/browser/actor/browser_action_util.h"
 #include "chrome/browser/actor/origin_checker.h"
 #include "chrome/browser/actor/safety_list_manager.h"
 #include "chrome/browser/actor/site_policy.h"
@@ -43,8 +44,10 @@
 #include "chrome/browser/affiliations/affiliation_service_factory.h"
 #include "chrome/browser/autofill/glic/actor_form_filling_service_impl.h"
 #include "chrome/browser/favicon/favicon_service_factory.h"
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 #include "chrome/browser/password_manager/actor_login/actor_login_service.h"
 #include "chrome/browser/password_manager/actor_login/actor_login_service_impl.h"
+#endif
 #include "chrome/browser/profiles/profile.h"
 #include "chrome/common/actor.mojom.h"
 #include "chrome/common/actor/action_result.h"
@@ -119,6 +122,7 @@ url::Origin OriginOrPrecursorIfOpaque(const url::Origin& origin) {
 
 }  // namespace
 
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 ToolDelegate::CredentialWithPermission::CredentialWithPermission() = default;
 ToolDelegate::CredentialWithPermission::CredentialWithPermission(
     const actor_login::Credential& credential,
@@ -135,30 +139,61 @@ ToolDelegate::CredentialWithPermission&
 ToolDelegate::CredentialWithPermission::operator=(CredentialWithPermission&&) =
     default;
 ToolDelegate::CredentialWithPermission::~CredentialWithPermission() = default;
+#endif
 
-ExecutionEngine::ExecutionEngine(Profile* profile)
+// static
+ExecutionEngine::FactoryFunction&
+ExecutionEngine::GetFactoryFunctionForTesting() {
+  static base::NoDestructor<FactoryFunction> callback;
+  return *callback;
+}
+
+ExecutionEngine::ExecutionEngine(base::PassKey<ExecutionEngine> pass_key,
+                                 ActorTask& owner_task)
     : ExecutionEngine(
-          base::PassKey<ExecutionEngine>(),
-          profile,
-          ui::NewUiEventDispatcher(
-              ActorKeyedService::Get(profile)->GetActorUiStateManager())) {}
+          pass_key,
+          owner_task,
+          ui::NewUiEventDispatcher(ActorKeyedService::Get(owner_task.profile())
+                                       ->GetActorUiStateManager())) {}
+
+// Protected constructor without pass key to allow subclassing.
+ExecutionEngine::ExecutionEngine(ActorTask& owner_task)
+    : ExecutionEngine(base::PassKey<ExecutionEngine>(), owner_task) {}
 
 ExecutionEngine::ExecutionEngine(
     base::PassKey<ExecutionEngine>,
-    Profile* profile,
+    ActorTask& owner_task,
     std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher)
-    : profile_(profile),
-      journal_(ActorKeyedService::Get(profile)->GetJournal().GetSafeRef()),
+    : task_(owner_task),
+      journal_(
+          ActorKeyedService::Get(task_->profile())->GetJournal().GetSafeRef()),
+      tool_controller_(std::make_unique<ToolController>(*task_, *this)),
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
+      actor_login_service_(
+          std::make_unique<actor_login::ActorLoginServiceImpl>()),
+      actor_form_filling_service_(
+          std::make_unique<autofill::ActorFormFillingServiceImpl>()),
+#endif
       ui_event_dispatcher_(std::move(ui_event_dispatcher)) {
   TRACE_EVENT0("actor", "ExecutionEngine::ExecutionEngine");
-  CHECK(profile_);
+}
+
+// static
+std::unique_ptr<ExecutionEngine> ExecutionEngine::Create(
+    ActorTask& owner_task) {
+  if (!GetFactoryFunctionForTesting().is_null()) {
+    return GetFactoryFunctionForTesting().Run(owner_task);
+  }
+
+  return std::make_unique<ExecutionEngine>(base::PassKey<ExecutionEngine>(),
+                                           owner_task);
 }
 
 std::unique_ptr<ExecutionEngine> ExecutionEngine::CreateForTesting(
-    Profile* profile,
+    ActorTask& owner_task,
     std::unique_ptr<ui::UiEventDispatcher> ui_event_dispatcher) {
   return std::make_unique<ExecutionEngine>(base::PassKey<ExecutionEngine>(),
-                                           profile,
+                                           owner_task,
                                            std::move(ui_event_dispatcher));
 }
 
@@ -167,15 +202,6 @@ ExecutionEngine::~ExecutionEngine() {
   origin_checker_.RecordSizeMetrics();
 
   RunUserTakeoverCallbackIfExists(/*should_cancel=*/true);
-}
-
-void ExecutionEngine::SetOwner(ActorTask* task) {
-  task_ = task;
-  TRACE_EVENT0("actor", "ExecutionEngine::SetOwner");
-  actor_login_service_ = std::make_unique<actor_login::ActorLoginServiceImpl>();
-  actor_form_filling_service_ =
-      std::make_unique<autofill::ActorFormFillingServiceImpl>();
-  tool_controller_ = std::make_unique<ToolController>(*task_, *this);
 }
 
 void ExecutionEngine::SetState(State state) {
@@ -239,7 +265,7 @@ ExecutionEngine::ShouldDeferNavigation(
   CHECK(!navigation_handle.HasCommitted());
 
   base::ScopedUmaHistogramTimer timer(
-      "Actor.NavigationGating.TimeElapsedForGating");
+      "Actor.NavigationGating.TimeElapsedForGating2");
 
   const GatingDecision decision = DetermineGatingDecision(
       /*source_url=*/GetPrimaryMainFrame(navigation_handle)
@@ -266,7 +292,7 @@ ExecutionEngine::ShouldDeferNavigation(
           base::BindOnce(&ExecutionEngine::CheckNavigationSensitiveUrlList,
                          GetWeakPtr(), navigation_handle.GetInitiatorOrigin(),
                          navigation_handle.GetURL(), skip_prompt,
-                         std::move(callback)));
+                         std::move(timer), std::move(callback)));
       return content::NavigationThrottle::DEFER;
     }
   }
@@ -299,9 +325,7 @@ ExecutionEngine::GatingDecision ExecutionEngine::DetermineGatingDecision(
   // enterprise policy blocklist, as we would already have blocked the
   // navigation before reaching this gating logic.
   const EnterprisePolicyBlockReason enterprise_reason =
-      ActorKeyedService::Get(profile_)
-          ->GetPolicyChecker()
-          .EvaluateEnterprisePolicyForUrl(destination_url);
+      task_->policy_checker().Evaluate(destination_url);
   if (enterprise_reason == EnterprisePolicyBlockReason::kExplicitlyAllowed) {
     return GatingDecision::kAllowByStaticList;
   }
@@ -344,33 +368,34 @@ void ExecutionEngine::CheckNavigationSensitiveUrlList(
     base::optional_ref<const url::Origin> initiator_origin,
     const GURL& navigation_url,
     bool skip_prompt,
+    base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback) {
   // Check previously confirmed origins on the sensitive list. If the user
   // has previously confirmed the origin is allowed, we should proceed and not
   // double prompt.
   if (origin_checker_.IsSensitiveUrlConfirmed(navigation_url)) {
     OnNavigationSensitiveUrlListChecked(initiator_origin, navigation_url,
-                                        skip_prompt, std::move(callback),
+                                        skip_prompt, std::move(timer),
+                                        std::move(callback),
                                         /*not_sensitive=*/true);
     return;
   }
-  auto [callback1, callback2] = base::SplitOnceCallback(std::move(callback));
-  if (MaybeCheckOptimizationGuideForSensitiveUrl(
-          navigation_url, profile_,
+  base::expected<void, DecisionCallback> sensitive_check_result =
+      MaybeCheckOptimizationGuideForSensitiveUrl(
+          navigation_url, task_->profile(),
           base::BindOnce(&ExecutionEngine::OnNavigationSensitiveUrlListChecked,
                          GetWeakPtr(), initiator_origin, navigation_url,
-                         skip_prompt, std::move(callback1)))) {
-    return;
+                         skip_prompt, std::move(timer), std::move(callback)));
+  if (!sensitive_check_result.has_value()) {
+    std::move(sensitive_check_result).error().Run(/*not_sensitive=*/true);
   }
-  OnNavigationSensitiveUrlListChecked(initiator_origin, navigation_url,
-                                      skip_prompt, std::move(callback2),
-                                      /*not_sensitive=*/true);
 }
 
 void ExecutionEngine::OnNavigationSensitiveUrlListChecked(
     base::optional_ref<const url::Origin> initiator_origin,
     const GURL navigation_url,
     bool skip_prompt,
+    base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback,
     bool not_sensitive) {
   // If not sensitive, check if it's an origin the actor has previously
@@ -396,7 +421,7 @@ void ExecutionEngine::OnNavigationSensitiveUrlListChecked(
   // prompt the user depending on the feature state.
   if (not_sensitive) {
     HandleNavigationToNewOrigin(url::Origin::Create(navigation_url),
-                                std::move(callback));
+                                std::move(timer), std::move(callback));
     return;
   }
 
@@ -409,11 +434,12 @@ void ExecutionEngine::OnNavigationSensitiveUrlListChecked(
   // Otherwise, present a user confirmation dialog to continue.
   SendUserConfirmationDialogRequest(url::Origin::Create(navigation_url),
                                     /*for_sensitive_origin=*/true,
-                                    std::move(callback));
+                                    std::move(timer), std::move(callback));
 }
 
 void ExecutionEngine::HandleNavigationToNewOrigin(
     const url::Origin& navigation_origin,
+    base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback) {
   if (!kGlicConfirmNavigationToNewOrigins.Get()) {
     std::move(callback).Run(/*may_continue=*/true);
@@ -422,14 +448,16 @@ void ExecutionEngine::HandleNavigationToNewOrigin(
   if (kGlicPromptUserForNavigationToNewOrigins.Get()) {
     SendUserConfirmationDialogRequest(navigation_origin,
                                       /*for_sensitive_origin=*/false,
-                                      std::move(callback));
+                                      std::move(timer), std::move(callback));
     return;
   }
-  SendNavigationConfirmationRequest(navigation_origin, std::move(callback));
+  SendNavigationConfirmationRequest(navigation_origin, std::move(timer),
+                                    std::move(callback));
 }
 
 void ExecutionEngine::SendNavigationConfirmationRequest(
     const url::Origin& navigation_origin,
+    base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback) {
   if (!task_->delegate()) {
     std::move(callback).Run(/*may_continue=*/false);
@@ -438,11 +466,13 @@ void ExecutionEngine::SendNavigationConfirmationRequest(
   task_->delegate()->RequestToConfirmNavigation(
       task_->id(), navigation_origin,
       base::BindOnce(&ExecutionEngine::OnNavigationConfirmationDecision,
-                     GetWeakPtr(), navigation_origin, std::move(callback)));
+                     GetWeakPtr(), navigation_origin, std::move(timer),
+                     std::move(callback)));
 }
 
 void ExecutionEngine::OnNavigationConfirmationDecision(
-    url::Origin navigation_origin,
+    const url::Origin& navigation_origin,
+    base::ScopedUmaHistogramTimer timer,
     ExecutionEngine::NavigationDecisionCallback callback,
     webui::mojom::NavigationConfirmationResponsePtr response) {
   if (response->result->is_permission_granted()) {
@@ -465,6 +495,7 @@ void ExecutionEngine::OnNavigationConfirmationDecision(
 void ExecutionEngine::SendUserConfirmationDialogRequest(
     const url::Origin& navigation_origin,
     bool for_sensitive_origin,
+    std::optional<base::ScopedUmaHistogramTimer> timer,
     ExecutionEngine::NavigationDecisionCallback callback) {
   if (!task_->delegate()) {
     std::move(callback).Run(/*may_continue=*/false);
@@ -686,8 +717,8 @@ void ExecutionEngine::SafetyChecksForNextAction() {
   // invoked `origin_checker_.ConfirmSensitiveOrigin()` with the precursor to
   // ensure the optimization guide sensitive origin check would be skipped as
   // expected.
-  ActorKeyedService::Get(profile_)->GetPolicyChecker().MayActOnTab(
-      *tab, *journal_, task_->id(), origin_checker_,
+  MayActOnTab(
+      *tab, *journal_, task_->id(), origin_checker_, task_->policy_checker(),
       base::BindOnce(
           &ExecutionEngine::OnMayActOnTabDecision, GetWeakPtr(),
           tab->GetContents()->GetPrimaryMainFrame()->GetLastCommittedOrigin()));
@@ -706,6 +737,7 @@ void ExecutionEngine::OnMayActOnTabDecision(
         SendUserConfirmationDialogRequest(
             evaluated_origin,
             /*for_sensitive_origin=*/true,
+            /*timer=*/std::nullopt,
             base::BindOnce(&ExecutionEngine::DidFinishAsyncSafetyChecks,
                            GetWeakPtr(), evaluated_origin));
         return;
@@ -942,34 +974,36 @@ bool ExecutionEngine::HasActionSequence() const {
 
 favicon::FaviconService* ExecutionEngine::GetFaviconService() {
   return FaviconServiceFactory::GetForProfile(
-      profile_, ServiceAccessType::EXPLICIT_ACCESS);
+      task_->profile(), ServiceAccessType::EXPLICIT_ACCESS);
 }
 
 void ExecutionEngine::IsAcceptableNavigationDestination(
     const GURL& url,
     DecisionCallbackWithReason callback) {
-  ActorKeyedService::Get(profile_)->GetPolicyChecker().MayActOnUrl(
-      url, /*allow_insecure_http=*/true, profile_, *journal_, task_->id(),
-      std::move(callback));
+  MayActOnUrl(url, /*allow_insecure_http=*/true, task_->profile(), *journal_,
+              task_->id(), task_->policy_checker(), std::move(callback));
 }
 
 Profile& ExecutionEngine::GetProfile() {
-  return *profile_;
+  return *task_->profile();
 }
 
 AggregatedJournal& ExecutionEngine::GetJournal() {
   return *journal_;
 }
 
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 actor_login::ActorLoginService& ExecutionEngine::GetActorLoginService() {
   return *actor_login_service_;
 }
+#endif
 
 autofill::ActorFormFillingService&
 ExecutionEngine::GetActorFormFillingService() {
   return *actor_form_filling_service_;
 }
 
+#if !BUILDFLAG(SKIP_ANDROID_UNMIGRATED_ACTOR_FILES)
 void ExecutionEngine::PromptToSelectCredential(
     const std::vector<actor_login::Credential>& credentials,
     const base::flat_map<std::string, gfx::Image>& icons,
@@ -994,7 +1028,7 @@ void ExecutionEngine::SetUserSelectedCredential(
   user_selected_credentials_[origin] = credential_with_permission;
 
   affiliations::AffiliationService* affiliation_service =
-      AffiliationServiceFactory::GetForProfile(profile_);
+      AffiliationServiceFactory::GetForProfile(task_->profile());
   // Fetch strongly affiliated domains, in order to be able to reuse the
   // permission for sites that do not have the exact same origin but are
   // strongly affiliated.
@@ -1062,6 +1096,7 @@ ExecutionEngine::GetUserSelectedCredential(
   return std::nullopt;
 }
 
+#endif
 void ExecutionEngine::RequestToShowAutofillSuggestions(
     std::vector<autofill::ActorFormFillingRequest> requests,
     ExecutionEngine::AutofillSuggestionSelectedCallback callback) {

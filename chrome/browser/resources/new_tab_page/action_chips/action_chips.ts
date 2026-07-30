@@ -267,8 +267,14 @@ export class ActionChipsElement extends CrLitElement {
   }
 
   protected getChipSubtitle_(chip: ActionChip): string {
-    const prefix = this.showDashSimplifiedUI_(chip) ? ' - ' : '';
-    return `${prefix}${chip.subtitle}`;
+    const subtitle = (this.showSimplifiedUI_ &&
+                      (chip.type === ChipType.kImage ||
+                       chip.type === ChipType.kDeepSearch) &&
+                      chip.suggestion) ?
+        chip.suggestion :
+        chip.subtitle;
+    const prefix = (subtitle && this.showDashSimplifiedUI_(chip)) ? ' - ' : '';
+    return `${prefix}${subtitle}`;
   }
 
   protected getChipTitle_(chip: ActionChip) {
@@ -283,11 +289,11 @@ export class ActionChipsElement extends CrLitElement {
     const domain = url.hostname.replace(/^www\./, '');
 
     if (this.isRecentTabChip_(chip)) {
-      return `${suggestion} - ${domain}`;
+      return `${tabTitle}\n${domain}`;
     }
 
     if (this.isDeepDiveChip_(chip)) {
-      return `${tabTitle} - ${domain} - ${suggestion}`;
+      return `${suggestion}\n${domain}`;
     }
 
     return suggestion;

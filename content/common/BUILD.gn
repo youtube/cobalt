@@ -222,7 +222,6 @@ source_set("common") {
     "//gpu/command_buffer/service",
     "//gpu/ipc/client",
     "//gpu/ipc/common",
-    "//gpu/skia_bindings",
     "//ipc",
     "//media",
     "//media/base/ipc",
@@ -258,7 +257,6 @@ source_set("common") {
     "//ui/gfx/geometry",
     "//ui/gfx/geometry/mojom:mojom_traits",
     "//ui/gfx/ipc",
-    "//ui/gfx/ipc/color",
     "//ui/gfx/ipc/geometry",
     "//ui/gl",
     "//ui/gl/init",
@@ -332,7 +330,6 @@ source_set("common") {
     sources += [
       "font_cache_dispatcher_win.cc",
       "font_list_win.cc",
-      "sandbox_init_win.cc",
     ]
   }
 

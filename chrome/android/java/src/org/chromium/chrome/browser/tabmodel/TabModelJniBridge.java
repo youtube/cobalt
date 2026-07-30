@@ -73,14 +73,14 @@ public abstract class TabModelJniBridge implements TabModelInternal {
      * Initializes the native-side counterpart to this class.
      *
      * @param activityType The type of activity this TabModel was created in.
-     * @param isArchivedTabModel Whether this tab model is for archived tabs. When true, excludes
-     *     the model from broadcasting sync updates.
+     * @param tabModelType The type of the TabModel.
      */
     @CallSuper
-    protected void initializeNative(@ActivityType int activityType, boolean isArchivedTabModel) {
+    protected void initializeNative(
+            @ActivityType int activityType, @TabModelType int tabModelType) {
         assert mNativeTabModelJniBridge == 0;
         mNativeTabModelJniBridge =
-                TabModelJniBridgeJni.get().init(this, mProfile, activityType, isArchivedTabModel);
+                TabModelJniBridgeJni.get().init(this, mProfile, activityType, tabModelType);
     }
 
     /** Returns whether the native-side pointer has been initialized. */
@@ -540,7 +540,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     protected abstract @JniType("std::vector<base::Token>") List<Token> listTabGroups();
 
     @CalledByNative
-    protected abstract @JniType("std::optional<std::u16string>") @Nullable String getTabGroupTitle(
+    protected abstract @JniType("std::u16string") String getTabGroupTitle(
             @JniType("base::Token") Token tabGroupId);
 
     @CalledByNative
@@ -564,7 +564,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
     @CalledByNative
     protected abstract void setTabGroupVisualData(
             @JniType("base::Token") Token tabGroupId,
-            @JniType("std::optional<std::u16string>") @Nullable String title,
+            @JniType("std::u16string") String title,
             @TabGroupColorId int colorId,
             boolean isCollapsed,
             boolean animate);
@@ -680,7 +680,7 @@ public abstract class TabModelJniBridge implements TabModelInternal {
                 TabModelJniBridge self,
                 @JniType("Profile*") Profile profile,
                 @ActivityType int activityType,
-                boolean isArchivedTabModel);
+                @TabModelType int tabModelType);
 
         void broadcastSessionRestoreComplete(long nativeTabModelJniBridge);
 

@@ -271,6 +271,12 @@ BASE_DECLARE_FEATURE(kGeminiRefactoredFRE);
 // Returns true if the Gemini refactored FRE is enabled.
 bool IsGeminiRefactoredFREEnabled();
 
+// Feature flag to enable the updated eligibility checks for Gemini.
+BASE_DECLARE_FEATURE(kGeminiUpdatedEligibility);
+
+// Returns true if the updated eligibiliy checks for Gemini are enabled.
+bool IsGeminiUpdatedEligibilityEnabled();
+
 // Feature flag for displaying a sheet which shows the web page's self-reported
 // important images. Experimental.
 BASE_DECLARE_FEATURE(kWebPageReportedImagesSheet);
@@ -283,6 +289,16 @@ bool IsGeminiImageRemixToolEnabled();
 // Returns true if the Gemini FRE should show the image remix row.
 bool IsGeminiImageRemixToolShowFRERowEnabled();
 extern const char kGeminiImageRemixToolShowFRERow[];
+
+// Returns true if the image remix tool should appear above
+// search image with Google (entry point will be in that same section).
+bool IsGeminiImageRemixToolShowAboveSearchImageEnabled();
+extern const char kGeminiImageRemixToolShowAboveSearchImage[];
+
+// Returns true if the image remix tool should appear below
+// search image with Google (entry point will be in that same section).
+bool IsGeminiImageRemixToolShowBelowSearchImageEnabled();
+extern const char kGeminiImageRemixToolShowBelowSearchImage[];
 
 // Feature flag for enabling the Gemini eligibility ablation experiment.
 BASE_DECLARE_FEATURE(kGeminiEligibilityAblation);

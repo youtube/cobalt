@@ -383,7 +383,7 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
       net::StorageAccessApiStatus storage_access_api_status,
       const net::IsolationInfo& isolation_info,
       std::vector<mojom::HttpHeaderPtr> additional_headers,
-      int32_t process_id,
+      const network::OriginatingProcess& process_id,
       const url::Origin& origin,
       network::mojom::ClientSecurityStatePtr client_security_state,
       uint32_t options,
@@ -724,6 +724,12 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // `network_revocation_exemptions_`.
   bool IsNetworkForNonceAndUrlAllowed(const base::UnguessableToken& nonce,
                                       const GURL& url) const;
+
+  // Checks whether host resolution is allowed for `host` given the network
+  // restrictions ID `nonce`.
+  bool IsHostResolutionForNonceAndHostAllowed(
+      const base::UnguessableToken& nonce,
+      const mojom::HostResolverHost& host) const;
 
  private:
   class NetworkContextHttpAuthPreferences : public net::HttpAuthPreferences {
@@ -1077,9 +1083,9 @@ class COMPONENT_EXPORT(NETWORK_SERVICE) NetworkContext
   // Manager for device bound sessions.
   std::unique_ptr<DeviceBoundSessionManager> device_bound_session_manager_;
 
-  // Used only when network::features::kCacheSharingForPervasiveScripts is
+  // Used only when network::features::kCacheSharingForPervasiveResources is
   // enabled to determine if a given request is for a well-known
-  // pervasive script.
+  // pervasive resource.
   // See https://chromestatus.com/feature/5202380930678784
   // This needs to be ordered after cookie_manager_ as it maintains a reference
   // to the cookie settings object from cookie_manager_.

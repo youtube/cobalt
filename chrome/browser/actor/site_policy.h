@@ -7,6 +7,8 @@
 
 #include "base/functional/callback_forward.h"
 #include "base/functional/function_ref.h"
+#include "base/types/expected.h"
+#include "chrome/browser/actor/enterprise_policy_checker.h"
 #include "chrome/common/actor/task_id.h"
 #include "third_party/abseil-cpp/absl/container/flat_hash_set.h"
 #include "url/origin.h"
@@ -44,20 +46,6 @@ using DecisionCallback = base::OnceCallback<void(/*may_act=*/bool)>;
 using DecisionCallbackWithReason =
     base::OnceCallback<void(MayActOnUrlBlockReason reason)>;
 
-enum class EnterprisePolicyBlockReason {
-  // Enterprise policy did not explicitly block a URL, but it also did not
-  // explicitly allow it, so the regular safety checks should still be done.
-  kNotBlocked,
-  // Enterprise policy explicitly allowed a URL. Some additional safety checks
-  // are not done.
-  kExplicitlyAllowed,
-  // Enterprise policy explicitly blocked a URL.
-  kExplicitlyBlocked,
-};
-
-using EnterprisePolicyCallback =
-    base::FunctionRef<EnterprisePolicyBlockReason(const GURL&)>;
-
 // Checks whether the actor may perform actions on the given tab based on the
 // last committed document and URL. Invokes the callback with true if it is
 // allowed.
@@ -67,27 +55,25 @@ using EnterprisePolicyCallback =
 // task starts. However, any future URLs the actor navigates to should undergo
 // blocklist checks in `MayActOnUrl` or
 // `ShouldBlockNavigationUrlForOriginGating`.
-// `enterprise_policy_eval_url` is invoked to evaluate the URL based on
-// enterprise policy allow/blocklists.
-// Please use ActorPolicyChecker instead of calling this directly.
+// `policy_checker` is used to evaluate the URL based on enterprise policy
+// allow/blocklists.
 void MayActOnTab(const tabs::TabInterface& tab,
                  AggregatedJournal& journal,
                  TaskId task_id,
                  const OriginChecker& origin_checker,
-                 EnterprisePolicyCallback enterprise_policy_eval_url,
+                 const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback);
 
 // Like MayActOnTab, but considers a URL on its own.
 // This can optionally allow insecure HTTP URLs as in practice sites may have
 // HTTP links that will get upgraded. Rejecting HTTP URLs before this can happen
 // would be too serious of an impediment.
-// Please use ActorPolicyChecker instead of calling this directly.
 void MayActOnUrl(const GURL& url,
                  bool allow_insecure_http,
                  Profile* profile,
                  AggregatedJournal& journal,
                  TaskId task_id,
-                 EnterprisePolicyCallback enterprise_policy_eval_url,
+                 const EnterprisePolicyChecker& policy_checker,
                  DecisionCallbackWithReason callback);
 
 // Checks if navigation to `url` should be blocked using
@@ -96,12 +82,14 @@ void MayActOnUrl(const GURL& url,
 // invoked with `false`, the actor should block navigation or ask the user to
 // confirm.
 //
-// Returns true if this function will eventually invoke `callback`, false
-// otherwise (maybe because the feature was disabled, or OptimizationGuide is
-// not available for some other reason).
-bool MaybeCheckOptimizationGuideForSensitiveUrl(const GURL& url,
-                                                Profile* profile,
-                                                DecisionCallback callback);
+// Returns `base::ok()` if this function will eventually invoke `callback`;
+// otherwise returns `base::unexpected(callback)` and the caller is responsible
+// for invoking `callback` themselves (maybe because the feature was disabled,
+// or OptimizationGuide is not available for some other reason).
+base::expected<void, DecisionCallback>
+MaybeCheckOptimizationGuideForSensitiveUrl(const GURL& url,
+                                           Profile* profile,
+                                           DecisionCallback callback);
 
 }  // namespace actor
 

@@ -16,17 +16,21 @@
 #include "chrome/app/chrome_command_ids.h"
 #include "chrome/browser/themes/theme_service.h"
 #include "chrome/browser/themes/theme_service_factory.h"
+#include "chrome/browser/ui/browser.h"
 #include "chrome/browser/ui/browser_command_controller.h"
 #include "chrome/browser/ui/browser_element_identifiers.h"
+#include "chrome/browser/ui/browser_window/public/desktop_browser_window_capabilities.h"
 #include "chrome/browser/ui/interaction/browser_elements.h"
 #include "chrome/browser/ui/ui_features.h"
 #include "chrome/browser/ui/views/frame/browser_view.h"
+#include "chrome/browser/ui/views/frame/toolbar_button_provider.h"
 #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
 #include "chrome/common/chrome_features.h"
 #include "chrome/common/webui_url_constants.h"
 #include "chrome/test/base/in_process_browser_test.h"
 #include "chrome/test/base/ui_test_utils.h"
 #include "components/viz/common/frame_sinks/copy_output_result.h"
+#include "content/public/browser/javascript_dialog_manager.h"
 #include "content/public/browser/render_process_host.h"
 #include "content/public/browser/render_widget_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -85,26 +89,34 @@ class WebUIToolbarWebViewPixelBrowserTest : public InProcessBrowserTest {
                   ui::TrackedElement** element_out,
                   WebUIToolbarWebView** webui_toolbar_view_out,
                   views::WebView** web_view_out) {
+    // Wait for the WebUIToolbarWebView to be available.
+    *webui_toolbar_view_out = nullptr;
     ASSERT_TRUE(base::test::RunUntil([&]() {
-      *element_out = BrowserElements::From(browser())->GetElement(element_id);
-      return *element_out != nullptr;
+      BrowserView* browser_view =
+          BrowserView::GetBrowserViewForBrowser(browser());
+      if (!browser_view || !browser_view->toolbar()) {
+        return false;
+      }
+      ToolbarButtonProvider* provider = browser_view->toolbar();
+      *webui_toolbar_view_out = provider->GetWebUIToolbarViewForTesting();
+      return *webui_toolbar_view_out != nullptr;
     }));
-    ASSERT_TRUE(*element_out);
-
-    ui::TrackedElement* toolbar_element = nullptr;
-    ASSERT_TRUE(base::test::RunUntil([&]() {
-      toolbar_element = BrowserElements::From(browser())->GetElement(
-          kWebUIToolbarElementIdentifier);
-      return toolbar_element != nullptr;
-    }));
-    ASSERT_TRUE(toolbar_element);
-    views::TrackedElementViews* webui_toolbar_view_element =
-        toolbar_element->AsA<views::TrackedElementViews>();
-
-    ASSERT_TRUE(webui_toolbar_view_element);
-    *webui_toolbar_view_out = views::AsViewClass<WebUIToolbarWebView>(
-        webui_toolbar_view_element->view());
     ASSERT_TRUE(*webui_toolbar_view_out);
+
+    if (element_id == kWebUIToolbarElementIdentifier) {
+      // We already have the view, and the Basic test doesn't strictly need the
+      // TrackedElement. ElementTracker might be flaky or slow here.
+      *element_out =
+          views::ElementTrackerViews::GetInstance()->GetElementForView(
+              *webui_toolbar_view_out);
+    } else {
+      ASSERT_TRUE(base::test::RunUntil([&]() {
+        *element_out = BrowserElements::From(browser())->GetElement(element_id);
+        return *element_out != nullptr;
+      }));
+      ASSERT_TRUE(*element_out);
+    }
+
     ASSERT_EQ((*webui_toolbar_view_out)->children().size(), 1u);
     *web_view_out = views::AsViewClass<views::WebView>(
         (*webui_toolbar_view_out)->children()[0].get());
@@ -190,7 +202,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest, Accessibility) {
   EXPECT_EQ(0, reload.GetIntAttribute(ax::mojom::IntAttribute::kHasPopup));
 
   // Verify enabling menu is reflected in HasPopup attribute.
-  webui_toolbar_view->GetReloadControl()->SetMenuEnabled(true);
+  webui_toolbar_view->GetReloadControl()->SetDevToolsStatus(true);
   content::WaitForAccessibilityTreeToChange(web_view->GetWebContents());
   content::WaitForAccessibilityTreeToContainNodeWithName(
       web_view->GetWebContents(), "Reload");
@@ -229,7 +241,7 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewPixelBrowserTest,
   EXPECT_EQ(GetCenterPixelColor(web_view, control_rect), SK_ColorTRANSPARENT);
 
   // Show reload button context menu.
-  webui_toolbar_view->GetReloadControl()->SetMenuEnabled(true);
+  webui_toolbar_view->GetReloadControl()->SetDevToolsStatus(true);
   webui_toolbar_view->HandleContextMenu(
       browser_controls_api::mojom::ContextMenuType::kReload,
       element->GetScreenBounds().bottom_right(),
@@ -275,17 +287,24 @@ class WebUIToolbarWebViewStabilityTest : public InProcessBrowserTest {
   }
 
   WebUIToolbarWebView* GetWebUIToolbarWebView() {
-    ui::TrackedElement* element = nullptr;
+    WebUIToolbarWebView* webui_toolbar_view = nullptr;
     if (!base::test::RunUntil([&]() {
-          element = BrowserElements::From(browser())->GetElement(
-              kWebUIToolbarElementIdentifier);
-          return element != nullptr;
+          BrowserView* browser_view =
+              BrowserView::GetBrowserViewForBrowser(browser());
+          if (!browser_view) {
+            return false;
+          }
+          ToolbarView* toolbar = browser_view->toolbar();
+          if (!toolbar) {
+            return false;
+          }
+          ToolbarButtonProvider* provider = toolbar;
+          webui_toolbar_view = provider->GetWebUIToolbarViewForTesting();
+          return webui_toolbar_view != nullptr;
         })) {
       return nullptr;
     }
-    views::TrackedElementViews* views_element =
-        element->AsA<views::TrackedElementViews>();
-    return views::AsViewClass<WebUIToolbarWebView>(views_element->view());
+    return webui_toolbar_view;
   }
 
   content::WebContents* GetWebContents(WebUIToolbarWebView* view) {
@@ -477,6 +496,62 @@ IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
 
   EXPECT_TRUE(nav_observer.last_navigation_succeeded());
   EXPECT_FALSE(web_contents->IsCrashed());
+}
+
+IN_PROC_BROWSER_TEST_F(WebUIToolbarWebViewStabilityTest,
+                       CrashDuringBrowserClose) {
+  WebUIToolbarWebView* toolbar_view = GetWebUIToolbarWebView();
+  ASSERT_TRUE(toolbar_view);
+  content::WebContents* web_contents = GetWebContents(toolbar_view);
+  ASSERT_TRUE(web_contents);
+
+  // Add a beforeunload handler to the active tab to pause the close process.
+  ASSERT_TRUE(
+      content::ExecJs(browser()->tab_strip_model()->GetActiveWebContents(),
+                      "window.addEventListener('beforeunload', "
+                      "function(event) { event.returnValue = 'Foo'; });"));
+  content::PrepContentsForBeforeUnloadTest(
+      browser()->tab_strip_model()->GetActiveWebContents());
+
+  // Close the window. This should trigger the beforeunload dialog and set the
+  // browser into the "attempting to close" state.
+  browser()->window()->Close();
+
+  // Verify the browser is attempting to close.
+  EXPECT_TRUE(browser()->capabilities()->IsAttemptingToCloseBrowser());
+
+  // Watch for reload.
+  content::NavigationHandleObserver nav_observer(
+      web_contents, GURL(chrome::kChromeUIWebUIToolbarURL));
+
+  // Crash the WebUI renderer.
+  content::RenderProcessHost* process =
+      web_contents->GetPrimaryMainFrame()->GetProcess();
+  content::RenderProcessHostWatcher crash_observer(
+      process, content::RenderProcessHostWatcher::WATCH_FOR_PROCESS_EXIT);
+  process->Shutdown(1);
+  crash_observer.Wait();
+
+  // Run the loop to ensure any posted recovery tasks would have started.
+  base::RunLoop run_loop;
+  base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
+      FROM_HERE, run_loop.QuitClosure());
+  run_loop.Run();
+
+  // Verify that the WebContents is still crashed and no reload happened.
+  EXPECT_TRUE(web_contents->IsCrashed());
+  EXPECT_FALSE(nav_observer.has_committed());
+
+  // Cleanup: Accept the beforeunload dialog to allow the browser to close.
+  ui_test_utils::WaitForAppModalDialog();
+  content::WebContents* active_web_contents =
+      browser()->tab_strip_model()->GetActiveWebContents();
+  content::JavaScriptDialogManager* dialog_manager =
+      static_cast<content::WebContentsDelegate*>(browser())
+          ->GetJavaScriptDialogManager(active_web_contents);
+  dialog_manager->HandleJavaScriptDialog(active_web_contents, /*accept=*/true,
+                                         /*prompt_override=*/nullptr);
+  ui_test_utils::WaitForBrowserToClose(browser());
 }
 
 class WebUIReloadButtonBrowserTest : public InProcessBrowserTest {

@@ -291,7 +291,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
                 null,
                 ObservableSuppliers.createNonNull(Color.TRANSPARENT),
                 edgeToEdgeManager,
-                /* xrSpaceModeObservableSupplier= */ null,
+                /* xrSpaceModeObservableSupplier= */ ObservableSuppliers.alwaysFalse(),
                 desktopWindowStateManager);
         mCustomTabProvider = customTabProvider;
         mToolbarCoordinator = customTabToolbarCoordinator;
@@ -341,7 +341,7 @@ public class BaseCustomTabRootUiCoordinator extends RootUiCoordinator {
 
         if (OpenInAppUtils.isOpenInAppAvailable()) {
             mOpenInAppEntryPoint =
-                    new CustomTabOpenInAppEntryPoint(mActivityTabProvider.asObservable());
+                    new CustomTabOpenInAppEntryPoint(mActivityTabProvider.asObservable(), activity);
         }
     }
 

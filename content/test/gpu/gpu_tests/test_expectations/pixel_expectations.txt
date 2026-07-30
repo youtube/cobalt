@@ -390,7 +390,8 @@ crbug.com/381211724 [ mac amd-0x679e release no-asan graphite-enabled ] Pixel_SV
 
 # Mac Asan timeouts
 crbug.com/338200323 [ mac angle-opengl asan graphite-disabled intel-0x3e9b passthrough ] Pixel_WebGPUToDataURL [ Slow ]
-crbug.com/338200323 [ mac angle-metal asan intel-0x3e9b passthrough ] Pixel_WebGLSadCanvas [ Slow ]
+crbug.com/338200323 crbug.com/479387364 [ mac angle-metal asan intel-0x3e9b passthrough ] Pixel_WebGLSadCanvas [ Failure ]
+crbug.com/338200323 crbug.com/479387364 [ mac angle-metal asan intel-0x3e9b passthrough ] Pixel_WebGLFloat [ Failure ]
 crbug.com/338200323 [ sonoma angle-metal asan intel-0x3e9b passthrough ] Pixel_OffscreenCanvasWebGLSoftwareCompositing [ Slow ]
 crbug.com/338200323 [ sonoma angle-metal asan intel-0x3e9b passthrough ] Pixel_OffscreenCanvasWebGLSoftwareCompositingWorker [ Slow ]
 crbug.com/338200323 [ mac angle-metal asan intel-0x3e9b passthrough ] Pixel_OffscreenCanvasTransferToImageBitmapSoftwareCompositing [ Slow ]
@@ -443,7 +444,7 @@ crbug.com/1477318 [ mac ] Pixel_WebGLPreservedAfterTabSwitch [ RetryOnFailure ]
 
 crbug.com/354748635 [ mac amd-0x7340 angle-opengl graphite-disabled ] Pixel_OffscreenCanvasAccelerated2D [ RetryOnFailure ]
 crbug.com/354748635 [ mac amd-0x7340 angle-opengl ] Pixel_OffscreenCanvasAccelerated2DWorker [ Failure ]
-
+[ mac asan amd-0x7340 angle-opengl passthrough graphite-disabled ] Pixel_WebGLSadCanvas [ RetryOnFailure ]
 
 # Fails with hung renderer
 crbug.com/1372149 [ android android-sm-a236b no-passthrough ] Pixel_WebGLFloat [ Failure ]
@@ -473,6 +474,7 @@ crbug.com/40935289 [ angle-vulkan arm fuchsia no-clang-coverage web-engine-shell
 
 # Flaky on Mac ASAN and AMD Radeon Pro 555X
 crbug.com/372055518 [ angle-metal asan intel-0x3e9b mac ] Pixel_WebGLReadPixelsTabSwitch_SoftwareCompositing [ Failure ]
+[ angle-opengl asan intel mac release ] Pixel_OffscreenCanvasUnaccelerated2DGPUCompositing [ RetryOnFailure ]
 
 # Flaky hang on Mac GL ASAN
 crbug.com/40277254 [ mac angle-opengl asan ] Pixel_WebGPUDisplayP3 [ Failure ]

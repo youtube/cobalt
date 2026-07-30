@@ -19,6 +19,14 @@
 namespace content {
 namespace {
 
+PrefetchServingHandle::OnIsolatedCookieCopyStartCallbackForTesting&
+GetOnIsolatedCookieCopyStartCallbackForTesting() {
+  static base::NoDestructor<
+      PrefetchServingHandle::OnIsolatedCookieCopyStartCallbackForTesting>
+      on_isolated_cookie_copy_start_callback_for_testing;
+  return *on_isolated_cookie_copy_start_callback_for_testing;
+}
+
 void RecordCookieCopyTimes(
     const base::TimeTicks& cookie_copy_start_time,
     const base::TimeTicks& cookie_read_end_and_write_start_time,
@@ -53,7 +61,7 @@ PrefetchServingHandle& PrefetchServingHandle::operator=(
     PrefetchServingHandle&&) = default;
 PrefetchServingHandle::~PrefetchServingHandle() = default;
 
-PrefetchServingHandle PrefetchServingHandle::Clone() const {
+PrefetchServingHandle PrefetchServingHandle::Clone() {
   return PrefetchServingHandle(prefetch_container_,
                                index_redirect_chain_to_serve_);
 }
@@ -102,7 +110,15 @@ bool PrefetchServingHandle::IsIsolatedCookieCopyInProgress() const {
   }
 }
 
-void PrefetchServingHandle::OnIsolatedCookieCopyStart() const {
+void PrefetchServingHandle::
+    SetOnIsolatedCookieCopyStartCallbackForTesting(  // IN-TEST
+        PrefetchServingHandle::OnIsolatedCookieCopyStartCallbackForTesting
+            on_isolated_cookie_copy_start_callback_for_testing) {
+  GetOnIsolatedCookieCopyStartCallbackForTesting() =  // IN-TEST
+      std::move(on_isolated_cookie_copy_start_callback_for_testing);
+}
+
+void PrefetchServingHandle::OnIsolatedCookieCopyStart() {
   DCHECK(!IsIsolatedCookieCopyInProgress());
 
   // We should temporarily ignore the cookie monitoring by
@@ -122,16 +138,20 @@ void PrefetchServingHandle::OnIsolatedCookieCopyStart() const {
 
   GetCurrentSingleRedirectHopToServe().cookie_copy_start_time_ =
       base::TimeTicks::Now();
+
+  if (GetOnIsolatedCookieCopyStartCallbackForTesting()) {
+    GetOnIsolatedCookieCopyStartCallbackForTesting().Run(*this);  // IN-TEST
+  }
 }
 
-void PrefetchServingHandle::OnIsolatedCookiesReadCompleteAndWriteStart() const {
+void PrefetchServingHandle::OnIsolatedCookiesReadCompleteAndWriteStart() {
   DCHECK(IsIsolatedCookieCopyInProgress());
 
   GetCurrentSingleRedirectHopToServe().cookie_read_end_and_write_start_time_ =
       base::TimeTicks::Now();
 }
 
-void PrefetchServingHandle::OnIsolatedCookieCopyComplete() const {
+void PrefetchServingHandle::OnIsolatedCookieCopyComplete() {
   DCHECK(IsIsolatedCookieCopyInProgress());
 
   // Resumes `PrefetchCookieListener` so that we can keep monitoring the
@@ -156,7 +176,7 @@ void PrefetchServingHandle::OnIsolatedCookieCopyComplete() const {
   }
 }
 
-void PrefetchServingHandle::OnInterceptorCheckCookieCopy() const {
+void PrefetchServingHandle::OnInterceptorCheckCookieCopy() {
   if (!GetCurrentSingleRedirectHopToServe().cookie_copy_start_time_) {
     return;
   }
@@ -169,7 +189,7 @@ void PrefetchServingHandle::OnInterceptorCheckCookieCopy() const {
 }
 
 void PrefetchServingHandle::SetOnCookieCopyCompleteCallback(
-    base::OnceClosure callback) const {
+    base::OnceClosure callback) {
   DCHECK(IsIsolatedCookieCopyInProgress());
 
   GetCurrentSingleRedirectHopToServe().on_cookie_copy_complete_callback_ =
@@ -202,7 +222,7 @@ bool PrefetchServingHandle::MatchesCookieIndices(
 }
 
 void PrefetchServingHandle::OnPrefetchProbeResult(
-    PrefetchProbeResult probe_result) const {
+    PrefetchProbeResult probe_result) {
   GetPrefetchContainer()->SetProbeResult(base::PassKey<PrefetchServingHandle>(),
                                          probe_result);
 
@@ -270,9 +290,15 @@ PrefetchServingHandle::GetCurrentResponseReaderToServeForTesting() {
   return GetCurrentSingleRedirectHopToServe().response_reader_->GetWeakPtr();
 }
 
-PrefetchServableState PrefetchServingHandle::GetServableState(
+PrefetchServableState PrefetchServingHandle::GetServableState() const {
+  return GetPrefetchContainer()->GetServableState();
+}
+
+PrefetchServableState
+PrefetchServingHandle::GetServableStateForTesting(  // IN-TEST
     base::TimeDelta cacheable_duration) const {
-  return GetPrefetchContainer()->GetServableState(cacheable_duration);
+  return GetPrefetchContainer()->GetServableStateForTesting(  // IN-TEST
+      cacheable_duration);
 }
 
 bool PrefetchServingHandle::HasPrefetchStatus() const {

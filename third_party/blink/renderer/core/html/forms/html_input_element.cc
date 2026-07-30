@@ -315,10 +315,27 @@ bool HTMLInputElement::IsKeyboardFocusableSlow(
   return input_type_->IsKeyboardFocusableSlow(update_behavior);
 }
 
+bool HTMLInputElement::SupportsWebMCP() const {
+  return input_type_->SupportsWebMCP();
+}
+
 void HTMLInputElement::FillWebMCPData(JSONValue& data) {
   CHECK(RuntimeEnabledFeatures::WebMCPEnabled());
+  if (type() == input_type_names::kCheckbox) {
+    bool checked = false;
+    if (data.AsBoolean(&checked)) {
+      SetChecked(checked, TextFieldEventBehavior::kDispatchChangeEvent);
+    }
+    return;
+  }
   String selected_value = GetMCPJSONValue(data);
   SetValue(selected_value);
+}
+
+std::unique_ptr<JSONObject> HTMLInputElement::GetWebMCPParameterSchema() const {
+  CHECK(RuntimeEnabledFeatures::WebMCPEnabled());
+  CHECK(SupportsWebMCP());
+  return input_type_->GetWebMCPParameterSchema();
 }
 
 bool HTMLInputElement::MayTriggerVirtualKeyboard() const {
@@ -2320,6 +2337,16 @@ void HTMLInputElement::DispatchSimulatedEnter() {
 
 bool HTMLInputElement::IsInteractiveContent() const {
   return input_type_->IsInteractiveContent();
+}
+
+FocusgroupFlags HTMLInputElement::NativeArrowKeyAxes() const {
+  // Text fields use arrow keys for cursor movement (both axes).
+  // Steppable inputs (number, range, date, etc.) use arrow keys for value
+  // adjustment.
+  if (IsTextField() || IsSteppable()) {
+    return FocusgroupFlags::kInline | FocusgroupFlags::kBlock;
+  }
+  return HTMLElement::NativeArrowKeyAxes();
 }
 
 void HTMLInputElement::AdjustStyle(ComputedStyleBuilder& builder) {

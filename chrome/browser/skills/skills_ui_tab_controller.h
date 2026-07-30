@@ -7,11 +7,16 @@
 
 #include "base/memory/weak_ptr.h"
 #include "base/timer/timer.h"
-#include "chrome/browser/glic/host/glic.mojom.h"
 #include "chrome/browser/skills/skills_service_factory.h"
 #include "chrome/browser/skills/skills_ui_tab_controller_interface.h"
+#include "chrome/browser/ui/webui/skills/skills_dialog_delegate.h"
+#include "chrome/common/buildflags.h"
 #include "components/skills/public/skills_service.h"
 #include "ui/base/unowned_user_data/scoped_unowned_user_data.h"
+
+#if BUILDFLAG(ENABLE_GLIC)
+#include "chrome/browser/glic/host/glic.mojom.h"
+#endif
 
 namespace tabs {
 class TabInterface;
@@ -26,9 +31,11 @@ class GlicKeyedService;
 namespace skills {
 
 struct Skill;
+class SkillsDialogDelegate;
 
 // A controller responsible for managing the skills dialog for the tab.
-class SkillsUiTabController : public SkillsUiTabControllerInterface {
+class SkillsUiTabController : public SkillsUiTabControllerInterface,
+                              public SkillsDialogDelegate {
  public:
   explicit SkillsUiTabController(tabs::TabInterface& tab);
   ~SkillsUiTabController() override;
@@ -37,22 +44,23 @@ class SkillsUiTabController : public SkillsUiTabControllerInterface {
   // Opens the skills dialog.
   void ShowDialog(const skills::Skill& skill) override;
 
-  // Closes the dialog if it is currently open.
-  void CloseDialog() override;
+  // Invokes the skill with skill_id in sidepanel.
+  void InvokeSkill(std::string_view skill_id) override;
 
-  // Called by the WebUI when a skill is successfully saved.
-  // Delegates visual feedback to the Window Controller.
+  // SkillsDialogDelegate override:
+  void CloseDialog() override;
   void OnSkillSaved(const std::string& skill_id) override;
 
   void SetOnDialogClosedCallbackForTesting(base::OnceClosure callback) {
     on_dialog_closed_callback_for_testing_ = std::move(callback);
   }
 
-  // Invokes the skill with skill_id in sidepanel.
-  void InvokeSkill(std::string_view skill_id);
-
   ConstrainedWebDialogDelegate* GetDialogDelegateForTesting() {
     return dialog_delegate_.get();
+  }
+
+  const std::string& GetPendingSkillIdForTesting() const {
+    return pending_skill_id_;
   }
 
  protected:

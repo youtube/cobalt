@@ -22,7 +22,6 @@
 #include "gpu/command_buffer/common/sync_token.h"
 #include "skia/buildflags.h"
 #include "third_party/blink/public/platform/web_graphics_shared_image_interface_provider.h"
-#include "third_party/blink/renderer/platform/graphics/canvas_high_entropy_op_type.h"
 #include "third_party/blink/renderer/platform/graphics/canvas_resource_provider.h"
 #include "third_party/blink/renderer/platform/graphics/web_graphics_context_3d_provider_wrapper.h"
 #include "third_party/blink/renderer/platform/scheduler/public/thread.h"
@@ -117,13 +116,6 @@ class PLATFORM_EXPORT CanvasResource
   bool OriginClean() const { return is_origin_clean_; }
   void SetOriginClean(bool flag) { is_origin_clean_ = flag; }
 
-  HighEntropyCanvasOpType HighEntropyCanvasOpTypes() const {
-    return high_entropy_canvas_op_types_;
-  }
-  void SetHighEntropyCanvasOpTypes(HighEntropyCanvasOpType types) {
-    high_entropy_canvas_op_types_ = types;
-  }
-
   // Provides a StaticBitmapImage wrapping this resource. Commonly used for
   // snapshots not used in compositing (for instance to draw to another canvas).
   virtual scoped_refptr<StaticBitmapImage> Bitmap() = 0;
@@ -178,8 +170,6 @@ class PLATFORM_EXPORT CanvasResource
   virtual const gpu::SyncToken& sync_token() const = 0;
 
   bool is_origin_clean_ = true;
-  HighEntropyCanvasOpType high_entropy_canvas_op_types_ =
-      HighEntropyCanvasOpType::kNone;
 };
 
 // Resource type for SharedImage

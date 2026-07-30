@@ -1678,7 +1678,7 @@ class ApiTests extends ApiTestFixtureBase {
 
   // Helper for `testFetchInactiveTabScreenshot` and
   // `testFetchInactiveTabScreenshotWhileMinimized`.
-  async fetchInactiveTabScreenshot() {
+  async fetchInactiveTabScreenshot(expectNoFocus: boolean = false) {
     assertDefined(this.host.getFocusedTabStateV2);
     assertDefined(this.host.getContextFromTab);
     assertDefined(this.host.pinTabs);
@@ -1693,7 +1693,8 @@ class ApiTests extends ApiTestFixtureBase {
     // Select the other tab.
     await this.advanceToNextStep();
     focus = await focusSequence.waitFor(
-        (f) => !!f.hasFocus && f.hasFocus.tabData.tabId !== tabId);
+        (f) => (!!f.hasFocus && f.hasFocus.tabData.tabId !== tabId) ||
+            (expectNoFocus && !!f.hasNoFocus));
 
     // Get context and verify we have a screenshot.
     const context = await this.host.getContextFromTab(tabId, {
@@ -1717,7 +1718,8 @@ class ApiTests extends ApiTestFixtureBase {
     // Tests fetching the screenshot of a tab while the browser is minimized.
     // Ideally this would work, but it currently times out and provides no
     // screenshot on some platforms.
-    const context = await this.fetchInactiveTabScreenshot();
+    const context = await this.fetchInactiveTabScreenshot(
+        /*expectNoFocus=*/ true);
     assertFalse(checkDefined(context.tabData.isObservable));
 
     if (shouldGetScreenshot) {
@@ -2715,8 +2717,7 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
   async testGetSkillSuccess() {
     assertDefined(this.host.getSkillPreviews);
     assertDefined(this.host.getSkill);
-    const skillPreviewsSequence =
-        observeSequence(this.host.getSkillPreviews());
+    const skillPreviewsSequence = observeSequence(this.host.getSkillPreviews());
     const skills = await skillPreviewsSequence.waitFor(s => s.length === 2);
     const targetSkill = skills.find(s => s.name === 'test_skill_1');
     assertDefined(targetSkill);
@@ -2730,8 +2731,7 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
 
   async testGetSkillPreviewsSuccess() {
     assertDefined(this.host.getSkillPreviews);
-    const skillPreviewsSequence =
-        observeSequence(this.host.getSkillPreviews());
+    const skillPreviewsSequence = observeSequence(this.host.getSkillPreviews());
     const skills = await skillPreviewsSequence.waitFor(s => s.length === 2);
     const skill1 = skills.find(s => s.name === 'test_skill_1');
     assertDefined(skill1);
@@ -2739,6 +2739,48 @@ class ApiTestWithoutOpen extends ApiTestFixtureBase {
     const skill2 = skills.find(s => s.name === 'test_skill_2');
     assertDefined(skill2);
     assertEquals('test_icon_2', skill2.icon);
+  }
+
+  async testShowManageSkillsUi() {
+    assertDefined(this.host.showManageSkillsUi);
+    this.host.showManageSkillsUi();
+  }
+
+  async testSendingContextualSkillsToGlic() {
+    assertDefined(this.host.getSkillPreviews);
+    const skillPreviewsSequence = observeSequence(this.host.getSkillPreviews());
+    let skills = await skillPreviewsSequence.waitFor(s => s.length === 2);
+    const user_skill_1 = skills.find(s => s.name === 'user_skill_1');
+    assertDefined(user_skill_1);
+    const user_skill_2 = skills.find(s => s.name === 'user_skill_2');
+    assertDefined(user_skill_2);
+    await this.advanceToNextStep();
+
+    // Verify that the skills cache is updated with both the user owned skills
+    // and the contextual skills.
+    skills = await skillPreviewsSequence.waitFor(s => s.length === 4);
+    const contextual_skill_1 =
+        skills.find(s => s.id === 'contextual_skill_id_1');
+    assertDefined(contextual_skill_1);
+    assertEquals('contextual_skill_1', contextual_skill_1.name);
+    const contextual_skill_2 =
+        skills.find(s => s.id === 'contextual_skill_id_2');
+    assertDefined(contextual_skill_2);
+    assertEquals('contextual_skill_2', contextual_skill_2.name);
+    assertDefined(skills.find(s => s.name === 'user_skill_1'));
+    assertDefined(skills.find(s => s.name === 'user_skill_2'));
+    await this.advanceToNextStep();
+
+    // Verify that after a contextual skills update, the skills cache is updated
+    // with the new list of contextual skills and the user owned skills are
+    // still present.
+    skills = await skillPreviewsSequence.waitFor(s => s.length === 3);
+    const contextual_skill_3 =
+        skills.find(s => s.id === 'contextual_skill_id_3');
+    assertDefined(contextual_skill_3);
+    assertEquals('contextual_skill_3', contextual_skill_3.name);
+    assertDefined(skills.find(s => s.name === 'user_skill_1'));
+    assertDefined(skills.find(s => s.name === 'user_skill_2'));
   }
 }
 

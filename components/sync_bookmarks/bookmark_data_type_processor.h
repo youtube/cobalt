@@ -103,29 +103,58 @@ class BookmarkDataTypeProcessor : public syncer::DataTypeProcessor,
   bool IsConnectedForTest() const;
 
   // Reset max bookmarks till which sync is enabled.
-  void SetMaxBookmarksTillSyncEnabledForTest(size_t limit);
+  void SetLocalBookmarksLimitForTesting(size_t limit);
 
   base::WeakPtr<syncer::DataTypeControllerDelegate> GetWeakPtr();
 
  private:
   SEQUENCE_CHECKER(sequence_checker_);
 
-  // Returns true if the bookmark count exceeded the limit and an error was
-  // reported. Also disconnects sync and resets the `start_callback_`.
-  bool MaybeReportBookmarkCountLimitExceededError(
-      syncer::ModelError::Type error_type);
+  // Migrates the legacy `last_initial_merge_remote_updates_exceeded_limit` bool
+  // to the timestamp representation.
+  void MigrateLegacyExceededLimitError(
+      sync_pb::BookmarkModelMetadata* model_metadata);
+
+  // Resets the error for exceeding bookmark limit if enough time has passed.
+  void MaybeResetExceededLimitError(
+      sync_pb::BookmarkModelMetadata* model_metadata);
+
+  // Handles the error state from the given `model_metadata` if a previous sync
+  // cycle reported an error. Returns true if there was an error to be handled.
+  [[nodiscard]] bool HandlePreviousErrorState(
+      const sync_pb::BookmarkModelMetadata& model_metadata);
+
+  // Parses and validates the metadata. Returns the metadata if it is valid and
+  // there was no previous error.
+  std::optional<sync_pb::BookmarkModelMetadata> ParseAndValidateMetadata(
+      const std::string& metadata_str);
+
+  // Initializes the tracker.
+  void InitTracker(sync_pb::BookmarkModelMetadata model_metadata,
+                   const std::string& metadata_str);
+
+  // Handles the case where metadata needs to be cleared when the model is
+  // ready. Returns true if there was a pending clear metadata operation.
+  [[nodiscard]] bool HandlePendingClearMetadata(
+      const std::string& metadata_str);
 
   // If preconditions are met, inform sync that we are ready to connect.
   void ConnectIfReady();
+
+  // Returns true if the given `count` of bookmarks exceeds the sync limit. An
+  // `offset` can be provided for cases where the exact count is not known.
+  bool DoesCountExceedLocalBookmarksSyncLimit(size_t count,
+                                              size_t offset = 0) const;
+
+  // Returns true if the bookmark count exceeded the limit and an error was
+  // reported. Also disconnects sync and resets the `start_callback_`.
+  bool MaybeReportLocalBookmarksCountLimitExceededError(
+      syncer::ModelError::Type error_type);
 
   // Nudges worker if there are any local entities to be committed. Should only
   // be called after initial sync is done and processor is tracking sync
   // entities.
   void NudgeForCommitIfNeeded();
-
-  // Returns true if the given `count` of bookmarks exceeds the sync limit. An
-  // `offset` can be provided for cases where the exact count is not known.
-  bool DoesCountExceedBookmarksSyncLimit(size_t count, size_t offset = 0) const;
 
   // Performs the required clean up when bookmark model is being deleted.
   void OnBookmarkModelBeingDeleted();
@@ -144,6 +173,9 @@ class BookmarkDataTypeProcessor : public syncer::DataTypeProcessor,
       const sync_pb::DataTypeState& type_state,
       syncer::UpdateResponseDataList updates);
 
+  // Returns true if the number of remote updates exceeds the limit.
+  bool ExceedsRemoteUpdatesLimit(size_t count) const;
+
   // Instantiates the required objects to track metadata and starts observing
   // changes from the bookmark model. Note that this does not include tracking
   // of metadata fields managed by the processor but only those tracked by the
@@ -158,34 +190,6 @@ class BookmarkDataTypeProcessor : public syncer::DataTypeProcessor,
   // Honors `wipe_model_upon_sync_disabled_behavior_`, i.e. deletes all
   // bookmarks in the model depending on the selected behavior.
   void TriggerWipeModelUponSyncDisabledBehavior();
-
-  // Migrates the legacy `last_initial_merge_remote_updates_exceeded_limit` bool
-  // to the timestamp representation.
-  void MigrateLegacyExceededLimitError(
-      sync_pb::BookmarkModelMetadata* model_metadata);
-
-  // Resets the error for exceeding bookmark limit if enough time has passed.
-  void MaybeResetExceededLimitError(
-      sync_pb::BookmarkModelMetadata* model_metadata);
-
-  // Handles the error state from the given `model_metadata` if a previous sync
-  // cycle reported an error. Returns true if there was an error to be handled.
-  [[nodiscard]] bool HandlePreviousErrorState(
-      const sync_pb::BookmarkModelMetadata& model_metadata);
-
-  // Handles the case where metadata needs to be cleared when the model is
-  // ready. Returns true if there was a pending clear metadata operation.
-  [[nodiscard]] bool HandlePendingClearMetadata(
-      const std::string& metadata_str);
-
-  // Parses and validates the metadata. Returns the metadata if it is valid and
-  // there was no previous error.
-  std::optional<sync_pb::BookmarkModelMetadata> ParseAndValidateMetadata(
-      const std::string& metadata_str);
-
-  // Initializes the tracker.
-  void InitTracker(sync_pb::BookmarkModelMetadata model_metadata,
-                   const std::string& metadata_str);
 
   // Creates a DictionaryValue for local and remote debugging information about
   // `node` and appends it to `all_nodes`. It does the same for child nodes
@@ -254,7 +258,7 @@ class BookmarkDataTypeProcessor : public syncer::DataTypeProcessor,
   std::unique_ptr<BookmarkModelObserverImpl> bookmark_model_observer_;
 
   // This member variable exists only to allow tests to override the limit.
-  std::optional<size_t> sync_bookmarks_limit_for_tests_;
+  std::optional<size_t> sync_local_bookmarks_limit_for_tests_;
 
   // Marks whether metadata should be cleared upon ModelReadyToSync(). True if
   // ClearMetadataIfStopped() is called before ModelReadyToSync().

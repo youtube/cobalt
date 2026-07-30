@@ -6,6 +6,7 @@
 #define NET_DISK_CACHE_SQL_SQL_PERSISTENT_STORE_BACKEND_H_
 
 #include "base/memory/weak_ptr.h"
+#include "net/disk_cache/sql/entry_write_buffer.h"
 #include "net/disk_cache/sql/eviction_candidate_aggregator.h"
 #include "net/disk_cache/sql/sql_persistent_store.h"
 #include "sql/database.h"
@@ -18,12 +19,18 @@ class Transaction;
 
 namespace disk_cache {
 
+class SqlReadCacheMemoryMonitor;
+
 // The `Backend` class encapsulates all direct interaction with the SQLite
 // database. It is designed to be owned by a `base::SequenceBound` and run on a
 // dedicated background sequence to avoid blocking the network IO thread.
 class SqlPersistentStore::Backend {
  public:
-  Backend(ShardId shard_id, const base::FilePath& path, net::CacheType type);
+  Backend(ShardId shard_id,
+          const base::FilePath& path,
+          net::CacheType type,
+          scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor);
+
   Backend(const Backend&) = delete;
   Backend& operator=(const Backend&) = delete;
   ~Backend();
@@ -64,33 +71,30 @@ class SqlPersistentStore::Backend {
   Error UpdateEntryLastUsedByKey(const CacheEntryKey& key,
                                  base::Time last_used,
                                  base::TimeTicks start_time);
-  Error UpdateEntryLastUsedByResId(ResId res_id,
-                                   base::Time last_used,
-                                   base::TimeTicks start_time);
-  ErrorAndStoreStatus UpdateEntryHeaderAndLastUsed(
+  ErrorAndStoreStatus WriteEntryDataAndMetadata(
       const CacheEntryKey& key,
       ResId res_id,
+      std::optional<int64_t> old_body_end,
+      EntryWriteBuffer buffer,
       base::Time last_used,
       const std::optional<MemoryEntryDataHints>& new_hints,
-      scoped_refptr<net::IOBuffer> buffer,
+      scoped_refptr<net::IOBuffer> head_buffer,
       int64_t header_size_delta,
       base::TimeTicks start_time);
   ErrorAndStoreStatus WriteEntryData(const CacheEntryKey& key,
                                      ResId res_id,
                                      int64_t old_body_end,
-                                     int64_t offset,
-                                     scoped_refptr<net::IOBuffer> buffer,
-                                     int buf_len,
+                                     EntryWriteBuffer buffer,
                                      bool truncate,
                                      base::TimeTicks start_time);
-  IntOrError ReadEntryData(const CacheEntryKey& key,
-                           ResId res_id,
-                           int64_t offset,
-                           scoped_refptr<net::IOBuffer> buffer,
-                           int buf_len,
-                           int64_t body_end,
-                           bool sparse_reading,
-                           base::TimeTicks start_time);
+  ReadResultOrError ReadEntryData(const CacheEntryKey& key,
+                                  ResId res_id,
+                                  int64_t offset,
+                                  scoped_refptr<net::IOBuffer> buffer,
+                                  int buf_len,
+                                  int64_t body_end,
+                                  bool sparse_reading,
+                                  base::TimeTicks start_time);
   RangeResult GetEntryAvailableRange(ResId res_id,
                                      int64_t offset,
                                      int len,
@@ -165,31 +169,40 @@ class SqlPersistentStore::Backend {
       bool& corruption_detected);
   Error UpdateEntryLastUsedByKeyInternal(const CacheEntryKey& key,
                                          base::Time last_used);
-  Error UpdateEntryLastUsedByResIdInternal(ResId res_id, base::Time last_used);
-  Error UpdateEntryHeaderAndLastUsedInternal(
+  Error WriteEntryBodyDataHelper(
       const CacheEntryKey& key,
       ResId res_id,
+      int64_t old_body_end,
+      EntryWriteBuffer buffer,
+      bool truncate,
+      int64_t& body_end_delta,
+      base::CheckedNumeric<int64_t>& checked_total_size_delta,
+      int64_t& new_body_end,
+      bool& corruption_detected);
+  Error WriteEntryDataAndMetadataInternal(
+      const CacheEntryKey& key,
+      ResId res_id,
+      std::optional<int64_t> old_body_end,
+      EntryWriteBuffer buffer,
       base::Time last_used,
       const std::optional<MemoryEntryDataHints>& new_hints,
-      scoped_refptr<net::IOBuffer> buffer,
+      scoped_refptr<net::IOBuffer> head_buffer,
       int64_t header_size_delta,
       bool& corruption_detected);
   Error WriteEntryDataInternal(const CacheEntryKey& key,
                                ResId res_id,
                                int64_t old_body_end,
-                               int64_t offset,
-                               scoped_refptr<net::IOBuffer> buffer,
-                               int buf_len,
+                               EntryWriteBuffer buffer,
                                bool truncate,
                                bool& corruption_detected);
-  IntOrError ReadEntryDataInternal(const CacheEntryKey& key,
-                                   ResId res_id,
-                                   int64_t offset,
-                                   scoped_refptr<net::IOBuffer> buffer,
-                                   int buf_len,
-                                   int64_t body_end,
-                                   bool sparse_reading,
-                                   bool& corruption_detected);
+  ReadResultOrError ReadEntryDataInternal(const CacheEntryKey& key,
+                                          ResId res_id,
+                                          int64_t offset,
+                                          scoped_refptr<net::IOBuffer> buffer,
+                                          int buf_len,
+                                          int64_t body_end,
+                                          bool sparse_reading,
+                                          bool& corruption_detected);
   RangeResultOrError GetEntryAvailableRangeInternal(ResId res_id,
                                                     int64_t offset,
                                                     int len);
@@ -302,6 +315,7 @@ class SqlPersistentStore::Backend {
   const ShardId shard_id_;
   const base::FilePath path_;
   const net::CacheType type_;
+  const scoped_refptr<SqlReadCacheMemoryMonitor> read_cache_memory_monitor_;
   sql::Database db_;
   sql::MetaTable meta_table_;
   std::optional<Error> db_init_status_;

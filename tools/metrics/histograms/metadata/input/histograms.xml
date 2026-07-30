@@ -22,6 +22,16 @@ chromium-metrics-reviews@google.com.
 
 <histograms>
 
+<histogram name="Input.Blink.DispatchEvent.Type" enum="WebInputEventType"
+    expires_after="2027-07-23">
+  <owner>lizeb@chromium.org</owner>
+  <owner>input-dev@chromium.org</owner>
+  <summary>
+    The type of input event being dispatched in WidgetInputHandlerManager.
+    Subsampled at 10%.
+  </summary>
+</histogram>
+
 <histogram name="Input.Digitizer.MaxTouchPoints.{PointerDigitizerType}"
     units="maximum allowed touch points" expires_after="2027-01-01">
   <owner>kouhei@chromium.org</owner>
@@ -122,7 +132,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Input.ToolType.Android" units="tool type"
-    expires_after="2026-05-03">
+    expires_after="2026-08-02">
   <owner>alexmitra@chromium.org</owner>
   <owner>flackr@chromium.org</owner>
   <owner>peconn@chromium.org</owner>

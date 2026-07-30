@@ -4,8 +4,6 @@
 
 package org.chromium.chrome.browser.ntp_customization.theme.chrome_colors;
 
-import static junit.framework.Assert.assertEquals;
-
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -20,8 +18,6 @@ import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
 
-import androidx.constraintlayout.widget.ConstraintLayout;
-import androidx.constraintlayout.widget.ConstraintSet;
 import androidx.recyclerview.widget.RecyclerView.LayoutManager;
 
 import org.junit.Before;
@@ -46,9 +42,7 @@ public class NtpChromeColorsLayoutViewBinderUnitTest {
     @Rule public MockitoRule mMockitoRule = MockitoJUnit.rule();
 
     @Mock private View mLayoutView;
-    @Mock private ConstraintLayout mConstraintLayout;
     @Mock private View mBackButton;
-    @Mock private ImageView mLearnMoreButton;
     @Mock private ImageView mSaveButton;
     @Mock private EditText mBackgroundColorInput;
     @Mock private EditText mPrimaryColorInput;
@@ -62,7 +56,6 @@ public class NtpChromeColorsLayoutViewBinderUnitTest {
     @Mock private GradientDrawable mGradientDrawable;
     @Mock private View.OnClickListener mOnClickListener;
     @Mock private TextWatcher mTextWatcher;
-    @Mock private ConstraintSet mConstraintSet;
     @Mock private MaterialSwitchWithText mDailyRefreshSwitch;
     @Mock private OnCheckedChangeListener mOnCheckedChangeListener;
 
@@ -75,7 +68,6 @@ public class NtpChromeColorsLayoutViewBinderUnitTest {
                 mModel, mLayoutView, NtpChromeColorsLayoutViewBinder::bind);
 
         when(mLayoutView.findViewById(R.id.back_button)).thenReturn(mBackButton);
-        when(mLayoutView.findViewById(R.id.learn_more_button)).thenReturn(mLearnMoreButton);
         when(mLayoutView.findViewById(R.id.save_button)).thenReturn(mSaveButton);
         when(mLayoutView.findViewById(R.id.background_color_input))
                 .thenReturn(mBackgroundColorInput);
@@ -101,12 +93,6 @@ public class NtpChromeColorsLayoutViewBinderUnitTest {
     public void testSetBackClickListener() {
         mModel.set(NtpChromeColorsProperties.BACK_BUTTON_CLICK_LISTENER, mOnClickListener);
         verify(mBackButton).setOnClickListener(eq(mOnClickListener));
-    }
-
-    @Test
-    public void testSetLearnMoreClickListener() {
-        mModel.set(NtpChromeColorsProperties.LEARN_MORE_BUTTON_CLICK_LISTENER, mOnClickListener);
-        verify(mLearnMoreButton).setOnClickListener(eq(mOnClickListener));
     }
 
     @Test
@@ -180,10 +166,10 @@ public class NtpChromeColorsLayoutViewBinderUnitTest {
     }
 
     @Test
-    public void testSetRecyclerViewMaxWidth() {
-        int maxWidthPx = 100;
-        mModel.set(NtpChromeColorsProperties.RECYCLER_VIEW_MAX_WIDTH_PX, maxWidthPx);
-        assertEquals(maxWidthPx, mModel.get(NtpChromeColorsProperties.RECYCLER_VIEW_MAX_WIDTH_PX));
+    public void testSetRecyclerViewMaxItemCount() {
+        int maxItemCount = 10;
+        mModel.set(NtpChromeColorsProperties.RECYCLER_VIEW_MAX_ITEM_COUNT, maxItemCount);
+        verify(mRecyclerView).setMaxItemCount(eq(maxItemCount));
     }
 
     @Test
@@ -201,23 +187,6 @@ public class NtpChromeColorsLayoutViewBinderUnitTest {
                 NtpChromeColorsProperties.DAILY_REFRESH_SWITCH_ON_CHECKED_CHANGE_LISTENER,
                 mOnCheckedChangeListener);
         verify(mDailyRefreshSwitch).setOnCheckedChangeListener(eq(mOnCheckedChangeListener));
-    }
-
-    @Test
-    public void testSetConstraintSet() {
-        int id = 10;
-        int maxWidthPx = 100;
-        when(mConstraintLayout.findViewById(R.id.chrome_colors_recycler_view_container))
-                .thenReturn(mRecyclerViewContainer);
-        when(mRecyclerViewContainer.getId()).thenReturn(id);
-
-        NtpChromeColorsLayoutViewBinder.setConstraintSet(
-                mConstraintSet, mConstraintLayout, mRecyclerViewContainer, maxWidthPx);
-
-        verify(mConstraintSet).clone(eq(mConstraintLayout));
-        verify(mConstraintSet).constrainedWidth(eq(id), eq(true));
-        verify(mConstraintSet).constrainMaxWidth(eq(id), eq(maxWidthPx));
-        verify(mConstraintSet).applyTo(eq(mConstraintLayout));
     }
 
     @Test

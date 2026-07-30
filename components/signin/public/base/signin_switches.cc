@@ -79,6 +79,11 @@ base::TimeDelta GetAvatarSyncPromoFeatureMinimumCookeAgeParam() {
 #endif
 }
 
+#if BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+BASE_FEATURE(kBeforeFirstRunDesktopRefreshSurvey,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
 #if BUILDFLAG(ENABLE_BOUND_SESSION_CREDENTIALS)
 // Allows to disable the bound session credentials code in case of emergency.
 BASE_FEATURE(kBoundSessionCredentialsKillSwitch,
@@ -99,7 +104,9 @@ BASE_FEATURE(kChromeAndroidIdentitySurveyFirstRun,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kChromeAndroidIdentitySurveyWeb,
              base::FEATURE_DISABLED_BY_DEFAULT);
-BASE_FEATURE(kChromeAndroidIdentitySurveyNtpAvatar,
+BASE_FEATURE(kChromeAndroidIdentitySurveyNtpSigninButton,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+BASE_FEATURE(kChromeAndroidIdentitySurveyNtpAccountAvatarTap,
              base::FEATURE_DISABLED_BY_DEFAULT);
 BASE_FEATURE(kChromeAndroidIdentitySurveyNtpPromo,
              base::FEATURE_DISABLED_BY_DEFAULT);
@@ -209,6 +216,12 @@ BASE_FEATURE_PARAM(base::TimeDelta,
                    "launch_delay_duration",
                    base::Milliseconds(3000));
 #endif  // BUILDFLAG(IS_WIN) || BUILDFLAG(IS_MAC) || BUILDFLAG(IS_LINUX)
+
+#if BUILDFLAG(IS_ANDROID)
+// Whether activityless sign-in should be used for all entry points.
+BASE_FEATURE(kEnableActivitylessSigninAllEntryPoint,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+#endif
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kEnableAddSessionRedirect, base::FEATURE_ENABLED_BY_DEFAULT);
@@ -470,6 +483,8 @@ BASE_FEATURE(kShowProfilePickerToAllUsersExperiment,
 
 #if BUILDFLAG(IS_ANDROID)
 BASE_FEATURE(kSigninLevelUpButton, base::FEATURE_DISABLED_BY_DEFAULT);
+
+BASE_FEATURE(kSigninManagerSeedingFix, base::FEATURE_ENABLED_BY_DEFAULT);
 #endif  // BUILDFLAG(IS_ANDROID)
 
 BASE_FEATURE(kSigninPromoLimitsExperiment, base::FEATURE_DISABLED_BY_DEFAULT);

@@ -17,6 +17,10 @@
 #include "media/media_buildflags.h"
 #include "ui/gl/angle_implementation.h"
 
+namespace gpu {
+class GpuDriverBugWorkarounds;
+}
+
 namespace base {
 class CommandLine;
 }
@@ -280,6 +284,10 @@ MEDIA_EXPORT BASE_DECLARE_FEATURE(kVideoPipDisplaySmoothnessOptimization);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(
     kVideoPipForceTrustedForMediaPlaybackForTesting);
 #endif  // !BUILDFLAG(IS_ANDROID)
+
+// Enables tracking the occlusion of encrypted video elements.
+MEDIA_EXPORT BASE_DECLARE_FEATURE(kEncryptedMediaOcclusionTracking);
+
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kPlatformAudioEncoder);
 MEDIA_EXPORT BASE_DECLARE_FEATURE(kEnableRtcpReporting);
 #if BUILDFLAG(ENABLE_PLATFORM_HEVC)
@@ -521,6 +529,11 @@ MEDIA_EXPORT bool IsAudioProcessMlModelUsageEnabled();
 #if BUILDFLAG(IS_MAC)
 MEDIA_EXPORT bool IsMacCatapSystemLoopbackCaptureSupported();
 MEDIA_EXPORT bool IsMacSckSystemLoopbackCaptureSupported();
+#endif
+
+#if BUILDFLAG(IS_ANDROID)
+MEDIA_EXPORT bool IsAndroidZeroCopyVideoCaptureEnabled(
+    const gpu::GpuDriverBugWorkarounds& gpu_workarounds);
 #endif
 
 // Returns true if system audio loopback capture is implemented for the current

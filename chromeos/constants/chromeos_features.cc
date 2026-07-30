@@ -26,6 +26,10 @@ BASE_FEATURE(kCachedLocationProvider, base::FEATURE_DISABLED_BY_DEFAULT);
 // Enables cloud game features.
 BASE_FEATURE(kCloudGamingDevice, base::FEATURE_DISABLED_BY_DEFAULT);
 
+// Enables Chrome to add custom icons into status tray.
+BASE_FEATURE(kSupportCustomIconsInStatusArea,
+             base::FEATURE_DISABLED_BY_DEFAULT);
+
 // Enables MPS to push payload to chrome devices.
 BASE_FEATURE(kAlmanacLauncherPayload, base::FEATURE_DISABLED_BY_DEFAULT);
 
@@ -271,6 +275,9 @@ BASE_FEATURE(kSystemFeaturesDisableListHidden,
 
 // Controls whether Vids is preinstalled.
 BASE_FEATURE(kVidsAppPreinstall, base::FEATURE_ENABLED_BY_DEFAULT);
+
+// Controls whether Vids is preinstalled for consumers.
+BASE_FEATURE(kVidsAppConsumerPreinstall, base::FEATURE_DISABLED_BY_DEFAULT);
 
 bool IsBatteryBadgeIconEnabled() {
   return base::FeatureList::IsEnabled(kBatteryBadgeIcon);

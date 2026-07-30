@@ -243,9 +243,6 @@ public class LocationBarMediatorTest {
     private boolean mIsToolbarMicEnabled;
     private LocationBarEmbedderUiOverrides mUiOverrides;
     private OneshotSupplierImpl<TemplateUrlService> mTemplateUrlServiceSupplier;
-    private final SettableNonNullObservableSupplier<@AutocompleteRequestType Integer>
-            mAutocompleteRequestTypeSupplier =
-                    ObservableSuppliers.createNonNull(AutocompleteRequestType.SEARCH);
     private final SettableNonNullObservableSupplier<@FuseboxState Integer> mFuseboxStateSupplier =
             ObservableSuppliers.createNonNull(FuseboxState.EXPANDED);
     private final UserDataHost mTabUserDataHost = new UserDataHost();
@@ -297,7 +294,6 @@ public class LocationBarMediatorTest {
         doReturn(mAppBannerManager)
                 .when(mAppBannerManagerJni)
                 .getJavaBannerManagerForWebContents(mWebContents);
-
         mMediator =
                 new LocationBarMediator(
                         mContext,
@@ -318,11 +314,11 @@ public class LocationBarMediatorTest {
                         mTabModelSelectorSupplier,
                         mBrowserControlsStateProvider,
                         () -> mModalDialogManager,
-                        mAutocompleteRequestTypeSupplier,
                         mPageZoomIndicatorCoordinator,
                         mFuseboxCoordinator,
                         mMultiInstanceManager,
-                        mLocationBarEmbedder);
+                        mLocationBarEmbedder,
+                        /* omniboxChipManager= */ null);
         mMediator.setCoordinators(mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         mMediator.setAddToHomescreenCoordinatorForTesting(mAddToHomescreenCoordinator);
         ObjectAnimatorShadow.setUrlAnimator(mUrlAnimator);
@@ -358,11 +354,11 @@ public class LocationBarMediatorTest {
                         mTabModelSelectorSupplier,
                         mBrowserControlsStateProvider,
                         () -> mModalDialogManager,
-                        ObservableSuppliers.createNonNull(AutocompleteRequestType.SEARCH),
                         mPageZoomIndicatorCoordinator,
                         mFuseboxCoordinator,
                         mMultiInstanceManager,
-                        mLocationBarEmbedder);
+                        mLocationBarEmbedder,
+                        /* omniboxChipManager= */ null);
         tabletMediator.setCoordinators(
                 mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         return tabletMediator;
@@ -474,7 +470,8 @@ public class LocationBarMediatorTest {
         verify(mUrlCoordinator)
                 .setAutocompleteText("text", "textWithAutocomplete", "additionalText");
 
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
+        var state = FuseboxSessionState.from(mTab);
+        state.autocompleteInput.setRequestType(AutocompleteRequestType.AI_MODE);
         mMediator.onSuggestionsChanged(defaultMatch);
         verify(mStatusCoordinator, times(2)).onDefaultMatchClassified(true);
     }
@@ -1129,11 +1126,11 @@ public class LocationBarMediatorTest {
                         mTabModelSelectorSupplier,
                         mBrowserControlsStateProvider,
                         () -> mModalDialogManager,
-                        ObservableSuppliers.createNonNull(AutocompleteRequestType.SEARCH),
                         mPageZoomIndicatorCoordinator,
                         mFuseboxCoordinator,
                         mMultiInstanceManager,
-                        mLocationBarEmbedder);
+                        mLocationBarEmbedder,
+                        /* omniboxChipManager= */ null);
         mMediator.setCoordinators(mUrlCoordinator, mAutocompleteCoordinator, mStatusCoordinator);
         int primeCount = sGeoHeaderPrimeCount;
         mMediator.addUrlFocusChangeListener(mUrlCoordinator);
@@ -1634,15 +1631,17 @@ public class LocationBarMediatorTest {
         doReturn(true).when(mUrlCoordinator).isTextWrapped();
         doReturn("text").when(mUrlCoordinator).getTextWithAutocomplete();
         mMediator.onUrlFocusChange(true);
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.SEARCH);
+
+        var state = FuseboxSessionState.from(mTab);
+        state.autocompleteInput.setRequestType(AutocompleteRequestType.SEARCH);
         assertTrue(mNavigateButtonIsVisible);
 
         doReturn(false).when(mUrlCoordinator).isTextWrapped();
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.AI_MODE);
+        state.autocompleteInput.setRequestType(AutocompleteRequestType.AI_MODE);
         assertTrue(mNavigateButtonIsVisible);
 
         doReturn(false).when(mUrlCoordinator).isTextWrapped();
-        mAutocompleteRequestTypeSupplier.set(AutocompleteRequestType.IMAGE_GENERATION);
+        state.autocompleteInput.setRequestType(AutocompleteRequestType.IMAGE_GENERATION);
         assertTrue(mNavigateButtonIsVisible);
     }
 
@@ -1687,6 +1686,7 @@ public class LocationBarMediatorTest {
 
         // Verifies that the composeplate button isn't visible if disabled by policy.
         mMediator.updateButtonVisibility();
+
         verify(mLocationBarLayout).setMicButtonVisibility(eq(true));
         verify(mLocationBarLayout).setLensButtonVisibility(eq(true));
         verify(mLocationBarLayout, never()).setComposeplateButtonVisibility(anyBoolean());
@@ -1773,10 +1773,9 @@ public class LocationBarMediatorTest {
 
         // Prepare a state to be restored for mTab.
         String newText = "new text";
-        LocationBarMediator.LocationBarState newState =
-                LocationBarMediator.LocationBarState.from(mTab);
+        var newState = FuseboxSessionState.from(mTab);
         newState.autocompleteInput.setUserText(newText);
-        newState.isUrlBarFocused = true;
+        newState.setSessionActive(true);
 
         Tab previousTab = Mockito.mock(Tab.class);
         doReturn(mProfile).when(previousTab).getProfile();
@@ -1787,8 +1786,7 @@ public class LocationBarMediatorTest {
         mTabletMediator.onUrlFocusChange(true);
         String previousText = "previous text";
         // Note: input state is tracked by autocomplete.
-        LocationBarMediator.LocationBarState previousState =
-                LocationBarMediator.LocationBarState.from(previousTab);
+        var previousState = FuseboxSessionState.from(previousTab);
         previousState.autocompleteInput.setUserText(previousText);
 
         // Emulate a tab switch from previousTab to mTab.
@@ -1805,7 +1803,7 @@ public class LocationBarMediatorTest {
                         eq(UrlBar.ScrollType.NO_SCROLL),
                         eq(SelectionState.SELECT_END));
 
-        assertTrue(previousState.isUrlBarFocused);
+        assertTrue(previousState.isSessionActive());
         assertEquals(previousText, previousState.autocompleteInput.getUserText());
     }
 
@@ -1813,6 +1811,7 @@ public class LocationBarMediatorTest {
     @EnableFeatures({OmniboxFeatureList.OMNIBOX_IMPROVEMENT_FOR_LFF})
     public void testRestoringTextAndEditingStateOnTablet() {
         OmniboxFeatures.sOmniboxImprovementForLFFPersistEditingState.setForTesting(true);
+
         // Recreate mediator to respect the overridden feature flag and params.
         mTabletMediator = createTabletMediator();
 
@@ -1824,11 +1823,10 @@ public class LocationBarMediatorTest {
         String newText = "new text";
         final int newSelectionStart = 2;
         final int newSelectionEnd = 6;
-        LocationBarMediator.LocationBarState newState =
-                LocationBarMediator.LocationBarState.from(mTab);
+        var newState = FuseboxSessionState.from(mTab);
         newState.autocompleteInput.setUserText(newText);
         newState.autocompleteInput.setSelection(newSelectionStart, newSelectionEnd);
-        newState.isUrlBarFocused = true;
+        newState.setSessionActive(true);
 
         Tab previousTab = Mockito.mock(Tab.class);
         doReturn(mProfile).when(previousTab).getProfile();
@@ -1842,8 +1840,7 @@ public class LocationBarMediatorTest {
         final int previousSelectionEnd = 5;
 
         // Note: input state is tracked by autocomplete.
-        LocationBarMediator.LocationBarState previousState =
-                LocationBarMediator.LocationBarState.from(previousTab);
+        var previousState = FuseboxSessionState.from(previousTab);
         previousState.autocompleteInput.setUserText(previousText);
         doReturn(previousSelectionStart).when(mUrlCoordinator).getSelectionStart();
         doReturn(previousSelectionEnd).when(mUrlCoordinator).getSelectionEnd();
@@ -1856,15 +1853,18 @@ public class LocationBarMediatorTest {
         ShadowLooper.idleMainLooper();
 
         // The state for mTab was restored.
+        ArgumentCaptor<UrlBarData> captor = ArgumentCaptor.forClass(UrlBarData.class);
         verify(mUrlCoordinator)
                 .setUrlBarData(
-                        argThat(matchesUrlBarDataForQuery(newText)),
+                        captor.capture(),
                         eq(UrlBar.ScrollType.NO_SCROLL),
                         eq(SelectionState.SELECT_END));
+
+        assertEquals(newText, captor.getValue().displayText);
         verify(mUrlCoordinator).setSelection(eq(newSelectionStart), eq(newSelectionEnd));
 
         // The state for previousTab was saved.
-        assertTrue(previousState.isUrlBarFocused);
+        assertTrue(previousState.isSessionActive());
         assertEquals(previousText, previousState.autocompleteInput.getUserText());
         assertEquals(previousSelectionStart, previousState.autocompleteInput.getSelectionStart());
         assertEquals(previousSelectionEnd, previousState.autocompleteInput.getSelectionEnd());

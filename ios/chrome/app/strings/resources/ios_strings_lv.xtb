@@ -580,6 +580,7 @@
 <translation id="3143515551205905069">Atcelt sinhronizāciju</translation>
 <translation id="3144126448740580210">GATAVS</translation>
 <translation id="3148052723910099040">Parasto ciļņu režģis</translation>
+<translation id="3148237711805373460">Pāriet</translation>
 <translation id="3157387275655328056">Pievienot lasīšanas sarakstam</translation>
 <translation id="315778507796115851">Vēsture</translation>
 <translation id="31652791196570636">Nerādīt</translation>
@@ -1523,6 +1524,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="6556866813142980365">Atcelt atsaukšanu</translation>
 <translation id="6559301491397835130">{count,plural, =1{Grāmatzīme tika saglabāta šeit: “{title}”. Tā ir saglabāta tikai šajā ierīcē.}zero{Grāmatzīmes tika saglabātas šeit: “{title}”. Tās ir saglabātas tikai šajā ierīcē.}one{Grāmatzīmes tika saglabātas šeit: “{title}”. Tās ir saglabātas tikai šajā ierīcē.}other{Grāmatzīmes tika saglabātas šeit: “{title}”. Tās ir saglabātas tikai šajā ierīcē.}}</translation>
 <translation id="656065428026159829">Skatīt vairāk</translation>
+<translation id="6565899972286925956">Varat izveidot jebko</translation>
 <translation id="6571070086367343653">Rediģēt kredītkarti</translation>
 <translation id="6574092468346088891">Ieslēgt paziņojumus par drošības pārbaudi</translation>
 <translation id="6579867704846662339">Varat izvēlēties atvērt ienākošos vietrāžus URL no citām lietotnēm inkognito režīmā.</translation>
@@ -1633,6 +1635,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="6930799952781667037">Pieskarieties, lai mainītu uz šo valodu.</translation>
 <translation id="693761253105515415">Iestatiet piekļuves kodu</translation>
 <translation id="6945221475159498467">Atlasīt</translation>
+<translation id="6946722113367118030">Domāšana</translation>
 <translation id="6950522403736391608">Paslēpta</translation>
 <translation id="6962809930976936328">Gūt ieskatus, izmantojot Gemini</translation>
 <translation id="6964300328304469089">Pašlaik ir atlasīts šāds konts: <ph name="NAME" />, <ph name="EMAIL" />. Izvēlieties kontu.</translation>
@@ -1975,6 +1978,7 @@ Funkcija Handoff ir jāiespējo arī iestatījumu sadaļā General (Vispārīgi)
 <translation id="8205564605687841303">Atcelt</translation>
 <translation id="8206354486702514201">Šo iestatījumu ievieš jūsu administrators.</translation>
 <translation id="8209050860603202033">Atvērt attēlu</translation>
+<translation id="8209237163365258530">Gemini <ph name="VERSION_NUMBER" /> modeļi</translation>
 <translation id="8211030355252954494">Jūs saņēmāt paroles vietnei <ph name="WEBSITE" /></translation>
 <translation id="8211406090763984747">Savienojums ir drošs</translation>
 <translation id="8214293972734702249">Piesprausta cilne <ph name="TAB_TITLE" /></translation>

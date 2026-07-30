@@ -35,7 +35,6 @@ import org.chromium.chrome.browser.lifecycle.TopResumedActivityChangedObserver;
 import org.chromium.chrome.browser.omnibox.DeferredIMEWindowInsetApplicationCallback;
 import org.chromium.chrome.browser.omnibox.LocationBarDataProvider;
 import org.chromium.chrome.browser.omnibox.OmniboxMetrics;
-import org.chromium.chrome.browser.omnibox.OmniboxMetrics.RefineActionUsage;
 import org.chromium.chrome.browser.omnibox.R;
 import org.chromium.chrome.browser.omnibox.UrlBarEditingTextStateProvider;
 import org.chromium.chrome.browser.omnibox.fusebox.FuseboxAttachmentModelList.FuseboxAttachmentChangeListener;
@@ -57,6 +56,7 @@ import org.chromium.chrome.browser.tab.Tab.LoadUrlResult;
 import org.chromium.chrome.browser.ui.theme.BrandedColorScheme;
 import org.chromium.components.metrics.OmniboxEventProtos.OmniboxEventProto.PageClassification;
 import org.chromium.components.omnibox.AutocompleteInput;
+import org.chromium.components.omnibox.AutocompleteInput.RefineActionUsage;
 import org.chromium.components.omnibox.AutocompleteMatch;
 import org.chromium.components.omnibox.AutocompleteRequestType;
 import org.chromium.components.omnibox.AutocompleteResult;
@@ -132,7 +132,6 @@ class AutocompleteMediator
     private @Nullable PropertyModel mDeleteDialogModel;
 
     private boolean mNativeInitialized;
-    private long mUrlFocusTime;
     // Tracks whether the activity window is currently focused.
     // This flag is updated via the onTopResumedActivityChanged(boolean) callback:
     // https://developer.android.com/reference/android/app/Activity#onTopResumedActivityChanged(boolean)
@@ -146,8 +145,6 @@ class AutocompleteMediator
 
     private @Nullable Boolean mOmniboxInZeroPrefixState;
 
-    private @RefineActionUsage int mRefineActionUsage = RefineActionUsage.NOT_USED;
-
     // The timestamp (using SystemClock.elapsedRealtime()) at the point when the user started
     // modifying the omnibox with new input.
     private long mNewOmniboxEditSessionTimestamp = -1;
@@ -156,8 +153,6 @@ class AutocompleteMediator
     private boolean mOmniboxFocusResultedInNavigation;
     // Facilitate detection of Autocomplete actions being scheduled from an Autocomplete action.
     private boolean mIsExecutingAutocompleteAction;
-    // Whether user scrolled the suggestions list.
-    private boolean mSuggestionsListScrolled;
     // The value of the last ZPS suppress metric recorded for the current ZPS session.
     // The value is reset to null for each new ZPS session.
     private @Nullable Boolean mLastRecordedZpsSuppressionValue;
@@ -240,9 +235,6 @@ class AutocompleteMediator
         mAnimationDriver = initializeAnimationDriver();
 
         mFuseboxCoordinator.addAttachmentChangeListener(this);
-        mFuseboxCoordinator
-                .getAutocompleteRequestTypeSupplier()
-                .addSyncObserver(mOnAutocompleteRequestTypeChanged);
         mFuseboxCoordinator.getFuseboxStateSupplier().addSyncObserver(mOnFuseboxStateChanged);
 
         mDataProvider
@@ -276,6 +268,7 @@ class AutocompleteMediator
 
     public void destroy() {
         stopAutocomplete(false);
+        endInput();
         mDataProvider.getToolbarPositionSupplier().removeObserver(mToolbarPositionChangedCallback);
         if (mAutocomplete != null) {
             mAutocomplete.removeOnSuggestionsReceivedListener(this);
@@ -285,9 +278,6 @@ class AutocompleteMediator
             OmniboxActionFactoryImpl.get().destroyNativeFactory();
         }
         mFuseboxCoordinator.removeAttachmentChangeListener(this);
-        mFuseboxCoordinator
-                .getAutocompleteRequestTypeSupplier()
-                .removeObserver(mOnAutocompleteRequestTypeChanged);
         mFuseboxCoordinator.getFuseboxStateSupplier().removeObserver(mOnFuseboxStateChanged);
         mHandler.removeCallbacksAndMessages(null);
         mDropdownViewInfoListBuilder.destroy();
@@ -433,44 +423,46 @@ class AutocompleteMediator
     }
 
     /**
-     * Starts a new omnibox session.
+     * Starts a new / resumes existing omnibox session.
      *
      * <p>This method initializes the mediator's state for a new omnibox interaction, including
      * setting up the {@link AutocompleteInput}, attaching necessary observers, and triggering the
      * initial zero-prefix suggestion request.
      *
-     * @param input The initial state of the omnibox.
+     * @param input The input state for the new session. The input may be replaced without going
+     *     through the endInput() (valid -> valid). This is the case for tab switching.
      */
     void beginInput(AutocompleteInput input) {
-        assert mAutocompleteInput == null;
-        mAutocompleteInput = input;
+        boolean alreadyInInput = mAutocompleteInput != null;
+        setAutocompleteInput(input);
 
-        // Propagate the information about omnibox session state change to all the processors first.
-        // Processors need this for accounting purposes.
-        // The change information should be passed before Processors receive first
-        // batch of suggestions, that is:
-        // - before any call to startZeroSuggest() (when first suggestions are populated), and
-        // - before stopAutocomplete() (when current suggestions are erased).
-        mDropdownViewInfoListBuilder.onOmniboxSessionStateChange(true);
+        if (!alreadyInInput) {
+            // Propagate the information about omnibox session state change to all the processors
+            // first.
+            // Processors need this for accounting purposes.
+            // The change information should be passed before Processors receive first
+            // batch of suggestions, that is:
+            // - before any call to startZeroSuggest() (when first suggestions are populated), and
+            // - before stopAutocomplete() (when current suggestions are erased).
+            mDropdownViewInfoListBuilder.onOmniboxSessionStateChange(true);
 
-        if (mAnimationDriver.isAnimationEnabled()) {
-            mAnimationDriver.onOmniboxSessionStateChange(true);
-            mDelegate.setKeyboardVisibility(true, false);
+            if (mAnimationDriver.isAnimationEnabled()) {
+                mAnimationDriver.onOmniboxSessionStateChange(true);
+                mDelegate.setKeyboardVisibility(true, false);
+            }
+
+            updateModel();
+
+            // Do not attach IME observer when omnibox autofocus feature enabled and Incognito NTP
+            // visible.
+            if (!isOmniboxAutofocusOnIncognitoNtpActive()) {
+                mDeferredIMEWindowInsetApplicationCallback.attach(mWindowAndroid);
+            }
+
+            dismissDeleteDialog(DialogDismissalCause.DISMISSED_BY_NATIVE);
+
+            mOmniboxFocusResultedInNavigation = false;
         }
-
-        updateModel();
-
-        // Do not attach IME observer when omnibox autofocus feature enabled and Incognito NTP
-        // visible.
-        if (!isOmniboxAutofocusOnIncognitoNtpActive()) {
-            mDeferredIMEWindowInsetApplicationCallback.attach(mWindowAndroid);
-        }
-
-        dismissDeleteDialog(DialogDismissalCause.DISMISSED_BY_NATIVE);
-        mRefineActionUsage = RefineActionUsage.NOT_USED;
-        mOmniboxFocusResultedInNavigation = false;
-        mSuggestionsListScrolled = false;
-        mUrlFocusTime = System.currentTimeMillis();
 
         // Ask directly for zero-suggestions related to current input, unless the user is
         // currently visiting SearchActivity and the input is populated from the launch intent.
@@ -481,7 +473,7 @@ class AutocompleteMediator
         // This is tracked by MobileStartup.LaunchCause / EXTERNAL_SEARCH_ACTION_INTENT
         // metric.
         onTextChanged(
-                mAutocompleteInput.getUserText(),
+                assumeNonNull(mAutocompleteInput).getUserText(),
                 /* isOnFocusContext= */ OmniboxFeatures.shouldRetainOmniboxOnFocus());
     }
 
@@ -515,9 +507,11 @@ class AutocompleteMediator
                 mAutocompleteInput.getRequestType(),
                 mOmniboxFocusResultedInNavigation,
                 mFuseboxCoordinator.getAttachmentsCount() > 0);
-        OmniboxMetrics.recordRefineActionUsage(mRefineActionUsage);
+        OmniboxMetrics.recordRefineActionUsage(mAutocompleteInput.getRefineActionUsage());
+
         OmniboxMetrics.recordSuggestionsListScrolled(
-                mAutocompleteInput.getPageClassification(), mSuggestionsListScrolled);
+                mAutocompleteInput.getPageClassification(),
+                mAutocompleteInput.isSuggestionsListScrolled());
 
         // Reset the per omnibox session state of touch down prefetch.
         OmniboxMetrics.recordNumPrefetchesStartedInOmniboxSession(
@@ -531,7 +525,21 @@ class AutocompleteMediator
         // Prevent any upcoming omnibox suggestions from showing once a URL is loaded (and as
         // a consequence the omnibox is unfocused).
         clearSuggestions();
-        mAutocompleteInput = null;
+        setAutocompleteInput(null);
+    }
+
+    private void setAutocompleteInput(@Nullable AutocompleteInput input) {
+        if (mAutocompleteInput != null) {
+            mAutocompleteInput
+                    .getRequestTypeSupplier()
+                    .removeObserver(mOnAutocompleteRequestTypeChanged);
+        }
+        mAutocompleteInput = input;
+        if (mAutocompleteInput != null) {
+            mAutocompleteInput
+                    .getRequestTypeSupplier()
+                    .addSyncObserver(mOnAutocompleteRequestTypeChanged);
+        }
     }
 
     /**
@@ -704,10 +712,12 @@ class AutocompleteMediator
             // Note: the logic below toggles assumes individual values to be represented by
             // individual bits. This allows proper reporting of different refine button uses
             // during single interaction with the Omnibox.
-            mRefineActionUsage |=
-                    isZeroPrefix
-                            ? RefineActionUsage.SEARCH_WITH_ZERO_PREFIX
-                            : RefineActionUsage.SEARCH_WITH_PREFIX;
+            assumeNonNull(mAutocompleteInput)
+                    .setRefineActionUsage(
+                            mAutocompleteInput.getRefineActionUsage()
+                                    | (isZeroPrefix
+                                            ? RefineActionUsage.SEARCH_WITH_ZERO_PREFIX
+                                            : RefineActionUsage.SEARCH_WITH_PREFIX));
         }
     }
 
@@ -1015,8 +1025,6 @@ class AutocompleteMediator
 
     private void onAutocompleteRequestTypeChanged(@AutocompleteRequestType int type) {
         if (!isInInputSession()) return;
-        mAutocompleteInput.setRequestType(type);
-        mAutocompleteInput.setPageClassification(mDataProvider.getPageClassification(false));
         onTextChanged(
                 mUrlBarEditingTextProvider.getTextWithoutAutocomplete(),
                 /* isOnFocusContext= */ false);
@@ -1126,7 +1134,9 @@ class AutocompleteMediator
             boolean openInNewTab,
             boolean openInNewWindow) {
         try (TraceEvent e = TraceEvent.scoped("AutocompleteMediator.loadUrlFromOmniboxMatch")) {
-            OmniboxMetrics.recordFocusToOpenTime(System.currentTimeMillis() - mUrlFocusTime);
+            OmniboxMetrics.recordFocusToOpenTime(
+                    System.currentTimeMillis()
+                            - assumeNonNull(mAutocompleteInput).getUrlFocusTime());
 
             // Clear the deferred site load action in case it executes. Reclaims a bit of memory.
             mDeferredLoadAction = null;
@@ -1168,7 +1178,7 @@ class AutocompleteMediator
                                 finalTransition);
                     };
 
-            switch (mFuseboxCoordinator.getAutocompleteRequestTypeSupplier().get()) {
+            switch (assumeNonNull(mAutocompleteInput).getRequestType()) {
                 case AutocompleteRequestType.AI_MODE ->
                         mFuseboxCoordinator.getAimUrl(url, onUrlReady);
                 case AutocompleteRequestType.IMAGE_GENERATION ->
@@ -1356,7 +1366,7 @@ class AutocompleteMediator
 
     @Override
     public void onSuggestionDropdownScroll() {
-        mSuggestionsListScrolled = true;
+        assumeNonNull(mAutocompleteInput).setSuggestionsListScrolled();
         mDelegate.setKeyboardVisibility(false, false);
     }
 

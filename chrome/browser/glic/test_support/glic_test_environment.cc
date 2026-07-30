@@ -15,7 +15,6 @@
 #include "chrome/browser/glic/widget/glic_window_controller.h"
 #include "chrome/browser/signin/identity_manager_factory.h"
 #include "chrome/browser/signin/identity_test_environment_profile_adaptor.h"
-#include "chrome/browser/ui/browser.h"
 #include "components/keyed_service/content/browser_context_dependency_manager.h"
 
 #if BUILDFLAG(IS_CHROMEOS)
@@ -112,7 +111,6 @@ class GlicTestEnvironmentServiceFactory : public ProfileKeyedServiceFactory {
 
 std::vector<base::test::FeatureRef> GetDefaultEnabledGlicTestFeatures() {
   return {features::kGlic, features::kGlicRollout,
-          features::kTabstripComboButton,
 #if BUILDFLAG(IS_CHROMEOS)
           chromeos::features::kFeatureManagementGlic
 #endif  // BUILDFLAG(IS_CHROMEOS)

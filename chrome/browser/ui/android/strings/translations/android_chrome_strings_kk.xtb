@@ -157,6 +157,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="164269334534774161">Осы беттің <ph name="CREATION_TIME" /> күнгі офлайн көшірмесі шығарылды</translation>
 <translation id="1644574205037202324">Тарих</translation>
 <translation id="1645262572857218659"><ph name="IDENTITY_PROVIDER_ETLD_PLUS_ONE" /> арқылы кіру</translation>
+<translation id="1650979352027263879">Көрініс параметрлері өшірілді.</translation>
 <translation id="1671236975893690980">Жүктеу күтілуде…</translation>
 <translation id="1672586136351118594">Қайта көрсетілмесін</translation>
 <translation id="1680919990519905526">Суретті Google Lens арқылы сатып алу <ph name="BEGIN_NEW" />Жаңа<ph name="END_NEW" /></translation>
@@ -425,6 +426,7 @@ Chrome тәжірибесін жақсарту үшін деректерді қ�
 <translation id="2854916915045135148">Инкогнито режиміне ауысу үшін түртіп, басып тұрыңыз.</translation>
 <translation id="2860954141821109167">Бұл құрылғыда телефон қолданбасы қосулы екенін тексеріңіз.</translation>
 <translation id="2861923151411510142">Кейбір Chrome функциясы қолжетімсіз болады.</translation>
+<translation id="286473047976978798">Көрініс параметрлерін қолдану керек пе?</translation>
 <translation id="2869416538780777323">{OTHER_TAB_COUNT,plural, =1{<ph name="URL" /> және тағы 1 қойынды}other{<ph name="URL" /> және тағы <ph name="TAB_COUNT_MANY" /> қойынды}}</translation>
 <translation id="2869430948265924908">Көліктегі шетін контентті қорғау үшін көліктің профиль құлпын жасауыңыз керек.  Оны PIN кодымен, кодпен немесе құпия сөзбен жасауға болады.</translation>
 <translation id="2870560284913253234">Сайт</translation>
@@ -1372,6 +1374,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="6811034713472274749">Бетті көре беруге болады.</translation>
 <translation id="6813359536773993594">{FILE_COUNT,plural, =1{Суреттер, тізімдегі 1 сурет}other{Суреттер, тізімдегі # сурет}}</translation>
 <translation id="6813446258015311409">Chrome-ға кіру, ашық.</translation>
+<translation id="6815692190508268848">Көрініс параметрлері қолданылды.</translation>
 <translation id="6817747507826986771">Осы бетті жылдам бөлісу. Бұл жылдам пәрменді өзгерту үшін оны басып тұрыңыз.</translation>
 <translation id="6820686453637990663">CVC коды</translation>
 <translation id="6820942662346226299">Google Password Manager-ді жаңарту терезесі жабылды.</translation>
@@ -1572,6 +1575,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="7523960634226602883">Google Lens арқылы камерамен іздеу</translation>
 <translation id="7525248386620136756"><ph name="TAB_GROUPS_AND_TABS_PART" /> жабылды және сақталды.</translation>
 <translation id="7545347190366646170">Кіру рұқсаты бар адамдар</translation>
+<translation id="7553482318994371148">Жабылған қойындыларды қайта ашу</translation>
 <translation id="7554643625247105821">Chrome нұсқасын тексеру мүмкін емес</translation>
 <translation id="7557508262441527045">Аккаунттан шыққансыз.</translation>
 <translation id="7573665567024262965">Әдепкі қолданбаларды таңдаңыз</translation>
@@ -1892,6 +1896,7 @@ Google аккаунтының шолу тарихы басқа Google қызме
 <translation id="8856931513242997049">Хабарландыру жіберу рұқсатының ағыны жабылды</translation>
 <translation id="8863714995118816041"><ph name="SITE_NAME" /> үшін қайта рұқсат берілді.</translation>
 <translation id="8865415417596392024">Аккаунтыңыздағы Chrome деректері</translation>
+<translation id="8872506776304248286">Қолданбадан ашу</translation>
 <translation id="8890668505403261809">Инкогнито қойындыларын іздеу</translation>
 <translation id="8894890673032951011"><ph name="TAB_TITLE" />, жазудың таңдалған инкогнито қойындысы</translation>
 <translation id="8898822736010347272">Жаңа қауіптерді анықтап, интернетте барлығын қорғауға көмектесу үшін кірген кейбір беттердің URL мекенжайларын, шектеулі жүйе ақпаратын және кейбір беттердің контентін Google-ға жібереді.</translation>

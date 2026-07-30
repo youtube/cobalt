@@ -1223,9 +1223,9 @@ bool RuleBreak::ParseShorthand(
     HeapVector<CSSPropertyValue, 64>& properties) const {
   DCHECK_EQ(ruleBreakShorthand().length(), 2u);
   CSSValue* rule_break =
-      css_parsing_utils::ConsumeIdent<CSSValueID::kAuto, CSSValueID::kNone,
+      css_parsing_utils::ConsumeIdent<CSSValueID::kNone,
                                       CSSValueID::kIntersection,
-                                      CSSValueID::kSpanningItem>(stream);
+                                      CSSValueID::kNormal>(stream);
 
   if (!rule_break) {
     return false;
@@ -3110,80 +3110,35 @@ bool GridLanes::ParseShorthand(
     const CSSParserContext& context,
     CSSParserLocalContext& local_context,
     HeapVector<CSSPropertyValue, 64>& properties) const {
-  String grid_lanes_template_areas;
-  bool is_template_columns = true;
+  const CSSValue* grid_lanes_direction = nullptr;
+  const CSSValue* template_columns = nullptr;
+  const CSSValue* template_rows = nullptr;
   const CSSValue* template_areas =
       GetCSSPropertyGridTemplateAreas().InitialValue();
-  const CSSValue* grid_lanes_direction =
-      CSSIdentifierValue::Create(CSSValueID::kNormal);
 
-  // Retrieve the string of `grid_lanes_template_areas`. We'll parse it into
-  // appropriate `grid-template-areas` based on the `grid-lanes-direction`.
-  if (stream.Peek().GetType() == kStringToken) {
-    grid_lanes_template_areas =
-        stream.ConsumeIncludingWhitespace().Value().ToString();
-  }
-
-  // Retrieve the `grid_lanes_template_tracks`, which can be either
-  // `grid-template-columns` or `grid-template-rows`
-  const CSSValue* grid_lanes_template_tracks =
-      css_parsing_utils::ConsumeGridTemplatesRowsOrColumns(
-          stream, context, local_context,
-          /*is_grid_lanes_shorthand=*/true);
-  if (!grid_lanes_template_tracks) {
-    return false;
-  }
-  stream.ConsumeWhitespace();
-
-  if (css_parsing_utils::IdentMatches<CSSValueID::kRow, CSSValueID::kColumn,
-                                      CSSValueID::kNormal>(
-          stream.Peek().Id())) {
-    if (css_parsing_utils::IdentMatches<CSSValueID::kRow>(stream.Peek().Id())) {
-      is_template_columns = false;
-    }
-    grid_lanes_direction = css_parsing_utils::ParseGridLanesDirection(stream);
-  }
-
-  // At this point, we should be at the end of the stream or at an !important
-  // token. If not, we should return false.
-  if (!stream.AtEnd() && !(stream.Peek().GetType() == kDelimiterToken &&
-                           stream.Peek().Delimiter() == '!')) {
+  if (!css_parsing_utils::ConsumeGridLanesShorthand(
+          important, stream, context, local_context, grid_lanes_direction,
+          template_columns, template_rows, template_areas)) {
     return false;
   }
 
-  // Parse `grid_lanes_template_areas` into the appropriate
-  // `grid-template-areas` value.
-  // - `grid_lanes_template_areas` is a single space-separated string.
-  // - If `grid-lanes-direction` is column, use the string as a single row
-  // (e.g., "a b c d" -> "a b c d").
-  // - If `grid-lanes-direction` is row, split the string into multiple rows,
-  // one per area name (e.g., "a b c d" -> "a" "b" "c" "d"). This ensures the
-  // correct mapping to the CSS `grid-template-areas` syntax based on the
-  // `grid-lanes-direction`.
-  if (!grid_lanes_template_areas.ContainsOnlyWhitespaceOrEmpty()) {
-    template_areas = css_parsing_utils::ParseGridLanesTemplateAreasValue(
-        grid_lanes_template_areas, is_template_columns);
-    if (!template_areas) {
-      return false;
-    }
-  }
+  DCHECK(grid_lanes_direction);
+  DCHECK(template_columns);
+  DCHECK(template_rows);
+  DCHECK(template_areas);
+
   css_parsing_utils::AddProperty(
       CSSPropertyID::kGridTemplateAreas, CSSPropertyID::kGridLanes,
       *template_areas, important,
       css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  if (is_template_columns) {
-    css_parsing_utils::AddProperty(
-        CSSPropertyID::kGridTemplateColumns, CSSPropertyID::kGridLanes,
-        *grid_lanes_template_tracks, important,
-        css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
-  } else {
-    // For `grid_template_rows`, since it is not included in the grid-lanes
-    // shorthand's property list, we need to add it manually here rather than
-    // using the AddProperty helper.
-    properties.push_back(
-        CSSPropertyValue(CSSPropertyName(CSSPropertyID::kGridTemplateRows),
-                         *grid_lanes_template_tracks, important));
-  }
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kGridTemplateColumns, CSSPropertyID::kGridLanes,
+      *template_columns, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kGridTemplateRows, CSSPropertyID::kGridLanes,
+      *template_rows, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
   css_parsing_utils::AddProperty(
       CSSPropertyID::kGridLanesDirection, CSSPropertyID::kGridLanes,
       *grid_lanes_direction, important,
@@ -5391,6 +5346,43 @@ const CSSValue* RuleStyle::CSSValueFromComputedStyleInternal(
     CSSValuePhase value_phase) const {
   return ComputedStyleUtils::ValuesForBidirectionalGapRuleShorthand(
       ruleStyleShorthand(), style, layout_object, allow_visited_style,
+      value_phase);
+}
+
+bool RuleVisibilityItems::ParseShorthand(
+    bool important,
+    CSSParserTokenStream& stream,
+    const CSSParserContext& context,
+    CSSParserLocalContext&,
+    HeapVector<CSSPropertyValue, 64>& properties) const {
+  DCHECK_EQ(ruleVisibilityItemsShorthand().length(), 2u);
+  CSSValue* rule_visibility_items =
+      css_parsing_utils::ConsumeIdent<CSSValueID::kAll, CSSValueID::kAround,
+                                      CSSValueID::kBetween>(stream);
+
+  if (!rule_visibility_items) {
+    return false;
+  }
+
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kColumnRuleVisibilityItems,
+      CSSPropertyID::kRuleVisibilityItems, *rule_visibility_items, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+  css_parsing_utils::AddProperty(
+      CSSPropertyID::kRowRuleVisibilityItems,
+      CSSPropertyID::kRuleVisibilityItems, *rule_visibility_items, important,
+      css_parsing_utils::IsImplicitProperty::kNotImplicit, properties);
+
+  return true;
+}
+
+const CSSValue* RuleVisibilityItems::CSSValueFromComputedStyleInternal(
+    const ComputedStyle& style,
+    const LayoutObject* layout_object,
+    bool allow_visited_style,
+    CSSValuePhase value_phase) const {
+  return ComputedStyleUtils::ValuesForBidirectionalGapRuleShorthand(
+      ruleVisibilityItemsShorthand(), style, layout_object, allow_visited_style,
       value_phase);
 }
 

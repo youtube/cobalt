@@ -7,6 +7,7 @@
 #include "base/run_loop.h"
 #include "base/test/bind.h"
 #include "base/test/task_environment.h"
+#include "base/test/gtest_util.h"
 #include "components/os_crypt/async/common/encryptor.h"
 #include "components/os_crypt/sync/os_crypt_mocker.h"
 #include "mojo/public/cpp/bindings/pending_remote.h"
@@ -169,6 +170,9 @@ class OSCryptCacheEncryptionDelegateTest : public testing::Test {
   OSCryptCacheEncryptionDelegate delegate_;
 };
 
+using OSCryptCacheEncryptionDelegateDeathTest =
+    OSCryptCacheEncryptionDelegateTest;
+
 TEST_F(OSCryptCacheEncryptionDelegateTest, EncryptDecrypt) {
   InitDelegate();
   const std::vector<uint8_t> kPlaintext = {1, 2, 3, 4, 5};
@@ -181,19 +185,16 @@ TEST_F(OSCryptCacheEncryptionDelegateTest, EncryptDecrypt) {
   EXPECT_EQ(kPlaintext, decrypted);
 }
 
-TEST_F(OSCryptCacheEncryptionDelegateTest, NotInitialized) {
+TEST_F(OSCryptCacheEncryptionDelegateDeathTest, NotInitialized) {
 #if defined(GTEST_HAS_DEATH_TEST)
   const std::vector<uint8_t> kPlaintext = {1, 2, 3, 4, 5};
   std::vector<uint8_t> ciphertext;
-  EXPECT_DEATH(delegate_.EncryptData(kPlaintext, &ciphertext),
-               "Check failed: instance_.has_value()");
+  EXPECT_CHECK_DEATH(delegate_.EncryptData(kPlaintext, &ciphertext));
 
   std::vector<uint8_t> plaintext2;
   const std::vector<uint8_t> kCiphertext = {1, 2, 3, 4, 5, 6, 7};
-  EXPECT_DEATH(delegate_.DecryptData(kCiphertext, &plaintext2),
-               "Check failed: instance_.has_value()");
-  EXPECT_DEATH(delegate_.GetEncryptionFileOperationsFactory(nullptr),
-               "Check failed: instance_.has_value()");
+  EXPECT_CHECK_DEATH(delegate_.DecryptData(kCiphertext, &plaintext2));
+  EXPECT_CHECK_DEATH(delegate_.GetEncryptionFileOperationsFactory(nullptr));
 #endif  // defined(GTEST_HAS_DEATH_TEST)
 }
 
@@ -250,7 +251,7 @@ TEST_F(OSCryptCacheEncryptionDelegateTest, DecryptFail) {
   EXPECT_FALSE(delegate_.DecryptData(ciphertext, &plaintext));
 }
 
-TEST_F(OSCryptCacheEncryptionDelegateTest, Disconnect) {
+TEST_F(OSCryptCacheEncryptionDelegateDeathTest, Disconnect) {
   InitDelegate();
   const std::vector<uint8_t> kPlaintext = {1, 2, 3, 4, 5};
   std::vector<uint8_t> ciphertext;
@@ -261,12 +262,11 @@ TEST_F(OSCryptCacheEncryptionDelegateTest, Disconnect) {
 
 #if defined(GTEST_HAS_DEATH_TEST)
   std::vector<uint8_t> plaintext2;
-  EXPECT_DEATH(delegate_.DecryptData(ciphertext, &plaintext2),
-               "Check failed: instance_.has_value()");
+  EXPECT_CHECK_DEATH(delegate_.DecryptData(ciphertext, &plaintext2));
 #endif  // defined(GTEST_HAS_DEATH_TEST)
 }
 
-TEST_F(OSCryptCacheEncryptionDelegateTest, DisconnectDuringInit) {
+TEST_F(OSCryptCacheEncryptionDelegateDeathTest, DisconnectDuringInit) {
   mock_provider_.set_call_get_encryptor_immediately(false);
 
   int result = net::OK;
@@ -287,12 +287,11 @@ TEST_F(OSCryptCacheEncryptionDelegateTest, DisconnectDuringInit) {
 #if defined(GTEST_HAS_DEATH_TEST)
   const std::vector<uint8_t> kPlaintext = {1, 2, 3, 4, 5};
   std::vector<uint8_t> ciphertext;
-  EXPECT_DEATH(delegate_.EncryptData(kPlaintext, &ciphertext),
-               "Check failed: instance_.has_value()");
+  EXPECT_CHECK_DEATH(delegate_.EncryptData(kPlaintext, &ciphertext));
 #endif  // defined(GTEST_HAS_DEATH_TEST)
 }
 
-TEST_F(OSCryptCacheEncryptionDelegateTest, InitEncryptorNotAvailable) {
+TEST_F(OSCryptCacheEncryptionDelegateDeathTest, InitEncryptorNotAvailable) {
   mock_provider_.set_return_invalid_encryptor(true);
 #if BUILDFLAG(IS_APPLE)
   OSCryptMocker::SetBackendLocked(true);
@@ -314,8 +313,7 @@ TEST_F(OSCryptCacheEncryptionDelegateTest, InitEncryptorNotAvailable) {
   } else {
     EXPECT_EQ(net::ERR_FAILED, result_out);
 #if defined(GTEST_HAS_DEATH_TEST)
-    EXPECT_DEATH(delegate_.EncryptData(kPlaintext, &ciphertext),
-                 "Check failed: instance_.has_value()");
+    EXPECT_CHECK_DEATH(delegate_.EncryptData(kPlaintext, &ciphertext));
 #endif  // defined(GTEST_HAS_DEATH_TEST)
   }
 }

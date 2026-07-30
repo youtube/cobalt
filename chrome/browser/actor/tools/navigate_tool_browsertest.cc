@@ -8,6 +8,7 @@
 #include "chrome/browser/actor/tools/tool_request.h"
 #include "chrome/browser/actor/tools/tools_test_util.h"
 #include "chrome/common/actor.mojom.h"
+#include "chrome/common/chrome_features.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/test/browser_test.h"
 #include "content/public/test/browser_test_utils.h"
@@ -27,7 +28,8 @@ class ActorNavigateToolBrowserTest : public ActorToolsTest {
  public:
   ActorNavigateToolBrowserTest() {
     scoped_feature_list_.InitWithFeatures(
-        /*enabled_features=*/{},
+        /*enabled_features=*/
+        {},
         /*disabled_features=*/{kGlicCrossOriginNavigationGating});
   }
   ~ActorNavigateToolBrowserTest() override = default;
@@ -151,7 +153,8 @@ class ActorNavigateToolRequestBrowserTest
           /*disabled_features=*/{kGlicCrossOriginNavigationGating});
     } else {
       scoped_feature_list_.InitWithFeatures(
-          /*enabled_features=*/{},
+          /*enabled_features=*/
+          {},
           /*disabled_features=*/{kGlicNavigateToolUseOpaqueInitiator,
                                  kGlicCrossOriginNavigationGating});
     }

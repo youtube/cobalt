@@ -15,7 +15,6 @@
 #include <utility>
 
 #include "base/auto_reset.h"
-#include "base/compiler_specific.h"
 #include "base/containers/heap_array.h"
 #include "base/debug/gdi_debug_util_win.h"
 #include "base/functional/bind.h"
@@ -277,27 +276,6 @@ gfx::ResizeEdge GetWindowResizeEdge(UINT param) {
     default:
       NOTREACHED();
   }
-}
-
-int GetFlagsFromRawInputMessage(RAWINPUT* input) {
-  int flags = ui::EF_NONE;
-  if (input->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_1_DOWN) {
-    flags |= ui::EF_LEFT_MOUSE_BUTTON;
-  }
-  if (input->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_2_DOWN) {
-    flags |= ui::EF_RIGHT_MOUSE_BUTTON;
-  }
-  if (input->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_3_DOWN) {
-    flags |= ui::EF_MIDDLE_MOUSE_BUTTON;
-  }
-  if (input->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_4_DOWN) {
-    flags |= ui::EF_BACK_MOUSE_BUTTON;
-  }
-  if (input->data.mouse.usButtonFlags & RI_MOUSE_BUTTON_5_DOWN) {
-    flags |= ui::EF_FORWARD_MOUSE_BUTTON;
-  }
-
-  return ui::GetModifiersFromKeyState() | flags;
 }
 
 // Maps HWNDs to their owners.
@@ -1148,6 +1126,9 @@ HWNDMessageHandler::RegisterUnadjustedMouseEvent() {
 
 void HWNDMessageHandler::set_using_wm_input(bool using_wm_input) {
   using_wm_input_ = using_wm_input;
+  if (!using_wm_input) {
+    raw_input_button_state_ = ui::EF_NONE;
+  }
 }
 
 bool HWNDMessageHandler::using_wm_input() const {
@@ -1928,12 +1909,7 @@ void HWNDMessageHandler::OnDestroy() {
   delegate_->HandleDestroying();
   // If the window going away is a fullscreen window then remove its references
   // from the full screen window map.
-  auto& map = fullscreen_monitor_map_.Get();
-  const auto i = std::ranges::find(
-      map, this, &FullscreenWindowMonitorMap::value_type::second);
-  if (i != map.end()) {
-    map.erase(i);
-  }
+  RemoveCurrentWindowFromFullscreenMonitorMap();
 
   if (auto& ax_platform = ui::AXPlatform::GetInstance();
       ax_platform.HasServicedUiaClients()) {
@@ -1968,6 +1944,10 @@ void HWNDMessageHandler::OnDisplayChange(UINT bits_per_pixel,
   // updates of the global ScreenWin DisplayInfos state. See
   // https://crbug.com/1413940 for more info.
   display::win::GetScreenWin()->UpdateDisplayInfosIfNeeded();
+
+  // Update `fullscreen_monitor_map_`, as the user may have disconnected a
+  // monitor, causing the HMONITOR handle to become invalid.
+  UpdateFullscreenMonitorMap();
 
   base::WeakPtr<HWNDMessageHandler> ref(msg_handler_weak_factory_.GetWeakPtr());
   delegate_->HandleDisplayChange();
@@ -2365,13 +2345,18 @@ LRESULT HWNDMessageHandler::OnInputEvent(UINT message,
 
   if (input->header.dwType == RIM_TYPEMOUSE &&
       input->data.mouse.usButtonFlags != RI_MOUSE_WHEEL) {
+    // Update the tracked button state based on any button transitions in this
+    // event. This must be done before creating the MouseEvent so the event
+    // reflects the correct current button state.
+    UpdateRawInputButtonState(input);
+
     POINT cursor_pos = {0};
     ::GetCursorPos(&cursor_pos);
     ScreenToClient(hwnd(), &cursor_pos);
     ui::MouseEvent event(
         ui::EventType::kMouseMoved, gfx::PointF(cursor_pos.x, cursor_pos.y),
         gfx::PointF(cursor_pos.x, cursor_pos.y), ui::EventTimeForNow(),
-        GetFlagsFromRawInputMessage(input), 0);
+        ui::GetModifiersFromKeyState() | raw_input_button_state_, 0);
     if (!(input->data.mouse.usFlags & MOUSE_MOVE_ABSOLUTE)) {
       ui::MouseEvent::DispatcherApi(&event).set_movement(
           gfx::Vector2dF(input->data.mouse.lLastX, input->data.mouse.lLastY));
@@ -2953,6 +2938,11 @@ void HWNDMessageHandler::OnSysCommand(UINT notification_code,
   // Handle SC_KEYMENU, which means that the user has pressed the ALT
   // key and released it, so we should focus the menu bar.
   if ((notification_code & sc_mask) == SC_KEYMENU && point.x() == 0) {
+    // When pointer lock is active, suppress Alt key menu activation to prevent
+    // the window from losing focus and releasing the pointer lock.
+    if (mouse_locked_) {
+      return;
+    }
     int modifiers = ui::EF_NONE;
     if (ui::win::IsShiftPressed()) {
       modifiers |= ui::EF_SHIFT_DOWN;
@@ -3680,8 +3670,7 @@ bool HWNDMessageHandler::IsSynthesizedMouseMessage(unsigned int message,
     ::ClientToScreen(hwnd(), &mouse_location);
     POINT cursor_pos = {0};
     ::GetCursorPos(&cursor_pos);
-    return UNSAFE_TODO(memcmp(&cursor_pos, &mouse_location, sizeof(POINT))) ==
-           0;
+    return gfx::Point(cursor_pos) == gfx::Point(mouse_location);
   }
   return false;
 }
@@ -3889,6 +3878,50 @@ POINT HWNDMessageHandler::GetCursorPos() const {
   ::GetCursorPos(&cursor_pos);
 
   return cursor_pos;
+}
+
+void HWNDMessageHandler::RemoveCurrentWindowFromFullscreenMonitorMap() {
+  auto& map = fullscreen_monitor_map_.Get();
+  const auto i = std::ranges::find(
+      map, this, &FullscreenWindowMonitorMap::value_type::second);
+  if (i != map.end()) {
+    map.erase(i);
+  }
+}
+
+void HWNDMessageHandler::UpdateFullscreenMonitorMap() {
+  HMONITOR hmonitor = MonitorFromWindow(hwnd(), MONITOR_DEFAULTTONULL);
+  if (!hmonitor) {
+    // A null `hmonitor` indicates that the monitor where the current window
+    // resides has been disconnected. Remove the HMONITOR corresponding to the
+    // current window.
+    RemoveCurrentWindowFromFullscreenMonitorMap();
+  }
+}
+
+void HWNDMessageHandler::UpdateRawInputButtonState(
+    const RAWINPUT* const input) {
+  const USHORT button_flags = input->data.mouse.usButtonFlags;
+  auto update_button_state = [this, button_flags](int button_flag_down,
+                                                  int button_flag_up,
+                                                  ui::EventFlags event_flag) {
+    if (button_flags & button_flag_down) {
+      raw_input_button_state_ |= event_flag;
+    }
+    if (button_flags & button_flag_up) {
+      raw_input_button_state_ &= ~event_flag;
+    }
+  };
+  update_button_state(RI_MOUSE_BUTTON_1_DOWN, RI_MOUSE_BUTTON_1_UP,
+                      ui::EF_LEFT_MOUSE_BUTTON);
+  update_button_state(RI_MOUSE_BUTTON_2_DOWN, RI_MOUSE_BUTTON_2_UP,
+                      ui::EF_RIGHT_MOUSE_BUTTON);
+  update_button_state(RI_MOUSE_BUTTON_3_DOWN, RI_MOUSE_BUTTON_3_UP,
+                      ui::EF_MIDDLE_MOUSE_BUTTON);
+  update_button_state(RI_MOUSE_BUTTON_4_DOWN, RI_MOUSE_BUTTON_4_UP,
+                      ui::EF_BACK_MOUSE_BUTTON);
+  update_button_state(RI_MOUSE_BUTTON_5_DOWN, RI_MOUSE_BUTTON_5_UP,
+                      ui::EF_FORWARD_MOUSE_BUTTON);
 }
 
 // static

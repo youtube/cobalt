@@ -4,6 +4,19 @@
 
 module skills.mojom;
 
+import "mojo/public/mojom/base/time.mojom";
+
+// LINT.IfChange(SkillSource)
+enum SkillSource {
+  kUnknown = 0,
+  // Skill created by Google.
+  kFirstParty = 1,
+  // Skill created by an end-user.
+  kUserCreated = 2,
+};
+// LINT.ThenChange(//depot/chromium/components/skills/public/skill.h:SkillSource, //depot/chromium/chrome/browser/glic/host/glic.mojom:SkillSource)
+
+// LINT.IfChange(Skill)
 // Represents a single skill.
 struct Skill {
   // A unique identifier for the skill. It's GUID now but can be other IDs in
@@ -18,4 +31,14 @@ struct Skill {
 
   // The underlying LLM prompt for the skill.
   string prompt;
+
+  // The source of the skill which can be 1P or user created.
+  SkillSource source;
+
+  // The Time when the skill was created.
+  mojo_base.mojom.Time creation_time;
+
+  // The Time when the skill was last updated.
+  mojo_base.mojom.Time last_update_time;
 };
+// LINT.ThenChange(//depot/chromium/components/skills/public/skill.h:Skill, //depot/chromium/chrome/browser/glic/host/glic.mojom:Skill)

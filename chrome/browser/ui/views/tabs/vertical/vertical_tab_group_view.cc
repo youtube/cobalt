@@ -66,12 +66,13 @@ bool SupportsDataSharing() {
 
 VerticalTabGroupView::VerticalTabGroupView(TabCollectionNode* collection_node)
     : VerticalDraggedTabsContainer(static_cast<views::View&>(*this),
-                                   DragAxes::kVerticalOnly),
+                                   DragAxes::kVerticalOnly,
+                                   DragLayout::kVertical),
       collection_node_(collection_node),
       tab_group_visual_data_(
           *GetTabGroupFromNode(collection_node_)->visual_data()),
       group_header_(AddChildView(std::make_unique<VerticalTabGroupHeaderView>(
-          this,
+          *this,
           &tab_group_visual_data_))),
       group_line_(AddChildView(std::make_unique<views::View>())),
       layout_manager_(*SetLayoutManager(
@@ -153,8 +154,12 @@ views::ProposedLayout VerticalTabGroupView::CalculateProposedLayout(
   // Layout children in order. Children will have their preferred height and
   // fill available width.
   for (auto* child : children) {
-    gfx::Rect bounds = gfx::Rect(child->GetPreferredSize());
-    bounds.set_y(GetYForDraggedTabBounds(*child).value_or(height));
+    gfx::Rect bounds = gfx::Rect(child->GetPreferredSize(size_bounds));
+
+    auto drag_data = GetVisualDataForDraggedView(*child);
+    CHECK(!drag_data || !drag_data->should_hide);
+    bounds.set_y(drag_data ? drag_data->offset.y() : height);
+
     // If the tab strip is not collapsed then the groups tabs should be inset.
     bounds.set_x(is_tab_strip_collapsed
                      ? GetLayoutConstant(
@@ -318,7 +323,7 @@ void VerticalTabGroupView::HandleTabDragInContainer(
     node = split_tab_view->collection_node();
   }
   CHECK(node);
-  GetDragHandler().HandleDraggedTabsOverNode(*node);
+  GetDragHandler().HandleDraggedTabsOverNode(*node, std::nullopt);
 }
 
 bool VerticalTabGroupView::GetIsShared() {
@@ -336,6 +341,18 @@ bool VerticalTabGroupView::GetIsShared() {
       tab_group_service->GetGroup(GetTabGroupFromNode(collection_node_)->id());
 
   return saved_group && saved_group->is_shared_tab_group();
+}
+
+void VerticalTabGroupView::InitHeaderDrag(const ui::MouseEvent& event) {
+  GetDragHandler().InitializeDrag(*collection_node_, event);
+}
+
+bool VerticalTabGroupView::ContinueHeaderDrag(const ui::MouseEvent& event) {
+  return GetDragHandler().ContinueDrag(*group_header_, event);
+}
+
+void VerticalTabGroupView::CancelHeaderDrag() {
+  GetDragHandler().EndDrag(EndDragReason::kCancel);
 }
 
 BEGIN_METADATA(VerticalTabGroupView)

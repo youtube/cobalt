@@ -6,8 +6,9 @@
  * #type=style-lit
  * #import=//resources/cr_elements/cr_shared_style_lit.css.js
  * #import=chrome://resources/cr_elements/cr_shared_vars.css.js
+ * #import=./shared_style.css.js
  * #scheme=relative
- * #include=cr-shared-style-lit
+ * #include=cr-shared-style-lit shared-style
  * #css_wrapper_metadata_end */
 
 :host {
@@ -17,7 +18,7 @@
   overflow: hidden;
 }
 
-#empty-state {
+#emptyState {
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -34,20 +35,12 @@
   color: var(--color-sys-on-surface);
 }
 
-#notice-message {
+#noticeMessage {
   font-weight: 400;
   font-size: 14px;
   line-height: 20px;
   color: var(--color-sys-on-surface-subtle);
   margin: 8px;
-}
-
-#title {
-  font-weight: 700;
-  font-size: 14px;
-  line-height: 20px;
-  margin: 0;
-  color: var(--color-sys-on-surface-subtle);
 }
 
 #subtitle {
@@ -58,6 +51,20 @@
   color: var(--color-sys-on-surface-variant);
 }
 
-cr-button {
+#browseSkillsButton {
   margin-top: 12px;
+}
+
+#header {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* TODO(b/479210761): Fix the cut-off issue when tabbed. */
+#addSkillButton {
+  flex-shrink: 0;
 }

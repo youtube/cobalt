@@ -3149,8 +3149,8 @@ void RenderFrameImpl::CommitFailedNavigation(
   // Make sure we never show errors in view source mode.
   frame_->EnableViewSourceMode(false);
 
-  auto page_state =
-      blink::PageState::CreateFromEncodedData(commit_params->page_state);
+  auto page_state = blink::PageState::CreateFromEncodedData(
+      std::move(commit_params->page_state));
   if (page_state.IsValid())
     navigation_params->history_item = WebHistoryItem(page_state);
   if (!navigation_params->history_item.IsNull()) {
@@ -6260,6 +6260,10 @@ void RenderFrameImpl::BeginNavigationInternal(
   network::mojom::RequestDestination request_destination =
       blink::GetRequestDestinationForWebURLRequest(info->url_request);
 
+  mojo::PendingReceiver<blink::mojom::NavigationResumeDeferredCommitListener>
+      resume_defer_commit_listener(
+          std::move(info->resume_defer_commit_listener));
+
   blink::mojom::CommonNavigationParamsPtr common_params =
       MakeCommonNavigationParams(frame_->GetSecurityOrigin(), std::move(info),
                                  load_flags, has_download_sandbox_flag, from_ad,
@@ -6310,6 +6314,28 @@ void RenderFrameImpl::BeginNavigationInternal(
     base::UmaHistogramTimes(
         "Navigation.RendererInitiated.DuplicateNavStartTimeDiff2",
         nav_start_diff);
+    const auto& new_input_start = common_params->input_start;
+    const auto& old_input_start =
+        navigation_client_impl_->common_params().input_start;
+    blink::InputStartPresence presence;
+    if (new_input_start.is_null() && old_input_start.is_null()) {
+      presence = blink::InputStartPresence::kNone;
+    } else if (new_input_start.is_null()) {
+      presence = blink::InputStartPresence::kOnlyOld;
+    } else if (old_input_start.is_null()) {
+      presence = blink::InputStartPresence::kOnlyNew;
+    } else {
+      presence = blink::InputStartPresence::kBoth;
+    }
+    base::UmaHistogramEnumeration(
+        "Navigation.RendererInitiated.DuplicateNavigationInputStartPresence2",
+        presence);
+    if (presence == blink::InputStartPresence::kBoth) {
+      const base::TimeDelta input_diff = new_input_start - old_input_start;
+      base::UmaHistogramTimes(
+          "Navigation.RendererInitiated.DuplicateNavInputTimeDiff2",
+          input_diff);
+    }
     if (start_diff_under_threshold &&
         GetContentClient()->ShouldIgnoreDuplicateNavs(
             common_params->url, /*is_renderer_initiated=*/true)) {
@@ -6338,7 +6364,8 @@ void RenderFrameImpl::BeginNavigationInternal(
       std::move(common_params), std::move(begin_params),
       std::move(blob_url_token), std::move(navigation_client_remote),
       std::move(initiator_navigation_state_keep_alive_handle),
-      std::move(renderer_cancellation_listener_receiver));
+      std::move(renderer_cancellation_listener_receiver),
+      std::move(resume_defer_commit_listener));
 }
 
 void RenderFrameImpl::DecodeDataURL(

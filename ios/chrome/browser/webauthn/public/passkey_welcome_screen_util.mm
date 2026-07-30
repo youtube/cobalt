@@ -16,6 +16,8 @@
 
 namespace {
 
+using ::webauthn::PasskeyWelcomeScreenPurpose;
+
 // Returns the title to use depending on the provided `purpose`.
 NSString* GetTitleString(PasskeyWelcomeScreenPurpose purpose) {
   switch (purpose) {
@@ -95,7 +97,7 @@ void CreateAndPresentPasskeyWelcomeScreen(
     PasskeyWelcomeScreenPurpose purpose,
     UINavigationController* navigationController,
     id<PasskeyWelcomeScreenViewControllerDelegate> delegate,
-    ProceduralBlock primaryButtonAction,
+    webauthn::PasskeyWelcomeScreenAction primaryButtonAction,
     std::string userEmail) {
   CHECK(navigationController);
   CHECK(delegate);

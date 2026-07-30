@@ -1211,8 +1211,8 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
              value_id == CSSValueID::kOptimizequality;
     case CSSPropertyID::kColumnRuleBreak:
     case CSSPropertyID::kRowRuleBreak:
-      return value_id == CSSValueID::kAuto || value_id == CSSValueID::kNone ||
-             value_id == CSSValueID::kSpanningItem ||
+      return value_id == CSSValueID::kNone ||
+             value_id == CSSValueID::kNormal ||
              value_id == CSSValueID::kIntersection;
     case CSSPropertyID::kColumnRuleVisibilityItems:
     case CSSPropertyID::kRowRuleVisibilityItems:
@@ -1249,6 +1249,9 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
              value_id == CSSValueID::kColumnOverRow;
     case CSSPropertyID::kGridLanesPack:
       return value_id == CSSValueID::kNormal || value_id == CSSValueID::kDense;
+    case CSSPropertyID::kImageAnimation:
+      return value_id == CSSValueID::kRunning ||
+             value_id == CSSValueID::kPaused || value_id == CSSValueID::kNormal;
     case CSSPropertyID::kImageRendering:
       return value_id == CSSValueID::kAuto ||
              value_id == CSSValueID::kWebkitOptimizeContrast ||
@@ -1556,6 +1559,12 @@ bool CSSParserFastPaths::IsValidKeywordPropertyAndValue(
              value_id == CSSValueID::kColumnReverse;
     case CSSPropertyID::kFieldSizing:
       return value_id == CSSValueID::kFixed || value_id == CSSValueID::kContent;
+    case CSSPropertyID::kFrameSizing:
+      return value_id == CSSValueID::kAuto ||
+             value_id == CSSValueID::kContentWidth ||
+             value_id == CSSValueID::kContentHeight ||
+             value_id == CSSValueID::kContentInlineSize ||
+             value_id == CSSValueID::kContentBlockSize;
     case CSSPropertyID::kHyphens:
 #if BUILDFLAG(USE_MINIKIN_HYPHENATION) || BUILDFLAG(IS_APPLE)
       return value_id == CSSValueID::kAuto || value_id == CSSValueID::kNone ||
@@ -1758,10 +1767,12 @@ CSSBitset CSSParserFastPaths::handled_by_keyword_fast_paths_properties_{{
     CSSPropertyID::kFillRule,
     CSSPropertyID::kFloat,
     CSSPropertyID::kFieldSizing,
+    CSSPropertyID::kFrameSizing,
     CSSPropertyID::kForcedColorAdjust,
     CSSPropertyID::kGapRuleOverlap,
     CSSPropertyID::kGridLanesPack,
     CSSPropertyID::kHyphens,
+    CSSPropertyID::kImageAnimation,
     CSSPropertyID::kImageRendering,
     CSSPropertyID::kInterpolateSize,
     CSSPropertyID::kListStylePosition,

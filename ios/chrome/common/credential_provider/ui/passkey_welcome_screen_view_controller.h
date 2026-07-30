@@ -8,9 +8,9 @@
 #import <UIKit/UIKit.h>
 
 #import "base/ios/block_types.h"
+#import "components/webauthn/ios/passkey_types.h"
 #import "ios/chrome/common/ui/promo_style/promo_style_view_controller.h"
 
-enum class PasskeyWelcomeScreenPurpose;
 @class PasskeyWelcomeScreenStrings;
 @class PasskeyWelcomeScreenViewController;
 
@@ -33,11 +33,12 @@ enum class PasskeyWelcomeScreenPurpose;
 // bar title view. `primaryButtonAction` is the block to execute when the
 // primary button displayed in the view is tapped. `strings` contains all the
 // labels that need to be displayed on the screen.
-- (instancetype)initForPurpose:(PasskeyWelcomeScreenPurpose)purpose
+- (instancetype)initForPurpose:(webauthn::PasskeyWelcomeScreenPurpose)purpose
        navigationItemTitleView:(UIView*)navigationItemTitleView
                       delegate:(id<PasskeyWelcomeScreenViewControllerDelegate>)
                                    delegate
-           primaryButtonAction:(ProceduralBlock)primaryButtonAction
+           primaryButtonAction:
+               (webauthn::PasskeyWelcomeScreenAction)primaryButtonAction
                        strings:(PasskeyWelcomeScreenStrings*)strings
     NS_DESIGNATED_INITIALIZER;
 

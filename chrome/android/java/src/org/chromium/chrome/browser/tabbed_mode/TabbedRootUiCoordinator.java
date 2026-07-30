@@ -4,6 +4,8 @@
 
 package org.chromium.chrome.browser.tabbed_mode;
 
+import static org.chromium.build.NullUtil.assumeNonNull;
+
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
@@ -176,6 +178,7 @@ import org.chromium.chrome.browser.tabmodel.TabCreatorManager;
 import org.chromium.chrome.browser.tabmodel.TabGroupModelFilter;
 import org.chromium.chrome.browser.tabmodel.TabModelSelector;
 import org.chromium.chrome.browser.tabmodel.TabModelUtils;
+import org.chromium.chrome.browser.tabwindow.TabWindowManager;
 import org.chromium.chrome.browser.tabwindow.WindowId;
 import org.chromium.chrome.browser.tasks.tab_management.FaviconResolver;
 import org.chromium.chrome.browser.tasks.tab_management.TabGroupFaviconCluster;
@@ -263,7 +266,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private OfflineIndicatorControllerV2 mOfflineIndicatorController;
     private OfflineIndicatorInProductHelpController mOfflineIndicatorInProductHelpController;
     private ReadAloudIphController mReadAloudIphController;
-    private ReadLaterIphController mReadLaterIphController;
+    private @Nullable ReadLaterIphController mReadLaterIphController;
     private DesktopSiteSettingsIphController mDesktopSiteSettingsIphController;
     private PdfPageIphController mPdfPageIphController;
     private WebFeedFollowIntroController mWebFeedFollowIntroController;
@@ -292,7 +295,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private final OneshotSupplierImpl<SystemBarColorHelper> mSystemBarColorHelperSupplier;
     private final MonotonicObservableSupplier<ManualFillingComponent>
             mManualFillingComponentSupplier;
-    private final @NonNull DataSharingTabManager mDataSharingTabManager;
+    private final DataSharingTabManager mDataSharingTabManager;
     private final Supplier<Boolean> mCanAnimateBrowserControls;
     protected @Nullable InstantMessageDelegateImpl mInstantMessageDelegateImpl;
     private @Nullable BookmarkBarCoordinator mBookmarkBarCoordinator;
@@ -316,7 +319,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     private final @NonNull CrossDeviceSettingImporter mCrossDeviceSettingImporter;
     private @Nullable SideUiCoordinator mSideUiCoordinator;
     private @Nullable SidePanelContainerCoordinator mSidePanelContainerCoordinator;
-    private final @Nullable MonotonicObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
+    private final OneshotSupplierImpl<Boolean> mTrackerInitializedOneshotSupplier =
+            new OneshotSupplierImpl<>();
 
     // Activity tab observer that updates the current tab used by various UI components.
     private class RootUiTabObserver extends ActivityTabTabObserver {
@@ -479,7 +483,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             @NonNull
                     MonotonicObservableSupplier<BookmarkManagerOpener>
                             bookmarkManagerOpenerSupplier,
-            @Nullable MonotonicObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
+            NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
             @NonNull OneshotSupplier<ChromeInactivityTracker> inactivityTrackerSupplier) {
         super(
                 activity,
@@ -532,7 +536,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         edgeToEdgeManager.getEdgeToEdgeStateProvider(),
                         browserControlsManager,
                         insetObserver,
-                        activityLifecycleDispatcher));
+                        activityLifecycleDispatcher,
+                        multiInstanceManager));
         mInsetObserver = insetObserver;
         mBackButtonShouldCloseTabFn = backButtonShouldCloseTabFn;
         mSendToBackground = sendToBackground;
@@ -636,7 +641,6 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 (inactivityTracker) -> {
                     inactivityTracker.addObserver(mInactivityObserver);
                 });
-        mXrSpaceModeObservableSupplier = xrSpaceModeObservableSupplier;
 
         mCrossDeviceSettingImporter =
                 new CrossDeviceSettingImporter(
@@ -645,6 +649,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                         mActivity,
                         modalDialogManagerSupplier,
                         snackbarManagerSupplier);
+
+        new OneShotCallback<>(mProfileSupplier, this::waitForTrackerInit);
 
         try {
             PackageManager packageManager = mActivity.getPackageManager();
@@ -931,7 +937,10 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
         if (OpenInAppUtils.isOpenInAppAvailable()) {
             mOpenInAppEntryPoint =
-                    new TabbedOpenInAppEntryPoint(mActivityTabProvider.asObservable());
+                    new TabbedOpenInAppEntryPoint(
+                            mActivityTabProvider.asObservable(),
+                            assumeNonNull(mOmniboxChipManager),
+                            mActivity);
         }
     }
 
@@ -1032,7 +1041,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                                     mIntentMetadataOneshotSupplier.get().getIsIntentWithEffect());
                         }),
                 mIntentMetadataOneshotSupplier,
-                mProfileSupplier);
+                mProfileSupplier,
+                mTrackerInitializedOneshotSupplier);
 
         // TODO(crbug.com/40736706): Investigate switching to per-Activity coordinator that
         // uses signals from the current Tab to decide when to show the PWA install bottom sheet
@@ -1048,7 +1058,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
         if (BookmarkBarUtils.isDeviceBookmarkBarCompatible(mActivity)) {
             BookmarkBarUtils.recordStartUpMetrics(
-                    mActivity, mProfileSupplier.get(), mXrSpaceModeObservableSupplier);
+                    mActivity, mProfileSupplier.get(), mXrSpaceModeObservableSupplier.get());
             mBookmarkBarVisibilityProvider =
                     new BookmarkBarVisibilityProvider(
                             mActivity,
@@ -1654,7 +1664,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
             EdgeToEdgeStateProvider edgeToEdgeStateProvider,
             BrowserControlsManager browserControlsManager,
             InsetObserver insetObserver,
-            ActivityLifecycleDispatcher activityLifecycleDispatcher) {
+            ActivityLifecycleDispatcher activityLifecycleDispatcher,
+            @Nullable MultiInstanceManager multiInstanceManager) {
         boolean isTablet = DeviceFormFactor.isNonMultiDisplayContextOnTablet(activity);
         if (!ToolbarFeatures.isAppHeaderCustomizationSupported(
                 isTablet, DisplayUtil.isContextInDefaultDisplay(activity))) {
@@ -1669,7 +1680,11 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
                 activityLifecycleDispatcher,
                 savedInstanceState,
                 persistentState,
-                edgeToEdgeStateProvider);
+                edgeToEdgeStateProvider,
+                () ->
+                        multiInstanceManager == null
+                                ? TabWindowManager.INVALID_WINDOW_ID
+                                : multiInstanceManager.getCurrentInstanceId());
     }
 
     private void initCollaborationDelegatesOnProfile(Profile profile) {
@@ -1836,6 +1851,8 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
 
     /** Called when a link is copied through context menu. */
     public void onContextMenuCopyLink() {
+        // The iph controller will be null before tracker fully initialized.
+        if (mReadLaterIphController == null) return;
         // TODO(crbug.com/40732234): Find a better way of passing event for IPH.
         mReadLaterIphController.onCopyContextMenuItemClicked();
     }
@@ -2053,7 +2070,7 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     @Override
     public boolean getBookmarkBarVisibility() {
         return BookmarkBarUtils.isBookmarkBarVisible(
-                mActivity, mProfileSupplier.get(), mXrSpaceModeObservableSupplier);
+                mActivity, mProfileSupplier.get(), mXrSpaceModeObservableSupplier.get());
     }
 
     public int getBookmarkBarHeight() {
@@ -2151,6 +2168,18 @@ public class TabbedRootUiCoordinator extends RootUiCoordinator {
     public void onDailyRefreshThemeCollectionApplied() {
         if (mNtpSyncedThemeManager != null) {
             mNtpSyncedThemeManager.fetchNextThemeCollectionImageAfterDailyRefreshApplied();
+        }
+    }
+
+    private void waitForTrackerInit(Profile profile) {
+        Tracker trackerForProfile = TrackerFactory.getTrackerForProfile(profile);
+        if (trackerForProfile.isInitialized()) {
+            mTrackerInitializedOneshotSupplier.set(true);
+        } else {
+            trackerForProfile.addOnInitializedCallback(
+                    result -> {
+                        mTrackerInitializedOneshotSupplier.set(true);
+                    });
         }
     }
 }

@@ -66,7 +66,7 @@
 #include "content/browser/browser_thread_impl.h"
 #include "content/browser/first_party_sets/first_party_sets_handler_impl.h"
 #include "content/browser/gpu/gpu_main_thread_factory.h"
-#include "content/browser/memory_coordinator/browser_memory_consumer_registry.h"
+#include "content/browser/memory_coordinator/browser_memory_coordinator.h"
 #include "content/browser/renderer_host/render_process_host_impl.h"
 #include "content/browser/scheduler/browser_task_executor.h"
 #include "content/browser/service_host/utility_process_host.h"
@@ -77,6 +77,7 @@
 #include "content/child/memory_coordinator/child_memory_consumer_registry.h"
 #include "content/common/content_constants_internal.h"
 #include "content/common/process_priority_tracker.h"
+#include "content/common/pseudonymization_salt.h"
 #include "content/common/url_schemes.h"
 #include "content/gpu/in_process_gpu_thread.h"
 #include "content/public/app/content_main_delegate.h"
@@ -598,6 +599,14 @@ NO_STACK_PROTECTOR int RunZygote(ContentMainDelegate* delegate) {
 
   ContentClientInitializer::Set(process_type, delegate);
 
+  // Initialize pseudonymization salt from shared memory before any tracing.
+  // See https://crbug.com/40850085.
+  MaybeInitializePseudonymizationSaltFromSharedMemory(*command_line);
+  // Salt must be initialized for all child processes launched by the browser.
+  // The browser passes the salt via shared memory at launch time.
+  CHECK(IsSaltInitialized())
+      << "Pseudonymization salt must be initialized in child processes";
+
   const ContentMainDelegate::InvokedInChildProcess invoked_in_child;
   if (delegate->ShouldCreateFeatureList(invoked_in_child)) {
     InitializeFieldTrialAndFeatureList();
@@ -1067,6 +1076,14 @@ NO_STACK_PROTECTOR int ContentMainRunnerImpl::Run() {
   bool needs_startup_tracing_after_sandbox_init = false;
   if (!process_type.empty()) {
     if (process_type != switches::kZygoteProcess) {
+      // Initialize pseudonymization salt from shared memory before any tracing.
+      // See https://crbug.com/40850085.
+      MaybeInitializePseudonymizationSaltFromSharedMemory(
+          *base::CommandLine::ForCurrentProcess());
+      // Note: Salt may not be initialized for test utilities that don't go
+      // through the normal child process launch path. GetPseudonymizationSalt()
+      // has a DCHECK to catch issues in debug builds.
+
       if (delegate_->ShouldCreateFeatureList(
               ContentMainDelegate::InvokedInChildProcess())) {
         InitializeFieldTrialAndFeatureList();
@@ -1160,8 +1177,7 @@ int ContentMainRunnerImpl::RunBrowser(MainFunctionParams main_params,
     }
 
     memory_pressure_listener_registry_.emplace();
-    browser_memory_consumer_registry_ = std::make_unique<
-        base::ScopedMemoryConsumerRegistry<BrowserMemoryConsumerRegistry>>();
+    browser_memory_coordinator_ = std::make_unique<BrowserMemoryCoordinator>();
 
     std::optional<int> pre_browser_main_exit_code = delegate_->PreBrowserMain();
     if (pre_browser_main_exit_code.has_value())

@@ -120,8 +120,6 @@ BASE_DECLARE_FEATURE(kBocaConfigureMaxStudents);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 extern const base::FeatureParam<int> kBocaMaxNumStudentsAllowed;
 COMPONENT_EXPORT(ASH_CONSTANTS)
-BASE_DECLARE_FEATURE(kBocaCourseWorkMaterialApi);
-COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kBocaScreenSharingTeacher);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kBocaScreenSharingStudent);
@@ -520,7 +518,6 @@ BASE_DECLARE_FEATURE(kImprovedManagementDisclosure);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kInstantHotspotOnNearby);
 COMPONENT_EXPORT(ASH_CONSTANTS)
-BASE_DECLARE_FEATURE(kInstantHotspotRebrand);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kInstantTethering);
 // TODO(b/288273641): Clean up the server speech recognition related flags.
 COMPONENT_EXPORT(ASH_CONSTANTS)
@@ -724,10 +721,6 @@ extern const base::FeatureParam<base::TimeDelta>
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kPhoneHubCallNotification);
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kPhoneHubMonochromeNotificationIcons);
-COMPONENT_EXPORT(ASH_CONSTANTS)
-BASE_DECLARE_FEATURE(kPhoneHubPingOnBubbleOpen);
-COMPONENT_EXPORT(ASH_CONSTANTS)
-extern const base::FeatureParam<base::TimeDelta> kPhoneHubPingTimeout;
 COMPONENT_EXPORT(ASH_CONSTANTS)
 BASE_DECLARE_FEATURE(kPhoneHubShortQuickActionPodsTitles);
 COMPONENT_EXPORT(ASH_CONSTANTS) BASE_DECLARE_FEATURE(kPickerGifs);
@@ -1155,7 +1148,7 @@ COMPONENT_EXPORT(ASH_CONSTANTS) bool IsHeliumArcvmKioskEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsHeliumArcvmKioskDevModeEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsHideShelfControlsInTabletModeEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsHybridChargerNotificationsEnabled();
-COMPONENT_EXPORT(ASH_CONSTANTS) bool IsInstantHotspotRebrandEnabled();
+COMPONENT_EXPORT(ASH_CONSTANTS) bool IsHostnameSettingEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsInputNoiseCancellationUiEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsESimEmptyActivationCodeSupportEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS)
@@ -1219,8 +1212,6 @@ COMPONENT_EXPORT(ASH_CONSTANTS) bool IsPeripheralNotificationEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsPhoneHubCameraRollEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS)
 bool IsPhoneHubMonochromeNotificationIconsEnabled();
-COMPONENT_EXPORT(ASH_CONSTANTS)
-bool IsPhoneHubPingOnBubbleOpenEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS)
 bool IsPhoneHubShortQuickActionPodsTitlesEnabled();
 COMPONENT_EXPORT(ASH_CONSTANTS) bool IsPhoneHubEnabled();

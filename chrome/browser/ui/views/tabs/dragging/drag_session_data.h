@@ -13,6 +13,7 @@
 #include "chrome/browser/ui/views/tabs/tab_slot_view.h"
 #include "components/tab_groups/tab_group_id.h"
 #include "components/tab_groups/tab_group_visual_data.h"
+#include "ui/gfx/geometry/vector2d_f.h"
 
 namespace content {
 class WebContents;
@@ -90,6 +91,10 @@ struct DragSessionData final {
   // user started dragging.
   size_t source_view_index_ = std::numeric_limits<size_t>::max();
 
+  // The offset of the mouse relative to the source dragged view's width and
+  // height.
+  gfx::Vector2dF mouse_offset_to_size_ratios;
+
   std::optional<tab_groups::TabGroupId> group() const {
     return group_drag_data_.has_value()
                ? std::make_optional(group_drag_data_.value().group)
@@ -123,7 +128,9 @@ struct DragSessionData final {
   std::vector<TabSlotView*> attached_views() const {
     std::vector<TabSlotView*> attached_views;
     for (const TabDragData& tab_data : tab_drag_data_) {
-      attached_views.push_back(tab_data.attached_view);
+      if (tab_data.attached_view) {
+        attached_views.push_back(tab_data.attached_view);
+      }
     }
     return attached_views;
   }

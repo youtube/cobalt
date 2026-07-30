@@ -529,7 +529,7 @@
       "external/wpt/css/css-ui/text-overflow-string-003.html",
       "external/wpt/css/css-ui/text-overflow-string-004.html",
       "external/wpt/css/css-ui/text-overflow-string-005.html",
-      "external/wpt/css/css-ui/text-overflow-string-006.tentative.html",
+      "external/wpt/css/css-ui/text-overflow-string-006.html",
       "fast/deprecated-flexbox/dynamically-change-line-clamp.html",
       "fast/deprecated-flexbox/line-clamp-crash.html",
       "fast/deprecated-flexbox/line-clamp-removed-dynamically.html",
@@ -1235,71 +1235,7 @@
       "chrome-first-party-sets@chromium.org"
     ]
   },
-  {
-    "prefix": "fledge-bidding-and-auction",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "owners": [
-      "behamilton@google.com",
-      "mmenke@chromium.org",
-      "pauljensen@chromium.org"
-    ],
-    "bases": [
-      "external/wpt/fledge/tentative/get-interest-group-auction-data.https.window.js",
-      "external/wpt/fledge/tentative/server-response.https.window.js"
-    ],
-    "args": [
-      "--enable-features=EnableBandATriggeredUpdates,FledgeBiddingAndAuctionServer:FledgeBiddingAndAuctionKeyConfig/{\"https%3A%2F%2Fweb-platform.test%22%3A%22https%3A%2F%2Fweb-platform.test%3A8444%2Ffledge%2Ftentative%2Fresources%2Fba-public-keys\"}"
-    ],
-    "expires": "Jul 14, 2025"
-  },
-  {
-    "prefix": "fledge-bidding-and-auction-for-debugging-only",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "owners": [
-      "behamilton@google.com",
-      "pauljensen@chromium.org",
-      "qingxinwu@google.com"
-    ],
-    "bases": [
-      "external/wpt/fledge/tentative/server-response-for-debugging-only.https.window.js"
-    ],
-    "args": [
-      "--enable-features=EnableBandASampleDebugReports,FledgeBiddingAndAuctionServer:FledgeBiddingAndAuctionKeyConfig/{\"https%3A%2F%2Fweb-platform.test%22%3A%22https%3A%2F%2Fweb-platform.test%3A8444%2Ffledge%2Ftentative%2Fresources%2Fba-public-keys\"}",
-      "--disable-features=FledgeSampleDebugReports"
-    ],
-    "expires": "Jul 14, 2025"
-  },
-  {
-    "prefix": "fledge-bidding-and-auction-private-aggregation",
-    "platforms": [
-      "Linux",
-      "Mac",
-      "Win"
-    ],
-    "owners": [
-      "behamilton@google.com",
-      "pauljensen@chromium.org",
-      "qingxinwu@google.com"
-    ],
-    "bases": [
-      "external/wpt/fledge/tentative/private-aggregation.https.window.js",
-      "external/wpt/fledge/tentative/server-response-private-aggregation.https.window.js"
-    ],
-    "args": [
-      "--private-aggregation-developer-mode",
-      "--enable-features=EnableBandAPrivateAggregation,AggregationServiceMultipleCloudProviders:allowlist/https%3A%2F%2Fweb-platform.test%3A8444,FledgeBiddingAndAuctionServer:FledgeBiddingAndAuctionKeyConfig/{\"https%3A%2F%2Fweb-platform.test%22%3A%22https%3A%2F%2Fweb-platform.test%3A8444%2Ffledge%2Ftentative%2Fresources%2Fba-public-keys\"}"
-    ],
-    "expires": "Jul 14, 2025"
-  },
-  "RasterInducingScroll disabled due to crbug.com/349939555",
+ "RasterInducingScroll disabled due to crbug.com/349939555",
   "TODO(crbug.com/398193016): Merge this suite into virtual/overlay-scrollbar",
   {
     "prefix": "fluent-overlay-scrollbar",
@@ -2459,6 +2395,17 @@
       "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-003.html",
       "external/wpt/css/css-overflow/targeted-column-scroll-marker-selection-004.html",
       "external/wpt/css/css-pseudo/events-on-pseudo-element.tentative.html",
+      "external/wpt/fullscreen/api/element-request-fullscreen-namespaces.html",
+      "external/wpt/fullscreen/rendering/exit-fullscreen-scroll-to-unscrollable-area-overflow-hidden.html",
+      "external/wpt/fullscreen/rendering/exit-fullscreen-scroll-to-unscrollable-area-overflow-x-hidden.html",
+      "external/wpt/html/semantics/menu/tentative/menu-elements-default-style.html",
+      "external/wpt/html/semantics/menu/tentative/menuitem-activate.html",
+      "external/wpt/screen-orientation/lock-sandboxed-iframe.html",
+      "external/wpt/shadow-dom/focus-navigation/reading-flow/tentative/carousel-grid-order.html",
+      "fullscreen/full-screen-placeholder.html",
+      "fullscreen/full-screen-render-inline.html",
+      "fullscreen/full-screen-zIndex-after.html",
+      "fullscreen/parent-flow-inline-with-block-child.html",
       "external/wpt/html/semantics/interactive-elements/the-dialog-element/dialog-popover-overlay.html",
       "external/wpt/html/semantics/interactive-elements/the-dialog-element/dialog-overlay-re-add-during-transition.html",
       "external/wpt/html/semantics/popovers/chrome-392042073-crash.html",
@@ -2697,6 +2644,25 @@
       "--disable-features=PreloadLinkRelDataUrls"
     ],
     "expires": "Jul 3, 2025"
+  },
+  {
+    "prefix": "prerender-by-form-submission",
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win"
+    ],
+    "bases": [
+      "external/wpt/speculation-rules/prerender/activation-by-form-submission.https.html"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-blink-features=PrerenderActivationByFormSubmission"
+    ],
+    "owners": [
+      "robertlin@chromium.org"
+    ],
+    "expires": "Jul 1, 2026"
   },
   {
     "prefix": "prerender2-fallback-prefetch-spec-rules",
@@ -3025,7 +2991,8 @@
       "Win"
     ],
     "bases": [
-      "external/wpt/custom-elements/"
+      "external/wpt/custom-elements/",
+      "custom-elements/"
     ],
     "args": [
       "--enable-blink-features=ScopedCustomElementRegistry"
@@ -4411,6 +4378,28 @@
       "--enable-features=SymphoniaAudioDecoding"
     ],
     "expires": "Jul 7, 2026"
+  },
+  {
+    "prefix": "freeze-shared-worker-bfcache",
+    "owners": ["annasato@chromium.org"],
+    "platforms": [
+      "Linux",
+      "Mac",
+      "Win",
+      "Fuchsia"
+    ],
+    "bases": [
+      "external/wpt/html/browsers/browsing-the-web/back-forward-cache/eligibility/shared-worker.html",
+      "wpt_internal/shared-worker/back-forward-cache/shared-worker-client-postmessage-transferred-port.window.js",
+      "wpt_internal/shared-worker/back-forward-cache/shared-worker-client-postmessage.window.js",
+      "wpt_internal/shared-worker/back-forward-cache/shared-worker-extended-lifetime.window.js",
+      "wpt_internal/shared-worker/back-forward-cache/shared-worker-freeze.window.js"
+    ],
+    "exclusive_tests": "ALL",
+    "args": [
+      "--enable-features=FreezeSharedWorker"
+    ],
+    "expires": "Sep 10, 2026"
   },
   {
     "prefix": "target-device-scale-factor-2",

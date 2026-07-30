@@ -225,6 +225,17 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   virtual void set_using_wm_input(bool using_wm_input);
   virtual bool using_wm_input() const;
 
+  // Sets/gets whether the mouse is locked (pointer lock is active).
+  void set_mouse_locked(bool mouse_locked) { mouse_locked_ = mouse_locked; }
+  bool mouse_locked() const { return mouse_locked_; }
+
+  ui::EventFlags raw_input_button_state_for_testing() const {
+    return raw_input_button_state_;
+  }
+  void set_raw_input_button_state_for_testing(ui::EventFlags state) {
+    raw_input_button_state_ = state;
+  }
+
  protected:
   HWNDMessageHandler(HWNDMessageHandlerDelegate* delegate,
                      const std::string& debugging_id);
@@ -634,8 +645,22 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
   // refers to the edge of the window being sized.
   void SizeWindowToAspectRatio(UINT param, gfx::Rect* rect);
 
-  // Get the cursor position, which may be mocked if running a test
+  // Get the cursor position, which may be mocked if running a test.
   POINT GetCursorPos() const;
+
+  // Remove the current window's reference from `fullscreen_monitor_map_`.
+  void RemoveCurrentWindowFromFullscreenMonitorMap();
+
+  // Update `fullscreen_monitor_map_` to remove the invalid HMONITOR handle
+  // corresponding to the current window handle. This is called when the
+  // WM_DISPLAYCHANGE message is received (i.e., when the display configuration
+  // changes).
+  void UpdateFullscreenMonitorMap();
+
+  // Updates the tracked button state based on Raw Input button transitions.
+  // Raw Input only reports button state changes (down/up transitions), not the
+  // current state, so we must maintain our own state tracking.
+  void UpdateRawInputButtonState(const RAWINPUT* const input);
 
   raw_ptr<HWNDMessageHandlerDelegate> delegate_;
 
@@ -835,6 +860,15 @@ class VIEWS_EXPORT HWNDMessageHandler : public gfx::WindowImpl,
 
   // True if is handling mouse WM_INPUT messages.
   bool using_wm_input_ = false;
+
+  // Tracks the current mouse button state for Raw Input (WM_INPUT) events.
+  // Raw Input only reports button state transitions, not current state, so we
+  // must track it ourselves. This is a bitmask of ui::EventFlags values.
+  ui::EventFlags raw_input_button_state_ = ui::EF_NONE;
+
+  // True if the mouse is locked (pointer lock is active). This is used to
+  // suppress system key events (like Alt) that would steal focus.
+  bool mouse_locked_ = false;
 
   // True if we're displaying the system menu on the title bar. If we are,
   // then we want to ignore right mouse clicks instead of bringing up a

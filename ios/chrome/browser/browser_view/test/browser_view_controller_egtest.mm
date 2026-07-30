@@ -56,21 +56,6 @@ const char kSecondURLText[] = "You've arrived";
   GREYAssertTrue(self.testServer->Start(), @"Server did not start.");
 }
 
-- (AppLaunchConfiguration)appConfigurationForTestCase {
-  AppLaunchConfiguration config;
-
-  if ([self isRunningTest:@selector
-            (testOpenSearchWidgetWithSignOutProfileSwitch)] ||
-      [self isRunningTest:@selector
-            (testOpenSearchWidgetWithSignInProfileSwitch)] ||
-      [self isRunningTest:@selector
-            (testOpenSearchWidgetWithUnmanagedToManagedProfileSwitch)]) {
-    config.features_enabled.push_back(kSeparateProfilesForManagedAccounts);
-  }
-
-  return config;
-}
-
 // Tests that the NTP is interactable even when multiple NTP are opened during
 // the animation of the first NTP opening. See crbug.com/1032544.
 - (void)testPageInteractable {
@@ -280,7 +265,6 @@ const char kSecondURLText[] = "You've arrived";
       waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
 }
 
-#if BUILDFLAG(ENABLE_WIDGETS_FOR_MIM)
 // Test that code for opening URLs from Search widgets loads the NTP with the
 // Omnibox focused and switches to the correct account (in the same profile).
 - (void)testOpenSearchWidgetWithoutProfileSwitch {
@@ -418,8 +402,6 @@ const char kSecondURLText[] = "You've arrived";
       waitForSufficientlyVisibleElementWithMatcher:chrome_test_util::Omnibox()];
   GREYAssertTrue(![SigninEarlGrey isSignedOut], @"Failed to sign-in.");
 }
-
-#endif
 
 #pragma mark - Multiwindow
 

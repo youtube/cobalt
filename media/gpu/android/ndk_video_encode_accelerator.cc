@@ -522,12 +522,14 @@ NdkVideoEncodeAccelerator::PendingEncode&
 NdkVideoEncodeAccelerator::PendingEncode::operator=(PendingEncode&&) = default;
 
 NdkVideoEncodeAccelerator::NdkVideoEncodeAccelerator(
-    scoped_refptr<base::SequencedTaskRunner> runner)
+    scoped_refptr<base::SequencedTaskRunner> runner,
+    const gpu::GpuDriverBugWorkarounds& gpu_workarounds)
     : task_runner_(std::move(runner)),
       // We just need an arbitrary non-zero value for the first timestamp
       // due to issues with EGL surface path.
       next_timestamp_(base::TimeTicks::Now().since_origin()),
-      use_surface_as_input_(ShouldUseSurfaceInput()) {}
+      use_surface_as_input_(ShouldUseSurfaceInput()),
+      gpu_workarounds_(gpu_workarounds) {}
 
 NdkVideoEncodeAccelerator::~NdkVideoEncodeAccelerator() {
   // It's supposed to be cleared by Destroy(), it basically checks
@@ -548,7 +550,7 @@ NdkVideoEncodeAccelerator::GetSupportedSharedImagePixelFormats() {
       // If kVulkanFromANGLE = true (e.g. Desktop Android)
       // we we get shared images with AngleVulkanImageBacking, NDK VEA can't
       // handle such shared images yet.
-      if (base::FeatureList::IsEnabled(media::kAndroidZeroCopyVideoCapture)) {
+      if (media::IsAndroidZeroCopyVideoCaptureEnabled(gpu_workarounds_)) {
         // If zero-copy camera capture is enabled, let's allow XBGR shared
         // images for testing, even though it breaks the canvas copy case.
         return {PIXEL_FORMAT_XBGR};
@@ -558,7 +560,7 @@ NdkVideoEncodeAccelerator::GetSupportedSharedImagePixelFormats() {
     return {PIXEL_FORMAT_ABGR, PIXEL_FORMAT_XBGR};
   }
 
-  if (base::FeatureList::IsEnabled(media::kAndroidZeroCopyVideoCapture)) {
+  if (media::IsAndroidZeroCopyVideoCaptureEnabled(gpu_workarounds_)) {
     return {PIXEL_FORMAT_ABGR, PIXEL_FORMAT_XBGR};
   }
   return {};
@@ -1190,8 +1192,7 @@ void NdkVideoEncodeAccelerator::FeedInputBuffer(scoped_refptr<VideoFrame> frame,
     return;
   }
 
-  const auto visible_size =
-      aligned_size_.value_or(src_frame->visible_rect().size());
+  const auto visible_size = aligned_size_.value_or(config_.input_visible_size);
 
   const int dst_stride_uv = input_buffer_stride_;
   const gfx::Size uv_plane_size = VideoFrame::PlaneSizeInSamples(
@@ -1216,13 +1217,11 @@ void NdkVideoEncodeAccelerator::FeedInputBuffer(scoped_refptr<VideoFrame> frame,
     return;
   }
 
-  const size_t y_plane_size =
-      input_buffer_stride_ * input_buffer_yplane_height_;
   const std::vector<ColorPlaneLayout> dst_planes = {
       ColorPlaneLayout(/*stride=*/static_cast<size_t>(input_buffer_stride_),
-                       /*offset=*/0, /*size=*/y_plane_size),
+                       /*offset=*/0, /*size=*/y_plane_len),
       ColorPlaneLayout(/*stride=*/static_cast<size_t>(input_buffer_stride_),
-                       /*offset=*/y_plane_size, /*size=*/uv_plane_len),
+                       /*offset=*/y_plane_len, /*size=*/uv_plane_len),
   };
 
   auto dst_layout = VideoFrameLayout::CreateWithPlanes(
@@ -1541,21 +1540,22 @@ EncoderStatus NdkVideoEncodeAccelerator::ResetMediaCodec() {
   }
 
   auto configured_size = aligned_size_.value_or(config_.input_visible_size);
-  PixelFormat pixel_format = use_surface_as_input_
-                                 ? COLOR_FORMAT_SURFACE
-                                 : COLOR_FORMAT_YUV420_SEMIPLANAR;
-  auto media_format = CreateVideoFormat(
-      config_, effective_framerate_, configured_size, effective_bitrate_,
-      encoder_color_space_, num_temporal_layers_, pixel_format);
-  if (!media_format) {
-    MEDIA_LOG(ERROR, log_) << "Fail to create media format for: "
-                           << config_.AsHumanReadableString();
-    return {EncoderStatus::Codes::kEncoderUnsupportedConfig};
-  }
+  const PixelFormat pixel_format = use_surface_as_input_
+                                       ? COLOR_FORMAT_SURFACE
+                                       : COLOR_FORMAT_YUV420_SEMIPLANAR;
 
   // We do the following in a loop since we may need to recreate the MediaCodec
   // if it doesn't unaligned resolutions.
   do {
+    auto media_format = CreateVideoFormat(
+        config_, effective_framerate_, configured_size, effective_bitrate_,
+        encoder_color_space_, num_temporal_layers_, pixel_format);
+    if (!media_format) {
+      MEDIA_LOG(ERROR, log_) << "Fail to create media format for: "
+                             << config_.AsHumanReadableString();
+      return {EncoderStatus::Codes::kEncoderUnsupportedConfig};
+    }
+
     media_codec_ =
         NdkMediaCodecWrapper::CreateByCodecName(*name, this, task_runner_);
     if (!media_codec_) {
@@ -1622,10 +1622,6 @@ EncoderStatus NdkVideoEncodeAccelerator::ResetMediaCodec() {
       media_codec_->Stop();
       media_codec_.reset();
 
-      AMediaFormat_setInt32(media_format.get(), AMEDIAFORMAT_KEY_WIDTH,
-                            aligned_size_->width());
-      AMediaFormat_setInt32(media_format.get(), AMEDIAFORMAT_KEY_HEIGHT,
-                            aligned_size_->height());
       configured_size = *aligned_size_;
     }
   } while (!media_codec_);
@@ -1646,6 +1642,14 @@ EncoderStatus NdkVideoEncodeAccelerator::ResetMediaCodec() {
 
   MEDIA_LOG(INFO, log_) << "Created MediaCodec (" << name.value()
                         << ") for config: " << config_.AsHumanReadableString();
+  if (use_surface_as_input_) {
+    MEDIA_LOG(INFO, log_) << "MediaCodec codec uses surface for input";
+  } else {
+    MEDIA_LOG(INFO, log_) << "MediaCodec input buffer layout:"
+                          << " visible size: " << configured_size.ToString()
+                          << " stride: " << input_buffer_stride_ << " "
+                          << " y-height: " << input_buffer_yplane_height_;
+  }
 
   return {EncoderStatus::Codes::kOk};
 }

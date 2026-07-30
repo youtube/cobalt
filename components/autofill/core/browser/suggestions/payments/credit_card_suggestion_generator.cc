@@ -13,6 +13,7 @@
 #include "base/containers/to_vector.h"
 #include "base/functional/callback.h"
 #include "base/functional/function_ref.h"
+#include "components/autofill/core/browser/autofill_browser_util.h"
 #include "components/autofill/core/browser/autofill_field.h"
 #include "components/autofill/core/browser/data_manager/payments/payments_data_manager.h"
 #include "components/autofill/core/browser/data_manager/personal_data_manager.h"
@@ -254,11 +255,13 @@ std::vector<Suggestion> GetSuggestionsForCreditCards(
     const std::vector<std::string>& four_digit_combinations_in_dom,
     const payments::AmountExtractionStatus& amount_extraction_status,
     autofill_metrics::CreditCardFormEventLogger& credit_card_form_event_logger,
-    const AutofillMetrics::PaymentsSigninState signin_state_for_metrics) {
+    const AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
+    bool exclude_virtual_cards) {
   std::vector<Suggestion> suggestions;
   CreditCardSuggestionGenerator credit_card_suggestion_generator(
       four_digit_combinations_in_dom, amount_extraction_status,
-      credit_card_form_event_logger, signin_state_for_metrics);
+      &credit_card_form_event_logger, signin_state_for_metrics,
+      exclude_virtual_cards);
 
   auto on_suggestions_generated =
       [&suggestions](
@@ -287,13 +290,15 @@ std::vector<Suggestion> GetSuggestionsForCreditCards(
 CreditCardSuggestionGenerator::CreditCardSuggestionGenerator(
     const std::vector<std::string>& four_digit_combinations_in_dom,
     const payments::AmountExtractionStatus& amount_extraction_status,
-    autofill_metrics::CreditCardFormEventLogger& credit_card_form_event_logger,
-    const AutofillMetrics::PaymentsSigninState signin_state_for_metrics)
+    autofill_metrics::CreditCardFormEventLogger* credit_card_form_event_logger,
+    const AutofillMetrics::PaymentsSigninState signin_state_for_metrics,
+    bool exclude_virtual_cards)
     : four_digit_combinations_in_dom_(four_digit_combinations_in_dom),
       summary_(CreditCardSuggestionSummary()),
       amount_extraction_status_(amount_extraction_status),
       credit_card_form_event_logger_(credit_card_form_event_logger),
-      signin_state_for_metrics_(signin_state_for_metrics) {}
+      signin_state_for_metrics_(signin_state_for_metrics),
+      exclude_virtual_cards_(exclude_virtual_cards) {}
 
 CreditCardSuggestionGenerator::~CreditCardSuggestionGenerator() = default;
 
@@ -343,8 +348,10 @@ void CreditCardSuggestionGenerator::FetchSuggestionData(
         void(std::pair<SuggestionDataSource,
                        std::vector<SuggestionGenerator::SuggestionData>>)>
         callback) {
-  credit_card_form_event_logger_->set_signin_state_for_metrics(
-      signin_state_for_metrics_);
+  if (credit_card_form_event_logger_) {
+    credit_card_form_event_logger_->set_signin_state_for_metrics(
+        signin_state_for_metrics_);
+  }
   std::u16string card_number_field_value = u"";
   bool is_card_number_autofilled = false;
 
@@ -402,7 +409,7 @@ void CreditCardSuggestionGenerator::FetchSuggestionData(
   // Non-empty virtual_card_guid_to_last_four_map indicates this is standalone
   // CVC form AND there is matched VCN (based on the VCN usages and last four
   // from the DOM).
-  if (!virtual_card_guid_to_last_four_map.empty()) {
+  if (!virtual_card_guid_to_last_four_map.empty() && !exclude_virtual_cards_) {
     // TODO(crbug.com/40916587): Refactor credit card suggestion code by moving
     // duplicate logic to helper functions.
     callback(FetchVirtualCardStandaloneCvcFieldSuggestionDataSync(
@@ -488,11 +495,26 @@ void CreditCardSuggestionGenerator::GenerateSuggestions(
         return suggestion.type == SuggestionType::kVirtualCreditCardEntry;
       });
 
-  credit_card_form_event_logger_->OnDidFetchSuggestion(
-      suggestions, summary_.with_cvc,
-      summary_.with_card_info_retrieval_enrolled,
-      is_virtual_card_standalone_cvc_field,
-      std::move(summary_.metadata_logging_context));
+  if (credit_card_form_event_logger_) {
+    credit_card_form_event_logger_->OnDidFetchSuggestion(
+        suggestions, summary_.with_cvc,
+        summary_.with_card_info_retrieval_enrolled,
+        is_virtual_card_standalone_cvc_field,
+        std::move(summary_.metadata_logging_context));
+  }
+
+  // Don't provide credit card suggestions for non-secure pages, but do provide
+  // them for secure pages with passive mixed content (see implementation of
+  // IsContextSecure).
+  if (!suggestions.empty() &&
+      IsFormOrClientNonSecure(client, *form_structure)) {
+    // Replace the suggestion content with a warning message explaining why
+    // Autofill is disabled for a website. The string is different if the credit
+    // card autofill HTTP warning experiment is enabled.
+    suggestions = {Suggestion(
+        l10n_util::GetStringUTF16(IDS_AUTOFILL_WARNING_INSECURE_CONNECTION),
+        SuggestionType::kInsecureContextPaymentDisabledMessage)};
+  }
 
   callback({FillingProduct::kCreditCard, suggestions});
 }

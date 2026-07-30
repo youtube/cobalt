@@ -94,6 +94,7 @@ import org.chromium.chrome.browser.fullscreen.BrowserControlsManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenBackPressHandler;
 import org.chromium.chrome.browser.fullscreen.FullscreenManager;
 import org.chromium.chrome.browser.fullscreen.FullscreenOptions;
+import org.chromium.chrome.browser.glic.GlicKeyedService;
 import org.chromium.chrome.browser.host_zoom.HostZoomListenerFactory;
 import org.chromium.chrome.browser.image_descriptions.ImageDescriptionsController;
 import org.chromium.chrome.browser.incognito.reauth.IncognitoReauthController;
@@ -121,11 +122,13 @@ import org.chromium.chrome.browser.multiwindow.MultiWindowUtils;
 import org.chromium.chrome.browser.ntp_customization.NtpCustomizationUtils;
 import org.chromium.chrome.browser.ntp_customization.edge_to_edge.TopInsetCoordinator;
 import org.chromium.chrome.browser.omnibox.OmniboxActionDelegateImpl;
+import org.chromium.chrome.browser.omnibox.OmniboxChipManager;
 import org.chromium.chrome.browser.omnibox.OmniboxFocusReason;
 import org.chromium.chrome.browser.omnibox.geo.GeolocationHeader;
 import org.chromium.chrome.browser.omnibox.voice.VoiceRecognitionHandler;
 import org.chromium.chrome.browser.open_in_app.OpenInAppEntryPoint;
 import org.chromium.chrome.browser.open_in_app.OpenInAppMenuItemProvider;
+import org.chromium.chrome.browser.open_in_app.OpenInAppUtils;
 import org.chromium.chrome.browser.paint_preview.DemoPaintPreview;
 import org.chromium.chrome.browser.password_manager.ManagePasswordsReferrer;
 import org.chromium.chrome.browser.password_manager.PasswordManagerLauncher;
@@ -401,7 +404,7 @@ public class RootUiCoordinator
     protected final @NonNull EdgeToEdgeManager mEdgeToEdgeManager;
     private AutomotiveBackButtonToolbarCoordinator mAutomotiveBackButtonToolbarCoordinator;
     protected AdaptiveToolbarUiCoordinator mAdaptiveToolbarUiCoordinator;
-    private final @Nullable MonotonicObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
+    protected final NonNullObservableSupplier<Boolean> mXrSpaceModeObservableSupplier;
     private final boolean mIsTablet;
     private final SettableMonotonicObservableSupplier<TopInsetProvider> mTopInsetProviderSupplier;
     private @Nullable ToolbarControlContainer mToolbarContainer;
@@ -412,6 +415,7 @@ public class RootUiCoordinator
     protected final SettableMonotonicObservableSupplier<ReaderModeIphController>
             mReaderModeIphControllerSupplier = ObservableSuppliers.createMonotonic();
     protected @Nullable OpenInAppEntryPoint mOpenInAppEntryPoint;
+    protected @Nullable OmniboxChipManager mOmniboxChipManager;
 
     /**
      * Create a new {@link RootUiCoordinator} for the given activity.
@@ -509,7 +513,7 @@ public class RootUiCoordinator
             @Nullable PersistableBundle persistentState,
             @NonNull NonNullObservableSupplier<Integer> overviewColorSupplier,
             @NonNull EdgeToEdgeManager edgeToEdgeManager,
-            @Nullable MonotonicObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
+            NonNullObservableSupplier<Boolean> xrSpaceModeObservableSupplier,
             @Nullable DesktopWindowStateManager desktopWindowStateManager) {
         mCallbackController = new CallbackController();
         mActivity = activity;
@@ -834,6 +838,11 @@ public class RootUiCoordinator
             }
             mToolbarManager.destroy();
             mToolbarManager = null;
+        }
+
+        if (mOmniboxChipManager != null) {
+            mOmniboxChipManager.destroy();
+            mOmniboxChipManager = null;
         }
 
         if (mAdaptiveToolbarUiCoordinator != null) {
@@ -1440,7 +1449,7 @@ public class RootUiCoordinator
      * This method is meant to be overridden for sub-classes which needs to provide an incognito
      * re-auth view.
      *
-     * @return {@link IncognitoReauthCoordiantorFactory} instance.
+     * @return {@link IncognitoReauthCoordinatorFactory} instance.
      */
     protected IncognitoReauthCoordinatorFactory getIncognitoReauthCoordinatorFactory(
             Profile profile) {
@@ -1499,14 +1508,14 @@ public class RootUiCoordinator
     }
 
     /**
-     * Triggered when the share menu item is selected.
-     * This creates and shows a share intent picker dialog or starts a share intent directly.
+     * Triggered when the share menu item is selected. This creates and shows a share intent picker
+     * dialog or starts a share intent directly.
+     *
      * @param shareDirectly Whether it should share directly with the activity that was most
-     *                      recently used to share.
-     * @param isIncognito Whether currentTab is incognito.
+     *     recently used to share.
      */
     @VisibleForTesting
-    public void onShareMenuItemSelected(final boolean shareDirectly, final boolean isIncognito) {
+    public void onShareMenuItemSelected(final boolean shareDirectly) {
         ShareDelegate shareDelegate = mShareDelegateSupplier.get();
         Tab tab = mActivityTabProvider.get();
 
@@ -1556,9 +1565,7 @@ public class RootUiCoordinator
             }
             return true;
         } else if (id == R.id.share_menu_id || id == R.id.direct_share_menu_id) {
-            onShareMenuItemSelected(
-                    id == R.id.direct_share_menu_id,
-                    mTabModelSelectorSupplier.get().isIncognitoSelected());
+            onShareMenuItemSelected(id == R.id.direct_share_menu_id);
             return true;
         } else if (id == R.id.paint_preview_show_id) {
             DemoPaintPreview.showForTab(mActivityTabProvider.get());
@@ -1607,8 +1614,22 @@ public class RootUiCoordinator
                     return result != null && result;
                 }
             }
-        }
+        } else if (id == R.id.glic_menu_id) {
+            long browserWindowPtr =
+                    assumeNonNull(mChromeAndroidTaskSupplier.get())
+                            .getOrCreateNativeBrowserWindowPtr();
+            GlicKeyedService service = new GlicKeyedService();
+            if (service == null) {
+                return false;
+            }
 
+            // TODO(crbug.com/479863299): Create and pass in enum for invocationSource.
+            service.toggleUI(
+                    browserWindowPtr,
+                    assumeNonNull(mProfileSupplier.get()),
+                    /* invocationSource= */ 7);
+            return true;
+        }
         return false;
     }
 
@@ -1798,6 +1819,12 @@ public class RootUiCoordinator
                             TabWindowManagerSingleton::getInstance,
                             this::bringTabToFront);
 
+            if (OpenInAppUtils.isOpenInAppAvailable()) {
+                ViewGroup omniboxChipContainer =
+                        controlContainer.findViewById(R.id.omnibox_chip_container);
+                mOmniboxChipManager = new OmniboxChipManager(omniboxChipContainer);
+            }
+
             mToolbarManager =
                     new ToolbarManager(
                             mActivity,
@@ -1843,6 +1870,9 @@ public class RootUiCoordinator
                             mBackPressManager,
                             mReadAloudControllerSupplier,
                             getDesktopWindowStateManager(),
+                            mTopControlsLockCoordinator != null
+                                    ? mTopControlsLockCoordinator.getDeferredLockingTokenJar()
+                                    : null,
                             getMultiInstanceManager(),
                             mTabBookmarkerSupplier,
                             getMenuButtonVisibilityDelegate(),
@@ -1850,7 +1880,8 @@ public class RootUiCoordinator
                             mTopInsetProviderSupplier,
                             mXrSpaceModeObservableSupplier,
                             mPageZoomManager,
-                            mSnackbarManagerSupplier.get());
+                            mSnackbarManagerSupplier.get(),
+                            mOmniboxChipManager);
             if (!mSupportsAppMenuSupplier.getAsBoolean()) {
                 mToolbarManager.getToolbar().disableMenuButton();
             }

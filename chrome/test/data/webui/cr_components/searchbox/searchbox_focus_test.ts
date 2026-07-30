@@ -6,13 +6,13 @@ import 'chrome://new-tab-page/new_tab_page.js';
 
 import type {SearchboxElement} from 'chrome://new-tab-page/new_tab_page.js';
 import {BrowserProxyImpl, MetricsReporterImpl, SearchboxBrowserProxy} from 'chrome://new-tab-page/new_tab_page.js';
+import {createAutocompleteResultForTesting, createSearchMatchForTesting} from 'chrome://resources/cr_components/searchbox/searchbox_browser_proxy.js';
 import {loadTimeData} from 'chrome://resources/js/load_time_data.js';
 import {PageMetricsCallbackRouter} from 'chrome://resources/js/metrics_reporter.mojom-webui.js';
 import {assertEquals, assertFalse, assertTrue} from 'chrome://webui-test/chai_assert.js';
 import {TestMock} from 'chrome://webui-test/test_mock.js';
 import {microtasksFinished} from 'chrome://webui-test/test_util.js';
 
-import {createAutocompleteResult, createSearchMatch} from './searchbox_test_utils.js';
 import {TestSearchboxBrowserProxy} from './test_searchbox_browser_proxy.js';
 
 async function createAndAppendRealbox(
@@ -72,16 +72,16 @@ suite('SearchboxFocusTest', () => {
     realbox.$.input.dispatchEvent(new InputEvent('input'));
 
     let args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals(args.input, realbox.$.input.value);
+    assertEquals(/*input=*/ args[0], realbox.$.input.value);
     testProxy.handler.reset();
 
-    const matches = [createSearchMatch({
+    const matches = [createSearchMatchForTesting({
       allowedToBeDefaultMatch: true,
       inlineAutocompletion: 'gle',
     })];
 
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));
@@ -108,7 +108,7 @@ suite('SearchboxFocusTest', () => {
     assertTrue(tabEvent.defaultPrevented);
 
     args = await testProxy.handler.whenCalled('queryAutocomplete');
-    assertEquals('google', args.input);
+    assertEquals('google', /*input=*/ args[0]);
 
     assertEquals('google', realbox.$.input.value);
     start = realbox.$.input.selectionStart!;
@@ -124,7 +124,7 @@ suite('SearchboxFocusTest', () => {
     testProxy.handler.reset();
 
     testProxy.callbackRouterRemote.autocompleteResultChanged(
-        createAutocompleteResult({
+        createAutocompleteResultForTesting({
           input: realbox.$.input.value.trimStart(),
           matches: matches,
         }));

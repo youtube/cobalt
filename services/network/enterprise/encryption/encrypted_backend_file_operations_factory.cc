@@ -14,9 +14,9 @@ namespace network::enterprise_encryption {
 
 EncryptedBackendFileOperationsFactory::EncryptedBackendFileOperationsFactory(
     scoped_refptr<BackendFileOperationsFactory> decorated_factory,
-    crypto::ProcessBoundString primary_key)
+    const crypto::ProcessBoundString& primary_key)
     : decorated_factory_(std::move(decorated_factory)),
-      primary_key_(std::move(primary_key)) {}
+      primary_key_(primary_key) {}
 
 EncryptedBackendFileOperationsFactory::
     ~EncryptedBackendFileOperationsFactory() = default;

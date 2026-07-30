@@ -345,7 +345,7 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Tab.AgeAtDeletion" units="ms" expires_after="2026-05-31">
+<histogram name="Tab.AgeAtDeletion" units="ms" expires_after="2026-08-02">
   <owner>ewannpv@chromium.org</owner>
   <owner>gambard@chromium.org</owner>
   <owner>bling-team@google.com</owner>
@@ -1023,7 +1023,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.SavedTabGroupOpenCount" units="groups"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1148,7 +1148,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Shared.GroupDeleted" enum="Boolean"
-    expires_after="2026-05-17">
+    expires_after="2026-08-15">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1183,7 +1183,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Shared.Manage.Desktop"
-    enum="SharedTabGroupManageTypeDesktop" expires_after="2026-04-05">
+    enum="SharedTabGroupManageTypeDesktop" expires_after="2026-08-15">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1194,7 +1194,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Shared.Recall.Desktop"
-    enum="SharedTabGroupRecallTypeDesktop" expires_after="2026-03-15">
+    enum="SharedTabGroupRecallTypeDesktop" expires_after="2026-08-15">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1205,7 +1205,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Shared.TabGroupAge2" units="minutes"
-    expires_after="2026-05-17">
+    expires_after="2026-08-15">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1220,7 +1220,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Shared.TotalTabGroupCount2" units="groups"
-    expires_after="2026-07-19">
+    expires_after="2026-08-15">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1235,7 +1235,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.Shared.TotalTabGroupTabCount2" units="tabs"
-    expires_after="2026-07-19">
+    expires_after="2026-08-15">
   <owner>dljames@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -1812,7 +1812,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="TabGroups.UserCustomizedGroupCountPerLoad" units="groups"
-    expires_after="2026-03-08">
+    expires_after="2026-08-01">
   <owner>dpenning@chromium.org</owner>
   <owner>top-chrome-desktop-ui@google.com</owner>
   <summary>
@@ -2334,20 +2334,6 @@ chromium-metrics-reviews@google.com.
   </summary>
 </histogram>
 
-<histogram name="Tabs.NewTabButton.AccidentalClicks" enum="AccidentalClickType"
-    expires_after="2026-01-31">
-  <owner>emshack@chromium.org</owner>
-  <owner>shibalik@chromium.org</owner>
-  <owner>top-chrome-desktop-ui@google.com</owner>
-  <summary>
-    Records the total number of new tab button clicks, and the number of
-    accidental clicks as measured by less than a second passing between clicking
-    the new tab button and clicking tab search. Percentage of accidental clicks
-    can be determined by accidental clicks / total clicks. This metric only logs
-    for clicks within the tab strip combo button.
-  </summary>
-</histogram>
-
 <histogram name="Tabs.NTPCountAtResume" units="tabs" expires_after="2026-08-24">
   <owner>thegreenfrog@chromium.org</owner>
   <owner>sugoi@chromium.org</owner>
@@ -2851,7 +2837,7 @@ chromium-metrics-reviews@google.com.
 </histogram>
 
 <histogram name="Tabs.Startup.TabCount.{TabType}" units="count"
-    expires_after="2026-05-31">
+    expires_after="2026-08-02">
   <owner>davidjm@chromium.org</owner>
   <owner>nyquist@chromium.org</owner>
   <summary>
@@ -3994,6 +3980,22 @@ chromium-metrics-reviews@google.com.
   <summary>
     The amount of time from cursor entering the tabstrip to first click on a tab
     to switch.
+
+    This will exclude some kinds of switching (hotkeys, between windows) where
+    it would be difficult to define a start time. Entering the tabstrip is an
+    approximation which will vary between users, but should still be useful for
+    A/B comparison.
+  </summary>
+</histogram>
+
+<histogram name="TabStrip.Vertical.TimeToSwitch" units="ms"
+    expires_after="2026-07-26">
+  <owner>agale@chromium.org</owner>
+  <owner>top-chrome-desktop-ui@google.com</owner>
+  <summary>
+    The amount of time from cursor entering the vertical tabstrip to first click
+    on a tab to switch. This is only logged when the user is in vertical
+    tabstrip mode.
 
     This will exclude some kinds of switching (hotkeys, between windows) where
     it would be difficult to define a start time. Entering the tabstrip is an

@@ -760,7 +760,8 @@ void StyleAdjuster::AdjustStyleForDisplay(
   }
 
   if (layout_parent_style.InlinifiesChildren() &&
-      !builder.HasOutOfFlowPosition() && ShouldBeInlinified(element)) {
+      !builder.HasOutOfFlowPosition() && ShouldBeInlinified(element) &&
+      !force_canvas_child_layout_subtree_styles) {
     if (builder.IsFloating()) {
       builder.SetFloating(EFloat::kNone);
       if (document) {
@@ -1087,7 +1088,7 @@ void StyleAdjuster::AdjustComputedStyle(StyleResolverState& state,
         !is_document_element && builder.Overlay() == EOverlay::kAuto;
   } else {
     is_in_top_layer =
-        !is_document_element && (element && element->IsInTopLayer());
+        !is_document_element && (element && element->IsRenderedInTopLayer());
   }
 
   if (builder.Display() != EDisplay::kNone) {
