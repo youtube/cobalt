@@ -18,13 +18,14 @@ import android.graphics.SurfaceTexture;
 import android.view.Surface;
 import androidx.annotation.GuardedBy;
 import org.jni_zero.CalledByNative;
+import org.jni_zero.CalledByNativeForTesting;
 import org.jni_zero.JNINamespace;
 import org.jni_zero.JniType;
 import org.jni_zero.NativeMethods;
 
 /**
- *  A wrapper of SurfaceTexture class.
- * VideoSurfaceTexture allows native code to receive OnFrameAvailable event.
+ * A wrapper of SurfaceTexture class. VideoSurfaceTexture allows native code to receive
+ * OnFrameAvailable event.
  */
 @JNINamespace("starboard")
 public class VideoSurfaceTexture extends SurfaceTexture {
@@ -72,6 +73,11 @@ public class VideoSurfaceTexture extends SurfaceTexture {
   @CalledByNative
   static Surface createSurface(VideoSurfaceTexture surfaceTexture) {
     return new Surface(surfaceTexture);
+  }
+
+  @CalledByNativeForTesting
+  static Surface createSurfaceForTesting() {
+    return new Surface(new SurfaceTexture(1));
   }
 
   @CalledByNative
