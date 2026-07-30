@@ -17,6 +17,7 @@
 
 #include <memory>
 
+#include "build/build_config.h"
 #include "util/thread/stoppable.h"
 #include "util/thread/worker_thread.h"
 
@@ -45,6 +46,11 @@ class PruneCrashReportThread : public WorkerThread::Delegate, public Stoppable {
   PruneCrashReportThread& operator=(const PruneCrashReportThread&) = delete;
 
   ~PruneCrashReportThread();
+
+#if BUILDFLAG(IS_COBALT)
+  //! \brief Instructs the thread to prune crash reports now.
+  void PruneNow();
+#endif  // BUILDFLAG(IS_COBALT)
 
   // Stoppable:
 

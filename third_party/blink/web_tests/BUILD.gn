@@ -203,4 +203,8 @@ group("expectations") {
       "flag-specific/",
     ]
   }
+
+  if (is_cobalt) {
+    data += [ "wpt_internal/cobalt/" ]
+  }
 }

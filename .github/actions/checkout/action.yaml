@@ -1,0 +1,100 @@
+name: Cached Checkout
+description: Generic git checkout with bare repository cache support.
+inputs:
+  repository:
+    description: The url of the repo to checkout. Defaults to Cobalt.
+    default: ${{ github.server_url }}/${{ github.repository }}
+  ref:
+    description: Git ref to checkout.
+    required: true
+  path:
+    description: Destination path.
+    required: true
+  fetch_depth:
+    description: Number of commits to fetch.
+    default: "1"
+  use_cache:
+    description: Whether to attempt using /runner-cache.
+    default: "true"
+  squash_merge:
+    description: Whether to squash merge pull requests onto base ref.
+    default: "false"
+
+runs:
+  using: "composite"
+  steps:
+    - name: Clone Repo
+      env:
+        REPO_URL: ${{ inputs.repository }}
+        DEST_PATH: ${{ inputs.path }}
+        FETCH_DEPTH: ${{ inputs.fetch_depth }}
+      shell: bash
+      run: |
+        set -ex
+
+        if [ ! -d "${DEST_PATH}/.git" ]; then
+          retry() {
+            for delay in 0 5 15 30; do
+              sleep "${delay}"
+              rm -rf "${DEST_PATH}"
+              "$@" && return
+            done
+            return 1
+          }
+
+          depth_arg=()
+          if [ "${FETCH_DEPTH}" -ne 0 ]; then
+            depth_arg+=(--depth "${FETCH_DEPTH}")
+          fi
+
+          retry git clone \
+            --filter=blob:none \
+            "${depth_arg[@]}" \
+            "${REPO_URL}" \
+            "${DEST_PATH}"
+        else
+          echo "Repository already exists at ${DEST_PATH}. Skipping clone."
+        fi
+
+        git config --global --add safe.directory "$(cd "${DEST_PATH}" && pwd)"
+
+    - name: Checkout Ref
+      env:
+        REF: ${{ inputs.ref }}
+        DEST_PATH: ${{ inputs.path }}
+        GITHUB_BASE_REF: ${{ github.base_ref }}
+        SQUASH_MERGE: ${{ inputs.squash_merge }}
+      shell: bash
+      run: |
+        set -ex
+
+        if [ "${SQUASH_MERGE}" = "true" ] && [ -n "${GITHUB_BASE_REF}" ]; then
+          retry() {
+            for delay in 0 5 15 30; do
+              sleep "${delay}"
+              "$@" && return
+            done
+            return 1
+          }
+
+          retry git -C "${DEST_PATH}" fetch --depth=500 origin "${GITHUB_BASE_REF}" "${REF}"
+          commit_date=$(git -C "${DEST_PATH}" log -1 --format="%cI" "${REF}")
+          author_name=$(git -C "${DEST_PATH}" log -1 --format="%an" "${REF}")
+          author_email=$(git -C "${DEST_PATH}" log -1 --format="%ae" "${REF}")
+          author_name="${author_name:-${COMMIT_AUTHOR_NAME:-github-actions[bot]}}"
+          author_email="${author_email:-${COMMIT_AUTHOR_EMAIL:-41898282+github-actions[bot]@users.noreply.github.com}}"
+
+          git -C "${DEST_PATH}" checkout "origin/${GITHUB_BASE_REF}"
+          git -C "${DEST_PATH}" \
+            -c "user.name=${author_name}" \
+            -c "user.email=${author_email}" \
+            merge --squash "${REF}"
+          git -C "${DEST_PATH}" \
+            -c "user.name=${author_name}" \
+            -c "user.email=${author_email}" \
+            commit --quiet --allow-empty \
+            --date="${commit_date}" \
+            --message "Squash merge ${REF} onto ${GITHUB_BASE_REF}"
+        else
+          git -C "${DEST_PATH}" checkout "${REF}"
+        fi

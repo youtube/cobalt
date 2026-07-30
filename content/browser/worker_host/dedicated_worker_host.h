@@ -169,8 +169,10 @@ class CONTENT_EXPORT DedicatedWorkerHost final
   void CreateDirectSocketsService(
       mojo::PendingReceiver<blink::mojom::DirectSocketsService> receiver);
 #endif
+#if !BUILDFLAG(IS_COBALT)
   void CreateWebUsbService(
       mojo::PendingReceiver<blink::mojom::WebUsbService> receiver);
+#endif
   void CreateWebSocketConnector(
       mojo::PendingReceiver<blink::mojom::WebSocketConnector> receiver);
   void CreateWebTransportConnector(
@@ -201,9 +203,11 @@ class CONTENT_EXPORT DedicatedWorkerHost final
       mojo::PendingReceiver<blink::mojom::WebPressureManager> receiver);
 #endif  // BUILDFLAG(ENABLE_COMPUTE_PRESSURE)
 
+#if !BUILDFLAG(IS_COBALT)
   void BindSerialService(
       mojo::PendingReceiver<blink::mojom::SerialService> receiver);
-#if !BUILDFLAG(IS_ANDROID)
+#endif
+#if !BUILDFLAG(IS_ANDROID) && !BUILDFLAG(IS_COBALT)
   void BindHidService(mojo::PendingReceiver<blink::mojom::HidService> receiver);
 #endif
 

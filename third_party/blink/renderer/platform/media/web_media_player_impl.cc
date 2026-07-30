@@ -113,6 +113,10 @@
 #include "ui/gfx/geometry/size.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+#include "media/starboard/starboard_renderer.h"
+#endif // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 #if BUILDFLAG(ENABLE_HLS_DEMUXER)
 #include "media/filters/hls_data_source_provider_impl.h"
 #endif  // BUILDFLAG(ENABLE_HLS_DEMUXER)
@@ -2700,6 +2704,13 @@ void WebMediaPlayerImpl::OnPageShown() {
   // Foreground videos don't require user gesture to continue playback.
   allow_background_video_playback_ = true;
 
+#if BUILDFLAG(IS_COBALT)
+  if (was_suspended_for_frame_closed_or_frozen_ && paused_ && HasVideo()) {
+    delegate_->ClearStaleFlag(delegate_id_);
+    SetSuspendState(false);
+  }
+#endif  // BUILDFLAG(IS_COBALT)
+
   was_suspended_for_frame_closed_or_frozen_ = false;
 
   if (watch_time_reporter_)
@@ -3051,6 +3062,14 @@ std::unique_ptr<media::Renderer> WebMediaPlayerImpl::CreateRenderer(
   if (old_renderer_type != renderer_type_ && watch_time_reporter_) {
     CreateWatchTimeReporter();
   }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+  LOG(INFO) << "Renderer Type is " << GetRendererName(renderer_type_) << ".";
+  if (renderer_type_ == media::RendererType::kStarboard) {
+    // StarboardRenderer always uses full screen with overlay video mode.
+    overlay_info_.is_fullscreen = true;
+  }
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
   return renderer_factory_selector_->GetCurrentFactory()->CreateRenderer(
       media_task_runner_, worker_task_runner_, audio_source_provider_.get(),
@@ -3864,7 +3883,16 @@ void WebMediaPlayerImpl::UpdateBackgroundVideoOptimizationState() {
     update_background_status_cb_.Cancel();
     is_background_status_change_cancelled_ = true;
     // There no visibility-related reason to pause the video.
+#if BUILDFLAG(IS_COBALT)
+    // Cobalt calls SuspendForFrameClosed() on conceal while the page is still
+    // hidden, which makes IsPageHidden() return false. Keep the pause reason
+    // so that OnPageShown() resumes a video paused when the page was hidden.
+    if (!was_suspended_for_frame_closed_or_frozen_) {
+      visibility_pause_reason_.reset();
+    }
+#else
     visibility_pause_reason_.reset();
+#endif  // BUILDFLAG(IS_COBALT)
 
     EnableVideoTrackIfNeeded();
   }

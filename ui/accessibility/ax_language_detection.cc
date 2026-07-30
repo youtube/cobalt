@@ -32,14 +32,18 @@ const int kMaxDetectedLanguagesPerPage = 3;
 // starting point.
 const int kMaxDetectedLanguagesPerSpan = 3;
 
+#if !BUILDFLAG(IS_COBALT)
 const int kShortTextIdentifierMinByteLength = 1;
 // TODO(crbug.com/41463459): Determine appropriate value for
 // |kShortTextIdentifierMaxByteLength|.
 const int kShortTextIdentifierMaxByteLength = 1000;
+#endif  // !BUILDFLAG(IS_COBALT)
 }  // namespace
 
+#if !BUILDFLAG(IS_COBALT)
 using Result = chrome_lang_id::NNetLanguageIdentifier::Result;
 using SpanInfo = chrome_lang_id::NNetLanguageIdentifier::SpanInfo;
+#endif  // !BUILDFLAG(IS_COBALT)
 
 AXLanguageInfo::AXLanguageInfo() = default;
 AXLanguageInfo::~AXLanguageInfo() = default;
@@ -206,7 +210,17 @@ void AXLanguageInfoStats::ClearMetrics() {
 }
 
 AXLanguageDetectionManager::AXLanguageDetectionManager(AXTree* tree)
+<<<<<<< HEAD
     : tree_(tree) {}
+=======
+#if !BUILDFLAG(IS_COBALT)
+    : short_text_language_identifier_(kShortTextIdentifierMinByteLength,
+                                      kShortTextIdentifierMaxByteLength),
+      tree_(tree) {}
+#else
+    : tree_(tree) {}
+#endif  // !BUILDFLAG(IS_COBALT)
+>>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 AXLanguageDetectionManager::~AXLanguageDetectionManager() = default;
 
@@ -297,6 +311,7 @@ void AXLanguageDetectionManager::DetectLanguagesForSubtree(
 // Will not descend into children.
 // Will not check feature flag.
 void AXLanguageDetectionManager::DetectLanguagesForNode(AXNode* node) {
+#if !BUILDFLAG(IS_COBALT)
   // Count this detection attempt.
   lang_info_stats_.RecordDetectionAttempt();
 
@@ -344,6 +359,9 @@ void AXLanguageDetectionManager::DetectLanguagesForNode(AXNode* node) {
     // Update statistics to take these results into account.
     lang_info_stats_.Add(lang_info->detected_languages);
   }
+#else
+  (void)node;
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 // Label languages for each node. This relies on DetectLanguages having already
@@ -433,6 +451,7 @@ std::vector<AXLanguageSpan>
 AXLanguageDetectionManager::GetLanguageAnnotationForStringAttribute(
     const AXNode& node,
     ax::mojom::StringAttribute attr) {
+#if !BUILDFLAG(IS_COBALT)
   std::vector<AXLanguageSpan> language_annotation;
   if (!node.HasStringAttribute(attr))
     return language_annotation;
@@ -480,6 +499,11 @@ AXLanguageDetectionManager::GetLanguageAnnotationForStringAttribute(
     }
   }
   return language_annotation;
+#else
+  (void)node;
+  (void)attr;
+  return std::vector<AXLanguageSpan>();
+#endif  // !BUILDFLAG(IS_COBALT)
 }
 
 AXLanguageDetectionObserver::AXLanguageDetectionObserver(AXTree* tree) {

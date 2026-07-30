@@ -14,6 +14,14 @@
 
 namespace features {
 
+#if BUILDFLAG(IS_COBALT)
+// When enabled, allows the compositor scheduler to send the next
+// BeginMainFrame before the previous commit has activated on the impl tree
+// (equivalent to --enable-main-frame-before-activation), pipelining main-thread
+// frame production with pending tree rasterization and activation.
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltMainFrameBeforeActivation);
+#endif  // BUILDFLAG(IS_COBALT)
+
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kComputeRasterTranslateForExternalScale);
 
 // When enabled, the scheduler will allow deferring impl invalidation frames
@@ -290,12 +298,23 @@ CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSelectionEdgeVisibilityUsesFullEdge);
 // resources.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kResourcePoolPreferExactSizeReuse);
 
+<<<<<<< HEAD
 // When enabled, instructs the scheduler to act as though a new BeginMainFrame
 // signal has just occurred. This optimization is specific to the last frame of
 // the document renderer during a cross-document view transition and should
 // not occur otherwise.
 CC_BASE_EXPORT BASE_DECLARE_FEATURE(kSendEarlyFinalBeginMainFrame);
 CC_BASE_EXPORT bool SendEarlyFinalBeginMainFrameIsEnabled();
+=======
+#if BUILDFLAG(IS_COBALT)
+// Enables periodic emission of tile texture memory metrics (Memory.GPU.TileMemory and Memory.GPU.TileMemory.Peak).
+CC_BASE_EXPORT BASE_DECLARE_FEATURE(kCobaltTileMemoryMetrics);
+
+// Interval between tile memory metric emissions (default: 1 minute).
+CC_BASE_EXPORT extern const base::FeatureParam<base::TimeDelta>
+    kCobaltTileMemoryMetricsInterval;
+#endif
+>>>>>>> parent of d044b617957 (CONFLICTED Chromium Cherry pick: Revert Cobalt.)
 
 }  // namespace features
 

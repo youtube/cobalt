@@ -24,6 +24,10 @@
 #include "services/network/test/test_url_loader_factory.h"
 #include "url/gurl.h"
 
+#if BUILDFLAG(IS_STARBOARD) && defined(IN_MEMORY_UPDATES)
+#include "components/update_client/unzipper.h"
+#endif
+
 class PrefService;
 
 namespace network {
@@ -116,6 +120,27 @@ class TestConfigurator : public Configurator {
 #endif
   bool IsConnectionMetered() const override;
 
+#if BUILDFLAG(IS_STARBOARD)
+  std::string GetBrand() const override { return ""; }
+  void SetChannel(const std::string& channel) override {}
+  std::string GetPreviousUpdaterStatus() const override { return ""; }
+  void SetPreviousUpdaterStatus(const std::string& status) override {}
+  std::string GetUpdaterStatus() const override { return ""; }
+  void SetUpdaterStatus(const std::string& status) override {}
+  void CompareAndSwapForcedUpdate(int old_value, int new_value) override {}
+  void SetMinFreeSpaceBytes(uint64_t bytes) override {}
+  uint64_t GetMinFreeSpaceBytes() override { return 0; }
+  bool GetUseCompressedUpdates() const override { return false; }
+  void SetUseCompressedUpdates(bool use_compressed_updates) override {}
+  bool GetAllowSelfSignedPackages() const override { return false; }
+  void SetAllowSelfSignedPackages(bool allow_self_signed_packages) override {}
+  std::string GetUpdateServerUrl() const override { return ""; }
+  void SetUpdateServerUrl(const std::string& update_server_url) override {}
+  bool GetRequireNetworkEncryption() const override { return false; }
+  void SetRequireNetworkEncryption(bool require_network_encryption) override {}
+  std::string GetAppGuid() const override { return ""; }
+#endif
+
   void SetOnDemandTime(base::TimeDelta seconds);
   void SetInitialDelay(base::TimeDelta seconds);
   void SetDownloadPreference(const std::string& download_preference);
@@ -150,8 +175,13 @@ class TestConfigurator : public Configurator {
   raw_ptr<TestActivityDataService> activity_data_service_;
   std::vector<GURL> update_check_urls_;
   GURL ping_url_;
+#if BUILDFLAG(IS_STARBOARD)
+  scoped_refptr<UnzipperFactory> unzip_factory_;
+  scoped_refptr<PatcherFactory> patch_factory_;
+#else
   scoped_refptr<update_client::UnzipChromiumFactory> unzip_factory_;
   scoped_refptr<update_client::PatchChromiumFactory> patch_factory_;
+#endif
   scoped_refptr<network::SharedURLLoaderFactory> test_shared_loader_factory_;
   network::TestURLLoaderFactory test_url_loader_factory_;
   scoped_refptr<NetworkFetcherFactory> network_fetcher_factory_;
@@ -163,6 +193,8 @@ class TestConfigurator : public Configurator {
   scoped_refptr<CrxCache> crx_cache_;
   std::string prod_id_ = "fake_prodid";
 };
+
+
 
 }  // namespace update_client
 
