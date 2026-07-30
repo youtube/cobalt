@@ -1,0 +1,31 @@
+{
+  "failing_tests": [
+    "SbAudioSinkTest.*",
+    "SbMediaCanPlayMimeAndKeySystem.MinimumSupport",
+    "SbPlayerTest.Audioless",
+    "SearchPosetMaximalElementsTests.*",
+    "MaximumPlayerConfigurationExplorerTests/*",
+    "SbMediaSetAudioWriteDurationTests/*",
+    "MultiplePlayerTest.*",
+    "MultiplePlayerTests/*",
+    "SbPlayerGetAudioConfigurationTests/*",
+    "SbPlayerGetMediaTimeTests/*",
+    "SbPlayerWriteSampleTests/*",
+    "SbDrmTest.*",
+    "SbDrmGetMetricsTest.*",
+    "SbDrmIsServerCertificateUpdatableTest.*",
+    "SbDrmSessionTest.*",
+    "SbDrmUpdateServerCertificateTest.*",
+    "SbSocketAddressTypes/*",
+    "PosixSocketHints/*",
+    "SbDirectoryCanOpenTest.*",
+    "SbDirectoryGetNextTest.*",
+    "SbDirectoryOpenTest.*",
+    "SbFileGetPathInfoTest.*",
+    "PosixDirectoryCanOpenTest.*",
+    "PosixDirectoryGetNextTest.*",
+    "PosixDirectoryOpenTest.*",
+    "PosixFileGetPathInfoTest.*",
+    "PixelTest.*"
+  ]
+}

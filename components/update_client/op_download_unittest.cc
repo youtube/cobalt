@@ -23,6 +23,9 @@
 #include "base/values.h"
 #include "components/prefs/testing_pref_service.h"
 #include "components/update_client/crx_downloader.h"
+#if BUILDFLAG(IS_STARBOARD)
+#include "components/update_client/pipeline.h"
+#endif
 #include "components/update_client/crx_downloader_factory.h"
 #include "components/update_client/persisted_data.h"
 #include "components/update_client/test_configurator.h"
@@ -45,6 +48,17 @@ class FakeDownloader : public CrxDownloader {
         result_(result),
         metrics_(metrics) {}
 
+#if defined(IN_MEMORY_UPDATES)
+  base::OnceClosure DoStartDownload(const GURL& url, std::string* dst) override {
+    if (result_.has_value()) {
+      *dst = result_.value();
+      OnDownloadComplete(true, {.installation_dir = dest_}, metrics_);
+    } else {
+      OnDownloadComplete(true, {.error = result_.error()}, metrics_);
+    }
+    return base::DoNothing();
+  }
+#else
   base::OnceClosure DoStartDownload(const GURL& url) override {
     if (result_.has_value()) {
       base::WriteFile(dest_, result_.value());
@@ -54,6 +68,11 @@ class FakeDownloader : public CrxDownloader {
     }
     return base::DoNothing();
   }
+#endif
+
+#if BUILDFLAG(IS_STARBOARD)
+  void DoCancelDownload() override {}
+#endif
 
  protected:
   ~FakeDownloader() override = default;
@@ -71,9 +90,14 @@ class FakeFactory : public CrxDownloaderFactory {
               const CrxDownloader::DownloadMetrics& metrics)
       : dest_(dest), result_(result), metrics_(metrics) {}
 
+#if BUILDFLAG(IS_STARBOARD)
+  scoped_refptr<CrxDownloader> MakeCrxDownloader(
+      scoped_refptr<Configurator> config) const override {
+#else
   scoped_refptr<CrxDownloader> MakeCrxDownloader(
       const std::string& prod_id,
       bool background_download_enabled) const override {
+#endif
     return base::MakeRefCounted<FakeDownloader>(dest_, result_, metrics_);
   }
 
@@ -115,6 +139,16 @@ class OpDownloadTest : public testing::Test {
         [&](base::Value::Dict ping) { pings_.push_back(std::move(ping)); });
   }
 
+#if BUILDFLAG(IS_STARBOARD)
+  base::OnceCallback<void(base::expected<OperationResult, CategorizedError>)>
+  MakeDoneCallback() {
+    return base::BindLambdaForTesting(
+        [&](base::expected<OperationResult, CategorizedError> outcome) {
+          outcome_ = outcome;
+          runloop_.Quit();
+        });
+  }
+#else
   base::OnceCallback<void(base::expected<base::FilePath, CategorizedError>)>
   MakeDoneCallback() {
     return base::BindLambdaForTesting(
@@ -123,6 +157,7 @@ class OpDownloadTest : public testing::Test {
           runloop_.Quit();
         });
   }
+#endif
 
   void Download(scoped_refptr<Configurator> config,
                 int64_t length,
@@ -133,6 +168,9 @@ class OpDownloadTest : public testing::Test {
                       }),
                       /*is_foreground=*/false, {GURL("http://localhost:111")},
                       length, hash, MakePingCallback(), base::DoNothing(),
+#if defined(IN_MEMORY_UPDATES)
+                      &crx_str_,
+#endif
                       MakeProgressCallback(), {}, MakeDoneCallback());
     runloop_.Run();
   }
@@ -144,7 +182,14 @@ class OpDownloadTest : public testing::Test {
   base::RunLoop runloop_;
 
   std::vector<base::Value::Dict> pings_;
+#if defined(IN_MEMORY_UPDATES)
+  std::string crx_str_;
+#endif
+#if BUILDFLAG(IS_STARBOARD)
+  base::expected<OperationResult, CategorizedError> outcome_;
+#else
   base::expected<base::FilePath, CategorizedError> outcome_;
+#endif
 };
 
 TEST_F(OpDownloadTest, DownloadSuccess) {

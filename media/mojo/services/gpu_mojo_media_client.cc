@@ -87,6 +87,40 @@ VideoDecoderTraits::VideoDecoderTraits(
       get_command_buffer_stub_cb(std::move(get_command_buffer_stub_cb)),
       oop_video_decoder(std::move(oop_video_decoder)) {}
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+StarboardRendererTraits::~StarboardRendererTraits() = default;
+StarboardRendererTraits::StarboardRendererTraits(
+    scoped_refptr<base::SequencedTaskRunner> task_runner,
+    scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
+    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    cobalt::media::VideoGeometrySetterService* video_geometry_setter_service,
+    const base::UnguessableToken& overlay_plane_id,
+    base::TimeDelta audio_write_duration_local,
+    base::TimeDelta audio_write_duration_remote,
+    const std::string& max_video_capabilities,
+    const StarboardRendererConfig::ExperimentalFeatures& experimental_features,
+    const gfx::Size& viewport_size,
+    mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote,
+    GetStarboardCommandBufferStubCB get_starboard_command_buffer_stub_cb)
+    : task_runner(std::move(task_runner)),
+      gpu_task_runner(std::move(gpu_task_runner)),
+      media_log_remote(std::move(media_log_remote)),
+      video_geometry_setter_service(video_geometry_setter_service),
+      overlay_plane_id(overlay_plane_id),
+      audio_write_duration_local(audio_write_duration_local),
+      audio_write_duration_remote(audio_write_duration_remote),
+      max_video_capabilities(max_video_capabilities),
+      experimental_features(experimental_features),
+      viewport_size(viewport_size),
+      renderer_extension_receiver(std::move(renderer_extension_receiver)),
+      client_extension_remote(std::move(client_extension_remote)),
+      get_starboard_command_buffer_stub_cb(
+          std::move(get_starboard_command_buffer_stub_cb)) {}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 GpuMojoMediaClientTraits::~GpuMojoMediaClientTraits() = default;
 GpuMojoMediaClientTraits::GpuMojoMediaClientTraits(
     const gpu::GpuPreferences& gpu_preferences,
@@ -95,14 +129,24 @@ GpuMojoMediaClientTraits::GpuMojoMediaClientTraits(
     const gpu::GPUInfo& gpu_info,
     scoped_refptr<base::SingleThreadTaskRunner> gpu_task_runner,
     AndroidOverlayMojoFactoryCB android_overlay_factory_cb,
-    base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager)
+    base::WeakPtr<MediaGpuChannelManager> media_gpu_channel_manager
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+    ,
+    cobalt::media::VideoGeometrySetterService* video_geometry_setter_service
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+    )
     : gpu_preferences(gpu_preferences),
       gpu_workarounds(gpu_workarounds),
       gpu_feature_info(gpu_feature_info),
       gpu_info(gpu_info),
       gpu_task_runner(std::move(gpu_task_runner)),
       android_overlay_factory_cb(std::move(android_overlay_factory_cb)),
-      media_gpu_channel_manager(std::move(media_gpu_channel_manager)) {}
+      media_gpu_channel_manager(std::move(media_gpu_channel_manager))
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      ,
+      video_geometry_setter_service(video_geometry_setter_service)
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      {}
 
 std::unique_ptr<GpuMojoMediaClient> GpuMojoMediaClient::Create(
     GpuMojoMediaClientTraits& traits) {
@@ -115,7 +159,11 @@ std::unique_ptr<GpuMojoMediaClient> GpuMojoMediaClient::Create(
 }
 
 GpuMojoMediaClient::GpuMojoMediaClient(GpuMojoMediaClientTraits& traits)
-    : gpu_preferences_(std::move(traits.gpu_preferences)),
+    :
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+      video_geometry_setter_service_(traits.video_geometry_setter_service),
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+      gpu_preferences_(std::move(traits.gpu_preferences)),
       gpu_workarounds_(std::move(traits.gpu_workarounds)),
       gpu_feature_info_(std::move(traits.gpu_feature_info)),
       gpu_info_(std::move(traits.gpu_info)),
@@ -242,6 +290,29 @@ std::unique_ptr<VideoDecoder> GpuMojoMediaClient::CreateVideoDecoder(
   return CreatePlatformVideoDecoder(traits);
 }
 
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::unique_ptr<Renderer> GpuMojoMediaClient::CreateStarboardRenderer(
+    mojom::FrameInterfaceFactory* /* frame_interfaces */,
+    scoped_refptr<base::SingleThreadTaskRunner> task_runner,
+    mojo::PendingRemote<mojom::MediaLog> media_log_remote,
+    const StarboardRendererConfig& config,
+    mojo::PendingReceiver<mojom::StarboardRendererExtension>
+        renderer_extension_receiver,
+    mojo::PendingRemote<mojom::StarboardRendererClientExtension>
+        client_extension_remote) {
+  StarboardRendererTraits traits(
+      task_runner, gpu_task_runner_, std::move(media_log_remote),
+      video_geometry_setter_service_, config.overlay_plane_id,
+      config.audio_write_duration_local, config.audio_write_duration_remote,
+      config.max_video_capabilities, config.experimental_features,
+      config.viewport_size, std::move(renderer_extension_receiver),
+      std::move(client_extension_remote),
+      base::BindRepeating(&GetCommandBufferStub, gpu_task_runner_,
+                          media_gpu_channel_manager_));
+  return CreatePlatformStarboardRenderer(std::move(traits));
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
+
 std::unique_ptr<CdmFactory> GpuMojoMediaClient::CreateCdmFactory(
     mojom::FrameInterfaceFactory* frame_interfaces) {
   return CreatePlatformCdmFactory(frame_interfaces);
@@ -259,6 +330,14 @@ std::unique_ptr<AudioEncoder> GpuMojoMediaClient::CreatePlatformAudioEncoder(
   NOTIMPLEMENTED();
   return nullptr;
 }
+
+#if BUILDFLAG(USE_STARBOARD_MEDIA)
+std::unique_ptr<Renderer> GpuMojoMediaClient::CreatePlatformStarboardRenderer(
+        StarboardRendererTraits traits) {
+  NOTIMPLEMENTED();
+  return nullptr;
+}
+#endif  // BUILDFLAG(USE_STARBOARD_MEDIA)
 
 std::unique_ptr<CdmFactory> GpuMojoMediaClient::CreatePlatformCdmFactory(
     mojom::FrameInterfaceFactory* frame_interfaces) {
